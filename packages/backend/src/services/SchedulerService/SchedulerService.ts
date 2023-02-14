@@ -134,7 +134,7 @@ export class SchedulerService {
         });
         await slackClient.joinChannels(
             user.organizationUuid,
-            scheduler.targets.map((target) => target.channel),
+            SchedulerModel.getSlackChannels(scheduler.targets),
         );
 
         await schedulerClient.generateDailyJobsForScheduler(scheduler);

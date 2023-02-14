@@ -1,8 +1,11 @@
 import {
+    isSlackTarget,
+    ScheduledEmailNotification,
     ScheduledJobs,
     ScheduledSlackNotification,
     Scheduler,
     SchedulerAndTargets,
+    SchedulerEmailTarget,
     SchedulerSlackTarget,
 } from '@lightdash/common';
 import { getSchedule, stringToArray } from 'cron-converter';
@@ -103,20 +106,34 @@ export class SchedulerClient {
     async addJob(
         date: Date,
         scheduler: Scheduler,
-        target: SchedulerSlackTarget,
+        target: SchedulerSlackTarget | SchedulerEmailTarget,
     ): Promise<void> {
         const graphileClient = await this.graphileUtils;
-        const slackNotification: ScheduledSlackNotification = {
-            schedulerUuid: scheduler.schedulerUuid,
-            channel: target.channel,
-            createdBy: scheduler.createdBy,
-            dashboardUuid: scheduler.dashboardUuid,
-            savedChartUuid: scheduler.savedChartUuid,
-            schedulerSlackTargetUuid: target.schedulerSlackTargetUuid,
-        };
+
+        const notification:
+            | ScheduledSlackNotification
+            | ScheduledEmailNotification = isSlackTarget(target)
+            ? {
+                  schedulerUuid: scheduler.schedulerUuid,
+                  channel: target.channel,
+                  createdBy: scheduler.createdBy,
+                  dashboardUuid: scheduler.dashboardUuid,
+                  savedChartUuid: scheduler.savedChartUuid,
+                  schedulerSlackTargetUuid: target.schedulerSlackTargetUuid,
+              }
+            : {
+                  schedulerUuid: scheduler.schedulerUuid,
+                  recipient: target.recipient,
+                  createdBy: scheduler.createdBy,
+                  dashboardUuid: scheduler.dashboardUuid,
+                  savedChartUuid: scheduler.savedChartUuid,
+                  schedulerEmailTargetUuid: target.schedulerEmailTargetUuid,
+              };
         const { id } = await graphileClient.addJob(
-            'sendSlackNotification',
-            slackNotification,
+            isSlackTarget(target)
+                ? 'sendSlackNotification'
+                : 'sendEmailNotification',
+            notification,
             {
                 runAt: date,
                 maxAttempts: 3,
@@ -128,7 +145,9 @@ export class SchedulerClient {
             properties: {
                 jobId: id,
                 schedulerId: scheduler.schedulerUuid,
-                schedulerTargetId: target.schedulerSlackTargetUuid,
+                schedulerTargetId: isSlackTarget(target)
+                    ? target.schedulerSlackTargetUuid
+                    : target.schedulerEmailTargetUuid,
             },
         });
     }

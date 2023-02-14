@@ -33,7 +33,7 @@ export type SchedulerSlackTarget = {
 };
 
 export type SchedulerEmailTarget = {
-    schedulerSlackTargetUuid: string;
+    schedulerEmailTargetUuid: string;
     createdAt: Date;
     updatedAt: Date;
     schedulerUuid: string;
@@ -80,6 +80,14 @@ export const isUpdateSchedulerSlackTarget = (
 export const isChartScheduler = (data: Scheduler): data is ChartScheduler =>
     'savedChartUuid' in data && !!data.savedChartUuid;
 
+export const isSlackTarget = (
+    target:
+        | CreateSchedulerTarget
+        | UpdateSchedulerSlackTarget
+        | SchedulerSlackTarget
+        | SchedulerEmailTarget,
+): target is SchedulerSlackTarget => 'channel' in target;
+
 export type ApiSchedulerAndTargetsResponse = {
     status: 'ok';
     results: SchedulerAndTargets;
@@ -102,3 +110,9 @@ export type ScheduledSlackNotification = Pick<
     'createdBy' | 'savedChartUuid' | 'dashboardUuid' | 'schedulerUuid'
 > &
     Pick<SchedulerSlackTarget, 'channel' | 'schedulerSlackTargetUuid'>;
+
+export type ScheduledEmailNotification = Pick<
+    SchedulerBase,
+    'createdBy' | 'savedChartUuid' | 'dashboardUuid' | 'schedulerUuid'
+> &
+    Pick<SchedulerEmailTarget, 'recipient' | 'schedulerEmailTargetUuid'>;

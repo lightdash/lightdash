@@ -7,6 +7,7 @@ import {
     CreateSchedulerAndTargetsWithoutIds,
     ForbiddenError,
     isChartScheduler,
+    isSlackTarget,
     SavedChart,
     SchedulerAndTargets,
     SessionUser,
@@ -457,28 +458,26 @@ export class SavedChartService {
                 resourceId: isChartScheduler(scheduler)
                     ? scheduler.savedChartUuid
                     : scheduler.dashboardUuid,
-                targets: scheduler.targets.map((target) => ({
-                    schedulerTargetId: target.schedulerSlackTargetUuid,
-                    type: 'slack',
-                })),
+                targets: scheduler.targets.map((target) =>
+                    isSlackTarget(target)
+                        ? {
+                              schedulerTargetId:
+                                  target.schedulerSlackTargetUuid,
+                              type: 'slack',
+                          }
+                        : {
+                              schedulerTargetId:
+                                  target.schedulerEmailTargetUuid,
+                              type: 'email',
+                          },
+                ),
             },
         });
 
-        const slackChannels = scheduler.targets.reduce<string[]>(
-            (acc, target) => {
-                if ('channel' in target) {
-                    return [...acc, target.channel];
-                }
-                return acc;
-            },
-            [],
+        await slackClient.joinChannels(
+            user.organizationUuid,
+            SchedulerModel.getSlackChannels(scheduler.targets),
         );
-
-        if (slackChannels.length > 0)
-            await slackClient.joinChannels(
-                user.organizationUuid,
-                slackChannels,
-            );
 
         await schedulerClient.generateDailyJobsForScheduler(scheduler);
 

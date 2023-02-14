@@ -1,15 +1,18 @@
 import {
     CreateSchedulerAndTargets,
+    isSlackTarget,
     isUpdateSchedulerSlackTarget,
     NotFoundError,
     Scheduler,
     SchedulerAndTargets,
+    SchedulerEmailTarget,
     SchedulerSlackTarget,
     UpdateSchedulerAndTargets,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     SchedulerDb,
+    SchedulerEmailTargetDb,
     SchedulerEmailTargetTableName,
     SchedulerSlackTargetDb,
     SchedulerSlackTargetTableName,
@@ -51,6 +54,29 @@ export class SchedulerModel {
             schedulerUuid: scheduler.scheduler_uuid,
             channel: scheduler.channel,
         };
+    }
+
+    static convertEmailTarget(
+        scheduler: SchedulerEmailTargetDb,
+    ): SchedulerEmailTarget {
+        return {
+            schedulerEmailTargetUuid: scheduler.scheduler_email_target_uuid,
+            createdAt: scheduler.created_at,
+            updatedAt: scheduler.updated_at,
+            schedulerUuid: scheduler.scheduler_uuid,
+            recipient: scheduler.recipient,
+        };
+    }
+
+    static getSlackChannels(
+        targets: (SchedulerSlackTarget | SchedulerEmailTarget)[],
+    ): string[] {
+        return targets.reduce<string[]>((acc, target) => {
+            if (isSlackTarget(target)) {
+                return [...acc, target.channel];
+            }
+            return acc;
+        }, []);
     }
 
     private async getSchedulersWithTargets(
@@ -119,16 +145,26 @@ export class SchedulerModel {
         if (!scheduler) {
             throw new NotFoundError('Scheduler not found');
         }
-        const targets = await this.database(SchedulerSlackTargetTableName)
+        const slackTargets = await this.database(SchedulerSlackTargetTableName)
             .select()
             .where(
                 `${SchedulerSlackTargetTableName}.scheduler_uuid`,
                 schedulerUuid,
             );
+        const emailTargets = await this.database(SchedulerEmailTargetTableName)
+            .select()
+            .where(
+                `${SchedulerEmailTargetTableName}.scheduler_uuid`,
+                schedulerUuid,
+            );
+        const targets = [
+            ...slackTargets.map(SchedulerModel.convertSlackTarget),
+            ...emailTargets.map(SchedulerModel.convertEmailTarget),
+        ];
 
         return {
             ...SchedulerModel.convertScheduler(scheduler),
-            targets: targets.map(SchedulerModel.convertSlackTarget),
+            targets,
         };
     }
 
@@ -208,21 +244,18 @@ export class SchedulerModel {
                             target.schedulerSlackTargetUuid,
                         )
                         .andWhere('scheduler_uuid', scheduler.schedulerUuid);
+                } else if (isSlackTarget(target)) {
+                    await trx(SchedulerSlackTargetTableName).insert({
+                        scheduler_uuid: scheduler.schedulerUuid,
+                        channel: target.channel,
+                        updated_at: new Date(),
+                    });
                 } else {
-                    const isSlack = 'channel' in target;
-                    if (isSlack) {
-                        await trx(SchedulerSlackTargetTableName).insert({
-                            scheduler_uuid: scheduler.schedulerUuid,
-                            channel: target.channel,
-                            updated_at: new Date(),
-                        });
-                    } else {
-                        await trx(SchedulerEmailTargetTableName).insert({
-                            scheduler_uuid: scheduler.schedulerUuid,
-                            recipient: target.recipient,
-                            updated_at: new Date(),
-                        });
-                    }
+                    await trx(SchedulerEmailTargetTableName).insert({
+                        scheduler_uuid: scheduler.schedulerUuid,
+                        recipient: target.recipient,
+                        updated_at: new Date(),
+                    });
                 }
             });
 
