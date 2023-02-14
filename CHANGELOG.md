@@ -1,3 +1,10 @@
+## [0.411.3](https://github.com/lightdash/lightdash/compare/0.411.2...0.411.3) (2023-02-14)
+
+
+### Bug Fixes
+
+* updating icons in explore view ([#4464](https://github.com/lightdash/lightdash/issues/4464)) ([6dcabdb](https://github.com/lightdash/lightdash/commit/6dcabdb23e6028c20cf115b34b2e1d3af3a3b2d9))
+
 ## [0.411.2](https://github.com/lightdash/lightdash/compare/0.411.1...0.411.2) (2023-02-14)
 
 
