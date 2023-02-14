@@ -5,6 +5,7 @@ import {
     analyticsModel,
     dashboardModel,
     emailModel,
+    groupsModel,
     inviteLinkModel,
     jobModel,
     onboardingModel,
@@ -30,6 +31,7 @@ import { AnalyticsService } from './AnalyticsService/AnalyticsService';
 import { CsvService } from './CsvService/CsvService';
 import { DashboardService } from './DashboardService/DashboardService';
 import { EncryptionService } from './EncryptionService/EncryptionService';
+import { GroupsService } from './GroupService';
 import { HealthService } from './HealthService/HealthService';
 import { OrganizationService } from './OrganizationService/OrganizationService';
 import { PersonalAccessTokenService } from './PersonalAccessTokenService';
@@ -67,6 +69,7 @@ export const organizationService = new OrganizationService({
     organizationMemberProfileModel,
     userModel,
     organizationAllowedEmailDomainsModel,
+    groupsModel,
 });
 
 export const projectService = new ProjectService({
@@ -171,4 +174,8 @@ export const validationService = new ValidationService({
     validationModel,
     dashboardModel,
     spaceModel,
+});
+
+export const groupService = new GroupsService({
+    groupsModel,
 });

@@ -11,6 +11,7 @@ import {
     unauthorisedInDemo,
 } from '../controllers/authentication';
 import {
+    groupService,
     organizationService,
     projectService,
     userService,
@@ -129,3 +130,15 @@ organizationRouter.post(
         }
     },
 );
+
+// organizationRouter.get('/groups', isAuthenticated, async (req, res, next) => {
+//     organizationService
+//         list.(req.user!)
+//         .then((results) => {
+//             res.json({
+//                 status: 'ok',
+//                 results,
+//             });
+//         })
+//         .catch(next);
+// }

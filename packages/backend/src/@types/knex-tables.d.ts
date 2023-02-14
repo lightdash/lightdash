@@ -116,6 +116,11 @@ import {
     DbAnalyticsChartViews,
     DbAnalyticsDashboardViews,
 } from '../database/entities/analytics';
+import { GroupTable, GroupTableName } from '../database/entities/groups';
+import {
+    GroupMembershipTable,
+    GroupMembershipTableName,
+} from '../database/entities/group_memberships';
 import {
     EmailOneTimePasscodesTableName,
     EmailOneTimePasscodeTable,
@@ -190,5 +195,7 @@ declare module 'knex/types/tables' {
         [SchedulerLogTableName]: SchedulerLogTable;
         [OrganizationAllowedEmailDomainsTableName]: OrganizationAllowedEmailDomainsTable;
         [ValidationTableName]: DbValidationTable;
+        [GroupTableName]: GroupTable;
+        [GroupMembershipTableName]: GroupMembershipTable;
     }
 }
