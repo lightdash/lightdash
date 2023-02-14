@@ -31,7 +31,7 @@ const PinnedItemsPanel: FC<Props> = ({ projectUuid }) => {
             enableSorting={false}
             defaultSort={{ updatedAt: SortDirection.DESC }}
             defaultColumnVisibility={{ space: false }}
-            showCount={true}
+            showCount={false}
             headerTitle="Pinned items"
         />
     ) : null;

@@ -1,6 +1,7 @@
-import { Classes, Collapse, Icon, Text } from '@blueprintjs/core';
+import { Classes, Collapse, Colors, Icon, Text } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import { AdditionalMetric, CompiledTable } from '@lightdash/common';
+import { IconTable } from '@tabler/icons-react';
 import { FC, useMemo } from 'react';
 import { useToggle } from 'react-use';
 import { RowIcon, SpanFlex, TableRow, TagCount } from './TableTree.styles';
@@ -28,8 +29,7 @@ const CollapsibleTableTree: FC<Props> = ({
     return (
         <>
             <TableRow depth={0} onClick={toggle}>
-                <RowIcon icon="th" size={16} />
-
+                <IconTable size={20} style={{ marginRight: '5px' }} />
                 <Tooltip2
                     lazy
                     content={table.description}

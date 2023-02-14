@@ -1,10 +1,19 @@
-import { Button, IconName, Menu } from '@blueprintjs/core';
+import { Button, Colors, Menu } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import {
     CartesianSeriesType,
     ChartType,
     isSeriesWithMixedChartTypes,
 } from '@lightdash/common';
+import {
+    IconChartArea,
+    IconChartAreaLine,
+    IconChartBar,
+    IconChartDots,
+    IconChartLine,
+    IconSquareNumber1,
+    IconTable,
+} from '@tabler/icons-react';
 import { FC, memo, useMemo, useState } from 'react';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
@@ -27,13 +36,18 @@ const VisualizationCardOptions: FC = memo(() => {
             cartesianConfig.dirtyEchartsConfig?.series,
         );
 
-    const selectedChartType = useMemo<{ text: string; icon: IconName }>(() => {
+    const selectedChartType = useMemo<{
+        text: string;
+        icon: JSX.Element;
+    }>(() => {
         switch (chartType) {
             case ChartType.CARTESIAN: {
                 if (!isChartTypeTheSameForAllSeries) {
                     return {
                         text: 'Mixed',
-                        icon: 'chart',
+                        icon: (
+                            <IconChartAreaLine size={20} color={Colors.GRAY1} />
+                        ),
                     };
                 }
                 switch (cartesianType) {
@@ -42,29 +56,49 @@ const VisualizationCardOptions: FC = memo(() => {
 
                         return {
                             text: 'Area chart',
-                            icon: 'timeline-area-chart',
+                            icon: (
+                                <IconChartArea size={20} color={Colors.GRAY1} />
+                            ),
                         };
                     case CartesianSeriesType.LINE:
                         setStacking(false);
                         return {
                             text: 'Line chart',
-                            icon: 'timeline-line-chart',
+                            icon: (
+                                <IconChartLine size={20} color={Colors.GRAY1} />
+                            ),
                         };
 
                     case CartesianSeriesType.BAR:
                         return cartesianFlipAxis
                             ? {
                                   text: 'Horizontal bar chart',
-                                  icon: 'horizontal-bar-chart',
+                                  icon: (
+                                      <IconChartBar
+                                          size={20}
+                                          style={{ rotate: '90deg' }}
+                                          color={Colors.GRAY1}
+                                      />
+                                  ),
                               }
                             : {
                                   text: 'Bar chart',
-                                  icon: 'timeline-bar-chart',
+                                  icon: (
+                                      <IconChartBar
+                                          size={20}
+                                          color={Colors.GRAY1}
+                                      />
+                                  ),
                               };
                     case CartesianSeriesType.SCATTER:
                         setStacking(false);
 
-                        return { text: 'Scatter chart', icon: 'scatter-plot' };
+                        return {
+                            text: 'Scatter chart',
+                            icon: (
+                                <IconChartDots size={20} color={Colors.GRAY1} />
+                            ),
+                        };
                     default:
                         const never: never = cartesianType;
                         throw new Error('Cartesian type not supported');
@@ -73,12 +107,12 @@ const VisualizationCardOptions: FC = memo(() => {
             case ChartType.TABLE:
                 return {
                     text: 'Table',
-                    icon: 'panel-table',
+                    icon: <IconTable size={20} color={Colors.GRAY1} />,
                 };
             case ChartType.BIG_NUMBER:
                 return {
                     text: 'Big value',
-                    icon: 'numerical',
+                    icon: <IconSquareNumber1 size={20} color={Colors.GRAY1} />,
                 };
             default: {
                 const never: never = chartType;
@@ -104,7 +138,7 @@ const VisualizationCardOptions: FC = memo(() => {
                             cartesianType === CartesianSeriesType.BAR &&
                             !cartesianFlipAxis
                         }
-                        icon="timeline-bar-chart"
+                        icon={<IconChartBar size={20} color={Colors.GRAY1} />}
                         onClick={() => {
                             setChartType(ChartType.CARTESIAN);
                             cartesianConfig.setType(
@@ -125,7 +159,13 @@ const VisualizationCardOptions: FC = memo(() => {
                             cartesianType === CartesianSeriesType.BAR &&
                             cartesianFlipAxis
                         }
-                        icon="horizontal-bar-chart"
+                        icon={
+                            <IconChartBar
+                                size={20}
+                                style={{ rotate: '90deg' }}
+                                color={Colors.GRAY1}
+                            />
+                        }
                         onClick={() => {
                             setChartType(ChartType.CARTESIAN);
                             cartesianConfig.setType(
@@ -145,7 +185,7 @@ const VisualizationCardOptions: FC = memo(() => {
                             chartType === ChartType.CARTESIAN &&
                             cartesianType === CartesianSeriesType.LINE
                         }
-                        icon="timeline-line-chart"
+                        icon={<IconChartLine size={20} color={Colors.GRAY1} />}
                         onClick={() => {
                             setChartType(ChartType.CARTESIAN);
                             cartesianConfig.setType(
@@ -165,7 +205,7 @@ const VisualizationCardOptions: FC = memo(() => {
                             chartType === ChartType.CARTESIAN &&
                             cartesianType === CartesianSeriesType.AREA
                         }
-                        icon="timeline-area-chart"
+                        icon={<IconChartArea size={20} color={Colors.GRAY1} />}
                         onClick={() => {
                             setChartType(ChartType.CARTESIAN);
                             cartesianConfig.setType(
@@ -185,7 +225,7 @@ const VisualizationCardOptions: FC = memo(() => {
                             chartType === ChartType.CARTESIAN &&
                             cartesianType === CartesianSeriesType.SCATTER
                         }
-                        icon="scatter-plot"
+                        icon={<IconChartDots size={20} color={Colors.GRAY1} />}
                         onClick={() => {
                             setChartType(ChartType.CARTESIAN);
                             cartesianConfig.setType(
@@ -201,7 +241,7 @@ const VisualizationCardOptions: FC = memo(() => {
 
                     <MenuItem2
                         active={chartType === ChartType.TABLE}
-                        icon="panel-table"
+                        icon={<IconTable size={20} color={Colors.GRAY1} />}
                         onClick={() => {
                             setChartType(ChartType.TABLE);
                             setPivotDimensions(undefined);
@@ -213,7 +253,9 @@ const VisualizationCardOptions: FC = memo(() => {
 
                     <MenuItem2
                         active={chartType === ChartType.BIG_NUMBER}
-                        icon="numerical"
+                        icon={
+                            <IconSquareNumber1 size={20} color={Colors.GRAY1} />
+                        }
                         onClick={() => {
                             setChartType(ChartType.BIG_NUMBER);
                             setPivotDimensions(undefined);
