@@ -5,7 +5,7 @@ import {
     Field,
     formatItemValue,
     getItemId,
-    getItemLabel,
+    getItemLabelWithoutTableName,
     getSeriesId,
     isSeriesWithMixedChartTypes,
     Series,
@@ -168,7 +168,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                     icon="drag-handle-vertical"
                     {...dragHandleProps}
                 />
-                {getItemLabel(item)} (grouped)
+                {getItemLabelWithoutTableName(item)} (grouped)
             </SeriesTitle>
             <GroupSeriesInputs>
                 <SeriesExtraInputWrapper label="Chart type">
@@ -373,7 +373,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                                                         .yField
                                                                         .length >
                                                                         1
-                                                                        ? `[${pivotLabel}] ${getItemLabel(
+                                                                        ? `[${pivotLabel}] ${getItemLabelWithoutTableName(
                                                                               item,
                                                                           )}`
                                                                         : pivotLabel

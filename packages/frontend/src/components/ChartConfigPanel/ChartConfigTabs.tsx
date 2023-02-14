@@ -12,7 +12,7 @@ import {
     getAxisName,
     getDimensions,
     getItemId,
-    getItemLabel,
+    getItemLabelWithoutTableName,
     getMetrics,
     isField,
     isNumericItem,
@@ -212,7 +212,10 @@ const ChartConfigTabs: FC = () => {
                                     placeholder="Enter axis label"
                                     defaultValue={
                                         dirtyEchartsConfig?.xAxis?.[0]?.name ||
-                                        (xAxisField && getItemLabel(xAxisField))
+                                        (xAxisField &&
+                                            getItemLabelWithoutTableName(
+                                                xAxisField,
+                                            ))
                                     }
                                     onBlur={(e) =>
                                         setXAxisName(e.currentTarget.value)
