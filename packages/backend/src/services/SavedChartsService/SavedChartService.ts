@@ -464,10 +464,21 @@ export class SavedChartService {
             },
         });
 
-        await slackClient.joinChannels(
-            user.organizationUuid,
-            scheduler.targets.map((target) => target.channel),
+        const slackChannels = scheduler.targets.reduce<string[]>(
+            (acc, target) => {
+                if ('channel' in target) {
+                    return [...acc, target.channel];
+                }
+                return acc;
+            },
+            [],
         );
+
+        if (slackChannels.length > 0)
+            await slackClient.joinChannels(
+                user.organizationUuid,
+                slackChannels,
+            );
 
         await schedulerClient.generateDailyJobsForScheduler(scheduler);
 

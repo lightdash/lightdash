@@ -10,6 +10,7 @@ import {
 import { Knex } from 'knex';
 import {
     SchedulerDb,
+    SchedulerEmailTargetTableName,
     SchedulerSlackTargetDb,
     SchedulerSlackTargetTableName,
     SchedulerTable,
@@ -145,13 +146,21 @@ export class SchedulerModel {
                     updated_at: new Date(),
                 })
                 .returning('*');
-            const targetPromises = newScheduler.targets.map(async (target) =>
-                trx(SchedulerSlackTargetTableName).insert({
+            const targetPromises = newScheduler.targets.map(async (target) => {
+                const isSlack = 'channel' in target;
+                if (isSlack) {
+                    return trx(SchedulerSlackTargetTableName).insert({
+                        scheduler_uuid: scheduler.scheduler_uuid,
+                        channel: target.channel,
+                        updated_at: new Date(),
+                    });
+                }
+                return trx(SchedulerEmailTargetTableName).insert({
                     scheduler_uuid: scheduler.scheduler_uuid,
-                    channel: target.channel,
+                    recipient: target.recipient,
                     updated_at: new Date(),
-                }),
-            );
+                });
+            });
 
             await Promise.all(targetPromises);
             return scheduler.scheduler_uuid;
@@ -200,11 +209,20 @@ export class SchedulerModel {
                         )
                         .andWhere('scheduler_uuid', scheduler.schedulerUuid);
                 } else {
-                    await trx(SchedulerSlackTargetTableName).insert({
-                        scheduler_uuid: scheduler.schedulerUuid,
-                        channel: target.channel,
-                        updated_at: new Date(),
-                    });
+                    const isSlack = 'channel' in target;
+                    if (isSlack) {
+                        await trx(SchedulerSlackTargetTableName).insert({
+                            scheduler_uuid: scheduler.schedulerUuid,
+                            channel: target.channel,
+                            updated_at: new Date(),
+                        });
+                    } else {
+                        await trx(SchedulerEmailTargetTableName).insert({
+                            scheduler_uuid: scheduler.schedulerUuid,
+                            recipient: target.recipient,
+                            updated_at: new Date(),
+                        });
+                    }
                 }
             });
 

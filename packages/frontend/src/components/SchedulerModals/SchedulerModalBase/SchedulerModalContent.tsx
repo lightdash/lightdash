@@ -70,7 +70,7 @@ const CreateStateContent: FC<{
     const methods = useForm<CreateSchedulerAndTargetsWithoutIds>({
         mode: 'onSubmit',
         defaultValues: {
-            targets: [{ channel: '' }],
+            targets: [],
         },
     });
     useEffect(() => {
