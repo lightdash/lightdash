@@ -53,7 +53,6 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                 </LargeMenuItemIconWrapper>
                             }
                             href={`/projects/${projectUuid}/tables`}
-                            // onClick={() => setIsOpen(false)}
                             text={
                                 <>
                                     <LargeMenuItemText>
