@@ -8,6 +8,7 @@ import { useGetSlack } from '../../../hooks/useSlack';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
 import { ArrayInput } from '../../ReactHookForm/ArrayInput';
 import AutoComplete from '../../ReactHookForm/AutoComplete';
+import CronInput from '../../ReactHookForm/CronInput';
 import Form from '../../ReactHookForm/Form';
 import Input from '../../ReactHookForm/Input';
 import { hasRequiredScopes } from '../../UserSettings/SlackSettingsPanel';
@@ -107,12 +108,9 @@ const SchedulerForm: FC<
                     required: 'Required field',
                 }}
             />
-            <Input
-                label="Cron expression (UTC)"
+            <CronInput
                 name="cron"
-                placeholder="0 9 * * 1"
                 defaultValue="0 9 * * 1"
-                helperText={cronHelperText}
                 disabled={disabled}
                 rules={{
                     required: 'Required field',
