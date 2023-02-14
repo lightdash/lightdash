@@ -7,19 +7,14 @@ import {
     PopoverPosition,
 } from '@blueprintjs/core';
 import { Classes, Popover2 } from '@blueprintjs/popover2';
-import {
-    ChartType,
-    getResultValues,
-    NotFoundError,
-    ResultRow,
-} from '@lightdash/common';
+import { ChartType, NotFoundError } from '@lightdash/common';
 import EChartsReact from 'echarts-for-react';
 import JsPDF from 'jspdf';
-import React, { memo, RefObject, useCallback, useRef, useState } from 'react';
+import React, { memo, RefObject, useCallback, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import useEcharts from '../hooks/echarts/useEcharts';
 import { downloadCsv } from '../hooks/useDownloadCsv';
-import DownloadCsvButton from './DownloadCsvButton';
+import DownloadCsvPopup from './DownloadCsvPopup';
 import { useVisualizationContext } from './LightdashVisualization/VisualizationProvider';
 
 const FILE_NAME = 'lightdash_chart';
@@ -108,14 +103,10 @@ function downloadPdf(base64: string, width: number, height: number) {
 type DownloadOptions = {
     chartRef: RefObject<EChartsReact>;
     chartType: ChartType;
-    getCsvLink: () => Promise<string>;
-    disabled: boolean;
 };
 export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
     chartRef,
     chartType,
-    getCsvLink,
-    disabled,
 }) => {
     const [type, setType] = useState<DownloadType>(DownloadType.JPEG);
     const isTable = chartType === ChartType.TABLE;
@@ -174,26 +165,19 @@ export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
             <Divider />
 
             <FormGroup label="File format" labelFor="download-type" inline>
-                {isTable ? (
-                    <DownloadCsvButton
-                        disabled={disabled}
-                        getCsvLink={getCsvLink}
-                    />
-                ) : (
-                    <HTMLSelect
-                        id="download-type"
-                        value={type}
-                        onChange={(e) =>
-                            setType(e.currentTarget.value as DownloadType)
-                        }
-                        options={Object.values(DownloadType).map(
-                            (downloadType) => ({
-                                value: downloadType,
-                                label: downloadType,
-                            }),
-                        )}
-                    />
-                )}
+                <HTMLSelect
+                    id="download-type"
+                    value={type}
+                    onChange={(e) =>
+                        setType(e.currentTarget.value as DownloadType)
+                    }
+                    options={Object.values(DownloadType).map(
+                        (downloadType) => ({
+                            value: downloadType,
+                            label: downloadType,
+                        }),
+                    )}
+                />
             </FormGroup>
             <Divider />
             {!isTable && (
@@ -226,29 +210,29 @@ export const ChartDownloadMenu: React.FC = memo(() => {
         chartType === ChartType.BIG_NUMBER ||
         (chartType === ChartType.CARTESIAN && !eChartsOptions);
 
-    const getCsvLink = async () => {
+    const getCsvLink = async (csvLimit: number | null, onlyRaw: boolean) => {
         if (explore?.name && resultsData?.metricQuery) {
             const csvResponse = await downloadCsv({
                 projectUuid,
                 tableId: explore?.name,
                 query: resultsData?.metricQuery,
-                csvLimit: rows.length,
-                onlyRaw: false,
+                csvLimit,
+                onlyRaw,
             });
             return csvResponse.url;
         }
         throw new NotFoundError('no metric query defined');
     };
 
-    return (
+    return chartType === ChartType.TABLE ? (
+        <DownloadCsvPopup getCsvLink={getCsvLink} rows={rows} />
+    ) : (
         <Popover2
             lazy
             content={
                 <ChartDownloadOptions
                     chartRef={chartRef}
                     chartType={chartType}
-                    getCsvLink={getCsvLink}
-                    disabled={disabled}
                 />
             }
             popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
