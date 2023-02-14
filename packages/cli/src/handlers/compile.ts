@@ -22,7 +22,7 @@ import { validateDbtModel } from '../dbt/validation';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { dbtCompile, DbtCompileOptions } from './dbt/compile';
-import { getDbtVersion } from './dbt/getDbtVersion';
+import { getDbtVersion, isSupportedDbtVersion } from './dbt/getDbtVersion';
 
 type GenerateHandlerOptions = DbtCompileOptions & {
     projectDir: string;
@@ -42,10 +42,10 @@ export const compile = async (options: GenerateHandlerOptions) => {
     const dbtVersion = await getDbtVersion();
     GlobalState.debug(`> dbt version ${dbtVersion}`);
 
-    if (!dbtVersion.includes('1.3.')) {
+    if (!isSupportedDbtVersion(dbtVersion)) {
         if (process.env.CI === 'true') {
             console.error(
-                `Your dbt version ${dbtVersion} does not match our supported version (1.3.0), this could cause problems on compile or validation.`,
+                `Your dbt version ${dbtVersion} does not match our supported versions (1.3.0 - 1.4.1), this could cause problems on compile or validation.`,
             );
         } else {
             const answers = await inquirer.prompt([
@@ -53,7 +53,7 @@ export const compile = async (options: GenerateHandlerOptions) => {
                     type: 'confirm',
                     name: 'isConfirm',
                     message: `${styles.warning(
-                        `Your dbt version ${dbtVersion} does not match our supported version (1.3.0), this could cause problems on compile or validation.`,
+                        `Your dbt version ${dbtVersion} does not match our supported version (1.3.0 - 1.4.1), this could cause problems on compile or validation.`,
                     )}\nDo you still want to continue?`,
                 },
             ]);
