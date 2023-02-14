@@ -70,7 +70,7 @@ describe('Explore', () => {
         // cy.findByText('Save changes').parent().should('not.be.disabled');
         cy.findByText('Save changes').parent().click();
 
-        cy.findByText('Success! Chart was saved.');
+        cy.findByText('Success! Chart was updated.');
     });
 
     it('Should change chart config type', () => {
@@ -259,12 +259,12 @@ describe('Explore', () => {
                     cy.findByTestId('visualization')
                         .find('th')
                         .eq(1)
-                        .contains('Customers First name')
+                        .contains('First name')
                         .should('exist');
 
                     // open configuration and flip Show table names in the config
                     cy.get('button').contains('Configure').click();
-                    cy.findByPlaceholderText('Customers First name')
+                    cy.findByPlaceholderText('First name')
                         .focus()
                         .type('Overridden header')
                         .blur();
