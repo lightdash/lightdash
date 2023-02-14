@@ -1,8 +1,12 @@
-import { ScheduledSlackNotification } from '@lightdash/common';
+import {
+    ScheduledEmailNotification,
+    ScheduledSlackNotification,
+} from '@lightdash/common';
 import { nanoid } from 'nanoid';
 import { analytics } from '../analytics/client';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
-import { slackClient } from '../clients/clients';
+import { emailClient, slackClient } from '../clients/clients';
+import EmailClient from '../clients/EmailClient/EmailClient';
 import { unfurlChartAndDashboard } from '../clients/Slack/SlackUnfurl';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logger';
@@ -117,6 +121,60 @@ export const sendSlackNotification = async (
                 jobId,
                 schedulerId: schedulerUuid,
                 schedulerTargetId: schedulerSlackTargetUuid,
+            },
+        });
+        throw e; // Cascade error to it can be retried by graphile
+    }
+};
+
+export const sendEmailNotification = async (
+    jobId: string,
+    notification: ScheduledEmailNotification,
+) => {
+    const {
+        schedulerUuid,
+        schedulerEmailTargetUuid,
+        createdBy: userUuid,
+        savedChartUuid,
+        dashboardUuid,
+        recipient,
+    } = notification;
+    analytics.track({
+        event: 'scheduler_job.started',
+        anonymousId: LightdashAnalytics.anonymousId,
+        properties: {
+            jobId,
+            schedulerId: schedulerUuid,
+            schedulerTargetId: schedulerEmailTargetUuid,
+        },
+    });
+    try {
+        emailClient.sendNotificationEmail(
+            recipient,
+            'Lightdash Notification',
+            'Lightdash Notification',
+        );
+
+        analytics.track({
+            event: 'scheduler_job.completed',
+            anonymousId: LightdashAnalytics.anonymousId,
+            properties: {
+                jobId,
+                schedulerId: schedulerUuid,
+                schedulerTargetId: schedulerEmailTargetUuid,
+            },
+        });
+    } catch (e) {
+        Logger.error(
+            `Unable to sendNotification on slack : ${JSON.stringify(e)}`,
+        );
+        analytics.track({
+            event: 'scheduler_job.failed',
+            anonymousId: LightdashAnalytics.anonymousId,
+            properties: {
+                jobId,
+                schedulerId: schedulerUuid,
+                schedulerTargetId: schedulerEmailTargetUuid,
             },
         });
         throw e; // Cascade error to it can be retried by graphile

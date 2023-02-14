@@ -86,20 +86,28 @@ export class SchedulerModel {
         >,
     ): Promise<SchedulerAndTargets[]> {
         const schedulers = await schedulersQueryBuilder;
-        const targets = await this.database(SchedulerSlackTargetTableName)
+        const slackTargets = await this.database(SchedulerSlackTargetTableName)
             .select()
             .whereIn(
                 `${SchedulerSlackTargetTableName}.scheduler_uuid`,
                 schedulers.map((s) => s.scheduler_uuid),
             );
+        const emailTargets = await this.database(SchedulerEmailTargetTableName)
+            .select()
+            .whereIn(
+                `${SchedulerEmailTargetTableName}.scheduler_uuid`,
+                schedulers.map((s) => s.scheduler_uuid),
+            );
+        const targets = [
+            ...slackTargets.map(SchedulerModel.convertSlackTarget),
+            ...emailTargets.map(SchedulerModel.convertEmailTarget),
+        ];
+
         return schedulers.map((scheduler) => ({
             ...SchedulerModel.convertScheduler(scheduler),
-            targets: targets
-                .filter(
-                    (target) =>
-                        target.scheduler_uuid === scheduler.scheduler_uuid,
-                )
-                .map(SchedulerModel.convertSlackTarget),
+            targets: targets.filter(
+                (target) => target.schedulerUuid === scheduler.scheduler_uuid,
+            ),
         }));
     }
 
@@ -232,6 +240,15 @@ export class SchedulerModel {
                     targetsToUpdate,
                 );
 
+            await trx(SchedulerEmailTargetTableName)
+                .delete()
+                .where('scheduler_uuid', scheduler.schedulerUuid)
+                .andWhere(
+                    'scheduler_email_target_uuid',
+                    'not in',
+                    targetsToUpdate,
+                );
+
             const targetPromises = scheduler.targets.map(async (target) => {
                 if (isUpdateSchedulerSlackTarget(target)) {
                     await trx(SchedulerSlackTargetTableName)
@@ -244,7 +261,7 @@ export class SchedulerModel {
                             target.schedulerSlackTargetUuid,
                         )
                         .andWhere('scheduler_uuid', scheduler.schedulerUuid);
-                } else if (isSlackTarget(target)) {
+                } else if ('channel' in target) {
                     await trx(SchedulerSlackTargetTableName).insert({
                         scheduler_uuid: scheduler.schedulerUuid,
                         channel: target.channel,
@@ -270,6 +287,9 @@ export class SchedulerModel {
                 .delete()
                 .where('scheduler_uuid', schedulerUuid);
             await trx(SchedulerSlackTargetTableName)
+                .delete()
+                .where('scheduler_uuid', schedulerUuid);
+            await trx(SchedulerEmailTargetTableName)
                 .delete()
                 .where('scheduler_uuid', schedulerUuid);
         });

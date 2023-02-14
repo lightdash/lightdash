@@ -64,8 +64,8 @@ const SchedulerForm: FC<
                 disabled={disabled}
                 renderRow={(key, index, remove) => {
                     const isSlack =
-                        methods.formState.dirtyFields?.targets?.[index]
-                            ?.channel !== undefined;
+                        methods.getValues()?.targets?.[index]?.channel !==
+                        undefined;
 
                     if (isSlack) {
                         return (

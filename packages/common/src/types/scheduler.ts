@@ -81,11 +81,7 @@ export const isChartScheduler = (data: Scheduler): data is ChartScheduler =>
     'savedChartUuid' in data && !!data.savedChartUuid;
 
 export const isSlackTarget = (
-    target:
-        | CreateSchedulerTarget
-        | UpdateSchedulerSlackTarget
-        | SchedulerSlackTarget
-        | SchedulerEmailTarget,
+    target: SchedulerSlackTarget | SchedulerEmailTarget,
 ): target is SchedulerSlackTarget => 'channel' in target;
 
 export type ApiSchedulerAndTargetsResponse = {
