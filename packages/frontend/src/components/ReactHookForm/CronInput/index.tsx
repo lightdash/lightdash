@@ -8,12 +8,13 @@ import {
 } from 'react-hook-form';
 import { InputWrapperProps } from '../InputWrapper';
 import {
+    Frequency,
     getFrequencyCronExpression,
     mapCronExpressionToFrequency,
 } from './cronInputUtils';
 import CustomInputs from './CustomInputs';
 import DailyInputs from './DailyInputs';
-import FrequencySelect, { Frequency } from './FrequencySelect';
+import FrequencySelect from './FrequencySelect';
 import HourlyInputs from './HourlyInputs';
 import MonthlyInputs from './MonthlyInputs';
 import WeeklyInputs from './WeeklyInputs';

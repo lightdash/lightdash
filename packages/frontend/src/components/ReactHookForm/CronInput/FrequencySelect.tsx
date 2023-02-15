@@ -2,14 +2,7 @@ import { Button } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import { ItemRenderer, Select2 as BlueprintSelect2 } from '@blueprintjs/select';
 import React, { FC, useCallback } from 'react';
-
-export enum Frequency {
-    HOURLY = 'HOURLY',
-    DAILY = 'DAILY',
-    WEEKLY = 'WEEKLY',
-    MONTHLY = 'MONTHLY',
-    CUSTOM = 'CUSTOM',
-}
+import { Frequency } from './cronInputUtils';
 
 type FrequencyItem = {
     value: Frequency;

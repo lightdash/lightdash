@@ -1,6 +1,12 @@
 import { stringToArray } from 'cron-converter';
-import { Frequency } from './FrequencySelect';
 
+export enum Frequency {
+    HOURLY = 'HOURLY',
+    DAILY = 'DAILY',
+    WEEKLY = 'WEEKLY',
+    MONTHLY = 'MONTHLY',
+    CUSTOM = 'CUSTOM',
+}
 const hasAllHours = (count: number) => count === 24;
 const hasAllDays = (count: number) => count === 31;
 const hasAllMonths = (count: number) => count === 12;
