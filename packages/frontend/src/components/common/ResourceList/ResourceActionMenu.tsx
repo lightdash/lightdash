@@ -71,23 +71,23 @@ const ResourceListActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
                     />
 
                     {item.type === ResourceListType.CHART ||
-                        (item.type === ResourceListType.DASHBOARD && (
-                            <MenuItem2
-                                role="menuitem"
-                                icon="duplicate"
-                                text="Duplicate"
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
+                    item.type === ResourceListType.DASHBOARD ? (
+                        <MenuItem2
+                            role="menuitem"
+                            icon="duplicate"
+                            text="Duplicate"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
 
-                                    setIsOpen(false);
-                                    onAction({
-                                        type: ResourceListAction.DUPLICATE,
-                                        item,
-                                    });
-                                }}
-                            />
-                        ))}
+                                setIsOpen(false);
+                                onAction({
+                                    type: ResourceListAction.DUPLICATE,
+                                    item,
+                                });
+                            }}
+                        />
+                    ) : null}
 
                     {user.data?.ability.can(
                         'update',
