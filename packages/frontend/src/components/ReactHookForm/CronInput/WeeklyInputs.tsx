@@ -16,8 +16,8 @@ const WeeklyInputs: FC<{
 }> = ({ disabled, cronExpression, onChange }) => {
     const { minutes, hours, weekDay } = parseCronExpression(cronExpression);
 
-    const onDayChange = (weekday: number) => {
-        onChange([minutes, hours, '*', '*', `${weekday}`].join(' '));
+    const onDayChange = (newWeekday: number) => {
+        onChange(getWeeklyCronExpression(minutes, hours, newWeekday));
     };
 
     const onTimeChange = (date: Date) => {

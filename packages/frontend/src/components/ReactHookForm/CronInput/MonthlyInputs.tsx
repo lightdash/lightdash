@@ -16,9 +16,9 @@ const MonthlyInputs: FC<{
 }> = ({ disabled, cronExpression, onChange }) => {
     const { minutes, hours, day } = parseCronExpression(cronExpression);
 
-    const onDayChange = (value: number) => {
-        if (value >= 1 && value <= 31) {
-            onChange([minutes, hours, `${value}`, '*', `*`].join(' '));
+    const onDayChange = (newDay: number) => {
+        if (newDay >= 1 && newDay <= 31) {
+            onChange(getMonthlyCronExpression(minutes, hours, newDay));
         }
     };
 
