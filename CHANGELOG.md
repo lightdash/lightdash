@@ -1,3 +1,10 @@
+# [0.415.0](https://github.com/lightdash/lightdash/compare/0.414.0...0.415.0) (2023-02-15)
+
+
+### Features
+
+* updates to spaces page ([#4478](https://github.com/lightdash/lightdash/issues/4478)) ([aee6b80](https://github.com/lightdash/lightdash/commit/aee6b805d52dabff740e8d1543d26941291b7e19))
+
 # [0.414.0](https://github.com/lightdash/lightdash/compare/0.413.1...0.414.0) (2023-02-15)
 
 
