@@ -444,7 +444,7 @@ export class SpaceModel {
             projectUuid,
             dashboards: [],
             access: [],
-            pinnedListUuid: undefined,
+            pinnedListUuid: null,
         };
     }
 

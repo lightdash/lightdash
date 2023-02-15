@@ -95,7 +95,7 @@ export type Dashboard = {
     spaceUuid: string;
     spaceName: string;
     views: number;
-    pinnedListUuid: string | undefined;
+    pinnedListUuid: string | null;
 };
 
 export type DashboardBasicDetails = Pick<

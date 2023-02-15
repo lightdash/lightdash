@@ -123,7 +123,7 @@ export const getSpaceWithQueries = async (
                 user_uuid: string;
                 first_name: string;
                 last_name: string;
-                pinned_list_uuid: string | undefined;
+                pinned_list_uuid: string | null;
                 chart_config: ChartConfig['config'];
                 chart_type: ChartType;
                 views: string;
