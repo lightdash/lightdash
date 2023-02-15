@@ -22,19 +22,10 @@ const PinnedItemsPanel: FC<Props> = ({ projectUuid, organizationUuid }) => {
     const { data: savedCharts = [] } = useSavedCharts(projectUuid);
     const { user } = useApp();
 
-    const headerTitle = user.data?.ability.can(
+    const userCanUpdateProject = user.data?.ability.can(
         'update',
         subject('Project', { organizationUuid, projectUuid }),
-    )
-        ? 'Pinned items'
-        : 'Pinned for you';
-
-    const headerIconTooltipContent = user.data?.ability.can(
-        'update',
-        subject('Project', { organizationUuid, projectUuid }),
-    )
-        ? 'Pin Spaces, Dashboards and Charts to the top of the homepage to guide your business users to the right content.'
-        : 'Your data team have pinned these items to help guide you towards the most relevant content!';
+    );
 
     const pinnedItems = useMemo(() => {
         return [
@@ -52,7 +43,9 @@ const PinnedItemsPanel: FC<Props> = ({ projectUuid, organizationUuid }) => {
             defaultSort={{ updatedAt: SortDirection.DESC }}
             defaultColumnVisibility={{ space: false }}
             showCount={false}
-            headerTitle={headerTitle}
+            headerTitle={
+                userCanUpdateProject ? 'Pinned items' : 'Pinned for you'
+            }
             headerIcon={
                 <IconInfoCircle
                     color={Colors.GRAY5}
@@ -62,7 +55,11 @@ const PinnedItemsPanel: FC<Props> = ({ projectUuid, organizationUuid }) => {
                     }}
                 />
             }
-            headerIconTooltipContent={headerIconTooltipContent}
+            headerIconTooltipContent={
+                userCanUpdateProject
+                    ? 'Pin Spaces, Dashboards and Charts to the top of the homepage to guide your business users to the right content.'
+                    : 'Your data team have pinned these items to help guide you towards the most relevant content!'
+            }
         />
     ) : null;
 };
