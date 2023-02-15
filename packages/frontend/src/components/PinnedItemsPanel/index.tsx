@@ -36,8 +36,6 @@ const PinnedItemsPanel: FC<Props> = ({ projectUuid, organizationUuid }) => {
         });
     }, [dashboards, savedCharts]);
 
-    throw new Error('Completely unexpected and appears in Sentry');
-
     return pinnedItems.length > 0 ? (
         <ResourceList
             items={pinnedItems}
