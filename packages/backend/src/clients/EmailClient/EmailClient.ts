@@ -174,7 +174,9 @@ export default class EmailClient {
         recipient: string,
         subject: string,
         title: string,
+        description: string,
         imageUrl: string,
+        url: string,
     ) {
         return this.sendEmail({
             to: recipient,
@@ -183,6 +185,8 @@ export default class EmailClient {
             context: {
                 title,
                 imageUrl,
+                description,
+                url,
                 host: this.lightdashConfig.siteUrl,
             },
             text: title,

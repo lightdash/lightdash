@@ -171,7 +171,9 @@ export const sendEmailNotification = async (
             recipient,
             schedulerName,
             details.name,
+            details.description || '',
             imageUrl,
+            url,
         );
 
         analytics.track({
