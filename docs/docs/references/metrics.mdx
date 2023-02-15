@@ -588,6 +588,26 @@ These filters do not appear in the `Filters` tab in the Explore view, instead, t
 | is less than                | Number of orders is less than 4                | `num_orders: '< 4'`   |
 | is less than or equal to    | Number of orders is less than or equal to 4    | `num_orders: '<= 4'`  |
 
+
+:::info
+
+To use special characters such as `%!_>` in your filter value you must escape them with a backslash `\`. For example,
+if you wanted to filter for users with subscription status `is_subscribed` you should write the metric like:
+
+
+```yaml
+columns:
+  - name: user_id
+    meta:
+      metrics:
+        total_subscribed_users:
+          type: count_distinct
+          filters:
+            - subscription_status: is\_subscribed
+```
+
+:::
+
 ### If you have many filters in your list, they will be joined using `AND`.
 
 For example:

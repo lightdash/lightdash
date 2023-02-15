@@ -26,6 +26,14 @@ describe('attachTypesToModels', () => {
         });
     });
 
+    it('should compile grammar with escaped underscore', async () => {
+        expect(parser.parse('katie\\_')).toEqual({
+            is: true,
+            type: 'equals',
+            values: ['katie_'],
+        });
+    });
+
     it('Not equals grammar', async () => {
         expect(parser.parse('!pedram')).toEqual({
             is: false,
@@ -41,6 +49,7 @@ describe('attachTypesToModels', () => {
             values: ['katie'],
         });
     });
+
     it('Not contains grammar', async () => {
         expect(parser.parse('!%katie%')).toEqual({
             is: false,
