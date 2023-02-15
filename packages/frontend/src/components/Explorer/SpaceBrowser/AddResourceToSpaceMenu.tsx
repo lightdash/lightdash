@@ -1,10 +1,10 @@
 import { Menu } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import React from 'react';
-import { ResourceListType } from '../../common/ResourceList/ResourceTypeUtils';
+import { AddToSpaceResources } from './AddResourceToSpaceModal';
 
 interface AddResourceToSpaceMenuProps {
-    resourceType: ResourceListType;
+    resourceType: AddToSpaceResources;
     onAdd: () => void;
     onCreate: () => void;
 }

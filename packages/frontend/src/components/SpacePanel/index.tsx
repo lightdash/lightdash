@@ -168,7 +168,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                                         >
                                             <AddResourceToSpaceMenu
                                                 resourceType={
-                                                    ResourceListType.DASHBOARD
+                                                    AddToSpaceResources.DASHBOARD
                                                 }
                                                 onAdd={() =>
                                                     setAddToSpace(
@@ -192,7 +192,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                                         >
                                             <AddResourceToSpaceMenu
                                                 resourceType={
-                                                    ResourceListType.CHART
+                                                    AddToSpaceResources.CHART
                                                 }
                                                 onAdd={() =>
                                                     setAddToSpace(
