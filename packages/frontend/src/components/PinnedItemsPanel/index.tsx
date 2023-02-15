@@ -1,6 +1,10 @@
-import { FC, ReactNode, useMemo } from 'react';
+import { Colors } from '@blueprintjs/core';
+import { subject } from '@casl/ability';
+import { IconInfoCircle } from '@tabler/icons-react';
+import { FC, useMemo } from 'react';
 import { useDashboards } from '../../hooks/dashboard/useDashboards';
 import { useSavedCharts } from '../../hooks/useSpaces';
+import { useApp } from '../../providers/AppProvider';
 import ResourceList from '../common/ResourceList';
 import { SortDirection } from '../common/ResourceList/ResourceTable';
 import {
@@ -10,11 +14,27 @@ import {
 
 interface Props {
     projectUuid: string;
+    organizationUuid: string;
 }
 
-const PinnedItemsPanel: FC<Props> = ({ projectUuid }) => {
+const PinnedItemsPanel: FC<Props> = ({ projectUuid, organizationUuid }) => {
     const { data: dashboards = [] } = useDashboards(projectUuid);
     const { data: savedCharts = [] } = useSavedCharts(projectUuid);
+    const { user } = useApp();
+
+    const headerTitle = user.data?.ability.can(
+        'update',
+        subject('Project', { organizationUuid, projectUuid }),
+    )
+        ? 'Pinned items'
+        : 'Pinned for you';
+
+    const headerIconTooltipContent = user.data?.ability.can(
+        'update',
+        subject('Project', { organizationUuid, projectUuid }),
+    )
+        ? 'Pin Spaces, Dashboards and Charts to the top of the homepage to guide your business users to the right content.'
+        : 'Your data team have pinned these items to help guide you towards the most relevant content!';
 
     const pinnedItems = useMemo(() => {
         return [
@@ -32,7 +52,17 @@ const PinnedItemsPanel: FC<Props> = ({ projectUuid }) => {
             defaultSort={{ updatedAt: SortDirection.DESC }}
             defaultColumnVisibility={{ space: false }}
             showCount={false}
-            headerTitle="Pinned items"
+            headerTitle={headerTitle}
+            headerIcon={
+                <IconInfoCircle
+                    color={Colors.GRAY5}
+                    size={17}
+                    style={{
+                        marginTop: '7px',
+                    }}
+                />
+            }
+            headerIconTooltipContent={headerIconTooltipContent}
         />
     ) : null;
 };

@@ -17,7 +17,7 @@ export const ResourceListHeader = styled.div`
     align-items: center;
     width: 100%;
     padding: 12px ${paddingX}px;
-    gap: 10px;
+    gap: 6px;
     border-bottom: 1px solid ${Colors.LIGHT_GRAY2};
 `;
 

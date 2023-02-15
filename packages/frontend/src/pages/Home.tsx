@@ -69,6 +69,7 @@ const Home: FC = () => {
                         />
                         <PinnedItemsPanel
                             projectUuid={project.data.projectUuid}
+                            organizationUuid={project.data.organizationUuid}
                         />
                         <SpaceBrowser projectUuid={project.data.projectUuid} />
 

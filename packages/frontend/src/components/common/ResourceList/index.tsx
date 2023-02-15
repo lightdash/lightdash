@@ -12,6 +12,8 @@ import { ResourceListItem } from './ResourceTypeUtils';
 
 export interface ResourceListCommonProps {
     headerTitle?: string;
+    headerIcon?: JSX.Element;
+    headerIconTooltipContent?: string;
     headerAction?: React.ReactNode;
     items: ResourceListItem[];
     showCount?: boolean;
@@ -25,6 +27,8 @@ type ResourceListProps = ResourceListCommonProps &
 const ResourceList: React.FC<ResourceListProps> = ({
     items,
     headerTitle,
+    headerIcon,
+    headerIconTooltipContent,
     headerAction,
     enableSorting,
     enableMultiSort,
@@ -45,6 +49,8 @@ const ResourceList: React.FC<ResourceListProps> = ({
         <>
             <ResourceListWrapper
                 headerTitle={headerTitle}
+                headerIcon={headerIcon}
+                headerIconTooltipContent={headerIconTooltipContent}
                 headerAction={headerAction}
                 resourceCount={items.length}
                 showCount={showCount}
