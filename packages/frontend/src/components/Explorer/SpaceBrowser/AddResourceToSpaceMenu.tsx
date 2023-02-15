@@ -20,13 +20,13 @@ const AddResourceToSpaceMenu: React.FC<AddResourceToSpaceMenuProps> = ({
                 icon="plus"
                 text={`Add existing ${resourceType}`}
                 onClick={onAdd}
-                style={{ margin: '-3px' }}
+                style={{ margin: '-5px', marginBottom: '0px' }}
             />
             <MenuItem2
                 icon="clean"
                 text={`Create new ${resourceType}`}
                 onClick={onCreate}
-                style={{ margin: '-3px' }}
+                style={{ margin: '-5px', marginTop: '0px' }}
             />
         </Menu>
     );
