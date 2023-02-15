@@ -245,7 +245,11 @@ projectRouter.post(
                 metricQuery.tableCalculations,
             );
             // Ignore fields from results that are not selected in metrics or dimensions
-            const selectedFieldIds = [...body.metrics, ...body.dimensions];
+            const selectedFieldIds = [
+                ...body.metrics,
+                ...body.dimensions,
+                ...body.tableCalculations.map((tc: any) => tc.name),
+            ];
             const csvHeader = Object.keys(results.rows[0])
                 .filter((id) => selectedFieldIds.includes(id))
                 .map((id) => getItemLabel(itemMap[id]));
