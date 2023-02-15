@@ -43,7 +43,7 @@ export const useFieldValues = (
     const [selectedFieldName, setSelectedFieldName] = useState<string | null>();
     const [debouncedSearch, setDebouncedSearch] = useState<string>(search);
     const [searches, setSearches] = useState(new Set<string>());
-    const [results, setResults] = useState(new Set(...initialData));
+    const [results, setResults] = useState(new Set([...initialData]));
     const [resultCounts, setResultCounts] = useState<Map<string, number>>(
         new Map(),
     );
@@ -118,7 +118,7 @@ export const useFieldValues = (
         if (field.name !== selectedFieldName) {
             setSelectedFieldName(field.name);
             setSearches(new Set<string>());
-            setResults(new Set(...initialData));
+            setResults(new Set([...initialData]));
             setResultCounts(new Map());
         }
     }, [field.name, initialData, selectedFieldName]);
