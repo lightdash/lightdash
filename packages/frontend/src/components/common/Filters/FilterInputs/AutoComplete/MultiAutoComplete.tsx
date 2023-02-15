@@ -50,6 +50,7 @@ const MultiAutoComplete: FC<Props> = ({
         projectUuid,
         field,
         true,
+        { refetchOnMount: 'always' },
     );
 
     const results = useMemo(() => [...resultsSet], [resultsSet]);
