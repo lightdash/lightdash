@@ -1,5 +1,4 @@
 import { FormGroup } from '@blueprintjs/core';
-import { ErrorMessage } from '@hookform/error-message';
 import React, { FC, useCallback, useState } from 'react';
 import {
     Controller,
@@ -23,7 +22,7 @@ const CronInternalInputs: FC<
     {
         disabled: boolean | undefined;
     } & ControllerRenderProps<FieldValues, string>
-> = ({ value, disabled, onChange }) => {
+> = ({ value, disabled, onChange, name }) => {
     const [frequency, setFrequency] = useState<Frequency>(
         mapCronExpressionToFrequency(value),
     );
@@ -58,7 +57,11 @@ const CronInternalInputs: FC<
                 <MonthlyInputs cronExpression={value} onChange={onChange} />
             )}
             {frequency === Frequency.CUSTOM && (
-                <CustomInputs cronExpression={value} onChange={onChange} />
+                <CustomInputs
+                    name={name}
+                    cronExpression={value}
+                    onChange={onChange}
+                />
             )}
         </div>
     );
@@ -67,24 +70,17 @@ const CronInternalInputs: FC<
 export const CronInput: FC<
     Pick<InputWrapperProps, 'disabled' | 'rules' | 'name' | 'defaultValue'>
 > = ({ name, rules, defaultValue, disabled }) => {
-    const {
-        control,
-        formState: { errors },
-    } = useFormContext();
-    // TODO: show error
+    const { control } = useFormContext();
     return (
-        <div>
-            <Controller
-                control={control}
-                name={name}
-                rules={rules}
-                defaultValue={defaultValue}
-                render={({ field }) => (
-                    <CronInternalInputs disabled={disabled} {...field} />
-                )}
-            />
-            <ErrorMessage errors={errors} name={name} as="p" />
-        </div>
+        <Controller
+            control={control}
+            name={name}
+            rules={rules}
+            defaultValue={defaultValue}
+            render={({ field }) => (
+                <CronInternalInputs disabled={disabled} {...field} />
+            )}
+        />
     );
 };
 
