@@ -64,8 +64,10 @@ export class PinnedListModel {
                 saved_chart_uuid: item.savedChartUuid,
             });
         } else if (isCreateSpacePinnedItem(item)) {
-            // TODO:...
-            throw new NotFoundError('Space pinning not implemented yet');
+            await this.database(PinnedSpaceTableName).insert({
+                pinned_list_uuid: results.pinnedListUuid,
+                space_uuid: item.spaceUuid,
+            });
         } else {
             await this.database(PinnedDashboardTableName).insert({
                 pinned_list_uuid: results.pinnedListUuid,
@@ -81,8 +83,10 @@ export class PinnedListModel {
                 .where('saved_chart_uuid', item.savedChartUuid)
                 .andWhere('pinned_list_uuid', item.pinnedListUuid);
         } else if (isDeleteSpacePinnedItem(item)) {
-            // TODO:...
-            throw new NotFoundError('Space pinning not implemented yet');
+            await this.database(PinnedSpaceTableName)
+                .delete()
+                .where('space_uuid', item.spaceUuid)
+                .andWhere('pinned_list_uuid', item.pinnedListUuid);
         } else {
             await this.database(PinnedDashboardTableName)
                 .delete()
