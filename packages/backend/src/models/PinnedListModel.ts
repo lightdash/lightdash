@@ -12,14 +12,18 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
-    DbPinnedChart,
-    DbPinnedDashboard,
+    DbPinnedItem,
     DbPinnedList,
     PinnedChartTableName,
     PinnedDashboardTableName,
     PinnedListTableName,
+    PinnedSpaceTableName,
 } from '../database/entities/pinnedList';
-import { isDbPinnedChart } from '../utils';
+import {
+    isDbPinnedChart,
+    isDbPinnedDashboard,
+    isDbPinnedSpace,
+} from '../utils';
 
 type PinnedListModelDependencies = {
     database: Knex;
@@ -94,18 +98,17 @@ export class PinnedListModel {
         };
     }
 
-    static convertPinnedItem(
-        data: DbPinnedChart | DbPinnedDashboard,
-    ): PinnedItem {
+    static convertPinnedItem(data: DbPinnedItem): PinnedItem {
         return {
             pinnedListUuid: data.pinned_list_uuid,
             pinnedItemUuid: data.pinned_item_uuid,
             savedChartUuid: isDbPinnedChart(data)
                 ? data.saved_chart_uuid
                 : undefined,
-            dashboardUuid: isDbPinnedChart(data)
-                ? undefined
-                : data.dashboard_uuid,
+            dashboardUuid: isDbPinnedDashboard(data)
+                ? data.dashboard_uuid
+                : undefined,
+            spaceUuid: isDbPinnedSpace(data) ? data.space_uuid : undefined,
             createdAt: data.created_at,
         };
     }
@@ -120,7 +123,6 @@ export class PinnedListModel {
             throw new NotFoundError('No pinned list found');
         }
 
-        const pinnedListUuid = [list][0].pinned_list_uuid;
         const pinnedCharts = await this.database(PinnedChartTableName)
             .select(
                 'pinned_list_uuid',
@@ -128,7 +130,7 @@ export class PinnedListModel {
                 'saved_chart_uuid',
                 'created_at',
             )
-            .where('pinned_list_uuid', pinnedListUuid);
+            .where('pinned_list_uuid', list.pinned_list_uuid);
         const pinnedDashboards = await this.database(PinnedDashboardTableName)
             .select(
                 'pinned_list_uuid',
@@ -136,12 +138,22 @@ export class PinnedListModel {
                 'dashboard_uuid',
                 'created_at',
             )
-            .where('pinned_list_uuid', pinnedListUuid);
+            .where('pinned_list_uuid', list.pinned_list_uuid);
+        const pinnedSpaces = await this.database(PinnedSpaceTableName)
+            .select(
+                'pinned_list_uuid',
+                'pinned_item_uuid',
+                'space_uuid',
+                'created_at',
+            )
+            .where('pinned_list_uuid', list.pinned_list_uuid);
 
         const pinnedList = PinnedListModel.convertPinnedList(list);
-        const pinnedItems = [...pinnedCharts, ...pinnedDashboards].map(
-            PinnedListModel.convertPinnedItem,
-        );
+        const pinnedItems = [
+            ...pinnedCharts,
+            ...pinnedDashboards,
+            ...pinnedSpaces,
+        ].map(PinnedListModel.convertPinnedItem);
 
         return { ...pinnedList, items: pinnedItems };
     }

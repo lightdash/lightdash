@@ -8,6 +8,7 @@ export type PinnedItem = {
     pinnedListUuid: string;
     savedChartUuid?: string;
     dashboardUuid?: string;
+    spaceUuid?: string;
     createdAt: Date;
 };
 

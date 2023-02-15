@@ -23,6 +23,14 @@ export type DbPinnedDashboard = {
     dashboard_uuid: string;
     created_at: Date;
 };
+export type DBPinnedSpace = {
+    pinned_item_uuid: string;
+    pinned_list_uuid: string;
+    space_uuid: string;
+    created_at: Date;
+};
+
+export type DbPinnedItem = DbPinnedChart | DbPinnedDashboard | DBPinnedSpace;
 
 export type CreatePinnedChart = Omit<
     DbPinnedChart,
@@ -30,6 +38,10 @@ export type CreatePinnedChart = Omit<
 >;
 export type CreatePinnedDashboard = Omit<
     DbPinnedDashboard,
+    'pinned_item_uuid' | 'created_at'
+>;
+export type CreatePinnedSpace = Omit<
+    DBPinnedSpace,
     'pinned_item_uuid' | 'created_at'
 >;
 
@@ -44,4 +56,8 @@ export type PinnedChartTable = Knex.CompositeTableType<
 export type PinnedDashboardTable = Knex.CompositeTableType<
     DbPinnedDashboard,
     CreatePinnedDashboard
+>;
+export type PinnedSpaceTable = Knex.CompositeTableType<
+    DBPinnedSpace,
+    CreatePinnedSpace
 >;
