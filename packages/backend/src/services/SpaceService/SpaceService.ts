@@ -240,4 +240,48 @@ export class SpaceService {
 
         await this.spaceModel.removeSpaceAccess(spaceUuid, shareWithUserUuid);
     }
+
+    async togglePinning(user: SessionUser, spaceUuid: string): Promise<Space> {
+        const existingSpace = await this.spaceModel.get(spaceUuid);
+        const { projectUuid, organizationUuid, pinnedListUuid } = existingSpace;
+
+        if (
+            user.ability.cannot(
+                'update',
+                subject('Space', { projectUuid, organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (pinnedListUuid) {
+            await this.pinnedListModel.deleteItem({
+                pinnedListUuid,
+                spaceUuid,
+            });
+        } else {
+            await this.pinnedListModel.addItem({
+                projectUuid,
+                spaceUuid,
+            });
+        }
+
+        const pinnedList = await this.pinnedListModel.getPinnedListAndItems(
+            existingSpace.projectUuid,
+        );
+
+        analytics.track({
+            event: 'pinned_list.updated',
+            userId: user.userUuid,
+            properties: {
+                projectId: existingSpace.projectUuid,
+                organizationId: existingSpace.organizationUuid,
+                location: 'homepage',
+                pinnedListId: pinnedList.pinnedListUuid,
+                pinnedItems: pinnedList.items,
+            },
+        });
+
+        return this.getSpace(projectUuid, user, spaceUuid);
+    }
 }
