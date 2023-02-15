@@ -1,5 +1,4 @@
-import { Colors, Icon, IconName, Menu, Text } from '@blueprintjs/core';
-import { MenuItem2 } from '@blueprintjs/popover2';
+import { Colors, Icon, IconName, Text } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import styled from 'styled-components';
 import LinkButton from '../../common/LinkButton';
@@ -65,10 +64,3 @@ export const SpaceItemCount: FC<{ icon: IconName; value: number }> = ({
         </CountWrapper>
     );
 };
-
-export const AddResourceToSpaceMenuContainer = styled(Menu)`
-    .bp4-menu {
-        maxwidth: 100px;
-        background-color: red;
-    }
-`;
