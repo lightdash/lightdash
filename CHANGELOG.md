@@ -1,3 +1,10 @@
+# [0.413.0](https://github.com/lightdash/lightdash/compare/0.412.0...0.413.0) (2023-02-15)
+
+
+### Features
+
+* tooltip on refresh dbt button added ([#4477](https://github.com/lightdash/lightdash/issues/4477)) ([809e263](https://github.com/lightdash/lightdash/commit/809e263140424b958af185179dd477e578cd2ed0))
+
 # [0.412.0](https://github.com/lightdash/lightdash/compare/0.411.3...0.412.0) (2023-02-15)
 
 
