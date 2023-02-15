@@ -1,12 +1,57 @@
 import { stringToArray } from 'cron-converter';
 import { Frequency } from './FrequencySelect';
 
+const hasAllHours = (count: number) => count === 24;
+const hasAllDays = (count: number) => count === 31;
+const hasAllMonths = (count: number) => count === 12;
+const hasAllWeekDays = (count: number) => count === 7;
+
 export const mapCronExpressionToFrequency = (value: string): Frequency => {
     try {
         const arr = stringToArray(value);
-    } catch {}
-    // TODO: implement
-    return Frequency.CUSTOM;
+        const minutesCount = arr[0].length;
+        const hoursCount = arr[1].length;
+        const daysCount = arr[2].length;
+        const monthsCount = arr[3].length;
+        const weekDaysCount = arr[4].length;
+        if (
+            minutesCount === 1 &&
+            hasAllHours(hoursCount) &&
+            hasAllDays(daysCount) &&
+            hasAllMonths(monthsCount) &&
+            hasAllWeekDays(weekDaysCount)
+        ) {
+            return Frequency.HOURLY;
+        } else if (
+            minutesCount === 1 &&
+            hoursCount === 1 &&
+            hasAllDays(daysCount) &&
+            hasAllMonths(monthsCount) &&
+            hasAllWeekDays(weekDaysCount)
+        ) {
+            return Frequency.DAILY;
+        } else if (
+            minutesCount === 1 &&
+            hoursCount === 1 &&
+            hasAllDays(daysCount) &&
+            hasAllMonths(monthsCount) &&
+            weekDaysCount === 1
+        ) {
+            return Frequency.WEEKLY;
+        } else if (
+            minutesCount === 1 &&
+            hoursCount === 1 &&
+            daysCount === 1 &&
+            hasAllMonths(monthsCount) &&
+            hasAllWeekDays(weekDaysCount)
+        ) {
+            return Frequency.MONTHLY;
+        } else {
+            return Frequency.CUSTOM;
+        }
+    } catch {
+        return Frequency.CUSTOM;
+    }
 };
 
 type CronDetails = {
@@ -49,23 +94,23 @@ export const getHourlyCronExpression = (minutes: number): string => {
 };
 
 export const getDailyCronExpression = (
-    hours: number,
     minutes: number,
+    hours: number,
 ): string => {
     return [minutes, hours, '*', '*', '*'].join(' ');
 };
 
 export const getWeeklyCronExpression = (
-    hours: number,
     minutes: number,
+    hours: number,
     weekDay: number,
 ): string => {
     return [minutes, hours, '*', '*', weekDay].join(' ');
 };
 
 export const getMonthlyCronExpression = (
-    hours: number,
     minutes: number,
+    hours: number,
     day: number,
 ): string => {
     return [minutes, hours, day, '*', '*'].join(' ');
