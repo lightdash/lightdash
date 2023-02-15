@@ -226,11 +226,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
                 ),
                 enableSorting,
                 sortingFn: (a: ResourceListItem) => {
-                    return a.type === ResourceListType.DASHBOARD
-                        ? 1
-                        : a.type === ResourceListType.CHART
-                        ? -1
-                        : 0;
+                    return a.type === ResourceListType.DASHBOARD ? 1 : -1;
                 },
                 meta: {
                     style: {
