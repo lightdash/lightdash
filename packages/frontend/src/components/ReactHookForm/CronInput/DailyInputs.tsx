@@ -27,6 +27,7 @@ const DailyInputs: FC<{
         <InlinedInputs>
             <FormGroup inline label={'at'} disabled={disabled}>
                 <TimePicker
+                    useAmPm
                     disabled={disabled}
                     value={getTimePickerValue(hours, minutes)}
                     onChange={onTimeChange}

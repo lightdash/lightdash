@@ -42,6 +42,7 @@ const MonthlyInputs: FC<{
             </FormGroup>
             <FormGroup inline label={'at'} disabled={disabled}>
                 <TimePicker
+                    useAmPm
                     disabled={disabled}
                     value={getTimePickerValue(hours, minutes)}
                     onChange={onTimeChange}

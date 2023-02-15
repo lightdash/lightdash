@@ -17,7 +17,7 @@ const HourlyInputs: FC<{
     };
 
     return (
-        <FormGroup inline label={'at minute(s)'} disabled={disabled}>
+        <FormGroup inline label={'at minute'} disabled={disabled}>
             <NumberInput
                 fill
                 value={minutes}

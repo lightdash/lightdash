@@ -27,6 +27,7 @@ const CustomInputs: FC<{
     return (
         <FormGroup
             label={'Cron expression (UTC) *'}
+            className={'input-wrapper'}
             disabled={disabled}
             intent={get(errors, name) ? 'danger' : 'none'}
             helperText={
