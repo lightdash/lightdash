@@ -126,7 +126,7 @@ const CreateTokenPanel: FC<{
                             Token
                             <InputGroup
                                 id="invite-link-input"
-                                className="cohere-block"
+                                className="cohere-block sentry-block"
                                 type="text"
                                 readOnly
                                 value={data.token}
@@ -149,7 +149,7 @@ const CreateTokenPanel: FC<{
                             CLI Authentication code
                             <InputGroup
                                 id="invite-link-input"
-                                className="cohere-block"
+                                className="sentry-block cohere-block"
                                 type="text"
                                 readOnly
                                 value={`lightdash login ${health.data?.siteUrl} --token ${data.token}`}
