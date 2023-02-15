@@ -7,12 +7,14 @@ import {
     UpdateSpace,
 } from '@lightdash/common';
 import { analytics } from '../../analytics/client';
+import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel } from '../../models/SpaceModel';
 
 type Dependencies = {
     projectModel: ProjectModel;
     spaceModel: SpaceModel;
+    pinnedListModel: PinnedListModel;
 };
 
 export const hasSpaceAccess = (space: Space, userUuid: string): boolean =>
@@ -27,9 +29,12 @@ export class SpaceService {
 
     private readonly spaceModel: SpaceModel;
 
+    private readonly pinnedListModel: PinnedListModel;
+
     constructor(dependencies: Dependencies) {
         this.projectModel = dependencies.projectModel;
         this.spaceModel = dependencies.spaceModel;
+        this.pinnedListModel = dependencies.pinnedListModel;
     }
 
     async getAllSpaces(

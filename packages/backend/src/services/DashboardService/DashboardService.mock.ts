@@ -54,6 +54,7 @@ export const publicSpace: Space = {
     dashboards: [],
     access: [],
     name: '',
+    pinnedListUuid: undefined,
 };
 export const privateSpace: Space = {
     ...publicSpace,
