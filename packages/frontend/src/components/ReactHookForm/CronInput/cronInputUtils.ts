@@ -19,7 +19,6 @@ type CronDetails = {
 export const parseCronExpression = (value: string): CronDetails => {
     try {
         const arr = stringToArray(value);
-        console.log('parseCronExpression', value, arr);
         return {
             minutes: arr[0][0],
             hours: arr[1][0],
@@ -27,7 +26,7 @@ export const parseCronExpression = (value: string): CronDetails => {
             month: arr[3][0],
             weekDay: arr[4][0],
         };
-    } catch {
+    } catch (e) {
         return {
             minutes: 0,
             hours: 0,
@@ -43,4 +42,67 @@ export const getTimePickerValue = (hours: number, minutes: number) => {
     date.setHours(hours);
     date.setMinutes(minutes);
     return date;
+};
+
+export const getHourlyCronExpression = (minutes: number): string => {
+    return [minutes, '*', '*', '*', '*'].join(' ');
+};
+
+export const getDailyCronExpression = (
+    hours: number,
+    minutes: number,
+): string => {
+    return [minutes, hours, '*', '*', '*'].join(' ');
+};
+
+export const getWeeklyCronExpression = (
+    hours: number,
+    minutes: number,
+    weekDay: number,
+): string => {
+    return [minutes, hours, '*', '*', weekDay].join(' ');
+};
+
+export const getMonthlyCronExpression = (
+    hours: number,
+    minutes: number,
+    day: number,
+): string => {
+    return [minutes, hours, day, '*', '*'].join(' ');
+};
+
+export const getFrequencyCronExpression = (
+    frequency: Frequency,
+    cronExpression: string,
+): string => {
+    const { minutes, hours, day, weekDay } =
+        parseCronExpression(cronExpression);
+    let newCronExpression: string;
+    switch (frequency) {
+        case Frequency.HOURLY: {
+            newCronExpression = getHourlyCronExpression(minutes);
+            break;
+        }
+        case Frequency.DAILY: {
+            newCronExpression = getDailyCronExpression(minutes, hours);
+            break;
+        }
+        case Frequency.WEEKLY: {
+            newCronExpression = getWeeklyCronExpression(
+                minutes,
+                hours,
+                weekDay,
+            );
+            break;
+        }
+        case Frequency.MONTHLY: {
+            newCronExpression = getMonthlyCronExpression(minutes, hours, day);
+            break;
+        }
+        case Frequency.CUSTOM: {
+            newCronExpression = cronExpression;
+            break;
+        }
+    }
+    return newCronExpression;
 };

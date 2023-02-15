@@ -1,7 +1,11 @@
 import { FormGroup } from '@blueprintjs/core';
 import { TimePicker } from '@blueprintjs/datetime';
 import React, { FC } from 'react';
-import { getTimePickerValue, parseCronExpression } from './cronInputUtils';
+import {
+    getDailyCronExpression,
+    getTimePickerValue,
+    parseCronExpression,
+} from './cronInputUtils';
 
 const DailyInputs: FC<{
     disabled?: boolean;
@@ -13,13 +17,7 @@ const DailyInputs: FC<{
     const onTimeChange = (date: Date) => {
         if (date) {
             onChange(
-                [
-                    `${date.getMinutes()}`,
-                    `${date.getHours()}`,
-                    '*',
-                    '*',
-                    '*',
-                ].join(' '),
+                getDailyCronExpression(date.getMinutes(), date.getHours()),
             );
         }
     };

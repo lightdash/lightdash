@@ -2,16 +2,18 @@ import { FormGroup } from '@blueprintjs/core';
 import { NumericInput as NumberInput } from '@blueprintjs/core/lib/esm/components/forms/numericInput';
 import { TimePicker } from '@blueprintjs/datetime';
 import React, { FC } from 'react';
-import { getTimePickerValue, parseCronExpression } from './cronInputUtils';
-import WeekDaySelect from './WeekDaySelect';
+import {
+    getMonthlyCronExpression,
+    getTimePickerValue,
+    parseCronExpression,
+} from './cronInputUtils';
 
 const MonthlyInputs: FC<{
     disabled?: boolean;
     cronExpression: string;
     onChange: (value: string) => void;
 }> = ({ disabled, cronExpression, onChange }) => {
-    const { minutes, hours, weekDay, day } =
-        parseCronExpression(cronExpression);
+    const { minutes, hours, day } = parseCronExpression(cronExpression);
 
     const onDayChange = (value: number) => {
         if (value >= 1 && value <= 31) {
@@ -21,13 +23,7 @@ const MonthlyInputs: FC<{
 
     const onTimeChange = (date: Date) => {
         onChange(
-            [
-                `${date.getMinutes()}`,
-                `${date.getHours()}`,
-                '*',
-                '*',
-                weekDay,
-            ].join(' '),
+            getMonthlyCronExpression(date.getMinutes(), date.getHours(), day),
         );
     };
 

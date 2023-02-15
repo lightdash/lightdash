@@ -26,8 +26,8 @@ const CustomInputs: FC<{
         >
             <InputGroup
                 name="cron"
+                value={cronExpression}
                 placeholder="0 9 * * 1"
-                defaultValue="0 9 * * 1"
                 disabled={disabled}
                 onChange={(e) => onChange(e.target.value)}
             />

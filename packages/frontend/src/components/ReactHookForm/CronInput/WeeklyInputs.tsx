@@ -1,7 +1,11 @@
 import { FormGroup } from '@blueprintjs/core';
 import { TimePicker } from '@blueprintjs/datetime';
 import React, { FC } from 'react';
-import { getTimePickerValue, parseCronExpression } from './cronInputUtils';
+import {
+    getTimePickerValue,
+    getWeeklyCronExpression,
+    parseCronExpression,
+} from './cronInputUtils';
 import WeekDaySelect from './WeekDaySelect';
 
 const WeeklyInputs: FC<{
@@ -17,13 +21,11 @@ const WeeklyInputs: FC<{
 
     const onTimeChange = (date: Date) => {
         onChange(
-            [
-                `${date.getMinutes()}`,
-                `${date.getHours()}`,
-                '*',
-                '*',
+            getWeeklyCronExpression(
+                date.getMinutes(),
+                date.getHours(),
                 weekDay,
-            ].join(' '),
+            ),
         );
     };
 

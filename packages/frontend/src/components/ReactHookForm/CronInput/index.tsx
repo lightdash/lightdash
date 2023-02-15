@@ -1,6 +1,6 @@
 import { FormGroup } from '@blueprintjs/core';
 import { ErrorMessage } from '@hookform/error-message';
-import React, { FC, useState } from 'react';
+import React, { FC, useCallback, useState } from 'react';
 import {
     Controller,
     ControllerRenderProps,
@@ -8,7 +8,10 @@ import {
     useFormContext,
 } from 'react-hook-form';
 import { InputWrapperProps } from '../InputWrapper';
-import { mapCronExpressionToFrequency } from './cronInputUtils';
+import {
+    getFrequencyCronExpression,
+    mapCronExpressionToFrequency,
+} from './cronInputUtils';
 import CustomInputs from './CustomInputs';
 import DailyInputs from './DailyInputs';
 import FrequencySelect, { Frequency } from './FrequencySelect';
@@ -21,8 +24,16 @@ const CronInternalInputs: FC<
         disabled: boolean | undefined;
     } & ControllerRenderProps<FieldValues, string>
 > = ({ value, disabled, onChange }) => {
-    const [frequency, setFrequency] = useState(
+    const [frequency, setFrequency] = useState<Frequency>(
         mapCronExpressionToFrequency(value),
+    );
+
+    const onFrequencyChange = useCallback(
+        (newFrequency: Frequency) => {
+            setFrequency(newFrequency);
+            onChange(getFrequencyCronExpression(newFrequency, value));
+        },
+        [onChange, value],
     );
 
     return (
@@ -31,7 +42,7 @@ const CronInternalInputs: FC<
                 <FrequencySelect
                     value={frequency}
                     disabled={disabled}
-                    onChange={setFrequency} // TODO: update cron expression
+                    onChange={onFrequencyChange}
                 />
             </FormGroup>
             {frequency === Frequency.HOURLY && (

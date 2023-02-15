@@ -1,7 +1,7 @@
 import { FormGroup } from '@blueprintjs/core';
 import { NumericInput as NumberInput } from '@blueprintjs/core/lib/esm/components/forms/numericInput';
 import React, { FC } from 'react';
-import { parseCronExpression } from './cronInputUtils';
+import { getHourlyCronExpression, parseCronExpression } from './cronInputUtils';
 
 const HourlyInputs: FC<{
     disabled?: boolean;
@@ -12,7 +12,7 @@ const HourlyInputs: FC<{
 
     const onMinuteChange = (valueAsNumber: number) => {
         if (valueAsNumber >= 0 && valueAsNumber <= 59) {
-            onChange([`${valueAsNumber}`, '*', '*', '*', '*'].join(' '));
+            onChange(getHourlyCronExpression(valueAsNumber));
         }
     };
 
