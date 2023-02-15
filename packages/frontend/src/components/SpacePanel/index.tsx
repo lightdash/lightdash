@@ -3,9 +3,10 @@ import { Breadcrumbs2, MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import { LightdashMode, Space } from '@lightdash/common';
 import { IconChartAreaLine, IconLayoutDashboard } from '@tabler/icons-react';
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import { useDashboards } from '../../hooks/dashboard/useDashboards';
+import { useSpacePinningMutation } from '../../hooks/pinning/useSpaceMutation';
 import { useSavedCharts } from '../../hooks/useSpaces';
 import { useApp } from '../../providers/AppProvider';
 import { Can } from '../common/Authorization';
@@ -54,6 +55,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
         useState<boolean>(false);
     const [addToSpace, setAddToSpace] = useState<AddToSpaceResources>();
     const [createToSpace, setCreateToSpace] = useState<AddToSpaceResources>();
+    const { mutate: pinSpace } = useSpacePinningMutation(projectUuid);
 
     const userCanManageDashboards = user.data?.ability?.can(
         'manage',
@@ -75,6 +77,11 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
         ...wrapResourceList(dashboardsInSpace, ResourceListType.DASHBOARD),
         ...wrapResourceList(chartsInSpace, ResourceListType.CHART),
     ];
+
+    const handlePinToggleSpace = useCallback(
+        (spaceUuid: string) => pinSpace(spaceUuid),
+        [pinSpace],
+    );
 
     return (
         <PageContentWrapper>
@@ -112,6 +119,8 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                     <SpaceBrowserMenu
                         onRename={() => setUpdateSpace(true)}
                         onDelete={() => setDeleteSpace(true)}
+                        onTogglePin={() => handlePinToggleSpace(space.uuid)}
+                        isPinned={!!space.pinnedListUuid}
                     >
                         <Can
                             I="manage"

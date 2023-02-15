@@ -1,7 +1,8 @@
 import { AnchorButton, Button, Intent } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { LightdashMode } from '@lightdash/common';
-import { FC, useState } from 'react';
+import { FC, useCallback, useState } from 'react';
+import { useSpacePinningMutation } from '../../../hooks/pinning/useSpaceMutation';
 import { useSpaces } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
 import {
@@ -30,9 +31,16 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
         }),
     );
 
+    const { mutate: pinSpace } = useSpacePinningMutation(projectUuid);
+
     const handleCreateSpace = () => {
         setIsCreateModalOpen(true);
     };
+
+    const handlePinToggle = useCallback(
+        (spaceUuid: string) => pinSpace(spaceUuid),
+        [pinSpace],
+    );
 
     return (
         <ResourceListWrapper
@@ -78,18 +86,28 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                 </ResourceEmptyStateWrapper>
             ) : (
                 <SpaceListWrapper>
-                    {spaces.map(({ uuid, name, dashboards, queries }) => (
-                        <SpaceItem
-                            key={uuid}
-                            projectUuid={projectUuid}
-                            uuid={uuid}
-                            name={name}
-                            dashboardsCount={dashboards.length}
-                            queriesCount={queries.length}
-                            onRename={() => setUpdateSpaceUuid(uuid)}
-                            onDelete={() => setDeleteSpaceUuid(uuid)}
-                        />
-                    ))}
+                    {spaces.map(
+                        ({
+                            uuid,
+                            name,
+                            dashboards,
+                            queries,
+                            pinnedListUuid,
+                        }) => (
+                            <SpaceItem
+                                key={uuid}
+                                projectUuid={projectUuid}
+                                uuid={uuid}
+                                name={name}
+                                isPinned={!!pinnedListUuid}
+                                dashboardsCount={dashboards.length}
+                                queriesCount={queries.length}
+                                onRename={() => setUpdateSpaceUuid(uuid)}
+                                onDelete={() => setDeleteSpaceUuid(uuid)}
+                                onPinToggle={() => handlePinToggle(uuid)}
+                            />
+                        ),
+                    )}
                 </SpaceListWrapper>
             )}
 
