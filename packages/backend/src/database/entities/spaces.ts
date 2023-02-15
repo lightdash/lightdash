@@ -7,7 +7,12 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import database from '../database';
-import { PinnedChartTableName, PinnedListTableName } from './pinnedList';
+import {
+    DbPinnedList,
+    PinnedChartTableName,
+    PinnedListTableName,
+    PinnedSpaceTableName,
+} from './pinnedList';
 import { SavedChartsTableName } from './savedCharts';
 
 export type DbSpace = {
@@ -46,7 +51,7 @@ export const SpaceShareTableName = 'space_share';
 export const getSpace = async (
     db: Knex,
     projectUuid: string,
-): Promise<DbSpace> => {
+): Promise<DbSpace & Pick<DbPinnedList, 'pinned_list_uuid'>> => {
     const results = await db('spaces')
         .innerJoin('projects', 'projects.project_id', 'spaces.project_id')
         .innerJoin(
@@ -54,14 +59,25 @@ export const getSpace = async (
             'organizations.organization_id',
             'projects.organization_id',
         )
-        .where('project_uuid', projectUuid)
-        .select<DbSpace[]>([
+        .leftJoin(
+            PinnedSpaceTableName,
+            `${PinnedSpaceTableName}.space_uuid`,
+            `${SpaceTableName}.space_uuid`,
+        )
+        .leftJoin(
+            PinnedListTableName,
+            `${PinnedListTableName}.pinned_list_uuid`,
+            `${PinnedSpaceTableName}.pinned_list_uuid`,
+        )
+        .where(`${SpaceTableName}.project_uuid`, projectUuid)
+        .select<(DbSpace & Pick<DbPinnedList, 'pinned_list_uuid'>)[]>([
             'spaces.space_id',
             'spaces.space_uuid',
             'spaces.name',
             'spaces.created_at',
             'spaces.project_id',
             'organizations.organization_uuid',
+            `${PinnedListTableName}.pinned_list_uuid`,
         ])
         .limit(1);
     const [space] = results;
@@ -145,6 +161,7 @@ export const getSpaceWithQueries = async (
         uuid: space.space_uuid,
         name: space.name,
         isPrivate: space.is_private,
+        pinnedListUuid: space.pinned_list_uuid,
         queries: savedQueries.map((savedQuery) => ({
             uuid: savedQuery.saved_query_uuid,
             name: savedQuery.name,

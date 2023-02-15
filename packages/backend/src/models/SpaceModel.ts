@@ -23,9 +23,11 @@ import {
     OrganizationTableName,
 } from '../database/entities/organizations';
 import {
+    DbPinnedList,
     PinnedChartTableName,
     PinnedDashboardTableName,
     PinnedListTableName,
+    PinnedSpaceTableName,
 } from '../database/entities/pinnedList';
 import { ProjectMembershipsTableName } from '../database/entities/projectMemberships';
 import { DbProject, ProjectTableName } from '../database/entities/projects';
@@ -59,12 +61,29 @@ export class SpaceModel {
                 'organizations.organization_id',
                 'projects.organization_id',
             )
-            .where('space_uuid', spaceUuid)
-            .select<(DbSpace & DbProject & DbOrganization)[]>([
+            .leftJoin(
+                PinnedSpaceTableName,
+                `${PinnedSpaceTableName}.space_uuid`,
+                `${SpaceTableName}.space_uuid`,
+            )
+            .leftJoin(
+                PinnedListTableName,
+                `${PinnedListTableName}.pinned_list_uuid`,
+                `${PinnedSpaceTableName}.pinned_list_uuid`,
+            )
+            .where(`${SpaceTableName}.space_uuid`, spaceUuid)
+            .select<
+                (DbSpace &
+                    DbProject &
+                    DbOrganization &
+                    Pick<DbPinnedList, 'pinned_list_uuid'>)[]
+            >([
                 'spaces.*',
 
                 'projects.project_uuid',
                 'organizations.organization_uuid',
+
+                `${PinnedListTableName}.pinned_list_uuid`,
             ]);
         if (row === undefined)
             throw new NotFoundError(
@@ -77,6 +96,7 @@ export class SpaceModel {
             isPrivate: row.is_private,
             uuid: row.space_uuid,
             projectUuid: row.project_uuid,
+            pinnedListUuid: row.pinned_list_uuid,
         };
     }
 
@@ -344,20 +364,37 @@ export class SpaceModel {
                 'organizations.organization_id',
                 'projects.organization_id',
             )
-            .where('project_uuid', projectUuid)
-            .select<(DbSpace & DbProject & DbOrganization)[]>([
+            .leftJoin(
+                PinnedSpaceTableName,
+                `${PinnedSpaceTableName}.space_uuid`,
+                `${SpaceTableName}.space_uuid`,
+            )
+            .leftJoin(
+                PinnedListTableName,
+                `${PinnedListTableName}.pinned_list_uuid`,
+                `${PinnedSpaceTableName}.pinned_list_uuid`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .select<
+                (DbSpace &
+                    DbProject &
+                    DbOrganization &
+                    Pick<DbPinnedList, 'pinned_list_uuid'>)[]
+            >([
                 'spaces.*',
                 'projects.project_uuid',
                 'organizations.organization_uuid',
+                `${PinnedListTableName}.pinned_list_uuid`,
             ]);
         return Promise.all(
             results.map(async (row) => ({
                 organizationUuid: row.organization_uuid,
                 name: row.name,
                 isPrivate: row.is_private,
-                queries: await this.getSpaceQueries(row.space_uuid),
                 uuid: row.space_uuid,
                 projectUuid: row.project_uuid,
+                pinnedListUuid: row.pinned_list_uuid,
+                queries: await this.getSpaceQueries(row.space_uuid),
                 dashboards: await this.getSpaceDashboards(row.space_uuid),
                 access: await this.getSpaceAccess(row.space_uuid),
             })),
@@ -372,6 +409,7 @@ export class SpaceModel {
             uuid: space.uuid,
             isPrivate: space.isPrivate,
             projectUuid: space.projectUuid,
+            pinnedListUuid: space.pinnedListUuid,
             queries: await this.getSpaceQueries(space.uuid),
             dashboards: await this.getSpaceDashboards(space.uuid),
             access: await this.getSpaceAccess(space.uuid),
@@ -406,6 +444,7 @@ export class SpaceModel {
             projectUuid,
             dashboards: [],
             access: [],
+            pinnedListUuid: undefined,
         };
     }
 
