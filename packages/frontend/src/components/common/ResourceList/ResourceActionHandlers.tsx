@@ -100,6 +100,8 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                     name: action.item.data.name,
                     ...action.data,
                 });
+            case ResourceListType.SPACE:
+                throw new Error('Cannot move a space to another space');
             default:
                 return assertUnreachable(
                     action.item,
@@ -120,6 +122,8 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                 return pinDashboard({
                     uuid: action.item.data.uuid,
                 });
+            case ResourceListType.SPACE:
+                throw new Error('Cannot pin a space to homepage');
             default:
                 return assertUnreachable(
                     action.item,
@@ -136,6 +140,8 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                 return duplicateChart(action.item.data.uuid);
             case ResourceListType.DASHBOARD:
                 return duplicateDashboard(action.item.data.uuid);
+            case ResourceListType.SPACE:
+                throw new Error('Cannot duplicate a space');
             default:
                 return assertUnreachable(
                     action.item,
@@ -165,74 +171,106 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
         }
     }, [action, handlePinToHomepage, handleReset]);
 
-    return (
-        <>
-            {action.type === ResourceListAction.UPDATE &&
-                (action.item.type === ResourceListType.CHART ? (
-                    <ChartUpdateModal
-                        isOpen
-                        uuid={action.item.data.uuid}
-                        onClose={handleReset}
-                        onConfirm={handleReset}
-                    />
-                ) : action.item.type === ResourceListType.DASHBOARD ? (
-                    <DashboardUpdateModal
-                        isOpen
-                        uuid={action.item.data.uuid}
-                        onClose={handleReset}
-                        onConfirm={handleReset}
-                    />
-                ) : (
-                    assertUnreachable(
+    switch (action.type) {
+        case ResourceListAction.UPDATE:
+            switch (action.item.type) {
+                case ResourceListType.CHART:
+                    return (
+                        <ChartUpdateModal
+                            isOpen
+                            uuid={action.item.data.uuid}
+                            onClose={handleReset}
+                            onConfirm={handleReset}
+                        />
+                    );
+                case ResourceListType.DASHBOARD:
+                    return (
+                        <DashboardUpdateModal
+                            isOpen
+                            uuid={action.item.data.uuid}
+                            onClose={handleReset}
+                            onConfirm={handleReset}
+                        />
+                    );
+                case ResourceListType.SPACE:
+                    throw new Error('Cannot update a space');
+                default:
+                    return assertUnreachable(
+                        action.item,
+                        'Action type not supported',
+                    );
+            }
+        case ResourceListAction.DELETE:
+            switch (action.item.type) {
+                case ResourceListType.CHART:
+                    return (
+                        <ChartDeleteModal
+                            isOpen
+                            uuid={action.item.data.uuid}
+                            onClose={handleReset}
+                            onConfirm={handleReset}
+                        />
+                    );
+                case ResourceListType.DASHBOARD:
+                    return (
+                        <DashboardDeleteModal
+                            isOpen
+                            uuid={action.item.data.uuid}
+                            onClose={handleReset}
+                            onConfirm={handleReset}
+                        />
+                    );
+                case ResourceListType.SPACE:
+                    throw new Error('Cannot delete a space');
+                default:
+                    return assertUnreachable(
                         action.item,
                         'Resource type not supported',
-                    )
-                ))}
-
-            {action.type === ResourceListAction.DELETE &&
-                (action.item.type === ResourceListType.CHART ? (
-                    <ChartDeleteModal
-                        isOpen
-                        uuid={action.item.data.uuid}
-                        onClose={handleReset}
-                        onConfirm={handleReset}
-                    />
-                ) : action.item.type === ResourceListType.DASHBOARD ? (
-                    <DashboardDeleteModal
-                        isOpen
-                        uuid={action.item.data.uuid}
-                        onClose={handleReset}
-                        onConfirm={handleReset}
-                    />
-                ) : (
-                    assertUnreachable(
-                        action.item,
-                        'Resource type not supported',
-                    )
-                ))}
-
-            {action.type === ResourceListAction.ADD_TO_DASHBOARD && (
-                <AddTilesToDashboardModal
-                    savedChart={action.item.data}
-                    isOpen
-                    onClose={handleReset}
-                />
-            )}
-
-            {action.type === ResourceListAction.CREATE_SPACE && (
-                <SpaceActionModal
-                    shouldRedirect={false}
-                    projectUuid={projectUuid}
-                    actionType={ActionType.CREATE}
-                    title="Create new space"
-                    confirmButtonLabel="Create"
-                    icon="folder-close"
-                    onClose={handleReset}
-                    onSubmitForm={handleCreateSpace}
-                />
-            )}
-        </>
-    );
+                    );
+            }
+        case ResourceListAction.ADD_TO_DASHBOARD:
+            switch (action.item.type) {
+                case ResourceListType.CHART:
+                    return (
+                        <AddTilesToDashboardModal
+                            savedChart={action.item.data}
+                            isOpen
+                            onClose={handleReset}
+                        />
+                    );
+                case ResourceListType.DASHBOARD:
+                case ResourceListType.SPACE:
+                    throw new Error(
+                        `Cannot add a ${action.item.type} to a dashboard`,
+                    );
+            }
+        case ResourceListAction.CREATE_SPACE:
+            switch (action.item.type) {
+                case ResourceListType.CHART:
+                case ResourceListType.DASHBOARD:
+                    return (
+                        <SpaceActionModal
+                            shouldRedirect={false}
+                            projectUuid={projectUuid}
+                            actionType={ActionType.CREATE}
+                            title="Create new space"
+                            confirmButtonLabel="Create"
+                            icon="folder-close"
+                            onClose={handleReset}
+                            onSubmitForm={handleCreateSpace}
+                        />
+                    );
+                case ResourceListType.SPACE:
+                    throw new Error('Cannot create a space inside a space');
+            }
+        case ResourceListAction.CLOSE:
+        case ResourceListAction.DUPLICATE:
+        case ResourceListAction.MOVE_TO_SPACE:
+        case ResourceListAction.PIN_TO_HOMEPAGE:
+            return null;
+        default:
+            return assertUnreachable(action, 'action type not supported');
+    }
 };
 
 export default ResourceActionHandlers;

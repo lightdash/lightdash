@@ -39,6 +39,11 @@ const ResourceListActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
                 return null;
             }
             break;
+        case ResourceListType.SPACE:
+            if (user.data?.ability?.cannot('manage', 'Space')) {
+                return null;
+            }
+            break;
         default:
             return assertUnreachable(item, 'Resource type not supported');
     }

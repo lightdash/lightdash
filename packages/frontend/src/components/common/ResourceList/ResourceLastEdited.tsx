@@ -8,10 +8,10 @@ import {
     ResourceLastEditedBy,
     ResourceLastEditedTimeAgo,
 } from './ResourceLastEdited.styles';
-import { ResourceListItem } from './ResourceTypeUtils';
+import { ResourceListItemCanBelongToSpace } from './ResourceTypeUtils';
 
 interface ResourceLastEditedProps {
-    item: ResourceListItem;
+    item: ResourceListItemCanBelongToSpace;
 }
 
 const ResourceLastEdited: FC<ResourceLastEditedProps> = ({
