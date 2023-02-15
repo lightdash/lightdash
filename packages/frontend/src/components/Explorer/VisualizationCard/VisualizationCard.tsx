@@ -120,7 +120,7 @@ const VisualizationCard: FC = memo(() => {
                 }
             >
                 <LightdashVisualization
-                    className="cohere-block"
+                    className="sentry-block cohere-block"
                     data-testid="visualization"
                 />
 
