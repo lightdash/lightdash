@@ -62,7 +62,7 @@ const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
             items={recentItems}
             enableSorting={false}
             defaultSort={{ updatedAt: SortDirection.DESC }}
-            defaultColumnVisibility={{ space: false }}
+            defaultColumnVisibility={{ space: false, type: false }}
             showCount={false}
             headerTitle="Recently updated"
             headerAction={

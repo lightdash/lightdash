@@ -1,6 +1,10 @@
-import { Menu, PopoverPosition } from '@blueprintjs/core';
-import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
+import { Menu } from '@blueprintjs/core';
+import { MenuItem2 } from '@blueprintjs/popover2';
 import React from 'react';
+import {
+    AddExistingResourceToSpaceMenuItem,
+    AddNewResourceToSpaceMenuItem,
+} from './AddResourceToSpaceMenu.styles';
 import { AddToSpaceResources } from './AddResourceToSpaceModal';
 
 interface AddResourceToSpaceMenuProps {
@@ -13,29 +17,22 @@ const AddResourceToSpaceMenu: React.FC<AddResourceToSpaceMenuProps> = ({
     resourceType,
     onAdd,
     onCreate,
-    children,
 }) => {
     return (
-        <Popover2
-            captureDismiss
-            position={PopoverPosition.BOTTOM_RIGHT}
-            content={
-                <Menu>
-                    <MenuItem2
-                        icon="plus"
-                        text={`Add existing ${resourceType}`}
-                        onClick={onAdd}
-                    />
-                    <MenuItem2
-                        icon="clean"
-                        text={`Create new ${resourceType}`}
-                        onClick={onCreate}
-                    />
-                </Menu>
-            }
-        >
-            {children}
-        </Popover2>
+        <Menu>
+            <AddExistingResourceToSpaceMenuItem
+                icon="plus"
+                text={`Add existing ${resourceType}`}
+                onClick={onAdd}
+                style={{ margin: '-5px', marginBottom: '0px' }}
+            />
+            <AddNewResourceToSpaceMenuItem
+                icon="clean"
+                text={`Create new ${resourceType}`}
+                onClick={onCreate}
+                style={{ margin: '-5px', marginTop: '0px' }}
+            />
+        </Menu>
     );
 };
 
