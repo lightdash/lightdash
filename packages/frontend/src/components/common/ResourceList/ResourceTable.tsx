@@ -215,6 +215,33 @@ const ResourceTable: FC<ResourceTableProps> = ({
                 },
             },
             {
+                id: 'type',
+                label: 'Type',
+                cell: (item: ResourceListItem) => (
+                    <ResourceNameBox>
+                        <ResourceMetadata>
+                            <ResourceType item={item} />
+                        </ResourceMetadata>
+                    </ResourceNameBox>
+                ),
+                enableSorting,
+                sortingFn: (a: ResourceListItem) => {
+                    return a.type === ResourceListType.DASHBOARD
+                        ? 1
+                        : a.type === ResourceListType.CHART
+                        ? -1
+                        : 0;
+                },
+                meta: {
+                    style: {
+                        width:
+                            columnVisibility.get('type') === false
+                                ? undefined
+                                : '25%',
+                    },
+                },
+            },
+            {
                 id: 'actions',
                 cell: (item: ResourceListItem) => (
                     <ResourceActionMenu
@@ -247,9 +274,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
         return items.sort((a, b) => {
             return [...columnSorts.entries()].reduce(
                 (acc, [columnId, sortDirection]) => {
-                    const column = visibleColumns.find(
-                        (c) => c.id === columnId,
-                    );
+                    const column = columns.find((c) => c.id === columnId);
                     if (!column) {
                         throw new Error('Column with id does not exist!');
                     }
@@ -274,7 +299,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
                 0,
             );
         });
-    }, [items, columnSorts, visibleColumns]);
+    }, [items, columnSorts]);
 
     return (
         <StyledTable>

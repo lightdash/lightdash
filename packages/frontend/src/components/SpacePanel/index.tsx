@@ -1,7 +1,8 @@
-import { Button, Intent } from '@blueprintjs/core';
-import { Breadcrumbs2 } from '@blueprintjs/popover2';
+import { Button, Intent, Menu, PopoverPosition } from '@blueprintjs/core';
+import { Breadcrumbs2, MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import { LightdashMode, Space } from '@lightdash/common';
+import { IconChartAreaLine, IconLayoutDashboard } from '@tabler/icons-react';
 import React, { useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import { useApp } from '../../providers/AppProvider';
@@ -35,8 +36,6 @@ interface Props {
     space: Space;
 }
 
-export const DEFAULT_DASHBOARD_NAME = 'Untitled dashboard';
-
 export const SpacePanel: React.FC<Props> = ({ space }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { user, health } = useApp();
@@ -67,6 +66,10 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
             projectUuid,
         }),
     );
+    const allItems = [
+        ...wrapResourceList(savedDashboards, ResourceListType.DASHBOARD),
+        ...wrapResourceList(savedCharts, ResourceListType.CHART),
+    ];
 
     return (
         <PageContentWrapper>
@@ -141,67 +144,75 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                     />
                 )}
             </PageHeader>
-
             <ResourceList
-                items={wrapResourceList(
-                    savedDashboards,
-                    ResourceListType.DASHBOARD,
-                )}
-                defaultSort={{ updatedAt: SortDirection.DESC }}
-                defaultColumnVisibility={{ space: false }}
-                headerTitle="Dashboards"
+                items={allItems}
+                defaultSort={{ type: SortDirection.DESC }}
+                defaultColumnVisibility={{ space: false, type: false }}
+                headerTitle="All items"
+                showCount={false}
                 headerAction={
-                    !isDemo &&
-                    userCanManageDashboards && (
-                        <AddResourceToSpaceMenu
-                            resourceType={AddToSpaceResources.DASHBOARD}
-                            onAdd={() =>
-                                setAddToSpace(AddToSpaceResources.DASHBOARD)
+                    !isDemo && (
+                        <Popover2
+                            captureDismiss
+                            position={PopoverPosition.BOTTOM_RIGHT}
+                            content={
+                                <Menu>
+                                    {userCanManageDashboards && (
+                                        <MenuItem2
+                                            icon={
+                                                <IconLayoutDashboard
+                                                    size={20}
+                                                />
+                                            }
+                                            text={`Add dashboard`}
+                                        >
+                                            <AddResourceToSpaceMenu
+                                                onAdd={() =>
+                                                    setAddToSpace(
+                                                        AddToSpaceResources.DASHBOARD,
+                                                    )
+                                                }
+                                                onCreate={() =>
+                                                    setIsCreateDashboardOpen(
+                                                        true,
+                                                    )
+                                                }
+                                            />
+                                        </MenuItem2>
+                                    )}
+                                    {userCanManageCharts && (
+                                        <MenuItem2
+                                            icon={
+                                                <IconChartAreaLine size={20} />
+                                            }
+                                            text={`Add chart`}
+                                        >
+                                            <AddResourceToSpaceMenu
+                                                onAdd={() =>
+                                                    setAddToSpace(
+                                                        AddToSpaceResources.CHART,
+                                                    )
+                                                }
+                                                onCreate={() =>
+                                                    setCreateToSpace(
+                                                        AddToSpaceResources.CHART,
+                                                    )
+                                                }
+                                            />
+                                        </MenuItem2>
+                                    )}
+                                </Menu>
                             }
-                            onCreate={() => setIsCreateDashboardOpen(true)}
                         >
                             <Button icon="plus" intent="primary" />
-                        </AddResourceToSpaceMenu>
+                        </Popover2>
                     )
                 }
                 renderEmptyState={() => (
                     <>
                         <ResourceEmptyStateIcon icon="control" size={40} />
-
                         <ResourceEmptyStateHeader>
-                            No dashboards added yet
-                        </ResourceEmptyStateHeader>
-                    </>
-                )}
-            />
-
-            <ResourceList
-                headerTitle="Saved charts"
-                items={wrapResourceList(savedCharts, ResourceListType.CHART)}
-                defaultSort={{ updatedAt: SortDirection.DESC }}
-                defaultColumnVisibility={{ space: false }}
-                headerAction={
-                    !isDemo &&
-                    userCanManageCharts && (
-                        <AddResourceToSpaceMenu
-                            resourceType={AddToSpaceResources.CHART}
-                            onAdd={() =>
-                                setAddToSpace(AddToSpaceResources.CHART)
-                            }
-                            onCreate={() =>
-                                setCreateToSpace(AddToSpaceResources.CHART)
-                            }
-                        >
-                            <Button icon="plus" intent="primary" />
-                        </AddResourceToSpaceMenu>
-                    )
-                }
-                renderEmptyState={() => (
-                    <>
-                        <ResourceEmptyStateIcon icon="chart" size={40} />
-
-                        <ResourceEmptyStateHeader>
-                            No charts added yet
+                            No items added yet
                         </ResourceEmptyStateHeader>
                     </>
                 )}
@@ -218,6 +229,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
             {createToSpace && (
                 <CreateResourceToSpace resourceType={createToSpace} />
             )}
+
             <DashboardCreateModal
                 projectUuid={projectUuid}
                 isOpen={isCreateDashboardOpen}
