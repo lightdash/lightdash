@@ -13,14 +13,29 @@ export enum ResourceListType {
 
 type AcceptedResources = SpaceQuery | DashboardBasicDetails | Space;
 
+export type ResourceListChartItem = {
+    type: ResourceListType.CHART;
+    data: SpaceQuery;
+};
+
+export type ResourceListDashboardItem = {
+    type: ResourceListType.DASHBOARD;
+    data: DashboardBasicDetails;
+};
+
+export type ResourceListSpaceItem = {
+    type: ResourceListType.SPACE;
+    data: Space;
+};
+
 export type ResourceListItem =
-    | { type: ResourceListType.CHART; data: SpaceQuery }
-    | { type: ResourceListType.DASHBOARD; data: DashboardBasicDetails }
-    | { type: ResourceListType.SPACE; data: Space };
+    | ResourceListChartItem
+    | ResourceListDashboardItem
+    | ResourceListSpaceItem;
 
 export type ResourceListItemCanBelongToSpace =
-    | { type: ResourceListType.CHART; data: SpaceQuery }
-    | { type: ResourceListType.DASHBOARD; data: DashboardBasicDetails };
+    | ResourceListChartItem
+    | ResourceListDashboardItem;
 
 export const isResourceListItemCanBelongToSpace = (
     resource: ResourceListItem,

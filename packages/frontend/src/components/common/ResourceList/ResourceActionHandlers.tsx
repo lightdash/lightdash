@@ -1,4 +1,4 @@
-import { assertUnreachable, Space } from '@lightdash/common';
+import { assertUnreachable, Space, SpaceQuery } from '@lightdash/common';
 import { FC, useCallback, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import {
@@ -18,7 +18,13 @@ import ChartUpdateModal from '../modal/ChartUpdateModal';
 import DashboardDeleteModal from '../modal/DashboardDeleteModal';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
 import SpaceActionModal, { ActionType } from '../SpaceActionModal';
-import { ResourceListItem, ResourceListType } from './ResourceTypeUtils';
+import {
+    ResourceListChartItem,
+    ResourceListDashboardItem,
+    ResourceListItem,
+    ResourceListItemCanBelongToSpace,
+    ResourceListType,
+} from './ResourceTypeUtils';
 
 export enum ResourceListAction {
     CLOSE,
@@ -33,15 +39,33 @@ export enum ResourceListAction {
 
 export type ResourceListActionState =
     | { type: ResourceListAction.CLOSE }
-    | { type: ResourceListAction.UPDATE; item: ResourceListItem }
-    | { type: ResourceListAction.DELETE; item: ResourceListItem }
-    | { type: ResourceListAction.DUPLICATE; item: ResourceListItem }
-    | { type: ResourceListAction.ADD_TO_DASHBOARD; item: ResourceListItem }
-    | { type: ResourceListAction.CREATE_SPACE; item: ResourceListItem }
-    | { type: ResourceListAction.PIN_TO_HOMEPAGE; item: ResourceListItem }
+    | {
+          type: ResourceListAction.UPDATE;
+          item: ResourceListItem;
+      }
+    | {
+          type: ResourceListAction.DELETE;
+          item: ResourceListItem;
+      }
+    | {
+          type: ResourceListAction.DUPLICATE;
+          item: ResourceListChartItem | ResourceListDashboardItem;
+      }
+    | {
+          type: ResourceListAction.ADD_TO_DASHBOARD;
+          item: ResourceListChartItem;
+      }
+    | {
+          type: ResourceListAction.CREATE_SPACE;
+          item: ResourceListChartItem | ResourceListDashboardItem;
+      }
+    | {
+          type: ResourceListAction.PIN_TO_HOMEPAGE;
+          item: ResourceListItem;
+      }
     | {
           type: ResourceListAction.MOVE_TO_SPACE;
-          item: ResourceListItem;
+          item: ResourceListChartItem | ResourceListDashboardItem;
           data: { spaceUuid: string };
       };
 
@@ -102,8 +126,6 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                     name: action.item.data.name,
                     ...action.data,
                 });
-            case ResourceListType.SPACE:
-                throw new Error('Cannot move a space to another space');
             default:
                 return assertUnreachable(
                     action.item,
@@ -138,8 +160,6 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                 return duplicateChart(action.item.data.uuid);
             case ResourceListType.DASHBOARD:
                 return duplicateDashboard(action.item.data.uuid);
-            case ResourceListType.SPACE:
-                throw new Error('Cannot duplicate a space');
             default:
                 return assertUnreachable(
                     action.item,
@@ -227,40 +247,26 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                     );
             }
         case ResourceListAction.ADD_TO_DASHBOARD:
-            switch (action.item.type) {
-                case ResourceListType.CHART:
-                    return (
-                        <AddTilesToDashboardModal
-                            savedChart={action.item.data}
-                            isOpen
-                            onClose={handleReset}
-                        />
-                    );
-                case ResourceListType.DASHBOARD:
-                case ResourceListType.SPACE:
-                    throw new Error(
-                        `Cannot add a ${action.item.type} to a dashboard`,
-                    );
-            }
+            return (
+                <AddTilesToDashboardModal
+                    savedChart={action.item.data}
+                    isOpen
+                    onClose={handleReset}
+                />
+            );
         case ResourceListAction.CREATE_SPACE:
-            switch (action.item.type) {
-                case ResourceListType.CHART:
-                case ResourceListType.DASHBOARD:
-                    return (
-                        <SpaceActionModal
-                            shouldRedirect={false}
-                            projectUuid={projectUuid}
-                            actionType={ActionType.CREATE}
-                            title="Create new space"
-                            confirmButtonLabel="Create"
-                            icon="folder-close"
-                            onClose={handleReset}
-                            onSubmitForm={handleCreateSpace}
-                        />
-                    );
-                case ResourceListType.SPACE:
-                    throw new Error('Cannot create a space inside a space');
-            }
+            return (
+                <SpaceActionModal
+                    shouldRedirect={false}
+                    projectUuid={projectUuid}
+                    actionType={ActionType.CREATE}
+                    title="Create new space"
+                    confirmButtonLabel="Create"
+                    icon="folder-close"
+                    onClose={handleReset}
+                    onSubmitForm={handleCreateSpace}
+                />
+            );
         case ResourceListAction.CLOSE:
         case ResourceListAction.DUPLICATE:
         case ResourceListAction.MOVE_TO_SPACE:
