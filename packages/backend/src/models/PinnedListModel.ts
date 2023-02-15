@@ -1,10 +1,10 @@
 import {
-    CreateChartPinnedItem,
-    CreateDashboardPinnedItem,
-    DeleteChartPinnedItem,
-    DeleteDashboardPinnedItem,
+    CreatePinnedItem,
+    DeletePinnedItem,
     isCreateChartPinnedItem,
+    isCreateSpacePinnedItem,
     isDeleteChartPinnedItem,
+    isDeleteSpacePinnedItem,
     NotFoundError,
     PinnedItem,
     PinnedList,
@@ -51,9 +51,7 @@ export class PinnedListModel {
         };
     }
 
-    async addItem(
-        item: CreateChartPinnedItem | CreateDashboardPinnedItem,
-    ): Promise<void> {
+    async addItem(item: CreatePinnedItem): Promise<void> {
         const results = await this.upsertPinnedList(item.projectUuid);
 
         if (isCreateChartPinnedItem(item)) {
@@ -61,6 +59,9 @@ export class PinnedListModel {
                 pinned_list_uuid: results.pinnedListUuid,
                 saved_chart_uuid: item.savedChartUuid,
             });
+        } else if (isCreateSpacePinnedItem(item)) {
+            // TODO:...
+            throw new NotFoundError('Space pinning not implemented yet');
         } else {
             await this.database(PinnedDashboardTableName).insert({
                 pinned_list_uuid: results.pinnedListUuid,
@@ -69,14 +70,15 @@ export class PinnedListModel {
         }
     }
 
-    async deleteItem(
-        item: DeleteChartPinnedItem | DeleteDashboardPinnedItem,
-    ): Promise<void> {
+    async deleteItem(item: DeletePinnedItem): Promise<void> {
         if (isDeleteChartPinnedItem(item)) {
             await this.database(PinnedChartTableName)
                 .delete()
                 .where('saved_chart_uuid', item.savedChartUuid)
                 .andWhere('pinned_list_uuid', item.pinnedListUuid);
+        } else if (isDeleteSpacePinnedItem(item)) {
+            // TODO:...
+            throw new NotFoundError('Space pinning not implemented yet');
         } else {
             await this.database(PinnedDashboardTableName)
                 .delete()
