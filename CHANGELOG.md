@@ -1,3 +1,10 @@
+# [0.412.0](https://github.com/lightdash/lightdash/compare/0.411.3...0.412.0) (2023-02-15)
+
+
+### Features
+
+* info icon to give different users context on pinned items ([#4475](https://github.com/lightdash/lightdash/issues/4475)) ([fe11231](https://github.com/lightdash/lightdash/commit/fe112315d473a55e5561f0234502c087ccd68836))
+
 ## [0.411.3](https://github.com/lightdash/lightdash/compare/0.411.2...0.411.3) (2023-02-14)
 
 
