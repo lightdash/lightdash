@@ -39,6 +39,7 @@ export type LightdashConfig = {
     sentry: SentryConfig;
     auth: AuthConfig;
     cohere: CohereConfig;
+    fullstory: FullstoryConfig;
     intercom: IntercomConfig;
     siteUrl: string;
     staticIp: string;
@@ -92,6 +93,11 @@ export type SentryConfig = {
     dsn: string;
     release: string;
     environment: string;
+};
+
+export type FullstoryConfig = {
+    orgId: string;
+    devMode: boolean;
 };
 
 export type RudderConfig = {
@@ -210,6 +216,10 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
             release: VERSION,
             environment:
                 process.env.NODE_ENV === 'development' ? 'development' : mode,
+        },
+        fullstory: {
+            orgId: process.env.FULLSTORY_ORG_ID || '',
+            devMode: process.env.NODE_ENV === 'development',
         },
         lightdashSecret,
         secureCookies: process.env.SECURE_COOKIES === 'true',

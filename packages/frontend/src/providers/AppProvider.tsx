@@ -6,6 +6,7 @@ import { IntercomProvider } from 'react-use-intercom';
 import { AbilityContext } from '../components/common/Authorization';
 import useHealth from '../hooks/health/useHealth';
 import useCohere from '../hooks/thirdPartyServices/useCohere';
+import { useFullstory } from '../hooks/thirdPartyServices/useFullstory';
 import useHeadway from '../hooks/thirdPartyServices/useHeadway';
 import useSentry from '../hooks/thirdPartyServices/useSentry';
 import useUser, { UserWithAbility } from '../hooks/user/useUser';
@@ -28,6 +29,7 @@ export const AppProvider: FC = ({ children }) => {
     useSentry(health?.data?.sentry, user.data);
     useCohere(health?.data?.cohere, user.data);
     useHeadway();
+    useFullstory(health?.data?.fullstory, user.data);
 
     const value = {
         health,

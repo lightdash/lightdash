@@ -839,6 +839,11 @@
     minimatch "^3.1.2"
     strip-json-comments "^3.1.1"
 
+"@fullstory/browser@^1.6.2":
+  version "1.6.2"
+  resolved "https://registry.yarnpkg.com/@fullstory/browser/-/browser-1.6.2.tgz#fa636a4579779fe23fa87a11dd175be25c67185c"
+  integrity sha512-r3kPrTKijI/LkdSW7t1GlXPn4jPuZL4AFGDJBWMj4E4HLeF2lCvZtSOZ1YTwZtJFciLp/+KOIW3qBDkqqXC2qw==
+
 "@google-cloud/bigquery@^5.9.1":
   version "5.9.1"
   resolved "https://registry.npmjs.org/@google-cloud/bigquery/-/bigquery-5.9.1.tgz"
