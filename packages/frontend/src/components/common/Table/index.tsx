@@ -34,7 +34,7 @@ const Table: FC<Props> = ({
     return (
         <TableProvider {...rest}>
             <TableContainer
-                className={`sentry-block cohere-block${
+                className={`sentry-block fs-block cohere-block${
                     className ? ` ${className}` : ''
                 }`}
                 $shouldExpand={$shouldExpand}
