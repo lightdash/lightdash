@@ -7,6 +7,7 @@ import {
 } from '../../../hooks/dashboard/useDashboard';
 import { useChartPinningMutation } from '../../../hooks/pinning/useChartPinningMutation';
 import { useDashboardPinningMutation } from '../../../hooks/pinning/useDashboardPinningMutation';
+import { useSpacePinningMutation } from '../../../hooks/pinning/useSpaceMutation';
 import {
     useDuplicateChartMutation,
     useMoveChartMutation,
@@ -65,6 +66,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
     });
     const { mutate: pinChart } = useChartPinningMutation();
     const { mutate: pinDashboard } = useDashboardPinningMutation();
+    const { mutate: pinSpace } = useSpacePinningMutation(projectUuid);
 
     const handleReset = useCallback(() => {
         onAction({ type: ResourceListAction.CLOSE });
@@ -115,22 +117,18 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
 
         switch (action.item.type) {
             case ResourceListType.CHART:
-                return pinChart({
-                    uuid: action.item.data.uuid,
-                });
+                return pinChart({ uuid: action.item.data.uuid });
             case ResourceListType.DASHBOARD:
-                return pinDashboard({
-                    uuid: action.item.data.uuid,
-                });
+                return pinDashboard({ uuid: action.item.data.uuid });
             case ResourceListType.SPACE:
-                throw new Error('Cannot pin a space to homepage');
+                return pinSpace(action.item.data.uuid);
             default:
                 return assertUnreachable(
                     action.item,
                     'Resource type not supported',
                 );
         }
-    }, [action, pinChart, pinDashboard]);
+    }, [action, pinChart, pinDashboard, pinSpace]);
 
     const handleDuplicate = useCallback(() => {
         if (action.type !== ResourceListAction.DUPLICATE) return;
