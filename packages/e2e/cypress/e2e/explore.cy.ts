@@ -70,7 +70,7 @@ describe('Explore', () => {
         // cy.findByText('Save changes').parent().should('not.be.disabled');
         cy.findByText('Save changes').parent().click();
 
-        cy.findByText('Success! Chart was saved.');
+        cy.findByText('Success! Chart was updated.');
     });
 
     it('Should change chart config type', () => {

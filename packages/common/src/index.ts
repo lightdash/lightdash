@@ -52,7 +52,7 @@ import { Space } from './types/space';
 import { TableBase } from './types/table';
 import { LightdashUser } from './types/user';
 import { formatItemValue } from './utils/formatting';
-import { getItemId, getItemLabel } from './utils/item';
+import { getItemId, getItemLabelWithoutTableName } from './utils/item';
 import { WeekDay } from './utils/timeFrames';
 
 export * from './authorization/index';
@@ -903,7 +903,8 @@ export const getAxisName = ({
     );
     const fallbackSeriesName: string | undefined =
         series && series.length === 1
-            ? series[0].name || (defaultItem && getItemLabel(defaultItem))
+            ? series[0].name ||
+              (defaultItem && getItemLabelWithoutTableName(defaultItem))
             : undefined;
     return !isAxisTheSameForAllSeries || selectedAxisIndex === axisIndex
         ? axisName || fallbackSeriesName

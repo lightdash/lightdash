@@ -75,11 +75,6 @@ const SavedQueries: FC = () => {
                                     text: (
                                         <ResourceBreadcrumbTitle>
                                             All saved charts
-                                            {savedQueries.length > 0 && (
-                                                <ResourceTag round>
-                                                    {savedQueries.length}
-                                                </ResourceTag>
-                                            )}
                                         </ResourceBreadcrumbTitle>
                                     ),
                                 },

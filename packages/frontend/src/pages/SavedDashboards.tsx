@@ -101,11 +101,6 @@ const SavedDashboards = () => {
                                     text: (
                                         <ResourceBreadcrumbTitle>
                                             All dashboards
-                                            {dashboards.length > 0 && (
-                                                <ResourceTag round>
-                                                    {dashboards.length}
-                                                </ResourceTag>
-                                            )}
                                         </ResourceBreadcrumbTitle>
                                     ),
                                 },

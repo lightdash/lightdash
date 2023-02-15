@@ -71,11 +71,6 @@ const Spaces: FC = () => {
                                     text: (
                                         <ResourceBreadcrumbTitle>
                                             All spaces
-                                            {spaces && spaces.length > 0 && (
-                                                <ResourceTag round>
-                                                    {spaces.length}
-                                                </ResourceTag>
-                                            )}
                                         </ResourceBreadcrumbTitle>
                                     ),
                                 },

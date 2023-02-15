@@ -8,6 +8,7 @@ import {
     IconChartDots,
     IconChartLine,
     IconLayoutDashboard,
+    IconSquareNumber1,
     IconTable,
 } from '@tabler/icons-react';
 import { FC } from 'react';
@@ -78,7 +79,7 @@ const ResourceIcon: FC<ResourceIconProps> = ({ item }) => {
                 case ChartKind.BIG_NUMBER:
                     return (
                         <ResourceIconBox color={Colors.BLUE3}>
-                            <Icon123 color={Colors.BLUE3} size={20} />
+                            <IconSquareNumber1 color={Colors.BLUE3} size={20} />
                         </ResourceIconBox>
                     );
                 default:

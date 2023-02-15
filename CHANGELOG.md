@@ -1,3 +1,66 @@
+# [0.414.0](https://github.com/lightdash/lightdash/compare/0.413.1...0.414.0) (2023-02-15)
+
+
+### Features
+
+* fix select sql metric ([#4461](https://github.com/lightdash/lightdash/issues/4461)) ([bcd2496](https://github.com/lightdash/lightdash/commit/bcd2496fc43b21fa7c6d9f3d6a3b19dbd3faa724))
+
+## [0.413.1](https://github.com/lightdash/lightdash/compare/0.413.0...0.413.1) (2023-02-15)
+
+
+### Bug Fixes
+
+* field autocomplete initial option loading ([#4473](https://github.com/lightdash/lightdash/issues/4473)) ([498c62a](https://github.com/lightdash/lightdash/commit/498c62a400cd92bef0a9199242ec5a079c397aec))
+
+# [0.413.0](https://github.com/lightdash/lightdash/compare/0.412.0...0.413.0) (2023-02-15)
+
+
+### Features
+
+* tooltip on refresh dbt button added ([#4477](https://github.com/lightdash/lightdash/issues/4477)) ([809e263](https://github.com/lightdash/lightdash/commit/809e263140424b958af185179dd477e578cd2ed0))
+
+# [0.412.0](https://github.com/lightdash/lightdash/compare/0.411.3...0.412.0) (2023-02-15)
+
+
+### Features
+
+* info icon to give different users context on pinned items ([#4475](https://github.com/lightdash/lightdash/issues/4475)) ([fe11231](https://github.com/lightdash/lightdash/commit/fe112315d473a55e5561f0234502c087ccd68836))
+
+## [0.411.3](https://github.com/lightdash/lightdash/compare/0.411.2...0.411.3) (2023-02-14)
+
+
+### Bug Fixes
+
+* updating icons in explore view ([#4464](https://github.com/lightdash/lightdash/issues/4464)) ([6dcabdb](https://github.com/lightdash/lightdash/commit/6dcabdb23e6028c20cf115b34b2e1d3af3a3b2d9))
+
+## [0.411.2](https://github.com/lightdash/lightdash/compare/0.411.1...0.411.2) (2023-02-14)
+
+
+### Bug Fixes
+
+* suppress warnings for dbt 1.4.1 ([#4468](https://github.com/lightdash/lightdash/issues/4468)) ([1f5ac84](https://github.com/lightdash/lightdash/commit/1f5ac848101be0d9cfee46c3ba762bfee6085ed8))
+
+## [0.411.1](https://github.com/lightdash/lightdash/compare/0.411.0...0.411.1) (2023-02-14)
+
+
+### Bug Fixes
+
+* lowercase dbt nouns ([#4467](https://github.com/lightdash/lightdash/issues/4467)) ([5888884](https://github.com/lightdash/lightdash/commit/58888847200bc888f2f7544cf47439c022b38790))
+
+# [0.411.0](https://github.com/lightdash/lightdash/compare/0.410.0...0.411.0) (2023-02-14)
+
+
+### Features
+
+* hide table names from chart labels ([#4459](https://github.com/lightdash/lightdash/issues/4459)) ([1efc385](https://github.com/lightdash/lightdash/commit/1efc385ca2c48398bb2ad336bbe28ad3e7e5084c)), closes [#4420](https://github.com/lightdash/lightdash/issues/4420) [#4389](https://github.com/lightdash/lightdash/issues/4389)
+
+# [0.410.0](https://github.com/lightdash/lightdash/compare/0.409.1...0.410.0) (2023-02-14)
+
+
+### Features
+
+* csv exports for table charts have full options (limit and format) ([#4463](https://github.com/lightdash/lightdash/issues/4463)) ([ffe5f5c](https://github.com/lightdash/lightdash/commit/ffe5f5c1100eb84cc2866d4b707dad769e4b6076))
+
 ## [0.409.1](https://github.com/lightdash/lightdash/compare/0.409.0...0.409.1) (2023-02-14)
 
 

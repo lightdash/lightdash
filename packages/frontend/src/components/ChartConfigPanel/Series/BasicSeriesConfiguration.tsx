@@ -2,7 +2,7 @@ import { Icon } from '@blueprintjs/core';
 import {
     CartesianChartLayout,
     Field,
-    getItemLabel,
+    getItemLabelWithoutTableName,
     getSeriesId,
     Series,
     TableCalculation,
@@ -39,13 +39,13 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                     icon="drag-handle-vertical"
                     {...dragHandleProps}
                 />
-                {getItemLabel(item)}
+                {getItemLabelWithoutTableName(item)}
             </SeriesTitle>
             <SingleSeriesConfiguration
                 layout={layout}
                 series={series}
                 isSingle={isSingle}
-                seriesLabel={getItemLabel(item)}
+                seriesLabel={getItemLabelWithoutTableName(item)}
                 fallbackColor={getSeriesColor(getSeriesId(series))}
                 updateSingleSeries={updateSingleSeries}
             />
