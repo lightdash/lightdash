@@ -173,17 +173,19 @@ export default class EmailClient {
     public async sendNotificationEmail(
         recipient: string,
         subject: string,
-        content: string,
+        title: string,
+        imageUrl: string,
     ) {
         return this.sendEmail({
             to: recipient,
             subject,
             template: 'notification',
             context: {
-                content,
+                title,
+                imageUrl,
                 host: this.lightdashConfig.siteUrl,
             },
-            text: content,
+            text: title,
         });
     }
 }

@@ -1,5 +1,5 @@
 import { S3Service } from '../clients/Aws/s3';
-import EmailClient from '../clients/EmailClient/EmailClient';
+import { emailClient } from '../clients/clients';
 import { lightdashConfig } from '../config/lightdashConfig';
 import {
     analyticsModel,
@@ -20,7 +20,6 @@ import {
     searchModel,
     sessionModel,
     shareModel,
-    slackAuthenticationModel,
     spaceModel,
     userModel,
 } from '../models/models';
@@ -39,7 +38,6 @@ import { SpaceService } from './SpaceService/SpaceService';
 import { UnfurlService } from './UnfurlService/UnfurlService';
 import { UserService } from './UserService';
 
-const emailClient = new EmailClient({ lightdashConfig });
 const encryptionService = new EncryptionService({ lightdashConfig });
 
 export const userService = new UserService({

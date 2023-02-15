@@ -84,7 +84,7 @@ export class SchedulerClient {
             ),
         );
         Logger.info(
-            `Deleting ${deletedJobs.rows.length} Slack notification scheduled jobs: ${schedulerUuid}`,
+            `Deleting ${deletedJobs.rows.length} notification scheduled jobs: ${schedulerUuid}`,
         );
         const deletedJobIds = deletedJobs.rows.map((r) => r.id);
 
@@ -120,6 +120,7 @@ export class SchedulerClient {
                   dashboardUuid: scheduler.dashboardUuid,
                   savedChartUuid: scheduler.savedChartUuid,
                   schedulerSlackTargetUuid: target.schedulerSlackTargetUuid,
+                  name: scheduler.name,
               }
             : {
                   schedulerUuid: scheduler.schedulerUuid,
@@ -128,6 +129,7 @@ export class SchedulerClient {
                   dashboardUuid: scheduler.dashboardUuid,
                   savedChartUuid: scheduler.savedChartUuid,
                   schedulerEmailTargetUuid: target.schedulerEmailTargetUuid,
+                  name: scheduler.name,
               };
         const { id } = await graphileClient.addJob(
             isSlackTarget(target)
@@ -164,7 +166,7 @@ export class SchedulerClient {
             );
 
             Logger.info(
-                `Creating new ${promises.length} Slack notification jobs: ${scheduler.name}`,
+                `Creating new ${promises.length} notification jobs: ${scheduler.name}`,
             );
             await Promise.all(promises);
         } catch (err: any) {

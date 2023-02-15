@@ -109,6 +109,6 @@ export type ScheduledSlackNotification = Pick<
 
 export type ScheduledEmailNotification = Pick<
     SchedulerBase,
-    'createdBy' | 'savedChartUuid' | 'dashboardUuid' | 'schedulerUuid'
+    'createdBy' | 'savedChartUuid' | 'dashboardUuid' | 'schedulerUuid' | 'name'
 > &
     Pick<SchedulerEmailTarget, 'recipient' | 'schedulerEmailTargetUuid'>;

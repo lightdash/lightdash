@@ -1,4 +1,4 @@
-import { Button, Icon } from '@blueprintjs/core';
+import { Button, Colors, Icon } from '@blueprintjs/core';
 import cronstrue from 'cronstrue';
 import React, { FC, useMemo } from 'react';
 import { useSlackChannels } from '../../../hooks/slack/useSlackChannels';
@@ -8,7 +8,6 @@ import AutoComplete from '../../ReactHookForm/AutoComplete';
 import Form from '../../ReactHookForm/Form';
 import Input from '../../ReactHookForm/Input';
 import { EmailIcon, SlackIcon, TargetRow } from './SchedulerModalBase.styles';
-
 const SchedulerForm: FC<
     { disabled: boolean } & React.ComponentProps<typeof Form>
 > = ({ disabled, methods, ...rest }) => {
@@ -97,7 +96,7 @@ const SchedulerForm: FC<
                     } else {
                         return (
                             <TargetRow key={key}>
-                                <EmailIcon icon="envelope" />
+                                <EmailIcon size={20} color={Colors.GRAY1} />
                                 <Input
                                     name={`targets.${index}.recipient`}
                                     placeholder="Email recipient"
