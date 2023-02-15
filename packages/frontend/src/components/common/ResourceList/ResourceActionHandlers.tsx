@@ -22,7 +22,6 @@ import {
     ResourceListChartItem,
     ResourceListDashboardItem,
     ResourceListItem,
-    ResourceListItemCanBelongToSpace,
     ResourceListType,
 } from './ResourceTypeUtils';
 
@@ -211,7 +210,18 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                         />
                     );
                 case ResourceListType.SPACE:
-                    throw new Error('Cannot update a space');
+                    return (
+                        <SpaceActionModal
+                            projectUuid={projectUuid}
+                            spaceUuid={action.item.data.uuid}
+                            actionType={ActionType.UPDATE}
+                            title="Update space"
+                            confirmButtonLabel="Update"
+                            icon="folder-close"
+                            onClose={handleReset}
+                            onSubmitForm={handleReset}
+                        />
+                    );
                 default:
                     return assertUnreachable(
                         action.item,
@@ -239,7 +249,20 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                         />
                     );
                 case ResourceListType.SPACE:
-                    throw new Error('Cannot delete a space');
+                    return (
+                        <SpaceActionModal
+                            projectUuid={projectUuid}
+                            spaceUuid={action.item.data.uuid}
+                            actionType={ActionType.DELETE}
+                            title="Delete space"
+                            confirmButtonLabel="Delete"
+                            confirmButtonIntent="danger"
+                            icon="folder-close"
+                            onClose={handleReset}
+                            onSubmitForm={handleReset}
+                        />
+                    );
+
                 default:
                     return assertUnreachable(
                         action.item,
