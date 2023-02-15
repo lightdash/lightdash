@@ -259,30 +259,39 @@ projectRouter.post(
                 metricQuery.additionalMetrics,
                 metricQuery.tableCalculations,
             );
-
-            const csvHeader = Object.keys(results.rows[0]).map((id) =>
-                getItemLabel(itemMap[id]),
-            );
+            // Ignore fields from results that are not selected in metrics or dimensions
+            const selectedFieldIds = [
+                ...body.metrics,
+                ...body.dimensions,
+                ...body.tableCalculations.map((tc: any) => tc.name),
+            ];
+            const csvHeader = Object.keys(results.rows[0])
+                .filter((id) => selectedFieldIds.includes(id))
+                .map((id) => getItemLabel(itemMap[id]));
             const csvBody = results.rows.map((row) =>
-                Object.keys(row).map((id) => {
-                    const rowData = row[id];
-                    const item = itemMap[id];
-                    if (
-                        isField(item) &&
-                        item.type === DimensionType.TIMESTAMP
-                    ) {
-                        return moment(rowData.value.raw).format(
-                            'YYYY-MM-DD HH:mm:ss',
-                        );
-                    }
-                    if (isField(item) && item.type === DimensionType.DATE) {
-                        return moment(rowData.value.raw).format('YYYY-MM-DD');
-                    }
-                    if (onlyRaw) {
-                        return rowData.value.raw;
-                    }
-                    return rowData.value.formatted;
-                }),
+                Object.keys(row)
+                    .filter((id) => selectedFieldIds.includes(id))
+                    .map((id) => {
+                        const rowData = row[id];
+                        const item = itemMap[id];
+                        if (
+                            isField(item) &&
+                            item.type === DimensionType.TIMESTAMP
+                        ) {
+                            return moment(rowData.value.raw).format(
+                                'YYYY-MM-DD HH:mm:ss',
+                            );
+                        }
+                        if (isField(item) && item.type === DimensionType.DATE) {
+                            return moment(rowData.value.raw).format(
+                                'YYYY-MM-DD',
+                            );
+                        }
+                        if (onlyRaw) {
+                            return rowData.value.raw;
+                        }
+                        return rowData.value.formatted;
+                    }),
             );
 
             const csvContent: string = await new Promise((resolve, reject) => {

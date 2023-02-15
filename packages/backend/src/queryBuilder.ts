@@ -160,9 +160,32 @@ export const buildQuery = ({
         })
         .join('\n');
 
-    const sqlSelect = `SELECT\n${[...dimensionSelects, ...metricSelects].join(
-        ',\n',
-    )}`;
+    const filteredMetricSelects = getFilterRulesFromGroup(
+        filters.metrics,
+    ).reduce<string[]>((acc, filter) => {
+        const metricInSelect = metrics.find(
+            (metric) => metric === filter.target.fieldId,
+        );
+        if (metricInSelect !== undefined) {
+            return acc;
+        }
+        const alias = filter.target.fieldId;
+        const metric = getMetricFromId(
+            filter.target.fieldId,
+            explore,
+            compiledMetricQuery,
+        );
+        return [
+            ...acc,
+            `  ${metric.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`,
+        ];
+    }, []);
+
+    const sqlSelect = `SELECT\n${[
+        ...dimensionSelects,
+        ...metricSelects,
+        ...filteredMetricSelects,
+    ].join(',\n')}`;
     const sqlGroupBy =
         dimensionSelects.length > 0
             ? `GROUP BY ${dimensionSelects.map((val, i) => i + 1).join(',')}`
@@ -244,7 +267,6 @@ export const buildQuery = ({
             );
         },
     );
-
     const sqlLimit = allResults ? `` : `LIMIT ${limit}`;
 
     if (
