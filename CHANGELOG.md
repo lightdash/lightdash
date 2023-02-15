@@ -1,3 +1,10 @@
+## [0.413.1](https://github.com/lightdash/lightdash/compare/0.413.0...0.413.1) (2023-02-15)
+
+
+### Bug Fixes
+
+* field autocomplete initial option loading ([#4473](https://github.com/lightdash/lightdash/issues/4473)) ([498c62a](https://github.com/lightdash/lightdash/commit/498c62a400cd92bef0a9199242ec5a079c397aec))
+
 # [0.413.0](https://github.com/lightdash/lightdash/compare/0.412.0...0.413.0) (2023-02-15)
 
 
