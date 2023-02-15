@@ -1,3 +1,10 @@
+# [0.414.0](https://github.com/lightdash/lightdash/compare/0.413.1...0.414.0) (2023-02-15)
+
+
+### Features
+
+* fix select sql metric ([#4461](https://github.com/lightdash/lightdash/issues/4461)) ([bcd2496](https://github.com/lightdash/lightdash/commit/bcd2496fc43b21fa7c6d9f3d6a3b19dbd3faa724))
+
 ## [0.413.1](https://github.com/lightdash/lightdash/compare/0.413.0...0.413.1) (2023-02-15)
 
 
