@@ -58,6 +58,7 @@ const ActiveFilter: FC<Props> = ({
 
     return (
         <Popover2
+            lazy
             placement="bottom-start"
             content={
                 <FilterModalContainer $wide={selectedTabId === 'tiles'}>

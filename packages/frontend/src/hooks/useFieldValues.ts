@@ -40,10 +40,10 @@ export const useFieldValues = (
     debounce: boolean = true,
     useQueryOptions?: UseQueryOptions<FieldValueSearchResult, ApiError>,
 ) => {
-    const [selectedFieldName, setSelectedFieldName] = useState<string | null>();
+    const [fieldName, setFieldName] = useState<string>(field.name);
     const [debouncedSearch, setDebouncedSearch] = useState<string>(search);
     const [searches, setSearches] = useState(new Set<string>());
-    const [results, setResults] = useState(new Set(...initialData));
+    const [results, setResults] = useState(new Set(initialData));
     const [resultCounts, setResultCounts] = useState<Map<string, number>>(
         new Map(),
     );
@@ -73,14 +73,7 @@ export const useFieldValues = (
     );
 
     const query = useQuery<FieldValueSearchResult, ApiError>(
-        [
-            'project',
-            projectId,
-            tableName,
-            field.name,
-            'search',
-            debouncedSearch,
-        ],
+        ['project', projectId, tableName, fieldName, 'search', debouncedSearch],
         () => getFieldValues(projectId, tableName, fieldId, debouncedSearch),
         {
             // make sure we don't cache for too long
@@ -115,13 +108,13 @@ export const useFieldValues = (
 
     // reset state when field changes
     useEffect(() => {
-        if (field.name !== selectedFieldName) {
-            setSelectedFieldName(field.name);
+        if (!!fieldName && field.name !== fieldName) {
+            setFieldName(field.name);
             setSearches(new Set<string>());
-            setResults(new Set(...initialData));
+            setResults(new Set(initialData));
             setResultCounts(new Map());
         }
-    }, [field.name, initialData, selectedFieldName]);
+    }, [initialData, fieldName, field.name]);
 
     return {
         ...query,
