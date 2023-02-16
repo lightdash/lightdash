@@ -1,3 +1,10 @@
+# [0.416.0](https://github.com/lightdash/lightdash/compare/0.415.0...0.416.0) (2023-02-16)
+
+
+### Features
+
+* send scheduled emails ([#4465](https://github.com/lightdash/lightdash/issues/4465)) ([77907ab](https://github.com/lightdash/lightdash/commit/77907abe45d3597db2a7a4554851e39b70a3648a))
+
 # [0.415.0](https://github.com/lightdash/lightdash/compare/0.414.0...0.415.0) (2023-02-15)
 
 
