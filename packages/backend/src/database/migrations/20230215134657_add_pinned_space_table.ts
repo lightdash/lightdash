@@ -1,9 +1,8 @@
 import { Knex } from 'knex';
-import {
-    PinnedListTableName,
-    PinnedSpaceTableName,
-} from '../entities/pinnedList';
-import { SpaceTableName } from '../entities/spaces';
+
+export const PinnedListTableName = 'pinned_list';
+export const PinnedSpaceTableName = 'pinned_space';
+export const SpaceTableName = 'spaces';
 
 export async function up(knex: Knex): Promise<void> {
     await knex.schema.alterTable(SpaceTableName, (table) => {
