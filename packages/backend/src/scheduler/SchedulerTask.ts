@@ -1,8 +1,11 @@
-import { ScheduledSlackNotification } from '@lightdash/common';
+import {
+    ScheduledEmailNotification,
+    ScheduledSlackNotification,
+} from '@lightdash/common';
 import { nanoid } from 'nanoid';
 import { analytics } from '../analytics/client';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
-import { slackClient } from '../clients/clients';
+import { emailClient, slackClient } from '../clients/clients';
 import { unfurlChartAndDashboard } from '../clients/Slack/SlackUnfurl';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logger';
@@ -63,6 +66,7 @@ export const sendSlackNotification = async (
             jobId,
             schedulerId: schedulerUuid,
             schedulerTargetId: schedulerSlackTargetUuid,
+            type: 'slack',
         },
     });
     try {
@@ -104,6 +108,9 @@ export const sendSlackNotification = async (
                 jobId,
                 schedulerId: schedulerUuid,
                 schedulerTargetId: schedulerSlackTargetUuid,
+                type: 'slack',
+                resourceType:
+                    pageType === LightdashPage.CHART ? 'chart' : 'dashboard',
             },
         });
     } catch (e) {
@@ -117,6 +124,83 @@ export const sendSlackNotification = async (
                 jobId,
                 schedulerId: schedulerUuid,
                 schedulerTargetId: schedulerSlackTargetUuid,
+                type: 'slack',
+            },
+        });
+        throw e; // Cascade error to it can be retried by graphile
+    }
+};
+
+export const sendEmailNotification = async (
+    jobId: string,
+    notification: ScheduledEmailNotification,
+) => {
+    const {
+        schedulerUuid,
+        schedulerEmailTargetUuid,
+        createdBy: userUuid,
+        savedChartUuid,
+        dashboardUuid,
+        recipient,
+        name: schedulerName,
+    } = notification;
+    analytics.track({
+        event: 'scheduler_job.started',
+        anonymousId: LightdashAnalytics.anonymousId,
+        properties: {
+            jobId,
+            schedulerId: schedulerUuid,
+            schedulerTargetId: schedulerEmailTargetUuid,
+            type: 'email',
+        },
+    });
+    try {
+        const { url, details, pageType, organizationUuid } =
+            await getChartOrDashboard(savedChartUuid, dashboardUuid);
+
+        const imageUrl = await unfurlService.unfurlImage(
+            url,
+            pageType,
+            `email-notification-image-${nanoid()}`,
+            userUuid,
+        );
+        if (imageUrl === undefined) {
+            throw new Error('Unable to unfurl image');
+        }
+
+        emailClient.sendNotificationEmail(
+            recipient,
+            schedulerName,
+            details.name,
+            details.description || '',
+            imageUrl,
+            url,
+        );
+
+        analytics.track({
+            event: 'scheduler_job.completed',
+            anonymousId: LightdashAnalytics.anonymousId,
+            properties: {
+                jobId,
+                schedulerId: schedulerUuid,
+                schedulerTargetId: schedulerEmailTargetUuid,
+                type: 'email',
+                resourceType:
+                    pageType === LightdashPage.CHART ? 'chart' : 'dashboard',
+            },
+        });
+    } catch (e) {
+        Logger.error(
+            `Unable to send notification on email : ${JSON.stringify(e)}`,
+        );
+        analytics.track({
+            event: 'scheduler_job.failed',
+            anonymousId: LightdashAnalytics.anonymousId,
+            properties: {
+                jobId,
+                schedulerId: schedulerUuid,
+                schedulerTargetId: schedulerEmailTargetUuid,
+                type: 'email',
             },
         });
         throw e; // Cascade error to it can be retried by graphile

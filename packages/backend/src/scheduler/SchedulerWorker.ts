@@ -9,7 +9,7 @@ import { schedulerClient } from '../clients/clients';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logger';
 import { schedulerService } from '../services/services';
-import { sendSlackNotification } from './SchedulerTask';
+import { sendEmailNotification, sendSlackNotification } from './SchedulerTask';
 
 type SchedulerWorkerDependencies = {
     lightdashConfig: LightdashConfig;
@@ -81,6 +81,16 @@ export class SchedulerWorker {
                         payload,
                     );
                     await sendSlackNotification(helpers.job.id, payload);
+                },
+                sendEmailNotification: async (
+                    payload: any,
+                    helpers: JobHelpers,
+                ) => {
+                    Logger.info(
+                        `Processing new job sendEmailNotification`,
+                        payload,
+                    );
+                    await sendEmailNotification(helpers.job.id, payload);
                 },
             },
         });

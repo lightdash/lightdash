@@ -169,4 +169,27 @@ export default class EmailClient {
             text: `${userThatInvited.firstName} ${userThatInvited.lastName} has invited you to ${roleAction} this project: ${projectUrl}`,
         });
     }
+
+    public async sendNotificationEmail(
+        recipient: string,
+        subject: string,
+        title: string,
+        description: string,
+        imageUrl: string,
+        url: string,
+    ) {
+        return this.sendEmail({
+            to: recipient,
+            subject,
+            template: 'notification',
+            context: {
+                title,
+                imageUrl,
+                description,
+                url,
+                host: this.lightdashConfig.siteUrl,
+            },
+            text: title,
+        });
+    }
 }

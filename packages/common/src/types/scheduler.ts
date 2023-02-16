@@ -21,7 +21,7 @@ export type DashboardScheduler = SchedulerBase & {
 export type Scheduler = ChartScheduler | DashboardScheduler;
 
 export type SchedulerAndTargets = Scheduler & {
-    targets: SchedulerSlackTarget[];
+    targets: (SchedulerSlackTarget | SchedulerEmailTarget)[];
 };
 
 export type SchedulerSlackTarget = {
@@ -32,17 +32,32 @@ export type SchedulerSlackTarget = {
     channel: string;
 };
 
-export type CreateSchedulerSlackTarget = Pick<SchedulerSlackTarget, 'channel'>;
+export type SchedulerEmailTarget = {
+    schedulerEmailTargetUuid: string;
+    createdAt: Date;
+    updatedAt: Date;
+    schedulerUuid: string;
+    recipient: string;
+};
+
+export type CreateSchedulerTarget =
+    | Pick<SchedulerSlackTarget, 'channel'>
+    | Pick<SchedulerEmailTarget, 'recipient'>;
 export type UpdateSchedulerSlackTarget = Pick<
     SchedulerSlackTarget,
     'schedulerSlackTargetUuid' | 'channel'
+>;
+
+export type UpdateSchedulerEmailTarget = Pick<
+    SchedulerEmailTarget,
+    'schedulerEmailTargetUuid' | 'recipient'
 >;
 
 export type CreateSchedulerAndTargets = Omit<
     Scheduler,
     'schedulerUuid' | 'createdAt' | 'updatedAt'
 > & {
-    targets: CreateSchedulerSlackTarget[];
+    targets: CreateSchedulerTarget[];
 };
 
 export type CreateSchedulerAndTargetsWithoutIds = Omit<
@@ -54,7 +69,7 @@ export type UpdateSchedulerAndTargets = Pick<
     Scheduler,
     'schedulerUuid' | 'name' | 'cron'
 > & {
-    targets: Array<CreateSchedulerSlackTarget | UpdateSchedulerSlackTarget>;
+    targets: Array<CreateSchedulerTarget | UpdateSchedulerSlackTarget>;
 };
 
 export type UpdateSchedulerAndTargetsWithoutId = Omit<
@@ -63,12 +78,27 @@ export type UpdateSchedulerAndTargetsWithoutId = Omit<
 >;
 
 export const isUpdateSchedulerSlackTarget = (
-    data: CreateSchedulerSlackTarget | UpdateSchedulerSlackTarget,
+    data: CreateSchedulerTarget | UpdateSchedulerSlackTarget,
 ): data is UpdateSchedulerSlackTarget =>
     'schedulerSlackTargetUuid' in data && !!data.schedulerSlackTargetUuid;
 
+export const isUpdateSchedulerEmailTarget = (
+    data: CreateSchedulerTarget | UpdateSchedulerEmailTarget,
+): data is UpdateSchedulerEmailTarget =>
+    'schedulerEmailTargetUuid' in data && !!data.schedulerEmailTargetUuid;
+
 export const isChartScheduler = (data: Scheduler): data is ChartScheduler =>
     'savedChartUuid' in data && !!data.savedChartUuid;
+
+export const isSlackTarget = (
+    target: SchedulerSlackTarget | SchedulerEmailTarget,
+): target is SchedulerSlackTarget => 'channel' in target;
+
+export const isCreateSchedulerSlackTarget = (
+    target:
+        | Pick<SchedulerSlackTarget, 'channel'>
+        | Pick<SchedulerEmailTarget, 'recipient'>,
+): target is Pick<SchedulerSlackTarget, 'channel'> => 'channel' in target;
 
 export type ApiSchedulerAndTargetsResponse = {
     status: 'ok';
@@ -92,3 +122,9 @@ export type ScheduledSlackNotification = Pick<
     'createdBy' | 'savedChartUuid' | 'dashboardUuid' | 'schedulerUuid'
 > &
     Pick<SchedulerSlackTarget, 'channel' | 'schedulerSlackTargetUuid'>;
+
+export type ScheduledEmailNotification = Pick<
+    SchedulerBase,
+    'createdBy' | 'savedChartUuid' | 'dashboardUuid' | 'schedulerUuid' | 'name'
+> &
+    Pick<SchedulerEmailTarget, 'recipient' | 'schedulerEmailTargetUuid'>;

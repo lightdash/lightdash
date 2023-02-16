@@ -3,6 +3,7 @@ import {
     Dashboard,
     ForbiddenError,
     isChartScheduler,
+    isSlackTarget,
     SavedChart,
     ScheduledJobs,
     Scheduler,
@@ -126,15 +127,24 @@ export class SchedulerService {
                 resourceId: isChartScheduler(scheduler)
                     ? scheduler.savedChartUuid
                     : scheduler.dashboardUuid,
-                targets: scheduler.targets.map((target) => ({
-                    schedulerTargetId: target.schedulerSlackTargetUuid,
-                    type: 'slack',
-                })),
+                targets: scheduler.targets.map((target) =>
+                    isSlackTarget(target)
+                        ? {
+                              schedulerTargetId:
+                                  target.schedulerSlackTargetUuid,
+                              type: 'slack',
+                          }
+                        : {
+                              schedulerTargetId:
+                                  target.schedulerEmailTargetUuid,
+                              type: 'email',
+                          },
+                ),
             },
         });
         await slackClient.joinChannels(
             user.organizationUuid,
-            scheduler.targets.map((target) => target.channel),
+            SchedulerModel.getSlackChannels(scheduler.targets),
         );
 
         await schedulerClient.generateDailyJobsForScheduler(scheduler);

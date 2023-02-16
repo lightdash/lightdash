@@ -1,4 +1,5 @@
-import { Card, H5 } from '@blueprintjs/core';
+import { Card, H5, Icon } from '@blueprintjs/core';
+import { IconMail } from '@tabler/icons-react';
 import styled from 'styled-components';
 import { ReactComponent as SlackSvg } from '../../../svgs/slack.svg';
 
@@ -7,7 +8,9 @@ export const SlackIcon = styled(SlackSvg)`
     height: 20px;
     margin: 5px;
 `;
-
+export const EmailIcon = styled(IconMail)`
+    margin: 5px;
+`;
 export const TargetRow = styled.div`
     display: flex;
     align-items: flex-start;

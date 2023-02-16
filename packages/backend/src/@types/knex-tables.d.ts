@@ -115,6 +115,8 @@ import {
     DbAnalyticsDashboardViews,
 } from '../database/entities/analytics';
 import {
+    SchedulerEmailTargetTable,
+    SchedulerEmailTargetTableName,
     SchedulerSlackTargetTable,
     SchedulerSlackTargetTableName,
     SchedulerTable,
@@ -166,5 +168,6 @@ declare module 'knex/types/tables' {
         [PinnedDashboardTableName]: PinnedDashboardTable;
         [SchedulerTableName]: SchedulerTable;
         [SchedulerSlackTargetTableName]: SchedulerSlackTargetTable;
+        [SchedulerEmailTargetTableName]: SchedulerEmailTargetTable;
     }
 }

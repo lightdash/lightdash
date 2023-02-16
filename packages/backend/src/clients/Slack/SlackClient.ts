@@ -84,6 +84,7 @@ export class SlackClient {
     }
 
     async joinChannels(organizationUuid: string, channels: string[]) {
+        if (channels.length === 0) return;
         try {
             if (this.slackApp === undefined) {
                 throw new Error('Slack app is not configured');

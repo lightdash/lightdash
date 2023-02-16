@@ -354,7 +354,7 @@ export class UnfurlService {
 
         let imageUrl;
         if (buffer !== undefined) {
-            if (this.s3Service.isEnabled() !== undefined) {
+            if (this.s3Service.isEnabled()) {
                 imageUrl = await this.s3Service.uploadImage(buffer, imageId);
             } else {
                 // We will share the image saved by puppetteer on our lightdash enpdoint
