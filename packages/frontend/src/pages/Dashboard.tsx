@@ -342,7 +342,11 @@ const Dashboard = () => {
         return <ErrorState error={dashboardError.error} />;
     }
     if (dashboard === undefined) {
-        return <Spinner />;
+        return (
+            <div style={{ marginTop: '20px' }}>
+                <NonIdealState title="Loading..." icon={<Spinner />} />
+            </div>
+        );
     }
     const dashboardChartTiles = dashboardTiles.filter(
         (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
