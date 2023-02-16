@@ -13,6 +13,7 @@ import {
     PinnedListTableName,
     PinnedSpaceTableName,
 } from './pinnedList';
+import { ProjectTableName } from './projects';
 import { SavedChartsTableName } from './savedCharts';
 
 export type DbSpace = {
@@ -69,7 +70,7 @@ export const getSpace = async (
             `${PinnedListTableName}.pinned_list_uuid`,
             `${PinnedSpaceTableName}.pinned_list_uuid`,
         )
-        .where(`${SpaceTableName}.project_uuid`, projectUuid)
+        .where(`${ProjectTableName}.project_uuid`, projectUuid)
         .select<(DbSpace & Pick<DbPinnedList, 'pinned_list_uuid'>)[]>([
             'spaces.space_id',
             'spaces.space_uuid',
