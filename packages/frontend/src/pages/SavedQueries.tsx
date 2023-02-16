@@ -99,6 +99,7 @@ const SavedQueries: FC = () => {
                         ResourceListType.CHART,
                     )}
                     defaultSort={{ updatedAt: SortDirection.DESC }}
+                    defaultColumnVisibility={{ type: false }}
                     renderEmptyState={() => (
                         <>
                             <ResourceEmptyStateIcon icon="chart" size={40} />
