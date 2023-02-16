@@ -17,6 +17,8 @@ services:
     startCommand: yarn start
     initialDeployHook: /usr/bin/renderDeployHook.sh
     envVars:
+      - key: NODE_VERSION
+        value: 16.16.0
       - key: PGHOST
         fromDatabase:
           name: jaffle_db
