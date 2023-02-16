@@ -1,8 +1,10 @@
+import { assertUnreachable } from '@lightdash/common';
 import React, { useCallback, useState } from 'react';
 import ResourceActionHandlers, {
     ResourceListAction,
     ResourceListActionState,
 } from './ResourceActionHandlers';
+import ResourceGrid from './ResourceGrid';
 import { ResourceEmptyStateWrapper } from './ResourceList.styles';
 import ResourceListWrapper, {
     ResourceListWrapperProps,
@@ -18,6 +20,12 @@ export interface ResourceListCommonProps {
     items: ResourceListItem[];
     showCount?: boolean;
     renderEmptyState?: () => React.ReactNode;
+    view: ResourceViewType;
+}
+
+export enum ResourceViewType {
+    LIST = 'list',
+    GRID = 'grid',
 }
 
 type ResourceListProps = ResourceListCommonProps &
@@ -25,6 +33,7 @@ type ResourceListProps = ResourceListCommonProps &
     ResourceListWrapperProps;
 
 const ResourceList: React.FC<ResourceListProps> = ({
+    view = ResourceViewType.LIST,
     items,
     headerTitle,
     headerIcon,
@@ -61,7 +70,7 @@ const ResourceList: React.FC<ResourceListProps> = ({
                             {renderEmptyState()}
                         </ResourceEmptyStateWrapper>
                     ) : null
-                ) : (
+                ) : view === ResourceViewType.LIST ? (
                     <ResourceTable
                         items={items}
                         enableSorting={enableSorting}
@@ -70,6 +79,10 @@ const ResourceList: React.FC<ResourceListProps> = ({
                         defaultSort={defaultSort}
                         onAction={handleAction}
                     />
+                ) : view === ResourceViewType.GRID ? (
+                    <ResourceGrid items={items} onAction={handleAction} />
+                ) : (
+                    assertUnreachable(view, 'Unknown resource view type')
                 )}
             </ResourceListWrapper>
 

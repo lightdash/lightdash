@@ -335,7 +335,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
                 0,
             );
         });
-    }, [items, columnSorts]);
+    }, [items, columnSorts, columns]);
 
     return (
         <StyledTable>
