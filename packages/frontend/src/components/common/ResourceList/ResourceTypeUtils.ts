@@ -46,8 +46,8 @@ export const isResourceListItemCanBelongToSpace = (
     );
 };
 
-export const wrapResource = (
-    resource: AcceptedResources,
+export const wrapResource = <T extends AcceptedResources>(
+    resource: T,
     type: ResourceListType,
 ): ResourceListItem => {
     switch (type) {
