@@ -29,6 +29,10 @@ export const lightdashConfigMock: LightdashConfig = {
         release: '',
         environment: '',
     },
+    fullstory: {
+        orgId: '',
+        devMode: false,
+    },
     auth: {
         disablePasswordAuthentication: false,
         google: {

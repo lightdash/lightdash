@@ -63,6 +63,7 @@ export class HealthService {
             latest: { version: getDockerHubVersion() },
             rudder: this.lightdashConfig.rudder,
             sentry: this.lightdashConfig.sentry,
+            fullstory: this.lightdashConfig.fullstory,
             intercom: this.lightdashConfig.intercom,
             cohere: this.lightdashConfig.cohere,
             siteUrl: this.lightdashConfig.siteUrl,

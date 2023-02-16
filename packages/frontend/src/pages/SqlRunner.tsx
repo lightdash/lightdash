@@ -291,7 +291,7 @@ const SqlRunnerPage = () => {
                             handleCardExpand(SqlRunnerCards.CHART, value)
                         }
                     >
-                        <LightdashVisualization className="sentry-block cohere-block" />
+                        <LightdashVisualization className="sentry-block fs-block cohere-block" />
                     </CollapsableCard>
                 </VisualizationProvider>
 
