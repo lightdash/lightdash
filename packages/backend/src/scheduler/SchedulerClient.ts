@@ -82,8 +82,14 @@ export class SchedulerClient {
                 id: string;
                 scheduler_slack_target_uuid: string | null;
                 scheduler_email_target_uuid: string | null;
+                format: 'image' | 'csv' | null;
             }>(
-                "select id, payload->>'schedulerSlackTargetUuid' as scheduler_slack_target_uuid, payload->>'schedulerEmailTargetUuid' as scheduler_email_target_uuid from graphile_worker.jobs where payload->>'schedulerUuid' like $1",
+                `select id, 
+                payload->>'schedulerSlackTargetUuid' as scheduler_slack_target_uuid, 
+                payload->>'schedulerEmailTargetUuid' as scheduler_email_target_uuid 
+                payload->>'format' as format 
+
+                from graphile_worker.jobs where payload->>'schedulerUuid' like $1`,
                 [`${schedulerUuid}%`],
             ),
         );
@@ -99,6 +105,7 @@ export class SchedulerClient {
                 id,
                 scheduler_slack_target_uuid,
                 scheduler_email_target_uuid,
+                format,
             }) => {
                 analytics.track({
                     event: 'scheduler_job.deleted',
@@ -110,6 +117,7 @@ export class SchedulerClient {
                             scheduler_slack_target_uuid ||
                             scheduler_email_target_uuid ||
                             'unknown',
+                        format: format || 'image',
                         type:
                             scheduler_slack_target_uuid !== null
                                 ? 'slack'
@@ -127,26 +135,26 @@ export class SchedulerClient {
     ): Promise<void> {
         const graphileClient = await this.graphileUtils;
 
+        const baseNotification = {
+            schedulerUuid: scheduler.schedulerUuid,
+            createdBy: scheduler.createdBy,
+            dashboardUuid: scheduler.dashboardUuid,
+            savedChartUuid: scheduler.savedChartUuid,
+            name: scheduler.name,
+            format: scheduler.format,
+        };
         const notification:
             | ScheduledSlackNotification
             | ScheduledEmailNotification = isSlackTarget(target)
             ? {
-                  schedulerUuid: scheduler.schedulerUuid,
+                  ...baseNotification,
                   channel: target.channel,
-                  createdBy: scheduler.createdBy,
-                  dashboardUuid: scheduler.dashboardUuid,
-                  savedChartUuid: scheduler.savedChartUuid,
                   schedulerSlackTargetUuid: target.schedulerSlackTargetUuid,
-                  name: scheduler.name,
               }
             : {
-                  schedulerUuid: scheduler.schedulerUuid,
+                  ...baseNotification,
                   recipient: target.recipient,
-                  createdBy: scheduler.createdBy,
-                  dashboardUuid: scheduler.dashboardUuid,
-                  savedChartUuid: scheduler.savedChartUuid,
                   schedulerEmailTargetUuid: target.schedulerEmailTargetUuid,
-                  name: scheduler.name,
               };
         const { id } = await graphileClient.addJob(
             isSlackTarget(target)
@@ -168,6 +176,7 @@ export class SchedulerClient {
                     ? target.schedulerSlackTargetUuid
                     : target.schedulerEmailTargetUuid,
                 type: isSlackTarget(target) ? 'slack' : 'email',
+                format: scheduler.format,
             },
         });
     }

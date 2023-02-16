@@ -43,6 +43,7 @@ export class SchedulerModel {
             cron: scheduler.cron,
             savedChartUuid: scheduler.saved_chart_uuid,
             dashboardUuid: scheduler.dashboard_uuid,
+            format: scheduler.format,
         } as Scheduler;
     }
 
@@ -185,6 +186,7 @@ export class SchedulerModel {
             const [scheduler] = await trx(SchedulerTableName)
                 .insert({
                     name: newScheduler.name,
+                    format: newScheduler.format,
                     created_by: newScheduler.createdBy,
                     cron: newScheduler.cron,
                     saved_chart_uuid: newScheduler.savedChartUuid,
@@ -220,6 +222,7 @@ export class SchedulerModel {
             await trx(SchedulerTableName)
                 .update({
                     name: scheduler.name,
+                    format: scheduler.format,
                     cron: scheduler.cron,
                     updated_at: new Date(),
                 })

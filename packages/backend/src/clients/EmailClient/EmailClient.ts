@@ -170,7 +170,7 @@ export default class EmailClient {
         });
     }
 
-    public async sendNotificationEmail(
+    public async sendImageNotificationEmail(
         recipient: string,
         subject: string,
         title: string,
@@ -181,10 +181,33 @@ export default class EmailClient {
         return this.sendEmail({
             to: recipient,
             subject,
-            template: 'notification',
+            template: 'imageNotification',
             context: {
                 title,
                 imageUrl,
+                description,
+                url,
+                host: this.lightdashConfig.siteUrl,
+            },
+            text: title,
+        });
+    }
+
+    public async sendCsvNotificationEmail(
+        recipient: string,
+        subject: string,
+        title: string,
+        description: string,
+        csvUrl: string,
+        url: string,
+    ) {
+        return this.sendEmail({
+            to: recipient,
+            subject,
+            template: 'csvNotification',
+            context: {
+                title,
+                csvUrl,
                 description,
                 url,
                 host: this.lightdashConfig.siteUrl,

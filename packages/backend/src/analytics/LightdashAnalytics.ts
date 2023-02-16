@@ -509,6 +509,7 @@ export type SchedulerJobEvent = BaseTrack & {
         schedulerTargetId: string;
         resourceType?: 'dashboard' | 'chart';
         type: 'slack' | 'email';
+        format: 'csv' | 'image';
     };
 };
 

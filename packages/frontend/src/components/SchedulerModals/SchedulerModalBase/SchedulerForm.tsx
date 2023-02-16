@@ -1,4 +1,4 @@
-import { Button, Colors, Icon } from '@blueprintjs/core';
+import { Button, Colors, HTMLSelect, Icon } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import cronstrue from 'cronstrue';
 import React, { FC, useMemo } from 'react';
@@ -10,6 +10,8 @@ import { ArrayInput } from '../../ReactHookForm/ArrayInput';
 import AutoComplete from '../../ReactHookForm/AutoComplete';
 import Form from '../../ReactHookForm/Form';
 import Input from '../../ReactHookForm/Input';
+import Select from '../../ReactHookForm/Select';
+import { FormGroupWrapper } from '../../SavedQueries/SavedQueries.style';
 import { hasRequiredScopes } from '../../UserSettings/SlackSettingsPanel';
 import { EmailIcon, SlackIcon, TargetRow } from './SchedulerModalBase.styles';
 
@@ -121,6 +123,15 @@ const SchedulerForm: FC<
                             isInvalidCronExpression('Cron expression'),
                     },
                 }}
+            />
+
+            <Select
+                label="Format"
+                name="format"
+                options={[
+                    { value: 'image', label: 'Image' },
+                    { value: 'csv', label: 'CSV' },
+                ]}
             />
             <ArrayInput
                 label="Send to"

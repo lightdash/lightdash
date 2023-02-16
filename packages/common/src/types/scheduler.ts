@@ -4,6 +4,7 @@ export type SchedulerBase = {
     createdAt: Date;
     updatedAt: Date;
     createdBy: string;
+    format: 'csv' | 'image';
     cron: string;
     savedChartUuid: string | null;
     dashboardUuid: string | null;
@@ -67,7 +68,7 @@ export type CreateSchedulerAndTargetsWithoutIds = Omit<
 
 export type UpdateSchedulerAndTargets = Pick<
     Scheduler,
-    'schedulerUuid' | 'name' | 'cron'
+    'schedulerUuid' | 'name' | 'cron' | 'format'
 > & {
     targets: Array<CreateSchedulerTarget | UpdateSchedulerSlackTarget>;
 };
@@ -119,12 +120,21 @@ export type ApiScheduledJobsResponse = {
 
 export type ScheduledSlackNotification = Pick<
     SchedulerBase,
-    'createdBy' | 'savedChartUuid' | 'dashboardUuid' | 'schedulerUuid'
+    | 'createdBy'
+    | 'savedChartUuid'
+    | 'dashboardUuid'
+    | 'schedulerUuid'
+    | 'format'
 > &
     Pick<SchedulerSlackTarget, 'channel' | 'schedulerSlackTargetUuid'>;
 
 export type ScheduledEmailNotification = Pick<
     SchedulerBase,
-    'createdBy' | 'savedChartUuid' | 'dashboardUuid' | 'schedulerUuid' | 'name'
+    | 'createdBy'
+    | 'savedChartUuid'
+    | 'dashboardUuid'
+    | 'schedulerUuid'
+    | 'name'
+    | 'format'
 > &
     Pick<SchedulerEmailTarget, 'recipient' | 'schedulerEmailTargetUuid'>;
