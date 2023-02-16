@@ -12,8 +12,7 @@ export const useFullstory = (
         if (config && !isFullstoryLoaded && config.orgId) {
             Fullstory.init({
                 orgId: config.orgId,
-                // devMode: config.devMode,
-                devMode: false,
+                devMode: config.devMode,
             });
             setIsFullstoryLoaded(true);
         }

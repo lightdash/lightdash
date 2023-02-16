@@ -219,7 +219,10 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
         },
         fullstory: {
             orgId: process.env.FULLSTORY_ORG_ID || '',
-            devMode: process.env.NODE_ENV === 'development',
+            devMode:
+                process.env.NODE_ENV === 'development' ||
+                mode === LightdashMode.DEMO ||
+                mode === LightdashMode.PR,
         },
         lightdashSecret,
         secureCookies: process.env.SECURE_COOKIES === 'true',
