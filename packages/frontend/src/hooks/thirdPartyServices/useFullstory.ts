@@ -16,7 +16,7 @@ export const useFullstory = (
             });
             setIsFullstoryLoaded(true);
         }
-        if (user) {
+        if (user && isFullstoryLoaded) {
             Fullstory.identify(user.userUuid, {
                 displayName: user.email,
                 email: user.email,
