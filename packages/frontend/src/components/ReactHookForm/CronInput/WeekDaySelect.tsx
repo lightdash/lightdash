@@ -64,9 +64,9 @@ const renderItem: ItemRenderer<Option> = (item, { modifiers, handleClick }) => {
     const label = item.label;
     return (
         <MenuItem2
+            active={modifiers.active}
             selected={modifiers.active}
             disabled={modifiers.disabled}
-            icon={modifiers.active ? 'tick' : 'blank'}
             key={valueId}
             text={label}
             onClick={handleClick}
@@ -99,7 +99,7 @@ const WeekDaySelect: FC<{
             activeItem={activeItem}
             itemRenderer={renderItem}
             onItemSelect={onItemSelect}
-            popoverProps={{ minimal: true, matchTargetWidth: true }}
+            popoverProps={{ minimal: true }}
             itemPredicate={itemPredicate}
         >
             <Button
