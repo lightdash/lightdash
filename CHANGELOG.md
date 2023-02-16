@@ -1,3 +1,10 @@
+## [0.417.1](https://github.com/lightdash/lightdash/compare/0.417.0...0.417.1) (2023-02-16)
+
+
+### Bug Fixes
+
+* improving loading states ([#4494](https://github.com/lightdash/lightdash/issues/4494)) ([a9033d8](https://github.com/lightdash/lightdash/commit/a9033d820d7278932e1aac0327a9edf469158c65))
+
 # [0.417.0](https://github.com/lightdash/lightdash/compare/0.416.1...0.417.0) (2023-02-16)
 
 
