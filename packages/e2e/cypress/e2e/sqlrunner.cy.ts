@@ -8,6 +8,7 @@ const firstCustomer = {
 describe('SQL Runner', () => {
     beforeEach(() => {
         cy.login();
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/sqlRunner`);
     });
 
     it('Should see results from customers by typing', () => {
