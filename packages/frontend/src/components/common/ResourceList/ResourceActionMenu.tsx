@@ -92,27 +92,31 @@ const ResourceListActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
                     {user.data?.ability.can(
                         'update',
                         subject('Project', { organizationUuid, projectUuid }),
-                    ) && (
-                        <MenuItem2
-                            role="menuitem"
-                            icon="pin"
-                            text={
-                                isPinned
-                                    ? 'Unpin from homepage'
-                                    : 'Pin to homepage'
-                            }
-                            onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
+                    ) &&
+                        (item.type === ResourceListType.CHART ||
+                            item.type === ResourceListType.DASHBOARD ||
+                            (item.type === ResourceListType.SPACE &&
+                                localStorage.getItem('feat-pin-space'))) && (
+                            <MenuItem2
+                                role="menuitem"
+                                icon="pin"
+                                text={
+                                    isPinned
+                                        ? 'Unpin from homepage'
+                                        : 'Pin to homepage'
+                                }
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
 
-                                setIsOpen(false);
-                                onAction({
-                                    type: ResourceListAction.PIN_TO_HOMEPAGE,
-                                    item,
-                                });
-                            }}
-                        />
-                    )}
+                                    setIsOpen(false);
+                                    onAction({
+                                        type: ResourceListAction.PIN_TO_HOMEPAGE,
+                                        item,
+                                    });
+                                }}
+                            />
+                        )}
 
                     {!isDashboardPage && item.type === ResourceListType.CHART && (
                         <MenuItem2
