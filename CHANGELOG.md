@@ -1,3 +1,10 @@
+# [0.417.0](https://github.com/lightdash/lightdash/compare/0.416.1...0.417.0) (2023-02-16)
+
+
+### Features
+
+* when user has no charts or dashboards add existing button is hidden ([#4490](https://github.com/lightdash/lightdash/issues/4490)) ([4cbf18e](https://github.com/lightdash/lightdash/commit/4cbf18e102dcec6e56e05040dfb13aab7bdf47a2))
+
 ## [0.416.1](https://github.com/lightdash/lightdash/compare/0.416.0...0.416.1) (2023-02-16)
 
 
