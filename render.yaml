@@ -10,11 +10,11 @@ services:
     name: headless-browser
     dockerfilePath: docker/Dockerfile.headless-browser
   - type: web
-    env: docker
+    env: node
     name: lightdash
     plan: standard
-    dockerContext: .
-    dockerfilePath: dockerfile-prs
+    buildCommand: yarn install && yarn build
+    startCommand: yarn start
     initialDeployHook: /usr/bin/renderDeployHook.sh
     envVars:
       - key: PGHOST
