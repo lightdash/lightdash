@@ -5,7 +5,9 @@ jobs:
     # Only trigger for correct environment and status
     if: ${{ github.event.deployment_status.state == 'success' && contains(github.event.deployment.environment, '- lightdash PR ')}}
     runs-on: ubuntu-latest
-    container: cypress/browsers:node18.12.0-chrome107
+    container:
+      image: cypress/browsers:node18.12.0-chrome107
+      options: --user 1001
     steps:
       - name: Get PR number
         id: regex

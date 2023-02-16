@@ -9,7 +9,9 @@ on:
 jobs:
   cypress-run:
     runs-on: ubuntu-latest
-    container: cypress/browsers:node18.12.0-chrome107
+    container:
+      image: cypress/browsers:node18.12.0-chrome107
+      options: --user 1001
     steps:
       - name: Get deployment url
         run: echo "Deployment url - ${{ github.event.inputs.url }}"
