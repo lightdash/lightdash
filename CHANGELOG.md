@@ -1,3 +1,10 @@
+## [0.416.1](https://github.com/lightdash/lightdash/compare/0.416.0...0.416.1) (2023-02-16)
+
+
+### Bug Fixes
+
+* hide type column from all charts and all dashboards tables ([#4489](https://github.com/lightdash/lightdash/issues/4489)) ([1cdf016](https://github.com/lightdash/lightdash/commit/1cdf016d3033b8d4dbdcf6487e5601c188239576))
+
 # [0.416.0](https://github.com/lightdash/lightdash/compare/0.415.0...0.416.0) (2023-02-16)
 
 
