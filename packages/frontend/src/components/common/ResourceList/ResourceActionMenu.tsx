@@ -93,30 +93,30 @@ const ResourceListActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
                         'update',
                         subject('Project', { organizationUuid, projectUuid }),
                     ) &&
-                        (item.type === ResourceListType.CHART ||
-                            item.type === ResourceListType.DASHBOARD ||
-                            (item.type === ResourceListType.SPACE &&
-                                localStorage.getItem('feat-pin-space'))) && (
-                            <MenuItem2
-                                role="menuitem"
-                                icon="pin"
-                                text={
-                                    isPinned
-                                        ? 'Unpin from homepage'
-                                        : 'Pin to homepage'
-                                }
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
+                    (item.type === ResourceListType.CHART ||
+                        item.type === ResourceListType.DASHBOARD ||
+                        (item.type === ResourceListType.SPACE &&
+                            localStorage.getItem('feat-pin-space'))) ? (
+                        <MenuItem2
+                            role="menuitem"
+                            icon="pin"
+                            text={
+                                isPinned
+                                    ? 'Unpin from homepage'
+                                    : 'Pin to homepage'
+                            }
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
 
-                                    setIsOpen(false);
-                                    onAction({
-                                        type: ResourceListAction.PIN_TO_HOMEPAGE,
-                                        item,
-                                    });
-                                }}
-                            />
-                        )}
+                                setIsOpen(false);
+                                onAction({
+                                    type: ResourceListAction.PIN_TO_HOMEPAGE,
+                                    item,
+                                });
+                            }}
+                        />
+                    ) : null}
 
                     {!isDashboardPage && item.type === ResourceListType.CHART && (
                         <MenuItem2

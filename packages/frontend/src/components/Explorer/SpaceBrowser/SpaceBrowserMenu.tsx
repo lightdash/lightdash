@@ -34,19 +34,18 @@ export const SpaceBrowserMenu: React.FC<Props> = ({
                     {user.data?.ability.can(
                         'update',
                         subject('Project', { organizationUuid, projectUuid }),
-                    ) &&
-                        localStorage.getItem('feat-pin-space') && (
-                            <MenuItem2
-                                role="menuitem"
-                                icon="pin"
-                                text={
-                                    isPinned
-                                        ? 'Unpin from homepage'
-                                        : 'Pin to homepage'
-                                }
-                                onClick={onTogglePin}
-                            />
-                        )}
+                    ) && localStorage.getItem('feat-pin-space') ? (
+                        <MenuItem2
+                            role="menuitem"
+                            icon="pin"
+                            text={
+                                isPinned
+                                    ? 'Unpin from homepage'
+                                    : 'Pin to homepage'
+                            }
+                            onClick={onTogglePin}
+                        />
+                    ) : null}
 
                     <MenuDivider />
 
