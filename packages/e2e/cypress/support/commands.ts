@@ -52,25 +52,49 @@ declare global {
 }
 
 Cypress.Commands.add('login', () => {
-    cy.request({
-        url: 'api/v1/login',
-        method: 'POST',
-        body: {
-            email: SEED_ORG_1_ADMIN_EMAIL.email,
-            password: SEED_ORG_1_ADMIN_PASSWORD.password,
+    cy.session(
+        SEED_ORG_1_ADMIN_EMAIL.email,
+        () => {
+            cy.request({
+                url: 'api/v1/login',
+                method: 'POST',
+                body: {
+                    email: SEED_ORG_1_ADMIN_EMAIL.email,
+                    password: SEED_ORG_1_ADMIN_PASSWORD.password,
+                },
+            })
+                .its('status')
+                .should('eq', 200);
         },
-    });
+        {
+            validate() {
+                cy.request('api/v1/user').its('status').should('eq', 200);
+            },
+        },
+    );
 });
 
 Cypress.Commands.add('anotherLogin', () => {
-    cy.request({
-        url: 'api/v1/login',
-        method: 'POST',
-        body: {
-            email: SEED_ORG_2_ADMIN_EMAIL.email,
-            password: SEED_ORG_2_ADMIN_PASSWORD.password,
+    cy.session(
+        SEED_ORG_2_ADMIN_EMAIL.email,
+        () => {
+            cy.request({
+                url: 'api/v1/login',
+                method: 'POST',
+                body: {
+                    email: SEED_ORG_2_ADMIN_EMAIL.email,
+                    password: SEED_ORG_2_ADMIN_PASSWORD.password,
+                },
+            })
+                .its('status')
+                .should('eq', 200);
         },
-    });
+        {
+            validate() {
+                cy.request('api/v1/user').its('status').should('eq', 200);
+            },
+        },
+    );
 });
 Cypress.Commands.add('registerNewUser', () => {
     const email = `test+${new Date().getTime()}@lightdash.com`;

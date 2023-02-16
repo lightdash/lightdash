@@ -1,7 +1,7 @@
 import { SEED_ORG_1_ADMIN, SEED_ORG_1_ADMIN_EMAIL } from '@lightdash/common';
 
 describe('Settings - Profile', () => {
-    before(() => {
+    beforeEach(() => {
         cy.login();
     });
 
@@ -16,10 +16,6 @@ describe('Settings - Profile', () => {
                 email: SEED_ORG_1_ADMIN_EMAIL.email,
             },
         });
-    });
-
-    beforeEach(() => {
-        Cypress.Cookies.preserveOnce('connect.sid');
     });
 
     it('Should change name and email', () => {

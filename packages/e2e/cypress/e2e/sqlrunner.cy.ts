@@ -6,13 +6,8 @@ const firstCustomer = {
     created: '2017-01-30T06:00:00.000Z',
 };
 describe('SQL Runner', () => {
-    before(() => {
-        cy.login();
-    });
-
     beforeEach(() => {
-        Cypress.Cookies.preserveOnce('connect.sid');
-        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/sqlRunner`);
+        cy.login();
     });
 
     it('Should see results from customers by typing', () => {

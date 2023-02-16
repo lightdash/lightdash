@@ -1,12 +1,8 @@
 import { SEED_PROJECT } from '@lightdash/common';
 
 describe('Dashboard List', () => {
-    before(() => {
-        cy.login();
-    });
-
     beforeEach(() => {
-        Cypress.Cookies.preserveOnce('connect.sid');
+        cy.login();
     });
 
     it('Should display dashboards', () => {
