@@ -1,6 +1,5 @@
-import { Button, Colors, Icon } from '@blueprintjs/core';
+import { Button, Classes, Colors } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
-import cronstrue from 'cronstrue';
 import React, { FC, useMemo } from 'react';
 import useHealth from '../../../hooks/health/useHealth';
 import { useSlackChannels } from '../../../hooks/slack/useSlackChannels';
@@ -86,16 +85,8 @@ const SchedulerForm: FC<
     );
     const health = useHealth();
 
-    const cronValue = methods.watch('cron', '0 9 * * 1');
-    const cronHelperText = useMemo(() => {
-        const validationError =
-            isInvalidCronExpression('Cron expression')(cronValue);
-        const cronHumanString = cronstrue.toString(cronValue, {
-            verbose: true,
-            throwExceptionOnParseError: false,
-        });
-        return validationError ?? cronHumanString;
-    }, [cronValue]);
+    const isAddSlackDisabled = disabled || slackState !== SlackStates.SUCCESS;
+    const isAddEmailDisabled = disabled || !health.data?.hasEmailClient;
 
     return (
         <Form name="scheduler" methods={methods} {...rest}>
@@ -188,13 +179,18 @@ const SchedulerForm: FC<
                         >
                             <Button
                                 minimal
-                                onClick={() => append({ channel: '' })}
+                                className={
+                                    isAddSlackDisabled
+                                        ? Classes.DISABLED
+                                        : undefined
+                                }
+                                onClick={
+                                    isAddSlackDisabled
+                                        ? undefined
+                                        : () => append({ channel: '' })
+                                }
                                 icon={'plus'}
                                 text="Add slack"
-                                disabled={
-                                    disabled ||
-                                    slackState !== SlackStates.SUCCESS
-                                }
                             />
                         </Tooltip2>
                         <Tooltip2
@@ -218,11 +214,17 @@ const SchedulerForm: FC<
                         >
                             <Button
                                 minimal
-                                onClick={() => append({ recipients: '' })}
+                                onClick={
+                                    isAddEmailDisabled
+                                        ? undefined
+                                        : () => append({ recipients: '' })
+                                }
                                 icon={'plus'}
                                 text="Add email"
-                                disabled={
-                                    disabled || !health.data?.hasEmailClient
+                                className={
+                                    isAddEmailDisabled
+                                        ? Classes.DISABLED
+                                        : undefined
                                 }
                             />
                         </Tooltip2>
