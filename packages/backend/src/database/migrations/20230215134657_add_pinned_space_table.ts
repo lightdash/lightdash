@@ -39,8 +39,8 @@ export async function up(knex: Knex): Promise<void> {
 }
 
 export async function down(knex: Knex): Promise<void> {
+    await knex.schema.dropTableIfExists(PinnedSpaceTableName);
     await knex.schema.alterTable(SpaceTableName, (table) => {
         table.dropUnique(['space_uuid']);
     });
-    await knex.schema.dropTableIfExists(PinnedSpaceTableName);
 }
