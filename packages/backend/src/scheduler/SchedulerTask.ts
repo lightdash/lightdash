@@ -66,7 +66,7 @@ export const sendSlackNotification = async (
             jobId,
             schedulerId: schedulerUuid,
             schedulerTargetId: schedulerSlackTargetUuid,
-            task: 'sendSlackNotification',
+            type: 'slack',
         },
     });
     try {
@@ -108,8 +108,9 @@ export const sendSlackNotification = async (
                 jobId,
                 schedulerId: schedulerUuid,
                 schedulerTargetId: schedulerSlackTargetUuid,
-                task: 'sendSlackNotification',
-                type: pageType,
+                type: 'slack',
+                resourceType:
+                    pageType === LightdashPage.CHART ? 'chart' : 'dashboard',
             },
         });
     } catch (e) {
@@ -123,7 +124,7 @@ export const sendSlackNotification = async (
                 jobId,
                 schedulerId: schedulerUuid,
                 schedulerTargetId: schedulerSlackTargetUuid,
-                task: 'sendSlackNotification',
+                type: 'slack',
             },
         });
         throw e; // Cascade error to it can be retried by graphile
@@ -150,7 +151,7 @@ export const sendEmailNotification = async (
             jobId,
             schedulerId: schedulerUuid,
             schedulerTargetId: schedulerEmailTargetUuid,
-            task: 'sendEmailNotification',
+            type: 'email',
         },
     });
     try {
@@ -183,13 +184,14 @@ export const sendEmailNotification = async (
                 jobId,
                 schedulerId: schedulerUuid,
                 schedulerTargetId: schedulerEmailTargetUuid,
-                task: 'sendEmailNotification',
-                type: pageType,
+                type: 'email',
+                resourceType:
+                    pageType === LightdashPage.CHART ? 'chart' : 'dashboard',
             },
         });
     } catch (e) {
         Logger.error(
-            `Unable to sendNotification on slack : ${JSON.stringify(e)}`,
+            `Unable to send notification on email : ${JSON.stringify(e)}`,
         );
         analytics.track({
             event: 'scheduler_job.failed',
@@ -198,7 +200,7 @@ export const sendEmailNotification = async (
                 jobId,
                 schedulerId: schedulerUuid,
                 schedulerTargetId: schedulerEmailTargetUuid,
-                task: 'sendEmailNotification',
+                type: 'email',
             },
         });
         throw e; // Cascade error to it can be retried by graphile

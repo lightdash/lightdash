@@ -507,8 +507,8 @@ export type SchedulerJobEvent = BaseTrack & {
         jobId: string;
         schedulerId: string;
         schedulerTargetId: string;
-        task?: 'sendEmailNotification' | 'sendSlackNotification';
-        type?: string;
+        resourceType?: 'dashboard' | 'chart';
+        type: 'slack' | 'email';
     };
 };
 

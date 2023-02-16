@@ -78,8 +78,12 @@ export class SchedulerClient {
         const graphileClient = await this.graphileUtils;
 
         const deletedJobs = await graphileClient.withPgClient((pgClient) =>
-            pgClient.query<{ id: string; scheduler_slack_target_uuid: string }>(
-                "select id, payload->>'schedulerSlackTargetUuid' as scheduler_slack_target_uuid from graphile_worker.jobs where payload->>'schedulerUuid' like $1",
+            pgClient.query<{
+                id: string;
+                scheduler_slack_target_uuid: string | null;
+                scheduler_email_target_uuid: string | null;
+            }>(
+                "select id, payload->>'schedulerSlackTargetUuid' as scheduler_slack_target_uuid, payload->>'schedulerEmailTargetUuid' as scheduler_email_target_uuid from graphile_worker.jobs where payload->>'schedulerUuid' like $1",
                 [`${schedulerUuid}%`],
             ),
         );
@@ -90,17 +94,30 @@ export class SchedulerClient {
 
         await graphileClient.completeJobs(deletedJobIds);
 
-        deletedJobs.rows.forEach(({ id, scheduler_slack_target_uuid }) => {
-            analytics.track({
-                event: 'scheduler_job.deleted',
-                anonymousId: LightdashAnalytics.anonymousId,
-                properties: {
-                    jobId: id,
-                    schedulerId: schedulerUuid,
-                    schedulerTargetId: scheduler_slack_target_uuid,
-                },
-            });
-        });
+        deletedJobs.rows.forEach(
+            ({
+                id,
+                scheduler_slack_target_uuid,
+                scheduler_email_target_uuid,
+            }) => {
+                analytics.track({
+                    event: 'scheduler_job.deleted',
+                    anonymousId: LightdashAnalytics.anonymousId,
+                    properties: {
+                        jobId: id,
+                        schedulerId: schedulerUuid,
+                        schedulerTargetId:
+                            scheduler_slack_target_uuid ||
+                            scheduler_email_target_uuid ||
+                            'unknown',
+                        type:
+                            scheduler_slack_target_uuid !== null
+                                ? 'slack'
+                                : 'email',
+                    },
+                });
+            },
+        );
     }
 
     async addJob(
@@ -150,6 +167,7 @@ export class SchedulerClient {
                 schedulerTargetId: isSlackTarget(target)
                     ? target.schedulerSlackTargetUuid
                     : target.schedulerEmailTargetUuid,
+                type: isSlackTarget(target) ? 'slack' : 'email',
             },
         });
     }

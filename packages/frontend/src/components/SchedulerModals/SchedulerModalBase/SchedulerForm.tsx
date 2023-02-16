@@ -13,25 +13,64 @@ import Input from '../../ReactHookForm/Input';
 import { hasRequiredScopes } from '../../UserSettings/SlackSettingsPanel';
 import { EmailIcon, SlackIcon, TargetRow } from './SchedulerModalBase.styles';
 
-enum States {
+enum SlackStates {
     LOADING,
     SUCCESS,
-    ERROR,
+    NO_SLACK,
+    MISSING_SCOPES,
 }
 
+const SlackErrorContent: FC<{ slackState: SlackStates }> = ({
+    slackState,
+}): JSX.Element => {
+    if (slackState === SlackStates.NO_SLACK) {
+        return (
+            <>
+                <p>No Slack integration found</p>
+                <p>
+                    To create a slack scheduled delivery, you need to
+                    <a href="https://docs.lightdash.com/guides/enable-slack-selfhost">
+                        {' '}
+                        setup Slack{' '}
+                    </a>
+                    for your Lightdash instance
+                </p>
+            </>
+        );
+    } else if (slackState === SlackStates.MISSING_SCOPES) {
+        return (
+            <>
+                <p>Slack integration needs to be reinstalled</p>
+                <p>
+                    To create a slack scheduled delivery, you need to
+                    <a href="/generalSettings/slack">
+                        {' '}
+                        reinstall the Slack integration{' '}
+                    </a>
+                    for your organisation
+                </p>
+            </>
+        );
+    }
+    return <></>;
+};
 const SchedulerForm: FC<
     { disabled: boolean } & React.ComponentProps<typeof Form>
 > = ({ disabled, methods, ...rest }) => {
     const slackQuery = useGetSlack();
-    const state = useMemo(() => {
+    const slackState = useMemo(() => {
         if (slackQuery.isLoading) {
-            return States.LOADING;
+            return SlackStates.LOADING;
         } else {
-            const isValidSlack =
-                slackQuery.data?.slackTeamName !== undefined &&
-                !slackQuery.isError &&
-                hasRequiredScopes(slackQuery.data);
-            return isValidSlack ? States.SUCCESS : States.ERROR;
+            if (
+                slackQuery.data?.slackTeamName === undefined ||
+                slackQuery.isError
+            ) {
+                return SlackStates.NO_SLACK;
+            } else if (slackQuery.data && !hasRequiredScopes(slackQuery.data)) {
+                return SlackStates.MISSING_SCOPES;
+            }
+            return SlackStates.SUCCESS;
         }
     }, [slackQuery]);
 
@@ -144,34 +183,23 @@ const SchedulerForm: FC<
                 renderAppendRowButton={(append) => (
                     <>
                         <Tooltip2
-                            hoverCloseDelay={500}
                             interactionKind="hover"
-                            content={
-                                <>
-                                    <p>No Slack integration found</p>
-                                    <p>
-                                        To create a slack scheduled delivery,
-                                        you need to{' '}
-                                        <a href="https://docs.lightdash.com/guides/enable-slack-selfhost">
-                                            setup Slack
-                                        </a>{' '}
-                                        for your Lightdash instance
-                                    </p>
-                                </>
-                            }
+                            content={<>{SlackErrorContent({ slackState })}</>}
                             position="bottom"
-                            disabled={state === States.SUCCESS}
+                            disabled={slackState === SlackStates.SUCCESS}
                         >
                             <Button
                                 minimal
                                 onClick={() => append({ channel: '' })}
                                 icon={'plus'}
                                 text="Add slack"
-                                disabled={disabled || state !== States.SUCCESS}
+                                disabled={
+                                    disabled ||
+                                    slackState !== SlackStates.SUCCESS
+                                }
                             />
                         </Tooltip2>
                         <Tooltip2
-                            hoverCloseDelay={500}
                             interactionKind="hover"
                             content={
                                 <>
