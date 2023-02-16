@@ -1,20 +1,16 @@
-import { NonIdealState, Spinner } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import { Redirect, useParams } from 'react-router-dom';
 import ErrorState from '../components/common/ErrorState';
+import PageSpinner from '../components/PageSpinner';
 import { getLastProject, useProjects } from '../hooks/useProjects';
 
 export const Projects: FC = () => {
     const params = useParams<{ projectUuid: string | undefined }>();
     const { isLoading, data, error } = useProjects();
     if (isLoading) {
-        return (
-            <div style={{ marginTop: '20px' }}>
-                <NonIdealState title="Loading..." icon={<Spinner />} />
-            </div>
-        );
+        return <PageSpinner />;
     }
-    if (error) {
+    if (error && error.error) {
         return <ErrorState error={error.error} />;
     }
     if (!data || data.length <= 0) {
