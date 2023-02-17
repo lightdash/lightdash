@@ -1,4 +1,4 @@
-import { Classes, Icon, NonIdealState, Spinner } from '@blueprintjs/core';
+import { NonIdealState, Spinner } from '@blueprintjs/core';
 import { Breadcrumbs2 } from '@blueprintjs/popover2';
 import {
     UserActivity as UserActivityResponse,
@@ -9,18 +9,11 @@ import EChartsReact from 'echarts-for-react';
 import { FC } from 'react';
 import { Helmet } from 'react-helmet';
 import { useHistory, useParams } from 'react-router-dom';
-import Content from '../components/common/Page/Content';
 import Page from '../components/common/Page/Page';
 import {
     PageBreadcrumbsWrapper,
-    PageContentWrapper,
     PageHeader,
 } from '../components/common/Page/Page.styles';
-import {
-    PageHeaderContainer,
-    PageTitleAndDetailsContainer,
-    PageTitleContainer,
-} from '../components/common/PageHeader';
 import { ResourceBreadcrumbTitle } from '../components/common/ResourceList/ResourceList.styles';
 import { Table, Td } from '../components/common/Table/Table.styles';
 import ForbiddenPanel from '../components/ForbiddenPanel';
