@@ -172,7 +172,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                     minimal
                     icon={
                         <IconSquareRoundedPlus
-                            size={17}
+                            size={20}
                             color={Colors.GRAY4}
                             style={{ marginRight: '6px' }}
                         />

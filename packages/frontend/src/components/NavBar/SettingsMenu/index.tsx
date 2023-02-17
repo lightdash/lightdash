@@ -73,7 +73,7 @@ const SettingsMenu: FC = () => {
         >
             <Button
                 minimal
-                icon={<IconSettings size={19} color={Colors.GRAY4} />}
+                icon={<IconSettings size={20} color={Colors.GRAY4} />}
                 data-testid="settings-menu"
             />
         </Popover2>

@@ -78,7 +78,7 @@ const HelpMenu: FC = () => {
             <NotificationWrapper>
                 <Button
                     minimal
-                    icon={<IconBell size={19} color={Colors.GRAY4} />}
+                    icon={<IconBell size={20} color={Colors.GRAY4} />}
                 />
                 <NotificationWidget id="headway-badge" />
             </NotificationWrapper>
@@ -180,7 +180,7 @@ const HelpMenu: FC = () => {
             >
                 <Button
                     minimal
-                    icon={<IconHelp size={19} color={Colors.GRAY4} />}
+                    icon={<IconHelp size={20} color={Colors.GRAY4} />}
                 />
             </Popover2>
         </>

@@ -87,7 +87,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                 minimal
                 icon={
                     <IconCategory
-                        size={17}
+                        size={20}
                         color={Colors.GRAY4}
                         style={{ marginRight: '6px' }}
                     />
