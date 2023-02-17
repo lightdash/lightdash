@@ -293,12 +293,8 @@ const testTimeIntervalsResults = (rowValues = defaultRowValues) => {
 };
 
 describe('Create projects', () => {
-    before(() => {
-        cy.login();
-    });
-
     beforeEach(() => {
-        Cypress.Cookies.preserveOnce('connect.sid');
+        cy.login();
     });
 
     it('Should be able to create new project from settings', () => {

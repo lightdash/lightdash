@@ -13,12 +13,8 @@ const runqueryBody = {
 };
 const sqlQueryBody = { sql: 'select 1' };
 describe('Lightdash API', () => {
-    before(() => {
-        cy.login();
-    });
-
     beforeEach(() => {
-        Cypress.Cookies.preserveOnce('connect.sid');
+        cy.login();
     });
 
     it('Should identify user', () => {
