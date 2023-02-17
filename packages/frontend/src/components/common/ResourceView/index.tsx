@@ -1,3 +1,4 @@
+import { Tooltip2 } from '@blueprintjs/popover2';
 import { assertUnreachable } from '@lightdash/common';
 import React, { useCallback, useState } from 'react';
 import ResourceActionHandlers, {
@@ -5,14 +6,18 @@ import ResourceActionHandlers, {
     ResourceViewItemActionState,
 } from './ResourceActionHandlers';
 import { ResourceViewItem } from './ResourceTypeUtils';
-import { ResourceEmptyStateWrapper } from './ResourceView.styles';
+import {
+    ResourceEmptyStateWrapper,
+    ResourceTag,
+    ResourceTitle,
+    ResourceViewContainer,
+    ResourceViewHeader,
+    ResourceViewSpacer,
+} from './ResourceView.styles';
 import ResourceViewGrid from './ResourceViewGrid';
 import ResourceViewList, {
     ResourceViewListCommonProps,
 } from './ResourceViewList';
-import ResourceViewWrapper, {
-    ResourceViewWrapperProps,
-} from './ResourceViewWrapper';
 
 export interface ResourceViewCommonProps {
     headerTitle?: string;
@@ -30,9 +35,7 @@ export enum ResourceViewType {
     GRID = 'grid',
 }
 
-type ResourceViewProps = ResourceViewCommonProps &
-    ResourceViewListCommonProps &
-    ResourceViewWrapperProps;
+type ResourceViewProps = ResourceViewCommonProps & ResourceViewListCommonProps;
 
 const ResourceView: React.FC<ResourceViewProps> = ({
     view = ResourceViewType.LIST,
@@ -61,14 +64,30 @@ const ResourceView: React.FC<ResourceViewProps> = ({
 
     return (
         <>
-            <ResourceViewWrapper
-                headerTitle={headerTitle}
-                headerIcon={headerIcon}
-                headerIconTooltipContent={headerIconTooltipContent}
-                headerAction={headerAction}
-                resourceCount={items.length}
-                showCount={showCount}
-            >
+            <ResourceViewContainer>
+                {headerTitle || headerAction ? (
+                    <ResourceViewHeader>
+                        {headerTitle && (
+                            <ResourceTitle>{headerTitle}</ResourceTitle>
+                        )}
+                        {headerIcon && (
+                            <Tooltip2
+                                content={headerIconTooltipContent || ''}
+                                disabled={!headerIconTooltipContent}
+                            >
+                                {headerIcon}
+                            </Tooltip2>
+                        )}
+                        {showCount && items.length > 0 && (
+                            <ResourceTag round>{items.length}</ResourceTag>
+                        )}
+
+                        <ResourceViewSpacer />
+
+                        {headerAction}
+                    </ResourceViewHeader>
+                ) : null}
+
                 {items.length === 0 ? (
                     !!renderEmptyState ? (
                         <ResourceEmptyStateWrapper>
@@ -89,7 +108,7 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                 ) : (
                     assertUnreachable(view, 'Unknown resource view type')
                 )}
-            </ResourceViewWrapper>
+            </ResourceViewContainer>
 
             <ResourceActionHandlers action={action} onAction={handleAction} />
         </>

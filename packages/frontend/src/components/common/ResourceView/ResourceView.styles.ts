@@ -21,7 +21,7 @@ export const ResourceViewHeader = styled.div`
     border-bottom: 1px solid ${Colors.LIGHT_GRAY2};
 `;
 
-export const Spacer = styled.div`
+export const ResourceViewSpacer = styled.div`
     flex: 1 0 auto;
 `;
 
