@@ -1,6 +1,6 @@
 import { FC } from 'react';
 import ResourceIcon from '../ResourceIcon';
-import { ResourceListChartItem } from '../ResourceTypeUtils';
+import { ResourceListDashboardItem } from '../ResourceTypeUtils';
 import {
     // ResourceGridItemFooter,
     ResourceGridItemHeader,
@@ -8,13 +8,13 @@ import {
     ResourceGridItemTitle,
 } from './ResourceGridItem.styles';
 
-interface ResourceViewChartItemProps {
-    item: ResourceListChartItem;
+interface ResourceViewDashboardItemProps {
+    item: ResourceListDashboardItem;
     url: string;
     renderActions: () => JSX.Element;
 }
 
-const ResourceViewChartItem: FC<ResourceViewChartItemProps> = ({
+const ResourceViewDashboardItem: FC<ResourceViewDashboardItemProps> = ({
     item,
     url,
     renderActions,
@@ -28,10 +28,10 @@ const ResourceViewChartItem: FC<ResourceViewChartItemProps> = ({
             <ResourceGridItemTitle ellipsize>
                 {item.data.name}
             </ResourceGridItemTitle>
-            {/* TODO: add footer for charts */}
+            {/* TODO: add footer for dashboards */}
             {/* <ResourceGridItemFooter></ResourceGridItemFooter> */}
         </ResourceGridItemLink>
     );
 };
 
-export default ResourceViewChartItem;
+export default ResourceViewDashboardItem;

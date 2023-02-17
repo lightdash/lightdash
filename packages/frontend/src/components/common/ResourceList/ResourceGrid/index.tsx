@@ -8,6 +8,7 @@ import ResourceActionMenu from '../ResourceActionMenu';
 import { ResourceListItem, ResourceListType } from '../ResourceTypeUtils';
 import { ResourceGridItemWrapper } from './ResourceGridItem.styles';
 import ResourceViewChartItem from './ResourceViewChartItem';
+import ResourceViewDashboardItem from './ResourceViewDashboardItem';
 import ResourceViewSpaceItem from './ResourceViewSpaceItem';
 
 type ResourceTableProps = Pick<ResourceListCommonProps, 'items'> & {
@@ -51,7 +52,18 @@ const ResourceTable: FC<ResourceTableProps> = ({ items, onAction }) => {
                             )}
                         />
                     ) : item.type === ResourceListType.DASHBOARD ? (
-                        <>not implemented</>
+                        <ResourceViewDashboardItem
+                            url={getResourceUrl(projectUuid, item)}
+                            item={item}
+                            renderActions={() => (
+                                <ResourceActionMenu
+                                    item={item}
+                                    url={getResourceUrl(projectUuid, item)}
+                                    onAction={onAction}
+                                    spaces={spaces}
+                                />
+                            )}
+                        />
                     ) : item.type === ResourceListType.CHART ? (
                         <ResourceViewChartItem
                             url={getResourceUrl(projectUuid, item)}
