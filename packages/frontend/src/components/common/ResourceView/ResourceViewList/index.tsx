@@ -5,7 +5,7 @@ import { useHistory, useParams } from 'react-router-dom';
 import { ResourceViewCommonProps } from '..';
 import { useSpaces } from '../../../../hooks/useSpaces';
 import {
-    isResourceViewItemCanBelongToSpace,
+    isResourceViewItemThatCanBelongToSpace,
     ResourceViewItem,
     ResourceViewItemType,
 } from '../resourceTypeUtils';
@@ -115,7 +115,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                 label: 'Name',
                 cell: (item: ResourceViewItem) => {
                     const canBelongToSpace =
-                        isResourceViewItemCanBelongToSpace(item);
+                        isResourceViewItemThatCanBelongToSpace(item);
 
                     return (
                         <Tooltip2
@@ -171,7 +171,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                 id: 'space',
                 label: 'Space',
                 cell: (item: ResourceViewItem) => {
-                    if (!isResourceViewItemCanBelongToSpace(item)) {
+                    if (!isResourceViewItemThatCanBelongToSpace(item)) {
                         return null;
                     }
 
@@ -191,8 +191,8 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                 enableSorting,
                 sortingFn: (a: ResourceViewItem, b: ResourceViewItem) => {
                     if (
-                        !isResourceViewItemCanBelongToSpace(a) ||
-                        !isResourceViewItemCanBelongToSpace(b)
+                        !isResourceViewItemThatCanBelongToSpace(a) ||
+                        !isResourceViewItemThatCanBelongToSpace(b)
                     ) {
                         return 0;
                     }
@@ -218,14 +218,15 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                 id: 'updatedAt',
                 label: 'Last Edited',
                 cell: (item: ResourceViewItem) => {
-                    if (!isResourceViewItemCanBelongToSpace(item)) return null;
+                    if (!isResourceViewItemThatCanBelongToSpace(item))
+                        return null;
                     return <ResourceLastEdited item={item} />;
                 },
                 enableSorting,
                 sortingFn: (a: ResourceViewItem, b: ResourceViewItem) => {
                     if (
-                        !isResourceViewItemCanBelongToSpace(a) ||
-                        !isResourceViewItemCanBelongToSpace(b)
+                        !isResourceViewItemThatCanBelongToSpace(a) ||
+                        !isResourceViewItemThatCanBelongToSpace(b)
                     ) {
                         return 0;
                     }

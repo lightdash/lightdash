@@ -8,7 +8,7 @@ import { useSavedCharts } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
 import ResourceView from '../../common/ResourceView';
 import {
-    isResourceViewItemCanBelongToSpace,
+    isResourceViewItemThatCanBelongToSpace,
     ResourceViewItemType,
     wrapResourceView,
 } from '../../common/ResourceView/resourceTypeUtils';
@@ -37,8 +37,8 @@ const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
         ]
             .sort((a, b) => {
                 if (
-                    !isResourceViewItemCanBelongToSpace(a) ||
-                    !isResourceViewItemCanBelongToSpace(b)
+                    !isResourceViewItemThatCanBelongToSpace(a) ||
+                    !isResourceViewItemThatCanBelongToSpace(b)
                 ) {
                     return 0;
                 }
