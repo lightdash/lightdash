@@ -8,6 +8,7 @@ import {
     Icon,
     Tag,
 } from '@blueprintjs/core';
+import { IconLayoutDashboard } from '@tabler/icons-react';
 import styled, { css } from 'styled-components';
 
 export const Header = styled.div`
@@ -42,13 +43,6 @@ export const CardWrapper = styled(Card)`
 
 export const CardContent = styled.div`
     display: flex;
+    gap: 10px;
     height: 24px;
-`;
-
-export const ActivityIcon = styled(Icon)`
-    margin-right: 20px;
-    color: ${Colors.GRAY3};
-`;
-export const ActivityLabel = styled.p`
-    font-size: 20px;
 `;
