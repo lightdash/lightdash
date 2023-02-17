@@ -17,7 +17,6 @@ import {
     PageHeader,
 } from '../common/Page/Page.styles';
 import ResourceView from '../common/ResourceView';
-import { SortDirection } from '../common/ResourceView/ResourceTable';
 import {
     ResourceViewItemType,
     wrapResourceView,
@@ -26,6 +25,7 @@ import {
     ResourceEmptyStateHeader,
     ResourceEmptyStateIcon,
 } from '../common/ResourceView/ResourceView.styles';
+import { SortDirection } from '../common/ResourceView/ResourceViewList';
 import ShareSpaceModal from '../common/ShareSpaceModal';
 import SpaceActionModal, { ActionType } from '../common/SpaceActionModal';
 import AddResourceToSpaceMenu from '../Explorer/SpaceBrowser/AddResourceToSpaceMenu';

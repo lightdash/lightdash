@@ -4,10 +4,12 @@ import ResourceActionHandlers, {
     ResourceViewItemAction,
     ResourceViewItemActionState,
 } from './ResourceActionHandlers';
-import ResourceTable, { ResourceTableCommonProps } from './ResourceTable';
 import { ResourceViewItem } from './ResourceTypeUtils';
 import { ResourceEmptyStateWrapper } from './ResourceView.styles';
 import ResourceViewGrid from './ResourceViewGrid';
+import ResourceViewList, {
+    ResourceViewListCommonProps,
+} from './ResourceViewList';
 import ResourceViewWrapper, {
     ResourceViewWrapperProps,
 } from './ResourceViewWrapper';
@@ -29,7 +31,7 @@ export enum ResourceViewType {
 }
 
 type ResourceViewProps = ResourceViewCommonProps &
-    ResourceTableCommonProps &
+    ResourceViewListCommonProps &
     ResourceViewWrapperProps;
 
 const ResourceView: React.FC<ResourceViewProps> = ({
@@ -74,7 +76,7 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                         </ResourceEmptyStateWrapper>
                     ) : null
                 ) : view === ResourceViewType.LIST ? (
-                    <ResourceTable
+                    <ResourceViewList
                         items={items}
                         enableSorting={enableSorting}
                         enableMultiSort={enableMultiSort}

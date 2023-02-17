@@ -7,7 +7,6 @@ import { useDashboards } from '../../../hooks/dashboard/useDashboards';
 import { useSavedCharts } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
 import ResourceView from '../../common/ResourceView';
-import { SortDirection } from '../../common/ResourceView/ResourceTable';
 import {
     isResourceViewItemCanBelongToSpace,
     ResourceViewItemType,
@@ -19,6 +18,7 @@ import {
     ResourceEmptyStateIcon,
     ResourceEmptyStateText,
 } from '../../common/ResourceView/ResourceView.styles';
+import { SortDirection } from '../../common/ResourceView/ResourceViewList';
 
 interface Props {
     projectUuid: string;

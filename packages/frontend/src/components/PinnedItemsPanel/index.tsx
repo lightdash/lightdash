@@ -6,11 +6,11 @@ import { useDashboards } from '../../hooks/dashboard/useDashboards';
 import { useSavedCharts, useSpaces } from '../../hooks/useSpaces';
 import { useApp } from '../../providers/AppProvider';
 import ResourceView, { ResourceViewType } from '../common/ResourceView';
-import { SortDirection } from '../common/ResourceView/ResourceTable';
 import {
     ResourceViewItemType,
     wrapResourceView,
 } from '../common/ResourceView/ResourceTypeUtils';
+import { SortDirection } from '../common/ResourceView/ResourceViewList';
 
 interface Props {
     projectUuid: string;

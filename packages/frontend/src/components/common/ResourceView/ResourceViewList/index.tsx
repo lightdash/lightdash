@@ -3,12 +3,18 @@ import { Tooltip2 } from '@blueprintjs/popover2';
 import { assertUnreachable } from '@lightdash/common';
 import React, { FC, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
-import { ResourceViewCommonProps } from '.';
-import { useSpaces } from '../../../hooks/useSpaces';
-import { ResourceViewItemActionState } from './ResourceActionHandlers';
-import ResourceActionMenu from './ResourceActionMenu';
-import ResourceIcon from './ResourceIcon';
-import ResourceLastEdited from './ResourceLastEdited';
+import { ResourceViewCommonProps } from '..';
+import { useSpaces } from '../../../../hooks/useSpaces';
+import { ResourceViewItemActionState } from './../ResourceActionHandlers';
+import ResourceActionMenu from './../ResourceActionMenu';
+import ResourceIcon from './../ResourceIcon';
+import ResourceLastEdited from './../ResourceLastEdited';
+import ResourceType from './../ResourceType';
+import {
+    isResourceViewItemCanBelongToSpace,
+    ResourceViewItem,
+    ResourceViewItemType,
+} from './../ResourceTypeUtils';
 import {
     Flex,
     ResourceLink,
@@ -24,13 +30,7 @@ import {
     StyledTHead,
     StyledTr,
     ThInteractiveWrapper,
-} from './ResourceTable.styles';
-import ResourceType from './ResourceType';
-import {
-    isResourceViewItemCanBelongToSpace,
-    ResourceViewItem,
-    ResourceViewItemType,
-} from './ResourceTypeUtils';
+} from './ResourceViewList.styles';
 
 export enum SortDirection {
     ASC = 'asc',
@@ -45,14 +45,14 @@ type SortingState = null | SortDirection;
 
 type SortingStateMap = Map<ColumnName, SortingState>;
 
-export interface ResourceTableCommonProps {
+export interface ResourceViewListCommonProps {
     enableSorting?: boolean;
     enableMultiSort?: boolean;
     defaultSort?: Partial<Record<ColumnName, SortDirection>>;
     defaultColumnVisibility?: Partial<Record<ColumnName, boolean>>;
 }
 
-type ResourceTableProps = ResourceTableCommonProps &
+type ResourceViewListProps = ResourceViewListCommonProps &
     Pick<ResourceViewCommonProps, 'items'> & {
         onAction: (newAction: ResourceViewItemActionState) => void;
     };
@@ -89,7 +89,7 @@ const getResourceUrl = (projectUuid: string, item: ResourceViewItem) => {
     }
 };
 
-const ResourceTable: FC<ResourceTableProps> = ({
+const ResourceViewList: FC<ResourceViewListProps> = ({
     items,
     enableSorting: enableSortingProp = true,
     enableMultiSort = false,
@@ -411,4 +411,4 @@ const ResourceTable: FC<ResourceTableProps> = ({
     );
 };
 
-export default ResourceTable;
+export default ResourceViewList;

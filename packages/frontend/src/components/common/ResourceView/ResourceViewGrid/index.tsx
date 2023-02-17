@@ -11,7 +11,7 @@ import ResourceViewGridDashboardItem from './ResourceViewGridDashboardItem';
 import { ResourceViewGridWrapper } from './ResourceViewGridItem.styles';
 import ResourceViewGridSpaceItem from './ResourceViewGridSpaceItem';
 
-type ResourceTableProps = Pick<ResourceViewCommonProps, 'items'> & {
+type ResourceViewListProps = Pick<ResourceViewCommonProps, 'items'> & {
     onAction: (newAction: ResourceViewItemActionState) => void;
 };
 
@@ -30,7 +30,7 @@ const getResourceUrl = (projectUuid: string, item: ResourceViewItem) => {
     }
 };
 
-const ResourceTable: FC<ResourceTableProps> = ({ items, onAction }) => {
+const ResourceViewList: FC<ResourceViewListProps> = ({ items, onAction }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: spaces = [] } = useSpaces(projectUuid);
 
@@ -86,4 +86,4 @@ const ResourceTable: FC<ResourceTableProps> = ({ items, onAction }) => {
     );
 };
 
-export default ResourceTable;
+export default ResourceViewList;

@@ -12,7 +12,6 @@ import {
     PageHeader,
 } from '../components/common/Page/Page.styles';
 import ResourceView from '../components/common/ResourceView';
-import { SortDirection } from '../components/common/ResourceView/ResourceTable';
 import {
     ResourceViewItemType,
     wrapResourceView,
@@ -23,6 +22,7 @@ import {
     ResourceEmptyStateIcon,
     ResourceTag,
 } from '../components/common/ResourceView/ResourceView.styles';
+import { SortDirection } from '../components/common/ResourceView/ResourceViewList';
 import { LoadingChart } from '../components/SimpleChart';
 import { useSavedCharts } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
