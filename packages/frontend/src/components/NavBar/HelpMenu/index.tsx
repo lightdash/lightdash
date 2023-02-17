@@ -7,6 +7,15 @@ import {
     Position,
 } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
+import {
+    IconBell,
+    IconBook,
+    IconFlag,
+    IconHelp,
+    IconMessageCircle2,
+    IconMessages,
+    IconUsers,
+} from '@tabler/icons-react';
 import { FC, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useIntercom } from 'react-use-intercom';
@@ -67,7 +76,10 @@ const HelpMenu: FC = () => {
     return (
         <>
             <NotificationWrapper>
-                <Icon icon="notifications" />
+                <Button
+                    minimal
+                    icon={<IconBell size={19} color={Colors.GRAY4} />}
+                />
                 <NotificationWidget id="headway-badge" />
             </NotificationWrapper>
             <Popover2
@@ -78,10 +90,9 @@ const HelpMenu: FC = () => {
                             onClick={() => showIntercom()}
                             icon={
                                 <LargeMenuItemIconWrapper>
-                                    <Icon
-                                        icon="chat"
+                                    <IconMessages
+                                        size={22}
                                         color={Colors.WHITE}
-                                        size={20}
                                     />
                                 </LargeMenuItemIconWrapper>
                             }
@@ -103,11 +114,7 @@ const HelpMenu: FC = () => {
                             target="_blank"
                             icon={
                                 <LargeMenuItemIconWrapper>
-                                    <Icon
-                                        icon="manual"
-                                        color={Colors.WHITE}
-                                        size={20}
-                                    />
+                                    <IconBook size={22} color={Colors.WHITE} />
                                 </LargeMenuItemIconWrapper>
                             }
                             text={
@@ -128,11 +135,7 @@ const HelpMenu: FC = () => {
                             target="_blank"
                             icon={
                                 <LargeMenuItemIconWrapper>
-                                    <Icon
-                                        icon="people"
-                                        color={Colors.WHITE}
-                                        size={20}
-                                    />
+                                    <IconUsers size={22} color={Colors.WHITE} />
                                 </LargeMenuItemIconWrapper>
                             }
                             text={
@@ -153,10 +156,9 @@ const HelpMenu: FC = () => {
                             target="_blank"
                             icon={
                                 <LargeMenuItemIconWrapper>
-                                    <Icon
-                                        icon="issue"
+                                    <IconMessageCircle2
+                                        size={22}
                                         color={Colors.WHITE}
-                                        size={20}
                                     />
                                 </LargeMenuItemIconWrapper>
                             }
@@ -176,7 +178,10 @@ const HelpMenu: FC = () => {
                 }
                 position={Position.BOTTOM_LEFT}
             >
-                <Button minimal icon="help" />
+                <Button
+                    minimal
+                    icon={<IconHelp size={19} color={Colors.GRAY4} />}
+                />
             </Popover2>
         </>
     );

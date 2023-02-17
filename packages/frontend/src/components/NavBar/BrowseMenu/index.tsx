@@ -1,5 +1,6 @@
 import {
     Button,
+    Colors,
     Menu,
     MenuDivider,
     PopoverInteractionKind,
@@ -7,6 +8,13 @@ import {
     Spinner,
 } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
+import {
+    IconCategory,
+    IconChartAreaLine,
+    IconFolder,
+    IconFolders,
+    IconLayoutDashboard,
+} from '@tabler/icons-react';
 import { FC } from 'react';
 import { useSpaces } from '../../../hooks/useSpaces';
 import NavLink from '../../NavLink';
@@ -24,7 +32,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
             content={
                 !projectUuid || isLoading ? (
                     <SpinnerWrapper>
-                        <Spinner size={20} />
+                        <Spinner size={17} />
                     </SpinnerWrapper>
                 ) : (
                     <Menu>
@@ -32,7 +40,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                             <NavbarMenuItem
                                 role="menuitem"
                                 text="All spaces"
-                                icon="folder-close"
+                                icon={<IconFolders size={17} />}
                             />
                         </NavLink>
 
@@ -40,14 +48,14 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                             <NavbarMenuItem
                                 role="menuitem"
                                 text="All dashboards"
-                                icon="control"
+                                icon={<IconLayoutDashboard size={17} />}
                             />
                         </NavLink>
 
                         <NavLink to={`/projects/${projectUuid}/saved`}>
                             <NavbarMenuItem
                                 roleStructure="menuitem"
-                                icon="chart"
+                                icon={<IconChartAreaLine size={17} />}
                                 text="All saved charts"
                             />
                         </NavLink>
@@ -63,7 +71,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                                     >
                                         <NavbarMenuItem
                                             roleStructure="menuitem"
-                                            icon="folder-close"
+                                            icon={<IconFolder size={17} />}
                                             text={space.name}
                                         />
                                     </NavLink>
@@ -75,7 +83,17 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
             }
             position={Position.BOTTOM_LEFT}
         >
-            <Button minimal icon="timeline-bar-chart" text="Browse" />
+            <Button
+                minimal
+                icon={
+                    <IconCategory
+                        size={17}
+                        color={Colors.GRAY4}
+                        style={{ marginRight: '6px' }}
+                    />
+                }
+                text="Browse"
+            />
         </Popover2>
     );
 };
