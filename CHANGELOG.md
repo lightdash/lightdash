@@ -1,3 +1,10 @@
+## [0.417.2](https://github.com/lightdash/lightdash/compare/0.417.1...0.417.2) (2023-02-17)
+
+
+### Bug Fixes
+
+* updating styling on usage analytics tab ([#4515](https://github.com/lightdash/lightdash/issues/4515)) ([f977928](https://github.com/lightdash/lightdash/commit/f9779280ed9dcf16b445f5dd4c64336119a4589a))
+
 ## [0.417.1](https://github.com/lightdash/lightdash/compare/0.417.0...0.417.1) (2023-02-16)
 
 
