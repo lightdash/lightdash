@@ -4,15 +4,15 @@ import { LightdashMode } from '@lightdash/common';
 import { FC, useState } from 'react';
 import { useSpaces } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
-import ResourceList, { ResourceViewType } from '../../common/ResourceView';
+import ResourceView, { ResourceViewType } from '../../common/ResourceView';
+import {
+    ResourceViewItemType,
+    wrapResourceView,
+} from '../../common/ResourceView/ResourceTypeUtils';
 import {
     ResourceEmptyStateHeader,
     ResourceEmptyStateIcon,
-} from '../../common/ResourceView/ResourceList.styles';
-import {
-    ResourceViewItemType,
-    wrapResourceList,
-} from '../../common/ResourceView/ResourceTypeUtils';
+} from '../../common/ResourceView/ResourceView.styles';
 import SpaceActionModal, { ActionType } from '../../common/SpaceActionModal';
 
 const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
@@ -35,9 +35,9 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
 
     return (
         <>
-            <ResourceList
+            <ResourceView
                 view={ResourceViewType.GRID}
-                items={wrapResourceList(spaces, ResourceViewItemType.SPACE)}
+                items={wrapResourceView(spaces, ResourceViewItemType.SPACE)}
                 headerTitle="Spaces"
                 headerAction={
                     spaces.length === 0 ? (

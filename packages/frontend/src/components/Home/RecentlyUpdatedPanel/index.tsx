@@ -6,19 +6,19 @@ import { useHistory } from 'react-router-dom';
 import { useDashboards } from '../../../hooks/dashboard/useDashboards';
 import { useSavedCharts } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
-import ResourceList from '../../common/ResourceView';
+import ResourceView from '../../common/ResourceView';
+import { SortDirection } from '../../common/ResourceView/ResourceTable';
+import {
+    isResourceViewItemCanBelongToSpace,
+    ResourceViewItemType,
+    wrapResourceView,
+} from '../../common/ResourceView/ResourceTypeUtils';
 import {
     ResourceEmptyStateHeader,
     ResourceEmptyStateHeaderWrapper,
     ResourceEmptyStateIcon,
     ResourceEmptyStateText,
-} from '../../common/ResourceView/ResourceList.styles';
-import { SortDirection } from '../../common/ResourceView/ResourceTable';
-import {
-    isResourceListItemCanBelongToSpace,
-    ResourceViewItemType,
-    wrapResourceList,
-} from '../../common/ResourceView/ResourceTypeUtils';
+} from '../../common/ResourceView/ResourceView.styles';
 
 interface Props {
     projectUuid: string;
@@ -32,13 +32,13 @@ const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
 
     const recentItems = useMemo(() => {
         return [
-            ...wrapResourceList(dashboards, ResourceViewItemType.DASHBOARD),
-            ...wrapResourceList(savedCharts, ResourceViewItemType.CHART),
+            ...wrapResourceView(dashboards, ResourceViewItemType.DASHBOARD),
+            ...wrapResourceView(savedCharts, ResourceViewItemType.CHART),
         ]
             .sort((a, b) => {
                 if (
-                    !isResourceListItemCanBelongToSpace(a) ||
-                    !isResourceListItemCanBelongToSpace(b)
+                    !isResourceViewItemCanBelongToSpace(a) ||
+                    !isResourceViewItemCanBelongToSpace(b)
                 ) {
                     return 0;
                 }
@@ -66,7 +66,7 @@ const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
     );
 
     return (
-        <ResourceList
+        <ResourceView
             items={recentItems}
             enableSorting={false}
             defaultSort={{ updatedAt: SortDirection.DESC }}

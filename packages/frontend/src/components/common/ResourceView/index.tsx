@@ -5,19 +5,19 @@ import ResourceActionHandlers, {
     ResourceViewItemActionState,
 } from './ResourceActionHandlers';
 import ResourceGrid from './ResourceGrid';
-import { ResourceEmptyStateWrapper } from './ResourceList.styles';
+import ResourceTable, { ResourceTableCommonProps } from './ResourceTable';
+import { ResourceViewItem } from './ResourceTypeUtils';
+import { ResourceEmptyStateWrapper } from './ResourceView.styles';
 import ResourceViewWrapper, {
     ResourceViewWrapperProps,
-} from './ResourceListWrapper';
-import ResourceTable, { ResourceTableCommonProps } from './ResourceTable';
-import { ResourceListItem } from './ResourceTypeUtils';
+} from './ResourceViewWrapper';
 
 export interface ResourceViewCommonProps {
     headerTitle?: string;
     headerIcon?: JSX.Element;
     headerIconTooltipContent?: string;
     headerAction?: React.ReactNode;
-    items: ResourceListItem[];
+    items: ResourceViewItem[];
     showCount?: boolean;
     renderEmptyState?: () => React.ReactNode;
     view?: ResourceViewType;

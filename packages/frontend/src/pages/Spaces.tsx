@@ -14,7 +14,7 @@ import {
 import {
     ResourceBreadcrumbTitle,
     ResourceTag,
-} from '../components/common/ResourceView/ResourceList.styles';
+} from '../components/common/ResourceView/ResourceView.styles';
 import SpaceBrowser from '../components/Explorer/SpaceBrowser';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useSpaces } from '../hooks/useSpaces';

@@ -14,7 +14,7 @@ import {
     PageBreadcrumbsWrapper,
     PageHeader,
 } from '../components/common/Page/Page.styles';
-import { ResourceBreadcrumbTitle } from '../components/common/ResourceView/ResourceList.styles';
+import { ResourceBreadcrumbTitle } from '../components/common/ResourceView/ResourceView.styles';
 import { Table } from '../components/common/Table/Table.styles';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useUserActivity } from '../hooks/analytics/useUserActivity';

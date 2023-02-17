@@ -3,7 +3,7 @@ import { Tooltip2 } from '@blueprintjs/popover2';
 import { assertUnreachable } from '@lightdash/common';
 import React, { FC, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
-import { ResourceListCommonProps } from '.';
+import { ResourceViewCommonProps } from '.';
 import { useSpaces } from '../../../hooks/useSpaces';
 import { ResourceViewItemActionState } from './ResourceActionHandlers';
 import ResourceActionMenu from './ResourceActionMenu';
@@ -27,8 +27,8 @@ import {
 } from './ResourceTable.styles';
 import ResourceType from './ResourceType';
 import {
-    isResourceListItemCanBelongToSpace,
-    ResourceListItem,
+    isResourceViewItemCanBelongToSpace,
+    ResourceViewItem,
     ResourceViewItemType,
 } from './ResourceTypeUtils';
 
@@ -53,7 +53,7 @@ export interface ResourceTableCommonProps {
 }
 
 type ResourceTableProps = ResourceTableCommonProps &
-    Pick<ResourceListCommonProps, 'items'> & {
+    Pick<ResourceViewCommonProps, 'items'> & {
         onAction: (newAction: ResourceViewItemActionState) => void;
     };
 
@@ -62,9 +62,9 @@ const sortOrder = [SortDirection.DESC, SortDirection.ASC, null];
 interface Column {
     id: ColumnName;
     label?: string;
-    cell: (item: ResourceListItem) => React.ReactNode;
+    cell: (item: ResourceViewItem) => React.ReactNode;
     enableSorting: boolean;
-    sortingFn?: (a: ResourceListItem, b: ResourceListItem) => number;
+    sortingFn?: (a: ResourceViewItem, b: ResourceViewItem) => number;
     meta?: {
         style: React.CSSProperties;
     };
@@ -75,7 +75,7 @@ const getNextSortDirection = (current: SortingState): SortingState => {
     return sortOrder.concat(sortOrder[0])[currentIndex + 1];
 };
 
-const getResourceUrl = (projectUuid: string, item: ResourceListItem) => {
+const getResourceUrl = (projectUuid: string, item: ResourceViewItem) => {
     const itemType = item.type;
     switch (item.type) {
         case ResourceViewItemType.DASHBOARD:
@@ -128,9 +128,9 @@ const ResourceTable: FC<ResourceTableProps> = ({
             {
                 id: 'name',
                 label: 'Name',
-                cell: (item: ResourceListItem) => {
+                cell: (item: ResourceViewItem) => {
                     const canBelongToSpace =
-                        isResourceListItemCanBelongToSpace(item);
+                        isResourceViewItemCanBelongToSpace(item);
 
                     return (
                         <Tooltip2
@@ -170,7 +170,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
                     );
                 },
                 enableSorting,
-                sortingFn: (a: ResourceListItem, b: ResourceListItem) => {
+                sortingFn: (a: ResourceViewItem, b: ResourceViewItem) => {
                     return a.data.name.localeCompare(b.data.name);
                 },
                 meta: {
@@ -185,8 +185,8 @@ const ResourceTable: FC<ResourceTableProps> = ({
             {
                 id: 'space',
                 label: 'Space',
-                cell: (item: ResourceListItem) => {
-                    if (!isResourceListItemCanBelongToSpace(item)) {
+                cell: (item: ResourceViewItem) => {
+                    if (!isResourceViewItemCanBelongToSpace(item)) {
                         return null;
                     }
 
@@ -204,10 +204,10 @@ const ResourceTable: FC<ResourceTableProps> = ({
                     ) : null;
                 },
                 enableSorting,
-                sortingFn: (a: ResourceListItem, b: ResourceListItem) => {
+                sortingFn: (a: ResourceViewItem, b: ResourceViewItem) => {
                     if (
-                        !isResourceListItemCanBelongToSpace(a) ||
-                        !isResourceListItemCanBelongToSpace(b)
+                        !isResourceViewItemCanBelongToSpace(a) ||
+                        !isResourceViewItemCanBelongToSpace(b)
                     ) {
                         return 0;
                     }
@@ -232,15 +232,15 @@ const ResourceTable: FC<ResourceTableProps> = ({
             {
                 id: 'updatedAt',
                 label: 'Last Edited',
-                cell: (item: ResourceListItem) => {
-                    if (!isResourceListItemCanBelongToSpace(item)) return null;
+                cell: (item: ResourceViewItem) => {
+                    if (!isResourceViewItemCanBelongToSpace(item)) return null;
                     return <ResourceLastEdited item={item} />;
                 },
                 enableSorting,
-                sortingFn: (a: ResourceListItem, b: ResourceListItem) => {
+                sortingFn: (a: ResourceViewItem, b: ResourceViewItem) => {
                     if (
-                        !isResourceListItemCanBelongToSpace(a) ||
-                        !isResourceListItemCanBelongToSpace(b)
+                        !isResourceViewItemCanBelongToSpace(a) ||
+                        !isResourceViewItemCanBelongToSpace(b)
                     ) {
                         return 0;
                     }
@@ -257,7 +257,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
             {
                 id: 'type',
                 label: 'Type',
-                cell: (item: ResourceListItem) => (
+                cell: (item: ResourceViewItem) => (
                     <ResourceNameBox>
                         <ResourceMetadata>
                             <ResourceType item={item} />
@@ -265,7 +265,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
                     </ResourceNameBox>
                 ),
                 enableSorting,
-                sortingFn: (a: ResourceListItem) => {
+                sortingFn: (a: ResourceViewItem) => {
                     return a.type === ResourceViewItemType.DASHBOARD ? 1 : -1;
                 },
                 meta: {
@@ -279,7 +279,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
             },
             {
                 id: 'actions',
-                cell: (item: ResourceListItem) => (
+                cell: (item: ResourceViewItem) => (
                     <ResourceActionMenu
                         item={item}
                         spaces={spaces}

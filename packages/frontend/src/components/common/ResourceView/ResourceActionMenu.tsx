@@ -9,10 +9,10 @@ import {
     ResourceViewItemAction,
     ResourceViewItemActionState,
 } from './ResourceActionHandlers';
-import { ResourceListItem, ResourceViewItemType } from './ResourceTypeUtils';
+import { ResourceViewItem, ResourceViewItemType } from './ResourceTypeUtils';
 
 type Props = {
-    item: ResourceListItem;
+    item: ResourceViewItem;
     spaces: Space[];
     url: string;
     onAction: (newAction: ResourceViewItemActionState) => void;

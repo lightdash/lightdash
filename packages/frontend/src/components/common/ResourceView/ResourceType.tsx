@@ -1,9 +1,9 @@
 import { assertUnreachable, ChartKind } from '@lightdash/common';
 import { FC } from 'react';
-import { ResourceListItem, ResourceViewItemType } from './ResourceTypeUtils';
+import { ResourceViewItem, ResourceViewItemType } from './ResourceTypeUtils';
 
 interface ResourceTypeProps {
-    item: ResourceListItem;
+    item: ResourceViewItem;
 }
 
 const ResourceType: FC<ResourceTypeProps> = ({ item }) => {

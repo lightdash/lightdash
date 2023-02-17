@@ -19,9 +19,9 @@ import DashboardDeleteModal from '../modal/DashboardDeleteModal';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
 import SpaceActionModal, { ActionType } from '../SpaceActionModal';
 import {
-    ResourceListChartItem,
-    ResourceListDashboardItem,
-    ResourceListItem,
+    ResourceViewChartItem,
+    ResourceViewDashboardItem,
+    ResourceViewItem,
     ResourceViewItemType,
 } from './ResourceTypeUtils';
 
@@ -40,31 +40,31 @@ export type ResourceViewItemActionState =
     | { type: ResourceViewItemAction.CLOSE }
     | {
           type: ResourceViewItemAction.UPDATE;
-          item: ResourceListItem;
+          item: ResourceViewItem;
       }
     | {
           type: ResourceViewItemAction.DELETE;
-          item: ResourceListItem;
+          item: ResourceViewItem;
       }
     | {
           type: ResourceViewItemAction.DUPLICATE;
-          item: ResourceListChartItem | ResourceListDashboardItem;
+          item: ResourceViewChartItem | ResourceViewDashboardItem;
       }
     | {
           type: ResourceViewItemAction.ADD_TO_DASHBOARD;
-          item: ResourceListChartItem;
+          item: ResourceViewChartItem;
       }
     | {
           type: ResourceViewItemAction.CREATE_SPACE;
-          item: ResourceListChartItem | ResourceListDashboardItem;
+          item: ResourceViewChartItem | ResourceViewDashboardItem;
       }
     | {
           type: ResourceViewItemAction.PIN_TO_HOMEPAGE;
-          item: ResourceListItem;
+          item: ResourceViewItem;
       }
     | {
           type: ResourceViewItemAction.MOVE_TO_SPACE;
-          item: ResourceListChartItem | ResourceListDashboardItem;
+          item: ResourceViewChartItem | ResourceViewDashboardItem;
           data: { spaceUuid: string };
       };
 

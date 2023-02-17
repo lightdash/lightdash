@@ -3,7 +3,7 @@ import styled from 'styled-components';
 
 const paddingX = 20;
 
-export const ResourceListContainer = styled(Card)`
+export const ResourceViewContainer = styled(Card)`
     width: 768px;
     display: flex;
     flex-direction: column;
@@ -12,7 +12,7 @@ export const ResourceListContainer = styled(Card)`
     padding: 0;
 `;
 
-export const ResourceListHeader = styled.div`
+export const ResourceViewHeader = styled.div`
     display: flex;
     align-items: center;
     width: 100%;

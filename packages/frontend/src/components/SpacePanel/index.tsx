@@ -16,16 +16,16 @@ import {
     PageContentWrapper,
     PageHeader,
 } from '../common/Page/Page.styles';
-import ResourceList from '../common/ResourceView';
-import {
-    ResourceEmptyStateHeader,
-    ResourceEmptyStateIcon,
-} from '../common/ResourceView/ResourceList.styles';
+import ResourceView from '../common/ResourceView';
 import { SortDirection } from '../common/ResourceView/ResourceTable';
 import {
     ResourceViewItemType,
-    wrapResourceList,
+    wrapResourceView,
 } from '../common/ResourceView/ResourceTypeUtils';
+import {
+    ResourceEmptyStateHeader,
+    ResourceEmptyStateIcon,
+} from '../common/ResourceView/ResourceView.styles';
 import ShareSpaceModal from '../common/ShareSpaceModal';
 import SpaceActionModal, { ActionType } from '../common/SpaceActionModal';
 import AddResourceToSpaceMenu from '../Explorer/SpaceBrowser/AddResourceToSpaceMenu';
@@ -74,8 +74,8 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
     );
 
     const allItems = [
-        ...wrapResourceList(dashboardsInSpace, ResourceViewItemType.DASHBOARD),
-        ...wrapResourceList(chartsInSpace, ResourceViewItemType.CHART),
+        ...wrapResourceView(dashboardsInSpace, ResourceViewItemType.DASHBOARD),
+        ...wrapResourceView(chartsInSpace, ResourceViewItemType.CHART),
     ];
 
     const handlePinToggleSpace = useCallback(
@@ -158,7 +158,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                     />
                 )}
             </PageHeader>
-            <ResourceList
+            <ResourceView
                 items={allItems}
                 defaultSort={{ type: SortDirection.DESC }}
                 defaultColumnVisibility={{ space: false, type: false }}

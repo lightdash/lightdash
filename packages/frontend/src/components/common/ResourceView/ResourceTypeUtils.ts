@@ -13,33 +13,33 @@ export enum ResourceViewItemType {
 
 type AcceptedResources = SpaceQuery | DashboardBasicDetails | Space;
 
-export type ResourceListChartItem = {
+export type ResourceViewChartItem = {
     type: ResourceViewItemType.CHART;
     data: SpaceQuery;
 };
 
-export type ResourceListDashboardItem = {
+export type ResourceViewDashboardItem = {
     type: ResourceViewItemType.DASHBOARD;
     data: DashboardBasicDetails;
 };
 
-export type ResourceListSpaceItem = {
+export type ResourceViewSpaceItem = {
     type: ResourceViewItemType.SPACE;
     data: Space;
 };
 
-export type ResourceListItem =
-    | ResourceListChartItem
-    | ResourceListDashboardItem
-    | ResourceListSpaceItem;
+export type ResourceViewItem =
+    | ResourceViewChartItem
+    | ResourceViewDashboardItem
+    | ResourceViewSpaceItem;
 
-export type ResourceListItemCanBelongToSpace =
-    | ResourceListChartItem
-    | ResourceListDashboardItem;
+export type ResourceViewItemCanBelongToSpace =
+    | ResourceViewChartItem
+    | ResourceViewDashboardItem;
 
-export const isResourceListItemCanBelongToSpace = (
-    resource: ResourceListItem,
-): resource is ResourceListItemCanBelongToSpace => {
+export const isResourceViewItemCanBelongToSpace = (
+    resource: ResourceViewItem,
+): resource is ResourceViewItemCanBelongToSpace => {
     return (
         resource.type === ResourceViewItemType.CHART ||
         resource.type === ResourceViewItemType.DASHBOARD
@@ -49,7 +49,7 @@ export const isResourceListItemCanBelongToSpace = (
 export const wrapResource = <T extends AcceptedResources>(
     resource: T,
     type: ResourceViewItemType,
-): ResourceListItem => {
+): ResourceViewItem => {
     switch (type) {
         case ResourceViewItemType.CHART:
             return { type, data: resource as SpaceQuery };
@@ -62,9 +62,9 @@ export const wrapResource = <T extends AcceptedResources>(
     }
 };
 
-export const wrapResourceList = (
+export const wrapResourceView = (
     resources: AcceptedResources[],
     type: ResourceViewItemType,
-): ResourceListItem[] => {
+): ResourceViewItem[] => {
     return resources.map((resource) => wrapResource(resource, type));
 };

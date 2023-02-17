@@ -1,12 +1,12 @@
 import { Tooltip2 } from '@blueprintjs/popover2';
 import { FC } from 'react';
 import {
-    ResourceListContainer,
-    ResourceListHeader,
     ResourceTag,
     ResourceTitle,
+    ResourceViewContainer,
+    ResourceViewHeader,
     Spacer,
-} from './ResourceList.styles';
+} from './ResourceView.styles';
 
 export interface ResourceViewWrapperProps {
     headerTitle?: string;
@@ -27,9 +27,9 @@ const ResourceViewWrapper: FC<ResourceViewWrapperProps> = ({
     children,
 }) => {
     return (
-        <ResourceListContainer>
+        <ResourceViewContainer>
             {headerTitle || headerAction ? (
-                <ResourceListHeader>
+                <ResourceViewHeader>
                     {headerTitle && (
                         <ResourceTitle>{headerTitle}</ResourceTitle>
                     )}
@@ -50,11 +50,11 @@ const ResourceViewWrapper: FC<ResourceViewWrapperProps> = ({
                     <Spacer />
 
                     {headerAction}
-                </ResourceListHeader>
+                </ResourceViewHeader>
             ) : null}
 
             {children}
-        </ResourceListContainer>
+        </ResourceViewContainer>
     );
 };
 

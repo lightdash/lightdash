@@ -5,11 +5,11 @@ import { FC, useMemo } from 'react';
 import { useDashboards } from '../../hooks/dashboard/useDashboards';
 import { useSavedCharts, useSpaces } from '../../hooks/useSpaces';
 import { useApp } from '../../providers/AppProvider';
-import ResourceList, { ResourceViewType } from '../common/ResourceView';
+import ResourceView, { ResourceViewType } from '../common/ResourceView';
 import { SortDirection } from '../common/ResourceView/ResourceTable';
 import {
     ResourceViewItemType,
-    wrapResourceList,
+    wrapResourceView,
 } from '../common/ResourceView/ResourceTypeUtils';
 
 interface Props {
@@ -30,16 +30,16 @@ const PinnedItemsPanel: FC<Props> = ({ projectUuid, organizationUuid }) => {
 
     const pinnedItems = useMemo(() => {
         return [
-            ...wrapResourceList(dashboards, ResourceViewItemType.DASHBOARD),
-            ...wrapResourceList(savedCharts, ResourceViewItemType.CHART),
-            ...wrapResourceList(spaces, ResourceViewItemType.SPACE),
+            ...wrapResourceView(dashboards, ResourceViewItemType.DASHBOARD),
+            ...wrapResourceView(savedCharts, ResourceViewItemType.CHART),
+            ...wrapResourceView(spaces, ResourceViewItemType.SPACE),
         ].filter((item) => {
             return !!item.data.pinnedListUuid;
         });
     }, [dashboards, savedCharts, spaces]);
 
     return pinnedItems.length > 0 ? (
-        <ResourceList
+        <ResourceView
             // TODO: remove this
             view={ResourceViewType.GRID}
             items={pinnedItems}

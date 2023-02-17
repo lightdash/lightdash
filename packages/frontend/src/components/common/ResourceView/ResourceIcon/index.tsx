@@ -12,11 +12,11 @@ import {
     IconTable,
 } from '@tabler/icons-react';
 import { FC } from 'react';
-import { ResourceListItem, ResourceViewItemType } from '../ResourceTypeUtils';
+import { ResourceViewItem, ResourceViewItemType } from '../ResourceTypeUtils';
 import { ResourceIconBox } from './ResourceIcon.styles';
 
 interface ResourceIconProps {
-    item: ResourceListItem;
+    item: ResourceViewItem;
 }
 
 const ResourceIcon: FC<ResourceIconProps> = ({ item }) => {

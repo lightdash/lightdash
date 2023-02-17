@@ -12,18 +12,18 @@ import {
     PageContentWrapper,
     PageHeader,
 } from '../components/common/Page/Page.styles';
-import ResourceList from '../components/common/ResourceView';
+import ResourceView from '../components/common/ResourceView';
+import { SortDirection } from '../components/common/ResourceView/ResourceTable';
+import {
+    ResourceViewItemType,
+    wrapResourceView,
+} from '../components/common/ResourceView/ResourceTypeUtils';
 import {
     ResourceBreadcrumbTitle,
     ResourceEmptyStateHeader,
     ResourceEmptyStateIcon,
     ResourceTag,
-} from '../components/common/ResourceView/ResourceList.styles';
-import { SortDirection } from '../components/common/ResourceView/ResourceTable';
-import {
-    ResourceViewItemType,
-    wrapResourceList,
-} from '../components/common/ResourceView/ResourceTypeUtils';
+} from '../components/common/ResourceView/ResourceView.styles';
 import { useCreateMutation } from '../hooks/dashboard/useDashboard';
 import { useDashboards } from '../hooks/dashboard/useDashboards';
 import { useSpaces } from '../hooks/useSpaces';
@@ -145,8 +145,8 @@ const SavedDashboards = () => {
                     }}
                 />
 
-                <ResourceList
-                    items={wrapResourceList(
+                <ResourceView
+                    items={wrapResourceView(
                         dashboards,
                         ResourceViewItemType.DASHBOARD,
                     )}
