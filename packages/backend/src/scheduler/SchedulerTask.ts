@@ -15,7 +15,11 @@ import { nanoid } from 'nanoid';
 import { analytics } from '../analytics/client';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { emailClient, slackClient } from '../clients/clients';
-import { unfurlChartAndDashboard } from '../clients/Slack/SlackUnfurl';
+import {
+    unfurlChartAndDashboard,
+    unfurlChartCsvResults,
+    unfurlDashboardCsvResults,
+} from '../clients/Slack/SlackUnfurl';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logger';
 import {
@@ -97,31 +101,67 @@ export const sendSlackNotification = async (
 
         const { url, details, pageType, organizationUuid } =
             await getChartOrDashboard(savedChartUuid, dashboardUuid);
+        if (format === 'image') {
+            const imageUrl = await unfurlService.unfurlImage(
+                url,
+                pageType,
+                `slack-notification-image-${nanoid()}`,
+                userUuid,
+            );
+            if (imageUrl === undefined) {
+                throw new Error('Unable to unfurl image');
+            }
 
-        const imageUrl = await unfurlService.unfurlImage(
-            url,
-            pageType,
-            `slack-notification-image-${nanoid()}`,
-            userUuid,
-        );
-        if (imageUrl === undefined) {
-            throw new Error('Unable to unfurl image');
+            const unfurl: Unfurl = {
+                title: details.name,
+                description: details.description,
+                imageUrl,
+                pageType,
+            };
+            const blocks = unfurlChartAndDashboard(url, unfurl, true);
+
+            await slackClient.postMessage({
+                organizationUuid,
+                text: details.name,
+                channel,
+                blocks,
+            });
+        } else {
+            const user = await userService.getSessionByUserUuid(userUuid);
+
+            let blocks;
+            if (savedChartUuid) {
+                const csvUrl = await csvService.getCsvForChart(
+                    user,
+                    savedChartUuid,
+                );
+                blocks = unfurlChartCsvResults(
+                    details.name,
+                    details.description,
+                    url,
+                    csvUrl.path,
+                );
+            } else if (dashboardUuid) {
+                const csvUrls = await csvService.getCsvsForDashboard(
+                    user,
+                    dashboardUuid,
+                );
+                blocks = unfurlDashboardCsvResults(
+                    details.name,
+                    details.description,
+                    url,
+                    csvUrls,
+                );
+            } else {
+                throw new Error('Not implemented');
+            }
+            await slackClient.postMessage({
+                organizationUuid,
+                text: details.name,
+                channel,
+                blocks,
+            });
         }
-
-        const unfurl: Unfurl = {
-            title: details.name,
-            description: details.description,
-            imageUrl,
-            pageType,
-        };
-        const blocks = unfurlChartAndDashboard(url, unfurl, true);
-
-        await slackClient.postMessage({
-            organizationUuid,
-            text: details.name,
-            channel,
-            blocks,
-        });
         analytics.track({
             event: 'scheduler_job.completed',
             anonymousId: LightdashAnalytics.anonymousId,
