@@ -1,29 +1,22 @@
-import { AnchorButton, Button, Intent } from '@blueprintjs/core';
+import { AnchorButton, Button } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { LightdashMode } from '@lightdash/common';
-import { FC, useCallback, useState } from 'react';
-import { useSpacePinningMutation } from '../../../hooks/pinning/useSpaceMutation';
+import { FC, useState } from 'react';
 import { useSpaces } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
 import ResourceList, { ResourceViewType } from '../../common/ResourceList';
 import {
     ResourceEmptyStateHeader,
     ResourceEmptyStateIcon,
-    ResourceEmptyStateWrapper,
 } from '../../common/ResourceList/ResourceList.styles';
-import ResourceListWrapper from '../../common/ResourceList/ResourceListWrapper';
 import {
     ResourceListType,
     wrapResourceList,
 } from '../../common/ResourceList/ResourceTypeUtils';
 import SpaceActionModal, { ActionType } from '../../common/SpaceActionModal';
-import { SpaceListWrapper } from './SpaceBrowser.styles';
-import SpaceItem from './SpaceItem';
 
 const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const { user, health } = useApp();
-    const [updateSpaceUuid, setUpdateSpaceUuid] = useState<string>();
-    const [deleteSpaceUuid, setDeleteSpaceUuid] = useState<string>();
     const { data: spaces = [], isLoading } = useSpaces(projectUuid);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
     const isDemo = health.data?.mode === LightdashMode.DEMO;
@@ -36,16 +29,9 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
         }),
     );
 
-    const { mutate: pinSpace } = useSpacePinningMutation(projectUuid);
-
     const handleCreateSpace = () => {
         setIsCreateModalOpen(true);
     };
-
-    const handlePinToggle = useCallback(
-        (spaceUuid: string) => pinSpace(spaceUuid),
-        [pinSpace],
-    );
 
     return (
         <>
@@ -94,43 +80,16 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                 )}
             />
 
-            <ResourceListWrapper headerTitle="Spaces" showCount={false}>
-                <SpaceListWrapper>
-                    {spaces.map(
-                        ({
-                            uuid,
-                            name,
-                            dashboards,
-                            queries,
-                            pinnedListUuid,
-                        }) => (
-                            <SpaceItem
-                                key={uuid}
-                                projectUuid={projectUuid}
-                                uuid={uuid}
-                                name={name}
-                                isPinned={!!pinnedListUuid}
-                                dashboardsCount={dashboards.length}
-                                queriesCount={queries.length}
-                                onRename={() => setUpdateSpaceUuid(uuid)}
-                                onDelete={() => setDeleteSpaceUuid(uuid)}
-                                onPinToggle={() => handlePinToggle(uuid)}
-                            />
-                        ),
-                    )}
-                </SpaceListWrapper>
-
-                {isCreateModalOpen && (
-                    <SpaceActionModal
-                        projectUuid={projectUuid}
-                        actionType={ActionType.CREATE}
-                        title="Create new space"
-                        confirmButtonLabel="Create"
-                        icon="folder-close"
-                        onClose={() => setIsCreateModalOpen(false)}
-                    />
-                )}
-            </ResourceListWrapper>
+            {isCreateModalOpen && (
+                <SpaceActionModal
+                    projectUuid={projectUuid}
+                    actionType={ActionType.CREATE}
+                    title="Create new space"
+                    confirmButtonLabel="Create"
+                    icon="folder-close"
+                    onClose={() => setIsCreateModalOpen(false)}
+                />
+            )}
         </>
     );
 };
