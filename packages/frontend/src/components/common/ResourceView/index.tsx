@@ -4,10 +4,10 @@ import ResourceActionHandlers, {
     ResourceViewItemAction,
     ResourceViewItemActionState,
 } from './ResourceActionHandlers';
-import ResourceGrid from './ResourceGrid';
 import ResourceTable, { ResourceTableCommonProps } from './ResourceTable';
 import { ResourceViewItem } from './ResourceTypeUtils';
 import { ResourceEmptyStateWrapper } from './ResourceView.styles';
+import ResourceViewGrid from './ResourceViewGrid';
 import ResourceViewWrapper, {
     ResourceViewWrapperProps,
 } from './ResourceViewWrapper';
@@ -83,7 +83,7 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                         onAction={handleAction}
                     />
                 ) : view === ResourceViewType.GRID ? (
-                    <ResourceGrid items={items} onAction={handleAction} />
+                    <ResourceViewGrid items={items} onAction={handleAction} />
                 ) : (
                     assertUnreachable(view, 'Unknown resource view type')
                 )}
