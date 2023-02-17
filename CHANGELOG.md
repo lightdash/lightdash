@@ -1,3 +1,10 @@
+## [0.418.1](https://github.com/lightdash/lightdash/compare/0.418.0...0.418.1) (2023-02-17)
+
+
+### Bug Fixes
+
+* user activity dashboard header styling ([#4517](https://github.com/lightdash/lightdash/issues/4517)) ([1c964fa](https://github.com/lightdash/lightdash/commit/1c964fa66cb38cfb32b370be72c7d05fd3a4b1be))
+
 # [0.418.0](https://github.com/lightdash/lightdash/compare/0.417.3...0.418.0) (2023-02-17)
 
 
