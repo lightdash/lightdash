@@ -4,6 +4,7 @@ import {
     Field,
     getItemLabel,
     getItemMap,
+    isDashboardChartTileType,
     isField,
     MetricQuery,
     SessionUser,
@@ -14,6 +15,7 @@ import * as fs from 'fs/promises';
 import moment from 'moment';
 import { nanoid } from 'nanoid';
 import { S3Service } from '../../clients/Aws/s3';
+import { AttachmentUrl } from '../../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -102,7 +104,10 @@ export class CsvService {
         });
     }
 
-    async getCsvForChart(user: SessionUser, chartUuid: string) {
+    async getCsvForChart(
+        user: SessionUser,
+        chartUuid: string,
+    ): Promise<AttachmentUrl> {
         const chart = await this.savedChartModel.get(chartUuid);
         const { metricQuery } = chart;
         const exploreId = chart.tableName;
@@ -136,11 +141,31 @@ export class CsvService {
         const fileId = `csv-${nanoid()}.csv`;
 
         try {
-            return await this.s3Service.uploadCsv(csvContent, fileId);
+            const s3Url = await this.s3Service.uploadCsv(csvContent, fileId);
+            return { filename: `${chart.name}`, path: s3Url };
         } catch (e) {
             // Can't store file in S3, storing locally
             await fs.writeFile(`/tmp/${fileId}`, csvContent, 'utf-8');
-            return `${lightdashConfig.siteUrl}/api/v1/projects/${chart.projectUuid}/csv/${fileId}`;
+            const localUrl = `${lightdashConfig.siteUrl}/api/v1/projects/${chart.projectUuid}/csv/${fileId}`;
+            return { filename: `${chart.name}`, path: localUrl };
         }
+    }
+
+    async getCsvsForDashboard(user: SessionUser, dashboardUuid: string) {
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        const chartUuids = dashboard.tiles.reduce<string[]>((acc, tile) => {
+            if (
+                isDashboardChartTileType(tile) &&
+                tile.properties.savedChartUuid
+            ) {
+                return [...acc, tile.properties.savedChartUuid];
+            }
+            return acc;
+        }, []);
+
+        const csvUrls = await Promise.all(
+            chartUuids.map((chartUuid) => this.getCsvForChart(user, chartUuid)),
+        );
+        return csvUrls;
     }
 }

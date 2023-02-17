@@ -160,6 +160,7 @@
                 font-size: 14px;
                 line-height: 24px;
                 color: #5c7080;
+                text-align: left;
             }
 
             p li,
@@ -414,13 +415,14 @@
                                                 <h2>{{title}}</h2>
                                                 <p>{{description}}</p>
 
-                                                <a href="{{csvUrl}}" class="btn"
-                                                    >Download CSV results</a
-                                                >
 
+                                                {{{downloadCsv}}}
+
+                                                
                                                 <a href="{{url}}" class="btn"
                                                     >View in Lightdash</a
                                                 >
+
                                                 <!-- START FOOTER -->
                                                 <div class="footer">
                                                     <table

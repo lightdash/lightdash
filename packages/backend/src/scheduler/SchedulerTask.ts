@@ -206,13 +206,13 @@ export const sendEmailNotification = async (
         } else {
             const user = await userService.getSessionByUserUuid(userUuid);
 
-            // TODO if dashboard, download all charts within
             if (savedChartUuid) {
                 const csvUrl = await csvService.getCsvForChart(
                     user,
                     savedChartUuid,
                 );
-                emailClient.sendCsvNotificationEmail(
+
+                emailClient.sendChartCsvNotificationEmail(
                     recipient,
                     schedulerName,
                     details.name,
@@ -221,7 +221,18 @@ export const sendEmailNotification = async (
                     url,
                 );
             } else if (dashboardUuid) {
-                throw new Error('Not implemented');
+                const csvUrls = await csvService.getCsvsForDashboard(
+                    user,
+                    dashboardUuid,
+                );
+                emailClient.sendDashboardCsvNotificationEmail(
+                    recipient,
+                    schedulerName,
+                    details.name,
+                    details.description || '',
+                    csvUrls,
+                    url,
+                );
             } else {
                 throw new Error('Not implemented');
             }

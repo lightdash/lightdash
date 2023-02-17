@@ -14,6 +14,10 @@ import path from 'path';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logger';
 
+export type AttachmentUrl = {
+    path: string;
+    filename: string;
+};
 type Dependencies = {
     lightdashConfig: Pick<LightdashConfig, 'smtp' | 'siteUrl'>;
 };
@@ -193,24 +197,61 @@ export default class EmailClient {
         });
     }
 
-    public async sendCsvNotificationEmail(
+    public async sendChartCsvNotificationEmail(
         recipient: string,
         subject: string,
         title: string,
         description: string,
-        csvUrl: string,
+        attachment: AttachmentUrl,
         url: string,
     ) {
+        const downloadCsv = `
+        <h4><a href="${attachment.path}">Download results</a></h4>
+        `;
         return this.sendEmail({
             to: recipient,
             subject,
             template: 'csvNotification',
             context: {
                 title,
-                csvUrl,
                 description,
                 url,
                 host: this.lightdashConfig.siteUrl,
+                downloadCsv,
+            },
+            text: title,
+        });
+    }
+
+    public async sendDashboardCsvNotificationEmail(
+        recipient: string,
+        subject: string,
+        title: string,
+        description: string,
+        attachments: AttachmentUrl[],
+        url: string,
+    ) {
+        const downloadCsv = `
+        <h3>Download results:</h3>
+        <ul>
+            ${attachments
+                .map(
+                    (attachment) =>
+                        `<li><a href="${attachment.path}">${attachment.filename}</a></li>`,
+                )
+                .join('')}
+        </ul>
+        `;
+        return this.sendEmail({
+            to: recipient,
+            subject,
+            template: 'csvNotification',
+            context: {
+                title,
+                description,
+                url,
+                host: this.lightdashConfig.siteUrl,
+                downloadCsv,
             },
             text: title,
         });
