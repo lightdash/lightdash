@@ -1,3 +1,10 @@
+# [0.418.0](https://github.com/lightdash/lightdash/compare/0.417.3...0.418.0) (2023-02-17)
+
+
+### Features
+
+* updating navbar icons ([#4512](https://github.com/lightdash/lightdash/issues/4512)) ([07b00c9](https://github.com/lightdash/lightdash/commit/07b00c9e1aa733db3f7a6aaa1766fd28104955e7))
+
 ## [0.417.3](https://github.com/lightdash/lightdash/compare/0.417.2...0.417.3) (2023-02-17)
 
 
