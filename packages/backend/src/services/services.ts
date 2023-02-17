@@ -24,6 +24,7 @@ import {
     userModel,
 } from '../models/models';
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
+import { CsvService } from './CsvService/CsvService';
 import { DashboardService } from './DashboardService/DashboardService';
 import { EncryptionService } from './EncryptionService/EncryptionService';
 import { HealthService } from './HealthService/HealthService';
@@ -135,4 +136,11 @@ export const schedulerService = new SchedulerService({
     schedulerModel,
     savedChartModel,
     dashboardModel,
+});
+
+export const csvService = new CsvService({
+    s3Service,
+    projectService,
+    dashboardModel,
+    savedChartModel,
 });

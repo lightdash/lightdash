@@ -70,7 +70,11 @@ export type UpdateSchedulerAndTargets = Pick<
     Scheduler,
     'schedulerUuid' | 'name' | 'cron' | 'format'
 > & {
-    targets: Array<CreateSchedulerTarget | UpdateSchedulerSlackTarget>;
+    targets: Array<
+        | CreateSchedulerTarget
+        | UpdateSchedulerSlackTarget
+        | UpdateSchedulerEmailTarget
+    >;
 };
 
 export type UpdateSchedulerAndTargetsWithoutId = Omit<

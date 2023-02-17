@@ -86,9 +86,8 @@ export class SchedulerClient {
             }>(
                 `select id, 
                 payload->>'schedulerSlackTargetUuid' as scheduler_slack_target_uuid, 
-                payload->>'schedulerEmailTargetUuid' as scheduler_email_target_uuid 
+                payload->>'schedulerEmailTargetUuid' as scheduler_email_target_uuid,
                 payload->>'format' as format 
-
                 from graphile_worker.jobs where payload->>'schedulerUuid' like $1`,
                 [`${schedulerUuid}%`],
             ),
