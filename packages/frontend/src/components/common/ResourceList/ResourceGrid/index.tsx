@@ -39,9 +39,7 @@ const ResourceTable: FC<ResourceTableProps> = ({ items, onAction }) => {
                     {item.type === ResourceListType.SPACE ? (
                         <ResourceViewSpaceItem
                             url={getResourceUrl(projectUuid, item)}
-                            name={item.data.name}
-                            dashboardsCount={item.data.dashboards.length}
-                            queriesCount={item.data.queries.length}
+                            item={item}
                             renderActions={() => (
                                 <ResourceActionMenu
                                     item={item}

@@ -1,5 +1,6 @@
 import { Colors, Icon } from '@blueprintjs/core';
 import { FC } from 'react';
+import { ResourceListSpaceItem } from '../ResourceTypeUtils';
 import {
     ResourceGridItemCount,
     ResourceGridItemFooter,
@@ -9,18 +10,14 @@ import {
 } from './ResourceGridItem.styles';
 
 interface ResourceViewSpaceItemProps {
-    name: string;
+    item: ResourceListSpaceItem;
     url: string;
-    dashboardsCount: number;
-    queriesCount: number;
     renderActions: () => JSX.Element;
 }
 
 const ResourceViewSpaceItem: FC<ResourceViewSpaceItemProps> = ({
-    name,
+    item,
     url,
-    dashboardsCount,
-    queriesCount,
     renderActions,
 }) => {
     return (
@@ -29,10 +26,18 @@ const ResourceViewSpaceItem: FC<ResourceViewSpaceItemProps> = ({
                 <Icon icon="folder-close" size={20} color={Colors.BLUE5}></Icon>
                 {renderActions()}
             </ResourceGridItemHeader>
-            <ResourceGridItemTitle ellipsize>{name}</ResourceGridItemTitle>
+            <ResourceGridItemTitle ellipsize>
+                {item.data.name}
+            </ResourceGridItemTitle>
             <ResourceGridItemFooter>
-                <ResourceGridItemCount icon="control" value={dashboardsCount} />
-                <ResourceGridItemCount icon="chart" value={queriesCount} />
+                <ResourceGridItemCount
+                    icon="control"
+                    value={item.data.dashboards.length}
+                />
+                <ResourceGridItemCount
+                    icon="chart"
+                    value={item.data.queries.length}
+                />
             </ResourceGridItemFooter>
         </ResourceGridItemLink>
     );
