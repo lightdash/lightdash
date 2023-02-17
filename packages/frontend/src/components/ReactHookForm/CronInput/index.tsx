@@ -1,5 +1,5 @@
 import { FormGroup } from '@blueprintjs/core';
-import React, { FC, useCallback, useState } from 'react';
+import React, { FC, useCallback, useEffect, useState } from 'react';
 import {
     Controller,
     ControllerRenderProps,
@@ -27,6 +27,12 @@ const CronInternalInputs: FC<
     const [frequency, setFrequency] = useState<Frequency>(
         mapCronExpressionToFrequency(value),
     );
+
+    useEffect(() => {
+        if (frequency !== Frequency.CUSTOM) {
+            setFrequency(mapCronExpressionToFrequency(value));
+        }
+    }, [frequency, value]);
 
     const onFrequencyChange = useCallback(
         (newFrequency: Frequency) => {
