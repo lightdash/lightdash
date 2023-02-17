@@ -16,20 +16,20 @@ import {
     ResourceViewItemType,
 } from './../ResourceTypeUtils';
 import {
-    Flex,
-    ResourceLink,
-    ResourceMetadata,
-    ResourceName,
-    ResourceNameBox,
-    ResourceSpaceLink,
-    Spacer,
-    StyledTable,
-    StyledTBody,
-    StyledTd,
-    StyledTh,
-    StyledTHead,
-    StyledTr,
-    ThInteractiveWrapper,
+    ResourceViewListFlex,
+    ResourceViewListLink,
+    ResourceViewListMetadata,
+    ResourceViewListName,
+    ResourceViewListNameBox,
+    ResourceViewListSpaceLink,
+    ResourceViewListSpacer,
+    ResourceViewListTable,
+    ResourceViewListTBody,
+    ResourceViewListTd,
+    ResourceViewListTh,
+    ResourceViewListTHead,
+    ResourceViewListThInteractiveWrapper,
+    ResourceViewListTr,
 } from './ResourceViewList.styles';
 
 export enum SortDirection {
@@ -145,27 +145,27 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                             }
                             position={Position.TOP_LEFT}
                         >
-                            <ResourceLink
+                            <ResourceViewListLink
                                 to={getResourceUrl(projectUuid, item)}
                                 onClick={(e) => e.stopPropagation()}
                             >
                                 <ResourceIcon item={item} />
 
-                                <Spacer $width={16} />
+                                <ResourceViewListSpacer $width={16} />
 
-                                <ResourceNameBox>
-                                    <ResourceName>
+                                <ResourceViewListNameBox>
+                                    <ResourceViewListName>
                                         {item.data.name}
-                                    </ResourceName>
+                                    </ResourceViewListName>
 
                                     {canBelongToSpace && (
-                                        <ResourceMetadata>
+                                        <ResourceViewListMetadata>
                                             <ResourceType item={item} /> •{' '}
                                             {item.data.views || '0'} views
-                                        </ResourceMetadata>
+                                        </ResourceViewListMetadata>
                                     )}
-                                </ResourceNameBox>
-                            </ResourceLink>
+                                </ResourceViewListNameBox>
+                            </ResourceViewListLink>
                         </Tooltip2>
                     );
                 },
@@ -195,12 +195,12 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                     );
 
                     return space ? (
-                        <ResourceSpaceLink
+                        <ResourceViewListSpaceLink
                             to={`/projects/${projectUuid}/spaces/${space.uuid}`}
                             onClick={(e) => e.stopPropagation()}
                         >
                             {space.name}
-                        </ResourceSpaceLink>
+                        </ResourceViewListSpaceLink>
                     ) : null;
                 },
                 enableSorting,
@@ -258,11 +258,11 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                 id: 'type',
                 label: 'Type',
                 cell: (item: ResourceViewItem) => (
-                    <ResourceNameBox>
-                        <ResourceMetadata>
+                    <ResourceViewListNameBox>
+                        <ResourceViewListMetadata>
                             <ResourceType item={item} />
-                        </ResourceMetadata>
-                    </ResourceNameBox>
+                        </ResourceViewListMetadata>
+                    </ResourceViewListNameBox>
                 ),
                 enableSorting,
                 sortingFn: (a: ResourceViewItem) => {
@@ -338,18 +338,18 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
     }, [items, columnSorts, columns]);
 
     return (
-        <StyledTable>
-            <StyledTHead>
-                <StyledTr>
+        <ResourceViewListTable>
+            <ResourceViewListTHead>
+                <ResourceViewListTr>
                     {visibleColumns.map((column) => {
                         const columnSort = columnSorts.get(column.id) || null;
 
                         return (
-                            <StyledTh
+                            <ResourceViewListTh
                                 key={column.id}
                                 style={column?.meta?.style}
                             >
-                                <ThInteractiveWrapper
+                                <ResourceViewListThInteractiveWrapper
                                     $isInteractive={column.enableSorting}
                                     onClick={() =>
                                         column.enableSorting &&
@@ -359,12 +359,14 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                         )
                                     }
                                 >
-                                    <Flex>
+                                    <ResourceViewListFlex>
                                         {column?.label}
 
                                         {columnSort ? (
                                             <>
-                                                <Spacer $width={5} />
+                                                <ResourceViewListSpacer
+                                                    $width={5}
+                                                />
 
                                                 {enableSorting &&
                                                     {
@@ -383,31 +385,31 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                                     }[columnSort]}
                                             </>
                                         ) : null}
-                                    </Flex>
-                                </ThInteractiveWrapper>
-                            </StyledTh>
+                                    </ResourceViewListFlex>
+                                </ResourceViewListThInteractiveWrapper>
+                            </ResourceViewListTh>
                         );
                     })}
-                </StyledTr>
-            </StyledTHead>
+                </ResourceViewListTr>
+            </ResourceViewListTHead>
 
-            <StyledTBody>
+            <ResourceViewListTBody>
                 {sortedResourceItems.map((item) => (
-                    <StyledTr
+                    <ResourceViewListTr
                         key={item.data.uuid}
                         onClick={() =>
                             history.push(getResourceUrl(projectUuid, item))
                         }
                     >
                         {visibleColumns.map((column) => (
-                            <StyledTd key={column.id}>
+                            <ResourceViewListTd key={column.id}>
                                 {column.cell(item)}
-                            </StyledTd>
+                            </ResourceViewListTd>
                         ))}
-                    </StyledTr>
+                    </ResourceViewListTr>
                 ))}
-            </StyledTBody>
-        </StyledTable>
+            </ResourceViewListTBody>
+        </ResourceViewListTable>
     );
 };
 

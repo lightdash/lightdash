@@ -4,32 +4,32 @@ import styled from 'styled-components';
 
 const paddingX = 20;
 
-export const StyledTable = styled(HTMLTable)`
+export const ResourceViewListTable = styled(HTMLTable)`
     width: 100%;
     border-collapse: collapse;
 `;
 
-export const StyledTHead = styled.thead`
+export const ResourceViewListTHead = styled.thead`
     background-color: ${Colors.LIGHT_GRAY5};
 `;
 
-export const StyledTr = styled.tr`
+export const ResourceViewListTr = styled.tr`
     :hover {
         background-color: ${Colors.LIGHT_GRAY5}75;
     }
 `;
 
-export const StyledTBody = styled.tbody`
-    ${StyledTr} {
+export const ResourceViewListTBody = styled.tbody`
+    ${ResourceViewListTr} {
         cursor: pointer;
     }
 
-    ${StyledTr}:not(:last-child) {
+    ${ResourceViewListTr}:not(:last-child) {
         border-bottom: 1pt solid ${Colors.LIGHT_GRAY3} !important;
     }
 `;
 
-export const StyledTh = styled.th`
+export const ResourceViewListTh = styled.th`
     vertical-align: middle !important;
     font-weight: 600 !important;
     font-size: 12px !important;
@@ -37,11 +37,11 @@ export const StyledTh = styled.th`
     padding: 0 !important;
 `;
 
-interface ThInteractiveWrapperProps {
+interface ResourceViewListThInteractiveWrapperProps {
     $isInteractive: boolean;
 }
 
-export const ThInteractiveWrapper = styled.div<ThInteractiveWrapperProps>`
+export const ResourceViewListThInteractiveWrapper = styled.div<ResourceViewListThInteractiveWrapperProps>`
     padding: 7px ${paddingX}px !important;
 
     ${(props) =>
@@ -57,43 +57,43 @@ export const ThInteractiveWrapper = styled.div<ThInteractiveWrapperProps>`
             : ''}
 `;
 
-export const StyledTd = styled.td`
+export const ResourceViewListTd = styled.td`
     vertical-align: middle !important;
     padding: 15px ${paddingX}px !important;
 `;
 
-interface SpacerProps {
-    $width: number;
-}
-
-export const Flex = styled.div`
+export const ResourceViewListFlex = styled.div`
     display: flex;
     align-items: center;
 `;
 
-export const Spacer = styled.div<SpacerProps>`
+interface ResourceViewListSpacerProps {
+    $width: number;
+}
+
+export const ResourceViewListSpacer = styled.div<ResourceViewListSpacerProps>`
     width: ${(props) => props.$width}px;
 `;
 
-export const ResourceNameBox = styled.div`
+export const ResourceViewListNameBox = styled.div`
     display: flex;
     flex-direction: column;
     gap: 4px;
 `;
 
-export const ResourceName = styled.div`
+export const ResourceViewListName = styled.div`
     font-size: 14px;
     font-weight: 600;
     color: ${Colors.DARK_GRAY1};
 `;
 
-export const ResourceMetadata = styled.div`
+export const ResourceViewListMetadata = styled.div`
     font-size: 12px;
     font-weight: 400;
     color: ${Colors.GRAY2};
 `;
 
-export const ResourceLink = styled(Link)`
+export const ResourceViewListLink = styled(Link)`
     display: inline-flex;
     align-items: center;
     color: ${Colors.DARK_GRAY4};
@@ -103,7 +103,7 @@ export const ResourceLink = styled(Link)`
     }
 `;
 
-export const ResourceSpaceLink = styled(Link)`
+export const ResourceViewListSpaceLink = styled(Link)`
     font-size: 13px;
     font-weight: 500;
     color: ${Colors.GRAY2};
