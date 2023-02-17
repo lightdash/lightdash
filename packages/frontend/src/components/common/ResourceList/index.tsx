@@ -20,7 +20,7 @@ export interface ResourceListCommonProps {
     items: ResourceListItem[];
     showCount?: boolean;
     renderEmptyState?: () => React.ReactNode;
-    view: ResourceViewType;
+    view?: ResourceViewType;
 }
 
 export enum ResourceViewType {
