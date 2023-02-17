@@ -1,6 +1,6 @@
 import { Colors, Icon } from '@blueprintjs/core';
 import { FC } from 'react';
-import { ResourceViewSpaceItem } from '../ResourceTypeUtils';
+import { ResourceViewSpaceItem } from '../resourceTypeUtils';
 import {
     ResourceViewGridItemCount,
     ResourceViewGridItemFooter,

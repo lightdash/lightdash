@@ -12,7 +12,7 @@ import {
     IconTable,
 } from '@tabler/icons-react';
 import { FC } from 'react';
-import { ResourceViewItem, ResourceViewItemType } from '../ResourceTypeUtils';
+import { ResourceViewItem, ResourceViewItemType } from '../resourceTypeUtils';
 import { ResourceIconBox } from './ResourceIcon.styles';
 
 interface ResourceIconProps {

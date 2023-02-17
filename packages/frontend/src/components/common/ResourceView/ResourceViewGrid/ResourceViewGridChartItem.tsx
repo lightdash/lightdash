@@ -1,6 +1,6 @@
 import { FC } from 'react';
 import ResourceIcon from '../ResourceIcon';
-import { ResourceViewChartItem } from '../ResourceTypeUtils';
+import { ResourceViewChartItem } from '../resourceTypeUtils';
 import {
     // ResourceViewGridItemFooter,
     ResourceViewGridItemHeader,

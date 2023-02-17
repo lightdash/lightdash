@@ -9,7 +9,7 @@ import ResourceView, { ResourceViewType } from '../common/ResourceView';
 import {
     ResourceViewItemType,
     wrapResourceView,
-} from '../common/ResourceView/ResourceTypeUtils';
+} from '../common/ResourceView/resourceTypeUtils';
 import { SortDirection } from '../common/ResourceView/ResourceViewList';
 
 interface Props {

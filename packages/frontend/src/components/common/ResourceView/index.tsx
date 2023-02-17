@@ -5,7 +5,7 @@ import ResourceActionHandlers, {
     ResourceViewItemAction,
     ResourceViewItemActionState,
 } from './ResourceActionHandlers';
-import { ResourceViewItem } from './ResourceTypeUtils';
+import { ResourceViewItem } from './resourceTypeUtils';
 import {
     ResourceEmptyStateWrapper,
     ResourceTag,

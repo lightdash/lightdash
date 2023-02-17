@@ -23,7 +23,7 @@ import {
     ResourceViewDashboardItem,
     ResourceViewItem,
     ResourceViewItemType,
-} from './ResourceTypeUtils';
+} from './resourceTypeUtils';
 
 export enum ResourceViewItemAction {
     CLOSE,

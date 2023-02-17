@@ -16,7 +16,7 @@ import ResourceView from '../components/common/ResourceView';
 import {
     ResourceViewItemType,
     wrapResourceView,
-} from '../components/common/ResourceView/ResourceTypeUtils';
+} from '../components/common/ResourceView/resourceTypeUtils';
 import {
     ResourceBreadcrumbTitle,
     ResourceEmptyStateHeader,

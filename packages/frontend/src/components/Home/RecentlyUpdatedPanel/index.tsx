@@ -11,7 +11,7 @@ import {
     isResourceViewItemCanBelongToSpace,
     ResourceViewItemType,
     wrapResourceView,
-} from '../../common/ResourceView/ResourceTypeUtils';
+} from '../../common/ResourceView/resourceTypeUtils';
 import {
     ResourceEmptyStateHeader,
     ResourceEmptyStateHeaderWrapper,

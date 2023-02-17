@@ -11,7 +11,7 @@ export enum ResourceViewItemType {
     SPACE = 'space',
 }
 
-type AcceptedResources = SpaceQuery | DashboardBasicDetails | Space;
+type ResourceViewAcceptedItems = SpaceQuery | DashboardBasicDetails | Space;
 
 export type ResourceViewChartItem = {
     type: ResourceViewItemType.CHART;
@@ -46,7 +46,7 @@ export const isResourceViewItemCanBelongToSpace = (
     );
 };
 
-export const wrapResource = <T extends AcceptedResources>(
+export const wrapResource = <T extends ResourceViewAcceptedItems>(
     resource: T,
     type: ResourceViewItemType,
 ): ResourceViewItem => {
@@ -63,7 +63,7 @@ export const wrapResource = <T extends AcceptedResources>(
 };
 
 export const wrapResourceView = (
-    resources: AcceptedResources[],
+    resources: ResourceViewAcceptedItems[],
     type: ResourceViewItemType,
 ): ResourceViewItem[] => {
     return resources.map((resource) => wrapResource(resource, type));

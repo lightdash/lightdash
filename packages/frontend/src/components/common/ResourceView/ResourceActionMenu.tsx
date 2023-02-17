@@ -9,7 +9,7 @@ import {
     ResourceViewItemAction,
     ResourceViewItemActionState,
 } from './ResourceActionHandlers';
-import { ResourceViewItem, ResourceViewItemType } from './ResourceTypeUtils';
+import { ResourceViewItem, ResourceViewItemType } from './resourceTypeUtils';
 
 type Props = {
     item: ResourceViewItem;

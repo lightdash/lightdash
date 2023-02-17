@@ -1,20 +1,19 @@
 import { Icon, Position } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
-import { assertUnreachable } from '@lightdash/common';
 import React, { FC, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import { ResourceViewCommonProps } from '..';
 import { useSpaces } from '../../../../hooks/useSpaces';
-import { ResourceViewItemActionState } from './../ResourceActionHandlers';
-import ResourceActionMenu from './../ResourceActionMenu';
-import ResourceIcon from './../ResourceIcon';
-import ResourceLastEdited from './../ResourceLastEdited';
-import ResourceType from './../ResourceType';
 import {
     isResourceViewItemCanBelongToSpace,
     ResourceViewItem,
     ResourceViewItemType,
-} from './../ResourceTypeUtils';
+} from '../resourceTypeUtils';
+import { getResourceTypeName, getResourceUrl } from '../resourceUtils';
+import { ResourceViewItemActionState } from './../ResourceActionHandlers';
+import ResourceActionMenu from './../ResourceActionMenu';
+import ResourceIcon from './../ResourceIcon';
+import ResourceLastEdited from './../ResourceLastEdited';
 import {
     ResourceViewListFlex,
     ResourceViewListLink,
@@ -73,20 +72,6 @@ interface Column {
 const getNextSortDirection = (current: SortingState): SortingState => {
     const currentIndex = sortOrder.indexOf(current);
     return sortOrder.concat(sortOrder[0])[currentIndex + 1];
-};
-
-const getResourceUrl = (projectUuid: string, item: ResourceViewItem) => {
-    const itemType = item.type;
-    switch (item.type) {
-        case ResourceViewItemType.DASHBOARD:
-            return `/projects/${projectUuid}/dashboards/${item.data.uuid}/view`;
-        case ResourceViewItemType.CHART:
-            return `/projects/${projectUuid}/saved/${item.data.uuid}`;
-        case ResourceViewItemType.SPACE:
-            return `/projects/${projectUuid}/spaces/${item.data.uuid}`;
-        default:
-            return assertUnreachable(item, `Can't get URL for ${itemType}`);
-    }
 };
 
 const ResourceViewList: FC<ResourceViewListProps> = ({
@@ -160,7 +145,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
 
                                     {canBelongToSpace && (
                                         <ResourceViewListMetadata>
-                                            <ResourceType item={item} /> •{' '}
+                                            {getResourceTypeName(item)} •{' '}
                                             {item.data.views || '0'} views
                                         </ResourceViewListMetadata>
                                     )}
@@ -260,7 +245,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                 cell: (item: ResourceViewItem) => (
                     <ResourceViewListNameBox>
                         <ResourceViewListMetadata>
-                            <ResourceType item={item} />
+                            {getResourceTypeName(item)}
                         </ResourceViewListMetadata>
                     </ResourceViewListNameBox>
                 ),
