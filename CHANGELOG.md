@@ -1,3 +1,10 @@
+## [0.417.3](https://github.com/lightdash/lightdash/compare/0.417.2...0.417.3) (2023-02-17)
+
+
+### Bug Fixes
+
+* updating results table header icon ([#4514](https://github.com/lightdash/lightdash/issues/4514)) ([a36ec36](https://github.com/lightdash/lightdash/commit/a36ec3635ab683050805bc14b25e07233b79ddc2))
+
 ## [0.417.2](https://github.com/lightdash/lightdash/compare/0.417.1...0.417.2) (2023-02-17)
 
 
