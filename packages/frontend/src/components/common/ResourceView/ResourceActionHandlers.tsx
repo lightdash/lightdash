@@ -79,17 +79,17 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
-    const { mutate: moveChartMutation } = useMoveChartMutation();
-    const { mutate: moveDashboardMutation } = useMoveDashboardMutation();
+    const { mutate: moveChart } = useMoveChartMutation();
+    const { mutate: moveDashboard } = useMoveDashboardMutation();
+    const { mutate: pinChart } = useChartPinningMutation();
+    const { mutate: pinDashboard } = useDashboardPinningMutation();
+    const { mutate: pinSpace } = useSpacePinningMutation(projectUuid);
     const { mutate: duplicateChart } = useDuplicateChartMutation({
         showRedirectButton: true,
     });
     const { mutate: duplicateDashboard } = useDuplicateDashboardMutation({
         showRedirectButton: true,
     });
-    const { mutate: pinChart } = useChartPinningMutation();
-    const { mutate: pinDashboard } = useDashboardPinningMutation();
-    const { mutate: pinSpace } = useSpacePinningMutation(projectUuid);
 
     const handleReset = useCallback(() => {
         onAction({ type: ResourceViewItemAction.CLOSE });
@@ -114,13 +114,13 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
 
         switch (action.item.type) {
             case ResourceViewItemType.CHART:
-                return moveChartMutation({
+                return moveChart({
                     uuid: action.item.data.uuid,
                     name: action.item.data.name,
                     ...action.data,
                 });
             case ResourceViewItemType.DASHBOARD:
-                return moveDashboardMutation({
+                return moveDashboard({
                     uuid: action.item.data.uuid,
                     name: action.item.data.name,
                     ...action.data,
@@ -131,7 +131,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                     'Resource type not supported',
                 );
         }
-    }, [action, moveChartMutation, moveDashboardMutation]);
+    }, [action, moveChart, moveDashboard]);
 
     const handlePinToHomepage = useCallback(() => {
         if (action.type !== ResourceViewItemAction.PIN_TO_HOMEPAGE) return;
