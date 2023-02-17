@@ -1,7 +1,6 @@
 import { Colors } from '@blueprintjs/core';
 import { assertUnreachable, ChartKind } from '@lightdash/common';
 import {
-    Icon123,
     IconChartArea,
     IconChartAreaLine,
     IconChartBar,
@@ -13,8 +12,8 @@ import {
     IconTable,
 } from '@tabler/icons-react';
 import { FC } from 'react';
+import { ResourceListItem, ResourceListType } from '../ResourceTypeUtils';
 import { ResourceIconBox } from './ResourceIcon.styles';
-import { ResourceListItem, ResourceListType } from './ResourceTypeUtils';
 
 interface ResourceIconProps {
     item: ResourceListItem;

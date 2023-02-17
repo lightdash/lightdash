@@ -7,6 +7,7 @@ import { ResourceListActionState } from '../ResourceActionHandlers';
 import ResourceActionMenu from '../ResourceActionMenu';
 import { ResourceListItem, ResourceListType } from '../ResourceTypeUtils';
 import { ResourceGridItemWrapper } from './ResourceGridItem.styles';
+import ResourceViewChartItem from './ResourceViewChartItem';
 import ResourceViewSpaceItem from './ResourceViewSpaceItem';
 
 type ResourceTableProps = Pick<ResourceListCommonProps, 'items'> & {
@@ -52,7 +53,18 @@ const ResourceTable: FC<ResourceTableProps> = ({ items, onAction }) => {
                     ) : item.type === ResourceListType.DASHBOARD ? (
                         <>not implemented</>
                     ) : item.type === ResourceListType.CHART ? (
-                        <>not implemented</>
+                        <ResourceViewChartItem
+                            url={getResourceUrl(projectUuid, item)}
+                            item={item}
+                            renderActions={() => (
+                                <ResourceActionMenu
+                                    item={item}
+                                    url={getResourceUrl(projectUuid, item)}
+                                    onAction={onAction}
+                                    spaces={spaces}
+                                />
+                            )}
+                        />
                     ) : (
                         assertUnreachable(item, `Resource type not supported`)
                     )}
