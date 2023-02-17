@@ -6,19 +6,24 @@ import { FC, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useApp } from '../../../providers/AppProvider';
 import {
-    ResourceListAction,
-    ResourceListActionState,
+    ResourceViewItemAction,
+    ResourceViewItemActionState,
 } from './ResourceActionHandlers';
-import { ResourceListItem, ResourceListType } from './ResourceTypeUtils';
+import { ResourceListItem, ResourceViewItemType } from './ResourceTypeUtils';
 
 type Props = {
     item: ResourceListItem;
     spaces: Space[];
     url: string;
-    onAction: (newAction: ResourceListActionState) => void;
+    onAction: (newAction: ResourceViewItemActionState) => void;
 };
 
-const ResourceListActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
+const ResourceViewItemActionMenu: FC<Props> = ({
+    item,
+    spaces,
+    url,
+    onAction,
+}) => {
     const [isOpen, setIsOpen] = useState(false);
 
     const { user } = useApp();
@@ -28,17 +33,17 @@ const ResourceListActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     switch (item.type) {
-        case ResourceListType.CHART:
+        case ResourceViewItemType.CHART:
             if (user.data?.ability?.cannot('manage', 'SavedChart')) {
                 return null;
             }
             break;
-        case ResourceListType.DASHBOARD:
+        case ResourceViewItemType.DASHBOARD:
             if (user.data?.ability?.cannot('manage', 'Dashboard')) {
                 return null;
             }
             break;
-        case ResourceListType.SPACE:
+        case ResourceViewItemType.SPACE:
             if (user.data?.ability?.cannot('manage', 'Space')) {
                 return null;
             }
@@ -66,12 +71,15 @@ const ResourceListActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
                             e.stopPropagation();
 
                             setIsOpen(false);
-                            onAction({ type: ResourceListAction.UPDATE, item });
+                            onAction({
+                                type: ResourceViewItemAction.UPDATE,
+                                item,
+                            });
                         }}
                     />
 
-                    {item.type === ResourceListType.CHART ||
-                    item.type === ResourceListType.DASHBOARD ? (
+                    {item.type === ResourceViewItemType.CHART ||
+                    item.type === ResourceViewItemType.DASHBOARD ? (
                         <MenuItem2
                             role="menuitem"
                             icon="duplicate"
@@ -82,7 +90,7 @@ const ResourceListActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
 
                                 setIsOpen(false);
                                 onAction({
-                                    type: ResourceListAction.DUPLICATE,
+                                    type: ResourceViewItemAction.DUPLICATE,
                                     item,
                                 });
                             }}
@@ -93,9 +101,9 @@ const ResourceListActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
                         'update',
                         subject('Project', { organizationUuid, projectUuid }),
                     ) &&
-                    (item.type === ResourceListType.CHART ||
-                        item.type === ResourceListType.DASHBOARD ||
-                        (item.type === ResourceListType.SPACE &&
+                    (item.type === ResourceViewItemType.CHART ||
+                        item.type === ResourceViewItemType.DASHBOARD ||
+                        (item.type === ResourceViewItemType.SPACE &&
                             localStorage.getItem('feat-pin-space'))) ? (
                         <MenuItem2
                             role="menuitem"
@@ -111,33 +119,34 @@ const ResourceListActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
 
                                 setIsOpen(false);
                                 onAction({
-                                    type: ResourceListAction.PIN_TO_HOMEPAGE,
+                                    type: ResourceViewItemAction.PIN_TO_HOMEPAGE,
                                     item,
                                 });
                             }}
                         />
                     ) : null}
 
-                    {!isDashboardPage && item.type === ResourceListType.CHART && (
-                        <MenuItem2
-                            icon="insert"
-                            text="Add to Dashboard"
-                            role="menuitem"
-                            onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
+                    {!isDashboardPage &&
+                        item.type === ResourceViewItemType.CHART && (
+                            <MenuItem2
+                                icon="insert"
+                                text="Add to Dashboard"
+                                role="menuitem"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
 
-                                setIsOpen(false);
-                                onAction({
-                                    type: ResourceListAction.ADD_TO_DASHBOARD,
-                                    item,
-                                });
-                            }}
-                        />
-                    )}
+                                    setIsOpen(false);
+                                    onAction({
+                                        type: ResourceViewItemAction.ADD_TO_DASHBOARD,
+                                        item,
+                                    });
+                                }}
+                            />
+                        )}
 
-                    {item.type === ResourceListType.CHART ||
-                    item.type === ResourceListType.DASHBOARD ? (
+                    {item.type === ResourceViewItemType.CHART ||
+                    item.type === ResourceViewItemType.DASHBOARD ? (
                         <MenuItem2
                             tagName="div"
                             icon="folder-close"
@@ -166,7 +175,7 @@ const ResourceListActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
 
                                             if (!isSelected) {
                                                 onAction({
-                                                    type: ResourceListAction.MOVE_TO_SPACE,
+                                                    type: ResourceViewItemAction.MOVE_TO_SPACE,
                                                     item,
                                                     data: {
                                                         ...item.data,
@@ -189,7 +198,7 @@ const ResourceListActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
                                     e.stopPropagation();
 
                                     onAction({
-                                        type: ResourceListAction.CREATE_SPACE,
+                                        type: ResourceViewItemAction.CREATE_SPACE,
                                         item,
                                     });
                                 }}
@@ -209,7 +218,10 @@ const ResourceListActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
                             e.stopPropagation();
 
                             setIsOpen(false);
-                            onAction({ type: ResourceListAction.DELETE, item });
+                            onAction({
+                                type: ResourceViewItemAction.DELETE,
+                                item,
+                            });
                         }}
                     />
                 </Menu>
@@ -229,4 +241,4 @@ const ResourceListActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
     );
 };
 
-export default ResourceListActionMenu;
+export default ResourceViewItemActionMenu;

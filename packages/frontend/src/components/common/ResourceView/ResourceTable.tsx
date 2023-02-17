@@ -5,7 +5,7 @@ import React, { FC, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import { ResourceListCommonProps } from '.';
 import { useSpaces } from '../../../hooks/useSpaces';
-import { ResourceListActionState } from './ResourceActionHandlers';
+import { ResourceViewItemActionState } from './ResourceActionHandlers';
 import ResourceActionMenu from './ResourceActionMenu';
 import ResourceIcon from './ResourceIcon';
 import ResourceLastEdited from './ResourceLastEdited';
@@ -29,7 +29,7 @@ import ResourceType from './ResourceType';
 import {
     isResourceListItemCanBelongToSpace,
     ResourceListItem,
-    ResourceListType,
+    ResourceViewItemType,
 } from './ResourceTypeUtils';
 
 export enum SortDirection {
@@ -54,7 +54,7 @@ export interface ResourceTableCommonProps {
 
 type ResourceTableProps = ResourceTableCommonProps &
     Pick<ResourceListCommonProps, 'items'> & {
-        onAction: (newAction: ResourceListActionState) => void;
+        onAction: (newAction: ResourceViewItemActionState) => void;
     };
 
 const sortOrder = [SortDirection.DESC, SortDirection.ASC, null];
@@ -78,11 +78,11 @@ const getNextSortDirection = (current: SortingState): SortingState => {
 const getResourceUrl = (projectUuid: string, item: ResourceListItem) => {
     const itemType = item.type;
     switch (item.type) {
-        case ResourceListType.DASHBOARD:
+        case ResourceViewItemType.DASHBOARD:
             return `/projects/${projectUuid}/dashboards/${item.data.uuid}/view`;
-        case ResourceListType.CHART:
+        case ResourceViewItemType.CHART:
             return `/projects/${projectUuid}/saved/${item.data.uuid}`;
-        case ResourceListType.SPACE:
+        case ResourceViewItemType.SPACE:
             return `/projects/${projectUuid}/spaces/${item.data.uuid}`;
         default:
             return assertUnreachable(item, `Can't get URL for ${itemType}`);
@@ -266,7 +266,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
                 ),
                 enableSorting,
                 sortingFn: (a: ResourceListItem) => {
-                    return a.type === ResourceListType.DASHBOARD ? 1 : -1;
+                    return a.type === ResourceViewItemType.DASHBOARD ? 1 : -1;
                 },
                 meta: {
                     style: {

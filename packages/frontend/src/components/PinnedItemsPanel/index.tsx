@@ -5,12 +5,12 @@ import { FC, useMemo } from 'react';
 import { useDashboards } from '../../hooks/dashboard/useDashboards';
 import { useSavedCharts, useSpaces } from '../../hooks/useSpaces';
 import { useApp } from '../../providers/AppProvider';
-import ResourceList, { ResourceViewType } from '../common/ResourceList';
-import { SortDirection } from '../common/ResourceList/ResourceTable';
+import ResourceList, { ResourceViewType } from '../common/ResourceView';
+import { SortDirection } from '../common/ResourceView/ResourceTable';
 import {
-    ResourceListType,
+    ResourceViewItemType,
     wrapResourceList,
-} from '../common/ResourceList/ResourceTypeUtils';
+} from '../common/ResourceView/ResourceTypeUtils';
 
 interface Props {
     projectUuid: string;
@@ -30,9 +30,9 @@ const PinnedItemsPanel: FC<Props> = ({ projectUuid, organizationUuid }) => {
 
     const pinnedItems = useMemo(() => {
         return [
-            ...wrapResourceList(dashboards, ResourceListType.DASHBOARD),
-            ...wrapResourceList(savedCharts, ResourceListType.CHART),
-            ...wrapResourceList(spaces, ResourceListType.SPACE),
+            ...wrapResourceList(dashboards, ResourceViewItemType.DASHBOARD),
+            ...wrapResourceList(savedCharts, ResourceViewItemType.CHART),
+            ...wrapResourceList(spaces, ResourceViewItemType.SPACE),
         ].filter((item) => {
             return !!item.data.pinnedListUuid;
         });

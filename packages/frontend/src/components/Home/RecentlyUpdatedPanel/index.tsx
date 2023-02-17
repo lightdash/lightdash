@@ -6,19 +6,19 @@ import { useHistory } from 'react-router-dom';
 import { useDashboards } from '../../../hooks/dashboard/useDashboards';
 import { useSavedCharts } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
-import ResourceList from '../../common/ResourceList';
+import ResourceList from '../../common/ResourceView';
 import {
     ResourceEmptyStateHeader,
     ResourceEmptyStateHeaderWrapper,
     ResourceEmptyStateIcon,
     ResourceEmptyStateText,
-} from '../../common/ResourceList/ResourceList.styles';
-import { SortDirection } from '../../common/ResourceList/ResourceTable';
+} from '../../common/ResourceView/ResourceList.styles';
+import { SortDirection } from '../../common/ResourceView/ResourceTable';
 import {
     isResourceListItemCanBelongToSpace,
-    ResourceListType,
+    ResourceViewItemType,
     wrapResourceList,
-} from '../../common/ResourceList/ResourceTypeUtils';
+} from '../../common/ResourceView/ResourceTypeUtils';
 
 interface Props {
     projectUuid: string;
@@ -32,8 +32,8 @@ const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
 
     const recentItems = useMemo(() => {
         return [
-            ...wrapResourceList(dashboards, ResourceListType.DASHBOARD),
-            ...wrapResourceList(savedCharts, ResourceListType.CHART),
+            ...wrapResourceList(dashboards, ResourceViewItemType.DASHBOARD),
+            ...wrapResourceList(savedCharts, ResourceViewItemType.CHART),
         ]
             .sort((a, b) => {
                 if (

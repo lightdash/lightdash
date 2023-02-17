@@ -16,16 +16,16 @@ import {
     PageContentWrapper,
     PageHeader,
 } from '../common/Page/Page.styles';
-import ResourceList from '../common/ResourceList';
+import ResourceList from '../common/ResourceView';
 import {
     ResourceEmptyStateHeader,
     ResourceEmptyStateIcon,
-} from '../common/ResourceList/ResourceList.styles';
-import { SortDirection } from '../common/ResourceList/ResourceTable';
+} from '../common/ResourceView/ResourceList.styles';
+import { SortDirection } from '../common/ResourceView/ResourceTable';
 import {
-    ResourceListType,
+    ResourceViewItemType,
     wrapResourceList,
-} from '../common/ResourceList/ResourceTypeUtils';
+} from '../common/ResourceView/ResourceTypeUtils';
 import ShareSpaceModal from '../common/ShareSpaceModal';
 import SpaceActionModal, { ActionType } from '../common/SpaceActionModal';
 import AddResourceToSpaceMenu from '../Explorer/SpaceBrowser/AddResourceToSpaceMenu';
@@ -74,8 +74,8 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
     );
 
     const allItems = [
-        ...wrapResourceList(dashboardsInSpace, ResourceListType.DASHBOARD),
-        ...wrapResourceList(chartsInSpace, ResourceListType.CHART),
+        ...wrapResourceList(dashboardsInSpace, ResourceViewItemType.DASHBOARD),
+        ...wrapResourceList(chartsInSpace, ResourceViewItemType.CHART),
     ];
 
     const handlePinToggleSpace = useCallback(

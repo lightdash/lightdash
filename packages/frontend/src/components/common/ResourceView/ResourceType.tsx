@@ -1,6 +1,6 @@
 import { assertUnreachable, ChartKind } from '@lightdash/common';
 import { FC } from 'react';
-import { ResourceListItem, ResourceListType } from './ResourceTypeUtils';
+import { ResourceListItem, ResourceViewItemType } from './ResourceTypeUtils';
 
 interface ResourceTypeProps {
     item: ResourceListItem;
@@ -8,11 +8,11 @@ interface ResourceTypeProps {
 
 const ResourceType: FC<ResourceTypeProps> = ({ item }) => {
     switch (item.type) {
-        case ResourceListType.DASHBOARD:
+        case ResourceViewItemType.DASHBOARD:
             return <>Dashboard</>;
-        case ResourceListType.SPACE:
+        case ResourceViewItemType.SPACE:
             return <>Space</>;
-        case ResourceListType.CHART:
+        case ResourceViewItemType.CHART:
             switch (item.data.chartType) {
                 case undefined:
                 case ChartKind.VERTICAL_BAR:

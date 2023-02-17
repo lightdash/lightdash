@@ -3,27 +3,27 @@ import React, { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { ResourceListCommonProps } from '..';
 import { useSpaces } from '../../../../hooks/useSpaces';
-import { ResourceListActionState } from '../ResourceActionHandlers';
+import { ResourceViewItemActionState } from '../ResourceActionHandlers';
 import ResourceActionMenu from '../ResourceActionMenu';
-import { ResourceListItem, ResourceListType } from '../ResourceTypeUtils';
+import { ResourceListItem, ResourceViewItemType } from '../ResourceTypeUtils';
 import { ResourceGridItemWrapper } from './ResourceGridItem.styles';
 import ResourceViewChartItem from './ResourceViewChartItem';
 import ResourceViewDashboardItem from './ResourceViewDashboardItem';
 import ResourceViewSpaceItem from './ResourceViewSpaceItem';
 
 type ResourceTableProps = Pick<ResourceListCommonProps, 'items'> & {
-    onAction: (newAction: ResourceListActionState) => void;
+    onAction: (newAction: ResourceViewItemActionState) => void;
 };
 
 // TODO: extract...
 const getResourceUrl = (projectUuid: string, item: ResourceListItem) => {
     const itemType = item.type;
     switch (item.type) {
-        case ResourceListType.DASHBOARD:
+        case ResourceViewItemType.DASHBOARD:
             return `/projects/${projectUuid}/dashboards/${item.data.uuid}/view`;
-        case ResourceListType.CHART:
+        case ResourceViewItemType.CHART:
             return `/projects/${projectUuid}/saved/${item.data.uuid}`;
-        case ResourceListType.SPACE:
+        case ResourceViewItemType.SPACE:
             return `/projects/${projectUuid}/spaces/${item.data.uuid}`;
         default:
             return assertUnreachable(item, `Can't get URL for ${itemType}`);
@@ -38,7 +38,7 @@ const ResourceTable: FC<ResourceTableProps> = ({ items, onAction }) => {
         <ResourceGridItemWrapper>
             {items.map((item) => (
                 <React.Fragment key={item.type + '-' + item.data.uuid}>
-                    {item.type === ResourceListType.SPACE ? (
+                    {item.type === ResourceViewItemType.SPACE ? (
                         <ResourceViewSpaceItem
                             url={getResourceUrl(projectUuid, item)}
                             item={item}
@@ -51,7 +51,7 @@ const ResourceTable: FC<ResourceTableProps> = ({ items, onAction }) => {
                                 />
                             )}
                         />
-                    ) : item.type === ResourceListType.DASHBOARD ? (
+                    ) : item.type === ResourceViewItemType.DASHBOARD ? (
                         <ResourceViewDashboardItem
                             url={getResourceUrl(projectUuid, item)}
                             item={item}
@@ -64,7 +64,7 @@ const ResourceTable: FC<ResourceTableProps> = ({ items, onAction }) => {
                                 />
                             )}
                         />
-                    ) : item.type === ResourceListType.CHART ? (
+                    ) : item.type === ResourceViewItemType.CHART ? (
                         <ResourceViewChartItem
                             url={getResourceUrl(projectUuid, item)}
                             item={item}

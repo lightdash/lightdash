@@ -8,7 +8,7 @@ import {
     Spacer,
 } from './ResourceList.styles';
 
-export interface ResourceListWrapperProps {
+export interface ResourceViewWrapperProps {
     headerTitle?: string;
     headerIcon?: JSX.Element;
     headerIconTooltipContent?: string;
@@ -17,7 +17,7 @@ export interface ResourceListWrapperProps {
     showCount?: boolean;
 }
 
-const ResourceListWrapper: FC<ResourceListWrapperProps> = ({
+const ResourceViewWrapper: FC<ResourceViewWrapperProps> = ({
     headerTitle,
     headerIcon,
     headerIconTooltipContent,
@@ -58,4 +58,4 @@ const ResourceListWrapper: FC<ResourceListWrapperProps> = ({
     );
 };
 
-export default ResourceListWrapper;
+export default ResourceViewWrapper;

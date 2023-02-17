@@ -14,8 +14,8 @@ import {
     PageBreadcrumbsWrapper,
     PageHeader,
 } from '../components/common/Page/Page.styles';
-import { ResourceBreadcrumbTitle } from '../components/common/ResourceList/ResourceList.styles';
-import { Table, Td } from '../components/common/Table/Table.styles';
+import { ResourceBreadcrumbTitle } from '../components/common/ResourceView/ResourceList.styles';
+import { Table } from '../components/common/Table/Table.styles';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useUserActivity } from '../hooks/analytics/useUserActivity';
 import { useProject } from '../hooks/useProject';

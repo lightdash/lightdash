@@ -1,18 +1,18 @@
 import { assertUnreachable } from '@lightdash/common';
 import React, { useCallback, useState } from 'react';
 import ResourceActionHandlers, {
-    ResourceListAction,
-    ResourceListActionState,
+    ResourceViewItemAction,
+    ResourceViewItemActionState,
 } from './ResourceActionHandlers';
 import ResourceGrid from './ResourceGrid';
 import { ResourceEmptyStateWrapper } from './ResourceList.styles';
-import ResourceListWrapper, {
-    ResourceListWrapperProps,
+import ResourceViewWrapper, {
+    ResourceViewWrapperProps,
 } from './ResourceListWrapper';
 import ResourceTable, { ResourceTableCommonProps } from './ResourceTable';
 import { ResourceListItem } from './ResourceTypeUtils';
 
-export interface ResourceListCommonProps {
+export interface ResourceViewCommonProps {
     headerTitle?: string;
     headerIcon?: JSX.Element;
     headerIconTooltipContent?: string;
@@ -28,11 +28,11 @@ export enum ResourceViewType {
     GRID = 'grid',
 }
 
-type ResourceListProps = ResourceListCommonProps &
+type ResourceViewProps = ResourceViewCommonProps &
     ResourceTableCommonProps &
-    ResourceListWrapperProps;
+    ResourceViewWrapperProps;
 
-const ResourceList: React.FC<ResourceListProps> = ({
+const ResourceView: React.FC<ResourceViewProps> = ({
     view = ResourceViewType.LIST,
     items,
     headerTitle,
@@ -46,17 +46,20 @@ const ResourceList: React.FC<ResourceListProps> = ({
     showCount = true,
     renderEmptyState,
 }) => {
-    const [action, setAction] = useState<ResourceListActionState>({
-        type: ResourceListAction.CLOSE,
+    const [action, setAction] = useState<ResourceViewItemActionState>({
+        type: ResourceViewItemAction.CLOSE,
     });
 
-    const handleAction = useCallback((newAction: ResourceListActionState) => {
-        setAction(newAction);
-    }, []);
+    const handleAction = useCallback(
+        (newAction: ResourceViewItemActionState) => {
+            setAction(newAction);
+        },
+        [],
+    );
 
     return (
         <>
-            <ResourceListWrapper
+            <ResourceViewWrapper
                 headerTitle={headerTitle}
                 headerIcon={headerIcon}
                 headerIconTooltipContent={headerIconTooltipContent}
@@ -84,11 +87,11 @@ const ResourceList: React.FC<ResourceListProps> = ({
                 ) : (
                     assertUnreachable(view, 'Unknown resource view type')
                 )}
-            </ResourceListWrapper>
+            </ResourceViewWrapper>
 
             <ResourceActionHandlers action={action} onAction={handleAction} />
         </>
     );
 };
 
-export default ResourceList;
+export default ResourceView;
