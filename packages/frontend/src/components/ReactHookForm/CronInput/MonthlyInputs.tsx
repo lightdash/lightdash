@@ -1,8 +1,7 @@
 import { Classes, FormGroup } from '@blueprintjs/core';
-import { NumericInput as NumberInput } from '@blueprintjs/core/lib/esm/components/forms/numericInput';
 import { TimePicker } from '@blueprintjs/datetime';
 import React, { FC } from 'react';
-import { InlinedInputs, InlinedLabel } from './CronInput.styles';
+import { DaysInput, InlinedInputs, InlinedLabel } from './CronInput.styles';
 import {
     getMonthlyCronExpression,
     getTimePickerValue,
@@ -31,8 +30,7 @@ const MonthlyInputs: FC<{
     return (
         <InlinedInputs>
             <FormGroup inline label={'on day'} disabled={disabled}>
-                <NumberInput
-                    fill
+                <DaysInput
                     value={day}
                     onValueChange={onDayChange}
                     disabled={disabled}

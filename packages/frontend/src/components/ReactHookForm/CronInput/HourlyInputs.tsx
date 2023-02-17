@@ -1,6 +1,6 @@
 import { FormGroup } from '@blueprintjs/core';
-import { NumericInput as NumberInput } from '@blueprintjs/core/lib/esm/components/forms/numericInput';
 import React, { FC } from 'react';
+import { MinutesInput } from './CronInput.styles';
 import { getHourlyCronExpression, parseCronExpression } from './cronInputUtils';
 
 const HourlyInputs: FC<{
@@ -18,8 +18,7 @@ const HourlyInputs: FC<{
 
     return (
         <FormGroup inline label={'at minute'} disabled={disabled}>
-            <NumberInput
-                fill
+            <MinutesInput
                 value={minutes}
                 onValueChange={onMinuteChange}
                 disabled={disabled}
