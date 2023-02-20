@@ -1,6 +1,7 @@
+import { Button } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import { assertUnreachable } from '@lightdash/common';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import ResourceActionHandlers, {
     ResourceViewItemAction,
     ResourceViewItemActionState,
@@ -19,12 +20,20 @@ import ResourceViewList, {
     ResourceViewListCommonProps,
 } from './ResourceViewList';
 
+type Tab = {
+    id: string;
+    name: string;
+    icon?: JSX.Element;
+    sort?: (a: ResourceViewItem, b: ResourceViewItem) => number;
+};
+
 export interface ResourceViewCommonProps {
     headerTitle?: string;
     headerIcon?: JSX.Element;
     headerIconTooltipContent?: string;
     headerAction?: React.ReactNode;
     items: ResourceViewItem[];
+    tabs?: Tab[];
     showCount?: boolean;
     renderEmptyState?: () => React.ReactNode;
     view?: ResourceViewType;
@@ -40,20 +49,23 @@ type ResourceViewProps = ResourceViewCommonProps & ResourceViewListCommonProps;
 const ResourceView: React.FC<ResourceViewProps> = ({
     view = ResourceViewType.LIST,
     items,
+    tabs,
     headerTitle,
     headerIcon,
     headerIconTooltipContent,
     headerAction,
     enableSorting,
     enableMultiSort,
-    defaultColumnVisibility,
     defaultSort,
+    defaultColumnVisibility,
     showCount = true,
     renderEmptyState,
 }) => {
     const [action, setAction] = useState<ResourceViewItemActionState>({
         type: ResourceViewItemAction.CLOSE,
     });
+
+    const [activeTabId, setActiveTabId] = useState(tabs?.[0]?.id);
 
     const handleAction = useCallback(
         (newAction: ResourceViewItemActionState) => {
@@ -62,8 +74,39 @@ const ResourceView: React.FC<ResourceViewProps> = ({
         [],
     );
 
+    const presortedItems = useMemo(() => {
+        if (!tabs || tabs?.length === 0) return items;
+
+        const activeTab = tabs.find((tab) => tab.id === activeTabId);
+        if (!activeTab || !activeTab.sort) return items;
+
+        return items.sort(activeTab.sort);
+    }, [items, tabs, activeTabId]);
+
+    const sortProps =
+        tabs && tabs?.length > 0
+            ? null
+            : {
+                  enableSorting,
+                  enableMultiSort,
+                  defaultSort,
+              };
+
     return (
         <>
+            {tabs && tabs?.length > 0
+                ? tabs.map((tab) => (
+                      <Button
+                          key={tab.id}
+                          icon={tab.icon}
+                          intent={tab.id === activeTabId ? 'primary' : 'none'}
+                          onClick={() => setActiveTabId(tab.id)}
+                      >
+                          {tab.name}
+                      </Button>
+                  ))
+                : null}
+
             <ResourceViewContainer>
                 {headerTitle || headerAction ? (
                     <ResourceViewHeader>
@@ -78,8 +121,10 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                                 {headerIcon}
                             </Tooltip2>
                         )}
-                        {showCount && items.length > 0 && (
-                            <ResourceTag round>{items.length}</ResourceTag>
+                        {showCount && presortedItems.length > 0 && (
+                            <ResourceTag round>
+                                {presortedItems.length}
+                            </ResourceTag>
                         )}
 
                         <ResourceViewSpacer />
@@ -88,7 +133,7 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                     </ResourceViewHeader>
                 ) : null}
 
-                {items.length === 0 ? (
+                {presortedItems.length === 0 ? (
                     !!renderEmptyState ? (
                         <ResourceEmptyStateWrapper>
                             {renderEmptyState()}
@@ -96,15 +141,16 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                     ) : null
                 ) : view === ResourceViewType.LIST ? (
                     <ResourceViewList
-                        items={items}
-                        enableSorting={enableSorting}
-                        enableMultiSort={enableMultiSort}
+                        items={presortedItems}
+                        {...sortProps}
                         defaultColumnVisibility={defaultColumnVisibility}
-                        defaultSort={defaultSort}
                         onAction={handleAction}
                     />
                 ) : view === ResourceViewType.GRID ? (
-                    <ResourceViewGrid items={items} onAction={handleAction} />
+                    <ResourceViewGrid
+                        items={presortedItems}
+                        onAction={handleAction}
+                    />
                 ) : (
                     assertUnreachable(view, 'Unknown resource view type')
                 )}
