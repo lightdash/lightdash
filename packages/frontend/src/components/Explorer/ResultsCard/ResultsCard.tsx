@@ -9,7 +9,7 @@ import {
 } from '../../../providers/ExplorerProvider';
 import AddColumnButton from '../../AddColumnButton';
 import CollapsableCard from '../../common/CollapsableCard';
-import DownloadCsvPopup from '../../DownloadCsvPopup';
+import DownloadCsvPopup from '../../ExportCSV';
 import LimitButton from '../../LimitButton';
 import SortButton from '../../SortButton';
 import { ExplorerResults } from './ExplorerResults';

@@ -11,20 +11,20 @@ import {
 import { Classes, Popover2 } from '@blueprintjs/popover2';
 import { ResultRow } from '@lightdash/common';
 import { FC, memo, useState } from 'react';
-import { InputWrapper, Title } from './DownloadCsvPopup.styles';
+import { InputWrapper, Title } from './ExportCSV.styles';
 
 type Props = {
     rows: ResultRow[] | undefined;
     getCsvLink: (limit: number | null, onlyRaw: boolean) => Promise<string>;
 };
 
-export enum Limit {
+enum Limit {
     TABLE = 'table',
     ALL = 'all',
     CUSTOM = 'custom',
 }
 
-export enum Values {
+enum Values {
     FORMATTED = 'formatted',
     RAW = 'raw',
 }
@@ -35,7 +35,7 @@ const ExportAsCSVButton: FC<ButtonProps> = ({ ...props }) => {
     );
 };
 
-const DownloadCsvPopup: FC<Props> = memo(({ rows, getCsvLink }) => {
+const ExportCSV: FC<Props> = memo(({ rows, getCsvLink }) => {
     const [isOpen, setIsOpen] = useState<boolean>(false);
     const [limit, setLimit] = useState<string>(Limit.TABLE);
     const [customLimit, setCustomLimit] = useState<number>(1);
@@ -119,4 +119,4 @@ const DownloadCsvPopup: FC<Props> = memo(({ rows, getCsvLink }) => {
     );
 });
 
-export default DownloadCsvPopup;
+export default ExportCSV;

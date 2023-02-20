@@ -14,7 +14,7 @@ import React, { memo, RefObject, useCallback, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import useEcharts from '../hooks/echarts/useEcharts';
 import { downloadCsv } from '../hooks/useDownloadCsv';
-import DownloadCsvPopup from './DownloadCsvPopup';
+import DownloadCsvPopup from './ExportCSV';
 import { useVisualizationContext } from './LightdashVisualization/VisualizationProvider';
 
 const FILE_NAME = 'lightdash_chart';
