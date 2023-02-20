@@ -49,3 +49,8 @@ export const Title = styled.span`
 export const SettingsWrapper = styled.div`
     margin-top: 50px;
 `;
+
+export const InputWrapper = styled.div`
+    margin-bottom: 10px;
+    width: 130px;
+`;

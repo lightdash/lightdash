@@ -4,8 +4,9 @@ import {
     FormGroup,
     HTMLSelect,
     Icon,
+    NumericInput,
     Radio,
-    RadioGroup as RadioGroupBlueprint,
+    RadioGroup,
     Tab,
     Tabs,
 } from '@blueprintjs/core';
@@ -21,11 +22,11 @@ import { ArrayInput } from '../../ReactHookForm/ArrayInput';
 import AutoComplete from '../../ReactHookForm/AutoComplete';
 import Form from '../../ReactHookForm/Form';
 import Input from '../../ReactHookForm/Input';
-import RadioGroup from '../../ReactHookForm/RadioGroup';
 import Select from '../../ReactHookForm/Select';
 import { hasRequiredScopes } from '../../UserSettings/SlackSettingsPanel';
 import {
     EmailIcon,
+    InputWrapper,
     SettingsWrapper,
     SlackIcon,
     TargetRow,
@@ -85,10 +86,26 @@ const SchedulerOptions: FC<
     const [format, setFormat] = useState(
         methods.getValues()?.options?.formatted ? Values.FORMATTED : Values.RAW,
     );
+    const [defaultCustomLimit, defaultLimit] = useMemo(() => {
+        const limit = methods.getValues()?.options?.limit;
+        switch (limit) {
+            case Limit.ALL:
+                return [undefined, Limit.ALL];
+            case Limit.TABLE:
+                return [undefined, Limit.TABLE];
+            default:
+                return [limit, Limit.CUSTOM];
+        }
+    }, [methods.getValues()?.options?.limit]);
+    const [customLimit, setCustomLimit] = useState<number>(
+        defaultCustomLimit || 1,
+    );
+    const [limit, setLimit] = useState<string>(defaultLimit);
+
     return (
         <Form name="options" methods={methods} {...rest}>
             <FormGroup>
-                <RadioGroupBlueprint
+                <RadioGroup
                     label={<Title>Values</Title>}
                     onChange={(e: any) => {
                         setFormat(e.currentTarget.value);
@@ -101,17 +118,38 @@ const SchedulerOptions: FC<
                 >
                     <Radio label="Formatted" value={Values.FORMATTED} />
                     <Radio label="Raw" value={Values.RAW} />
-                </RadioGroupBlueprint>
+                </RadioGroup>
             </FormGroup>
 
             <RadioGroup
-                name="options.limit"
-                label="Limit"
-                defaultValue={Limit.TABLE}
+                selectedValue={limit}
+                label={<Title>Limit</Title>}
+                onChange={(e: any) => {
+                    const limitValue = e.currentTarget.value;
+                    setLimit(limitValue);
+                    methods.setValue(
+                        'options.limit',
+                        limitValue === Limit.CUSTOM ? customLimit : limitValue,
+                    );
+                }}
             >
                 <Radio label="Results in Table" value={Limit.TABLE} />
                 <Radio label="All Results" value={Limit.ALL} />
                 <Radio label="Custom..." value={Limit.CUSTOM} />
+
+                {limit === Limit.CUSTOM && (
+                    <InputWrapper>
+                        <NumericInput
+                            value={customLimit}
+                            min={1}
+                            fill
+                            onValueChange={(value: any) => {
+                                setCustomLimit(value);
+                                methods.setValue('options.limit', value);
+                            }}
+                        />
+                    </InputWrapper>
+                )}
             </RadioGroup>
         </Form>
     );
