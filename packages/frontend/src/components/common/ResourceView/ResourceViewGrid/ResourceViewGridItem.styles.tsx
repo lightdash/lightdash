@@ -14,10 +14,23 @@ export const ResourceViewGridItemLink = styled(LinkButton)`
 `;
 
 export const ResourceViewGridWrapper = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
     padding: 12px 20px;
+`;
+
+export const ResourceViewGridSubgroupWrapper = styled.div`
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
     gap: 20px;
+`;
+
+export const ResourceViewGridHeader = styled.div`
+    color: ${Colors.GRAY3};
+    text-transform: uppercase;
+    font-size: 12px;
+    font-weight: 600;
 `;
 
 export const ResourceViewGridItemTitle = styled(Text)`

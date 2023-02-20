@@ -10,7 +10,11 @@ import { ResourceViewItemType } from '../resourceTypeUtils';
 import { getResourceName, getResourceUrl } from '../resourceUtils';
 import ResourceViewGridChartItem from './ResourceViewGridChartItem';
 import ResourceViewGridDashboardItem from './ResourceViewGridDashboardItem';
-import { ResourceViewGridWrapper } from './ResourceViewGridItem.styles';
+import {
+    ResourceViewGridHeader,
+    ResourceViewGridSubgroupWrapper,
+    ResourceViewGridWrapper,
+} from './ResourceViewGridItem.styles';
 import ResourceViewGridSpaceItem from './ResourceViewGridSpaceItem';
 
 type ResourceViewListProps = Pick<
@@ -41,14 +45,19 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                     group.includes(item.type),
                 );
                 const heading = group
-                    .map((g) => getResourceName(g))
+                    .map((g) => getResourceName(g) + 's')
                     .join(', ')
                     .replace(/, ([^,]*)$/, ' & $1'); // replaces last comma with '&'
 
                 return (
-                    <>
-                        <Label>{heading}</Label>
-                        <ResourceViewGridWrapper key={heading}>
+                    <ResourceViewGridWrapper key={heading}>
+                        {groups.length > 1 && (
+                            <ResourceViewGridHeader>
+                                {heading}
+                            </ResourceViewGridHeader>
+                        )}
+
+                        <ResourceViewGridSubgroupWrapper key={heading}>
                             {groupedItems.map((item) => (
                                 <React.Fragment
                                     key={item.type + '-' + item.data.uuid}
@@ -121,8 +130,8 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                     )}
                                 </React.Fragment>
                             ))}
-                        </ResourceViewGridWrapper>
-                    </>
+                        </ResourceViewGridSubgroupWrapper>
+                    </ResourceViewGridWrapper>
                 );
             })}
         </>
