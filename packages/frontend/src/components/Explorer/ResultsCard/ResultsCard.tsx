@@ -1,3 +1,5 @@
+import { Button, PopoverPosition } from '@blueprintjs/core';
+import { Classes, Popover2 } from '@blueprintjs/popover2';
 import { getResultValues } from '@lightdash/common';
 import { FC, memo, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
@@ -9,7 +11,7 @@ import {
 } from '../../../providers/ExplorerProvider';
 import AddColumnButton from '../../AddColumnButton';
 import CollapsableCard from '../../common/CollapsableCard';
-import DownloadCsvPopup from '../../ExportCSV';
+import ExportCSV from '../../ExportCSV';
 import LimitButton from '../../LimitButton';
 import SortButton from '../../SortButton';
 import { ExplorerResults } from './ExplorerResults';
@@ -89,7 +91,23 @@ const ResultsCard: FC = memo(() => {
                 tableName && (
                     <>
                         {isEditMode && <AddColumnButton />}
-                        <DownloadCsvPopup rows={rows} getCsvLink={getCsvLink} />
+                        <Popover2
+                            lazy
+                            position={PopoverPosition.BOTTOM_LEFT}
+                            popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
+                            content={
+                                <ExportCSV
+                                    rows={rows}
+                                    getCsvLink={getCsvLink}
+                                />
+                            }
+                        >
+                            <Button
+                                text="Export CSV"
+                                rightIcon="caret-down"
+                                minimal
+                            />
+                        </Popover2>
                     </>
                 )
             }

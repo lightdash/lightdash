@@ -14,7 +14,7 @@ import React, { memo, RefObject, useCallback, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import useEcharts from '../hooks/echarts/useEcharts';
 import { downloadCsv } from '../hooks/useDownloadCsv';
-import DownloadCsvPopup from './ExportCSV';
+import ExportCSV from './ExportCSV';
 import { useVisualizationContext } from './LightdashVisualization/VisualizationProvider';
 
 const FILE_NAME = 'lightdash_chart';
@@ -225,7 +225,14 @@ export const ChartDownloadMenu: React.FC = memo(() => {
     };
 
     return chartType === ChartType.TABLE ? (
-        <DownloadCsvPopup getCsvLink={getCsvLink} rows={rows} />
+        <Popover2
+            lazy
+            position={PopoverPosition.BOTTOM_LEFT}
+            popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
+            content={<ExportCSV getCsvLink={getCsvLink} rows={rows} />}
+        >
+            <Button text="Export CSV" rightIcon="caret-down" minimal />
+        </Popover2>
     ) : (
         <Popover2
             lazy
