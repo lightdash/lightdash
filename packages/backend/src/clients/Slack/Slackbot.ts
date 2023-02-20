@@ -183,6 +183,7 @@ export class SlackService {
                         details.pageType,
                         imageId,
                         authUserUuid,
+                        3, // up to 3 retries
                     );
 
                     if (imageUrl) {
@@ -209,8 +210,6 @@ export class SlackService {
                         error: `${e}`,
                     },
                 });
-
-                notifySlackError(e, l.url, client, event);
             }
         });
     }

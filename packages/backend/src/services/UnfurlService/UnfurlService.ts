@@ -1,4 +1,5 @@
 import { assertUnreachable, AuthorizationError } from '@lightdash/common';
+import * as Sentry from '@sentry/node';
 import fetch from 'node-fetch';
 import puppeteer from 'puppeteer';
 import { S3Service } from '../../clients/Aws/s3';
@@ -27,6 +28,7 @@ const blockedUrls = [
     'analytics.lightdash.com',
     'cohere.so',
     'intercom.io',
+    'sentry.io',
 ];
 
 export enum LightdashPage {
@@ -100,6 +102,7 @@ export class UnfurlService {
         cookie: string,
         url: string,
         lightdashPage: LightdashPage,
+        retries: number = 0,
     ): Promise<Buffer | undefined> {
         let browser;
 
@@ -129,6 +132,7 @@ export class UnfurlService {
                 timeout: 180000,
                 waitUntil: 'networkidle0',
             });
+
             const path = `/tmp/${imageId}.png`;
 
             const selector =
@@ -165,10 +169,21 @@ export class UnfurlService {
 
             return imageBuffer;
         } catch (e) {
+            if (retries > 0) {
+                return await this.saveScreenshot(
+                    imageId,
+                    cookie,
+                    url,
+                    lightdashPage,
+                    retries - 1,
+                );
+            }
+            Sentry.captureException(e);
+
             Logger.error(
                 `Unable to fetch screenshots from headless chrome ${e.message}`,
             );
-            return undefined;
+            throw e;
         } finally {
             if (browser) await browser.close();
         }
@@ -337,12 +352,8 @@ export class UnfurlService {
         lightdashPage: LightdashPage,
         imageId: string,
         authUserUuid: string,
+        retries: number = 0,
     ): Promise<string | undefined> {
-        if (this.lightdashConfig.headlessBrowser?.host === undefined) {
-            throw new Error(
-                'Headless browser host is not defined. Please set the HEADLESS_BROWSER_HOST environment variable.',
-            );
-        }
         const cookie = await this.getUserCookie(authUserUuid);
 
         const buffer = await this.saveScreenshot(
@@ -350,6 +361,7 @@ export class UnfurlService {
             cookie,
             url,
             lightdashPage,
+            retries,
         );
 
         let imageUrl;
