@@ -1,3 +1,10 @@
+# [0.421.0](https://github.com/lightdash/lightdash/compare/0.420.1...0.421.0) (2023-02-20)
+
+
+### Features
+
+* resource grid ([#4518](https://github.com/lightdash/lightdash/issues/4518)) ([7004fc4](https://github.com/lightdash/lightdash/commit/7004fc4fa937469671e3553b00d8f00eee4dd60e))
+
 ## [0.420.1](https://github.com/lightdash/lightdash/compare/0.420.0...0.420.1) (2023-02-20)
 
 
