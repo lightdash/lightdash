@@ -1,3 +1,11 @@
+## [0.420.1](https://github.com/lightdash/lightdash/compare/0.420.0...0.420.1) (2023-02-20)
+
+
+### Bug Fixes
+
+* explore from here button is too big ([#4521](https://github.com/lightdash/lightdash/issues/4521)) ([96dbe7d](https://github.com/lightdash/lightdash/commit/96dbe7de37bc32e63889940a14bb3453f6e1b33e))
+* when editing tile click affects elements behind modal ([#4527](https://github.com/lightdash/lightdash/issues/4527)) ([918d6ff](https://github.com/lightdash/lightdash/commit/918d6ff072132bd5bd203a7798586f1ee2f4f961))
+
 # [0.420.0](https://github.com/lightdash/lightdash/compare/0.419.0...0.420.0) (2023-02-20)
 
 
