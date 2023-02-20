@@ -5,7 +5,7 @@ import { FC, useMemo } from 'react';
 import { useDashboards } from '../../hooks/dashboard/useDashboards';
 import { useSavedCharts, useSpaces } from '../../hooks/useSpaces';
 import { useApp } from '../../providers/AppProvider';
-import ResourceView, { ResourceViewType } from '../common/ResourceView';
+import ResourceView from '../common/ResourceView';
 import {
     ResourceViewItemType,
     wrapResourceView,
@@ -40,8 +40,6 @@ const PinnedItemsPanel: FC<Props> = ({ projectUuid, organizationUuid }) => {
 
     return pinnedItems.length > 0 ? (
         <ResourceView
-            // TODO: remove this
-            view={ResourceViewType.GRID}
             items={pinnedItems}
             enableSorting={false}
             defaultSort={{ updatedAt: SortDirection.DESC }}
