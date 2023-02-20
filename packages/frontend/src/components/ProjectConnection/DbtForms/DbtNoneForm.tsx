@@ -1,8 +1,6 @@
 import { Callout } from '@blueprintjs/core';
-import { WarehouseTypes } from '@lightdash/common';
 import React, { FC } from 'react';
 import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
-import SelectField from '../../ReactHookForm/Select';
 
 const DbtNoneForm: FC<{ disabled: boolean }> = ({ disabled }) => (
     <>
@@ -40,6 +38,27 @@ const DbtNoneForm: FC<{ disabled: boolean }> = ({ disabled }) => (
             </a>
             ) from your command line.
         </Callout>
+        <BooleanSwitch
+            name="dbt.hideRefreshButton"
+            label="Hide refresh dbt button in the app"
+            labelHelp={
+                <p>
+                    This will hide the refresh dbt button from the explore page.
+                    Read more about your{' '}
+                    <a
+                        href={
+                            'https://docs.lightdash.com/references/syncing_your_dbt_changes#2-in-the-ui-syncing-your-dbt-changes-using-refresh-dbt'
+                        }
+                        target="_blank"
+                        rel="noreferrer"
+                    >
+                        options for refreshing dbt here
+                    </a>
+                </p>
+            }
+            disabled={disabled}
+            defaultValue={false}
+        />
     </>
 );
 
