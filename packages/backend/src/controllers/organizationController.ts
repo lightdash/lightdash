@@ -7,13 +7,13 @@ import {
     ApiOrganizationMemberProfiles,
     ApiOrganizationProjects,
     ApiProjectResponse,
+    ApiSuccessEmpty,
     CreateProject,
     LightdashRequestMethodHeader,
     OrganizationMemberProfileUpdate,
     RequestMethod,
     UpdateOrganization,
 } from '@lightdash/common';
-import { ApiSuccessEmpty } from '@lightdash/common/dist/types/api/success';
 import { Controller, Delete, Header } from '@tsoa/runtime';
 import express from 'express';
 import {

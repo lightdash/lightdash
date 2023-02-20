@@ -79,6 +79,7 @@ export * from './types/api';
 export * from './types/api/errors';
 export * from './types/api/integrations';
 export * from './types/api/share';
+export * from './types/api/success';
 export * from './types/conditionalFormatting';
 export * from './types/conditionalRule';
 export * from './types/dashboard';
