@@ -1,4 +1,3 @@
-import { NonIdealState, Spinner } from '@blueprintjs/core';
 import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useUnmount } from 'react-use';
@@ -10,6 +9,7 @@ import ForbiddenPanel from '../components/ForbiddenPanel';
 import LandingPanel from '../components/Home/LandingPanel';
 import OnboardingPanel from '../components/Home/OnboardingPanel/index';
 import RecentlyUpdatedPanel from '../components/Home/RecentlyUpdatedPanel';
+import PageSpinner from '../components/PageSpinner';
 import PinnedItemsPanel from '../components/PinnedItemsPanel';
 import {
     useOnboardingStatus,
@@ -38,11 +38,7 @@ const Home: FC = () => {
     }
 
     if (isLoading) {
-        return (
-            <div style={{ marginTop: '20px' }}>
-                <NonIdealState title="Loading..." icon={<Spinner />} />
-            </div>
-        );
+        return <PageSpinner />;
     }
 
     if (error) {

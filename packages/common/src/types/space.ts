@@ -11,6 +11,7 @@ export type Space = {
     projectUuid: string;
     dashboards: DashboardBasicDetails[];
     access: SpaceShare[];
+    pinnedListUuid: string | null;
 };
 
 export type CreateSpace = Pick<Space, 'name' | 'isPrivate' | 'access'>;

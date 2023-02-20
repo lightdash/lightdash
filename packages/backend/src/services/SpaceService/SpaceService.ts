@@ -7,12 +7,14 @@ import {
     UpdateSpace,
 } from '@lightdash/common';
 import { analytics } from '../../analytics/client';
+import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel } from '../../models/SpaceModel';
 
 type Dependencies = {
     projectModel: ProjectModel;
     spaceModel: SpaceModel;
+    pinnedListModel: PinnedListModel;
 };
 
 export const hasSpaceAccess = (space: Space, userUuid: string): boolean =>
@@ -27,9 +29,12 @@ export class SpaceService {
 
     private readonly spaceModel: SpaceModel;
 
+    private readonly pinnedListModel: PinnedListModel;
+
     constructor(dependencies: Dependencies) {
         this.projectModel = dependencies.projectModel;
         this.spaceModel = dependencies.spaceModel;
+        this.pinnedListModel = dependencies.pinnedListModel;
     }
 
     async getAllSpaces(
@@ -234,5 +239,49 @@ export class SpaceService {
         }
 
         await this.spaceModel.removeSpaceAccess(spaceUuid, shareWithUserUuid);
+    }
+
+    async togglePinning(user: SessionUser, spaceUuid: string): Promise<Space> {
+        const existingSpace = await this.spaceModel.get(spaceUuid);
+        const { projectUuid, organizationUuid, pinnedListUuid } = existingSpace;
+
+        if (
+            user.ability.cannot(
+                'update',
+                subject('Space', { projectUuid, organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (pinnedListUuid) {
+            await this.pinnedListModel.deleteItem({
+                pinnedListUuid,
+                spaceUuid,
+            });
+        } else {
+            await this.pinnedListModel.addItem({
+                projectUuid,
+                spaceUuid,
+            });
+        }
+
+        const pinnedList = await this.pinnedListModel.getPinnedListAndItems(
+            existingSpace.projectUuid,
+        );
+
+        analytics.track({
+            event: 'pinned_list.updated',
+            userId: user.userUuid,
+            properties: {
+                projectId: existingSpace.projectUuid,
+                organizationId: existingSpace.organizationUuid,
+                location: 'homepage',
+                pinnedListId: pinnedList.pinnedListUuid,
+                pinnedItems: pinnedList.items,
+            },
+        });
+
+        return this.getSpace(projectUuid, user, spaceUuid);
     }
 }

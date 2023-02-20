@@ -59,11 +59,22 @@ export const isValidGithubToken: FieldValidator<string> =
         }
     };
 
-const cronExpressionRegex = new RegExp(
-    /^(\*|([0-9]|1[0-9]|2[0-9]|3[0-9]|4[0-9]|5[0-9])|\*\/([0-9]|1[0-9]|2[0-9]|3[0-9]|4[0-9]|5[0-9])) (\*|([0-9]|1[0-9]|2[0-3])|\*\/([0-9]|1[0-9]|2[0-3])) (\*|([1-9]|1[0-9]|2[0-9]|3[0-1])|\*\/([1-9]|1[0-9]|2[0-9]|3[0-1])) (\*|([1-9]|1[0-2])|\*\/([1-9]|1[0-2])) (\*|([0-6])|\*\/([0-6]))$/,
+// Supports values: "1" "1,2,3" "1-3" "*/5" "*"
+const cronValueRegex = new RegExp(
+    /^(\*\/\d)|((\d+,)+\d+|(\d+(\/|-)\d+)|\d+|\*)$/,
 );
 export const isInvalidCronExpression: FieldValidator<string> =
-    (fieldName) => (value) =>
-        !value || value.match(cronExpressionRegex)
-            ? undefined
-            : `${fieldName} is not valid`;
+    (fieldName) => (value) => {
+        if (value) {
+            const cronValues = value.split(' ');
+            if (cronValues.length !== 5) {
+                return `${fieldName} should only have 5 values separated by a space.`;
+            }
+            const hasInvalidValues = cronValues.some(
+                (item: string) => !item.match(cronValueRegex),
+            );
+            return hasInvalidValues
+                ? `${fieldName} has invalid values. Example of valid values: "1", "1,2,3", "1-3", "*/5" and "*".`
+                : undefined;
+        }
+    };

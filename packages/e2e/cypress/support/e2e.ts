@@ -18,8 +18,10 @@ import './commands';
 
 // Hide all requests from
 const cypressLogOriginal = Cypress.log;
+
+// @ts-ignore
 Cypress.log = function name(opts, ...other) {
-    const isFetchLog = ['fetch'].includes(opts.displayName);
+    const isFetchLog = opts.displayName && ['fetch'].includes(opts.displayName);
     if (isFetchLog) return;
     // eslint-disable-next-line consistent-return
     return cypressLogOriginal(opts, ...other);

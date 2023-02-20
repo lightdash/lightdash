@@ -1,5 +1,4 @@
 import { Menu } from '@blueprintjs/core';
-import { MenuItem2 } from '@blueprintjs/popover2';
 import React from 'react';
 import {
     AddExistingResourceToSpaceMenuItem,
@@ -11,26 +10,29 @@ interface AddResourceToSpaceMenuProps {
     resourceType: AddToSpaceResources;
     onAdd: () => void;
     onCreate: () => void;
+    hasSavedResources: boolean;
 }
 
 const AddResourceToSpaceMenu: React.FC<AddResourceToSpaceMenuProps> = ({
     resourceType,
     onAdd,
     onCreate,
+    hasSavedResources,
 }) => {
     return (
         <Menu>
-            <AddExistingResourceToSpaceMenuItem
-                icon="plus"
-                text={`Add existing ${resourceType}`}
-                onClick={onAdd}
-                style={{ margin: '-5px', marginBottom: '0px' }}
-            />
+            {hasSavedResources ? (
+                <AddExistingResourceToSpaceMenuItem
+                    icon="plus"
+                    text={`Add existing ${resourceType}`}
+                    onClick={onAdd}
+                />
+            ) : null}
             <AddNewResourceToSpaceMenuItem
                 icon="clean"
                 text={`Create new ${resourceType}`}
                 onClick={onCreate}
-                style={{ margin: '-5px', marginTop: '0px' }}
+                addExistingIsHidden={!hasSavedResources}
             />
         </Menu>
     );

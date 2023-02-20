@@ -6,12 +6,8 @@ function search(query: string) {
 }
 
 describe('Global search', () => {
-    before(() => {
-        cy.login();
-    });
-
     beforeEach(() => {
-        Cypress.Cookies.preserveOnce('connect.sid');
+        cy.login();
     });
 
     it('Should search all result types', () => {

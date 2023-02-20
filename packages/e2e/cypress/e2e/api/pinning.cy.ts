@@ -3,11 +3,8 @@ import { SEED_PROJECT } from '@lightdash/common';
 const apiUrl = '/api/v1';
 
 describe('Lightdash pinning endpoints', () => {
-    before(() => {
-        cy.login();
-    });
     beforeEach(() => {
-        Cypress.Cookies.preserveOnce('connect.sid');
+        cy.login();
     });
     it('Should pin/unpin chart', () => {
         const projectUuid = SEED_PROJECT.project_uuid;

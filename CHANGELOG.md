@@ -1,3 +1,59 @@
+# [0.420.0](https://github.com/lightdash/lightdash/compare/0.419.0...0.420.0) (2023-02-20)
+
+
+### Features
+
+* scheduler frequency inputs ([#4470](https://github.com/lightdash/lightdash/issues/4470)) ([844d9b0](https://github.com/lightdash/lightdash/commit/844d9b060050beecde62d3083a14b74c22b5f42f))
+
+# [0.419.0](https://github.com/lightdash/lightdash/compare/0.418.1...0.419.0) (2023-02-20)
+
+
+### Features
+
+* pinned spaces ([#4502](https://github.com/lightdash/lightdash/issues/4502)) ([797c3d6](https://github.com/lightdash/lightdash/commit/797c3d6319787732a919ed96b810aa700e0f2245))
+
+## [0.418.1](https://github.com/lightdash/lightdash/compare/0.418.0...0.418.1) (2023-02-17)
+
+
+### Bug Fixes
+
+* user activity dashboard header styling ([#4517](https://github.com/lightdash/lightdash/issues/4517)) ([1c964fa](https://github.com/lightdash/lightdash/commit/1c964fa66cb38cfb32b370be72c7d05fd3a4b1be))
+
+# [0.418.0](https://github.com/lightdash/lightdash/compare/0.417.3...0.418.0) (2023-02-17)
+
+
+### Features
+
+* updating navbar icons ([#4512](https://github.com/lightdash/lightdash/issues/4512)) ([07b00c9](https://github.com/lightdash/lightdash/commit/07b00c9e1aa733db3f7a6aaa1766fd28104955e7))
+
+## [0.417.3](https://github.com/lightdash/lightdash/compare/0.417.2...0.417.3) (2023-02-17)
+
+
+### Bug Fixes
+
+* updating results table header icon ([#4514](https://github.com/lightdash/lightdash/issues/4514)) ([a36ec36](https://github.com/lightdash/lightdash/commit/a36ec3635ab683050805bc14b25e07233b79ddc2))
+
+## [0.417.2](https://github.com/lightdash/lightdash/compare/0.417.1...0.417.2) (2023-02-17)
+
+
+### Bug Fixes
+
+* updating styling on usage analytics tab ([#4515](https://github.com/lightdash/lightdash/issues/4515)) ([f977928](https://github.com/lightdash/lightdash/commit/f9779280ed9dcf16b445f5dd4c64336119a4589a))
+
+## [0.417.1](https://github.com/lightdash/lightdash/compare/0.417.0...0.417.1) (2023-02-16)
+
+
+### Bug Fixes
+
+* improving loading states ([#4494](https://github.com/lightdash/lightdash/issues/4494)) ([a9033d8](https://github.com/lightdash/lightdash/commit/a9033d820d7278932e1aac0327a9edf469158c65))
+
+# [0.417.0](https://github.com/lightdash/lightdash/compare/0.416.1...0.417.0) (2023-02-16)
+
+
+### Features
+
+* when user has no charts or dashboards add existing button is hidden ([#4490](https://github.com/lightdash/lightdash/issues/4490)) ([4cbf18e](https://github.com/lightdash/lightdash/commit/4cbf18e102dcec6e56e05040dfb13aab7bdf47a2))
+
 ## [0.416.1](https://github.com/lightdash/lightdash/compare/0.416.0...0.416.1) (2023-02-16)
 
 

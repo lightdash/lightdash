@@ -1,16 +1,9 @@
-import { Colors, Icon } from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
+import { Colors, H5 } from '@blueprintjs/core';
+import { IconLayoutDashboard } from '@tabler/icons-react';
 import { FC } from 'react';
 import { useHistory } from 'react-router-dom';
-import {
-    ActivityIcon,
-    ActivityLabel,
-    CardContent,
-    CardWrapper,
-    Header,
-    Title,
-    TitleWrapper,
-} from './SettingsUsageAnalytics.styles';
+import { Subtitle } from '../../pages/CreateProject.styles';
+import { CardContent, CardWrapper } from './SettingsUsageAnalytics.styles';
 
 interface ProjectUserAccessProps {
     projectUuid: string;
@@ -24,17 +17,11 @@ const SettingsUsageAnalytics: FC<ProjectUserAccessProps> = ({
     return (
         <>
             <>
-                <Header>
-                    <TitleWrapper>
-                        <Title>Usage analytics</Title>
-                        <Tooltip2 content="Lightdash curated dashboards that show usage and performance information about your project.">
-                            <Icon
-                                icon="info-sign"
-                                style={{ color: Colors.GRAY5 }}
-                            />
-                        </Tooltip2>
-                    </TitleWrapper>
-                </Header>
+                <Subtitle>
+                    Lightdash curated dashboards that show usage and performance
+                    information about your project.
+                </Subtitle>
+
                 <>
                     <CardWrapper
                         onClick={() => {
@@ -44,8 +31,11 @@ const SettingsUsageAnalytics: FC<ProjectUserAccessProps> = ({
                         }}
                     >
                         <CardContent>
-                            <ActivityIcon icon="control" size={24} />
-                            <ActivityLabel>User activity</ActivityLabel>
+                            <IconLayoutDashboard
+                                size={20}
+                                color={Colors.GRAY3}
+                            />
+                            <H5>User activity</H5>
                         </CardContent>
                     </CardWrapper>
                 </>

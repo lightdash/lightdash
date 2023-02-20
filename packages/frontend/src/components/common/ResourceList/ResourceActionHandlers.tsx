@@ -1,4 +1,4 @@
-import { assertUnreachable, Space } from '@lightdash/common';
+import { assertUnreachable, Space, SpaceQuery } from '@lightdash/common';
 import { FC, useCallback, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import {
@@ -7,6 +7,7 @@ import {
 } from '../../../hooks/dashboard/useDashboard';
 import { useChartPinningMutation } from '../../../hooks/pinning/useChartPinningMutation';
 import { useDashboardPinningMutation } from '../../../hooks/pinning/useDashboardPinningMutation';
+import { useSpacePinningMutation } from '../../../hooks/pinning/useSpaceMutation';
 import {
     useDuplicateChartMutation,
     useMoveChartMutation,
@@ -17,7 +18,12 @@ import ChartUpdateModal from '../modal/ChartUpdateModal';
 import DashboardDeleteModal from '../modal/DashboardDeleteModal';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
 import SpaceActionModal, { ActionType } from '../SpaceActionModal';
-import { ResourceListItem, ResourceListType } from './ResourceTypeUtils';
+import {
+    ResourceListChartItem,
+    ResourceListDashboardItem,
+    ResourceListItem,
+    ResourceListType,
+} from './ResourceTypeUtils';
 
 export enum ResourceListAction {
     CLOSE,
@@ -32,15 +38,33 @@ export enum ResourceListAction {
 
 export type ResourceListActionState =
     | { type: ResourceListAction.CLOSE }
-    | { type: ResourceListAction.UPDATE; item: ResourceListItem }
-    | { type: ResourceListAction.DELETE; item: ResourceListItem }
-    | { type: ResourceListAction.DUPLICATE; item: ResourceListItem }
-    | { type: ResourceListAction.ADD_TO_DASHBOARD; item: ResourceListItem }
-    | { type: ResourceListAction.CREATE_SPACE; item: ResourceListItem }
-    | { type: ResourceListAction.PIN_TO_HOMEPAGE; item: ResourceListItem }
+    | {
+          type: ResourceListAction.UPDATE;
+          item: ResourceListItem;
+      }
+    | {
+          type: ResourceListAction.DELETE;
+          item: ResourceListItem;
+      }
+    | {
+          type: ResourceListAction.DUPLICATE;
+          item: ResourceListChartItem | ResourceListDashboardItem;
+      }
+    | {
+          type: ResourceListAction.ADD_TO_DASHBOARD;
+          item: ResourceListChartItem;
+      }
+    | {
+          type: ResourceListAction.CREATE_SPACE;
+          item: ResourceListChartItem | ResourceListDashboardItem;
+      }
+    | {
+          type: ResourceListAction.PIN_TO_HOMEPAGE;
+          item: ResourceListItem;
+      }
     | {
           type: ResourceListAction.MOVE_TO_SPACE;
-          item: ResourceListItem;
+          item: ResourceListChartItem | ResourceListDashboardItem;
           data: { spaceUuid: string };
       };
 
@@ -65,6 +89,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
     });
     const { mutate: pinChart } = useChartPinningMutation();
     const { mutate: pinDashboard } = useDashboardPinningMutation();
+    const { mutate: pinSpace } = useSpacePinningMutation(projectUuid);
 
     const handleReset = useCallback(() => {
         onAction({ type: ResourceListAction.CLOSE });
@@ -113,20 +138,18 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
 
         switch (action.item.type) {
             case ResourceListType.CHART:
-                return pinChart({
-                    uuid: action.item.data.uuid,
-                });
+                return pinChart({ uuid: action.item.data.uuid });
             case ResourceListType.DASHBOARD:
-                return pinDashboard({
-                    uuid: action.item.data.uuid,
-                });
+                return pinDashboard({ uuid: action.item.data.uuid });
+            case ResourceListType.SPACE:
+                return pinSpace(action.item.data.uuid);
             default:
                 return assertUnreachable(
                     action.item,
                     'Resource type not supported',
                 );
         }
-    }, [action, pinChart, pinDashboard]);
+    }, [action, pinChart, pinDashboard, pinSpace]);
 
     const handleDuplicate = useCallback(() => {
         if (action.type !== ResourceListAction.DUPLICATE) return;
@@ -165,61 +188,97 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
         }
     }, [action, handlePinToHomepage, handleReset]);
 
-    return (
-        <>
-            {action.type === ResourceListAction.UPDATE &&
-                (action.item.type === ResourceListType.CHART ? (
-                    <ChartUpdateModal
-                        isOpen
-                        uuid={action.item.data.uuid}
-                        onClose={handleReset}
-                        onConfirm={handleReset}
-                    />
-                ) : action.item.type === ResourceListType.DASHBOARD ? (
-                    <DashboardUpdateModal
-                        isOpen
-                        uuid={action.item.data.uuid}
-                        onClose={handleReset}
-                        onConfirm={handleReset}
-                    />
-                ) : (
-                    assertUnreachable(
+    switch (action.type) {
+        case ResourceListAction.UPDATE:
+            switch (action.item.type) {
+                case ResourceListType.CHART:
+                    return (
+                        <ChartUpdateModal
+                            isOpen
+                            uuid={action.item.data.uuid}
+                            onClose={handleReset}
+                            onConfirm={handleReset}
+                        />
+                    );
+                case ResourceListType.DASHBOARD:
+                    return (
+                        <DashboardUpdateModal
+                            isOpen
+                            uuid={action.item.data.uuid}
+                            onClose={handleReset}
+                            onConfirm={handleReset}
+                        />
+                    );
+                case ResourceListType.SPACE:
+                    return (
+                        <SpaceActionModal
+                            projectUuid={projectUuid}
+                            spaceUuid={action.item.data.uuid}
+                            actionType={ActionType.UPDATE}
+                            title="Update space"
+                            confirmButtonLabel="Update"
+                            icon="folder-close"
+                            onClose={handleReset}
+                            onSubmitForm={handleReset}
+                        />
+                    );
+                default:
+                    return assertUnreachable(
+                        action.item,
+                        'Action type not supported',
+                    );
+            }
+        case ResourceListAction.DELETE:
+            switch (action.item.type) {
+                case ResourceListType.CHART:
+                    return (
+                        <ChartDeleteModal
+                            isOpen
+                            uuid={action.item.data.uuid}
+                            onClose={handleReset}
+                            onConfirm={handleReset}
+                        />
+                    );
+                case ResourceListType.DASHBOARD:
+                    return (
+                        <DashboardDeleteModal
+                            isOpen
+                            uuid={action.item.data.uuid}
+                            onClose={handleReset}
+                            onConfirm={handleReset}
+                        />
+                    );
+                case ResourceListType.SPACE:
+                    return (
+                        <SpaceActionModal
+                            projectUuid={projectUuid}
+                            spaceUuid={action.item.data.uuid}
+                            actionType={ActionType.DELETE}
+                            title="Delete space"
+                            confirmButtonLabel="Delete"
+                            confirmButtonIntent="danger"
+                            icon="folder-close"
+                            onClose={handleReset}
+                            onSubmitForm={handleReset}
+                        />
+                    );
+
+                default:
+                    return assertUnreachable(
                         action.item,
                         'Resource type not supported',
-                    )
-                ))}
-
-            {action.type === ResourceListAction.DELETE &&
-                (action.item.type === ResourceListType.CHART ? (
-                    <ChartDeleteModal
-                        isOpen
-                        uuid={action.item.data.uuid}
-                        onClose={handleReset}
-                        onConfirm={handleReset}
-                    />
-                ) : action.item.type === ResourceListType.DASHBOARD ? (
-                    <DashboardDeleteModal
-                        isOpen
-                        uuid={action.item.data.uuid}
-                        onClose={handleReset}
-                        onConfirm={handleReset}
-                    />
-                ) : (
-                    assertUnreachable(
-                        action.item,
-                        'Resource type not supported',
-                    )
-                ))}
-
-            {action.type === ResourceListAction.ADD_TO_DASHBOARD && (
+                    );
+            }
+        case ResourceListAction.ADD_TO_DASHBOARD:
+            return (
                 <AddTilesToDashboardModal
                     savedChart={action.item.data}
                     isOpen
                     onClose={handleReset}
                 />
-            )}
-
-            {action.type === ResourceListAction.CREATE_SPACE && (
+            );
+        case ResourceListAction.CREATE_SPACE:
+            return (
                 <SpaceActionModal
                     shouldRedirect={false}
                     projectUuid={projectUuid}
@@ -230,9 +289,15 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                     onClose={handleReset}
                     onSubmitForm={handleCreateSpace}
                 />
-            )}
-        </>
-    );
+            );
+        case ResourceListAction.CLOSE:
+        case ResourceListAction.DUPLICATE:
+        case ResourceListAction.MOVE_TO_SPACE:
+        case ResourceListAction.PIN_TO_HOMEPAGE:
+            return null;
+        default:
+            return assertUnreachable(action, 'action type not supported');
+    }
 };
 
 export default ResourceActionHandlers;

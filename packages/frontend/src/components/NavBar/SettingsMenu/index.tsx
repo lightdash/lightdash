@@ -1,6 +1,11 @@
-import { Button, Menu, PopoverPosition } from '@blueprintjs/core';
+import { Button, Colors, Menu, PopoverPosition } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
+import {
+    IconBuildingBank,
+    IconDatabase,
+    IconSettings,
+} from '@tabler/icons-react';
 import { FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import { useActiveProjectUuid } from '../../../hooks/useProject';
@@ -43,7 +48,7 @@ const SettingsMenu: FC = () => {
                     {activeProjectUuid && userCanViewCurrentProject && (
                         <MenuItem2
                             role="menuitem"
-                            icon="database"
+                            icon={<IconDatabase size={17} />}
                             text="Project settings"
                             onClick={() => {
                                 history.push(
@@ -56,7 +61,7 @@ const SettingsMenu: FC = () => {
                     {userCanViewOrganization && (
                         <MenuItem2
                             role="menuitem"
-                            icon="office"
+                            icon={<IconBuildingBank size={17} />}
                             text="Organization settings"
                             onClick={() => {
                                 history.push(`/generalSettings/organization`);
@@ -66,7 +71,11 @@ const SettingsMenu: FC = () => {
                 </Menu>
             }
         >
-            <Button minimal icon="cog" data-testid="settings-menu" />
+            <Button
+                minimal
+                icon={<IconSettings size={20} color={Colors.GRAY4} />}
+                data-testid="settings-menu"
+            />
         </Popover2>
     );
 };

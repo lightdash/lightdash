@@ -3,10 +3,7 @@ import styled from 'styled-components';
 
 export const NotificationWrapper = styled.div`
     border-radius: 2px;
-    box-sizing: border-box;
     position: relative;
-    color: ${Colors.GRAY4} !important;
-    padding: 6px 7px;
 
     :hover {
         cursor: pointer;
