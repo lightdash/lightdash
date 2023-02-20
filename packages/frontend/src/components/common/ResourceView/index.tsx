@@ -6,7 +6,7 @@ import ResourceActionHandlers, {
     ResourceViewItemAction,
     ResourceViewItemActionState,
 } from './ResourceActionHandlers';
-import { ResourceViewItem } from './resourceTypeUtils';
+import { ResourceViewItem, ResourceViewItemType } from './resourceTypeUtils';
 import {
     ResourceEmptyStateWrapper,
     ResourceTag,
@@ -27,6 +27,8 @@ type Tab = {
     sort?: (a: ResourceViewItem, b: ResourceViewItem) => number;
 };
 
+type Group = ResourceViewItemType[];
+
 export interface ResourceViewCommonProps {
     headerTitle?: string;
     headerIcon?: JSX.Element;
@@ -34,6 +36,7 @@ export interface ResourceViewCommonProps {
     headerAction?: React.ReactNode;
     items: ResourceViewItem[];
     tabs?: Tab[];
+    groups?: Group[];
     showCount?: boolean;
     renderEmptyState?: () => React.ReactNode;
     view?: ResourceViewType;
@@ -50,6 +53,7 @@ const ResourceView: React.FC<ResourceViewProps> = ({
     view = ResourceViewType.LIST,
     items,
     tabs,
+    groups,
     headerTitle,
     headerIcon,
     headerIconTooltipContent,
@@ -149,6 +153,7 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                 ) : view === ResourceViewType.GRID ? (
                     <ResourceViewGrid
                         items={presortedItems}
+                        groups={groups}
                         onAction={handleAction}
                     />
                 ) : (
