@@ -36,7 +36,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
 
     return (
         <>
-            {groups.map((group, index) => {
+            {groups.map((group) => {
                 const groupedItems = items.filter((item) =>
                     group.includes(item.type),
                 );
@@ -48,7 +48,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                 return (
                     <>
                         <Label>{heading}</Label>
-                        <ResourceViewGridWrapper key={index}>
+                        <ResourceViewGridWrapper key={heading}>
                             {groupedItems.map((item) => (
                                 <React.Fragment
                                     key={item.type + '-' + item.data.uuid}
