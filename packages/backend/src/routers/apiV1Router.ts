@@ -17,7 +17,6 @@ import { dashboardRouter } from './dashboardRouter';
 import { headlessBrowserRouter } from './headlessBrowser';
 import { inviteLinksRouter } from './inviteLinksRouter';
 import { jobsRouter } from './jobsRouter';
-import { organizationRouter } from './organizationRouter';
 import { passwordResetLinksRouter } from './passwordResetLinksRouter';
 import { projectRouter } from './projectRouter';
 import { savedChartRouter } from './savedChartRouter';
@@ -161,7 +160,6 @@ apiV1Router.get('/logout', (req, res, next) => {
 
 apiV1Router.use('/saved', savedChartRouter);
 apiV1Router.use('/invite-links', inviteLinksRouter);
-apiV1Router.use('/org', organizationRouter);
 apiV1Router.use('/user', userRouter);
 apiV1Router.use('/projects/:projectUuid', projectRouter);
 apiV1Router.use('/dashboards', dashboardRouter);

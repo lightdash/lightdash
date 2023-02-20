@@ -1,4 +1,3 @@
-import { Project } from '@lightdash/common';
 import React, { createContext, FC, useContext } from 'react';
 
 type ProjectFormContext = {

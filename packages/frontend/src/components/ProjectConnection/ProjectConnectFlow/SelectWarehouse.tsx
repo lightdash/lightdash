@@ -1,5 +1,4 @@
 import { Colors } from '@blueprintjs/core';
-import { WarehouseTypes } from '@lightdash/common';
 import React, { FC } from 'react';
 import BigQuery from './Assets/bigquery.svg';
 import Databricks from './Assets/databricks.svg';

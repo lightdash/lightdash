@@ -1,5 +1,4 @@
 import { Ability, AbilityBuilder, subject } from '@casl/ability';
-import { Organization } from '../types/organization';
 import { OrganizationMemberProfile } from '../types/organizationMemberProfile';
 import { organizationMemberAbilities } from './organizationMemberAbility';
 import {
@@ -35,13 +34,13 @@ describe('Organization member permissions', () => {
             expect(ability.can('manage', 'Organization')).toEqual(true);
         });
         it('cannot manage another organization', () => {
-            const org: Organization = { organizationUuid: '789' };
+            const org = { organizationUuid: '789' };
             expect(ability.can('manage', subject('Organization', org))).toEqual(
                 false,
             );
         });
         it('can manage their own organization', () => {
-            const org: Organization = { organizationUuid: '456' };
+            const org = { organizationUuid: '456' };
             expect(ability.can('manage', subject('Organization', org))).toEqual(
                 true,
             );
@@ -169,20 +168,20 @@ describe('Organization member permissions', () => {
             expect(ability.can('delete', 'InviteLink')).toEqual(false);
         });
         it('can view their own organization', () => {
-            const org: Organization = { organizationUuid: '456' };
+            const org = { organizationUuid: '456' };
             expect(ability.can('view', subject('Organization', org))).toEqual(
                 true,
             );
         });
         it('cannot view another organization', () => {
-            const org: Organization = { organizationUuid: '789' };
+            const org = { organizationUuid: '789' };
             expect(ability.can('view', subject('Organization', org))).toEqual(
                 false,
             );
         });
 
         it('can view dashboards from their own organization', () => {
-            const org: Organization = { organizationUuid: '456' };
+            const org = { organizationUuid: '456' };
             expect(ability.can('view', subject('Dashboard', org))).toEqual(
                 true,
             );

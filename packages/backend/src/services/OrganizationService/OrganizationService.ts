@@ -9,6 +9,7 @@ import {
     OrganizationMemberProfileUpdate,
     OrganizationProject,
     SessionUser,
+    UpdateOrganization,
 } from '@lightdash/common';
 import { analytics } from '../../analytics/client';
 import { lightdashConfig } from '../../config/lightdashConfig';
@@ -73,7 +74,7 @@ export class OrganizationService {
 
     async updateOrg(
         { organizationUuid, organizationName, userUuid, ability }: SessionUser,
-        data: Organisation,
+        data: UpdateOrganization,
     ): Promise<void> {
         if (
             ability.cannot(

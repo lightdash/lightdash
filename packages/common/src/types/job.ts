@@ -119,3 +119,10 @@ export function isDbtLog(value: unknown): value is DbtLog {
         'msg' in value
     );
 }
+
+export type ApiJobResponse = {
+    status: 'ok';
+    results: {
+        jobUuid: string;
+    };
+};

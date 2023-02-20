@@ -1,13 +1,6 @@
 import { Callout, H5, Intent } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
-import {
-    CreateWarehouseCredentials,
-    DbtProjectConfig,
-    DbtProjectType,
-    friendlyName,
-    ProjectType,
-    WarehouseTypes,
-} from '@lightdash/common';
+import { friendlyName, ProjectType } from '@lightdash/common';
 import { FC, useEffect, useMemo, useState } from 'react';
 import { FieldErrors, useForm } from 'react-hook-form';
 import { SubmitErrorHandler } from 'react-hook-form/dist/types/form';

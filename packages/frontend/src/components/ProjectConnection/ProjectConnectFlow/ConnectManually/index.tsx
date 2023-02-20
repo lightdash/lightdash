@@ -1,4 +1,3 @@
-import { WarehouseTypes } from '@lightdash/common';
 import { FC, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import ConnectManuallyStep1 from './ConnectManuallyStep1';

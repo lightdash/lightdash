@@ -1,4 +1,3 @@
-import { WarehouseTypes } from '@lightdash/common';
 import { FC } from 'react';
 import { CreateProjectConnection } from '../..';
 import {

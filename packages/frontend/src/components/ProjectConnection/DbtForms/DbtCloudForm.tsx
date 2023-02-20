@@ -1,5 +1,4 @@
 import { Callout } from '@blueprintjs/core';
-import { DbtProjectType } from '@lightdash/common';
 import React, { FC } from 'react';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import Input from '../../ReactHookForm/Input';

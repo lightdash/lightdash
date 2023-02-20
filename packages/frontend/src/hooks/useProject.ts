@@ -2,7 +2,6 @@ import {
     ApiError,
     ApiJobStartedResults,
     CreateProject,
-    Project,
     UpdateProject,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
