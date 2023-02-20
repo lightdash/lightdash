@@ -40,12 +40,12 @@ const PinnedItemsPanel: FC<Props> = ({ projectUuid, organizationUuid }) => {
 
     return pinnedItems.length > 0 ? (
         <ResourceView
-            view={ResourceViewType.GRID}
             items={pinnedItems}
-            groups={[
-                [ResourceViewItemType.SPACE],
-                [ResourceViewItemType.DASHBOARD, ResourceViewItemType.CHART],
-            ]}
+            // view={ResourceViewType.GRID}
+            //     groups={[
+            //         [ResourceViewItemType.SPACE],
+            //         [ResourceViewItemType.DASHBOARD, ResourceViewItemType.CHART],
+            //     ]}
             enableSorting={false}
             defaultSort={{ updatedAt: SortDirection.DESC }}
             defaultColumnVisibility={{ space: false, type: false }}
