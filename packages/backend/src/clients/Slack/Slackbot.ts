@@ -14,41 +14,6 @@ import {
 import { slackOptions } from './SlackOptions';
 import { unfurlChartAndDashboard, unfurlExplore } from './SlackUnfurl';
 
-const notifySlackError = async (
-    error: unknown,
-    url: string,
-    client: any,
-    event: any,
-): Promise<void> => {
-    /** Expected slack errors:
-     * - cannot_parse_attachment: Means the image on the blocks is not accessible from slack, is the URL public ?
-     */
-    Logger.error(`Unable to unfurl slack URL ${url}: ${error} `);
-
-    const unfurls = {
-        [url]: {
-            blocks: [
-                {
-                    type: 'section',
-                    text: {
-                        type: 'mrkdwn',
-                        text: `Unable to unfurl slack URL ${url}: ${error} `,
-                    },
-                },
-            ],
-        },
-    };
-    await client.chat
-        .unfurl({
-            ts: event.message_ts,
-            channel: event.channel,
-            unfurls,
-        })
-        .catch((er: any) =>
-            Logger.error(`Unable to unfurl slack URL ${url}: ${error} `),
-        );
-};
-
 type SlackServiceDependencies = {
     slackAuthenticationModel: SlackAuthenticationModel;
     lightdashConfig: LightdashConfig;
