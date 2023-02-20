@@ -1,3 +1,10 @@
+# [0.420.0](https://github.com/lightdash/lightdash/compare/0.419.0...0.420.0) (2023-02-20)
+
+
+### Features
+
+* scheduler frequency inputs ([#4470](https://github.com/lightdash/lightdash/issues/4470)) ([844d9b0](https://github.com/lightdash/lightdash/commit/844d9b060050beecde62d3083a14b74c22b5f42f))
+
 # [0.419.0](https://github.com/lightdash/lightdash/compare/0.418.1...0.419.0) (2023-02-20)
 
 
