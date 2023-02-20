@@ -56,7 +56,7 @@ const InviteSuccess: FC<{ invite: InviteLink; hasMarginTop?: boolean }> = ({
             </MessageWrapper>
             <InputGroup
                 id="invite-link-input"
-                className="cohere-block sentry-block"
+                className="cohere-block sentry-block fs-block"
                 type="text"
                 readOnly
                 value={invite.inviteUrl}

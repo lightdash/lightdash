@@ -4,6 +4,7 @@ import {
     DashboardScheduler,
     ScheduledJobs,
     SchedulerAndTargets,
+    SchedulerSlackTarget,
     SEED_PROJECT,
     UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
@@ -26,11 +27,8 @@ const getUpdateSchedulerBody = (
 });
 
 describe('Lightdash scheduler endpoints', () => {
-    before(() => {
-        cy.login();
-    });
     beforeEach(() => {
-        Cypress.Cookies.preserveOnce('connect.sid');
+        cy.login();
     });
     it('Should create/update/delete chart scheduler', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
@@ -96,7 +94,8 @@ describe('Lightdash scheduler endpoints', () => {
                         headers: { 'Content-type': 'application/json' },
                         method: 'PATCH',
                         body: getUpdateSchedulerBody(
-                            targets[0].schedulerSlackTargetUuid,
+                            (targets[0] as SchedulerSlackTarget)
+                                .schedulerSlackTargetUuid,
                         ),
                         failOnStatusCode: false,
                     }).then((updateResponse) => {
@@ -106,10 +105,16 @@ describe('Lightdash scheduler endpoints', () => {
                             updateResponse.body.results.targets,
                         ).to.have.length(2);
                         expect(
-                            updateResponse.body.results.targets[0].channel,
+                            (
+                                updateResponse.body.results
+                                    .targets[0] as SchedulerSlackTarget
+                            ).channel,
                         ).to.eq('C1');
                         expect(
-                            updateResponse.body.results.targets[1].channel,
+                            (
+                                updateResponse.body.results
+                                    .targets[1] as SchedulerSlackTarget
+                            ).channel,
                         ).to.eq('C3');
                     });
 
@@ -199,7 +204,8 @@ describe('Lightdash scheduler endpoints', () => {
                         headers: { 'Content-type': 'application/json' },
                         method: 'PATCH',
                         body: getUpdateSchedulerBody(
-                            targets[0].schedulerSlackTargetUuid,
+                            (targets[0] as SchedulerSlackTarget)
+                                .schedulerSlackTargetUuid,
                         ),
                         failOnStatusCode: false,
                     }).then((updateResponse) => {
@@ -209,10 +215,16 @@ describe('Lightdash scheduler endpoints', () => {
                             updateResponse.body.results.targets,
                         ).to.have.length(2);
                         expect(
-                            updateResponse.body.results.targets[0].channel,
+                            (
+                                updateResponse.body.results
+                                    .targets[0] as SchedulerSlackTarget
+                            ).channel,
                         ).to.eq('C1');
                         expect(
-                            updateResponse.body.results.targets[1].channel,
+                            (
+                                updateResponse.body.results
+                                    .targets[1] as SchedulerSlackTarget
+                            ).channel,
                         ).to.eq('C3');
                     });
 

@@ -557,6 +557,11 @@ export type HealthState = {
         appId: string;
         apiBase: string;
     };
+
+    fullstory: {
+        orgId: string;
+        devMode: boolean;
+    };
     auth: {
         disablePasswordAuthentication: boolean;
         google: {

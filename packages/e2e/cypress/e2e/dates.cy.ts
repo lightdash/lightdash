@@ -14,12 +14,8 @@ function getLocalISOString(date: Date) {
 }
 
 describe('Explore', () => {
-    before(() => {
-        cy.login();
-    });
-
     beforeEach(() => {
-        Cypress.Cookies.preserveOnce('connect.sid');
+        cy.login();
     });
 
     it('Check current timezone', () => {

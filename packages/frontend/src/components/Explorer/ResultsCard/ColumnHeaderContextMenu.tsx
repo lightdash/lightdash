@@ -6,6 +6,7 @@ import {
     isFilterableField,
     TableCalculation,
 } from '@lightdash/common';
+import { IconChevronDown } from '@tabler/icons-react';
 import { FC, useState } from 'react';
 import { useFilters } from '../../../hooks/useFilters';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
@@ -152,7 +153,11 @@ const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
                         />
                     }
                 >
-                    <FlatButton minimal small icon="more" />
+                    <FlatButton
+                        minimal
+                        small
+                        icon={<IconChevronDown size={17} />}
+                    />
                 </Popover2>
 
                 {showUpdate && (

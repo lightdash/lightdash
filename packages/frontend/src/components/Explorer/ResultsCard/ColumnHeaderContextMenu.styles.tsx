@@ -7,4 +7,5 @@ export const BolderLabel = styled.span`
 
 export const FlatButton = styled(Button)`
     min-height: 16px !important;
+    padding: 0px !important;
 `;

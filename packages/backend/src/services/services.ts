@@ -105,6 +105,7 @@ export const personalAccessTokenService = new PersonalAccessTokenService({
 export const spaceService = new SpaceService({
     projectModel,
     spaceModel,
+    pinnedListModel,
 });
 
 export const searchService = new SearchService({

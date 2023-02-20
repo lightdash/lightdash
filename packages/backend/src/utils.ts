@@ -4,6 +4,8 @@ import { CustomSamplingContext } from '@sentry/types';
 import {
     DbPinnedChart,
     DbPinnedDashboard,
+    DbPinnedItem,
+    DBPinnedSpace,
 } from './database/entities/pinnedList';
 import Logger from './logger';
 
@@ -26,10 +28,16 @@ export const sanitizeEmailParam = (value: any) => {
     return email;
 };
 
-export const isDbPinnedChart = (
-    data: DbPinnedChart | DbPinnedDashboard,
-): data is DbPinnedChart =>
+export const isDbPinnedChart = (data: DbPinnedItem): data is DbPinnedChart =>
     'saved_chart_uuid' in data && !!data.saved_chart_uuid;
+
+export const isDbPinnedDashboard = (
+    data: DbPinnedItem,
+): data is DbPinnedDashboard =>
+    'dashboard_uuid' in data && !!data.dashboard_uuid;
+
+export const isDbPinnedSpace = (data: DbPinnedItem): data is DBPinnedSpace =>
+    'space_uuid' in data && !!data.space_uuid;
 
 export const wrapSentryTransaction = async <T>(
     name: string,

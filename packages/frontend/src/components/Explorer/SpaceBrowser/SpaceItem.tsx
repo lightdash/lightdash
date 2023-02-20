@@ -19,8 +19,10 @@ interface SpaceItemProps {
     name: string;
     dashboardsCount: number;
     queriesCount: number;
+    isPinned: boolean;
     onRename: () => void;
     onDelete: () => void;
+    onPinToggle: () => void;
 }
 
 const SpaceItem: FC<SpaceItemProps> = ({
@@ -29,6 +31,8 @@ const SpaceItem: FC<SpaceItemProps> = ({
     name,
     dashboardsCount,
     queriesCount,
+    isPinned,
+    onPinToggle,
     onRename,
     onDelete,
 }) => {
@@ -49,7 +53,12 @@ const SpaceItem: FC<SpaceItemProps> = ({
                         e.preventDefault();
                     }}
                 >
-                    <SpaceBrowserMenu onRename={onRename} onDelete={onDelete}>
+                    <SpaceBrowserMenu
+                        onRename={onRename}
+                        onDelete={onDelete}
+                        onTogglePin={onPinToggle}
+                        isPinned={isPinned}
+                    >
                         <Tooltip2 content="View options">
                             <Can
                                 I="manage"

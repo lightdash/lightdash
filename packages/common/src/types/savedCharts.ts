@@ -213,7 +213,7 @@ export type SavedChart = {
     spaceUuid: string;
     spaceName: string;
     views: number;
-    pinnedListUuid: string | undefined;
+    pinnedListUuid: string | null;
 };
 
 export type CreateSavedChart = Omit<

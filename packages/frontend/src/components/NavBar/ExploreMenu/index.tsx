@@ -8,6 +8,13 @@ import {
 } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
+import {
+    IconFolder,
+    IconLayoutDashboard,
+    IconSquareRoundedPlus,
+    IconTable,
+    IconTerminal2,
+} from '@tabler/icons-react';
 import { FC, memo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { useApp } from '../../../providers/AppProvider';
@@ -45,11 +52,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                         <LargeMenuItem
                             icon={
                                 <LargeMenuItemIconWrapper>
-                                    <Icon
-                                        icon="th"
-                                        iconSize={20}
-                                        color={Colors.WHITE}
-                                    />
+                                    <IconTable size={22} color={Colors.WHITE} />
                                 </LargeMenuItemIconWrapper>
                             }
                             href={`/projects/${projectUuid}/tables`}
@@ -74,9 +77,8 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                             <LargeMenuItem
                                 icon={
                                     <LargeMenuItemIconWrapper>
-                                        <Icon
-                                            icon="console"
-                                            iconSize={20}
+                                        <IconTerminal2
+                                            size={22}
                                             color={Colors.WHITE}
                                         />
                                     </LargeMenuItemIconWrapper>
@@ -106,9 +108,8 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                             <LargeMenuItem
                                 icon={
                                     <LargeMenuItemIconWrapper>
-                                        <Icon
-                                            icon="control"
-                                            iconSize={20}
+                                        <IconLayoutDashboard
+                                            size={22}
                                             color={Colors.WHITE}
                                         />
                                     </LargeMenuItemIconWrapper>
@@ -140,9 +141,8 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                             <LargeMenuItem
                                 icon={
                                     <LargeMenuItemIconWrapper>
-                                        <Icon
-                                            icon="folder-new"
-                                            iconSize={20}
+                                        <IconFolder
+                                            size={22}
                                             color={Colors.WHITE}
                                         />
                                     </LargeMenuItemIconWrapper>
@@ -168,7 +168,17 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                 }
                 position={Position.BOTTOM_RIGHT}
             >
-                <Button minimal icon="add" onClick={() => setIsOpen(!isOpen)}>
+                <Button
+                    minimal
+                    icon={
+                        <IconSquareRoundedPlus
+                            size={20}
+                            color={Colors.GRAY4}
+                            style={{ marginRight: '6px' }}
+                        />
+                    }
+                    onClick={() => setIsOpen(!isOpen)}
+                >
                     New
                 </Button>
             </Popover2>

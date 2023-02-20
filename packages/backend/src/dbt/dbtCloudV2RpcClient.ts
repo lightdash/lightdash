@@ -14,7 +14,11 @@ export class DbtCloudV2RpcClient extends DbtRpcClientBase {
     ) {
         super(
             `${DbtCloudV2RpcClient.baseServerUrl}/accounts/${accountId}/environments/${environmentId}/develop`,
-            { ...DEFAULT_HEADERS, Authorization: `Bearer ${apiKey}` },
+            {
+                ...DEFAULT_HEADERS,
+                Authorization: `Bearer ${apiKey}`,
+                'X-dbt-partner-source': 'lightdash',
+            },
         );
         const ideUrl = `https://cloud.getdbt.com/#/accounts/${accountId}/projects/${projectId}/develop/`;
         const credentialsUrl = `https://cloud.getdbt.com/#/accounts/${accountId}/projects/${projectId}/environments/${environmentId}/`;

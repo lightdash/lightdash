@@ -10,6 +10,8 @@ const ResourceType: FC<ResourceTypeProps> = ({ item }) => {
     switch (item.type) {
         case ResourceListType.DASHBOARD:
             return <>Dashboard</>;
+        case ResourceListType.SPACE:
+            return <>Space</>;
         case ResourceListType.CHART:
             switch (item.data.chartType) {
                 case undefined:

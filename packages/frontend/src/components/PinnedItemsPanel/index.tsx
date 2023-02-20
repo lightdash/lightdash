@@ -3,7 +3,7 @@ import { subject } from '@casl/ability';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { FC, useMemo } from 'react';
 import { useDashboards } from '../../hooks/dashboard/useDashboards';
-import { useSavedCharts } from '../../hooks/useSpaces';
+import { useSavedCharts, useSpaces } from '../../hooks/useSpaces';
 import { useApp } from '../../providers/AppProvider';
 import ResourceList from '../common/ResourceList';
 import { SortDirection } from '../common/ResourceList/ResourceTable';
@@ -18,9 +18,10 @@ interface Props {
 }
 
 const PinnedItemsPanel: FC<Props> = ({ projectUuid, organizationUuid }) => {
+    const { user } = useApp();
     const { data: dashboards = [] } = useDashboards(projectUuid);
     const { data: savedCharts = [] } = useSavedCharts(projectUuid);
-    const { user } = useApp();
+    const { data: spaces = [] } = useSpaces(projectUuid);
 
     const userCanUpdateProject = user.data?.ability.can(
         'update',
@@ -31,10 +32,11 @@ const PinnedItemsPanel: FC<Props> = ({ projectUuid, organizationUuid }) => {
         return [
             ...wrapResourceList(dashboards, ResourceListType.DASHBOARD),
             ...wrapResourceList(savedCharts, ResourceListType.CHART),
+            ...wrapResourceList(spaces, ResourceListType.SPACE),
         ].filter((item) => {
             return !!item.data.pinnedListUuid;
         });
-    }, [dashboards, savedCharts]);
+    }, [dashboards, savedCharts, spaces]);
 
     return pinnedItems.length > 0 ? (
         <ResourceList

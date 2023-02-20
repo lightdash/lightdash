@@ -548,6 +548,24 @@ projectRouter.patch(
     },
 );
 
+projectRouter.patch(
+    '/spaces/:spaceUuid/pinning',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) => {
+        spaceService
+            .togglePinning(req.user!, req.params.spaceUuid)
+            .then((results) => {
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+            })
+            .catch(next);
+    },
+);
+
 projectRouter.post(
     '/spaces/:spaceUUid/share',
     allowApiKeyAuthentication,

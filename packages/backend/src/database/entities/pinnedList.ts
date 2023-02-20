@@ -3,6 +3,7 @@ import { Knex } from 'knex';
 export const PinnedListTableName = 'pinned_list';
 export const PinnedChartTableName = 'pinned_chart';
 export const PinnedDashboardTableName = 'pinned_dashboard';
+export const PinnedSpaceTableName = 'pinned_space';
 
 export type DbPinnedList = {
     pinned_list_uuid: string;
@@ -22,6 +23,14 @@ export type DbPinnedDashboard = {
     dashboard_uuid: string;
     created_at: Date;
 };
+export type DBPinnedSpace = {
+    pinned_item_uuid: string;
+    pinned_list_uuid: string;
+    space_uuid: string;
+    created_at: Date;
+};
+
+export type DbPinnedItem = DbPinnedChart | DbPinnedDashboard | DBPinnedSpace;
 
 export type CreatePinnedChart = Omit<
     DbPinnedChart,
@@ -29,6 +38,10 @@ export type CreatePinnedChart = Omit<
 >;
 export type CreatePinnedDashboard = Omit<
     DbPinnedDashboard,
+    'pinned_item_uuid' | 'created_at'
+>;
+export type CreatePinnedSpace = Omit<
+    DBPinnedSpace,
     'pinned_item_uuid' | 'created_at'
 >;
 
@@ -43,4 +56,8 @@ export type PinnedChartTable = Knex.CompositeTableType<
 export type PinnedDashboardTable = Knex.CompositeTableType<
     DbPinnedDashboard,
     CreatePinnedDashboard
+>;
+export type PinnedSpaceTable = Knex.CompositeTableType<
+    DBPinnedSpace,
+    CreatePinnedSpace
 >;
