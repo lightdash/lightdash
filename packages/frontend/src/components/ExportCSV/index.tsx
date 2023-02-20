@@ -1,6 +1,8 @@
 import {
     Button,
     ButtonProps,
+    DialogBody,
+    DialogFooter,
     FormGroup,
     Intent,
     NumericInput,
@@ -8,7 +10,7 @@ import {
     RadioGroup,
 } from '@blueprintjs/core';
 import { ResultRow } from '@lightdash/common';
-import { FC, memo, useState } from 'react';
+import { FC, Fragment, memo, useState } from 'react';
 import { InputWrapper, Title } from './ExportCSV.styles';
 
 enum Limit {
@@ -28,76 +30,112 @@ const ExportAsCSVButton: FC<ButtonProps> = ({ ...props }) => {
     );
 };
 
+type ExportCsvRenderProps = {
+    onExport: () => Promise<void>;
+    isExporting: boolean;
+};
+
 export type ExportCSVProps = {
     rows: ResultRow[] | undefined;
     getCsvLink: (limit: number | null, onlyRaw: boolean) => Promise<string>;
+    isDialogBody: boolean;
+    renderDialogActions?: (renderProps: ExportCsvRenderProps) => JSX.Element;
 };
 
-const ExportCSV: FC<ExportCSVProps> = memo(({ rows, getCsvLink }) => {
-    const [limit, setLimit] = useState<string>(Limit.TABLE);
-    const [customLimit, setCustomLimit] = useState<number>(1);
-    const [format, setFormat] = useState<string>(Values.FORMATTED);
+const ExportCSV: FC<ExportCSVProps> = memo(
+    ({ rows, getCsvLink, isDialogBody, renderDialogActions }) => {
+        const [limit, setLimit] = useState<string>(Limit.TABLE);
+        const [customLimit, setCustomLimit] = useState<number>(1);
+        const [format, setFormat] = useState<string>(Values.FORMATTED);
+        const [isExporting, setIsExporting] = useState<boolean>(false);
 
-    if (!rows || rows.length <= 0) {
-        return <ExportAsCSVButton disabled />;
-    }
+        if (!rows || rows.length <= 0) {
+            return <ExportAsCSVButton disabled />;
+        }
 
-    return (
-        <>
-            <FormGroup>
-                <RadioGroup
-                    label={<Title>Values</Title>}
-                    onChange={(e) => setFormat(e.currentTarget.value)}
-                    selectedValue={format}
-                >
-                    <Radio label="Formatted" value={Values.FORMATTED} />
-                    <Radio label="Raw" value={Values.RAW} />
-                </RadioGroup>
-            </FormGroup>
+        const Wrapper = isDialogBody ? DialogBody : Fragment;
 
-            <FormGroup>
-                <RadioGroup
-                    label={<Title>Limit</Title>}
-                    onChange={(e) => setLimit(e.currentTarget.value)}
-                    selectedValue={limit}
-                >
-                    <Radio label="Results in Table" value={Limit.TABLE} />
-                    <Radio label="All Results" value={Limit.ALL} />
-                    <Radio label="Custom..." value={Limit.CUSTOM} />
-                </RadioGroup>
-            </FormGroup>
+        const handleExport = async () => {
+            setIsExporting(true);
 
-            {limit === Limit.CUSTOM && (
-                <InputWrapper>
-                    <NumericInput
-                        value={customLimit}
-                        min={1}
-                        fill
-                        onValueChange={(value: any) => setCustomLimit(value)}
+            const url = await getCsvLink(
+                limit === Limit.CUSTOM
+                    ? customLimit
+                    : limit === Limit.TABLE
+                    ? rows.length
+                    : null,
+                format === Values.RAW,
+            );
+
+            setIsExporting(false);
+
+            window.open(url, '_blank');
+        };
+
+        return (
+            <>
+                <Wrapper>
+                    <FormGroup>
+                        <RadioGroup
+                            label={<Title>Values</Title>}
+                            onChange={(e) => setFormat(e.currentTarget.value)}
+                            selectedValue={format}
+                        >
+                            <Radio label="Formatted" value={Values.FORMATTED} />
+                            <Radio label="Raw" value={Values.RAW} />
+                        </RadioGroup>
+                    </FormGroup>
+
+                    <FormGroup>
+                        <RadioGroup
+                            label={<Title>Limit</Title>}
+                            onChange={(e) => setLimit(e.currentTarget.value)}
+                            selectedValue={limit}
+                        >
+                            <Radio
+                                label="Results in Table"
+                                value={Limit.TABLE}
+                            />
+                            <Radio label="All Results" value={Limit.ALL} />
+                            <Radio label="Custom..." value={Limit.CUSTOM} />
+                        </RadioGroup>
+                    </FormGroup>
+
+                    {limit === Limit.CUSTOM && (
+                        <InputWrapper>
+                            <NumericInput
+                                value={customLimit}
+                                min={1}
+                                fill
+                                onValueChange={(value: any) =>
+                                    setCustomLimit(value)
+                                }
+                            />
+                        </InputWrapper>
+                    )}
+                </Wrapper>
+
+                {isDialogBody && renderDialogActions ? (
+                    <DialogFooter
+                        actions={renderDialogActions({
+                            onExport: handleExport,
+                            isExporting,
+                        })}
                     />
-                </InputWrapper>
-            )}
-            <Button
-                fill
-                intent={Intent.PRIMARY}
-                icon="export"
-                onClick={() => {
-                    getCsvLink(
-                        limit === Limit.CUSTOM
-                            ? customLimit
-                            : limit === Limit.TABLE
-                            ? rows.length
-                            : null,
-                        format === Values.RAW,
-                    ).then((url) => {
-                        window.open(url, '_blank');
-                    });
-                }}
-            >
-                Export CSV
-            </Button>
-        </>
-    );
-});
+                ) : (
+                    <Button
+                        loading={isExporting}
+                        fill
+                        intent={Intent.PRIMARY}
+                        icon="export"
+                        onClick={handleExport}
+                    >
+                        Export CSV
+                    </Button>
+                )}
+            </>
+        );
+    },
+);
 
 export default ExportCSV;

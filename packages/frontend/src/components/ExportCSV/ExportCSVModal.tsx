@@ -1,10 +1,4 @@
-import {
-    Button,
-    Dialog,
-    DialogBody,
-    DialogFooter,
-    DialogProps,
-} from '@blueprintjs/core';
+import { Button, Dialog, DialogFooter, DialogProps } from '@blueprintjs/core';
 import { FC } from 'react';
 import ExportCSV, { ExportCSVProps } from '.';
 
@@ -21,16 +15,27 @@ const ExportCSVModal: FC<ExportCSVModalProps> = ({
 }) => {
     return (
         <Dialog lazy title="Exportpdate CSV" icon="control" {...modalProps}>
-            <DialogBody>
-                <ExportCSV rows={rows} getCsvLink={getCsvLink} />
-            </DialogBody>
-
-            <DialogFooter
-                actions={
+            <ExportCSV
+                rows={rows}
+                getCsvLink={getCsvLink}
+                isDialogBody
+                renderDialogActions={({ onExport, isExporting }) => (
                     <>
                         <Button onClick={modalProps.onClose}>Cancel</Button>
+
+                        <Button
+                            loading={isExporting}
+                            onClick={() => {
+                                onExport().then(() => {
+                                    onConfirm?.();
+                                });
+                            }}
+                            intent="primary"
+                        >
+                            Export CSV
+                        </Button>
                     </>
-                }
+                )}
             />
         </Dialog>
     );
