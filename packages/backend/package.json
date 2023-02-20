@@ -25,6 +25,8 @@
         "knex-mock-client": "^1.11.0"
     },
     "dependencies": {
+        "@aws-sdk/client-s3": "^3.272.0",
+        "@aws-sdk/s3-request-presigner": "^3.272.0",
         "@casl/ability": "^5.4.3",
         "@lightdash/common": "^0.421.0",
         "@lightdash/warehouses": "^0.421.0",
@@ -37,7 +39,6 @@
         "@types/async": "^3.2.16",
         "ajv": "^8.3.0",
         "ajv-formats": "^2.1.0",
-        "aws-sdk": "^2.1277.0",
         "bcrypt": "^5.0.1",
         "body-parser": "^1.19.0",
         "connect-flash": "^0.1.1",

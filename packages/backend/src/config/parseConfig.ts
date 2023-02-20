@@ -75,6 +75,7 @@ export type HeadlessBrowserConfig = {
     port?: string;
 };
 export type S3Config = {
+    region?: string;
     accessKey?: string;
     secretKey?: string;
     endpoint?: string;
@@ -285,6 +286,7 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                 ) || 5000,
         },
         s3: {
+            region: process.env.S3_REGION,
             accessKey: process.env.S3_ACCESS_KEY,
             secretKey: process.env.S3_SECRET_KEY,
             bucket: process.env.S3_BUCKET,
