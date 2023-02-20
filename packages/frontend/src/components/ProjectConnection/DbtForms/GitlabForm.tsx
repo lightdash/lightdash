@@ -1,3 +1,4 @@
+import { DbtProjectType } from '@lightdash/common';
 import React, { FC } from 'react';
 import {
     hasNoWhiteSpaces,
