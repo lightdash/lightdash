@@ -44,6 +44,7 @@ import { getConditionalRuleLabel } from '../common/Filters/configs';
 import LinkMenuItem from '../common/LinkMenuItem';
 import { TableColumn } from '../common/Table/types';
 import { FilterValues } from '../DashboardFilter/ActiveFilters/ActiveFilters.styles';
+import ExportCSVModal from '../ExportCSV/ExportCSVModal';
 import LightdashVisualization from '../LightdashVisualization';
 import VisualizationProvider from '../LightdashVisualization/VisualizationProvider';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
@@ -59,6 +60,37 @@ import {
     FilterWrapper,
     GlobalTileStyles,
 } from './TileBase/TileBase.styles';
+
+interface ExportResultAsCSVModalProps {
+    projectUuid: string;
+    savedChart: SavedChart;
+}
+
+const ExportResultAsCSVModal: FC<ExportResultAsCSVModalProps> = ({
+    projectUuid,
+    savedChart,
+}) => {
+    const { data: resultData, isLoading } = useSavedChartResults(
+        projectUuid,
+        savedChart,
+    );
+
+    if (isLoading || !resultData) return null;
+
+    const rows = resultData?.rows;
+    const getCsvLink = async () => {
+        const csvResponse = await downloadCsv({
+            projectUuid: savedChart.projectUuid,
+            tableId: savedChart.tableName,
+            query: savedChart.metricQuery,
+            csvLimit: rows?.length,
+            onlyRaw: false,
+        });
+        return csvResponse.url;
+    };
+
+    return <ExportCSVModal isOpen rows={rows} getCsvLink={getCsvLink} />;
+};
 
 const ValidDashboardChartTile: FC<{
     tileUuid: string;
@@ -111,37 +143,6 @@ const ValidDashboardChartTile: FC<{
     );
 };
 
-const DownloadCSV: FC<{
-    data: SavedChart;
-    project: string;
-}> = ({ data, project }) => {
-    const { data: resultData } = useSavedChartResults(project, data);
-    const rows = resultData?.rows;
-    const getCsvLink = async () => {
-        const csvResponse = await downloadCsv({
-            projectUuid: data.projectUuid,
-            tableId: data.tableName,
-            query: data.metricQuery,
-            csvLimit: rows?.length,
-            onlyRaw: false,
-        });
-        return csvResponse.url;
-    };
-
-    return (
-        <MenuItem2
-            icon="export"
-            text="Export CSV"
-            disabled={!rows || rows.length <= 0}
-            onClick={() =>
-                getCsvLink().then((url) => {
-                    window.open(url, '_blank');
-                })
-            }
-        />
-    );
-};
-
 const InvalidDashboardChartTile: FC = () => (
     <NonIdealState
         title="No chart available"
@@ -183,6 +184,7 @@ const DashboardChartTile: FC<Props> = (props) => {
         left: number;
         top: number;
     }>();
+
     const { openUnderlyingDataModel } = useMetricQueryDataContext();
     const contextMenuRenderTarget = useCallback(
         ({ ref }: Popover2TargetProps) => (
@@ -209,6 +211,8 @@ const DashboardChartTile: FC<Props> = (props) => {
         dimensions: string[];
         pivotReference?: PivotReference;
     }>();
+    const [isCSVExportModalOpen, setIsCSVExportModalOpen] = useState(false);
+    useState(false);
     const { user } = useApp();
 
     const onSeriesContextMenu = useCallback(
@@ -433,10 +437,17 @@ const DashboardChartTile: FC<Props> = (props) => {
                             {savedQueryWithDashboardFilters &&
                                 savedQueryWithDashboardFilters.chartConfig
                                     .type === ChartType.TABLE && (
-                                    <DownloadCSV
-                                        data={savedQueryWithDashboardFilters}
-                                        project={projectUuid}
+                                    <MenuItem2
+                                        icon="export"
+                                        text="Export CSV"
+                                        onClick={() =>
+                                            setIsCSVExportModalOpen(true)
+                                        }
                                     />
+                                    // <DownloadCSV
+                                    //     data={savedQueryWithDashboardFilters}
+                                    //     project={projectUuid}
+                                    // />
                                 )}
                         </>
                     )
@@ -595,6 +606,13 @@ const DashboardChartTile: FC<Props> = (props) => {
                     <InvalidDashboardChartTile />
                 )}
             </TileBase>
+
+            {savedQueryWithDashboardFilters && isCSVExportModalOpen ? (
+                <ExportResultAsCSVModal
+                    projectUuid={projectUuid}
+                    savedChart={savedQueryWithDashboardFilters}
+                />
+            ) : null}
         </>
     );
 };
