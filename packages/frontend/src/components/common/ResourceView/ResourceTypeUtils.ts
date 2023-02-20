@@ -33,18 +33,18 @@ export type ResourceViewItem =
     | ResourceViewDashboardItem
     | ResourceViewSpaceItem;
 
-export type ResourceViewItemCanBelongToSpace =
-    | ResourceViewChartItem
-    | ResourceViewDashboardItem;
+export const isResourceViewItemChart = (
+    item: ResourceViewItem,
+): item is ResourceViewChartItem => item.type === ResourceViewItemType.CHART;
 
-export const isResourceViewItemCanBelongToSpace = (
-    resource: ResourceViewItem,
-): resource is ResourceViewItemCanBelongToSpace => {
-    return (
-        resource.type === ResourceViewItemType.CHART ||
-        resource.type === ResourceViewItemType.DASHBOARD
-    );
-};
+export const isResourceViewItemDashboard = (
+    item: ResourceViewItem,
+): item is ResourceViewDashboardItem =>
+    item.type === ResourceViewItemType.DASHBOARD;
+
+export const isResourceViewSpaceItem = (
+    item: ResourceViewItem,
+): item is ResourceViewSpaceItem => item.type === ResourceViewItemType.SPACE;
 
 export const wrapResource = <T extends ResourceViewAcceptedItems>(
     resource: T,
