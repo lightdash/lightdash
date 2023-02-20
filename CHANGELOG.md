@@ -1,3 +1,10 @@
+# [0.419.0](https://github.com/lightdash/lightdash/compare/0.418.1...0.419.0) (2023-02-20)
+
+
+### Features
+
+* pinned spaces ([#4502](https://github.com/lightdash/lightdash/issues/4502)) ([797c3d6](https://github.com/lightdash/lightdash/commit/797c3d6319787732a919ed96b810aa700e0f2245))
+
 ## [0.418.1](https://github.com/lightdash/lightdash/compare/0.418.0...0.418.1) (2023-02-17)
 
 
