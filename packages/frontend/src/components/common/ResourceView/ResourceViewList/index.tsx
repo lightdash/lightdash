@@ -1,36 +1,37 @@
 import { Icon, Position } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
-import { assertUnreachable } from '@lightdash/common';
 import React, { FC, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
-import { ResourceListCommonProps } from '.';
-import { useSpaces } from '../../../hooks/useSpaces';
-import { ResourceListActionState } from './ResourceActionHandlers';
-import ResourceActionMenu from './ResourceActionMenu';
-import ResourceIcon from './ResourceIcon';
-import ResourceLastEdited from './ResourceLastEdited';
+import { ResourceViewCommonProps } from '..';
+import { useSpaces } from '../../../../hooks/useSpaces';
 import {
-    Flex,
-    ResourceLink,
-    ResourceMetadata,
-    ResourceName,
-    ResourceNameBox,
-    ResourceSpaceLink,
-    Spacer,
-    StyledTable,
-    StyledTBody,
-    StyledTd,
-    StyledTh,
-    StyledTHead,
-    StyledTr,
-    ThInteractiveWrapper,
-} from './ResourceTable.styles';
-import ResourceType from './ResourceType';
+    isResourceViewItemChart,
+    isResourceViewItemDashboard,
+    isResourceViewSpaceItem,
+    ResourceViewItem,
+    ResourceViewItemType,
+} from '../resourceTypeUtils';
+import { getResourceTypeName, getResourceUrl } from '../resourceUtils';
+import { ResourceViewItemActionState } from './../ResourceActionHandlers';
+import ResourceActionMenu from './../ResourceActionMenu';
+import ResourceIcon from './../ResourceIcon';
+import ResourceLastEdited from './../ResourceLastEdited';
 import {
-    isResourceListItemCanBelongToSpace,
-    ResourceListItem,
-    ResourceListType,
-} from './ResourceTypeUtils';
+    ResourceViewListFlex,
+    ResourceViewListLink,
+    ResourceViewListMetadata,
+    ResourceViewListName,
+    ResourceViewListNameBox,
+    ResourceViewListSpaceLink,
+    ResourceViewListSpacer,
+    ResourceViewListTable,
+    ResourceViewListTBody,
+    ResourceViewListTd,
+    ResourceViewListTh,
+    ResourceViewListTHead,
+    ResourceViewListThInteractiveWrapper,
+    ResourceViewListTr,
+} from './ResourceViewList.styles';
 
 export enum SortDirection {
     ASC = 'asc',
@@ -45,16 +46,16 @@ type SortingState = null | SortDirection;
 
 type SortingStateMap = Map<ColumnName, SortingState>;
 
-export interface ResourceTableCommonProps {
+export interface ResourceViewListCommonProps {
     enableSorting?: boolean;
     enableMultiSort?: boolean;
     defaultSort?: Partial<Record<ColumnName, SortDirection>>;
     defaultColumnVisibility?: Partial<Record<ColumnName, boolean>>;
 }
 
-type ResourceTableProps = ResourceTableCommonProps &
-    Pick<ResourceListCommonProps, 'items'> & {
-        onAction: (newAction: ResourceListActionState) => void;
+type ResourceViewListProps = ResourceViewListCommonProps &
+    Pick<ResourceViewCommonProps, 'items'> & {
+        onAction: (newAction: ResourceViewItemActionState) => void;
     };
 
 const sortOrder = [SortDirection.DESC, SortDirection.ASC, null];
@@ -62,9 +63,9 @@ const sortOrder = [SortDirection.DESC, SortDirection.ASC, null];
 interface Column {
     id: ColumnName;
     label?: string;
-    cell: (item: ResourceListItem) => React.ReactNode;
+    cell: (item: ResourceViewItem) => React.ReactNode;
     enableSorting: boolean;
-    sortingFn?: (a: ResourceListItem, b: ResourceListItem) => number;
+    sortingFn?: (a: ResourceViewItem, b: ResourceViewItem) => number;
     meta?: {
         style: React.CSSProperties;
     };
@@ -75,21 +76,7 @@ const getNextSortDirection = (current: SortingState): SortingState => {
     return sortOrder.concat(sortOrder[0])[currentIndex + 1];
 };
 
-const getResourceUrl = (projectUuid: string, item: ResourceListItem) => {
-    const itemType = item.type;
-    switch (item.type) {
-        case ResourceListType.DASHBOARD:
-            return `/projects/${projectUuid}/dashboards/${item.data.uuid}/view`;
-        case ResourceListType.CHART:
-            return `/projects/${projectUuid}/saved/${item.data.uuid}`;
-        case ResourceListType.SPACE:
-            return `/projects/${projectUuid}/spaces/${item.data.uuid}`;
-        default:
-            return assertUnreachable(item, `Can't get URL for ${itemType}`);
-    }
-};
-
-const ResourceTable: FC<ResourceTableProps> = ({
+const ResourceViewList: FC<ResourceViewListProps> = ({
     items,
     enableSorting: enableSortingProp = true,
     enableMultiSort = false,
@@ -128,9 +115,10 @@ const ResourceTable: FC<ResourceTableProps> = ({
             {
                 id: 'name',
                 label: 'Name',
-                cell: (item: ResourceListItem) => {
+                cell: (item: ResourceViewItem) => {
                     const canBelongToSpace =
-                        isResourceListItemCanBelongToSpace(item);
+                        isResourceViewItemChart(item) ||
+                        isResourceViewItemDashboard(item);
 
                     return (
                         <Tooltip2
@@ -145,32 +133,32 @@ const ResourceTable: FC<ResourceTableProps> = ({
                             }
                             position={Position.TOP_LEFT}
                         >
-                            <ResourceLink
+                            <ResourceViewListLink
                                 to={getResourceUrl(projectUuid, item)}
                                 onClick={(e) => e.stopPropagation()}
                             >
                                 <ResourceIcon item={item} />
 
-                                <Spacer $width={16} />
+                                <ResourceViewListSpacer $width={16} />
 
-                                <ResourceNameBox>
-                                    <ResourceName>
+                                <ResourceViewListNameBox>
+                                    <ResourceViewListName>
                                         {item.data.name}
-                                    </ResourceName>
+                                    </ResourceViewListName>
 
                                     {canBelongToSpace && (
-                                        <ResourceMetadata>
-                                            <ResourceType item={item} /> •{' '}
+                                        <ResourceViewListMetadata>
+                                            {getResourceTypeName(item)} •{' '}
                                             {item.data.views || '0'} views
-                                        </ResourceMetadata>
+                                        </ResourceViewListMetadata>
                                     )}
-                                </ResourceNameBox>
-                            </ResourceLink>
+                                </ResourceViewListNameBox>
+                            </ResourceViewListLink>
                         </Tooltip2>
                     );
                 },
                 enableSorting,
-                sortingFn: (a: ResourceListItem, b: ResourceListItem) => {
+                sortingFn: (a: ResourceViewItem, b: ResourceViewItem) => {
                     return a.data.name.localeCompare(b.data.name);
                 },
                 meta: {
@@ -185,8 +173,8 @@ const ResourceTable: FC<ResourceTableProps> = ({
             {
                 id: 'space',
                 label: 'Space',
-                cell: (item: ResourceListItem) => {
-                    if (!isResourceListItemCanBelongToSpace(item)) {
+                cell: (item: ResourceViewItem) => {
+                    if (isResourceViewSpaceItem(item)) {
                         return null;
                     }
 
@@ -195,19 +183,19 @@ const ResourceTable: FC<ResourceTableProps> = ({
                     );
 
                     return space ? (
-                        <ResourceSpaceLink
+                        <ResourceViewListSpaceLink
                             to={`/projects/${projectUuid}/spaces/${space.uuid}`}
                             onClick={(e) => e.stopPropagation()}
                         >
                             {space.name}
-                        </ResourceSpaceLink>
+                        </ResourceViewListSpaceLink>
                     ) : null;
                 },
                 enableSorting,
-                sortingFn: (a: ResourceListItem, b: ResourceListItem) => {
+                sortingFn: (a: ResourceViewItem, b: ResourceViewItem) => {
                     if (
-                        !isResourceListItemCanBelongToSpace(a) ||
-                        !isResourceListItemCanBelongToSpace(b)
+                        isResourceViewSpaceItem(a) ||
+                        isResourceViewSpaceItem(b)
                     ) {
                         return 0;
                     }
@@ -232,15 +220,15 @@ const ResourceTable: FC<ResourceTableProps> = ({
             {
                 id: 'updatedAt',
                 label: 'Last Edited',
-                cell: (item: ResourceListItem) => {
-                    if (!isResourceListItemCanBelongToSpace(item)) return null;
+                cell: (item: ResourceViewItem) => {
+                    if (isResourceViewSpaceItem(item)) return null;
                     return <ResourceLastEdited item={item} />;
                 },
                 enableSorting,
-                sortingFn: (a: ResourceListItem, b: ResourceListItem) => {
+                sortingFn: (a: ResourceViewItem, b: ResourceViewItem) => {
                     if (
-                        !isResourceListItemCanBelongToSpace(a) ||
-                        !isResourceListItemCanBelongToSpace(b)
+                        isResourceViewSpaceItem(a) ||
+                        isResourceViewSpaceItem(b)
                     ) {
                         return 0;
                     }
@@ -257,16 +245,16 @@ const ResourceTable: FC<ResourceTableProps> = ({
             {
                 id: 'type',
                 label: 'Type',
-                cell: (item: ResourceListItem) => (
-                    <ResourceNameBox>
-                        <ResourceMetadata>
-                            <ResourceType item={item} />
-                        </ResourceMetadata>
-                    </ResourceNameBox>
+                cell: (item: ResourceViewItem) => (
+                    <ResourceViewListNameBox>
+                        <ResourceViewListMetadata>
+                            {getResourceTypeName(item)}
+                        </ResourceViewListMetadata>
+                    </ResourceViewListNameBox>
                 ),
                 enableSorting,
-                sortingFn: (a: ResourceListItem) => {
-                    return a.type === ResourceListType.DASHBOARD ? 1 : -1;
+                sortingFn: (a: ResourceViewItem) => {
+                    return a.type === ResourceViewItemType.DASHBOARD ? 1 : -1;
                 },
                 meta: {
                     style: {
@@ -279,7 +267,7 @@ const ResourceTable: FC<ResourceTableProps> = ({
             },
             {
                 id: 'actions',
-                cell: (item: ResourceListItem) => (
+                cell: (item: ResourceViewItem) => (
                     <ResourceActionMenu
                         item={item}
                         spaces={spaces}
@@ -335,21 +323,21 @@ const ResourceTable: FC<ResourceTableProps> = ({
                 0,
             );
         });
-    }, [items, columnSorts]);
+    }, [items, columnSorts, columns]);
 
     return (
-        <StyledTable>
-            <StyledTHead>
-                <StyledTr>
+        <ResourceViewListTable>
+            <ResourceViewListTHead>
+                <ResourceViewListTr>
                     {visibleColumns.map((column) => {
                         const columnSort = columnSorts.get(column.id) || null;
 
                         return (
-                            <StyledTh
+                            <ResourceViewListTh
                                 key={column.id}
                                 style={column?.meta?.style}
                             >
-                                <ThInteractiveWrapper
+                                <ResourceViewListThInteractiveWrapper
                                     $isInteractive={column.enableSorting}
                                     onClick={() =>
                                         column.enableSorting &&
@@ -359,12 +347,14 @@ const ResourceTable: FC<ResourceTableProps> = ({
                                         )
                                     }
                                 >
-                                    <Flex>
+                                    <ResourceViewListFlex>
                                         {column?.label}
 
                                         {columnSort ? (
                                             <>
-                                                <Spacer $width={5} />
+                                                <ResourceViewListSpacer
+                                                    $width={5}
+                                                />
 
                                                 {enableSorting &&
                                                     {
@@ -383,32 +373,32 @@ const ResourceTable: FC<ResourceTableProps> = ({
                                                     }[columnSort]}
                                             </>
                                         ) : null}
-                                    </Flex>
-                                </ThInteractiveWrapper>
-                            </StyledTh>
+                                    </ResourceViewListFlex>
+                                </ResourceViewListThInteractiveWrapper>
+                            </ResourceViewListTh>
                         );
                     })}
-                </StyledTr>
-            </StyledTHead>
+                </ResourceViewListTr>
+            </ResourceViewListTHead>
 
-            <StyledTBody>
+            <ResourceViewListTBody>
                 {sortedResourceItems.map((item) => (
-                    <StyledTr
+                    <ResourceViewListTr
                         key={item.data.uuid}
                         onClick={() =>
                             history.push(getResourceUrl(projectUuid, item))
                         }
                     >
                         {visibleColumns.map((column) => (
-                            <StyledTd key={column.id}>
+                            <ResourceViewListTd key={column.id}>
                                 {column.cell(item)}
-                            </StyledTd>
+                            </ResourceViewListTd>
                         ))}
-                    </StyledTr>
+                    </ResourceViewListTr>
                 ))}
-            </StyledTBody>
-        </StyledTable>
+            </ResourceViewListTBody>
+        </ResourceViewListTable>
     );
 };
 
-export default ResourceTable;
+export default ResourceViewList;

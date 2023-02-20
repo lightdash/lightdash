@@ -1,24 +1,22 @@
-import { AnchorButton, Button, Intent } from '@blueprintjs/core';
+import { AnchorButton, Button } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { LightdashMode } from '@lightdash/common';
-import { FC, useCallback, useState } from 'react';
-import { useSpacePinningMutation } from '../../../hooks/pinning/useSpaceMutation';
+import { FC, useState } from 'react';
 import { useSpaces } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
+import ResourceView, { ResourceViewType } from '../../common/ResourceView';
+import {
+    ResourceViewItemType,
+    wrapResourceView,
+} from '../../common/ResourceView/resourceTypeUtils';
 import {
     ResourceEmptyStateHeader,
     ResourceEmptyStateIcon,
-    ResourceEmptyStateWrapper,
-} from '../../common/ResourceList/ResourceList.styles';
-import ResourceListWrapper from '../../common/ResourceList/ResourceListWrapper';
+} from '../../common/ResourceView/ResourceView.styles';
 import SpaceActionModal, { ActionType } from '../../common/SpaceActionModal';
-import { SpaceListWrapper } from './SpaceBrowser.styles';
-import SpaceItem from './SpaceItem';
 
 const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const { user, health } = useApp();
-    const [updateSpaceUuid, setUpdateSpaceUuid] = useState<string>();
-    const [deleteSpaceUuid, setDeleteSpaceUuid] = useState<string>();
     const { data: spaces = [], isLoading } = useSpaces(projectUuid);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
     const isDemo = health.data?.mode === LightdashMode.DEMO;
@@ -31,85 +29,56 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
         }),
     );
 
-    const { mutate: pinSpace } = useSpacePinningMutation(projectUuid);
-
     const handleCreateSpace = () => {
         setIsCreateModalOpen(true);
     };
 
-    const handlePinToggle = useCallback(
-        (spaceUuid: string) => pinSpace(spaceUuid),
-        [pinSpace],
-    );
-
     return (
-        <ResourceListWrapper
-            headerTitle="Spaces"
-            showCount={false}
-            headerAction={
-                spaces.length === 0 ? (
-                    <AnchorButton
-                        text="Learn"
-                        minimal
-                        target="_blank"
-                        href="https://docs.lightdash.com/guides/spaces/"
-                    />
-                ) : !isDemo && userCanManageSpace ? (
-                    <Button
-                        minimal
-                        intent="primary"
-                        icon="plus"
-                        loading={isLoading}
-                        onClick={handleCreateSpace}
-                    >
-                        Create new
-                    </Button>
-                ) : null
-            }
-        >
-            {spaces.length === 0 ? (
-                <ResourceEmptyStateWrapper>
-                    <ResourceEmptyStateIcon icon="folder-close" size={40} />
-
-                    <ResourceEmptyStateHeader>
-                        No spaces added yet
-                    </ResourceEmptyStateHeader>
-
-                    {!isDemo && userCanManageSpace && (
-                        <Button
-                            text="Create space"
-                            icon="plus"
-                            intent="primary"
-                            onClick={handleCreateSpace}
+        <>
+            <ResourceView
+                view={ResourceViewType.GRID}
+                items={wrapResourceView(spaces, ResourceViewItemType.SPACE)}
+                headerTitle="Spaces"
+                headerAction={
+                    spaces.length === 0 ? (
+                        <AnchorButton
+                            text="Learn"
+                            minimal
+                            target="_blank"
+                            href="https://docs.lightdash.com/guides/spaces/"
                         />
-                    )}
-                </ResourceEmptyStateWrapper>
-            ) : (
-                <SpaceListWrapper>
-                    {spaces.map(
-                        ({
-                            uuid,
-                            name,
-                            dashboards,
-                            queries,
-                            pinnedListUuid,
-                        }) => (
-                            <SpaceItem
-                                key={uuid}
-                                projectUuid={projectUuid}
-                                uuid={uuid}
-                                name={name}
-                                isPinned={!!pinnedListUuid}
-                                dashboardsCount={dashboards.length}
-                                queriesCount={queries.length}
-                                onRename={() => setUpdateSpaceUuid(uuid)}
-                                onDelete={() => setDeleteSpaceUuid(uuid)}
-                                onPinToggle={() => handlePinToggle(uuid)}
+                    ) : !isDemo && userCanManageSpace ? (
+                        <Button
+                            minimal
+                            intent="primary"
+                            icon="plus"
+                            loading={isLoading}
+                            onClick={handleCreateSpace}
+                        >
+                            Create new
+                        </Button>
+                    ) : null
+                }
+                showCount={false}
+                renderEmptyState={() => (
+                    <>
+                        <ResourceEmptyStateIcon icon="folder-close" size={40} />
+
+                        <ResourceEmptyStateHeader>
+                            No spaces added yet
+                        </ResourceEmptyStateHeader>
+
+                        {!isDemo && userCanManageSpace && (
+                            <Button
+                                text="Create space"
+                                icon="plus"
+                                intent="primary"
+                                onClick={handleCreateSpace}
                             />
-                        ),
-                    )}
-                </SpaceListWrapper>
-            )}
+                        )}
+                    </>
+                )}
+            />
 
             {isCreateModalOpen && (
                 <SpaceActionModal
@@ -121,32 +90,7 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     onClose={() => setIsCreateModalOpen(false)}
                 />
             )}
-
-            {updateSpaceUuid && (
-                <SpaceActionModal
-                    projectUuid={projectUuid}
-                    spaceUuid={updateSpaceUuid}
-                    actionType={ActionType.UPDATE}
-                    title="Update space"
-                    confirmButtonLabel="Update"
-                    icon="folder-close"
-                    onClose={() => setUpdateSpaceUuid(undefined)}
-                />
-            )}
-
-            {deleteSpaceUuid && (
-                <SpaceActionModal
-                    projectUuid={projectUuid}
-                    spaceUuid={deleteSpaceUuid}
-                    actionType={ActionType.DELETE}
-                    title="Delete space"
-                    confirmButtonLabel="Delete"
-                    confirmButtonIntent={Intent.DANGER}
-                    icon="folder-close"
-                    onClose={() => setDeleteSpaceUuid(undefined)}
-                />
-            )}
-        </ResourceListWrapper>
+        </>
     );
 };
 

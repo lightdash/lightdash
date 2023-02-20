@@ -5,12 +5,12 @@ import { FC, useMemo } from 'react';
 import { useDashboards } from '../../hooks/dashboard/useDashboards';
 import { useSavedCharts, useSpaces } from '../../hooks/useSpaces';
 import { useApp } from '../../providers/AppProvider';
-import ResourceList from '../common/ResourceList';
-import { SortDirection } from '../common/ResourceList/ResourceTable';
+import ResourceView from '../common/ResourceView';
 import {
-    ResourceListType,
-    wrapResourceList,
-} from '../common/ResourceList/ResourceTypeUtils';
+    ResourceViewItemType,
+    wrapResourceView,
+} from '../common/ResourceView/resourceTypeUtils';
+import { SortDirection } from '../common/ResourceView/ResourceViewList';
 
 interface Props {
     projectUuid: string;
@@ -30,16 +30,16 @@ const PinnedItemsPanel: FC<Props> = ({ projectUuid, organizationUuid }) => {
 
     const pinnedItems = useMemo(() => {
         return [
-            ...wrapResourceList(dashboards, ResourceListType.DASHBOARD),
-            ...wrapResourceList(savedCharts, ResourceListType.CHART),
-            ...wrapResourceList(spaces, ResourceListType.SPACE),
+            ...wrapResourceView(dashboards, ResourceViewItemType.DASHBOARD),
+            ...wrapResourceView(savedCharts, ResourceViewItemType.CHART),
+            ...wrapResourceView(spaces, ResourceViewItemType.SPACE),
         ].filter((item) => {
             return !!item.data.pinnedListUuid;
         });
     }, [dashboards, savedCharts, spaces]);
 
     return pinnedItems.length > 0 ? (
-        <ResourceList
+        <ResourceView
             items={pinnedItems}
             enableSorting={false}
             defaultSort={{ updatedAt: SortDirection.DESC }}
