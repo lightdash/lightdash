@@ -38,7 +38,7 @@ type ExportCsvRenderProps = {
 export type ExportCSVProps = {
     rows: ResultRow[] | undefined;
     getCsvLink: (limit: number | null, onlyRaw: boolean) => Promise<string>;
-    isDialogBody: boolean;
+    isDialogBody?: boolean;
     renderDialogActions?: (renderProps: ExportCsvRenderProps) => JSX.Element;
 };
 
