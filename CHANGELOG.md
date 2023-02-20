@@ -1,3 +1,10 @@
+## [0.421.1](https://github.com/lightdash/lightdash/compare/0.421.0...0.421.1) (2023-02-20)
+
+
+### Bug Fixes
+
+* skip compile on project update ([#4474](https://github.com/lightdash/lightdash/issues/4474)) ([3ebbd2d](https://github.com/lightdash/lightdash/commit/3ebbd2d960ce5777bec31d8455389e945ae7f461))
+
 # [0.421.0](https://github.com/lightdash/lightdash/compare/0.420.1...0.421.0) (2023-02-20)
 
 
