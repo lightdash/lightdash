@@ -64,11 +64,15 @@ import {
 interface ExportResultAsCSVModalProps {
     projectUuid: string;
     savedChart: SavedChart;
+    onClose: () => void;
+    onConfirm: () => void;
 }
 
 const ExportResultAsCSVModal: FC<ExportResultAsCSVModalProps> = ({
     projectUuid,
     savedChart,
+    onClose,
+    onConfirm,
 }) => {
     const { data: resultData, isLoading } = useSavedChartResults(
         projectUuid,
@@ -89,7 +93,15 @@ const ExportResultAsCSVModal: FC<ExportResultAsCSVModalProps> = ({
         return csvResponse.url;
     };
 
-    return <ExportCSVModal isOpen rows={rows} getCsvLink={getCsvLink} />;
+    return (
+        <ExportCSVModal
+            isOpen
+            rows={rows}
+            getCsvLink={getCsvLink}
+            onClose={onClose}
+            onConfirm={onConfirm}
+        />
+    );
 };
 
 const ValidDashboardChartTile: FC<{
@@ -611,6 +623,8 @@ const DashboardChartTile: FC<Props> = (props) => {
                 <ExportResultAsCSVModal
                     projectUuid={projectUuid}
                     savedChart={savedQueryWithDashboardFilters}
+                    onClose={() => setIsCSVExportModalOpen(false)}
+                    onConfirm={() => setIsCSVExportModalOpen(false)}
                 />
             ) : null}
         </>
