@@ -17,7 +17,6 @@ import {
     getDimensions,
     getFields,
     getItemMap,
-    getResultValues,
     getVisibleFields,
     isFilterableField,
     PivotReference,
@@ -456,10 +455,6 @@ const DashboardChartTile: FC<Props> = (props) => {
                                             setIsCSVExportModalOpen(true)
                                         }
                                     />
-                                    // <DownloadCSV
-                                    //     data={savedQueryWithDashboardFilters}
-                                    //     project={projectUuid}
-                                    // />
                                 )}
                         </>
                     )
