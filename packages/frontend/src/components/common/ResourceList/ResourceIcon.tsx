@@ -7,6 +7,7 @@ import {
     IconChartBar,
     IconChartDots,
     IconChartLine,
+    IconFolder,
     IconLayoutDashboard,
     IconSquareNumber1,
     IconTable,
@@ -25,6 +26,12 @@ const ResourceIcon: FC<ResourceIconProps> = ({ item }) => {
             return (
                 <ResourceIconBox color={Colors.GREEN3}>
                     <IconLayoutDashboard color={Colors.GREEN3} size={20} />
+                </ResourceIconBox>
+            );
+        case ResourceListType.SPACE:
+            return (
+                <ResourceIconBox color={Colors.VIOLET3}>
+                    <IconFolder color={Colors.VIOLET3} size={20} />
                 </ResourceIconBox>
             );
         case ResourceListType.CHART:

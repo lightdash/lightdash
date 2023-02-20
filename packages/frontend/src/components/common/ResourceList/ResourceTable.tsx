@@ -26,7 +26,11 @@ import {
     ThInteractiveWrapper,
 } from './ResourceTable.styles';
 import ResourceType from './ResourceType';
-import { ResourceListItem, ResourceListType } from './ResourceTypeUtils';
+import {
+    isResourceListItemCanBelongToSpace,
+    ResourceListItem,
+    ResourceListType,
+} from './ResourceTypeUtils';
 
 export enum SortDirection {
     ASC = 'asc',
@@ -78,6 +82,8 @@ const getResourceUrl = (projectUuid: string, item: ResourceListItem) => {
             return `/projects/${projectUuid}/dashboards/${item.data.uuid}/view`;
         case ResourceListType.CHART:
             return `/projects/${projectUuid}/saved/${item.data.uuid}`;
+        case ResourceListType.SPACE:
+            return `/projects/${projectUuid}/spaces/${item.data.uuid}`;
         default:
             return assertUnreachable(item, `Can't get URL for ${itemType}`);
     }
@@ -122,32 +128,47 @@ const ResourceTable: FC<ResourceTableProps> = ({
             {
                 id: 'name',
                 label: 'Name',
-                cell: (item: ResourceListItem) => (
-                    <Tooltip2
-                        lazy
-                        disabled={!item.data.description}
-                        content={item.data.description}
-                        position={Position.TOP_LEFT}
-                    >
-                        <ResourceLink
-                            to={getResourceUrl(projectUuid, item)}
-                            onClick={(e) => e.stopPropagation()}
+                cell: (item: ResourceListItem) => {
+                    const canBelongToSpace =
+                        isResourceListItemCanBelongToSpace(item);
+
+                    return (
+                        <Tooltip2
+                            lazy
+                            disabled={
+                                canBelongToSpace ? !item.data.description : true
+                            }
+                            content={
+                                canBelongToSpace
+                                    ? item.data.description
+                                    : undefined
+                            }
+                            position={Position.TOP_LEFT}
                         >
-                            <ResourceIcon item={item} />
+                            <ResourceLink
+                                to={getResourceUrl(projectUuid, item)}
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <ResourceIcon item={item} />
 
-                            <Spacer $width={16} />
+                                <Spacer $width={16} />
 
-                            <ResourceNameBox>
-                                <ResourceName>{item.data.name}</ResourceName>
+                                <ResourceNameBox>
+                                    <ResourceName>
+                                        {item.data.name}
+                                    </ResourceName>
 
-                                <ResourceMetadata>
-                                    <ResourceType item={item} /> •{' '}
-                                    {item.data.views || '0'} views
-                                </ResourceMetadata>
-                            </ResourceNameBox>
-                        </ResourceLink>
-                    </Tooltip2>
-                ),
+                                    {canBelongToSpace && (
+                                        <ResourceMetadata>
+                                            <ResourceType item={item} /> •{' '}
+                                            {item.data.views || '0'} views
+                                        </ResourceMetadata>
+                                    )}
+                                </ResourceNameBox>
+                            </ResourceLink>
+                        </Tooltip2>
+                    );
+                },
                 enableSorting,
                 sortingFn: (a: ResourceListItem, b: ResourceListItem) => {
                     return a.data.name.localeCompare(b.data.name);
@@ -165,6 +186,10 @@ const ResourceTable: FC<ResourceTableProps> = ({
                 id: 'space',
                 label: 'Space',
                 cell: (item: ResourceListItem) => {
+                    if (!isResourceListItemCanBelongToSpace(item)) {
+                        return null;
+                    }
+
                     const space = spaces.find(
                         (s) => s.uuid === item.data.spaceUuid,
                     );
@@ -180,6 +205,13 @@ const ResourceTable: FC<ResourceTableProps> = ({
                 },
                 enableSorting,
                 sortingFn: (a: ResourceListItem, b: ResourceListItem) => {
+                    if (
+                        !isResourceListItemCanBelongToSpace(a) ||
+                        !isResourceListItemCanBelongToSpace(b)
+                    ) {
+                        return 0;
+                    }
+
                     const space1 = spaces.find(
                         (s) => s.uuid === a.data.spaceUuid,
                     );
@@ -200,11 +232,19 @@ const ResourceTable: FC<ResourceTableProps> = ({
             {
                 id: 'updatedAt',
                 label: 'Last Edited',
-                cell: (item: ResourceListItem) => (
-                    <ResourceLastEdited item={item} />
-                ),
+                cell: (item: ResourceListItem) => {
+                    if (!isResourceListItemCanBelongToSpace(item)) return null;
+                    return <ResourceLastEdited item={item} />;
+                },
                 enableSorting,
                 sortingFn: (a: ResourceListItem, b: ResourceListItem) => {
+                    if (
+                        !isResourceListItemCanBelongToSpace(a) ||
+                        !isResourceListItemCanBelongToSpace(b)
+                    ) {
+                        return 0;
+                    }
+
                     return (
                         new Date(a.data.updatedAt).getTime() -
                         new Date(b.data.updatedAt).getTime()

@@ -2,7 +2,7 @@ import { Button, Divider, Menu, Position } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import { assertUnreachable, Space } from '@lightdash/common';
-import React, { FC, useState } from 'react';
+import { FC, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useApp } from '../../../providers/AppProvider';
 import {
@@ -23,8 +23,7 @@ const ResourceListActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
 
     const { user } = useApp();
     const isPinned = !!item.data.pinnedListUuid;
-    const isDashboardPage =
-        url.includes('/dashboards') || item.type === ResourceListType.DASHBOARD;
+    const isDashboardPage = url.includes('/dashboards');
     const organizationUuid = user.data?.organizationUuid;
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
@@ -36,6 +35,11 @@ const ResourceListActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
             break;
         case ResourceListType.DASHBOARD:
             if (user.data?.ability?.cannot('manage', 'Dashboard')) {
+                return null;
+            }
+            break;
+        case ResourceListType.SPACE:
+            if (user.data?.ability?.cannot('manage', 'Space')) {
                 return null;
             }
             break;
@@ -65,25 +69,34 @@ const ResourceListActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
                             onAction({ type: ResourceListAction.UPDATE, item });
                         }}
                     />
-                    <MenuItem2
-                        role="menuitem"
-                        icon="duplicate"
-                        text="Duplicate"
-                        onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
 
-                            setIsOpen(false);
-                            onAction({
-                                type: ResourceListAction.DUPLICATE,
-                                item,
-                            });
-                        }}
-                    />
+                    {item.type === ResourceListType.CHART ||
+                    item.type === ResourceListType.DASHBOARD ? (
+                        <MenuItem2
+                            role="menuitem"
+                            icon="duplicate"
+                            text="Duplicate"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+
+                                setIsOpen(false);
+                                onAction({
+                                    type: ResourceListAction.DUPLICATE,
+                                    item,
+                                });
+                            }}
+                        />
+                    ) : null}
+
                     {user.data?.ability.can(
                         'update',
                         subject('Project', { organizationUuid, projectUuid }),
-                    ) && (
+                    ) &&
+                    (item.type === ResourceListType.CHART ||
+                        item.type === ResourceListType.DASHBOARD ||
+                        (item.type === ResourceListType.SPACE &&
+                            localStorage.getItem('feat-pin-space'))) ? (
                         <MenuItem2
                             role="menuitem"
                             icon="pin"
@@ -103,8 +116,9 @@ const ResourceListActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
                                 });
                             }}
                         />
-                    )}
-                    {!isDashboardPage && (
+                    ) : null}
+
+                    {!isDashboardPage && item.type === ResourceListType.CHART && (
                         <MenuItem2
                             icon="insert"
                             text="Add to Dashboard"
@@ -122,61 +136,66 @@ const ResourceListActionMenu: FC<Props> = ({ item, spaces, url, onAction }) => {
                         />
                     )}
 
-                    <MenuItem2
-                        tagName="div"
-                        icon="folder-close"
-                        text="Move to Space"
-                        onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                        }}
-                    >
-                        {spaces.map((space) => {
-                            const isSelected =
-                                item.data.spaceUuid === space.uuid;
-                            return (
-                                <MenuItem2
-                                    key={space.uuid}
-                                    roleStructure="listoption"
-                                    text={space.name}
-                                    selected={isSelected}
-                                    className={isSelected ? 'bp4-disabled' : ''}
-                                    onClick={(e) => {
-                                        // Use className disabled instead of disabled property to capture and preventdefault its clicks
-                                        e.preventDefault();
-                                        e.stopPropagation();
-
-                                        if (!isSelected) {
-                                            onAction({
-                                                type: ResourceListAction.MOVE_TO_SPACE,
-                                                item,
-                                                data: {
-                                                    ...item.data,
-                                                    spaceUuid: space.uuid,
-                                                },
-                                            });
-                                        }
-                                    }}
-                                />
-                            );
-                        })}
-
-                        <Divider />
-
+                    {item.type === ResourceListType.CHART ||
+                    item.type === ResourceListType.DASHBOARD ? (
                         <MenuItem2
-                            icon="plus"
-                            text="Create new"
+                            tagName="div"
+                            icon="folder-close"
+                            text="Move to Space"
                             onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-
-                                onAction({
-                                    type: ResourceListAction.CREATE_SPACE,
-                                    item,
-                                });
                             }}
-                        />
-                    </MenuItem2>
+                        >
+                            {spaces.map((space) => {
+                                const isSelected =
+                                    item.data.spaceUuid === space.uuid;
+                                return (
+                                    <MenuItem2
+                                        key={space.uuid}
+                                        roleStructure="listoption"
+                                        text={space.name}
+                                        selected={isSelected}
+                                        className={
+                                            isSelected ? 'bp4-disabled' : ''
+                                        }
+                                        onClick={(e) => {
+                                            // Use className disabled instead of disabled property to capture and preventdefault its clicks
+                                            e.preventDefault();
+                                            e.stopPropagation();
+
+                                            if (!isSelected) {
+                                                onAction({
+                                                    type: ResourceListAction.MOVE_TO_SPACE,
+                                                    item,
+                                                    data: {
+                                                        ...item.data,
+                                                        spaceUuid: space.uuid,
+                                                    },
+                                                });
+                                            }
+                                        }}
+                                    />
+                                );
+                            })}
+
+                            <Divider />
+
+                            <MenuItem2
+                                icon="plus"
+                                text="Create new"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+
+                                    onAction({
+                                        type: ResourceListAction.CREATE_SPACE,
+                                        item,
+                                    });
+                                }}
+                            />
+                        </MenuItem2>
+                    ) : null}
 
                     <Divider />
 

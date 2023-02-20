@@ -15,6 +15,7 @@ import {
 } from '../../common/ResourceList/ResourceList.styles';
 import { SortDirection } from '../../common/ResourceList/ResourceTable';
 import {
+    isResourceListItemCanBelongToSpace,
     ResourceListType,
     wrapResourceList,
 } from '../../common/ResourceList/ResourceTypeUtils';
@@ -35,6 +36,13 @@ const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
             ...wrapResourceList(savedCharts, ResourceListType.CHART),
         ]
             .sort((a, b) => {
+                if (
+                    !isResourceListItemCanBelongToSpace(a) ||
+                    !isResourceListItemCanBelongToSpace(b)
+                ) {
+                    return 0;
+                }
+
                 return (
                     new Date(b.data.updatedAt).getTime() -
                     new Date(a.data.updatedAt).getTime()
