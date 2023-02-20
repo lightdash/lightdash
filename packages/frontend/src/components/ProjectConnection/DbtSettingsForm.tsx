@@ -1,4 +1,8 @@
-import { DbtProjectTypeLabels } from '@lightdash/common';
+import {
+    DbtProjectType,
+    DbtProjectTypeLabels,
+    WarehouseTypes,
+} from '@lightdash/common';
 import { FC, useMemo, useState } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
 import { useApp } from '../../providers/AppProvider';

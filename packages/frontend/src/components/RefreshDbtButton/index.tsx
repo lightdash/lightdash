@@ -1,5 +1,5 @@
 import { Tooltip2 } from '@blueprintjs/popover2';
-import { ProjectType } from '@lightdash/common';
+import { DbtProjectType, ProjectType } from '@lightdash/common';
 import React, { ComponentProps, FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useProject } from '../../hooks/useProject';

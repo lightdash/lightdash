@@ -1,3 +1,4 @@
+import { WarehouseTypes } from '@lightdash/common';
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';

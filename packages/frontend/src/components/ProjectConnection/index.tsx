@@ -1,6 +1,13 @@
 import { Callout, H5, Intent } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
-import { friendlyName, ProjectType } from '@lightdash/common';
+import {
+    CreateWarehouseCredentials,
+    DbtProjectConfig,
+    DbtProjectType,
+    friendlyName,
+    ProjectType,
+    WarehouseTypes,
+} from '@lightdash/common';
 import { FC, useEffect, useMemo, useState } from 'react';
 import { FieldErrors, useForm } from 'react-hook-form';
 import { SubmitErrorHandler } from 'react-hook-form/dist/types/form';
@@ -39,7 +46,9 @@ import WarehouseSettingsForm from './WarehouseSettingsForm';
 
 type ProjectConnectionForm = {
     name: string;
+
     dbt: DbtProjectConfig;
+
     warehouse?: CreateWarehouseCredentials;
 };
 
