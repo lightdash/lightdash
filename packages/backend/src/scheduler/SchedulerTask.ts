@@ -4,6 +4,7 @@ import {
     getItemLabel,
     getItemMap,
     isField,
+    isSchedulerCsvOptions,
     ScheduledEmailNotification,
     ScheduledSlackNotification,
     SessionUser,
@@ -81,6 +82,7 @@ export const sendSlackNotification = async (
         dashboardUuid,
         channel,
         format,
+        options,
     } = notification;
     analytics.track({
         event: 'scheduler_job.started',
@@ -128,12 +130,16 @@ export const sendSlackNotification = async (
             });
         } else {
             const user = await userService.getSessionByUserUuid(userUuid);
+            const csvOptions = isSchedulerCsvOptions(options)
+                ? options
+                : undefined;
 
             let blocks;
             if (savedChartUuid) {
                 const csvUrl = await csvService.getCsvForChart(
                     user,
                     savedChartUuid,
+                    csvOptions,
                 );
                 blocks = unfurlChartCsvResults(
                     details.name,
@@ -145,6 +151,7 @@ export const sendSlackNotification = async (
                 const csvUrls = await csvService.getCsvsForDashboard(
                     user,
                     dashboardUuid,
+                    csvOptions,
                 );
                 blocks = unfurlDashboardCsvResults(
                     details.name,
@@ -208,6 +215,7 @@ export const sendEmailNotification = async (
         recipient,
         name: schedulerName,
         format,
+        options,
     } = notification;
     analytics.track({
         event: 'scheduler_job.started',
@@ -221,6 +229,7 @@ export const sendEmailNotification = async (
             type: 'email',
         },
     });
+
     try {
         const { url, details, pageType, organizationUuid } =
             await getChartOrDashboard(savedChartUuid, dashboardUuid);
@@ -246,10 +255,15 @@ export const sendEmailNotification = async (
         } else {
             const user = await userService.getSessionByUserUuid(userUuid);
 
+            const csvOptions = isSchedulerCsvOptions(options)
+                ? options
+                : undefined;
+
             if (savedChartUuid) {
                 const csvUrl = await csvService.getCsvForChart(
                     user,
                     savedChartUuid,
+                    csvOptions,
                 );
 
                 emailClient.sendChartCsvNotificationEmail(
@@ -264,6 +278,7 @@ export const sendEmailNotification = async (
                 const csvUrls = await csvService.getCsvsForDashboard(
                     user,
                     dashboardUuid,
+                    csvOptions,
                 );
                 emailClient.sendDashboardCsvNotificationEmail(
                     recipient,

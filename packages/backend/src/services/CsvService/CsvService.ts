@@ -7,6 +7,7 @@ import {
     isDashboardChartTileType,
     isField,
     MetricQuery,
+    SchedulerCsvOptions,
     SessionUser,
     TableCalculation,
 } from '@lightdash/common';
@@ -26,6 +27,22 @@ type CsvServiceDependencies = {
     s3Service: S3Service;
     savedChartModel: SavedChartModel;
     dashboardModel: DashboardModel;
+};
+
+const getCsvLimit = (
+    options: SchedulerCsvOptions | undefined,
+    defaultQueryLimit: number,
+): number | undefined => {
+    switch (options?.limit) {
+        case 'table':
+        case undefined:
+            return defaultQueryLimit;
+        case 'all':
+            return undefined;
+        default:
+            // Custom
+            return options?.limit;
+    }
 };
 
 export class CsvService {
@@ -107,18 +124,19 @@ export class CsvService {
     async getCsvForChart(
         user: SessionUser,
         chartUuid: string,
+        options: SchedulerCsvOptions | undefined,
     ): Promise<AttachmentUrl> {
         const chart = await this.savedChartModel.get(chartUuid);
         const { metricQuery } = chart;
         const exploreId = chart.tableName;
-        const onlyRaw = false;
+        const onlyRaw = options?.formatted || false;
 
         const results: ApiQueryResults = await this.projectService.runQuery(
             user,
             metricQuery,
             chart.projectUuid,
             exploreId,
-            metricQuery.limit,
+            getCsvLimit(options, metricQuery.limit),
         );
 
         const explore = await this.projectService.getExplore(
@@ -151,7 +169,11 @@ export class CsvService {
         }
     }
 
-    async getCsvsForDashboard(user: SessionUser, dashboardUuid: string) {
+    async getCsvsForDashboard(
+        user: SessionUser,
+        dashboardUuid: string,
+        options: SchedulerCsvOptions | undefined,
+    ) {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
         const chartUuids = dashboard.tiles.reduce<string[]>((acc, tile) => {
             if (
@@ -164,7 +186,9 @@ export class CsvService {
         }, []);
 
         const csvUrls = await Promise.all(
-            chartUuids.map((chartUuid) => this.getCsvForChart(user, chartUuid)),
+            chartUuids.map((chartUuid) =>
+                this.getCsvForChart(user, chartUuid, options),
+            ),
         );
         return csvUrls;
     }

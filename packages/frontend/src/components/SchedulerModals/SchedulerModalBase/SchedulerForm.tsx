@@ -1,19 +1,36 @@
-import { Button, Colors, HTMLSelect, Icon } from '@blueprintjs/core';
+import {
+    Button,
+    Colors,
+    FormGroup,
+    HTMLSelect,
+    Icon,
+    Radio,
+    RadioGroup as RadioGroupBlueprint,
+    Tab,
+    Tabs,
+} from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import cronstrue from 'cronstrue';
-import React, { FC, useMemo } from 'react';
+import React, { FC, useEffect, useMemo, useState } from 'react';
 import useHealth from '../../../hooks/health/useHealth';
 import { useSlackChannels } from '../../../hooks/slack/useSlackChannels';
 import { useGetSlack } from '../../../hooks/useSlack';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
+import { Limit, Values } from '../../DownloadCsvPopup';
 import { ArrayInput } from '../../ReactHookForm/ArrayInput';
 import AutoComplete from '../../ReactHookForm/AutoComplete';
 import Form from '../../ReactHookForm/Form';
 import Input from '../../ReactHookForm/Input';
+import RadioGroup from '../../ReactHookForm/RadioGroup';
 import Select from '../../ReactHookForm/Select';
-import { FormGroupWrapper } from '../../SavedQueries/SavedQueries.style';
 import { hasRequiredScopes } from '../../UserSettings/SlackSettingsPanel';
-import { EmailIcon, SlackIcon, TargetRow } from './SchedulerModalBase.styles';
+import {
+    EmailIcon,
+    SettingsWrapper,
+    SlackIcon,
+    TargetRow,
+    Title,
+} from './SchedulerModalBase.styles';
 
 enum SlackStates {
     LOADING,
@@ -56,7 +73,51 @@ const SlackErrorContent: FC<{ slackState: SlackStates }> = ({
     }
     return <></>;
 };
-const SchedulerForm: FC<
+
+enum TabPages {
+    SETTINGS = 'settings',
+    OPTIONS = 'options',
+}
+
+const SchedulerOptions: FC<
+    { disabled: boolean } & React.ComponentProps<typeof Form>
+> = ({ disabled, methods, ...rest }) => {
+    const [format, setFormat] = useState(
+        methods.getValues()?.options?.formatted ? Values.FORMATTED : Values.RAW,
+    );
+    return (
+        <Form name="options" methods={methods} {...rest}>
+            <FormGroup>
+                <RadioGroupBlueprint
+                    label={<Title>Values</Title>}
+                    onChange={(e: any) => {
+                        setFormat(e.currentTarget.value);
+                        methods.setValue(
+                            'options.formatted',
+                            e.currentTarget.value === Values.FORMATTED,
+                        );
+                    }}
+                    selectedValue={format}
+                >
+                    <Radio label="Formatted" value={Values.FORMATTED} />
+                    <Radio label="Raw" value={Values.RAW} />
+                </RadioGroupBlueprint>
+            </FormGroup>
+
+            <RadioGroup
+                name="options.limit"
+                label="Limit"
+                defaultValue={Limit.TABLE}
+            >
+                <Radio label="Results in Table" value={Limit.TABLE} />
+                <Radio label="All Results" value={Limit.ALL} />
+                <Radio label="Custom..." value={Limit.CUSTOM} />
+            </RadioGroup>
+        </Form>
+    );
+};
+
+const SchedulerSettings: FC<
     { disabled: boolean } & React.ComponentProps<typeof Form>
 > = ({ disabled, methods, ...rest }) => {
     const slackQuery = useGetSlack();
@@ -244,6 +305,53 @@ const SchedulerForm: FC<
             />
         </Form>
     );
+};
+
+const SchedulerForm: FC<
+    { disabled: boolean } & React.ComponentProps<typeof Form>
+> = ({ disabled, methods, ...rest }) => {
+    const [tab, setTab] = useState<string | number>(TabPages.SETTINGS);
+    const isCsv = useMemo(
+        () => methods.getValues()?.format === 'csv',
+        [methods.getValues()?.format],
+    );
+
+    useEffect(() => {
+        // If the format is not csv, we want to clear the options
+        if (!isCsv) methods.setValue('options', {});
+    }, [isCsv]);
+
+    if (isCsv) {
+        return (
+            <Tabs
+                onChange={setTab}
+                selectedTabId={tab}
+                renderActiveTabPanelOnly={false}
+            >
+                <Tab
+                    id={TabPages.SETTINGS}
+                    title="Settings"
+                    panel={
+                        <SchedulerSettings
+                            disabled={disabled}
+                            methods={methods}
+                        />
+                    }
+                />
+                <Tab
+                    id={TabPages.OPTIONS}
+                    title="Advanced options"
+                    panel={<SchedulerOptions methods={methods} />}
+                />
+            </Tabs>
+        );
+    } else {
+        return (
+            <SettingsWrapper>
+                <SchedulerSettings disabled={disabled} methods={methods} />
+            </SettingsWrapper>
+        );
+    }
 };
 
 export default SchedulerForm;

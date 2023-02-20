@@ -21,7 +21,7 @@ import {
 import { useScheduler } from '../../../hooks/scheduler/useScheduler';
 import { useSchedulersUpdateMutation } from '../../../hooks/scheduler/useSchedulersUpdateMutation';
 import ErrorState from '../../common/ErrorState';
-import SchedulerForm from './SchedulerForm';
+import SchedulerForm, { convertCsvOptions } from './SchedulerForm';
 import SchedulersList from './SchedulersList';
 
 enum States {

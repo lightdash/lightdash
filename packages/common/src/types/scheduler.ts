@@ -1,3 +1,12 @@
+export type SchedulerCsvOptions = {
+    formatted: boolean;
+    limit: 'table' | 'all' | number;
+};
+
+export type SchedulerImageOptions = {};
+
+export type SchedulerOptions = SchedulerCsvOptions | SchedulerImageOptions;
+
 export type SchedulerBase = {
     schedulerUuid: string;
     name: string;
@@ -8,6 +17,7 @@ export type SchedulerBase = {
     cron: string;
     savedChartUuid: string | null;
     dashboardUuid: string | null;
+    options: SchedulerOptions;
 };
 
 export type ChartScheduler = SchedulerBase & {
@@ -68,7 +78,7 @@ export type CreateSchedulerAndTargetsWithoutIds = Omit<
 
 export type UpdateSchedulerAndTargets = Pick<
     Scheduler,
-    'schedulerUuid' | 'name' | 'cron' | 'format'
+    'schedulerUuid' | 'name' | 'cron' | 'format' | 'options'
 > & {
     targets: Array<
         | CreateSchedulerTarget
@@ -105,6 +115,10 @@ export const isCreateSchedulerSlackTarget = (
         | Pick<SchedulerEmailTarget, 'recipient'>,
 ): target is Pick<SchedulerSlackTarget, 'channel'> => 'channel' in target;
 
+export const isSchedulerCsvOptions = (
+    options: SchedulerCsvOptions | SchedulerImageOptions,
+): options is SchedulerCsvOptions => 'limit' in options;
+
 export type ApiSchedulerAndTargetsResponse = {
     status: 'ok';
     results: SchedulerAndTargets;
@@ -129,6 +143,7 @@ export type ScheduledSlackNotification = Pick<
     | 'dashboardUuid'
     | 'schedulerUuid'
     | 'format'
+    | 'options'
 > &
     Pick<SchedulerSlackTarget, 'channel' | 'schedulerSlackTargetUuid'>;
 
@@ -140,5 +155,6 @@ export type ScheduledEmailNotification = Pick<
     | 'schedulerUuid'
     | 'name'
     | 'format'
+    | 'options'
 > &
     Pick<SchedulerEmailTarget, 'recipient' | 'schedulerEmailTargetUuid'>;
