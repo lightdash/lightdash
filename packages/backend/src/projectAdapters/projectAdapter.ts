@@ -40,11 +40,6 @@ export const projectAdapterFromConfig = async (
         case DbtProjectType.NONE:
             return new DbtNoneCredentialsProjectAdapter({
                 warehouseClient,
-                projectDir: '/usr/app/dbt',
-                warehouseCredentials,
-                targetName: config.target,
-                environment: config.environment,
-                cachedWarehouse,
             });
 
         case DbtProjectType.DBT_CLOUD_IDE:
