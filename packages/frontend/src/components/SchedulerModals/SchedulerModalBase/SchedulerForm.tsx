@@ -84,15 +84,19 @@ const SchedulerOptions: FC<
     { disabled: boolean } & React.ComponentProps<typeof Form>
 > = ({ disabled, methods, ...rest }) => {
     const [format, setFormat] = useState(
-        methods.getValues()?.options?.formatted ? Values.FORMATTED : Values.RAW,
+        methods.getValues()?.options?.formatted === false
+            ? Values.RAW
+            : Values.FORMATTED,
     );
     const [defaultCustomLimit, defaultLimit] = useMemo(() => {
         const limit = methods.getValues()?.options?.limit;
         switch (limit) {
-            case Limit.ALL:
-                return [undefined, Limit.ALL];
+            case undefined:
             case Limit.TABLE:
                 return [undefined, Limit.TABLE];
+            case Limit.ALL:
+                return [undefined, Limit.ALL];
+
             default:
                 return [limit, Limit.CUSTOM];
         }
