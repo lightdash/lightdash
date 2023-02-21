@@ -309,26 +309,19 @@ type ApiErrorEvent = BaseTrack & {
     };
 };
 
-type SpaceCreated = BaseTrack & {
-    event: 'space.created';
+type SpaceEvent = BaseTrack & {
+    event: 'space.created' | 'space.updated';
     userId?: string;
     anonymousId?: string;
     properties: {
         name: string;
         spaceId: string;
         projectId: string;
+        isPrivate: boolean;
+        userAccessCount: number;
     };
 };
-type SpaceUpdated = BaseTrack & {
-    event: 'space.updated';
-    userId?: string;
-    anonymousId?: string;
-    properties: {
-        name: string;
-        spaceId: string;
-        projectId: string;
-    };
-};
+
 type SpaceDeleted = BaseTrack & {
     event: 'space.deleted';
     userId?: string;
@@ -539,8 +532,7 @@ type Track =
     | DuplicatedChartCreatedEvent
     | DuplicatedDashboardCreatedEvent
     | ProjectSearch
-    | SpaceCreated
-    | SpaceUpdated
+    | SpaceEvent
     | SpaceDeleted
     | DashboardUpdateMultiple
     | SavedChartUpdateMultiple

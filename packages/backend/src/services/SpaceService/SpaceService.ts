@@ -115,6 +115,8 @@ export class SpaceService {
                 name: space.name,
                 spaceId: newSpace.uuid,
                 projectId: projectUuid,
+                isPrivate: space.isPrivate,
+                userAccessCount: space.access.length,
             },
         });
         return newSpace;
@@ -157,6 +159,8 @@ export class SpaceService {
                 name: space.name,
                 spaceId: spaceUuid,
                 projectId: space.projectUuid,
+                isPrivate: space.isPrivate,
+                userAccessCount: space.access.length,
             },
         });
         return updatedSpace;
