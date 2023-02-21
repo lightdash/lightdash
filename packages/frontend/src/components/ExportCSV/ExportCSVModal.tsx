@@ -14,7 +14,7 @@ const ExportCSVModal: FC<ExportCSVModalProps> = ({
     ...modalProps
 }) => {
     return (
-        <Dialog lazy title="Exportpdate CSV" icon="control" {...modalProps}>
+        <Dialog lazy title="Export CSV" icon="control" {...modalProps}>
             <ExportCSV
                 rows={rows}
                 getCsvLink={getCsvLink}
