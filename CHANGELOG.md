@@ -1,3 +1,10 @@
+# [0.426.0](https://github.com/lightdash/lightdash/compare/0.425.0...0.426.0) (2023-02-21)
+
+
+### Features
+
+* most popular tab ([#4538](https://github.com/lightdash/lightdash/issues/4538)) ([6a72acd](https://github.com/lightdash/lightdash/commit/6a72acdd98ab86ff59d31ee4e694bbed8f7ec51f))
+
 # [0.425.0](https://github.com/lightdash/lightdash/compare/0.424.0...0.425.0) (2023-02-21)
 
 
