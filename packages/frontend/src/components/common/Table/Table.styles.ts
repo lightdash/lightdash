@@ -1,6 +1,8 @@
 import { Colors, HTMLTable } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
 
+export const TABLE_HEADER_BG = Colors.LIGHT_GRAY2;
+
 export const TableScrollableWrapper = styled.div`
     display: flex;
     flex-direction: column;
@@ -45,7 +47,6 @@ export const Table = styled(HTMLTable)<{ $showFooter: boolean }>`
         position: sticky;
         top: 0;
         inset-block-start: 0; /* "top" */
-        background: ${Colors.GRAY5};
 
         th:first-child {
             border-top: none !important;
