@@ -7,8 +7,6 @@ import {
     NumericInput,
     Radio,
     RadioGroup,
-    Tab,
-    Tabs,
 } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import React, { FC, useEffect, useMemo, useState } from 'react';
@@ -22,12 +20,10 @@ import AutoComplete from '../../ReactHookForm/AutoComplete';
 import CronInput from '../../ReactHookForm/CronInput';
 import Form from '../../ReactHookForm/Form';
 import Input from '../../ReactHookForm/Input';
-import Select from '../../ReactHookForm/Select';
 import { hasRequiredScopes } from '../../UserSettings/SlackSettingsPanel';
 import {
     EmailIcon,
     InputWrapper,
-    SettingsWrapper,
     SlackIcon,
     TargetRow,
     Title,
@@ -74,11 +70,6 @@ const SlackErrorContent: FC<{ slackState: SlackStates }> = ({
     }
     return <></>;
 };
-
-enum TabPages {
-    SETTINGS = 'settings',
-    OPTIONS = 'options',
-}
 
 const SchedulerOptions: FC<
     { disabled: boolean } & React.ComponentProps<typeof Form>
