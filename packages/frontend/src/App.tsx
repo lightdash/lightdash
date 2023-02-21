@@ -8,7 +8,6 @@ import {
     Route,
     Switch,
 } from 'react-router-dom';
-import './App.css';
 import AppStyle from './App.styles';
 import AppRoute from './components/AppRoute';
 import ForbiddenPanel from './components/ForbiddenPanel';
