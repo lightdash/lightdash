@@ -1,3 +1,10 @@
+# [0.422.0](https://github.com/lightdash/lightdash/compare/0.421.1...0.422.0) (2023-02-21)
+
+
+### Features
+
+* scheduler csv ([#4499](https://github.com/lightdash/lightdash/issues/4499)) ([3dddc4e](https://github.com/lightdash/lightdash/commit/3dddc4e30c8bd718a6a785efc876fbbb0c2be274))
+
 ## [0.421.1](https://github.com/lightdash/lightdash/compare/0.421.0...0.421.1) (2023-02-20)
 
 
