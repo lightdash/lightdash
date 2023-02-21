@@ -87,15 +87,6 @@ const ResourceView: React.FC<ResourceViewProps> = ({
         return items.sort(activeTab.sort);
     }, [items, tabs, activeTabId]);
 
-    const presortedTitle = useMemo(() => {
-        if (!tabs || tabs?.length === 0) return headerTitle;
-
-        const activeTab = tabs.find((tab) => tab.id === activeTabId);
-        if (!activeTab || !activeTab.name) return headerTitle;
-
-        return activeTab.name;
-    }, [headerTitle, tabs, activeTabId]);
-
     const sortProps =
         tabs && tabs?.length > 0
             ? null
@@ -123,10 +114,11 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                 : null}
 
             <ResourceViewContainer>
-                {headerTitle || headerAction ? (
+                {tabs && tabs?.length > 0 ? null : headerTitle ||
+                  headerAction ? (
                     <ResourceViewHeader>
-                        {presortedTitle && (
-                            <ResourceTitle>{presortedTitle}</ResourceTitle>
+                        {headerTitle && (
+                            <ResourceTitle>{headerTitle}</ResourceTitle>
                         )}
                         {headerIcon && (
                             <Tooltip2

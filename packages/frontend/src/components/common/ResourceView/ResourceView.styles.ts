@@ -81,11 +81,11 @@ export const ResourceEmptyStateText = styled.span`
 `;
 
 export const ResourceViewTab = styled(Button)<ResourceViewTabProps>`
-    margin: 15px 5px 15px 0px;
-    font-weight: 500;
+    margin: 15px 5px 15px 0;
+    font-weight: 600;
 
     ${(props: ResourceViewTabProps) =>
         !props.selected
             ? `color: ${Colors.GRAY2} !important`
-            : `background-color: rgba(45, 114, 210, 0.2) !important; color: ${Colors.BLUE1} !important`}
+            : `background-color: rgba(33, 93, 176, 0.2) !important; color: ${Colors.BLUE2} !important`}
 `;
