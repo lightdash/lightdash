@@ -8,7 +8,6 @@ import {
     Route,
     Switch,
 } from 'react-router-dom';
-import AppStyle from './App.styles';
 import AppRoute from './components/AppRoute';
 import ForbiddenPanel from './components/ForbiddenPanel';
 import { Intercom } from './components/Intercom';
@@ -69,7 +68,6 @@ const App = () => (
         <Helmet>
             <title>Lightdash</title>
         </Helmet>
-        <AppStyle />
         <QueryClientProvider client={queryClient}>
             <BlueprintProvider>
                 <AppProvider>

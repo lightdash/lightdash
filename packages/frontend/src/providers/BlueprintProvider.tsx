@@ -69,6 +69,23 @@ const GlobalBlueprintStyles = createGlobalStyle`
     .disabled-filter > .bp4-button-group {
         display: none; /* Remove select arrow */
     }
+
+    .bp4-multi-select-tag-input-input::placeholder {
+        color: ${Colors.GRAY3};
+    }
+
+    .bp4-dialog-container {
+        padding-top: 110px; !important;
+        align-items: flex-start !important;
+    }
+
+    .ace_editor.ace_autocomplete {
+        width: 500px;
+    }
+
+    .toast-with-no-close-button [aria-label="Close"] {
+      display: none;
+    }
 `;
 
 export const BlueprintProvider: FC = ({ children }) => {
