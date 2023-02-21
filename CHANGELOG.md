@@ -1,3 +1,10 @@
+# [0.425.0](https://github.com/lightdash/lightdash/compare/0.424.0...0.425.0) (2023-02-21)
+
+
+### Features
+
+* export csv options for dashboard chart tile ([#4529](https://github.com/lightdash/lightdash/issues/4529)) ([0e234a4](https://github.com/lightdash/lightdash/commit/0e234a4e468ebe8e87c1c6bc25f12cb96a8a1e9b))
+
 # [0.424.0](https://github.com/lightdash/lightdash/compare/0.423.0...0.424.0) (2023-02-21)
 
 
