@@ -1,6 +1,7 @@
 import { AnchorButton, Button } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { LightdashMode } from '@lightdash/common';
+import { IconClock, IconEye, IconStar } from '@tabler/icons-react';
 import { FC, useMemo } from 'react';
 import { useHistory } from 'react-router-dom';
 import { useDashboards } from '../../../hooks/dashboard/useDashboards';
@@ -70,40 +71,41 @@ const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
             defaultColumnVisibility={{ space: false, type: false }}
             showCount={false}
             headerTitle="Recently updated"
-            // NOTE: example of how to add tabs
-            // tabs={[
-            //     {
-            //         id: 'recently-viewed',
-            //         name: 'Recently viewed',
-            //         sort: (a, b) => {
-            //             if (
-            //                 isResourceViewSpaceItem(a) ||
-            //                 isResourceViewSpaceItem(b)
-            //             ) {
-            //                 return 0;
-            //             }
-            //
-            //             return b.data.views - a.data.views;
-            //         },
-            //     },
-            //     {
-            //         id: 'recently-updated',
-            //         name: 'Recently updated',
-            //         sort: (a, b) => {
-            //             if (
-            //                 isResourceViewSpaceItem(a) ||
-            //                 isResourceViewSpaceItem(b)
-            //             ) {
-            //                 return 0;
-            //             }
-            //
-            //             return (
-            //                 new Date(b.data.updatedAt).getTime() -
-            //                 new Date(a.data.updatedAt).getTime()
-            //             );
-            //         },
-            //     },
-            // ]}
+            tabs={[
+                {
+                    id: 'recently-updated',
+                    name: 'Recently updated',
+                    icon: <IconClock size={15} stroke={1.5} />,
+                    sort: (a, b) => {
+                        if (
+                            isResourceViewSpaceItem(a) ||
+                            isResourceViewSpaceItem(b)
+                        ) {
+                            return 0;
+                        }
+
+                        return (
+                            new Date(b.data.updatedAt).getTime() -
+                            new Date(a.data.updatedAt).getTime()
+                        );
+                    },
+                },
+                {
+                    id: 'most-popular',
+                    name: 'Most popular',
+                    icon: <IconStar size={15} stroke={1.5} />,
+                    sort: (a, b) => {
+                        if (
+                            isResourceViewSpaceItem(a) ||
+                            isResourceViewSpaceItem(b)
+                        ) {
+                            return 0;
+                        }
+
+                        return b.data.views - a.data.views;
+                    },
+                },
+            ]}
             headerAction={
                 recentItems.length === 0 && (
                     <AnchorButton
