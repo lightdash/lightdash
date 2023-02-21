@@ -3,16 +3,16 @@ import {
     ScheduledEmailNotification,
     ScheduledSlackNotification,
 } from '@lightdash/common';
-
+import cronstrue from 'cronstrue';
 import { nanoid } from 'nanoid';
 import { analytics } from '../analytics/client';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { emailClient, slackClient } from '../clients/clients';
 import {
-    unfurlChartAndDashboard,
-    unfurlChartCsvResults,
-    unfurlDashboardCsvResults,
-} from '../clients/Slack/SlackUnfurl';
+    getChartAndDashboardBlocks,
+    getChartCsvResultsBlocks,
+    getDashboardCsvResultsBlocks,
+} from '../clients/Slack/SlackMessageBlocks';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logger';
 import {
@@ -21,7 +21,7 @@ import {
     unfurlService,
     userService,
 } from '../services/services';
-import { LightdashPage, Unfurl } from '../services/UnfurlService/UnfurlService';
+import { LightdashPage } from '../services/UnfurlService/UnfurlService';
 
 const getChartOrDashboard = async (
     chartUuid: string | null,
@@ -91,6 +91,14 @@ export const sendSlackNotification = async (
 
         const { url, details, pageType, organizationUuid } =
             await getChartOrDashboard(savedChartUuid, dashboardUuid);
+        const scheduler = await schedulerService.schedulerModel.getScheduler(
+            schedulerUuid,
+        );
+        const cronHumanString = cronstrue.toString(scheduler.cron, {
+            verbose: true,
+            throwExceptionOnParseError: false,
+        });
+        const footerMarkdown = `This is a [scheduled delivery](${url}) ${cronHumanString} from Lightdash`;
         if (format === 'image') {
             const imageUrl = await unfurlService.unfurlImage(
                 url,
@@ -103,17 +111,17 @@ export const sendSlackNotification = async (
                 throw new Error('Unable to unfurl image');
             }
 
-            const unfurl: Unfurl = {
-                title: details.name,
-                description: details.description,
+            const blocks = getChartAndDashboardBlocks({
+                title: scheduler.name,
+                description: [details.name, details.description].join(' - '),
                 imageUrl,
-                pageType,
-            };
-            const blocks = unfurlChartAndDashboard(url, unfurl, true);
+                ctaUrl: url,
+                footerMarkdown,
+            });
 
             await slackClient.postMessage({
                 organizationUuid,
-                text: details.name,
+                text: scheduler.name,
                 channel,
                 blocks,
             });
@@ -130,30 +138,36 @@ export const sendSlackNotification = async (
                     savedChartUuid,
                     csvOptions,
                 );
-                blocks = unfurlChartCsvResults(
-                    details.name,
-                    details.description,
-                    url,
-                    csvUrl.path,
-                );
+                blocks = getChartCsvResultsBlocks({
+                    title: scheduler.name,
+                    description: [details.name, details.description].join(
+                        ' - ',
+                    ),
+                    ctaUrl: url,
+                    csvUrl: csvUrl.path,
+                    footerMarkdown,
+                });
             } else if (dashboardUuid) {
                 const csvUrls = await csvService.getCsvsForDashboard(
                     user,
                     dashboardUuid,
                     csvOptions,
                 );
-                blocks = unfurlDashboardCsvResults(
-                    details.name,
-                    details.description,
-                    url,
+                blocks = getDashboardCsvResultsBlocks({
+                    title: scheduler.name,
+                    description: [details.name, details.description].join(
+                        ' - ',
+                    ),
+                    ctaUrl: url,
                     csvUrls,
-                );
+                    footerMarkdown,
+                });
             } else {
                 throw new Error('Not implemented');
             }
             await slackClient.postMessage({
                 organizationUuid,
-                text: details.name,
+                text: scheduler.name,
                 channel,
                 blocks,
             });
