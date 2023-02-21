@@ -1,5 +1,7 @@
+import { LightdashMode } from '@lightdash/common';
 import { App, ExpressReceiver, LogLevel } from '@slack/bolt';
 
+import * as Sentry from '@sentry/node';
 import { nanoid } from 'nanoid';
 import { analytics } from '../../analytics/client';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -13,6 +15,29 @@ import {
 } from '../../services/UnfurlService/UnfurlService';
 import { slackOptions } from './SlackOptions';
 import { unfurlChartAndDashboard, unfurlExplore } from './SlackUnfurl';
+
+const notifySlackError = async (
+    error: unknown,
+    url: string,
+    client: any,
+    event: any,
+): Promise<void> => {
+    /** Expected slack errors:
+     * - cannot_parse_attachment: Means the image on the blocks is not accessible from slack, is the URL public ?
+     */
+    Logger.error(`Unable to unfurl slack URL ${url}: ${error} `);
+
+    // Send message in thread
+    await client.chat
+        .postMessage({
+            thread_ts: event.message_ts,
+            channel: event.channel,
+            text: `:fire: Unable to unfurl ${url}: ${error}`,
+        })
+        .catch((er: any) =>
+            Logger.error(`Unable send slack error message: ${er} `),
+        );
+};
 
 type SlackServiceDependencies = {
     slackAuthenticationModel: SlackAuthenticationModel;
@@ -167,6 +192,11 @@ export class SlackService {
                     }
                 }
             } catch (e) {
+                if (this.lightdashConfig.mode === LightdashMode.PR)
+                    notifySlackError(e, l.url, client, event);
+
+                Sentry.captureException(e);
+
                 analytics.track({
                     event: 'share_slack.unfurl_error',
                     userId: eventUserId,
