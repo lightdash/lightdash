@@ -1,3 +1,10 @@
+# [0.423.0](https://github.com/lightdash/lightdash/compare/0.422.0...0.423.0) (2023-02-21)
+
+
+### Features
+
+* resource sorting tabs ([#4532](https://github.com/lightdash/lightdash/issues/4532)) ([dc29e9c](https://github.com/lightdash/lightdash/commit/dc29e9c205628dffa36a12b979fc9dc2b0074a30))
+
 # [0.422.0](https://github.com/lightdash/lightdash/compare/0.421.1...0.422.0) (2023-02-21)
 
 
