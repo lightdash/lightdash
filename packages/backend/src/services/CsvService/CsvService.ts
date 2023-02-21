@@ -129,7 +129,7 @@ export class CsvService {
         const chart = await this.savedChartModel.get(chartUuid);
         const { metricQuery } = chart;
         const exploreId = chart.tableName;
-        const onlyRaw = options?.formatted || false;
+        const onlyRaw = options?.formatted === false;
 
         const results: ApiQueryResults = await this.projectService.runQuery(
             user,

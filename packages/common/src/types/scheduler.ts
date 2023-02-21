@@ -117,7 +117,7 @@ export const isCreateSchedulerSlackTarget = (
 
 export const isSchedulerCsvOptions = (
     options: SchedulerCsvOptions | SchedulerImageOptions,
-): options is SchedulerCsvOptions => 'limit' in options;
+): options is SchedulerCsvOptions => options && 'limit' in options;
 
 export type ApiSchedulerAndTargetsResponse = {
     status: 'ok';

@@ -92,18 +92,26 @@ const SchedulerOptions: FC<
         switch (limit) {
             case undefined:
             case Limit.TABLE:
-                return [undefined, Limit.TABLE];
+                return [1, Limit.TABLE];
             case Limit.ALL:
-                return [undefined, Limit.ALL];
+                return [1, Limit.ALL];
 
             default:
                 return [limit, Limit.CUSTOM];
         }
     }, [methods.getValues()?.options?.limit]);
-    const [customLimit, setCustomLimit] = useState<number>(
-        defaultCustomLimit || 1,
-    );
+    const [customLimit, setCustomLimit] = useState<number>(defaultCustomLimit);
     const [limit, setLimit] = useState<string>(defaultLimit);
+
+    useEffect(() => {
+        if (limit === Limit.CUSTOM) {
+            methods.setValue('options.limit', customLimit);
+        }
+        methods.setValue('options.limit', limit);
+    }, [methods, defaultCustomLimit, limit]);
+    useEffect(() => {
+        methods.setValue('options.formatted', format === Values.FORMATTED);
+    }, [methods, format]);
 
     return (
         <Form name="options" methods={methods} {...rest}>
@@ -112,10 +120,6 @@ const SchedulerOptions: FC<
                     label={<Title>Values</Title>}
                     onChange={(e: any) => {
                         setFormat(e.currentTarget.value);
-                        methods.setValue(
-                            'options.formatted',
-                            e.currentTarget.value === Values.FORMATTED,
-                        );
                     }}
                     selectedValue={format}
                 >
@@ -130,10 +134,6 @@ const SchedulerOptions: FC<
                 onChange={(e: any) => {
                     const limitValue = e.currentTarget.value;
                     setLimit(limitValue);
-                    methods.setValue(
-                        'options.limit',
-                        limitValue === Limit.CUSTOM ? customLimit : limitValue,
-                    );
                 }}
             >
                 <Radio label="Results in Table" value={Limit.TABLE} />
@@ -148,7 +148,6 @@ const SchedulerOptions: FC<
                             fill
                             onValueChange={(value: any) => {
                                 setCustomLimit(value);
-                                methods.setValue('options.limit', value);
                             }}
                         />
                     </InputWrapper>
