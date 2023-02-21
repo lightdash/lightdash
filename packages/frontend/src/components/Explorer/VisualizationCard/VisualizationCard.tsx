@@ -63,11 +63,11 @@ const VisualizationCard: FC = memo(() => {
         () => toggleExpandedSection(ExplorerSection.VISUALIZATION),
         [toggleExpandedSection],
     );
-
-    const { data: explore } = useExplore(unsavedChartVersion.tableName);
     const projectUuid = useExplorerContext(
         (context) => context.state.savedChart?.projectUuid,
     );
+
+    const { data: explore } = useExplore(unsavedChartVersion.tableName);
 
     const [echartsClickEvent, setEchartsClickEvent] =
         useState<EchartsClickEvent>();
