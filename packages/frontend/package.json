@@ -38,6 +38,7 @@
         "jspdf": "^2.5.1",
         "lodash-es": "^4.17.21",
         "moment": "^2.29.4",
+        "polished": "^4.2.2",
         "react": "^17.0.2",
         "react-ace": "^9.5.0",
         "react-beautiful-dnd": "^13.1.0",
