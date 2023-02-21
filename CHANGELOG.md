@@ -1,3 +1,10 @@
+## [0.426.1](https://github.com/lightdash/lightdash/compare/0.426.0...0.426.1) (2023-02-21)
+
+
+### Bug Fixes
+
+* fix cli e2e test ([#4541](https://github.com/lightdash/lightdash/issues/4541)) ([8408272](https://github.com/lightdash/lightdash/commit/840827266547a6520b0550a1ac26cc68b4643534))
+
 # [0.426.0](https://github.com/lightdash/lightdash/compare/0.425.0...0.426.0) (2023-02-21)
 
 
