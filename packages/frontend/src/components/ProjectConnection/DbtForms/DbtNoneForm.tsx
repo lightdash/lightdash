@@ -1,8 +1,6 @@
 import { Callout } from '@blueprintjs/core';
-import { WarehouseTypes } from '@lightdash/common';
 import React, { FC } from 'react';
 import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
-import SelectField from '../../ReactHookForm/Select';
 
 const DbtNoneForm: FC<{ disabled: boolean }> = ({ disabled }) => (
     <>
@@ -27,7 +25,7 @@ const DbtNoneForm: FC<{ disabled: boolean }> = ({ disabled }) => (
                 rel="noreferrer"
             >
                 GitHub action
-            </a>
+            </a>{' '}
             or, run{' '}
             <a
                 href={

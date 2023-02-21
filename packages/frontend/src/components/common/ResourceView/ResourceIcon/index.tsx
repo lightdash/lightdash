@@ -1,7 +1,6 @@
 import { Colors } from '@blueprintjs/core';
 import { assertUnreachable, ChartKind } from '@lightdash/common';
 import {
-    Icon123,
     IconChartArea,
     IconChartAreaLine,
     IconChartBar,
@@ -13,28 +12,28 @@ import {
     IconTable,
 } from '@tabler/icons-react';
 import { FC } from 'react';
+import { ResourceViewItem, ResourceViewItemType } from '../resourceTypeUtils';
 import { ResourceIconBox } from './ResourceIcon.styles';
-import { ResourceListItem, ResourceListType } from './ResourceTypeUtils';
 
 interface ResourceIconProps {
-    item: ResourceListItem;
+    item: ResourceViewItem;
 }
 
 const ResourceIcon: FC<ResourceIconProps> = ({ item }) => {
     switch (item.type) {
-        case ResourceListType.DASHBOARD:
+        case ResourceViewItemType.DASHBOARD:
             return (
                 <ResourceIconBox color={Colors.GREEN3}>
                     <IconLayoutDashboard color={Colors.GREEN3} size={20} />
                 </ResourceIconBox>
             );
-        case ResourceListType.SPACE:
+        case ResourceViewItemType.SPACE:
             return (
                 <ResourceIconBox color={Colors.VIOLET3}>
                     <IconFolder color={Colors.VIOLET3} size={20} />
                 </ResourceIconBox>
             );
-        case ResourceListType.CHART:
+        case ResourceViewItemType.CHART:
             switch (item.data.chartType) {
                 case undefined:
                 case ChartKind.VERTICAL_BAR:

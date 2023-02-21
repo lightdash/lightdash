@@ -6,19 +6,19 @@ import { useHistory } from 'react-router-dom';
 import { useDashboards } from '../../../hooks/dashboard/useDashboards';
 import { useSavedCharts } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
-import ResourceList from '../../common/ResourceList';
+import ResourceView from '../../common/ResourceView';
+import {
+    isResourceViewSpaceItem,
+    ResourceViewItemType,
+    wrapResourceView,
+} from '../../common/ResourceView/resourceTypeUtils';
 import {
     ResourceEmptyStateHeader,
     ResourceEmptyStateHeaderWrapper,
     ResourceEmptyStateIcon,
     ResourceEmptyStateText,
-} from '../../common/ResourceList/ResourceList.styles';
-import { SortDirection } from '../../common/ResourceList/ResourceTable';
-import {
-    isResourceListItemCanBelongToSpace,
-    ResourceListType,
-    wrapResourceList,
-} from '../../common/ResourceList/ResourceTypeUtils';
+} from '../../common/ResourceView/ResourceView.styles';
+import { SortDirection } from '../../common/ResourceView/ResourceViewList';
 
 interface Props {
     projectUuid: string;
@@ -32,14 +32,11 @@ const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
 
     const recentItems = useMemo(() => {
         return [
-            ...wrapResourceList(dashboards, ResourceListType.DASHBOARD),
-            ...wrapResourceList(savedCharts, ResourceListType.CHART),
+            ...wrapResourceView(dashboards, ResourceViewItemType.DASHBOARD),
+            ...wrapResourceView(savedCharts, ResourceViewItemType.CHART),
         ]
             .sort((a, b) => {
-                if (
-                    !isResourceListItemCanBelongToSpace(a) ||
-                    !isResourceListItemCanBelongToSpace(b)
-                ) {
+                if (isResourceViewSpaceItem(a) || isResourceViewSpaceItem(b)) {
                     return 0;
                 }
 
@@ -66,7 +63,7 @@ const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
     );
 
     return (
-        <ResourceList
+        <ResourceView
             items={recentItems}
             enableSorting={false}
             defaultSort={{ updatedAt: SortDirection.DESC }}

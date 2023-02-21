@@ -56,6 +56,7 @@ const TileUpdateModal = <T extends Tile>({
             title="Edit tile content"
             {...modalProps}
             onClose={handleClose}
+            backdropClassName="non-draggable"
         >
             <Form
                 name="Edit tile content"
