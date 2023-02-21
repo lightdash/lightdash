@@ -1,5 +1,8 @@
+import { NotFoundError } from '@lightdash/common';
 import { FC, memo, useCallback, useMemo, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { EChartSeries } from '../../../hooks/echarts/useEcharts';
+import { downloadCsv } from '../../../hooks/useDownloadCsv';
 import { useExplore } from '../../../hooks/useExplore';
 import {
     ExplorerSection,
@@ -62,6 +65,9 @@ const VisualizationCard: FC = memo(() => {
     );
 
     const { data: explore } = useExplore(unsavedChartVersion.tableName);
+    const projectUuid = useExplorerContext(
+        (context) => context.state.savedChart?.projectUuid,
+    );
 
     const [echartsClickEvent, setEchartsClickEvent] =
         useState<EchartsClickEvent>();
@@ -80,6 +86,20 @@ const VisualizationCard: FC = memo(() => {
     if (!unsavedChartVersion.tableName) {
         return <CollapsableCard title="Charts" disabled />;
     }
+
+    const getCsvLink = async (csvLimit: number | null, onlyRaw: boolean) => {
+        if (explore?.name && unsavedChartVersion?.metricQuery && projectUuid) {
+            const csvResponse = await downloadCsv({
+                projectUuid,
+                tableId: explore?.name,
+                query: unsavedChartVersion?.metricQuery,
+                csvLimit,
+                onlyRaw,
+            });
+            return csvResponse.url;
+        }
+        throw new NotFoundError('no metric query defined');
+    };
 
     return (
         <VisualizationProvider
@@ -114,7 +134,7 @@ const VisualizationCard: FC = memo(() => {
                             {!isEditMode && chartType === 'table' && (
                                 <ShowTotalsToggle />
                             )}
-                            <ChartDownloadMenu />
+                            <ChartDownloadMenu getCsvLink={getCsvLink} />
                         </>
                     )
                 }
