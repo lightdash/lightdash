@@ -50,3 +50,16 @@ export const getResourceUrl = (projectUuid: string, item: ResourceViewItem) => {
             return assertUnreachable(item, `Can't get URL for ${itemType}`);
     }
 };
+
+export const getResourceName = (type: ResourceViewItemType) => {
+    switch (type) {
+        case ResourceViewItemType.DASHBOARD:
+            return 'Dashboard';
+        case ResourceViewItemType.CHART:
+            return 'Chart';
+        case ResourceViewItemType.SPACE:
+            return 'Space';
+        default:
+            return assertUnreachable(type, 'Resource type not supported');
+    }
+};
