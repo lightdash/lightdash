@@ -81,13 +81,13 @@ const ExportResultAsCSVModal: FC<ExportResultAsCSVModalProps> = ({
     if (isLoading || !resultData) return null;
 
     const rows = resultData?.rows;
-    const getCsvLink = async () => {
+    const getCsvLink = async (limit: number | null, onlyRaw: boolean) => {
         const csvResponse = await downloadCsv({
             projectUuid: savedChart.projectUuid,
             tableId: savedChart.tableName,
             query: savedChart.metricQuery,
-            csvLimit: rows?.length,
-            onlyRaw: false,
+            csvLimit: limit,
+            onlyRaw: onlyRaw,
         });
         return csvResponse.url;
     };
