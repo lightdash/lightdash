@@ -1,3 +1,11 @@
+# [0.424.0](https://github.com/lightdash/lightdash/compare/0.423.0...0.424.0) (2023-02-21)
+
+
+### Features
+
+* icons shouldnt have white fill when active ([#4537](https://github.com/lightdash/lightdash/issues/4537)) ([2d42ce9](https://github.com/lightdash/lightdash/commit/2d42ce90a533c9ef1febe05e7aaa5130c16eba93))
+* resource groups ([#4533](https://github.com/lightdash/lightdash/issues/4533)) ([4f499a1](https://github.com/lightdash/lightdash/commit/4f499a1801818e2986516794d5f3334074842802))
+
 # [0.423.0](https://github.com/lightdash/lightdash/compare/0.422.0...0.423.0) (2023-02-21)
 
 
