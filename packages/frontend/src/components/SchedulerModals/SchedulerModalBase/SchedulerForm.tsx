@@ -14,7 +14,6 @@ import useHealth from '../../../hooks/health/useHealth';
 import { useSlackChannels } from '../../../hooks/slack/useSlackChannels';
 import { useGetSlack } from '../../../hooks/useSlack';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
-import { Limit, Values } from '../../DownloadCsvPopup';
 import { ArrayInput } from '../../ReactHookForm/ArrayInput';
 import AutoComplete from '../../ReactHookForm/AutoComplete';
 import CronInput from '../../ReactHookForm/CronInput';
@@ -28,6 +27,17 @@ import {
     TargetRow,
     Title,
 } from './SchedulerModalBase.styles';
+
+export enum Limit {
+    TABLE = 'table',
+    ALL = 'all',
+    CUSTOM = 'custom',
+}
+
+export enum Values {
+    FORMATTED = 'formatted',
+    RAW = 'raw',
+}
 
 enum SlackStates {
     LOADING,
