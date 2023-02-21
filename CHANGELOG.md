@@ -1,3 +1,10 @@
+## [0.426.2](https://github.com/lightdash/lightdash/compare/0.426.1...0.426.2) (2023-02-21)
+
+
+### Bug Fixes
+
+* exporting csv from SQL runner fails ([#4535](https://github.com/lightdash/lightdash/issues/4535)) ([c9bed25](https://github.com/lightdash/lightdash/commit/c9bed257532aaeda6fbf29ca5a0d09b1e6ee98da))
+
 ## [0.426.1](https://github.com/lightdash/lightdash/compare/0.426.0...0.426.1) (2023-02-21)
 
 
