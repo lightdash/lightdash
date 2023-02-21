@@ -57,8 +57,6 @@ const getChartOrDashboard = async (
     throw new Error("Chart or dashboard can't be both undefined");
 };
 
-// getCsvForChart('5de7b22b-813d-46a9-b093-ff2d83912253')
-
 export const sendSlackNotification = async (
     jobId: string,
     notification: ScheduledSlackNotification,

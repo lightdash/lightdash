@@ -43,7 +43,7 @@ export const SchedulerDetailsContainer = styled.div`
 `;
 
 export const Title = styled.span`
-    font-weight: 700;
+    font-weight: 500;
 `;
 
 export const SettingsWrapper = styled.div`

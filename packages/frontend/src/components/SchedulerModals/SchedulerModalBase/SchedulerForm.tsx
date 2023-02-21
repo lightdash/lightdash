@@ -3,6 +3,7 @@ import {
     Classes,
     Colors,
     FormGroup,
+    HTMLSelect,
     NumericInput,
     Radio,
     RadioGroup,
@@ -191,6 +192,10 @@ const SchedulerSettings: FC<
     const isAddSlackDisabled = disabled || slackState !== SlackStates.SUCCESS;
     const isAddEmailDisabled = disabled || !health.data?.hasEmailClient;
 
+    const [isCsv, setIsCsv] = useState<boolean>(
+        methods.getValues()?.format === 'csv',
+    );
+
     return (
         <Form name="scheduler" methods={methods} {...rest}>
             <Input
@@ -214,15 +219,28 @@ const SchedulerSettings: FC<
                     },
                 }}
             />
+            <FormGroup label={<Title>Format</Title>}>
+                <HTMLSelect
+                    name="format"
+                    value={isCsv ? 'csv' : 'image'}
+                    onChange={(e) => {
+                        methods.setValue('format', e.currentTarget.value);
 
-            <Select
-                label="Format"
-                name="format"
-                options={[
-                    { value: 'image', label: 'Image' },
-                    { value: 'csv', label: 'CSV' },
-                ]}
-            />
+                        const isCsvValue = e.currentTarget.value === 'csv';
+                        setIsCsv(isCsvValue);
+                        if (!isCsvValue) methods.setValue('options', {});
+                    }}
+                    options={[
+                        { value: 'image', label: 'Image' },
+                        { value: 'csv', label: 'CSV' },
+                    ]}
+                />
+            </FormGroup>
+
+            {isCsv && (
+                <SchedulerOptions disabled={disabled} methods={methods} />
+            )}
+
             <ArrayInput
                 label="Send to"
                 name="targets"
@@ -350,48 +368,7 @@ const SchedulerSettings: FC<
 const SchedulerForm: FC<
     { disabled: boolean } & React.ComponentProps<typeof Form>
 > = ({ disabled, methods, ...rest }) => {
-    const [tab, setTab] = useState<string | number>(TabPages.SETTINGS);
-    const isCsv = useMemo(
-        () => methods.getValues()?.format === 'csv',
-        [methods.getValues()?.format],
-    );
-
-    useEffect(() => {
-        // If the format is not csv, we want to clear the options
-        if (!isCsv) methods.setValue('options', {});
-    }, [isCsv]);
-
-    if (isCsv) {
-        return (
-            <Tabs
-                onChange={setTab}
-                selectedTabId={tab}
-                renderActiveTabPanelOnly={false}
-            >
-                <Tab
-                    id={TabPages.SETTINGS}
-                    title="Settings"
-                    panel={
-                        <SchedulerSettings
-                            disabled={disabled}
-                            methods={methods}
-                        />
-                    }
-                />
-                <Tab
-                    id={TabPages.OPTIONS}
-                    title="Advanced options"
-                    panel={<SchedulerOptions methods={methods} />}
-                />
-            </Tabs>
-        );
-    } else {
-        return (
-            <SettingsWrapper>
-                <SchedulerSettings disabled={disabled} methods={methods} />
-            </SettingsWrapper>
-        );
-    }
+    return <SchedulerSettings disabled={disabled} methods={methods} />;
 };
 
 export default SchedulerForm;
