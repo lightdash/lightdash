@@ -4,7 +4,6 @@ import '@blueprintjs/datetime/lib/css/blueprint-datetime.css'; // We need to imp
 import '@blueprintjs/datetime2/lib/css/blueprint-datetime2.css';
 import '@blueprintjs/popover2/lib/css/blueprint-popover2.css';
 import '@blueprintjs/select/lib/css/blueprint-select.css';
-import '@blueprintjs/table/lib/css/table.css';
 import { FC } from 'react';
 
 FocusStyleManager.onlyShowFocusOnTabs();
