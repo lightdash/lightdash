@@ -10,6 +10,7 @@ import {
     CreateProject,
     CreateProjectMember,
     DashboardAvailableFilters,
+    DbtProjectType,
     Explore,
     ExploreError,
     Field,
@@ -339,7 +340,9 @@ export class ProjectService {
             userUuid: user.userUuid,
             steps: [
                 { stepType: JobStepType.TESTING_ADAPTOR },
-                { stepType: JobStepType.COMPILING },
+                ...(savedProject.dbtConnection.type === DbtProjectType.NONE
+                    ? []
+                    : [{ stepType: JobStepType.COMPILING }]),
             ],
         };
 
@@ -361,15 +364,17 @@ export class ProjectService {
                     async () =>
                         ProjectService.testProjectAdapter(updatedProject),
                 );
-                const explores = await this.jobModel.tryJobStep(
-                    job.jobUuid,
-                    JobStepType.COMPILING,
-                    async () => adapter.compileAllExplores(),
-                );
-                await this.projectModel.saveExploresToCache(
-                    projectUuid,
-                    explores,
-                );
+                if (savedProject.dbtConnection.type !== DbtProjectType.NONE) {
+                    const explores = await this.jobModel.tryJobStep(
+                        job.jobUuid,
+                        JobStepType.COMPILING,
+                        async () => adapter.compileAllExplores(),
+                    );
+                    await this.projectModel.saveExploresToCache(
+                        projectUuid,
+                        explores,
+                    );
+                }
 
                 await this.jobModel.update(job.jobUuid, {
                     jobStatus: JobStatusType.DONE,

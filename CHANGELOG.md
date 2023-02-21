@@ -1,3 +1,17 @@
+## [0.421.1](https://github.com/lightdash/lightdash/compare/0.421.0...0.421.1) (2023-02-20)
+
+
+### Bug Fixes
+
+* skip compile on project update ([#4474](https://github.com/lightdash/lightdash/issues/4474)) ([3ebbd2d](https://github.com/lightdash/lightdash/commit/3ebbd2d960ce5777bec31d8455389e945ae7f461))
+
+# [0.421.0](https://github.com/lightdash/lightdash/compare/0.420.1...0.421.0) (2023-02-20)
+
+
+### Features
+
+* resource grid ([#4518](https://github.com/lightdash/lightdash/issues/4518)) ([7004fc4](https://github.com/lightdash/lightdash/commit/7004fc4fa937469671e3553b00d8f00eee4dd60e))
+
 ## [0.420.1](https://github.com/lightdash/lightdash/compare/0.420.0...0.420.1) (2023-02-20)
 
 

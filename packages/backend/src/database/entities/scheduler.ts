@@ -7,6 +7,7 @@ export const SchedulerEmailTargetTableName = 'scheduler_email_target';
 export type SchedulerDb = {
     scheduler_uuid: string;
     name: string;
+    format: string;
     created_at: Date;
     updated_at: Date;
     created_by: string;
@@ -46,7 +47,7 @@ export type SchedulerTable = Knex.CompositeTableType<
         ChartSchedulerDb | DashboardSchedulerDB,
         'scheduler_uuid' | 'created_at'
     >,
-    Pick<SchedulerDb, 'name' | 'updated_at' | 'cron'>
+    Pick<SchedulerDb, 'name' | 'updated_at' | 'cron' | 'format'>
 >;
 
 export type SchedulerSlackTargetTable = Knex.CompositeTableType<

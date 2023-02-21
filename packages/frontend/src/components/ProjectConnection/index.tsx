@@ -277,7 +277,12 @@ export const UpdateProjectConnection: FC<{
                             large
                             type="submit"
                             intent={Intent.PRIMARY}
-                            text="Test &amp; compile project"
+                            text={
+                                data?.dbtConnection?.type ===
+                                DbtProjectType.NONE
+                                    ? 'Save and test'
+                                    : 'Test &amp; compile project'
+                            }
                             loading={isSaving}
                             disabled={isDisabled}
                         />

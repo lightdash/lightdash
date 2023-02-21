@@ -12,18 +12,18 @@ import {
     PageContentWrapper,
     PageHeader,
 } from '../components/common/Page/Page.styles';
-import ResourceList from '../components/common/ResourceList';
+import ResourceView from '../components/common/ResourceView';
+import {
+    ResourceViewItemType,
+    wrapResourceView,
+} from '../components/common/ResourceView/resourceTypeUtils';
 import {
     ResourceBreadcrumbTitle,
     ResourceEmptyStateHeader,
     ResourceEmptyStateIcon,
     ResourceTag,
-} from '../components/common/ResourceList/ResourceList.styles';
-import { SortDirection } from '../components/common/ResourceList/ResourceTable';
-import {
-    ResourceListType,
-    wrapResourceList,
-} from '../components/common/ResourceList/ResourceTypeUtils';
+} from '../components/common/ResourceView/ResourceView.styles';
+import { SortDirection } from '../components/common/ResourceView/ResourceViewList';
 import { useCreateMutation } from '../hooks/dashboard/useDashboard';
 import { useDashboards } from '../hooks/dashboard/useDashboards';
 import { useSpaces } from '../hooks/useSpaces';
@@ -145,10 +145,10 @@ const SavedDashboards = () => {
                     }}
                 />
 
-                <ResourceList
-                    items={wrapResourceList(
+                <ResourceView
+                    items={wrapResourceView(
                         dashboards,
-                        ResourceListType.DASHBOARD,
+                        ResourceViewItemType.DASHBOARD,
                     )}
                     defaultSort={{ updatedAt: SortDirection.DESC }}
                     defaultColumnVisibility={{ type: false }}

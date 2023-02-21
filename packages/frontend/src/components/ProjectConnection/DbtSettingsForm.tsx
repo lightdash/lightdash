@@ -160,42 +160,51 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                 defaultValue={DbtProjectType.GITHUB}
             />
             {form}
-            <FormSection name="target">
-                <Input
-                    name="dbt.target"
-                    label="Target name"
-                    labelHelp={
-                        <p>
-                            <b>target</b> is the dataset/schema in your data
-                            warehouse that Lightdash will look for your dbt
-                            models. By default, we set this to be the same value
-                            as you have as the default in your profiles.yml
-                            file.
-                        </p>
-                    }
-                    disabled={disabled}
-                    placeholder="prod"
-                />
-                {warehouseSchemaInput}
-            </FormSection>
-            <FormSection name={'Advanced'} isOpen={isAdvancedSettingsOpen}>
-                <MultiKeyValuePairsInput
-                    name="dbt.environment"
-                    label="Environment variables"
-                    documentationUrl={`${baseDocUrl}${typeDocUrls[type].env}`}
-                    disabled={disabled}
-                />
-                <></>
-            </FormSection>
-            <AdvancedButtonWrapper>
-                <AdvancedButton
-                    icon={
-                        isAdvancedSettingsOpen ? 'chevron-up' : 'chevron-down'
-                    }
-                    text={`Advanced configuration options`}
-                    onClick={toggleAdvancedSettingsOpen}
-                />
-            </AdvancedButtonWrapper>
+            {type !== DbtProjectType.NONE && (
+                <>
+                    <FormSection name="target">
+                        <Input
+                            name="dbt.target"
+                            label="Target name"
+                            labelHelp={
+                                <p>
+                                    <b>target</b> is the dataset/schema in your
+                                    data warehouse that Lightdash will look for
+                                    your dbt models. By default, we set this to
+                                    be the same value as you have as the default
+                                    in your profiles.yml file.
+                                </p>
+                            }
+                            disabled={disabled}
+                            placeholder="prod"
+                        />
+                        {warehouseSchemaInput}
+                    </FormSection>
+                    <FormSection
+                        name={'Advanced'}
+                        isOpen={isAdvancedSettingsOpen}
+                    >
+                        <MultiKeyValuePairsInput
+                            name="dbt.environment"
+                            label="Environment variables"
+                            documentationUrl={`${baseDocUrl}${typeDocUrls[type].env}`}
+                            disabled={disabled}
+                        />
+                        <></>
+                    </FormSection>
+                    <AdvancedButtonWrapper>
+                        <AdvancedButton
+                            icon={
+                                isAdvancedSettingsOpen
+                                    ? 'chevron-up'
+                                    : 'chevron-down'
+                            }
+                            text={`Advanced configuration options`}
+                            onClick={toggleAdvancedSettingsOpen}
+                        />
+                    </AdvancedButtonWrapper>
+                </>
+            )}
         </div>
     );
 };

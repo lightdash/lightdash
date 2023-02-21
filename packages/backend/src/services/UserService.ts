@@ -651,4 +651,8 @@ export class UserService {
         }
         return user;
     }
+
+    async getSessionByUserUuid(userUuid: string): Promise<SessionUser> {
+        return this.userModel.findSessionUserByUUID(userUuid);
+    }
 }
