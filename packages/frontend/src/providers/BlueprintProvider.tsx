@@ -19,21 +19,7 @@ Dialog.defaultProps.canOutsideClickClose = false;
 Dialog.defaultProps.canEscapeKeyClose = false;
 
 const GlobalBlueprintStyles = createGlobalStyle`
-    body {
-        margin: 0;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto',
-           'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans',
-            'Helvetica Neue', sans-serif;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-        overflow-x: hidden;
-        background: rgb(245, 248, 250);
-    }
 
-    code {
-        font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-            monospace;
-    }
 
     /* multi select */
     .bp4-multi-select-popover .bp4-menu {
