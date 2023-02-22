@@ -7,7 +7,6 @@ import {
     IconSettings,
 } from '@tabler/icons-react';
 import { FC } from 'react';
-import { useHistory } from 'react-router-dom';
 import { useActiveProjectUuid } from '../../../hooks/useProject';
 import { useApp } from '../../../providers/AppProvider';
 
@@ -15,7 +14,6 @@ const SettingsMenu: FC = () => {
     const {
         user: { data: user },
     } = useApp();
-    const history = useHistory();
     const activeProjectUuid = useActiveProjectUuid();
 
     if (!user) return null;
@@ -50,11 +48,7 @@ const SettingsMenu: FC = () => {
                             role="menuitem"
                             icon={<IconDatabase size={17} />}
                             text="Project settings"
-                            onClick={() => {
-                                history.push(
-                                    `/generalSettings/projectManagement/${activeProjectUuid}`,
-                                );
-                            }}
+                            href={`/generalSettings/projectManagement/${activeProjectUuid}`}
                         />
                     )}
 
@@ -63,9 +57,7 @@ const SettingsMenu: FC = () => {
                             role="menuitem"
                             icon={<IconBuildingBank size={17} />}
                             text="Organization settings"
-                            onClick={() => {
-                                history.push(`/generalSettings/organization`);
-                            }}
+                            href={`/generalSettings/organization`}
                         />
                     )}
                 </Menu>
