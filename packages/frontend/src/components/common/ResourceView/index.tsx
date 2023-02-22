@@ -37,6 +37,7 @@ export interface ResourceViewCommonProps {
     items: ResourceViewItem[];
     tabs?: Tab[];
     groups?: Group[];
+    maxItems?: number;
     showCount?: boolean;
     renderEmptyState?: () => React.ReactNode;
     view?: ResourceViewType;
@@ -63,6 +64,7 @@ const ResourceView: React.FC<ResourceViewProps> = ({
     defaultSort,
     defaultColumnVisibility,
     showCount = true,
+    maxItems,
     renderEmptyState,
 }) => {
     const [action, setAction] = useState<ResourceViewItemActionState>({
@@ -78,14 +80,16 @@ const ResourceView: React.FC<ResourceViewProps> = ({
         [],
     );
 
-    const presortedItems = useMemo(() => {
-        if (!tabs || tabs?.length === 0) return items;
+    const slicedSortedItems = useMemo(() => {
+        let sortedItems = items;
 
-        const activeTab = tabs.find((tab) => tab.id === activeTabId);
-        if (!activeTab || !activeTab.sort) return items;
+        const activeTab = tabs?.find((tab) => tab.id === activeTabId);
+        if (activeTab && activeTab.sort) {
+            sortedItems = items.sort(activeTab.sort);
+        }
 
-        return items.sort(activeTab.sort);
-    }, [items, tabs, activeTabId]);
+        return maxItems ? sortedItems.slice(0, maxItems) : sortedItems;
+    }, [items, activeTabId, maxItems, tabs]);
 
     const sortProps =
         tabs && tabs?.length > 0
@@ -128,9 +132,9 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                                 {headerIcon}
                             </Tooltip2>
                         )}
-                        {showCount && presortedItems.length > 0 && (
+                        {showCount && slicedSortedItems.length > 0 && (
                             <ResourceTag round>
-                                {presortedItems.length}
+                                {slicedSortedItems.length}
                             </ResourceTag>
                         )}
 
@@ -140,7 +144,7 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                     </ResourceViewHeader>
                 ) : null}
 
-                {presortedItems.length === 0 ? (
+                {slicedSortedItems.length === 0 ? (
                     !!renderEmptyState ? (
                         <ResourceEmptyStateWrapper>
                             {renderEmptyState()}
@@ -148,14 +152,14 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                     ) : null
                 ) : view === ResourceViewType.LIST ? (
                     <ResourceViewList
-                        items={presortedItems}
+                        items={slicedSortedItems}
                         {...sortProps}
                         defaultColumnVisibility={defaultColumnVisibility}
                         onAction={handleAction}
                     />
                 ) : view === ResourceViewType.GRID ? (
                     <ResourceViewGrid
-                        items={presortedItems}
+                        items={slicedSortedItems}
                         groups={groups}
                         onAction={handleAction}
                     />

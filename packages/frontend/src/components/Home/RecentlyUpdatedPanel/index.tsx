@@ -27,30 +27,25 @@ interface Props {
 const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
     const history = useHistory();
     const { user, health } = useApp();
-    const { data: dashboards = [] } = useDashboards(projectUuid);
-    const { data: savedCharts = [] } = useSavedCharts(projectUuid);
+    const { data: dashboards = [], isLoading: isDashboardsLoading } =
+        useDashboards(projectUuid);
+    const { data: savedCharts = [], isLoading: isChartsLoading } =
+        useSavedCharts(projectUuid);
 
     const recentItems = useMemo(() => {
         return [
             ...wrapResourceView(dashboards, ResourceViewItemType.DASHBOARD),
             ...wrapResourceView(savedCharts, ResourceViewItemType.CHART),
-        ]
-            .sort((a, b) => {
-                if (isResourceViewSpaceItem(a) || isResourceViewSpaceItem(b)) {
-                    return 0;
-                }
-
-                return (
-                    new Date(b.data.updatedAt).getTime() -
-                    new Date(a.data.updatedAt).getTime()
-                );
-            })
-            .slice(0, 10);
+        ];
     }, [dashboards, savedCharts]);
 
     const handleCreateChart = () => {
         history.push(`/projects/${projectUuid}/tables`);
     };
+
+    if (isDashboardsLoading || isChartsLoading) {
+        return null;
+    }
 
     const isDemo = health.data?.mode === LightdashMode.DEMO;
 
@@ -65,6 +60,7 @@ const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
     return (
         <ResourceView
             items={recentItems}
+            maxItems={10}
             enableSorting={false}
             defaultSort={{ updatedAt: SortDirection.DESC }}
             defaultColumnVisibility={{ space: false, type: false }}
