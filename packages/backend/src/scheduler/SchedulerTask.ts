@@ -58,6 +58,13 @@ const getChartOrDashboard = async (
     throw new Error("Chart or dashboard can't be both undefined");
 };
 
+function getHumanReadableCronExpression(cronExpression: string) {
+    const value = cronstrue.toString(cronExpression, {
+        verbose: true,
+        throwExceptionOnParseError: false,
+    });
+    return value[0].toLowerCase() + value.slice(1);
+}
 export const sendSlackNotification = async (
     jobId: string,
     notification: ScheduledSlackNotification,
@@ -94,11 +101,18 @@ export const sendSlackNotification = async (
         const scheduler = await schedulerService.schedulerModel.getScheduler(
             schedulerUuid,
         );
-        const cronHumanString = cronstrue.toString(scheduler.cron, {
-            verbose: true,
-            throwExceptionOnParseError: false,
-        });
-        const footerMarkdown = `This is a [scheduled delivery](${url}) ${cronHumanString} from Lightdash`;
+
+        const getBlocksArgs = {
+            title: scheduler.name,
+            description: `${details.name}${
+                details.description ? ` - ${details.description}` : ''
+            }`,
+            ctaUrl: url,
+            footerMarkdown: `This is a <${url}|scheduled delivery> ${getHumanReadableCronExpression(
+                scheduler.cron,
+            )} from Lightdash`,
+        };
+
         if (format === 'image') {
             const imageUrl = await unfurlService.unfurlImage(
                 url,
@@ -112,11 +126,8 @@ export const sendSlackNotification = async (
             }
 
             const blocks = getChartAndDashboardBlocks({
-                title: scheduler.name,
-                description: [details.name, details.description].join(' - '),
+                ...getBlocksArgs,
                 imageUrl,
-                ctaUrl: url,
-                footerMarkdown,
             });
 
             await slackClient.postMessage({
@@ -139,13 +150,8 @@ export const sendSlackNotification = async (
                     csvOptions,
                 );
                 blocks = getChartCsvResultsBlocks({
-                    title: scheduler.name,
-                    description: [details.name, details.description].join(
-                        ' - ',
-                    ),
-                    ctaUrl: url,
+                    ...getBlocksArgs,
                     csvUrl: csvUrl.path,
-                    footerMarkdown,
                 });
             } else if (dashboardUuid) {
                 const csvUrls = await csvService.getCsvsForDashboard(
@@ -154,13 +160,8 @@ export const sendSlackNotification = async (
                     csvOptions,
                 );
                 blocks = getDashboardCsvResultsBlocks({
-                    title: scheduler.name,
-                    description: [details.name, details.description].join(
-                        ' - ',
-                    ),
-                    ctaUrl: url,
+                    ...getBlocksArgs,
                     csvUrls,
-                    footerMarkdown,
                 });
             } else {
                 throw new Error('Not implemented');
