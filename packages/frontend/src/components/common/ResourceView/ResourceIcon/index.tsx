@@ -1,5 +1,6 @@
 import { Colors } from '@blueprintjs/core';
 import { assertUnreachable, ChartKind } from '@lightdash/common';
+import { Center, Paper } from '@mantine/core';
 import {
     IconChartArea,
     IconChartAreaLine,
@@ -13,80 +14,97 @@ import {
 } from '@tabler/icons-react';
 import { FC } from 'react';
 import { ResourceViewItem, ResourceViewItemType } from '../resourceTypeUtils';
-import { ResourceIconBox } from './ResourceIcon.styles';
 
 interface ResourceIconProps {
     item: ResourceViewItem;
 }
 
+const IconElements = {
+    IconChartArea,
+    IconChartAreaLine,
+    IconChartBar,
+    IconChartDots,
+    IconChartLine,
+    IconFolder,
+    IconLayoutDashboard,
+    IconSquareNumber1,
+    IconTable,
+} as const;
+
+interface IconBoxProps {
+    color: string;
+    icon: keyof typeof IconElements;
+    iconProps?: Parameters<typeof IconElements[keyof typeof IconElements]>[0];
+}
+
+const IconBox: FC<IconBoxProps> = ({ color, icon, iconProps }) => {
+    const Icon = IconElements[icon];
+    return (
+        <Paper
+            component={Center}
+            w={30}
+            h={30}
+            shadow="sm"
+            radius="sm"
+            withBorder
+        >
+            <Icon
+                color={color}
+                fill={color}
+                fillOpacity={0.1}
+                size={20}
+                {...iconProps}
+            />
+        </Paper>
+    );
+};
+
 const ResourceIcon: FC<ResourceIconProps> = ({ item }) => {
     switch (item.type) {
         case ResourceViewItemType.DASHBOARD:
-            return (
-                <ResourceIconBox color={Colors.GREEN3}>
-                    <IconLayoutDashboard color={Colors.GREEN3} size={20} />
-                </ResourceIconBox>
-            );
+            return <IconBox icon="IconLayoutDashboard" color={Colors.GREEN3} />;
         case ResourceViewItemType.SPACE:
-            return (
-                <ResourceIconBox color={Colors.VIOLET3}>
-                    <IconFolder color={Colors.VIOLET3} size={20} />
-                </ResourceIconBox>
-            );
+            return <IconBox icon="IconFolder" color={Colors.VIOLET3} />;
         case ResourceViewItemType.CHART:
             switch (item.data.chartType) {
                 case undefined:
                 case ChartKind.VERTICAL_BAR:
-                    return (
-                        <ResourceIconBox color={Colors.BLUE3}>
-                            <IconChartBar color={Colors.BLUE3} size={20} />
-                        </ResourceIconBox>
-                    );
+                    return <IconBox icon="IconChartBar" color={Colors.BLUE3} />;
                 case ChartKind.HORIZONTAL_BAR:
                     return (
-                        <ResourceIconBox color={Colors.BLUE3}>
-                            <IconChartBar
-                                color={Colors.BLUE3}
-                                size={20}
-                                style={{ rotate: '90deg' }}
-                            />
-                        </ResourceIconBox>
+                        <IconBox
+                            icon="IconChartBar"
+                            color={Colors.BLUE3}
+                            iconProps={{ style: { rotate: '90deg' } }}
+                        />
                     );
                 case ChartKind.LINE:
                     return (
-                        <ResourceIconBox color={Colors.BLUE3}>
-                            <IconChartLine color={Colors.BLUE3} size={20} />
-                        </ResourceIconBox>
+                        <IconBox icon="IconChartLine" color={Colors.BLUE3} />
                     );
                 case ChartKind.SCATTER:
                     return (
-                        <ResourceIconBox color={Colors.BLUE3}>
-                            <IconChartDots color={Colors.BLUE3} size={20} />
-                        </ResourceIconBox>
+                        <IconBox icon="IconChartDots" color={Colors.BLUE3} />
                     );
                 case ChartKind.AREA:
                     return (
-                        <ResourceIconBox color={Colors.BLUE3}>
-                            <IconChartArea color={Colors.BLUE3} size={20} />
-                        </ResourceIconBox>
+                        <IconBox icon="IconChartArea" color={Colors.BLUE3} />
                     );
                 case ChartKind.MIXED:
                     return (
-                        <ResourceIconBox color={Colors.BLUE3}>
-                            <IconChartAreaLine color={Colors.BLUE3} size={20} />
-                        </ResourceIconBox>
+                        <IconBox
+                            icon="IconChartAreaLine"
+                            color={Colors.BLUE3}
+                        />
                     );
                 case ChartKind.TABLE:
-                    return (
-                        <ResourceIconBox color={Colors.BLUE3}>
-                            <IconTable color={Colors.BLUE3} size={20} />
-                        </ResourceIconBox>
-                    );
+                    return <IconBox icon="IconTable" color={Colors.BLUE3} />;
                 case ChartKind.BIG_NUMBER:
                     return (
-                        <ResourceIconBox color={Colors.BLUE3}>
-                            <IconSquareNumber1 color={Colors.BLUE3} size={20} />
-                        </ResourceIconBox>
+                        <IconBox
+                            icon="IconSquareNumber1"
+                            color={Colors.BLUE3}
+                        />
                     );
                 default:
                     return assertUnreachable(
