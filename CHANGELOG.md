@@ -1,3 +1,10 @@
+# [0.429.0](https://github.com/lightdash/lightdash/compare/0.428.0...0.429.0) (2023-02-22)
+
+
+### Features
+
+* mantine ([#4557](https://github.com/lightdash/lightdash/issues/4557)) ([e1cbb23](https://github.com/lightdash/lightdash/commit/e1cbb23de10940a9eb05b81fa3cfe4c0fdfda282))
+
 # [0.428.0](https://github.com/lightdash/lightdash/compare/0.427.0...0.428.0) (2023-02-22)
 
 
