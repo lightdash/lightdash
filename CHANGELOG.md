@@ -1,3 +1,10 @@
+# [0.430.0](https://github.com/lightdash/lightdash/compare/0.429.0...0.430.0) (2023-02-22)
+
+
+### Features
+
+* hide View underlying data for dimensions ([#4563](https://github.com/lightdash/lightdash/issues/4563)) ([5dacb4e](https://github.com/lightdash/lightdash/commit/5dacb4ef363ef3a430b42a19abbee17b88da5f3b))
+
 # [0.429.0](https://github.com/lightdash/lightdash/compare/0.428.0...0.429.0) (2023-02-22)
 
 
