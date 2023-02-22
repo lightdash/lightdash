@@ -14,7 +14,7 @@ const ScrollableTable: FC<ScrollableTableProps> = ({ $shouldExpand }) => {
     const tableContainerRef = useRef<HTMLDivElement>(null);
     return (
         <TableScrollableWrapper ref={tableContainerRef}>
-            <Table bordered condensed $showFooter={!!footer?.show}>
+            <Table $showFooter={!!footer?.show}>
                 <TableHeader />
                 <TableBody tableContainerRef={tableContainerRef} />
                 <TableFooter />
