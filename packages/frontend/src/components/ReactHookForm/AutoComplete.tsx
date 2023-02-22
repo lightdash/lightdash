@@ -94,7 +94,7 @@ const getGroupedItems = (
         Array<{ group: string; index: number; items: Item[]; key: number }>
     >((acc, item, index) => {
         if (groupBy === undefined) return acc;
-        const group = groupBy(item); // # for channels or @ for users
+        const group = groupBy(item);
 
         const lastGroup = acc.at(-1);
         if (lastGroup && lastGroup.group === group) {
@@ -155,37 +155,19 @@ const ControlledSuggest: FC<{
         const itemListRenderer: ItemListRenderer<Item> = (
             listProps: ItemListRendererProps<Item>,
         ) => {
-            const initialContent = items;
-            const noResults = (
-                <MenuItem
-                    disabled={true}
-                    text="No results."
-                    roleStructure="listoption"
-                />
-            );
-
-            // omit noResults if createNewItemFromQuery and createNewItemRenderer are both supplied, and query is not empty
-            const createItemView = listProps.renderCreateItem();
-            const maybeNoResults = createItemView != null ? null : noResults;
-
+            const noResults = <MenuItem2 disabled text="No suggestions." />;
             const menuContent = renderGroupedMenuContent(
                 listProps,
-                maybeNoResults,
+                noResults,
                 groupBy,
             );
-            if (menuContent == null && createItemView == null) {
-                return null;
-            }
-            const { createFirst } = { createFirst: undefined }; // this.state;
             return (
                 <Menu
                     role="listbox"
                     {...listProps.menuProps}
                     ulRef={listProps.itemsParentRef}
                 >
-                    {createFirst && createItemView}
                     {menuContent}
-                    {!createFirst && createItemView}
                 </Menu>
             );
         };
