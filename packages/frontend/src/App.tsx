@@ -70,8 +70,8 @@ const App = () => (
             <title>Lightdash</title>
         </Helmet>
         <QueryClientProvider client={queryClient}>
-            <BlueprintProvider>
-                <MantineProvider>
+            <MantineProvider>
+                <BlueprintProvider>
                     <AppProvider>
                         <TrackingProvider>
                             {isMobile ? (
@@ -325,8 +325,8 @@ const App = () => (
                             )}
                         </TrackingProvider>
                     </AppProvider>
-                </MantineProvider>
-            </BlueprintProvider>
+                </BlueprintProvider>
+            </MantineProvider>
             <ReactQueryDevtools initialIsOpen={false} />
         </QueryClientProvider>
     </>
