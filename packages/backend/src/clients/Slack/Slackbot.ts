@@ -1,5 +1,7 @@
+import { LightdashMode } from '@lightdash/common';
 import { App, ExpressReceiver, LogLevel } from '@slack/bolt';
 
+import * as Sentry from '@sentry/node';
 import { nanoid } from 'nanoid';
 import { analytics } from '../../analytics/client';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -25,27 +27,15 @@ const notifySlackError = async (
      */
     Logger.error(`Unable to unfurl slack URL ${url}: ${error} `);
 
-    const unfurls = {
-        [url]: {
-            blocks: [
-                {
-                    type: 'section',
-                    text: {
-                        type: 'mrkdwn',
-                        text: `Unable to unfurl slack URL ${url}: ${error} `,
-                    },
-                },
-            ],
-        },
-    };
+    // Send message in thread
     await client.chat
-        .unfurl({
-            ts: event.message_ts,
+        .postMessage({
+            thread_ts: event.message_ts,
             channel: event.channel,
-            unfurls,
+            text: `:fire: Unable to unfurl ${url}: ${error}`,
         })
         .catch((er: any) =>
-            Logger.error(`Unable to unfurl slack URL ${url}: ${error} `),
+            Logger.error(`Unable send slack error message: ${er} `),
         );
 };
 
@@ -183,6 +173,7 @@ export class SlackService {
                         details.pageType,
                         imageId,
                         authUserUuid,
+                        3, // up to 3 retries
                     );
 
                     if (imageUrl) {
@@ -201,6 +192,11 @@ export class SlackService {
                     }
                 }
             } catch (e) {
+                if (this.lightdashConfig.mode === LightdashMode.PR)
+                    notifySlackError(e, l.url, client, event);
+
+                Sentry.captureException(e);
+
                 analytics.track({
                     event: 'share_slack.unfurl_error',
                     userId: eventUserId,
@@ -209,8 +205,6 @@ export class SlackService {
                         error: `${e}`,
                     },
                 });
-
-                notifySlackError(e, l.url, client, event);
             }
         });
     }
