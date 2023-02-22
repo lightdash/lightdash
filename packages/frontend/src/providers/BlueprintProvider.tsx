@@ -1,14 +1,19 @@
+// WARNING: We need to import the datetime css until this bug is fixed: https://github.com/palantir/blueprint/issues/5388
+import '@blueprintjs/datetime/lib/css/blueprint-datetime.css';
+import '@blueprintjs/datetime2/lib/css/blueprint-datetime2.css';
+import '@blueprintjs/popover2/lib/css/blueprint-popover2.css';
+import '@blueprintjs/select/lib/css/blueprint-select.css';
+// WARNING: exposes global overrides. DO NOT IMPORT THIS FILE.
+// import '@blueprintjs/core/lib/css/blueprint.css';
+// below is a cleaner version of the above
+import './../styles/blueprint-core.css';
+
 import {
     Colors,
     Dialog,
     FocusStyleManager,
     HotkeysProvider,
 } from '@blueprintjs/core';
-import '@blueprintjs/core/lib/css/blueprint.css';
-import '@blueprintjs/datetime/lib/css/blueprint-datetime.css'; // We need to import the datetime css until this bug is fixed: https://github.com/palantir/blueprint/issues/5388
-import '@blueprintjs/datetime2/lib/css/blueprint-datetime2.css';
-import '@blueprintjs/popover2/lib/css/blueprint-popover2.css';
-import '@blueprintjs/select/lib/css/blueprint-select.css';
 import { FC } from 'react';
 import { createGlobalStyle } from 'styled-components';
 
@@ -19,8 +24,6 @@ Dialog.defaultProps.canOutsideClickClose = false;
 Dialog.defaultProps.canEscapeKeyClose = false;
 
 const GlobalBlueprintStyles = createGlobalStyle`
-
-
     /* multi select */
     .bp4-multi-select-popover .bp4-menu {
         max-height: 300px;
