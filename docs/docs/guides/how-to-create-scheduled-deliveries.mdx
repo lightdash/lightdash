@@ -1,8 +1,6 @@
-import DimensionsExploreView from './assets/dimensions-in-the-explore-view.jpg';
-import ExampleTable from './assets/example-table.jpg';
-import Overview from './assets/add-new-dimension-overview.png';
-
-<img src={Overview} width="1359" height="265" style={{display: "block", margin: "0 auto 20px auto"}}/>
+import ThreeDotMenu from './assets/scheduled-deliveries-three-dot-menu.png';
+import CreateNewModal from './assets/create-new-modal.png';
+import ConfigureNewDelivery from './assets/configure-scheduled-delivery.png'
 
 # Scheduled deliveries
 
@@ -18,4 +16,22 @@ To set up Slack, see [setting up Slack]([Slack](/guides/sharing-in-slack.mdx#add
 
 ## Creating a scheduled delivery
 
+To create a scheduled delivery, click on the three-dot menu in the top-right corner of your chart or dashboard, then click on `scheduled deliveries`.
 
+<img src={ThreeDotMenu} width="818" height="276" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+You'll get a modal that pops up and shows you the list of existing scheduled deliveries for your saved chart or dashboard, and gives you the option to `create new`.
+
+<img src={CreateNewModal} width="942" height="605" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+If you click on `create new`, you'll be brought to a configuration screen for your new scheduled delivery.
+
+<img src={ConfigureNewDelivery} width="948" height="584" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+## Scheduled delivery options
+
+- **Name**: this is the name of your scheduled delivery. 
+- **Frequency**: this is how often your scheduled delivery will be sent. You can make this hourly, daily, weekly, monthly, or custom - each frequency has its own options. For example, with a monthly schedule, you set the day of the month and the time that you want your scheduled delivery to be sent. The custom frequency lets you write out your own custom Cron expression if you need something more specific than our standard options. All times for the scheduler are in UTC.
+- **Send to**: here, you can pick if you want to send your scheduled delivery to Slack, email, or both. You can add as many Slack channels and email addresses as you'd like to here. 
+
+Once you've set up all of your delivery options, then you can click `create new` to create your new scheduled delivery.
