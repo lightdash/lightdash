@@ -55,6 +55,11 @@ jobs:
         run: yarn warehouses-build
       - name: Build and install packages/cli module
         run: cd packages/cli && yarn build && npm i -g
+      - name: Test lightdash version
+        run: | 
+          lightdash_version=$(lightdash --version)
+          package_version=$(yarn workspace @lightdash/cli versions | grep '@lightdash/cli' | cut -d"'" -f 4)
+          if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi 
 
       # Run cypress tests
       - name: Cypress run

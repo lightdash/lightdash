@@ -1,4 +1,3 @@
-import { Button } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import { assertUnreachable } from '@lightdash/common';
 import React, { useCallback, useMemo, useState } from 'react';
@@ -6,7 +5,7 @@ import ResourceActionHandlers, {
     ResourceViewItemAction,
     ResourceViewItemActionState,
 } from './ResourceActionHandlers';
-import { ResourceViewItem } from './resourceTypeUtils';
+import { ResourceViewItem, ResourceViewItemType } from './resourceTypeUtils';
 import {
     ResourceEmptyStateWrapper,
     ResourceTag,
@@ -14,6 +13,7 @@ import {
     ResourceViewContainer,
     ResourceViewHeader,
     ResourceViewSpacer,
+    ResourceViewTab,
 } from './ResourceView.styles';
 import ResourceViewGrid from './ResourceViewGrid';
 import ResourceViewList, {
@@ -27,6 +27,8 @@ type Tab = {
     sort?: (a: ResourceViewItem, b: ResourceViewItem) => number;
 };
 
+type Group = ResourceViewItemType[];
+
 export interface ResourceViewCommonProps {
     headerTitle?: string;
     headerIcon?: JSX.Element;
@@ -34,6 +36,7 @@ export interface ResourceViewCommonProps {
     headerAction?: React.ReactNode;
     items: ResourceViewItem[];
     tabs?: Tab[];
+    groups?: Group[];
     showCount?: boolean;
     renderEmptyState?: () => React.ReactNode;
     view?: ResourceViewType;
@@ -50,6 +53,7 @@ const ResourceView: React.FC<ResourceViewProps> = ({
     view = ResourceViewType.LIST,
     items,
     tabs,
+    groups,
     headerTitle,
     headerIcon,
     headerIconTooltipContent,
@@ -96,19 +100,22 @@ const ResourceView: React.FC<ResourceViewProps> = ({
         <>
             {tabs && tabs?.length > 0
                 ? tabs.map((tab) => (
-                      <Button
+                      <ResourceViewTab
                           key={tab.id}
                           icon={tab.icon}
                           intent={tab.id === activeTabId ? 'primary' : 'none'}
                           onClick={() => setActiveTabId(tab.id)}
+                          minimal
+                          selected={activeTabId === tab.id}
                       >
                           {tab.name}
-                      </Button>
+                      </ResourceViewTab>
                   ))
                 : null}
 
             <ResourceViewContainer>
-                {headerTitle || headerAction ? (
+                {tabs && tabs?.length > 0 ? null : headerTitle ||
+                  headerAction ? (
                     <ResourceViewHeader>
                         {headerTitle && (
                             <ResourceTitle>{headerTitle}</ResourceTitle>
@@ -149,6 +156,7 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                 ) : view === ResourceViewType.GRID ? (
                     <ResourceViewGrid
                         items={presortedItems}
+                        groups={groups}
                         onAction={handleAction}
                     />
                 ) : (

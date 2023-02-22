@@ -1,3 +1,46 @@
+## [0.426.3](https://github.com/lightdash/lightdash/compare/0.426.2...0.426.3) (2023-02-22)
+
+
+### Bug Fixes
+
+* typo test and compile button ([#4551](https://github.com/lightdash/lightdash/issues/4551)) ([866fdab](https://github.com/lightdash/lightdash/commit/866fdab36ecd82a7d562d1dd69f0e4799cf6b137))
+
+## [0.426.2](https://github.com/lightdash/lightdash/compare/0.426.1...0.426.2) (2023-02-21)
+
+
+### Bug Fixes
+
+* exporting csv from SQL runner fails ([#4535](https://github.com/lightdash/lightdash/issues/4535)) ([c9bed25](https://github.com/lightdash/lightdash/commit/c9bed257532aaeda6fbf29ca5a0d09b1e6ee98da))
+
+## [0.426.1](https://github.com/lightdash/lightdash/compare/0.426.0...0.426.1) (2023-02-21)
+
+
+### Bug Fixes
+
+* fix cli e2e test ([#4541](https://github.com/lightdash/lightdash/issues/4541)) ([8408272](https://github.com/lightdash/lightdash/commit/840827266547a6520b0550a1ac26cc68b4643534))
+
+# [0.426.0](https://github.com/lightdash/lightdash/compare/0.425.0...0.426.0) (2023-02-21)
+
+
+### Features
+
+* most popular tab ([#4538](https://github.com/lightdash/lightdash/issues/4538)) ([6a72acd](https://github.com/lightdash/lightdash/commit/6a72acdd98ab86ff59d31ee4e694bbed8f7ec51f))
+
+# [0.425.0](https://github.com/lightdash/lightdash/compare/0.424.0...0.425.0) (2023-02-21)
+
+
+### Features
+
+* export csv options for dashboard chart tile ([#4529](https://github.com/lightdash/lightdash/issues/4529)) ([0e234a4](https://github.com/lightdash/lightdash/commit/0e234a4e468ebe8e87c1c6bc25f12cb96a8a1e9b))
+
+# [0.424.0](https://github.com/lightdash/lightdash/compare/0.423.0...0.424.0) (2023-02-21)
+
+
+### Features
+
+* icons shouldnt have white fill when active ([#4537](https://github.com/lightdash/lightdash/issues/4537)) ([2d42ce9](https://github.com/lightdash/lightdash/commit/2d42ce90a533c9ef1febe05e7aaa5130c16eba93))
+* resource groups ([#4533](https://github.com/lightdash/lightdash/issues/4533)) ([4f499a1](https://github.com/lightdash/lightdash/commit/4f499a1801818e2986516794d5f3334074842802))
+
 # [0.423.0](https://github.com/lightdash/lightdash/compare/0.422.0...0.423.0) (2023-02-21)
 
 

@@ -5,6 +5,7 @@ import { flexRender } from '@tanstack/react-table';
 import React from 'react';
 import { Draggable } from 'react-beautiful-dnd';
 import {
+    TABLE_HEADER_BG,
     Th,
     ThActionsContainer,
     ThContainer,
@@ -39,7 +40,7 @@ const TableHeader = () => {
                                         ...meta?.style,
                                         width: meta?.width,
                                         backgroundColor:
-                                            meta?.bgColor ?? Colors.GRAY5,
+                                            meta?.bgColor ?? TABLE_HEADER_BG,
                                     }}
                                     className={meta?.className}
                                 >

@@ -700,6 +700,74 @@ projectRouter.post(
     },
 );
 
+projectRouter.post(
+    '/sqlRunner/downloadCsv',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            const results: ApiSqlQueryResults =
+                await projectService.runSqlQuery(
+                    req.user!,
+                    req.params.projectUuid,
+                    req.body.sql,
+                );
+
+            const csvHeader = Object.keys(results.rows[0]);
+            const csvBody = results?.rows.map((row) =>
+                Object.values(results?.fields).map((field, fieldIndex) => {
+                    if (field.type === DimensionType.TIMESTAMP) {
+                        return moment(Object.values(row)[fieldIndex]).format(
+                            'YYYY-MM-DD HH:mm:ss',
+                        );
+                    }
+                    if (field.type === DimensionType.DATE) {
+                        return moment(Object.values(row)[fieldIndex]).format(
+                            'YYYY-MM-DD',
+                        );
+                    }
+                    return Object.values(row)[fieldIndex];
+                }),
+            );
+
+            const csvContent: string = await new Promise((resolve, reject) => {
+                stringify(
+                    [csvHeader, ...csvBody],
+                    {
+                        delimiter: ',',
+                    },
+                    (err, output) => {
+                        if (err) {
+                            reject(new Error(err.message));
+                        }
+                        resolve(output);
+                    },
+                );
+            });
+
+            const fileId = `csv-${nanoid()}.csv`;
+
+            let fileUrl;
+            try {
+                fileUrl = await s3Service.uploadCsv(csvContent, fileId);
+            } catch (e) {
+                // Can't store file in S3, storing locally
+                await fs.writeFile(`/tmp/${fileId}`, csvContent, 'utf-8');
+                fileUrl = `${lightdashConfig.siteUrl}/api/v1/projects/${req.params.projectUuid}/csv/${fileId}`;
+            }
+
+            res.json({
+                status: 'ok',
+                results: {
+                    url: fileUrl,
+                },
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
+
 projectRouter.get(
     '/catalog',
     allowApiKeyAuthentication,
