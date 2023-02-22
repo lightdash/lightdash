@@ -1,3 +1,10 @@
+## [0.426.4](https://github.com/lightdash/lightdash/compare/0.426.3...0.426.4) (2023-02-22)
+
+
+### Bug Fixes
+
+* unify csv code and fix duplicate csv export button/popover on sql runner page ([#4555](https://github.com/lightdash/lightdash/issues/4555)) ([c4c607e](https://github.com/lightdash/lightdash/commit/c4c607eb3f8470a8ceb01611fd63f37568aede51))
+
 ## [0.426.3](https://github.com/lightdash/lightdash/compare/0.426.2...0.426.3) (2023-02-22)
 
 
