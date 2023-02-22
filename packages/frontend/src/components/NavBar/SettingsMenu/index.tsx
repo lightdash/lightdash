@@ -1,5 +1,5 @@
 import { Button, Colors, Menu, PopoverPosition } from '@blueprintjs/core';
-import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
+import { Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import {
     IconBuildingBank,
@@ -9,6 +9,7 @@ import {
 import { FC } from 'react';
 import { useActiveProjectUuid } from '../../../hooks/useProject';
 import { useApp } from '../../../providers/AppProvider';
+import LinkMenuItem from '../../common/LinkMenuItem';
 
 const SettingsMenu: FC = () => {
     const {
@@ -44,19 +45,17 @@ const SettingsMenu: FC = () => {
             content={
                 <Menu>
                     {activeProjectUuid && userCanViewCurrentProject && (
-                        <MenuItem2
-                            role="menuitem"
-                            icon={<IconDatabase size={17} />}
+                        <LinkMenuItem
                             text="Project settings"
+                            icon={<IconDatabase size={17} />}
                             href={`/generalSettings/projectManagement/${activeProjectUuid}`}
                         />
                     )}
 
                     {userCanViewOrganization && (
-                        <MenuItem2
-                            role="menuitem"
-                            icon={<IconBuildingBank size={17} />}
+                        <LinkMenuItem
                             text="Organization settings"
+                            icon={<IconBuildingBank size={17} />}
                             href={`/generalSettings/organization`}
                         />
                     )}
