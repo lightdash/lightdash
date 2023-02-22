@@ -1,6 +1,7 @@
 import ThreeDotMenu from './assets/scheduled-deliveries-three-dot-menu.png';
 import CreateNewModal from './assets/create-new-modal.png';
-import ConfigureNewDelivery from './assets/configure-scheduled-delivery.png'
+import ConfigureNewDelivery from './assets/configure-scheduled-delivery.png';
+import EditDeleteDelivery from './assets/edit-delete-scheduled-delivery.png';
 
 # Scheduled deliveries
 
@@ -16,7 +17,7 @@ To set up Slack, see [setting up Slack]([Slack](/guides/sharing-in-slack.mdx#add
 
 ## Creating a scheduled delivery
 
-To create a scheduled delivery, click on the three-dot menu in the top-right corner of your chart or dashboard, then click on `scheduled deliveries`.
+Only users with [admin or edit access](/references/roles.md) can create scheduled deliveries. To create a scheduled delivery, click on the three-dot menu in the top-right corner of your chart or dashboard, then click on `scheduled deliveries`.
 
 <img src={ThreeDotMenu} width="818" height="276" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
@@ -32,6 +33,12 @@ If you click on `create new`, you'll be brought to a configuration screen for yo
 
 - **Name**: this is the name of your scheduled delivery. 
 - **Frequency**: this is how often your scheduled delivery will be sent. You can make this hourly, daily, weekly, monthly, or custom - each frequency has its own options. For example, with a monthly schedule, you set the day of the month and the time that you want your scheduled delivery to be sent. The custom frequency lets you write out your own custom Cron expression if you need something more specific than our standard options. All times for the scheduler are in UTC.
-- **Send to**: here, you can pick if you want to send your scheduled delivery to Slack, email, or both. You can add as many Slack channels and email addresses as you'd like to here. 
+- **Send to**: here, you can pick if you want to send your scheduled delivery to Slack, email, or both. You can add as many Slack channels and email addresses as you'd like to here.
 
 Once you've set up all of your delivery options, then you can click `create new` to create your new scheduled delivery.
+
+## Editing and deleting your scheduled deliveries
+
+To remove a scheduled delivery from a chart or dashboard, click on the three-dot-menu beside the scheduled delivery name. From there, you can choose to `edit` or `delete` the scheduled delivery.
+
+<img src={EditDeleteDelivery} width="845" height="515" style={{display: "block", margin: "0 auto 20px auto"}}/>
