@@ -1,16 +1,8 @@
 import {
-    ApiQueryResults,
-    DimensionType,
-    getItemLabel,
-    getItemMap,
-    isField,
     ScheduledEmailNotification,
     ScheduledSlackNotification,
-    SessionUser,
 } from '@lightdash/common';
-import { stringify } from 'csv-stringify';
-import * as fs from 'fs/promises';
-import moment from 'moment';
+
 import { nanoid } from 'nanoid';
 import { analytics } from '../analytics/client';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
@@ -24,8 +16,6 @@ import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logger';
 import {
     csvService,
-    projectService,
-    s3Service,
     schedulerService,
     unfurlService,
     userService,
@@ -105,6 +95,7 @@ export const sendSlackNotification = async (
                 pageType,
                 `slack-notification-image-${nanoid()}`,
                 userUuid,
+                3, // up to 3 retries
             );
             if (imageUrl === undefined) {
                 throw new Error('Unable to unfurl image');
@@ -181,6 +172,7 @@ export const sendSlackNotification = async (
             event: 'scheduler_job.failed',
             anonymousId: LightdashAnalytics.anonymousId,
             properties: {
+                error: `${e}`,
                 jobId,
                 format,
 
@@ -229,6 +221,7 @@ export const sendEmailNotification = async (
                 pageType,
                 `email-notification-image-${nanoid()}`,
                 userUuid,
+                3, // up to 3 retries
             );
             if (imageUrl === undefined) {
                 throw new Error('Unable to unfurl image');
@@ -297,6 +290,7 @@ export const sendEmailNotification = async (
             event: 'scheduler_job.failed',
             anonymousId: LightdashAnalytics.anonymousId,
             properties: {
+                error: `${e}`,
                 jobId,
                 format,
 

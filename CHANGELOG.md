@@ -1,3 +1,24 @@
+# [0.427.0](https://github.com/lightdash/lightdash/compare/0.426.5...0.427.0) (2023-02-22)
+
+
+### Features
+
+* add retries headless browser ([#4531](https://github.com/lightdash/lightdash/issues/4531)) ([b7159ab](https://github.com/lightdash/lightdash/commit/b7159abec21bc838f27ddeb98ccd2c9ade471e06))
+
+## [0.426.5](https://github.com/lightdash/lightdash/compare/0.426.4...0.426.5) (2023-02-22)
+
+
+### Bug Fixes
+
+* show dashboard header without action buttons to viewers ([#4556](https://github.com/lightdash/lightdash/issues/4556)) ([7756fb1](https://github.com/lightdash/lightdash/commit/7756fb1e71423caa78c37216d5ed22dabf49f184))
+
+## [0.426.4](https://github.com/lightdash/lightdash/compare/0.426.3...0.426.4) (2023-02-22)
+
+
+### Bug Fixes
+
+* unify csv code and fix duplicate csv export button/popover on sql runner page ([#4555](https://github.com/lightdash/lightdash/issues/4555)) ([c4c607e](https://github.com/lightdash/lightdash/commit/c4c607eb3f8470a8ceb01611fd63f37568aede51))
+
 ## [0.426.3](https://github.com/lightdash/lightdash/compare/0.426.2...0.426.3) (2023-02-22)
 
 

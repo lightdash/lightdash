@@ -80,8 +80,10 @@ const DashboardHeader = ({
     };
 
     const { user } = useApp();
-
-    if (user.data?.ability?.cannot('manage', 'Dashboard')) return <></>;
+    const userCanManageDashboard = user.data?.ability.can(
+        'manage',
+        'Dashboard',
+    );
 
     return (
         <PageHeaderContainer>
@@ -98,7 +100,7 @@ const DashboardHeader = ({
                         </Tooltip2>
                     )}
 
-                    {user.data?.ability?.can('manage', 'Dashboard') && (
+                    {userCanManageDashboard && (
                         <Button
                             icon="edit"
                             disabled={isSaving}
@@ -139,8 +141,7 @@ const DashboardHeader = ({
                     )}
                 </PageDetailsContainer>
             </PageTitleAndDetailsContainer>
-
-            {isEditMode ? (
+            {userCanManageDashboard && isEditMode ? (
                 <PageActionsContainer>
                     <AddTileButton onAddTiles={onAddTiles} />
 
@@ -166,7 +167,7 @@ const DashboardHeader = ({
                         onClick={onCancel}
                     />
                 </PageActionsContainer>
-            ) : (
+            ) : userCanManageDashboard ? (
                 <PageActionsContainer>
                     <Button
                         icon="edit"
@@ -292,7 +293,7 @@ const DashboardHeader = ({
                         />
                     )}
                 </PageActionsContainer>
-            )}
+            ) : null}
         </PageHeaderContainer>
     );
 };
