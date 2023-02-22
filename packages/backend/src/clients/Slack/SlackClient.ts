@@ -12,7 +12,10 @@ type SlackClientDependencies = {
 };
 
 const CACHE_TIME = 1000 * 10 * 60; // 10 minutes
-let cachedChannels: { lastCached: Date; channels: SlackChannel[] } | undefined;
+const cachedChannels: Record<
+    string,
+    { lastCached: Date; channels: SlackChannel[] }
+> = {};
 
 export class SlackClient {
     slackAuthenticationModel: SlackAuthenticationModel;
@@ -61,11 +64,12 @@ export class SlackClient {
 
     async getChannels(organizationUuid: string): Promise<SlackChannel[]> {
         if (
-            cachedChannels &&
-            new Date().getTime() - cachedChannels.lastCached.getTime() <
+            cachedChannels[organizationUuid] &&
+            new Date().getTime() -
+                cachedChannels[organizationUuid].lastCached.getTime() <
                 CACHE_TIME
         ) {
-            return cachedChannels.channels;
+            return cachedChannels[organizationUuid].channels;
         }
 
         Logger.debug('Fetching channels from Slack API');
@@ -106,7 +110,7 @@ export class SlackClient {
             .sort((a, b) => a.name.localeCompare(b.name));
 
         const channels = [...sortedChannels, ...sortedUsers];
-        cachedChannels = { lastCached: new Date(), channels };
+        cachedChannels[organizationUuid] = { lastCached: new Date(), channels };
         return channels;
     }
 
