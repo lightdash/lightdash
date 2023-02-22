@@ -1,16 +1,5 @@
-import {
-    Button,
-    Classes,
-    Colors,
-    HTMLSelect,
-    Icon,
-    Menu,
-    MenuDivider,
-    MenuItem,
-} from '@blueprintjs/core';
+import { Button, Classes, Colors } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
-import { ItemListRenderer, ItemListRendererProps } from '@blueprintjs/select';
-import { SlackChannel } from '@lightdash/common';
 import React, { FC, useMemo } from 'react';
 import useHealth from '../../../hooks/health/useHealth';
 import { useSlackChannels } from '../../../hooks/slack/useSlackChannels';
@@ -22,7 +11,6 @@ import CronInput from '../../ReactHookForm/CronInput';
 import Form from '../../ReactHookForm/Form';
 import Input from '../../ReactHookForm/Input';
 import Select from '../../ReactHookForm/Select';
-import { FormGroupWrapper } from '../../SavedQueries/SavedQueries.style';
 import { hasRequiredScopes } from '../../UserSettings/SlackSettingsPanel';
 import { EmailIcon, SlackIcon, TargetRow } from './SchedulerModalBase.styles';
 
