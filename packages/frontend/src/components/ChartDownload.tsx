@@ -7,14 +7,12 @@ import {
     PopoverPosition,
 } from '@blueprintjs/core';
 import { Classes, Popover2 } from '@blueprintjs/popover2';
-import { ChartType, NotFoundError } from '@lightdash/common';
+import { ChartType } from '@lightdash/common';
 import EChartsReact from 'echarts-for-react';
 import JsPDF from 'jspdf';
 import React, { memo, RefObject, useCallback, useState } from 'react';
-import { useParams } from 'react-router-dom';
 import useEcharts from '../hooks/echarts/useEcharts';
-import { downloadCsv } from '../hooks/useDownloadCsv';
-import DownloadCsvPopup from './DownloadCsvPopup';
+import ExportCSV from './ExportCSV';
 import { useVisualizationContext } from './LightdashVisualization/VisualizationProvider';
 
 const FILE_NAME = 'lightdash_chart';
@@ -193,60 +191,57 @@ export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
     );
 };
 
-export const ChartDownloadMenu: React.FC = memo(() => {
-    const {
-        chartRef,
-        chartType,
-        tableConfig: { rows },
-        resultsData,
-        explore,
-    } = useVisualizationContext();
-    const eChartsOptions = useEcharts();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
-    const [isOpen, setIsOpen] = useState(false);
-    const disabled =
-        (chartType === ChartType.TABLE && rows.length <= 0) ||
-        !resultsData?.metricQuery ||
-        chartType === ChartType.BIG_NUMBER ||
-        (chartType === ChartType.CARTESIAN && !eChartsOptions);
+interface ChartDownloadMenuProps {
+    getCsvLink?: (limit: number | null, onlyRaw: boolean) => Promise<string>;
+}
 
-    const getCsvLink = async (csvLimit: number | null, onlyRaw: boolean) => {
-        if (explore?.name && resultsData?.metricQuery) {
-            const csvResponse = await downloadCsv({
-                projectUuid,
-                tableId: explore?.name,
-                query: resultsData?.metricQuery,
-                csvLimit,
-                onlyRaw,
-            });
-            return csvResponse.url;
-        }
-        throw new NotFoundError('no metric query defined');
-    };
+export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
+    ({ getCsvLink }) => {
+        const {
+            chartRef,
+            chartType,
+            tableConfig: { rows },
+            resultsData,
+        } = useVisualizationContext();
+        const eChartsOptions = useEcharts();
+        const [isOpen, setIsOpen] = useState(false);
+        const disabled =
+            (chartType === ChartType.TABLE && rows.length <= 0) ||
+            !resultsData?.metricQuery ||
+            chartType === ChartType.BIG_NUMBER ||
+            (chartType === ChartType.CARTESIAN && !eChartsOptions);
 
-    return chartType === ChartType.TABLE ? (
-        <DownloadCsvPopup getCsvLink={getCsvLink} rows={rows} />
-    ) : (
-        <Popover2
-            lazy
-            content={
-                <ChartDownloadOptions
-                    chartRef={chartRef}
-                    chartType={chartType}
-                />
-            }
-            popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
-            isOpen={isOpen}
-            onInteraction={setIsOpen}
-            position={PopoverPosition.BOTTOM_LEFT}
-            disabled={disabled}
-        >
-            <Button
-                minimal
-                rightIcon="caret-down"
-                text="Export as"
+        return chartType === ChartType.TABLE && getCsvLink ? (
+            <Popover2
+                lazy
+                position={PopoverPosition.BOTTOM_LEFT}
+                popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
+                content={<ExportCSV getCsvLink={getCsvLink} rows={rows} />}
+            >
+                <Button text="Export CSV" rightIcon="caret-down" minimal />
+            </Popover2>
+        ) : chartType === ChartType.TABLE && !getCsvLink ? null : (
+            <Popover2
+                lazy
+                content={
+                    <ChartDownloadOptions
+                        chartRef={chartRef}
+                        chartType={chartType}
+                    />
+                }
+                popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
+                isOpen={isOpen}
+                onInteraction={setIsOpen}
+                position={PopoverPosition.BOTTOM_LEFT}
                 disabled={disabled}
-            />
-        </Popover2>
-    );
-});
+            >
+                <Button
+                    minimal
+                    rightIcon="caret-down"
+                    text="Export as"
+                    disabled={disabled}
+                />
+            </Popover2>
+        );
+    },
+);

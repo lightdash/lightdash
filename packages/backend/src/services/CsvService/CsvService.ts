@@ -1,5 +1,6 @@
 import {
     ApiQueryResults,
+    ApiSqlQueryResults,
     DimensionType,
     Field,
     getItemLabel,
@@ -103,6 +104,42 @@ export class CsvService {
                     }
                     return rowData.value.formatted;
                 }),
+        );
+
+        return new Promise((resolve, reject) => {
+            stringify(
+                [csvHeader, ...csvBody],
+                {
+                    delimiter: ',',
+                },
+                (err, output) => {
+                    if (err) {
+                        reject(new Error(err.message));
+                    }
+                    resolve(output);
+                },
+            );
+        });
+    }
+
+    static async convertSqlQueryResultsToCsv(
+        results: ApiSqlQueryResults,
+    ): Promise<string> {
+        const csvHeader = Object.keys(results.rows[0]);
+        const csvBody = results?.rows.map((row) =>
+            Object.values(results?.fields).map((field, fieldIndex) => {
+                if (field.type === DimensionType.TIMESTAMP) {
+                    return moment(Object.values(row)[fieldIndex]).format(
+                        'YYYY-MM-DD HH:mm:ss',
+                    );
+                }
+                if (field.type === DimensionType.DATE) {
+                    return moment(Object.values(row)[fieldIndex]).format(
+                        'YYYY-MM-DD',
+                    );
+                }
+                return Object.values(row)[fieldIndex];
+            }),
         );
 
         return new Promise((resolve, reject) => {

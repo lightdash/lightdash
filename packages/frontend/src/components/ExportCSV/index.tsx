@@ -1,30 +1,25 @@
 import {
     Button,
     ButtonProps,
+    DialogBody,
+    DialogFooter,
     FormGroup,
     Intent,
     NumericInput,
-    PopoverPosition,
     Radio,
     RadioGroup,
 } from '@blueprintjs/core';
-import { Classes, Popover2 } from '@blueprintjs/popover2';
 import { ResultRow } from '@lightdash/common';
-import { FC, memo, useState } from 'react';
-import { InputWrapper, Title } from './DownloadCsvPopup.styles';
+import { FC, Fragment, memo, useState } from 'react';
+import { InputWrapper, Title } from './ExportCSV.styles';
 
-type Props = {
-    rows: ResultRow[] | undefined;
-    getCsvLink: (limit: number | null, onlyRaw: boolean) => Promise<string>;
-};
-
-export enum Limit {
+enum Limit {
     TABLE = 'table',
     ALL = 'all',
     CUSTOM = 'custom',
 }
 
-export enum Values {
+enum Values {
     FORMATTED = 'formatted',
     RAW = 'raw',
 }
@@ -35,25 +30,51 @@ const ExportAsCSVButton: FC<ButtonProps> = ({ ...props }) => {
     );
 };
 
-const DownloadCsvPopup: FC<Props> = memo(({ rows, getCsvLink }) => {
-    const [isOpen, setIsOpen] = useState<boolean>(false);
-    const [limit, setLimit] = useState<string>(Limit.TABLE);
-    const [customLimit, setCustomLimit] = useState<number>(1);
-    const [format, setFormat] = useState<string>(Values.FORMATTED);
+type ExportCsvRenderProps = {
+    onExport: () => Promise<void>;
+    isExporting: boolean;
+};
 
-    if (!rows || rows.length <= 0) {
-        return <ExportAsCSVButton disabled />;
-    }
+export type ExportCSVProps = {
+    rows: ResultRow[] | undefined;
+    getCsvLink: (limit: number | null, onlyRaw: boolean) => Promise<string>;
+    isDialogBody?: boolean;
+    renderDialogActions?: (renderProps: ExportCsvRenderProps) => JSX.Element;
+};
 
-    return (
-        <Popover2
-            lazy
-            isOpen={isOpen}
-            onInteraction={setIsOpen}
-            position={PopoverPosition.BOTTOM_LEFT}
-            popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
-            content={
-                <>
+const ExportCSV: FC<ExportCSVProps> = memo(
+    ({ rows, getCsvLink, isDialogBody, renderDialogActions }) => {
+        const [limit, setLimit] = useState<string>(Limit.TABLE);
+        const [customLimit, setCustomLimit] = useState<number>(1);
+        const [format, setFormat] = useState<string>(Values.FORMATTED);
+        const [isExporting, setIsExporting] = useState<boolean>(false);
+
+        if (!rows || rows.length <= 0) {
+            return <ExportAsCSVButton disabled />;
+        }
+
+        const Wrapper = isDialogBody ? DialogBody : Fragment;
+
+        const handleExport = async () => {
+            setIsExporting(true);
+
+            const url = await getCsvLink(
+                limit === Limit.CUSTOM
+                    ? customLimit
+                    : limit === Limit.TABLE
+                    ? rows.length
+                    : null,
+                format === Values.RAW,
+            );
+
+            setIsExporting(false);
+
+            window.open(url, '_blank');
+        };
+
+        return (
+            <>
+                <Wrapper>
                     <FormGroup>
                         <RadioGroup
                             label={<Title>Values</Title>}
@@ -92,31 +113,29 @@ const DownloadCsvPopup: FC<Props> = memo(({ rows, getCsvLink }) => {
                             />
                         </InputWrapper>
                     )}
+                </Wrapper>
+
+                {isDialogBody && renderDialogActions ? (
+                    <DialogFooter
+                        actions={renderDialogActions({
+                            onExport: handleExport,
+                            isExporting,
+                        })}
+                    />
+                ) : (
                     <Button
+                        loading={isExporting}
                         fill
                         intent={Intent.PRIMARY}
                         icon="export"
-                        onClick={() => {
-                            getCsvLink(
-                                limit === Limit.CUSTOM
-                                    ? customLimit
-                                    : limit === Limit.TABLE
-                                    ? rows.length
-                                    : null,
-                                format === Values.RAW,
-                            ).then((url) => {
-                                window.open(url, '_blank');
-                            });
-                        }}
+                        onClick={handleExport}
                     >
                         Export CSV
                     </Button>
-                </>
-            }
-        >
-            <ExportAsCSVButton />
-        </Popover2>
-    );
-});
+                )}
+            </>
+        );
+    },
+);
 
-export default DownloadCsvPopup;
+export default ExportCSV;

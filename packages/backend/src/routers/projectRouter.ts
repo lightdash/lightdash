@@ -28,7 +28,9 @@ import {
     isAuthenticated,
     unauthorisedInDemo,
 } from '../controllers/authentication';
+import { CsvService } from '../services/CsvService/CsvService';
 import {
+    csvService,
     dashboardService,
     projectService,
     s3Service,
@@ -259,55 +261,13 @@ projectRouter.post(
                 metricQuery.additionalMetrics,
                 metricQuery.tableCalculations,
             );
-            // Ignore fields from results that are not selected in metrics or dimensions
-            const selectedFieldIds = [
-                ...body.metrics,
-                ...body.dimensions,
-                ...body.tableCalculations.map((tc: any) => tc.name),
-            ];
-            const csvHeader = Object.keys(results.rows[0])
-                .filter((id) => selectedFieldIds.includes(id))
-                .map((id) => getItemLabel(itemMap[id]));
-            const csvBody = results.rows.map((row) =>
-                Object.keys(row)
-                    .filter((id) => selectedFieldIds.includes(id))
-                    .map((id) => {
-                        const rowData = row[id];
-                        const item = itemMap[id];
-                        if (
-                            isField(item) &&
-                            item.type === DimensionType.TIMESTAMP
-                        ) {
-                            return moment(rowData.value.raw).format(
-                                'YYYY-MM-DD HH:mm:ss',
-                            );
-                        }
-                        if (isField(item) && item.type === DimensionType.DATE) {
-                            return moment(rowData.value.raw).format(
-                                'YYYY-MM-DD',
-                            );
-                        }
-                        if (onlyRaw) {
-                            return rowData.value.raw;
-                        }
-                        return rowData.value.formatted;
-                    }),
-            );
 
-            const csvContent: string = await new Promise((resolve, reject) => {
-                stringify(
-                    [csvHeader, ...csvBody],
-                    {
-                        delimiter: ',',
-                    },
-                    (err, output) => {
-                        if (err) {
-                            reject(new Error(err.message));
-                        }
-                        resolve(output);
-                    },
-                );
-            });
+            const csvContent: string = await CsvService.convertApiResultsToCsv(
+                results,
+                onlyRaw,
+                metricQuery,
+                itemMap,
+            );
 
             const fileId = `csv-${nanoid()}.csv`;
 
@@ -693,6 +653,46 @@ projectRouter.post(
             res.json({
                 status: 'ok',
                 results,
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
+
+projectRouter.post(
+    '/sqlRunner/downloadCsv',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            const results: ApiSqlQueryResults =
+                await projectService.runSqlQuery(
+                    req.user!,
+                    req.params.projectUuid,
+                    req.body.sql,
+                );
+
+            const csvContent = await CsvService.convertSqlQueryResultsToCsv(
+                results,
+            );
+
+            const fileId = `csv-${nanoid()}.csv`;
+
+            let fileUrl;
+            try {
+                fileUrl = await s3Service.uploadCsv(csvContent, fileId);
+            } catch (e) {
+                // Can't store file in S3, storing locally
+                await fs.writeFile(`/tmp/${fileId}`, csvContent, 'utf-8');
+                fileUrl = `${lightdashConfig.siteUrl}/api/v1/projects/${req.params.projectUuid}/csv/${fileId}`;
+            }
+
+            res.json({
+                status: 'ok',
+                results: {
+                    url: fileUrl,
+                },
             });
         } catch (e) {
             next(e);

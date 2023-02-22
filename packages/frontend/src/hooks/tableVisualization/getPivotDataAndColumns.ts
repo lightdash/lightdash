@@ -8,6 +8,7 @@ import {
     ResultRow,
     TableCalculation,
 } from '@lightdash/common';
+import { getTableHeaderDarkerBg } from '../../components/common/Table/Table.styles';
 import {
     columnHelper,
     TableColumn,
@@ -46,14 +47,7 @@ const getPivottedColumnCount = (pivotValuesMap: PivotValueMap) =>
     );
 
 const getHeaderBgColor = (pivotsLength: number, pivotIndex: number) => {
-    const colorPalette = [
-        Colors.GRAY4,
-        Colors.GRAY3,
-        Colors.GRAY2,
-        Colors.GRAY1,
-    ];
-    const maxIndex = pivotsLength - 1;
-    return colorPalette[maxIndex - pivotIndex];
+    return getTableHeaderDarkerBg(pivotsLength - pivotIndex);
 };
 
 const EmptyColumn = columnHelper.accessor('empty-column', {

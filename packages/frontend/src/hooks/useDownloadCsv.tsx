@@ -23,3 +23,17 @@ export const downloadCsv = async ({
         body: JSON.stringify({ ...timezoneFixQuery, csvLimit, onlyRaw }),
     });
 };
+
+export const downloadCsvFromSqlRunner = async ({
+    projectUuid,
+    sql,
+}: {
+    projectUuid: string;
+    sql: string;
+}) => {
+    return lightdashApi<ApiDownloadCsv>({
+        url: `/projects/${projectUuid}/sqlRunner/downloadCsv`,
+        method: 'POST',
+        body: JSON.stringify({ sql }),
+    });
+};

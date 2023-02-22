@@ -1,5 +1,10 @@
 import { Colors, HTMLTable } from '@blueprintjs/core';
+import { darken, transparentize } from 'polished';
 import styled, { css } from 'styled-components';
+
+export const TABLE_HEADER_BG = Colors.LIGHT_GRAY4;
+export const getTableHeaderDarkerBg = (depth: number) =>
+    darken(depth * 0.03, TABLE_HEADER_BG);
 
 export const TableScrollableWrapper = styled.div`
     display: flex;
@@ -33,6 +38,7 @@ export const TableContainer = styled.div<TableContainerProps>`
 `;
 
 export const Table = styled(HTMLTable)<{ $showFooter: boolean }>`
+    background-color: white;
     width: 100%;
     border-left: 1px solid #dcdcdd;
     border-right: 1px solid #dcdcdd;
@@ -45,7 +51,6 @@ export const Table = styled(HTMLTable)<{ $showFooter: boolean }>`
         position: sticky;
         top: 0;
         inset-block-start: 0; /* "top" */
-        background: ${Colors.GRAY5};
 
         th:first-child {
             border-top: none !important;
@@ -55,12 +60,6 @@ export const Table = styled(HTMLTable)<{ $showFooter: boolean }>`
         th {
             border-top: none !important;
             border-bottom: none !important;
-        }
-    }
-
-    tbody tr {
-        :hover {
-            background: ${Colors.LIGHT_GRAY3};
         }
     }
 
@@ -98,6 +97,12 @@ export const Table = styled(HTMLTable)<{ $showFooter: boolean }>`
     }
 `;
 
+Table.defaultProps = {
+    compact: true,
+    bordered: true,
+    striped: false,
+};
+
 export const TableFooter = styled.div`
     display: flex;
     flex-direction: row;
@@ -114,12 +119,17 @@ export const Tr = styled.tr<{
     $index?: number;
 }>`
     ${({ $index = 0 }) =>
-        $index % 2 === 0
+        $index % 2 === 1
             ? `
-                background-color: ${Colors.LIGHT_GRAY5};
+                background-color: ${transparentize(0.7, Colors.LIGHT_GRAY5)};
             `
             : ''}
+
+    :hover {
+        background-color: ${Colors.LIGHT_GRAY3};
+    }
 `;
+
 export const Td = styled.td<{
     $isNaN: boolean;
     $rowIndex: number;

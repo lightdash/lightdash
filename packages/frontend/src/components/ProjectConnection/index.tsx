@@ -281,7 +281,7 @@ export const UpdateProjectConnection: FC<{
                                 data?.dbtConnection?.type ===
                                 DbtProjectType.NONE
                                     ? 'Save and test'
-                                    : 'Test &amp; compile project'
+                                    : 'Test & compile project'
                             }
                             loading={isSaving}
                             disabled={isDisabled}
@@ -379,7 +379,7 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                     large
                     type="submit"
                     intent={Intent.PRIMARY}
-                    text="Test &amp; compile project"
+                    text="Test & compile project"
                     loading={isSavingProject}
                 />
             </ProjectFormProvider>

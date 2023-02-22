@@ -3,6 +3,7 @@ import {
     ScheduledEmailNotification,
     ScheduledSlackNotification,
 } from '@lightdash/common';
+
 import { nanoid } from 'nanoid';
 import { analytics } from '../analytics/client';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
@@ -96,6 +97,7 @@ export const sendSlackNotification = async (
                 pageType,
                 `slack-notification-image-${nanoid()}`,
                 userUuid,
+                3, // up to 3 retries
             );
             if (imageUrl === undefined) {
                 throw new Error('Unable to unfurl image');
@@ -177,6 +179,7 @@ export const sendSlackNotification = async (
             event: 'scheduler_job.failed',
             anonymousId: LightdashAnalytics.anonymousId,
             properties: {
+                error: `${e}`,
                 jobId,
                 format,
 
@@ -227,6 +230,7 @@ export const sendEmailNotification = async (
                 pageType,
                 `email-notification-image-${nanoid()}`,
                 userUuid,
+                3, // up to 3 retries
             );
             if (imageUrl === undefined) {
                 throw new Error('Unable to unfurl image');
@@ -301,6 +305,7 @@ export const sendEmailNotification = async (
             event: 'scheduler_job.failed',
             anonymousId: LightdashAnalytics.anonymousId,
             properties: {
+                error: `${e}`,
                 jobId,
                 format,
 

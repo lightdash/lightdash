@@ -70,6 +70,39 @@ const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
             defaultColumnVisibility={{ space: false, type: false }}
             showCount={false}
             headerTitle="Recently updated"
+            tabs={[
+                {
+                    id: 'recently-updated',
+                    name: 'Recently updated',
+                    sort: (a, b) => {
+                        if (
+                            isResourceViewSpaceItem(a) ||
+                            isResourceViewSpaceItem(b)
+                        ) {
+                            return 0;
+                        }
+
+                        return (
+                            new Date(b.data.updatedAt).getTime() -
+                            new Date(a.data.updatedAt).getTime()
+                        );
+                    },
+                },
+                {
+                    id: 'most-popular',
+                    name: 'Most popular',
+                    sort: (a, b) => {
+                        if (
+                            isResourceViewSpaceItem(a) ||
+                            isResourceViewSpaceItem(b)
+                        ) {
+                            return 0;
+                        }
+
+                        return b.data.views - a.data.views;
+                    },
+                },
+            ]}
             headerAction={
                 recentItems.length === 0 && (
                     <AnchorButton

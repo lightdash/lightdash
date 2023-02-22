@@ -6,9 +6,15 @@ import {
     useHotkeys,
 } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
-import { DbtCloudMetric, TableBase } from '@lightdash/common';
+import {
+    ChartType,
+    DbtCloudMetric,
+    NotFoundError,
+    TableBase,
+} from '@lightdash/common';
 import { useCallback, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
+import { useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
 import { ChartDownloadMenu } from '../components/ChartDownload';
 import CollapsableCard from '../components/common/CollapsableCard';
@@ -20,6 +26,7 @@ import Sidebar, { SidebarDivider } from '../components/common/Page/Sidebar';
 import ShareShortLinkButton from '../components/common/ShareShortLinkButton';
 import SideBarLoadingState from '../components/common/SideBarLoadingState';
 import { Tree } from '../components/common/Tree';
+import DownloadCsvButton from '../components/DownloadCsvButton';
 import { StyledBreadcrumb } from '../components/Explorer/ExploreSideBar/ExploreSideBar.styles';
 import VisualizationConfigPanel from '../components/Explorer/VisualizationCard/VisualizationConfigPanel';
 import VisualizationCardOptions from '../components/Explorer/VisualizationCardOptions';
@@ -31,6 +38,7 @@ import RunSqlQueryButton from '../components/SqlRunner/RunSqlQueryButton';
 import SqlRunnerInput from '../components/SqlRunner/SqlRunnerInput';
 import SqlRunnerResultsTable from '../components/SqlRunner/SqlRunnerResultsTable';
 import { useProjectDbtCloudMetrics } from '../hooks/dbtCloud/useProjectDbtCloudMetrics';
+import { downloadCsvFromSqlRunner } from '../hooks/useDownloadCsv';
 import { useProjectCatalog } from '../hooks/useProjectCatalog';
 import { useProjectCatalogTree } from '../hooks/useProjectCatalogTree';
 import { useSqlQueryMutation } from '../hooks/useSqlQuery';
@@ -52,7 +60,7 @@ import {
 
 const generateBasicSqlQuery = (table: string) =>
     `SELECT *
-     FROM ${table} LIMIT 25`;
+   FROM ${table} LIMIT 25`;
 
 const generateDefaultDbtMetricQuery = (metric: DbtCloudMetric) => {
     const args: string[] = [`metric('${metric.name}')`];
@@ -65,10 +73,9 @@ const generateDefaultDbtMetricQuery = (metric: DbtCloudMetric) => {
         args.push(`grain='${metric.timeGrains[0]}'`);
     }
     return `SELECT *
-FROM {{ metrics.calculate(
-    ${args.join(',\n    ')}
-)}}
-LIMIT 500`;
+          FROM {{ metrics.calculate(
+                  ${args.join(',\n    ')}
+              )}} LIMIT 500`;
 };
 
 enum SqlRunnerCards {
@@ -82,6 +89,7 @@ const SqlRunnerPage = () => {
         'warehouse-schema',
     );
     const { user } = useApp();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     const initialState = useSqlRunnerUrlState();
     const metrics = useProjectDbtCloudMetrics();
     const sqlQueryMutation = useSqlQueryMutation();
@@ -183,6 +191,17 @@ const SqlRunnerPage = () => {
         return <ForbiddenPanel />;
     }
 
+    const getCsvLink = async () => {
+        if (sql) {
+            const csvResponse = await downloadCsvFromSqlRunner({
+                projectUuid,
+                sql,
+            });
+            return csvResponse.url;
+        }
+        throw new NotFoundError('no SQL query defined');
+    };
+
     return (
         <PageWithSidebar>
             <Helmet>
@@ -281,6 +300,12 @@ const SqlRunnerPage = () => {
                                     <VisualizationConfigPanel
                                         chartType={chartType}
                                     />
+                                    {chartType === ChartType.TABLE && (
+                                        <DownloadCsvButton
+                                            getCsvLink={getCsvLink}
+                                            disabled={!sql}
+                                        />
+                                    )}
                                     <ChartDownloadMenu />
                                 </>
                             )

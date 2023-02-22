@@ -39,7 +39,7 @@ export const NavbarMenuItem = styled(MenuItem2)`
 
                 svg,
                 path {
-                    fill: ${Colors.WHITE} !important;
+                    stroke: ${Colors.WHITE} !important;
                 }
             `
             : ''}
