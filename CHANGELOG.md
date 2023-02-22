@@ -1,3 +1,10 @@
+## [0.426.5](https://github.com/lightdash/lightdash/compare/0.426.4...0.426.5) (2023-02-22)
+
+
+### Bug Fixes
+
+* show dashboard header without action buttons to viewers ([#4556](https://github.com/lightdash/lightdash/issues/4556)) ([7756fb1](https://github.com/lightdash/lightdash/commit/7756fb1e71423caa78c37216d5ed22dabf49f184))
+
 ## [0.426.4](https://github.com/lightdash/lightdash/compare/0.426.3...0.426.4) (2023-02-22)
 
 
