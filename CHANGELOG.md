@@ -1,3 +1,10 @@
+## [0.426.3](https://github.com/lightdash/lightdash/compare/0.426.2...0.426.3) (2023-02-22)
+
+
+### Bug Fixes
+
+* typo test and compile button ([#4551](https://github.com/lightdash/lightdash/issues/4551)) ([866fdab](https://github.com/lightdash/lightdash/commit/866fdab36ecd82a7d562d1dd69f0e4799cf6b137))
+
 ## [0.426.2](https://github.com/lightdash/lightdash/compare/0.426.1...0.426.2) (2023-02-21)
 
 
