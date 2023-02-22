@@ -11,6 +11,9 @@ type SlackClientDependencies = {
     lightdashConfig: LightdashConfig;
 };
 
+const CACHE_TIME = 1000 * 10 * 60; // 10 minutes
+let cachedChannels: { lastCached: Date; channels: SlackChannel[] } | undefined;
+
 export class SlackClient {
     slackAuthenticationModel: SlackAuthenticationModel;
 
@@ -57,6 +60,16 @@ export class SlackClient {
     }
 
     async getChannels(organizationUuid: string): Promise<SlackChannel[]> {
+        if (
+            cachedChannels &&
+            new Date().getTime() - cachedChannels.lastCached.getTime() <
+                CACHE_TIME
+        ) {
+            return cachedChannels.channels;
+        }
+
+        Logger.debug('Fetching channels from Slack API');
+
         if (this.slackApp === undefined) {
             throw new Error('Slack app is not configured');
         }
@@ -66,7 +79,7 @@ export class SlackClient {
                 organizationUuid,
             );
 
-        const channels = await this.slackApp.client.conversations.list({
+        const conversations = await this.slackApp.client.conversations.list({
             token: installation?.token,
             types: 'public_channel',
             limit: 500,
@@ -75,12 +88,15 @@ export class SlackClient {
         const users = await this.slackApp.client.users.list({
             token: installation?.token,
         });
-        return [...(channels.channels || []), ...(users.members || [])].reduce<
-            SlackChannel[]
-        >(
+        const channels = [
+            ...(conversations.channels || []),
+            ...(users.members || []),
+        ].reduce<SlackChannel[]>(
             (acc, { id, name }) => (id && name ? [...acc, { id, name }] : acc),
             [],
         );
+        cachedChannels = { lastCached: new Date(), channels };
+        return channels;
     }
 
     async joinChannels(organizationUuid: string, channels: string[]) {
