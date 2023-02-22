@@ -13,7 +13,7 @@ describe('Settings - Invites', () => {
         cy.findByLabelText('Enter user email address *').type(
             'marygreen@lightdash.com',
         );
-        cy.contains('Generate invite').click();
+        cy.contains(/(Generate|Send) invite/).click();
         cy.get('#invite-link-input')
             .should('be.visible')
             .then(($input) => {
