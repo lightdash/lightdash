@@ -88,13 +88,24 @@ export class SlackClient {
         const users = await this.slackApp.client.users.list({
             token: installation?.token,
         });
-        const channels = [
-            ...(conversations.channels || []),
-            ...(users.members || []),
-        ].reduce<SlackChannel[]>(
-            (acc, { id, name }) => (id && name ? [...acc, { id, name }] : acc),
-            [],
-        );
+
+        const sortedChannels = (conversations.channels || [])
+            .reduce<SlackChannel[]>(
+                (acc, { id, name }) =>
+                    id && name ? [...acc, { id, name: `#${name}` }] : acc,
+                [],
+            )
+            .sort((a, b) => a.name.localeCompare(b.name));
+
+        const sortedUsers = (users.members || [])
+            .reduce<SlackChannel[]>(
+                (acc, { id, name }) =>
+                    id && name ? [...acc, { id, name: `@${name}` }] : acc,
+                [],
+            )
+            .sort((a, b) => a.name.localeCompare(b.name));
+
+        const channels = [...sortedChannels, ...sortedUsers];
         cachedChannels = { lastCached: new Date(), channels };
         return channels;
     }

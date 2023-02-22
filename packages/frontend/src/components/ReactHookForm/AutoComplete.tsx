@@ -1,7 +1,18 @@
-import { Button, Spinner } from '@blueprintjs/core';
+import {
+    Button,
+    Menu,
+    MenuDivider,
+    MenuItem,
+    Spinner,
+} from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
-import { ItemRenderer, Suggest2 } from '@blueprintjs/select';
-import React, { FC, useCallback } from 'react';
+import {
+    ItemListRenderer,
+    ItemListRendererProps,
+    ItemRenderer,
+    Suggest2,
+} from '@blueprintjs/select';
+import React, { FC, useCallback, useMemo } from 'react';
 import { ControllerRenderProps, FieldValues } from 'react-hook-form';
 import HighlightedText from '../common/HighlightedText';
 import { Hightlighed } from '../NavBar/GlobalSearch/globalSearch.styles';
@@ -75,6 +86,44 @@ const renderItem: ItemRenderer<Item> = (
     );
 };
 
+const getGroupedItems = (
+    filteredItems: Item[],
+    groupBy?: (item: Item) => string,
+) => {
+    return filteredItems.reduce<
+        Array<{ group: string; index: number; items: Item[]; key: number }>
+    >((acc, item, index) => {
+        if (groupBy === undefined) return acc;
+        const group = groupBy(item); // # for channels or @ for users
+
+        const lastGroup = acc.at(-1);
+        if (lastGroup && lastGroup.group === group) {
+            lastGroup.items.push(item);
+        } else {
+            acc.push({ group, index, items: [item], key: index });
+        }
+
+        return acc;
+    }, []);
+};
+const renderGroupedMenuContent = (
+    listProps: ItemListRendererProps<Item>,
+    noResults?: React.ReactNode,
+    groupBy?: (item: Item) => string,
+) => {
+    const groupedItems = getGroupedItems(listProps.filteredItems, groupBy);
+    const menuContent = groupedItems.map((groupedItem) => (
+        <React.Fragment key={groupedItem.key}>
+            <MenuDivider title={groupedItem.group} />
+            {groupedItem.items.map((item, index) =>
+                listProps.renderItem(item, groupedItem.index + index),
+            )}
+        </React.Fragment>
+    ));
+
+    return groupedItems.length > 0 ? menuContent : noResults;
+};
+
 const ControlledSuggest: FC<{
     isLoading?: boolean;
     disabled?: boolean;
@@ -84,7 +133,16 @@ const ControlledSuggest: FC<{
         string | `${string}.${string}` | `${string}.${number}`
     >;
     suggestProps?: Partial<React.ComponentProps<typeof Suggest2<Item>>>;
-}> = ({ isLoading, suggestProps, disabled, items, field, ...props }) => {
+    groupBy?: (item: Item) => string;
+}> = ({
+    isLoading,
+    suggestProps,
+    disabled,
+    items,
+    field,
+    groupBy,
+    ...props
+}) => {
     const activeItem = items.find((item) => item.value === field.value);
     const onItemSelect = useCallback(
         (item: Item) => {
@@ -92,6 +150,48 @@ const ControlledSuggest: FC<{
         },
         [field],
     );
+
+    const renderGroupedItemList = useMemo(() => {
+        const itemListRenderer: ItemListRenderer<Item> = (
+            listProps: ItemListRendererProps<Item>,
+        ) => {
+            const initialContent = items;
+            const noResults = (
+                <MenuItem
+                    disabled={true}
+                    text="No results."
+                    roleStructure="listoption"
+                />
+            );
+
+            // omit noResults if createNewItemFromQuery and createNewItemRenderer are both supplied, and query is not empty
+            const createItemView = listProps.renderCreateItem();
+            const maybeNoResults = createItemView != null ? null : noResults;
+
+            const menuContent = renderGroupedMenuContent(
+                listProps,
+                maybeNoResults,
+                groupBy,
+            );
+            if (menuContent == null && createItemView == null) {
+                return null;
+            }
+            const { createFirst } = { createFirst: undefined }; // this.state;
+            return (
+                <Menu
+                    role="listbox"
+                    {...listProps.menuProps}
+                    ulRef={listProps.itemsParentRef}
+                >
+                    {createFirst && createItemView}
+                    {menuContent}
+                    {!createFirst && createItemView}
+                </Menu>
+            );
+        };
+        return itemListRenderer;
+    }, [items, groupBy]);
+
     return (
         <Suggest2<Item>
             fill
@@ -110,6 +210,9 @@ const ControlledSuggest: FC<{
             activeItem={activeItem}
             itemRenderer={renderItem}
             onItemSelect={onItemSelect}
+            itemListRenderer={
+                groupBy !== undefined ? renderGroupedItemList : undefined
+            }
             popoverProps={{
                 minimal: true,
                 matchTargetWidth: true,
@@ -143,18 +246,21 @@ interface Props extends Omit<InputWrapperProps, 'render'> {
     items: Item[];
 
     suggestProps?: Partial<React.ComponentProps<typeof Suggest2<Item>>>;
+    groupBy?: (item: Item) => string;
 }
 
 const AutoComplete: FC<Props> = ({
     isLoading,
     items,
     suggestProps,
+    groupBy,
     ...rest
 }) => (
     <InputWrapper
         {...rest}
         render={(props, { field }) => (
             <ControlledSuggest
+                groupBy={groupBy}
                 isLoading={isLoading}
                 disabled={rest.disabled}
                 field={field}

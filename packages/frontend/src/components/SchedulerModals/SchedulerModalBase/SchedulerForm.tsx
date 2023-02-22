@@ -1,5 +1,16 @@
-import { Button, Classes, Colors, HTMLSelect, Icon } from '@blueprintjs/core';
+import {
+    Button,
+    Classes,
+    Colors,
+    HTMLSelect,
+    Icon,
+    Menu,
+    MenuDivider,
+    MenuItem,
+} from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
+import { ItemListRenderer, ItemListRendererProps } from '@blueprintjs/select';
+import { SlackChannel } from '@lightdash/common';
 import React, { FC, useMemo } from 'react';
 import useHealth from '../../../hooks/health/useHealth';
 import { useSlackChannels } from '../../../hooks/slack/useSlackChannels';
@@ -56,6 +67,7 @@ const SlackErrorContent: FC<{ slackState: SlackStates }> = ({
     }
     return <></>;
 };
+
 const SchedulerForm: FC<
     { disabled: boolean } & React.ComponentProps<typeof Form>
 > = ({ disabled, methods, ...rest }) => {
@@ -136,6 +148,13 @@ const SchedulerForm: FC<
                             <TargetRow key={key}>
                                 <SlackIcon />
                                 <AutoComplete
+                                    groupBy={(item) => {
+                                        const channelPrefix =
+                                            item.label.charAt(0);
+                                        return channelPrefix === '#'
+                                            ? 'Channels'
+                                            : 'Users';
+                                    }}
                                     name={`targets.${index}.channel`}
                                     items={slackChannels}
                                     disabled={disabled}
