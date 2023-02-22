@@ -1,3 +1,10 @@
+# [0.427.0](https://github.com/lightdash/lightdash/compare/0.426.5...0.427.0) (2023-02-22)
+
+
+### Features
+
+* add retries headless browser ([#4531](https://github.com/lightdash/lightdash/issues/4531)) ([b7159ab](https://github.com/lightdash/lightdash/commit/b7159abec21bc838f27ddeb98ccd2c9ade471e06))
+
 ## [0.426.5](https://github.com/lightdash/lightdash/compare/0.426.4...0.426.5) (2023-02-22)
 
 
