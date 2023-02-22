@@ -27,12 +27,13 @@ You'll get a modal that pops up and shows you the list of existing scheduled del
 
 If you click on `create new`, you'll be brought to a configuration screen for your new scheduled delivery.
 
-<img src={ConfigureNewDelivery} width="948" height="584" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={ConfigureNewDelivery} width="883" height="695" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 ## Scheduled delivery options
 
 - **Name**: this is the name of your scheduled delivery. 
 - **Frequency**: this is how often your scheduled delivery will be sent. You can make this hourly, daily, weekly, monthly, or custom - each frequency has its own options. For example, with a monthly schedule, you set the day of the month and the time that you want your scheduled delivery to be sent. The custom frequency lets you write out your own custom Cron expression if you need something more specific than our standard options. All times for the scheduler are in UTC.
+- **Format**: either `Image` or `CSV`. `Image` sends an image of the content (chart or dashboard) to your chosen destination. `CSV` sends a downloadable .csv file of the results table from your chart, or if you're sending a dashboard, it sends a single message with multiple .csv files for the results tables from each of your charts.
 - **Send to**: here, you can pick if you want to send your scheduled delivery to Slack, email, or both. You can add as many Slack channels and email addresses as you'd like to here.
 
 Once you've set up all of your delivery options, you can click `create new` to create your new scheduled delivery.
