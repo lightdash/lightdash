@@ -49,6 +49,10 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                     .join(', ')
                     .replace(/, ([^,]*)$/, ' & $1'); // replaces last comma with '&'
 
+                if (groupedItems.length === 0) {
+                    return null;
+                }
+
                 return (
                     <ResourceViewGridWrapper key={heading}>
                         {groups.length > 1 && (

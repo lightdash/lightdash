@@ -1,8 +1,10 @@
-import { Button, Divider, Menu, Position } from '@blueprintjs/core';
+import { Divider, Menu, Position } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import { assertUnreachable, Space } from '@lightdash/common';
-import { FC, useState } from 'react';
+import { ActionIcon } from '@mantine/core';
+import { IconDots } from '@tabler/icons-react';
+import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useApp } from '../../../providers/AppProvider';
 import {
@@ -24,8 +26,6 @@ const ResourceViewItemActionMenu: FC<Props> = ({
     url,
     onAction,
 }) => {
-    const [isOpen, setIsOpen] = useState(false);
-
     const { user } = useApp();
     const isPinned = !!item.data.pinnedListUuid;
     const isDashboardPage = url.includes('/dashboards');
@@ -55,22 +55,14 @@ const ResourceViewItemActionMenu: FC<Props> = ({
     return (
         <Popover2
             lazy
-            isOpen={isOpen}
             position={Position.BOTTOM_RIGHT}
-            onClose={() => {
-                setIsOpen(false);
-            }}
             content={
                 <Menu>
                     <MenuItem2
                         role="menuitem"
                         icon="edit"
                         text="Rename"
-                        onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-
-                            setIsOpen(false);
+                        onClick={() => {
                             onAction({
                                 type: ResourceViewItemAction.UPDATE,
                                 item,
@@ -84,11 +76,7 @@ const ResourceViewItemActionMenu: FC<Props> = ({
                             role="menuitem"
                             icon="duplicate"
                             text="Duplicate"
-                            onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-
-                                setIsOpen(false);
+                            onClick={() => {
                                 onAction({
                                     type: ResourceViewItemAction.DUPLICATE,
                                     item,
@@ -113,11 +101,7 @@ const ResourceViewItemActionMenu: FC<Props> = ({
                                     ? 'Unpin from homepage'
                                     : 'Pin to homepage'
                             }
-                            onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-
-                                setIsOpen(false);
+                            onClick={() => {
                                 onAction({
                                     type: ResourceViewItemAction.PIN_TO_HOMEPAGE,
                                     item,
@@ -132,11 +116,7 @@ const ResourceViewItemActionMenu: FC<Props> = ({
                                 icon="insert"
                                 text="Add to Dashboard"
                                 role="menuitem"
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-
-                                    setIsOpen(false);
+                                onClick={() => {
                                     onAction({
                                         type: ResourceViewItemAction.ADD_TO_DASHBOARD,
                                         item,
@@ -151,10 +131,6 @@ const ResourceViewItemActionMenu: FC<Props> = ({
                             tagName="div"
                             icon="folder-close"
                             text="Move to Space"
-                            onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                            }}
                         >
                             {spaces.map((space) => {
                                 const isSelected =
@@ -168,11 +144,7 @@ const ResourceViewItemActionMenu: FC<Props> = ({
                                         className={
                                             isSelected ? 'bp4-disabled' : ''
                                         }
-                                        onClick={(e) => {
-                                            // Use className disabled instead of disabled property to capture and preventdefault its clicks
-                                            e.preventDefault();
-                                            e.stopPropagation();
-
+                                        onClick={() => {
                                             if (!isSelected) {
                                                 onAction({
                                                     type: ResourceViewItemAction.MOVE_TO_SPACE,
@@ -193,10 +165,7 @@ const ResourceViewItemActionMenu: FC<Props> = ({
                             <MenuItem2
                                 icon="plus"
                                 text="Create new"
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-
+                                onClick={() => {
                                     onAction({
                                         type: ResourceViewItemAction.CREATE_SPACE,
                                         item,
@@ -213,11 +182,7 @@ const ResourceViewItemActionMenu: FC<Props> = ({
                         icon="cross"
                         text="Delete"
                         intent="danger"
-                        onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-
-                            setIsOpen(false);
+                        onClick={() => {
                             onAction({
                                 type: ResourceViewItemAction.DELETE,
                                 item,
@@ -227,16 +192,9 @@ const ResourceViewItemActionMenu: FC<Props> = ({
                 </Menu>
             }
         >
-            <Button
-                icon="more"
-                minimal
-                onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-
-                    setIsOpen(true);
-                }}
-            />
+            <ActionIcon>
+                <IconDots size={17} />
+            </ActionIcon>
         </Popover2>
     );
 };
