@@ -13,12 +13,6 @@ export const WelcomeText = styled.div`
     flex: 1;
 `;
 
-export const BoltIcon = styled.i`
-    font-family: 'Roboto', sans-serif;
-    &:after {
-        content: '⚡';
-    }
-`;
 export const Title = styled(H3)`
     margin: 0 0 0.455em;
     color: ${Colors.BLACK};
