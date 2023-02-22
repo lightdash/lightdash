@@ -18,6 +18,7 @@ import {
     UseMutationResult,
     UseQueryResult,
 } from 'react-query/types/react/types';
+import { useHistory, useLocation } from 'react-router-dom';
 import { useScheduler } from '../../../hooks/scheduler/useScheduler';
 import { useSchedulersUpdateMutation } from '../../../hooks/scheduler/useSchedulersUpdateMutation';
 import ErrorState from '../../common/ErrorState';
@@ -191,6 +192,13 @@ interface Props extends DialogProps {
     >;
 }
 
+export const getSchedulerUuidFromUrlParams = (
+    search: string,
+): string | null => {
+    const searchParams = new URLSearchParams(search);
+    return searchParams.get('scheduler_uuid');
+};
+
 const SchedulersModalContent: FC<Omit<Props, 'name'>> = ({
     resourceUuid,
     schedulersQuery,
@@ -199,6 +207,25 @@ const SchedulersModalContent: FC<Omit<Props, 'name'>> = ({
 }) => {
     const [state, setState] = useState<States>(States.LIST);
     const [schedulerUuid, setSchedulerUuid] = useState<string | undefined>();
+    const history = useHistory();
+    const { search, pathname } = useLocation();
+
+    useEffect(() => {
+        const schedulerUuidFromUrlParams =
+            getSchedulerUuidFromUrlParams(search);
+        if (schedulerUuidFromUrlParams) {
+            setState(States.EDIT);
+            setSchedulerUuid(schedulerUuidFromUrlParams);
+
+            // remove from url param after modal is open
+            const newParams = new URLSearchParams(search);
+            newParams.delete('scheduler_uuid');
+            history.replace({
+                pathname,
+                search: newParams.toString(),
+            });
+        }
+    }, [history, pathname, search]);
 
     return (
         <>

@@ -108,7 +108,7 @@ export const sendSlackNotification = async (
                 details.description ? ` - ${details.description}` : ''
             }`,
             ctaUrl: url,
-            footerMarkdown: `This is a <${url}|scheduled delivery> ${getHumanReadableCronExpression(
+            footerMarkdown: `This is a <${url}?scheduler_uuid=${schedulerUuid}|scheduled delivery> ${getHumanReadableCronExpression(
                 scheduler.cron,
             )} from Lightdash`,
         };
