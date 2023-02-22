@@ -44,7 +44,7 @@ const themeOverride: MantineThemeOverride = {
         },
 
         b: {
-            fontWeight: 500,
+            fontWeight: 'bold',
         },
 
         strong: {
