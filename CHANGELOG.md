@@ -1,3 +1,10 @@
+# [0.428.0](https://github.com/lightdash/lightdash/compare/0.427.0...0.428.0) (2023-02-22)
+
+
+### Features
+
+* open settings page(s) in new tab ([#4559](https://github.com/lightdash/lightdash/issues/4559)) ([1edfe90](https://github.com/lightdash/lightdash/commit/1edfe90491aff7413fd6ef79a2915127beb522d0))
+
 # [0.427.0](https://github.com/lightdash/lightdash/compare/0.426.5...0.427.0) (2023-02-22)
 
 
