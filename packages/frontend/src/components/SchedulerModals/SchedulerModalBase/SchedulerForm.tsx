@@ -193,9 +193,7 @@ const SchedulerSettings: FC<
     const isAddSlackDisabled = disabled || slackState !== SlackStates.SUCCESS;
     const isAddEmailDisabled = disabled || !health.data?.hasEmailClient;
 
-    const [isCsv, setIsCsv] = useState<boolean>(
-        methods.getValues()?.format === 'csv',
-    );
+    const format = methods.watch('format');
 
     return (
         <Form name="scheduler" methods={methods} {...rest}>
@@ -223,12 +221,11 @@ const SchedulerSettings: FC<
             <FormGroup label={<Title>Format</Title>}>
                 <HTMLSelect
                     name="format"
-                    value={isCsv ? 'csv' : 'image'}
+                    value={format}
                     onChange={(e) => {
                         methods.setValue('format', e.currentTarget.value);
 
                         const isCsvValue = e.currentTarget.value === 'csv';
-                        setIsCsv(isCsvValue);
                         if (!isCsvValue) methods.setValue('options', {});
                     }}
                     options={[
@@ -238,7 +235,7 @@ const SchedulerSettings: FC<
                 />
             </FormGroup>
 
-            {isCsv && (
+            {format === 'csv' && (
                 <SchedulerOptions disabled={disabled} methods={methods} />
             )}
 
