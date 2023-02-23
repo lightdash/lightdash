@@ -1,6 +1,7 @@
 import { AnchorButton, Button } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { LightdashMode } from '@lightdash/common';
+import { IconEye, IconStar } from '@tabler/icons-react';
 import { FC, useMemo } from 'react';
 import { useHistory } from 'react-router-dom';
 import { useDashboards } from '../../../hooks/dashboard/useDashboards';
@@ -70,6 +71,7 @@ const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
                 {
                     id: 'recently-updated',
                     name: 'Recently updated',
+                    icon: <IconEye size={20} />,
                     sort: (a, b) => {
                         if (
                             isResourceViewSpaceItem(a) ||
@@ -87,6 +89,7 @@ const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
                 {
                     id: 'most-popular',
                     name: 'Most popular',
+                    icon: <IconStar size={20} />,
                     sort: (a, b) => {
                         if (
                             isResourceViewSpaceItem(a) ||
