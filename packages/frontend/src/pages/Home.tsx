@@ -1,3 +1,4 @@
+import { Stack } from '@mantine/core';
 import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useUnmount } from 'react-use';
@@ -51,7 +52,7 @@ const Home: FC = () => {
 
     return (
         <Page>
-            <PageContentWrapper>
+            <Stack spacing="xl">
                 {!onboarding.data.ranQuery ? (
                     <OnboardingPanel
                         projectUuid={project.data.projectUuid}
@@ -74,7 +75,7 @@ const Home: FC = () => {
                         />
                     </>
                 )}
-            </PageContentWrapper>
+            </Stack>
         </Page>
     );
 };
