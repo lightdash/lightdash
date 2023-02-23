@@ -11,6 +11,7 @@ import {
 } from '@blueprintjs/core';
 import { ResultRow } from '@lightdash/common';
 import { FC, Fragment, memo, useState } from 'react';
+import useToaster from '../../hooks/toaster/useToaster';
 import { InputWrapper, Title } from './ExportCSV.styles';
 
 enum Limit {
@@ -44,6 +45,8 @@ export type ExportCSVProps = {
 
 const ExportCSV: FC<ExportCSVProps> = memo(
     ({ rows, getCsvLink, isDialogBody, renderDialogActions }) => {
+        const { showToastError } = useToaster();
+
         const [limit, setLimit] = useState<string>(Limit.TABLE);
         const [customLimit, setCustomLimit] = useState<number>(1);
         const [format, setFormat] = useState<string>(Values.FORMATTED);
@@ -65,11 +68,19 @@ const ExportCSV: FC<ExportCSVProps> = memo(
                     ? rows.length
                     : null,
                 format === Values.RAW,
-            );
+            ).catch((error) => {
+                console.error(
+                    `Unable to download CSV ${JSON.stringify(error)}`,
+                );
+                showToastError({
+                    title: `Unable to download CSV`,
+                    subtitle: error?.error?.message,
+                });
+            });
 
             setIsExporting(false);
 
-            window.open(url, '_blank');
+            if (url) window.open(url, '_blank');
         };
 
         return (
