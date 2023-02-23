@@ -22,10 +22,6 @@ const DownloadCsvButton: FC<Props> = memo(({ disabled, getCsvLink }) => {
                         window.open(url, '_blank');
                     })
                     .catch((error) => {
-                        console.error(
-                            `Unable to download CSV ${JSON.stringify(error)}`,
-                        );
-
                         showToastError({
                             title: `Unable to download CSV`,
                             subtitle: error?.error?.message,

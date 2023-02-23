@@ -69,9 +69,6 @@ const ExportCSV: FC<ExportCSVProps> = memo(
                     : null,
                 format === Values.RAW,
             ).catch((error) => {
-                console.error(
-                    `Unable to download CSV ${JSON.stringify(error)}`,
-                );
                 showToastError({
                     title: `Unable to download CSV`,
                     subtitle: error?.error?.message,
