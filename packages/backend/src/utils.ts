@@ -1,6 +1,7 @@
 import { ParameterError, validateEmail } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { CustomSamplingContext } from '@sentry/types';
+import { Worker } from 'worker_threads';
 import {
     DbPinnedChart,
     DbPinnedDashboard,
@@ -76,3 +77,16 @@ export const wrapSentryTransaction = async <T>(
         if (span) span.finish();
     }
 };
+
+export function runWorkerThread<T>(worker: Worker): Promise<T> {
+    return new Promise((resolve, reject) => {
+        worker.on('message', resolve);
+        worker.on('error', reject);
+        worker.on('exit', (code) => {
+            if (code !== 0) {
+                Logger.error(`Worker thread stopped with exit code ${code}`);
+                reject(new Error(`Worker stopped with exit code ${code}`));
+            }
+        });
+    });
+}

@@ -73,7 +73,7 @@ import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { buildQuery } from '../../queryBuilder';
 import { compileMetricQuery } from '../../queryCompiler';
 import { ProjectAdapter } from '../../types';
-import { wrapSentryTransaction } from '../../utils';
+import { runWorkerThread, wrapSentryTransaction } from '../../utils';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type ProjectServiceDependencies = {
@@ -637,7 +637,18 @@ export class ProjectService {
                           rows: rows.length,
                           warehouse: warehouseConnection?.type,
                       },
-                      async () => formatRowsWorker(rows, itemMap),
+                      async () =>
+                          runWorkerThread<ResultRow[]>(
+                              new Worker(
+                                  './src/services/ProjectService/formatRows.js',
+                                  {
+                                      workerData: {
+                                          rows,
+                                          itemMap,
+                                      },
+                                  },
+                              ),
+                          ),
                   )
                 : formatRows(rows, itemMap);
 

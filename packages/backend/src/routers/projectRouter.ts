@@ -9,17 +9,14 @@ import {
     getItemLabel,
     getItemMap,
     getRequestMethod,
-    isField,
     LightdashRequestMethodHeader,
     MetricQuery,
     NotFoundError,
     ProjectCatalog,
     TablesConfiguration,
 } from '@lightdash/common';
-import { stringify } from 'csv-stringify';
 import express from 'express';
 import * as fs from 'fs/promises';
-import moment from 'moment';
 import { nanoid } from 'nanoid';
 import path from 'path';
 import { lightdashConfig } from '../config/lightdashConfig';
@@ -30,7 +27,6 @@ import {
 } from '../controllers/authentication';
 import { CsvService } from '../services/CsvService/CsvService';
 import {
-    csvService,
     dashboardService,
     projectService,
     s3Service,
@@ -38,6 +34,7 @@ import {
     searchService,
     spaceService,
 } from '../services/services';
+import { wrapSentryTransaction } from '../utils';
 
 export const projectRouter = express.Router({ mergeParams: true });
 
@@ -261,12 +258,24 @@ projectRouter.post(
                 metricQuery.additionalMetrics,
                 metricQuery.tableCalculations,
             );
-
-            const csvContent: string = await CsvService.convertApiResultsToCsv(
-                results,
-                onlyRaw,
-                metricQuery,
-                itemMap,
+            const csvContent = await wrapSentryTransaction<string>(
+                'convert API results to CSV',
+                {},
+                async () =>
+                    CsvService.convertApiResultsToCsv(
+                        {
+                            metricQuery: results.metricQuery,
+                            rows: [
+                                ...results.rows,
+                                ...results.rows,
+                                ...results.rows,
+                                ...results.rows,
+                            ],
+                        }, // double results
+                        onlyRaw,
+                        metricQuery,
+                        itemMap,
+                    ),
             );
 
             const fileId = `csv-${nanoid()}.csv`;
@@ -275,9 +284,19 @@ projectRouter.post(
             try {
                 fileUrl = await s3Service.uploadCsv(csvContent, fileId);
             } catch (e) {
-                // Can't store file in S3, storing locally
-                await fs.writeFile(`/tmp/${fileId}`, csvContent, 'utf-8');
-                fileUrl = `${lightdashConfig.siteUrl}/api/v1/projects/${req.params.projectUuid}/csv/${fileId}`;
+                fileUrl = await wrapSentryTransaction<string>(
+                    'write-csv-locally',
+                    {},
+                    async () => {
+                        // Can't store file in S3, storing locally
+                        await fs.writeFile(
+                            `/tmp/${fileId}`,
+                            csvContent,
+                            'utf-8',
+                        );
+                        return `${lightdashConfig.siteUrl}/api/v1/projects/${req.params.projectUuid}/csv/${fileId}`;
+                    },
+                );
             }
 
             res.json({
