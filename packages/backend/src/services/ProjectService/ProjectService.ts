@@ -85,30 +85,6 @@ type ProjectServiceDependencies = {
     spaceModel: SpaceModel;
 };
 
-export function formatRowsWorker(
-    rows: { [col: string]: any }[],
-    itemMap: Record<string, TableCalculation | Field>,
-): Promise<ResultRow[]> {
-    return new Promise((resolve, reject) => {
-        const worker = new Worker(
-            './src/services/ProjectService/formatRows.js',
-            {
-                workerData: {
-                    rows,
-                    itemMap,
-                },
-            },
-        );
-        worker.on('message', resolve);
-        worker.on('error', reject);
-        worker.on('exit', (code) => {
-            if (code !== 0) {
-                Logger.error(`formatRowsWorker stopped with exit code ${code}`);
-                reject(new Error(`Worker stopped with exit code ${code}`));
-            }
-        });
-    });
-}
 export class ProjectService {
     projectModel: ProjectModel;
 
