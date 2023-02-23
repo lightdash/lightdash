@@ -1,3 +1,10 @@
+# [0.432.0](https://github.com/lightdash/lightdash/compare/0.431.2...0.432.0) (2023-02-23)
+
+
+### Features
+
+* add a click event for `Drill by` ([#4574](https://github.com/lightdash/lightdash/issues/4574)) ([0fe9c23](https://github.com/lightdash/lightdash/commit/0fe9c23d42a4a623b81d6e1ced4c2b72fc3d0b33))
+
 ## [0.431.2](https://github.com/lightdash/lightdash/compare/0.431.1...0.431.2) (2023-02-23)
 
 
