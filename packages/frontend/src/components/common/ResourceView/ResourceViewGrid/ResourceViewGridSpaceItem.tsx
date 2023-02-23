@@ -34,8 +34,9 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
                     </Text>
 
                     <Group spacing="sm">
-                        <Flex align="center" gap={2}>
-                            {!item.data.isPrivate ? (
+                        <Flex align="center" gap={4}>
+                            {/* Private, restricted, only visible to you? */}
+                            {item.data.isPrivate ? (
                                 <IconLock color={Colors.GRAY2} size={14} />
                             ) : (
                                 <IconUsers color={Colors.GRAY2} size={14} />
@@ -46,7 +47,7 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
                             </Text>
                         </Flex>
 
-                        <Flex align="center" gap={2}>
+                        <Flex align="center" gap={4}>
                             <IconLayoutDashboard
                                 color={Colors.GRAY2}
                                 size={14}
@@ -57,7 +58,7 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
                             </Text>
                         </Flex>
 
-                        <Flex align="center" gap={2}>
+                        <Flex align="center" gap={4}>
                             <IconChartBar color={Colors.GRAY2} size={14} />
 
                             <Text size={14} color="gray.6" fz="xs">

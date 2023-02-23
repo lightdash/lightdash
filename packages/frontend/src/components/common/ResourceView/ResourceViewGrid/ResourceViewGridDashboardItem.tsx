@@ -1,3 +1,4 @@
+import { Colors } from '@blueprintjs/core';
 import { Box, Divider, Flex, Group, Paper, Text } from '@mantine/core';
 import { IconEye } from '@tabler/icons-react';
 import { FC } from 'react';
@@ -16,9 +17,15 @@ const ResourceViewGridDashboardItem: FC<ResourceViewGridDashboardItemProps> = ({
     renderActions,
 }) => {
     return (
-        <Paper p={0} withBorder>
-            <Group p="md" align="center" spacing="xs" noWrap>
-                <Box>
+        <Paper component={Flex} direction="column" p={0} withBorder>
+            <Group
+                p="md"
+                align="center"
+                spacing="md"
+                noWrap
+                sx={{ flexGrow: 1 }}
+            >
+                <Box sx={{ flexShrink: 0 }}>
                     <ResourceIcon item={item} />
                 </Box>
 
@@ -29,11 +36,13 @@ const ResourceViewGridDashboardItem: FC<ResourceViewGridDashboardItemProps> = ({
 
             <Divider color="gray.3" />
 
-            <Flex pl="md" pr="xs" py={4} justify="space-between" align="center">
-                <Flex align="center" gap={2}>
-                    <IconEye size={14} />
+            <Flex pl="md" pr="xs" py={2} justify="space-between" align="center">
+                <Flex align="center" gap={4}>
+                    <IconEye color={Colors.GRAY2} size={14} />
 
-                    <Text size={14}>{item.data.views} views</Text>
+                    <Text size={14} color="gray.6" fz="xs">
+                        {item.data.views} views
+                    </Text>
                 </Flex>
 
                 <Box>{renderActions()}</Box>
