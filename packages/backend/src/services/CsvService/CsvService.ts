@@ -197,8 +197,6 @@ export class CsvService {
     static async convertSqlQueryResultsToCsv(
         results: ApiSqlQueryResults,
     ): Promise<string> {
-        // Ignore fields from results that are not selected in metrics or dimensions
-
         if (results.rows.length > 500) {
             Logger.debug(
                 `Using worker to format csv with ${results.rows.length} lines`,

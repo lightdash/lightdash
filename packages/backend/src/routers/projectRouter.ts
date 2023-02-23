@@ -263,15 +263,7 @@ projectRouter.post(
                 {},
                 async () =>
                     CsvService.convertApiResultsToCsv(
-                        {
-                            metricQuery: results.metricQuery,
-                            rows: [
-                                ...results.rows,
-                                ...results.rows,
-                                ...results.rows,
-                                ...results.rows,
-                            ],
-                        }, // double results
+                        results,
                         onlyRaw,
                         metricQuery,
                         itemMap,
@@ -284,19 +276,8 @@ projectRouter.post(
             try {
                 fileUrl = await s3Service.uploadCsv(csvContent, fileId);
             } catch (e) {
-                fileUrl = await wrapSentryTransaction<string>(
-                    'write-csv-locally',
-                    {},
-                    async () => {
-                        // Can't store file in S3, storing locally
-                        await fs.writeFile(
-                            `/tmp/${fileId}`,
-                            csvContent,
-                            'utf-8',
-                        );
-                        return `${lightdashConfig.siteUrl}/api/v1/projects/${req.params.projectUuid}/csv/${fileId}`;
-                    },
-                );
+                await fs.writeFile(`/tmp/${fileId}`, csvContent, 'utf-8');
+                fileUrl = `${lightdashConfig.siteUrl}/api/v1/projects/${req.params.projectUuid}/csv/${fileId}`;
             }
 
             res.json({
