@@ -14,6 +14,7 @@ import React, {
     useState,
 } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
+import { useParams } from 'react-router-dom';
 import { EChartSeries } from '../../../hooks/echarts/useEcharts';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useExplore } from '../../../hooks/useExplore';
@@ -21,7 +22,6 @@ import { useApp } from '../../../providers/AppProvider';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
-import { useFiltersContext } from '../../common/Filters/FiltersProvider';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import DrillDownMenuItem from '../../MetricQueryData/DrillDownMenuItem';
 import {
@@ -54,7 +54,7 @@ export const SeriesContextMenu: FC<{
 
     const { track } = useTracking();
     const { user } = useApp();
-    const { projectUuid } = useFiltersContext();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
 
     useEffect(() => {
         if (echartSeriesClickEvent !== undefined) {

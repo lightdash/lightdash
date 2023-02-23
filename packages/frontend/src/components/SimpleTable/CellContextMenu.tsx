@@ -3,11 +3,11 @@ import { MenuItem2 } from '@blueprintjs/popover2';
 import { isDimension, isField, ResultRow } from '@lightdash/common';
 import React, { FC } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
+import { useParams } from 'react-router-dom';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
-import { useFiltersContext } from '../common/Filters/FiltersProvider';
 import { CellContextMenuProps } from '../common/Table/types';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
@@ -23,7 +23,7 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
 
     const { track } = useTracking();
     const { user } = useApp();
-    const { projectUuid } = useFiltersContext();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     return (
         <Menu>
             {item && value.raw && isField(item) && (

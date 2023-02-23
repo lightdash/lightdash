@@ -3,12 +3,12 @@ import { MenuItem2, Popover2, Popover2Props } from '@blueprintjs/popover2';
 import { ResultRow } from '@lightdash/common';
 import { FC, useCallback, useMemo } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
+import { useParams } from 'react-router-dom';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useExplore } from '../../hooks/useExplore';
 import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
-import { useFiltersContext } from '../common/Filters/FiltersProvider';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
 import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';
@@ -27,8 +27,7 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
 
     const { track } = useTracking();
     const { user } = useApp();
-    const { projectUuid } = useFiltersContext();
-
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     const selectedItem = useMemo(
         () =>
             bigNumberConfig?.selectedField

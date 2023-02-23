@@ -15,13 +15,13 @@ import {
 import { uuid4 } from '@sentry/utils';
 import React, { FC } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
+import { useParams } from 'react-router-dom';
 import useDashboardFiltersForExplore from '../../hooks/dashboard/useDashboardFiltersForExplore';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useApp } from '../../providers/AppProvider';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
-import { useFiltersContext } from '../common/Filters/FiltersProvider';
 import { CellContextMenuProps } from '../common/Table/types';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
@@ -88,7 +88,7 @@ const DashboardCellContextMenu: FC<
 
     const { track } = useTracking();
     const { user } = useApp();
-    const { projectUuid } = useFiltersContext();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
 
     return (
         <Menu>
