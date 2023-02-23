@@ -7,6 +7,7 @@ import { FC } from 'react';
 
 const themeOverride: MantineThemeOverride = {
     black: Colors.DARK_GRAY1,
+    white: Colors.WHITE,
 
     fontFamily: [
         '-apple-system',
