@@ -3,7 +3,9 @@ import { MenuItem2 } from '@blueprintjs/popover2';
 import { isDimension, isField, ResultRow } from '@lightdash/common';
 import React, { FC } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
+import { useParams } from 'react-router-dom';
 import useToaster from '../../hooks/toaster/useToaster';
+import { useApp } from '../../providers/AppProvider';
 import { CellContextMenuProps } from '../common/Table/types';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
@@ -14,6 +16,8 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
     const { showToastSuccess } = useToaster();
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
+    const { user } = useApp();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const value: ResultRow[0]['value'] = cell.getValue()?.value || {};
 
@@ -52,6 +56,11 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
                 row={cell.row.original || {}}
                 pivotReference={meta?.pivotReference}
                 selectedItem={item}
+                trackingData={{
+                    organizationId: user?.data?.organizationUuid,
+                    userId: user?.data?.userUuid,
+                    projectId: projectUuid,
+                }}
             />
         </Menu>
     );

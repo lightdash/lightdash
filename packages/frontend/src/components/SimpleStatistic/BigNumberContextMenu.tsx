@@ -3,8 +3,10 @@ import { MenuItem2, Popover2, Popover2Props } from '@blueprintjs/popover2';
 import { ResultRow } from '@lightdash/common';
 import { FC, useCallback, useMemo } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
+import { useParams } from 'react-router-dom';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useExplore } from '../../hooks/useExplore';
+import { useApp } from '../../providers/AppProvider';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
 import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';
@@ -20,6 +22,8 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
     const { resultsData, bigNumberConfig } = useVisualizationContext();
     const { openUnderlyingDataModel, tableName } = useMetricQueryDataContext();
     const { data: explore } = useExplore(tableName);
+    const { user } = useApp();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const selectedItem = useMemo(
         () =>
@@ -84,6 +88,11 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
                     <DrillDownMenuItem
                         row={resultsData?.rows[0]}
                         selectedItem={selectedItem}
+                        trackingData={{
+                            organizationId: user?.data?.organizationUuid,
+                            userId: user?.data?.userUuid,
+                            projectId: projectUuid,
+                        }}
                     />
                 </Menu>
             }

@@ -168,7 +168,6 @@ type Props = Pick<
 > & { tile: IDashboardChartTile };
 
 const DashboardChartTile: FC<Props> = (props) => {
-    const history = useHistory();
     const { showToastSuccess } = useToaster();
     const { track } = useTracking();
     const {
@@ -524,6 +523,12 @@ const DashboardChartTile: FC<Props> = (props) => {
                                             dashboardFilters={
                                                 dashboardFiltersThatApplyToChart
                                             }
+                                            trackingData={{
+                                                organizationId:
+                                                    user.data?.organizationUuid,
+                                                userId: user.data?.userUuid,
+                                                projectId: projectUuid,
+                                            }}
                                         />
                                         <MenuItem2
                                             icon="filter"

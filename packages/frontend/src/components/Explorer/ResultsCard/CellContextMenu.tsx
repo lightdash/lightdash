@@ -1,4 +1,4 @@
-import { Menu, MenuDivider, MenuItem } from '@blueprintjs/core';
+import { Menu, MenuDivider } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import {
     Field,
@@ -10,8 +10,10 @@ import {
 } from '@lightdash/common';
 import { FC } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
+import { useParams } from 'react-router-dom';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useFilters } from '../../../hooks/useFilters';
+import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import { CellContextMenuProps } from '../../common/Table/types';
@@ -30,6 +32,8 @@ const CellContextMenu: FC<
     const { showToastSuccess } = useToaster();
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
+    const { user } = useApp();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const value: ResultRow[0]['value'] = cell.getValue()?.value || {};
     return (
@@ -86,6 +90,11 @@ const CellContextMenu: FC<
             <DrillDownMenuItem
                 row={cell.row.original || {}}
                 selectedItem={item}
+                trackingData={{
+                    organizationId: user.data?.organizationUuid,
+                    userId: user.data?.userUuid,
+                    projectId: projectUuid,
+                }}
             />
         </Menu>
     );
