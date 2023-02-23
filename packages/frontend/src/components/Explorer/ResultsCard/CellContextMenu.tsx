@@ -2,6 +2,7 @@ import { Menu, MenuDivider, MenuItem } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import {
     Field,
+    isDimension,
     isField,
     isFilterableField,
     ResultRow,
@@ -52,17 +53,19 @@ const CellContextMenu: FC<
                 <MenuItem2 text="Copy value" icon="duplicate" />
             </CopyToClipboard>
 
-            <MenuItem2
-                text="View underlying data"
-                icon="layers"
-                onClick={() => {
-                    openUnderlyingDataModel(
-                        value,
-                        meta,
-                        cell.row.original || {},
-                    );
-                }}
-            />
+            {item && !isDimension(item) && (
+                <MenuItem2
+                    text="View underlying data"
+                    icon="layers"
+                    onClick={() => {
+                        openUnderlyingDataModel(
+                            value,
+                            meta,
+                            cell.row.original || {},
+                        );
+                    }}
+                />
+            )}
 
             {isEditMode && isField(item) && isFilterableField(item) && (
                 <MenuItem2

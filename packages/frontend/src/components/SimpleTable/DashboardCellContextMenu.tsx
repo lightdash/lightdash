@@ -99,20 +99,22 @@ const DashboardCellContextMenu: FC<
                 <MenuItem2 text="Copy value" icon="duplicate" />
             </CopyToClipboard>
 
-            <MenuItem2
-                text="View underlying data"
-                icon="layers"
-                onClick={() => {
-                    openUnderlyingDataModel(
-                        value,
-                        meta,
-                        cell.row.original || {},
-                        undefined,
-                        meta?.pivotReference,
-                        dashboardFiltersThatApplyToChart,
-                    );
-                }}
-            />
+            {item && !isDimension(item) && (
+                <MenuItem2
+                    text="View underlying data"
+                    icon="layers"
+                    onClick={() => {
+                        openUnderlyingDataModel(
+                            value,
+                            meta,
+                            cell.row.original || {},
+                            undefined,
+                            meta?.pivotReference,
+                            dashboardFiltersThatApplyToChart,
+                        );
+                    }}
+                />
+            )}
 
             <DrillDownMenuItem
                 row={cell.row.original || {}}

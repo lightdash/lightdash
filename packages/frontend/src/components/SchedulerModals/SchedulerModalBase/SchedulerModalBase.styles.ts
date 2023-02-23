@@ -41,3 +41,16 @@ export const SchedulerDetailsContainer = styled.div`
     align-items: center;
     gap: 10px;
 `;
+
+export const Title = styled.span`
+    font-weight: 500;
+`;
+
+export const SettingsWrapper = styled.div`
+    margin-top: 50px;
+`;
+
+export const InputWrapper = styled.div`
+    margin-bottom: 10px;
+    width: 130px;
+`;

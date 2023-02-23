@@ -14,6 +14,7 @@ export type SchedulerDb = {
     cron: string;
     saved_chart_uuid: string | null;
     dashboard_uuid: string | null;
+    options: Record<string, any>;
 };
 
 export type ChartSchedulerDb = SchedulerDb & {
@@ -47,7 +48,7 @@ export type SchedulerTable = Knex.CompositeTableType<
         ChartSchedulerDb | DashboardSchedulerDB,
         'scheduler_uuid' | 'created_at'
     >,
-    Pick<SchedulerDb, 'name' | 'updated_at' | 'cron' | 'format'>
+    Pick<SchedulerDb, 'name' | 'updated_at' | 'cron' | 'format' | 'options'>
 >;
 
 export type SchedulerSlackTargetTable = Knex.CompositeTableType<

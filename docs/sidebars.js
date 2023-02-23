@@ -179,6 +179,7 @@ module.exports = {
                     ],
                 },
                 'guides/visualizing-your-results',
+                'guides/how-to-create-scheduled-deliveries',
             ],
         },
         {

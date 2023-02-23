@@ -1,6 +1,5 @@
 import { FC } from 'react';
 import {
-    BoltIcon,
     Intro,
     LandingHeaderWrapper,
     StyledLinkButton,
@@ -18,8 +17,8 @@ const LandingPanel: FC<Props> = ({ userName, projectUuid }) => {
         <LandingHeaderWrapper>
             <WelcomeText>
                 <Title>
-                    {`Welcome${userName ? ', ' + userName : ' to Lightdash'}!`}
-                    <BoltIcon />
+                    {`Welcome${userName ? ', ' + userName : ' to Lightdash'}!`}{' '}
+                    ⚡️
                 </Title>
 
                 <Intro>

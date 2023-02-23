@@ -1,3 +1,31 @@
+# [0.431.0](https://github.com/lightdash/lightdash/compare/0.430.0...0.431.0) (2023-02-23)
+
+
+### Features
+
+* advanced options csv scheduled ([#4519](https://github.com/lightdash/lightdash/issues/4519)) ([4b84d55](https://github.com/lightdash/lightdash/commit/4b84d551c9132e05a14450fa4d5375f5f0a560db))
+
+# [0.430.0](https://github.com/lightdash/lightdash/compare/0.429.0...0.430.0) (2023-02-22)
+
+
+### Features
+
+* hide View underlying data for dimensions ([#4563](https://github.com/lightdash/lightdash/issues/4563)) ([5dacb4e](https://github.com/lightdash/lightdash/commit/5dacb4ef363ef3a430b42a19abbee17b88da5f3b))
+
+# [0.429.0](https://github.com/lightdash/lightdash/compare/0.428.0...0.429.0) (2023-02-22)
+
+
+### Features
+
+* mantine ([#4557](https://github.com/lightdash/lightdash/issues/4557)) ([e1cbb23](https://github.com/lightdash/lightdash/commit/e1cbb23de10940a9eb05b81fa3cfe4c0fdfda282))
+
+# [0.428.0](https://github.com/lightdash/lightdash/compare/0.427.0...0.428.0) (2023-02-22)
+
+
+### Features
+
+* open settings page(s) in new tab ([#4559](https://github.com/lightdash/lightdash/issues/4559)) ([1edfe90](https://github.com/lightdash/lightdash/commit/1edfe90491aff7413fd6ef79a2915127beb522d0))
+
 # [0.427.0](https://github.com/lightdash/lightdash/compare/0.426.5...0.427.0) (2023-02-22)
 
 

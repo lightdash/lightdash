@@ -1,5 +1,5 @@
 import { Button, Colors, Menu, PopoverPosition } from '@blueprintjs/core';
-import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
+import { Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import {
     IconBuildingBank,
@@ -7,15 +7,14 @@ import {
     IconSettings,
 } from '@tabler/icons-react';
 import { FC } from 'react';
-import { useHistory } from 'react-router-dom';
 import { useActiveProjectUuid } from '../../../hooks/useProject';
 import { useApp } from '../../../providers/AppProvider';
+import LinkMenuItem from '../../common/LinkMenuItem';
 
 const SettingsMenu: FC = () => {
     const {
         user: { data: user },
     } = useApp();
-    const history = useHistory();
     const activeProjectUuid = useActiveProjectUuid();
 
     if (!user) return null;
@@ -46,26 +45,18 @@ const SettingsMenu: FC = () => {
             content={
                 <Menu>
                     {activeProjectUuid && userCanViewCurrentProject && (
-                        <MenuItem2
-                            role="menuitem"
-                            icon={<IconDatabase size={17} />}
+                        <LinkMenuItem
                             text="Project settings"
-                            onClick={() => {
-                                history.push(
-                                    `/generalSettings/projectManagement/${activeProjectUuid}`,
-                                );
-                            }}
+                            icon={<IconDatabase size={17} />}
+                            href={`/generalSettings/projectManagement/${activeProjectUuid}`}
                         />
                     )}
 
                     {userCanViewOrganization && (
-                        <MenuItem2
-                            role="menuitem"
-                            icon={<IconBuildingBank size={17} />}
+                        <LinkMenuItem
                             text="Organization settings"
-                            onClick={() => {
-                                history.push(`/generalSettings/organization`);
-                            }}
+                            icon={<IconBuildingBank size={17} />}
+                            href={`/generalSettings/organization`}
                         />
                     )}
                 </Menu>

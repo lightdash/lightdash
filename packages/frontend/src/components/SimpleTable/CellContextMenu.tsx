@@ -1,6 +1,6 @@
 import { Menu, MenuDivider } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
-import { isField, ResultRow } from '@lightdash/common';
+import { isDimension, isField, ResultRow } from '@lightdash/common';
 import React, { FC } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
 import useToaster from '../../hooks/toaster/useToaster';
@@ -34,19 +34,19 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
                 <MenuItem2 text="Copy value" icon="duplicate" />
             </CopyToClipboard>
 
-            <MenuItem2
-                text="View underlying data"
-                icon="layers"
-                onClick={() => {
-                    openUnderlyingDataModel(
-                        value,
-                        meta,
-                        cell.row.original || {},
-                        undefined,
-                        meta?.pivotReference,
-                    );
-                }}
-            />
+            {item && !isDimension(item) && (
+                <MenuItem2
+                    text="View underlying data"
+                    icon="layers"
+                    onClick={() => {
+                        openUnderlyingDataModel(
+                            value,
+                            meta,
+                            cell.row.original || {},
+                        );
+                    }}
+                />
+            )}
 
             <DrillDownMenuItem
                 row={cell.row.original || {}}
