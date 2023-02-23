@@ -64,7 +64,7 @@ const ResourceIcon: FC<ResourceIconProps> = ({ item }) => {
         case ResourceViewItemType.DASHBOARD:
             return <IconBox icon="IconLayoutDashboard" color={Colors.GREEN3} />;
         case ResourceViewItemType.SPACE:
-            return <IconBox icon="IconFolder" color={Colors.VIOLET3} />;
+            return <IconBox icon="IconFolder" color={Colors.INDIGO3} />;
         case ResourceViewItemType.CHART:
             switch (item.data.chartType) {
                 case undefined:
