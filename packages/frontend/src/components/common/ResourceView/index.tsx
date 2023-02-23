@@ -1,5 +1,6 @@
 import { Tooltip2 } from '@blueprintjs/popover2';
 import { assertUnreachable } from '@lightdash/common';
+import { Box, Button, Group, Paper } from '@mantine/core';
 import React, { useCallback, useMemo, useState } from 'react';
 import ResourceActionHandlers, {
     ResourceViewItemAction,
@@ -10,24 +11,22 @@ import {
     ResourceEmptyStateWrapper,
     ResourceTag,
     ResourceTitle,
-    ResourceViewContainer,
     ResourceViewHeader,
     ResourceViewSpacer,
-    ResourceViewTab,
 } from './ResourceView.styles';
 import ResourceViewGrid from './ResourceViewGrid';
 import ResourceViewList, {
     ResourceViewListCommonProps,
 } from './ResourceViewList';
 
-type Tab = {
+type TabType = {
     id: string;
     name: string;
     icon?: JSX.Element;
     sort?: (a: ResourceViewItem, b: ResourceViewItem) => number;
 };
 
-type Group = ResourceViewItemType[];
+type GroupType = ResourceViewItemType[];
 
 export interface ResourceViewCommonProps {
     headerTitle?: string;
@@ -35,8 +34,8 @@ export interface ResourceViewCommonProps {
     headerIconTooltipContent?: string;
     headerAction?: React.ReactNode;
     items: ResourceViewItem[];
-    tabs?: Tab[];
-    groups?: Group[];
+    tabs?: TabType[];
+    groups?: GroupType[];
     maxItems?: number;
     showCount?: boolean;
     renderEmptyState?: () => React.ReactNode;
@@ -101,23 +100,26 @@ const ResourceView: React.FC<ResourceViewProps> = ({
               };
 
     return (
-        <>
-            {tabs && tabs?.length > 0
-                ? tabs.map((tab) => (
-                      <ResourceViewTab
-                          key={tab.id}
-                          icon={tab.icon}
-                          intent={tab.id === activeTabId ? 'primary' : 'none'}
-                          onClick={() => setActiveTabId(tab.id)}
-                          minimal
-                          selected={activeTabId === tab.id}
-                      >
-                          {tab.name}
-                      </ResourceViewTab>
-                  ))
-                : null}
+        <Box>
+            {tabs && tabs?.length > 0 ? (
+                <Group spacing="xs" mb="md">
+                    {tabs.map((tab) => (
+                        <Button
+                            key={tab.id}
+                            leftIcon={tab.icon}
+                            variant={
+                                tab.id === activeTabId ? 'light' : 'subtle'
+                            }
+                            color={tab.id === activeTabId ? 'blue.9' : 'none'}
+                            onClick={() => setActiveTabId(tab.id)}
+                        >
+                            {tab.name}
+                        </Button>
+                    ))}
+                </Group>
+            ) : null}
 
-            <ResourceViewContainer>
+            <Paper withBorder sx={{ overflow: 'hidden' }}>
                 {tabs && tabs?.length > 0 ? null : headerTitle ||
                   headerAction ? (
                     <ResourceViewHeader>
@@ -166,10 +168,10 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                 ) : (
                     assertUnreachable(view, 'Unknown resource view type')
                 )}
-            </ResourceViewContainer>
+            </Paper>
 
             <ResourceActionHandlers action={action} onAction={handleAction} />
-        </>
+        </Box>
     );
 };
 
