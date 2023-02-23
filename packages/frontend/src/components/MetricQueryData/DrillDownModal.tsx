@@ -30,6 +30,8 @@ import React, { FC, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
+import { useTracking } from '../../providers/TrackingProvider';
+import { EventName } from '../../types/Events';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import { useMetricQueryDataContext } from './MetricQueryDataProvider';
 
@@ -158,7 +160,12 @@ const drillDownExploreUrl = ({
     );
     return `${pathname}?${search}`;
 };
-const DrillDownModal: FC = () => {
+const DrillDownModal: FC<{
+    trackingData: {
+        organizationId: string | undefined;
+        userId: string | undefined;
+    };
+}> = ({ trackingData }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [selectedDimension, setSelectedDimension] =
         React.useState<CompiledDimension>();
@@ -169,6 +176,7 @@ const DrillDownModal: FC = () => {
         metricQuery,
         drillDownConfig,
     } = useMetricQueryDataContext();
+    const { track } = useTracking();
 
     const dimensionsAvailable = useMemo(() => {
         if (explore) {
@@ -240,7 +248,18 @@ const DrillDownModal: FC = () => {
                             href={url}
                             target={'_blank'}
                             disabled={!selectedDimension}
-                            onClick={onClose}
+                            onClick={() => {
+                                onClose();
+                                track({
+                                    name: EventName.DRILL_BY_CLICKED,
+                                    properties: {
+                                        organizationId:
+                                            trackingData.organizationId,
+                                        userId: trackingData.userId,
+                                        projectId: projectUuid,
+                                    },
+                                });
+                            }}
                             intent={Intent.PRIMARY}
                             type="submit"
                         />

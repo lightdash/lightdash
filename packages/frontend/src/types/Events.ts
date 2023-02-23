@@ -91,4 +91,5 @@ export enum EventName {
     CROSS_FILTER_DASHBOARD_APPLIED = 'cross_filtering_apply.click',
     USAGE_ANALYTICS_CLICKED = 'usage_analytics_clicked',
     VIEW_UNDERLYING_DATA_CLICKED = 'view_underlying_data.clicked',
+    DRILL_BY_CLICKED = 'drill_by.clicked',
 }

@@ -5,6 +5,7 @@ module.exports = {
         project: './tsconfig.json',
         createDefaultProgram: true,
     },
+    ignorePatterns: [ '**/styles/*.css' ],
     extends: [
         './../../.eslintrc.js',
         'plugin:@typescript-eslint/recommended',

@@ -51,6 +51,8 @@ export const SeriesContextMenu: FC<{
         left: number;
         top: number;
     }>();
+    const { user } = useApp();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const { track } = useTracking();
     const { user } = useApp();
@@ -153,6 +155,11 @@ export const SeriesContextMenu: FC<{
                             row={underlyingData?.row}
                             selectedItem={underlyingData?.meta?.item}
                             pivotReference={underlyingData?.pivotReference}
+                            trackingData={{
+                                organizationId: user?.data?.organizationUuid,
+                                userId: user?.data?.userUuid,
+                                projectId: projectUuid,
+                            }}
                         />
                     </Menu>
                 </div>

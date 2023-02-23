@@ -39,7 +39,12 @@ const Explorer: FC = memo(() => {
                     projectId: projectUuid,
                 }}
             />
-            <DrillDownModal />
+            <DrillDownModal
+                trackingData={{
+                    organizationId: user?.data?.organizationUuid,
+                    userId: user?.data?.userUuid,
+                }}
+            />
         </MetricQueryDataProvider>
     );
 });

@@ -49,7 +49,8 @@ type GenericEvent = {
         | EventName.TRY_DEMO_CLICKED
         | EventName.GO_TO_LINK_CLICKED
         | EventName.USAGE_ANALYTICS_CLICKED
-        | EventName.VIEW_UNDERLYING_DATA_CLICKED;
+        | EventName.VIEW_UNDERLYING_DATA_CLICKED
+        | EventName.DRILL_BY_CLICKED;
     properties?: {};
 };
 
@@ -137,6 +138,15 @@ export type ViewUnderlyingDataClickedEvent = {
         userId: string;
         projectId: string;
     };
+ };
+
+export type DrillByClickedEvent = {
+    name: EventName.DRILL_BY_CLICKED;
+    properties: {
+        organizationId: string;
+        userId: string;
+        projectId: string;
+    };
 };
 
 export type EventData =
@@ -149,7 +159,8 @@ export type EventData =
     | GlobalSearchClosedEvent
     | OnboardingStepClickedEvent
     | CrossFilterDashboardAppliedEvent
-    | ViewUnderlyingDataClickedEvent;
+    | ViewUnderlyingDataClickedEvent
+    | DrillByClickedEvent;
 
 type IdentifyData = {
     id: string;

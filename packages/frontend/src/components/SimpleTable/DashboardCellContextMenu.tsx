@@ -40,6 +40,8 @@ const DashboardCellContextMenu: FC<
         tileUuid,
         explore,
     );
+    const { user } = useApp();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
@@ -137,6 +139,11 @@ const DashboardCellContextMenu: FC<
                 dashboardFilters={dashboardFiltersThatApplyToChart}
                 pivotReference={meta?.pivotReference}
                 selectedItem={item}
+                trackingData={{
+                    organizationId: user?.data?.organizationUuid,
+                    userId: user?.data?.userUuid,
+                    projectId: projectUuid,
+                }}
             />
 
             {filters.length > 0 && (

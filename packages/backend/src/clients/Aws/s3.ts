@@ -12,6 +12,8 @@ type S3ServiceDependencies = {
     lightdashConfig: LightdashConfig;
 };
 
+const DEFAULT_EXPIRES_IN = 259200; // 3 days in seconds
+
 export class S3Service {
     lightdashConfig: LightdashConfig;
 
@@ -68,7 +70,10 @@ export class S3Service {
             Bucket: this.lightdashConfig.s3.bucket,
             Key: fileId,
         });
-        return getSignedUrl(this.s3, getCommand, urlOptions);
+        return getSignedUrl(this.s3, getCommand, {
+            expiresIn: DEFAULT_EXPIRES_IN,
+            ...urlOptions,
+        });
     }
 
     async uploadImage(image: Buffer, imageId: string): Promise<string> {
@@ -76,7 +81,7 @@ export class S3Service {
     }
 
     async uploadCsv(csv: string, csvName: string): Promise<string> {
-        return this.uploadFile(csvName, csv, { expiresIn: 3600 });
+        return this.uploadFile(csvName, csv);
     }
 
     isEnabled(): boolean {

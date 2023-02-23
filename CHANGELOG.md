@@ -1,3 +1,18 @@
+# [0.432.0](https://github.com/lightdash/lightdash/compare/0.431.2...0.432.0) (2023-02-23)
+
+
+### Features
+
+* add a click event for `Drill by` ([#4574](https://github.com/lightdash/lightdash/issues/4574)) ([0fe9c23](https://github.com/lightdash/lightdash/commit/0fe9c23d42a4a623b81d6e1ced4c2b72fc3d0b33))
+
+## [0.431.2](https://github.com/lightdash/lightdash/compare/0.431.1...0.431.2) (2023-02-23)
+
+
+### Bug Fixes
+
+* csv error handling ([#4578](https://github.com/lightdash/lightdash/issues/4578)) ([d42b48d](https://github.com/lightdash/lightdash/commit/d42b48df0045a9bad0ee547fa6af334ddbb6098b))
+* scheduler url expire time ([#4579](https://github.com/lightdash/lightdash/issues/4579)) ([fe67a35](https://github.com/lightdash/lightdash/commit/fe67a35dd3468e26a89647fce2a4772bf9e4a5e0))
+
 ## [0.431.1](https://github.com/lightdash/lightdash/compare/0.431.0...0.431.1) (2023-02-23)
 
 

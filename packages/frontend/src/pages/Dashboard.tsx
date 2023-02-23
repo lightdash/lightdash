@@ -65,6 +65,8 @@ const GridTile: FC<
     } = useSavedQuery({
         id: savedChartUuid,
     });
+
+    const { user } = useApp();
     switch (tile.type) {
         case DashboardTileTypes.SAVED_CHART:
             if (isLoading)
@@ -98,7 +100,12 @@ const GridTile: FC<
                             projectId: projectUuid,
                         }}
                     />
-                    <DrillDownModal />
+                    <DrillDownModal
+                        trackingData={{
+                            organizationId: user?.data?.organizationUuid,
+                            userId: user?.data?.userUuid,
+                        }}
+                    />
                 </MetricQueryDataProvider>
             );
         case DashboardTileTypes.MARKDOWN:
@@ -154,7 +161,6 @@ const Dashboard = () => {
         showRedirectButton: true,
     });
     const { mutateAsync: deleteDashboard } = useDeleteMutation();
-    const queryClient = useQueryClient();
 
     const layouts = useMemo(
         () => ({

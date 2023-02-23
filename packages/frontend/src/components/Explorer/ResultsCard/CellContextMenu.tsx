@@ -1,4 +1,4 @@
-import { Menu, MenuDivider, MenuItem } from '@blueprintjs/core';
+import { Menu, MenuDivider } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import {
     Field,
@@ -98,6 +98,11 @@ const CellContextMenu: FC<
             <DrillDownMenuItem
                 row={cell.row.original || {}}
                 selectedItem={item}
+                trackingData={{
+                    organizationId: user.data?.organizationUuid,
+                    userId: user.data?.userUuid,
+                    projectId: projectUuid,
+                }}
             />
         </Menu>
     );

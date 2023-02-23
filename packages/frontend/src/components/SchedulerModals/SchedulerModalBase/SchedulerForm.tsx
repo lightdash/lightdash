@@ -19,6 +19,7 @@ import AutoComplete from '../../ReactHookForm/AutoComplete';
 import CronInput from '../../ReactHookForm/CronInput';
 import Form from '../../ReactHookForm/Form';
 import Input from '../../ReactHookForm/Input';
+
 import { hasRequiredScopes } from '../../UserSettings/SlackSettingsPanel';
 import {
     EmailIcon,
@@ -101,7 +102,7 @@ const SchedulerOptions: FC<
             default:
                 return [limit, Limit.CUSTOM];
         }
-    }, [methods.getValues()?.options?.limit]);
+    }, [methods]);
     const [customLimit, setCustomLimit] = useState<number>(defaultCustomLimit);
     const [limit, setLimit] = useState<string>(defaultLimit);
 
@@ -110,7 +111,7 @@ const SchedulerOptions: FC<
             methods.setValue('options.limit', customLimit);
         }
         methods.setValue('options.limit', limit);
-    }, [methods, defaultCustomLimit, limit]);
+    }, [methods, customLimit, limit]);
     useEffect(() => {
         methods.setValue('options.formatted', format === Values.FORMATTED);
     }, [methods, format]);
@@ -159,7 +160,7 @@ const SchedulerOptions: FC<
     );
 };
 
-const SchedulerSettings: FC<
+const SchedulerForm: FC<
     { disabled: boolean } & React.ComponentProps<typeof Form>
 > = ({ disabled, methods, ...rest }) => {
     const slackQuery = useGetSlack();
@@ -253,6 +254,13 @@ const SchedulerSettings: FC<
                             <TargetRow key={key}>
                                 <SlackIcon />
                                 <AutoComplete
+                                    groupBy={(item) => {
+                                        const channelPrefix =
+                                            item.label.charAt(0);
+                                        return channelPrefix === '#'
+                                            ? 'Channels'
+                                            : 'Users';
+                                    }}
                                     name={`targets.${index}.channel`}
                                     items={slackChannels}
                                     disabled={disabled}
@@ -361,12 +369,6 @@ const SchedulerSettings: FC<
             />
         </Form>
     );
-};
-
-const SchedulerForm: FC<
-    { disabled: boolean } & React.ComponentProps<typeof Form>
-> = ({ disabled, methods, ...rest }) => {
-    return <SchedulerSettings disabled={disabled} methods={methods} />;
 };
 
 export default SchedulerForm;

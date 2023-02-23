@@ -18,6 +18,8 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
     const { showToastSuccess } = useToaster();
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
+    const { user } = useApp();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const value: ResultRow[0]['value'] = cell.getValue()?.value || {};
 
@@ -67,6 +69,11 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
                 row={cell.row.original || {}}
                 pivotReference={meta?.pivotReference}
                 selectedItem={item}
+                trackingData={{
+                    organizationId: user?.data?.organizationUuid,
+                    userId: user?.data?.userUuid,
+                    projectId: projectUuid,
+                }}
             />
         </Menu>
     );
