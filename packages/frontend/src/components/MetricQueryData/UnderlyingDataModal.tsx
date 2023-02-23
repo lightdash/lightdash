@@ -10,7 +10,6 @@ const UnderlyingDataModal: FC<{
         organizationId: string | undefined;
         userId: string | undefined;
         projectId: string | undefined;
-        context: 'dashboard' | 'saved_chart' | 'explore_view';
     };
 }> = ({ trackingData }) => {
     const { isUnderlyingDataModalOpen, closeUnderlyingDataModal } =
@@ -28,7 +27,6 @@ const UnderlyingDataModal: FC<{
                         organizationId: trackingData.organizationId,
                         userId: trackingData.userId,
                         projectId: trackingData.projectId,
-                        context: trackingData.context,
                     },
                 });
             }}

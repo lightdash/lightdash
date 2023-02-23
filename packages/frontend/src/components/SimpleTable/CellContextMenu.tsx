@@ -57,7 +57,6 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
                                 organizationId: user?.data?.organizationUuid,
                                 userId: user?.data?.userUuid,
                                 projectId: projectUuid,
-                                context: 'explore_view',
                             },
                         });
                     }}

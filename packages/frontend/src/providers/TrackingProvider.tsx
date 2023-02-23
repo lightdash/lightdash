@@ -136,7 +136,6 @@ export type ViewUnderlyingDataClickedEvent = {
         organizationId: string;
         userId: string;
         projectId: string;
-        context: 'dashboard' | 'explore_view';
     };
 };
 

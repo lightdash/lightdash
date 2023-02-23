@@ -37,7 +37,6 @@ const Explorer: FC = memo(() => {
                     organizationId: user?.data?.organizationUuid,
                     userId: user?.data?.userUuid,
                     projectId: projectUuid,
-                    context: 'explore_view',
                 }}
             />
             <DrillDownModal />

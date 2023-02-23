@@ -96,7 +96,6 @@ const GridTile: FC<
                             organizationId: user?.data?.organizationUuid,
                             userId: user?.data?.userUuid,
                             projectId: projectUuid,
-                            context: 'dashboard',
                         }}
                     />
                     <DrillDownModal />

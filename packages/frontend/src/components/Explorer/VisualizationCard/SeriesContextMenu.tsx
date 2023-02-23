@@ -131,7 +131,6 @@ export const SeriesContextMenu: FC<{
                                             user?.data?.organizationUuid,
                                         userId: user?.data?.userUuid,
                                         projectId: projectUuid,
-                                        context: 'explore_view',
                                     },
                                 });
                             }}
