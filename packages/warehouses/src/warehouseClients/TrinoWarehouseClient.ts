@@ -139,26 +139,20 @@ const resultHandler = (schema: { [key: string]: any }[], data: any[][]) => {
 };
 
 export class TrinoWarehouseClient implements WarehouseClient {
+    credentials: CreateTrinoCredentials;
+
     connectionOptions: ConnectionOptions;
 
     startOfWeek: WeekDay | null | undefined;
 
-    constructor({
-        host,
-        user,
-        password,
-        port,
-        dbname,
-        schema,
-        http_scheme,
-        startOfWeek,
-    }: CreateTrinoCredentials) {
-        this.startOfWeek = startOfWeek;
+    constructor(credentials: CreateTrinoCredentials) {
+        this.credentials = credentials;
+        this.startOfWeek = credentials.startOfWeek;
         this.connectionOptions = {
-            auth: new BasicAuth(user, password),
-            catalog: dbname,
-            schema,
-            server: `${http_scheme}://${host}:${port}`,
+            auth: new BasicAuth(credentials.user, credentials.password),
+            catalog: credentials.dbname,
+            schema: credentials.schema,
+            server: `${credentials.http_scheme}://${credentials.host}:${credentials.port}`,
         };
     }
 

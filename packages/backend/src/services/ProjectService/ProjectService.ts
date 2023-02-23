@@ -11,6 +11,7 @@ import {
     CreateProjectMember,
     DashboardAvailableFilters,
     DbtProjectType,
+    deepEqual,
     Explore,
     ExploreError,
     Field,
@@ -52,8 +53,9 @@ import {
     TableSelectionType,
     UpdateProject,
     UpdateProjectMember,
+    WarehouseClient,
+    WarehouseTypes,
 } from '@lightdash/common';
-import { warehouseClientFromCredentials } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
@@ -90,7 +92,7 @@ export class ProjectService {
 
     onboardingModel: OnboardingModel;
 
-    projectAdapters: Record<string, ProjectAdapter>;
+    warehouseClients: Record<string, WarehouseClient>;
 
     savedChartModel: SavedChartModel;
 
@@ -110,11 +112,50 @@ export class ProjectService {
     }: ProjectServiceDependencies) {
         this.projectModel = projectModel;
         this.onboardingModel = onboardingModel;
-        this.projectAdapters = {};
+        this.warehouseClients = {};
         this.savedChartModel = savedChartModel;
         this.jobModel = jobModel;
         this.emailClient = emailClient;
         this.spaceModel = spaceModel;
+    }
+
+    private async _getWarehouseClient(
+        projectUuid: string,
+    ): Promise<WarehouseClient> {
+        // Always load the latest credentials from the database
+        const credentials =
+            await this.projectModel.getWarehouseCredentialsForProject(
+                projectUuid,
+            );
+        // These clients reconnect for every query so no benefit to caching
+        if (
+            [
+                WarehouseTypes.SNOWFLAKE,
+                WarehouseTypes.DATABRICKS,
+                WarehouseTypes.TRINO,
+            ].includes(credentials.type)
+        ) {
+            return this.projectModel.getWarehouseClientFromCredentials(
+                credentials,
+            );
+        }
+
+        // Check cache for existing client
+        const existingClient = this.warehouseClients[projectUuid] as
+            | typeof this.warehouseClients[string]
+            | undefined;
+        if (
+            existingClient &&
+            deepEqual(existingClient.credentials, credentials)
+        ) {
+            // if existing client uses identical credentials, use it
+            return existingClient;
+        }
+        // otherwise create a new client and cache for future use
+        const client =
+            this.projectModel.getWarehouseClientFromCredentials(credentials);
+        this.warehouseClients[projectUuid] = client;
+        return client;
     }
 
     async getProject(projectUuid: string, user: SessionUser): Promise<Project> {
@@ -215,7 +256,11 @@ export class ProjectService {
                 const explores = await this.jobModel.tryJobStep(
                     job.jobUuid,
                     JobStepType.COMPILING,
-                    async () => adapter.compileAllExplores(),
+                    async () => {
+                        const e = await adapter.compileAllExplores();
+                        await adapter.destroy();
+                        return e;
+                    },
                 );
 
                 const projectUuid = await this.jobModel.tryJobStep(
@@ -239,8 +284,6 @@ export class ProjectService {
                     explores,
                 );
 
-                this.projectAdapters[projectUuid] = adapter;
-
                 await this.jobModel.update(job.jobUuid, {
                     jobStatus: JobStatusType.DONE,
                     jobResults: {
@@ -261,7 +304,6 @@ export class ProjectService {
                         method,
                     },
                 });
-                this.projectAdapters[projectUuid] = adapter;
             } catch (error) {
                 await this.jobModel.setPendingJobsToSkipped(job.jobUuid);
                 await this.jobModel.update(job.jobUuid, {
@@ -344,7 +386,11 @@ export class ProjectService {
                     const explores = await this.jobModel.tryJobStep(
                         job.jobUuid,
                         JobStepType.COMPILING,
-                        async () => adapter.compileAllExplores(),
+                        async () => {
+                            const e = await adapter.compileAllExplores();
+                            await adapter.destroy();
+                            return e;
+                        },
                     );
                     await this.projectModel.saveExploresToCache(
                         projectUuid,
@@ -373,9 +419,6 @@ export class ProjectService {
                         method,
                     },
                 });
-                if (this.projectAdapters[projectUuid] !== undefined)
-                    await this.projectAdapters[projectUuid].destroy();
-                this.projectAdapters[projectUuid] = adapter;
             } catch (error) {
                 await this.jobModel.setPendingJobsToSkipped(job.jobUuid);
                 await this.jobModel.update(job.jobUuid, {
@@ -437,19 +480,9 @@ export class ProjectService {
                 isPreview: type === ProjectType.PREVIEW,
             },
         });
-
-        const runningAdapter = this.projectAdapters[projectUuid];
-        if (runningAdapter !== undefined) {
-            await runningAdapter.destroy();
-        }
-        delete this.projectAdapters[projectUuid];
     }
 
-    private async restartAdapter(projectUuid: string): Promise<ProjectAdapter> {
-        const runningAdapter = this.projectAdapters[projectUuid];
-        if (runningAdapter !== undefined) {
-            await runningAdapter.destroy();
-        }
+    private async buildAdapter(projectUuid: string): Promise<ProjectAdapter> {
         const project = await this.projectModel.getWithSensitiveFields(
             projectUuid,
         );
@@ -473,15 +506,7 @@ export class ProjectService {
                 },
             },
         );
-        this.projectAdapters[projectUuid] = adapter;
         return adapter;
-    }
-
-    private async getAdapter(projectUuid: string): Promise<ProjectAdapter> {
-        return (
-            this.projectAdapters[projectUuid] ||
-            this.restartAdapter(projectUuid)
-        );
     }
 
     async compileQuery(
@@ -510,9 +535,10 @@ export class ProjectService {
                 'Warehouse credentials must be provided to connect to your dbt project',
             );
         }
-        const warehouseClient = warehouseClientFromCredentials(
-            project.warehouseConnection,
-        );
+        const warehouseClient =
+            this.projectModel.getWarehouseClientFromCredentials(
+                project.warehouseConnection,
+            );
         const explore = await this.getExplore(user, projectUuid, exploreName);
         const compiledMetricQuery = compileMetricQuery({
             explore,
@@ -595,8 +621,9 @@ export class ProjectService {
         });
         const explore = await this.getExplore(user, projectUuid, exploreName);
 
-        const adapter = await this.getAdapter(projectUuid);
-        const { rows } = await adapter.runQuery(query);
+        const warehouseClient = await this._getWarehouseClient(projectUuid);
+        Logger.debug(`Run query against warehouse`);
+        const { rows } = await warehouseClient.runQuery(query);
 
         const itemMap = getItemMap(
             explore,
@@ -658,8 +685,9 @@ export class ProjectService {
                 projectId: projectUuid,
             },
         });
-        const adapter = await this.getAdapter(projectUuid);
-        return adapter.runQuery(sql);
+        const warehouseClient = await this._getWarehouseClient(projectUuid);
+        Logger.debug(`Run query against warehouse`);
+        return warehouseClient.runQuery(sql);
     }
 
     async searchFieldUniqueValues(
@@ -747,9 +775,9 @@ export class ProjectService {
             explore.name,
         );
 
-        const adapter = await this.getAdapter(projectUuid);
-
-        const { rows } = await adapter.runQuery(query);
+        const warehouseClient = await this._getWarehouseClient(projectUuid);
+        Logger.debug(`Run query against warehouse`);
+        const { rows } = await warehouseClient.runQuery(query);
 
         analytics.track({
             event: 'field_value.search',
@@ -776,7 +804,7 @@ export class ProjectService {
 
         // Force refresh adapter (refetch git repos, check for changed credentials, etc.)
         // Might want to cache parts of this in future if slow
-        const adapter = await this.restartAdapter(projectUuid);
+        const adapter = await this.buildAdapter(projectUuid);
         const packages = await adapter.getDbtPackages();
         try {
             const explores = await adapter.compileAllExplores();

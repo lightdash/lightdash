@@ -1,5 +1,6 @@
 import { WeekDay } from '../utils/timeFrames';
 import { DimensionType, Metric } from './field';
+import { CreateWarehouseCredentials } from './warehouseCredentials';
 
 export type WarehouseTableSchema = {
     [column: string]: DimensionType;
@@ -13,6 +14,7 @@ export type WarehouseCatalog = {
 };
 
 export interface WarehouseClient {
+    credentials: CreateWarehouseCredentials;
     getCatalog: (
         config: {
             database: string;

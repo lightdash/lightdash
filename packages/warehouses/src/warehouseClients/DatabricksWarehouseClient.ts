@@ -161,6 +161,8 @@ const mapFieldType = (type: string): DimensionType => {
 };
 
 export class DatabricksWarehouseClient implements WarehouseClient {
+    credentials: CreateDatabricksCredentials;
+
     schema: string;
 
     catalog?: string;
@@ -169,22 +171,17 @@ export class DatabricksWarehouseClient implements WarehouseClient {
 
     startOfWeek: WeekDay | null | undefined;
 
-    constructor({
-        serverHostName,
-        personalAccessToken,
-        httpPath,
-        // this supposed to be a `schema` but changing it will break for existing customers
-        database: schema,
-        catalog,
-        startOfWeek,
-    }: CreateDatabricksCredentials) {
-        this.startOfWeek = startOfWeek;
-        this.schema = schema;
-        this.catalog = catalog;
+    constructor(credentials: CreateDatabricksCredentials) {
+        this.credentials = credentials;
+        this.startOfWeek = credentials.startOfWeek;
+        this.schema = credentials.database;
+        this.catalog = credentials.catalog;
         this.connectionOptions = {
-            token: personalAccessToken,
-            host: serverHostName,
-            path: httpPath.startsWith('/') ? httpPath : `/${httpPath}`,
+            token: credentials.personalAccessToken,
+            host: credentials.serverHostName,
+            path: credentials.httpPath.startsWith('/')
+                ? credentials.httpPath
+                : `/${credentials.httpPath}`,
         };
     }
 

@@ -13,6 +13,7 @@ import {
     savedChartModel,
     spaceModel,
 } from '../../models/models';
+import { warehouseClientMock } from '../../queryBuilder.mock';
 import { projectService } from '../services';
 import { ProjectService } from './ProjectService';
 import {
@@ -25,7 +26,6 @@ import {
     expectedSqlResults,
     job,
     lightdashConfigWithNoSMTP,
-    projectAdapterMock,
     projectWithSensitiveFields,
     spacesWithSavedCharts,
     tablesConfiguration,
@@ -49,6 +49,13 @@ jest.mock('../../models/models', () => ({
         updateTablesConfiguration: jest.fn(),
         getExploresFromCache: jest.fn(async () => allExplores),
         lockProcess: jest.fn((projectUuid, fun) => fun()),
+        getWarehouseCredentialsForProject: jest.fn(
+            async () => warehouseClientMock.credentials,
+        ),
+        getWarehouseClientFromCredentials: jest.fn(async () => ({
+            ...warehouseClientMock,
+            runQuery: jest.fn(async () => expectedSqlResults),
+        })),
     },
     onboardingModel: {},
     savedChartModel: {
@@ -78,8 +85,6 @@ describe('ProjectService', () => {
         jest.clearAllMocks();
     });
     test('should get dashboard by uuid', async () => {
-        service.projectAdapters[projectUuid] = projectAdapterMock;
-
         const result = await service.runSqlQuery(user, projectUuid, 'fake sql');
 
         expect(result).toEqual(expectedSqlResults);

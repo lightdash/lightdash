@@ -20,7 +20,10 @@ import {
     UpdateProject,
     WarehouseCredentials,
 } from '@lightdash/common';
-import { WarehouseCatalog } from '@lightdash/warehouses';
+import {
+    WarehouseCatalog,
+    warehouseClientFromCredentials,
+} from '@lightdash/warehouses';
 import { Knex } from 'knex';
 import { DatabaseError } from 'pg';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -702,5 +705,38 @@ export class ProjectModel {
                    AND p.project_uuid = ?`,
             [projectUuid],
         );
+    }
+
+    async getWarehouseCredentialsForProject(
+        projectUuid: string,
+    ): Promise<CreateWarehouseCredentials> {
+        const [row] = await this.database('warehouse_credentials')
+            .innerJoin(
+                'projects',
+                'warehouse_credentials.project_id',
+                'projects.project_id',
+            )
+            .select(['warehouse_type', 'encrypted_credentials'])
+            .where('project_uuid', projectUuid);
+        if (row === undefined) {
+            throw new NotExistsError(
+                `Cannot find any warehouse credentials for project.`,
+            );
+        }
+        try {
+            return JSON.parse(
+                this.encryptionService.decrypt(row.encrypted_credentials),
+            ) as CreateWarehouseCredentials;
+        } catch (e) {
+            throw new UnexpectedServerError(
+                'Unexpected error: failed to parse warehouse credentials',
+            );
+        }
+    }
+
+    // Easier to mock in ProjectService
+    // eslint-disable-next-line class-methods-use-this
+    getWarehouseClientFromCredentials(credentials: CreateWarehouseCredentials) {
+        return warehouseClientFromCredentials(credentials);
     }
 }

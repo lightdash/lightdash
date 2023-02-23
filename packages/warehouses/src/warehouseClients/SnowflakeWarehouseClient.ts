@@ -1,5 +1,7 @@
 import {
     CreateSnowflakeCredentials,
+    CreateWarehouseCredentials,
+    deepEqual,
     DimensionType,
     isWeekDay,
     Metric,
@@ -110,11 +112,14 @@ const parseRows = (rows: Record<string, any>[]) =>
     );
 
 export class SnowflakeWarehouseClient implements WarehouseClient {
+    credentials: CreateSnowflakeCredentials;
+
     connectionOptions: ConnectionOptions;
 
     startOfWeek: WeekDay | null | undefined;
 
     constructor(credentials: CreateSnowflakeCredentials) {
+        this.credentials = credentials;
         this.startOfWeek = credentials.startOfWeek;
         let decodedPrivateKey: string | Buffer | undefined =
             credentials.privateKey;

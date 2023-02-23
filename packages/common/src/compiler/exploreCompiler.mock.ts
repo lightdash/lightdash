@@ -3,9 +3,11 @@ import { Explore, Table } from '../types/explore';
 import { DimensionType, FieldType, MetricType, Source } from '../types/field';
 import { FilterOperator } from '../types/filter';
 import { WarehouseClient } from '../types/warehouse';
+import { CreateWarehouseCredentials } from '../types/warehouseCredentials';
 import { UncompiledExplore } from './exploreCompiler';
 
 export const warehouseClientMock: WarehouseClient = {
+    credentials: {} as CreateWarehouseCredentials,
     getCatalog: async () => ({
         default: {
             public: {
