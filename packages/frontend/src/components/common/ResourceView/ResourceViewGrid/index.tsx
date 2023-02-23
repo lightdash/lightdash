@@ -1,6 +1,6 @@
-import { Label } from '@blueprintjs/core';
 import { assertUnreachable } from '@lightdash/common';
-import React, { FC } from 'react';
+import { SimpleGrid, Stack, Text } from '@mantine/core';
+import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { ResourceViewCommonProps } from '..';
 import { useSpaces } from '../../../../hooks/useSpaces';
@@ -10,11 +10,6 @@ import { ResourceViewItemType } from '../resourceTypeUtils';
 import { getResourceName, getResourceUrl } from '../resourceUtils';
 import ResourceViewGridChartItem from './ResourceViewGridChartItem';
 import ResourceViewGridDashboardItem from './ResourceViewGridDashboardItem';
-import {
-    ResourceViewGridHeader,
-    ResourceViewGridSubgroupWrapper,
-    ResourceViewGridWrapper,
-} from './ResourceViewGridItem.styles';
 import ResourceViewGridSpaceItem from './ResourceViewGridSpaceItem';
 
 type ResourceViewListProps = Pick<
@@ -39,7 +34,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
     const { data: spaces = [] } = useSpaces(projectUuid);
 
     return (
-        <>
+        <Stack spacing="md" px="md" py="sm">
             {groups.map((group) => {
                 const groupedItems = items.filter((item) =>
                     group.includes(item.type),
@@ -54,91 +49,81 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                 }
 
                 return (
-                    <ResourceViewGridWrapper key={heading}>
+                    <Stack spacing={5} key={group.join('-')}>
                         {groups.length > 1 && (
-                            <ResourceViewGridHeader>
+                            <Text
+                                transform="uppercase"
+                                fz="xs"
+                                fw="bold"
+                                color="gray.6"
+                            >
                                 {heading}
-                            </ResourceViewGridHeader>
+                            </Text>
                         )}
 
-                        <ResourceViewGridSubgroupWrapper key={heading}>
-                            {groupedItems.map((item) => (
-                                <React.Fragment
-                                    key={item.type + '-' + item.data.uuid}
-                                >
-                                    {item.type ===
-                                    ResourceViewItemType.SPACE ? (
-                                        <ResourceViewGridSpaceItem
-                                            url={getResourceUrl(
-                                                projectUuid,
-                                                item,
-                                            )}
-                                            item={item}
-                                            renderActions={() => (
-                                                <ResourceActionMenu
-                                                    item={item}
-                                                    url={getResourceUrl(
-                                                        projectUuid,
-                                                        item,
-                                                    )}
-                                                    onAction={onAction}
-                                                    spaces={spaces}
-                                                />
-                                            )}
-                                        />
-                                    ) : item.type ===
-                                      ResourceViewItemType.DASHBOARD ? (
-                                        <ResourceViewGridDashboardItem
-                                            url={getResourceUrl(
-                                                projectUuid,
-                                                item,
-                                            )}
-                                            item={item}
-                                            renderActions={() => (
-                                                <ResourceActionMenu
-                                                    item={item}
-                                                    url={getResourceUrl(
-                                                        projectUuid,
-                                                        item,
-                                                    )}
-                                                    onAction={onAction}
-                                                    spaces={spaces}
-                                                />
-                                            )}
-                                        />
-                                    ) : item.type ===
-                                      ResourceViewItemType.CHART ? (
-                                        <ResourceViewGridChartItem
-                                            url={getResourceUrl(
-                                                projectUuid,
-                                                item,
-                                            )}
-                                            item={item}
-                                            renderActions={() => (
-                                                <ResourceActionMenu
-                                                    item={item}
-                                                    url={getResourceUrl(
-                                                        projectUuid,
-                                                        item,
-                                                    )}
-                                                    onAction={onAction}
-                                                    spaces={spaces}
-                                                />
-                                            )}
-                                        />
-                                    ) : (
-                                        assertUnreachable(
-                                            item,
-                                            `Resource type not supported`,
-                                        )
-                                    )}
-                                </React.Fragment>
-                            ))}
-                        </ResourceViewGridSubgroupWrapper>
-                    </ResourceViewGridWrapper>
+                        <SimpleGrid cols={3} spacing="md">
+                            {groupedItems.map((item) =>
+                                item.type === ResourceViewItemType.SPACE ? (
+                                    <ResourceViewGridSpaceItem
+                                        url={getResourceUrl(projectUuid, item)}
+                                        item={item}
+                                        renderActions={() => (
+                                            <ResourceActionMenu
+                                                item={item}
+                                                url={getResourceUrl(
+                                                    projectUuid,
+                                                    item,
+                                                )}
+                                                onAction={onAction}
+                                                spaces={spaces}
+                                            />
+                                        )}
+                                    />
+                                ) : item.type ===
+                                  ResourceViewItemType.DASHBOARD ? (
+                                    <ResourceViewGridDashboardItem
+                                        url={getResourceUrl(projectUuid, item)}
+                                        item={item}
+                                        renderActions={() => (
+                                            <ResourceActionMenu
+                                                item={item}
+                                                url={getResourceUrl(
+                                                    projectUuid,
+                                                    item,
+                                                )}
+                                                onAction={onAction}
+                                                spaces={spaces}
+                                            />
+                                        )}
+                                    />
+                                ) : item.type === ResourceViewItemType.CHART ? (
+                                    <ResourceViewGridChartItem
+                                        url={getResourceUrl(projectUuid, item)}
+                                        item={item}
+                                        renderActions={() => (
+                                            <ResourceActionMenu
+                                                item={item}
+                                                url={getResourceUrl(
+                                                    projectUuid,
+                                                    item,
+                                                )}
+                                                onAction={onAction}
+                                                spaces={spaces}
+                                            />
+                                        )}
+                                    />
+                                ) : (
+                                    assertUnreachable(
+                                        item,
+                                        `Resource type not supported`,
+                                    )
+                                ),
+                            )}
+                        </SimpleGrid>
+                    </Stack>
                 );
             })}
-        </>
+        </Stack>
     );
 };
 
