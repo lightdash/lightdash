@@ -169,7 +169,7 @@ const ControlledSuggest: FC<{
                 </Menu>
             );
         },
-        [items, groupBy],
+        [groupBy],
     );
 
     return (
