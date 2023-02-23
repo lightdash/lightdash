@@ -1,4 +1,4 @@
-import { Stack } from '@mantine/core';
+import { Container, Stack } from '@mantine/core';
 import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useUnmount } from 'react-use';
@@ -52,30 +52,34 @@ const Home: FC = () => {
 
     return (
         <Page>
-            <Stack spacing="xl">
-                {!onboarding.data.ranQuery ? (
-                    <OnboardingPanel
-                        projectUuid={project.data.projectUuid}
-                        userName={user.data?.firstName}
-                    />
-                ) : (
-                    <>
-                        <LandingPanel
+            <Container size="md">
+                <Stack spacing="xl">
+                    {!onboarding.data.ranQuery ? (
+                        <OnboardingPanel
+                            projectUuid={project.data.projectUuid}
                             userName={user.data?.firstName}
-                            projectUuid={project.data.projectUuid}
                         />
-                        <PinnedItemsPanel
-                            projectUuid={project.data.projectUuid}
-                            organizationUuid={project.data.organizationUuid}
-                        />
-                        <SpaceBrowser projectUuid={project.data.projectUuid} />
+                    ) : (
+                        <>
+                            <LandingPanel
+                                userName={user.data?.firstName}
+                                projectUuid={project.data.projectUuid}
+                            />
+                            <PinnedItemsPanel
+                                projectUuid={project.data.projectUuid}
+                                organizationUuid={project.data.organizationUuid}
+                            />
+                            <SpaceBrowser
+                                projectUuid={project.data.projectUuid}
+                            />
 
-                        <RecentlyUpdatedPanel
-                            projectUuid={project.data.projectUuid}
-                        />
-                    </>
-                )}
-            </Stack>
+                            <RecentlyUpdatedPanel
+                                projectUuid={project.data.projectUuid}
+                            />
+                        </>
+                    )}
+                </Stack>
+            </Container>
         </Page>
     );
 };
