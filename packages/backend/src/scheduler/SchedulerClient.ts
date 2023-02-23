@@ -141,6 +141,7 @@ export class SchedulerClient {
             savedChartUuid: scheduler.savedChartUuid,
             name: scheduler.name,
             format: scheduler.format,
+            options: scheduler.options,
         };
         const notification:
             | ScheduledSlackNotification

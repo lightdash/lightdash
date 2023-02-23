@@ -1,6 +1,15 @@
-import { Button, Classes, Colors, HTMLSelect, Icon } from '@blueprintjs/core';
+import {
+    Button,
+    Classes,
+    Colors,
+    FormGroup,
+    HTMLSelect,
+    NumericInput,
+    Radio,
+    RadioGroup,
+} from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
-import React, { FC, useMemo } from 'react';
+import React, { FC, useEffect, useMemo, useState } from 'react';
 import useHealth from '../../../hooks/health/useHealth';
 import { useSlackChannels } from '../../../hooks/slack/useSlackChannels';
 import { useGetSlack } from '../../../hooks/useSlack';
@@ -10,10 +19,25 @@ import AutoComplete from '../../ReactHookForm/AutoComplete';
 import CronInput from '../../ReactHookForm/CronInput';
 import Form from '../../ReactHookForm/Form';
 import Input from '../../ReactHookForm/Input';
-import Select from '../../ReactHookForm/Select';
-import { FormGroupWrapper } from '../../SavedQueries/SavedQueries.style';
 import { hasRequiredScopes } from '../../UserSettings/SlackSettingsPanel';
-import { EmailIcon, SlackIcon, TargetRow } from './SchedulerModalBase.styles';
+import {
+    EmailIcon,
+    InputWrapper,
+    SlackIcon,
+    TargetRow,
+    Title,
+} from './SchedulerModalBase.styles';
+
+export enum Limit {
+    TABLE = 'table',
+    ALL = 'all',
+    CUSTOM = 'custom',
+}
+
+export enum Values {
+    FORMATTED = 'formatted',
+    RAW = 'raw',
+}
 
 enum SlackStates {
     LOADING,
@@ -56,7 +80,86 @@ const SlackErrorContent: FC<{ slackState: SlackStates }> = ({
     }
     return <></>;
 };
-const SchedulerForm: FC<
+
+const SchedulerOptions: FC<
+    { disabled: boolean } & React.ComponentProps<typeof Form>
+> = ({ disabled, methods, ...rest }) => {
+    const [format, setFormat] = useState(
+        methods.getValues()?.options?.formatted === false
+            ? Values.RAW
+            : Values.FORMATTED,
+    );
+    const [defaultCustomLimit, defaultLimit] = useMemo(() => {
+        const limit = methods.getValues()?.options?.limit;
+        switch (limit) {
+            case undefined:
+            case Limit.TABLE:
+                return [1, Limit.TABLE];
+            case Limit.ALL:
+                return [1, Limit.ALL];
+
+            default:
+                return [limit, Limit.CUSTOM];
+        }
+    }, [methods.getValues()?.options?.limit]);
+    const [customLimit, setCustomLimit] = useState<number>(defaultCustomLimit);
+    const [limit, setLimit] = useState<string>(defaultLimit);
+
+    useEffect(() => {
+        if (limit === Limit.CUSTOM) {
+            methods.setValue('options.limit', customLimit);
+        }
+        methods.setValue('options.limit', limit);
+    }, [methods, defaultCustomLimit, limit]);
+    useEffect(() => {
+        methods.setValue('options.formatted', format === Values.FORMATTED);
+    }, [methods, format]);
+
+    return (
+        <Form name="options" methods={methods} {...rest}>
+            <FormGroup>
+                <RadioGroup
+                    label={<Title>Values</Title>}
+                    onChange={(e: any) => {
+                        setFormat(e.currentTarget.value);
+                    }}
+                    selectedValue={format}
+                >
+                    <Radio label="Formatted" value={Values.FORMATTED} />
+                    <Radio label="Raw" value={Values.RAW} />
+                </RadioGroup>
+            </FormGroup>
+
+            <RadioGroup
+                selectedValue={limit}
+                label={<Title>Limit</Title>}
+                onChange={(e: any) => {
+                    const limitValue = e.currentTarget.value;
+                    setLimit(limitValue);
+                }}
+            >
+                <Radio label="Results in Table" value={Limit.TABLE} />
+                <Radio label="All Results" value={Limit.ALL} />
+                <Radio label="Custom..." value={Limit.CUSTOM} />
+
+                {limit === Limit.CUSTOM && (
+                    <InputWrapper>
+                        <NumericInput
+                            value={customLimit}
+                            min={1}
+                            fill
+                            onValueChange={(value: any) => {
+                                setCustomLimit(value);
+                            }}
+                        />
+                    </InputWrapper>
+                )}
+            </RadioGroup>
+        </Form>
+    );
+};
+
+const SchedulerSettings: FC<
     { disabled: boolean } & React.ComponentProps<typeof Form>
 > = ({ disabled, methods, ...rest }) => {
     const slackQuery = useGetSlack();
@@ -90,6 +193,8 @@ const SchedulerForm: FC<
     const isAddSlackDisabled = disabled || slackState !== SlackStates.SUCCESS;
     const isAddEmailDisabled = disabled || !health.data?.hasEmailClient;
 
+    const format = methods.watch('format');
+
     return (
         <Form name="scheduler" methods={methods} {...rest}>
             <Input
@@ -113,15 +218,27 @@ const SchedulerForm: FC<
                     },
                 }}
             />
+            <FormGroup label={<Title>Format</Title>}>
+                <HTMLSelect
+                    name="format"
+                    value={format}
+                    onChange={(e) => {
+                        methods.setValue('format', e.currentTarget.value);
 
-            <Select
-                label="Format"
-                name="format"
-                options={[
-                    { value: 'image', label: 'Image' },
-                    { value: 'csv', label: 'CSV' },
-                ]}
-            />
+                        const isCsvValue = e.currentTarget.value === 'csv';
+                        if (!isCsvValue) methods.setValue('options', {});
+                    }}
+                    options={[
+                        { value: 'image', label: 'Image' },
+                        { value: 'csv', label: 'CSV' },
+                    ]}
+                />
+            </FormGroup>
+
+            {format === 'csv' && (
+                <SchedulerOptions disabled={disabled} methods={methods} />
+            )}
+
             <ArrayInput
                 label="Send to"
                 name="targets"
@@ -244,6 +361,12 @@ const SchedulerForm: FC<
             />
         </Form>
     );
+};
+
+const SchedulerForm: FC<
+    { disabled: boolean } & React.ComponentProps<typeof Form>
+> = ({ disabled, methods, ...rest }) => {
+    return <SchedulerSettings disabled={disabled} methods={methods} />;
 };
 
 export default SchedulerForm;

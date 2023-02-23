@@ -44,6 +44,7 @@ export class SchedulerModel {
             savedChartUuid: scheduler.saved_chart_uuid,
             dashboardUuid: scheduler.dashboard_uuid,
             format: scheduler.format,
+            options: scheduler.options,
         } as Scheduler;
     }
 
@@ -192,6 +193,7 @@ export class SchedulerModel {
                     saved_chart_uuid: newScheduler.savedChartUuid,
                     dashboard_uuid: newScheduler.dashboardUuid,
                     updated_at: new Date(),
+                    options: newScheduler.options,
                 })
                 .returning('*');
             const targetPromises = newScheduler.targets.map(async (target) => {
@@ -225,6 +227,7 @@ export class SchedulerModel {
                     format: scheduler.format,
                     cron: scheduler.cron,
                     updated_at: new Date(),
+                    options: scheduler.options,
                 })
                 .where('scheduler_uuid', scheduler.schedulerUuid);
 
