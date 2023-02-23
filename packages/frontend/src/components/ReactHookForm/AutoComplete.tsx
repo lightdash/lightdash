@@ -151,10 +151,8 @@ const ControlledSuggest: FC<{
         [field],
     );
 
-    const renderGroupedItemList = useMemo(() => {
-        const itemListRenderer: ItemListRenderer<Item> = (
-            listProps: ItemListRendererProps<Item>,
-        ) => {
+    const renderGroupedItemList: ItemListRenderer<Item> = useCallback(
+        (listProps: ItemListRendererProps<Item>) => {
             const noResults = <MenuItem2 disabled text="No suggestions." />;
             const menuContent = renderGroupedMenuContent(
                 listProps,
@@ -170,9 +168,9 @@ const ControlledSuggest: FC<{
                     {menuContent}
                 </Menu>
             );
-        };
-        return itemListRenderer;
-    }, [items, groupBy]);
+        },
+        [items, groupBy],
+    );
 
     return (
         <Suggest2<Item>
