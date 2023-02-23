@@ -1,3 +1,10 @@
+## [0.432.1](https://github.com/lightdash/lightdash/compare/0.432.0...0.432.1) (2023-02-23)
+
+
+### Bug Fixes
+
+* format csv on worker thread ([#4575](https://github.com/lightdash/lightdash/issues/4575)) ([175e5dc](https://github.com/lightdash/lightdash/commit/175e5dc11f17acd5d751b7f19d1c6d082f021d44))
+
 # [0.432.0](https://github.com/lightdash/lightdash/compare/0.431.2...0.432.0) (2023-02-23)
 
 
