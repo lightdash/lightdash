@@ -17,10 +17,11 @@ const ResourceViewGridDashboardItem: FC<ResourceViewGridDashboardItemProps> = ({
 }) => {
     return (
         <Paper p={0} withBorder>
-            <Group p="md" align="center" spacing="xs" noWrap grow>
+            <Group p="md" align="center" spacing="xs" noWrap>
                 <Box>
                     <ResourceIcon item={item} />
                 </Box>
+
                 <Text lineClamp={2} fz="sm" fw={600}>
                     {item.data.name}
                 </Text>
@@ -31,8 +32,10 @@ const ResourceViewGridDashboardItem: FC<ResourceViewGridDashboardItemProps> = ({
             <Flex pl="md" pr="xs" py={4} justify="space-between" align="center">
                 <Flex align="center" gap={2}>
                     <IconEye size={14} />
+
                     <Text size={14}>{item.data.views} views</Text>
                 </Flex>
+
                 <Box>{renderActions()}</Box>
             </Flex>
         </Paper>

@@ -17,10 +17,11 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
 }) => {
     return (
         <Paper p={0} withBorder>
-            <Group p="md" align="center" spacing="xs" noWrap grow>
+            <Group p="md" align="center" spacing="xs" noWrap>
                 <Box>
                     <ResourceIcon item={item} />
                 </Box>
+
                 <Text lineClamp={2} fz="sm" fw={600}>
                     {item.data.name}
                 </Text>
@@ -32,11 +33,13 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
                 <Group spacing="sm">
                     <Flex align="center" gap={2}>
                         <IconLayoutDashboard size={14} />
+
                         <Text size={14}>{item.data.dashboards.length}</Text>
                     </Flex>
 
                     <Flex align="center" gap={2}>
                         <IconChartBar size={14} />
+
                         <Text size={14}>{item.data.queries.length}</Text>
                     </Flex>
                 </Group>
