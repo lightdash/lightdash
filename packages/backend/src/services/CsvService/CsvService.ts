@@ -12,15 +12,18 @@ import {
     SessionUser,
     TableCalculation,
 } from '@lightdash/common';
-import { stringify } from 'csv-stringify';
+import { Input, stringify } from 'csv-stringify';
 import * as fs from 'fs/promises';
 import moment from 'moment';
 import { nanoid } from 'nanoid';
+import { Worker } from 'worker_threads';
 import { S3Service } from '../../clients/Aws/s3';
 import { AttachmentUrl } from '../../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../../config/lightdashConfig';
+import Logger from '../../logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
+import { runWorkerThread } from '../../utils';
 import { ProjectService } from '../ProjectService/ProjectService';
 
 type CsvServiceDependencies = {
@@ -28,6 +31,94 @@ type CsvServiceDependencies = {
     s3Service: S3Service;
     savedChartModel: SavedChartModel;
     dashboardModel: DashboardModel;
+};
+
+export const convertSqlToCsv = (
+    results: ApiSqlQueryResults,
+): Promise<string> => {
+    const csvHeader = Object.keys(results.rows[0]);
+    const csvBody = results?.rows.map((row) =>
+        Object.values(results?.fields).map((field, fieldIndex) => {
+            if (field.type === DimensionType.TIMESTAMP) {
+                return moment(Object.values(row)[fieldIndex]).format(
+                    'YYYY-MM-DD HH:mm:ss',
+                );
+            }
+            if (field.type === DimensionType.DATE) {
+                return moment(Object.values(row)[fieldIndex]).format(
+                    'YYYY-MM-DD',
+                );
+            }
+            return Object.values(row)[fieldIndex];
+        }),
+    );
+
+    return new Promise((resolve, reject) => {
+        stringify(
+            [csvHeader, ...csvBody],
+            {
+                delimiter: ',',
+            },
+            (err, output) => {
+                if (err) {
+                    reject(new Error(err.message));
+                }
+                resolve(output);
+            },
+        );
+    });
+};
+
+export const convertApiToCsv = (
+    fieldIds: string[],
+    rows: { [col: string]: any }[],
+    onlyRaw: boolean,
+    itemMap: Record<string, Field | TableCalculation>,
+): Promise<string> => {
+    // Ignore fields from results that are not selected in metrics or dimensions
+
+    const csvHeader = Object.keys(rows[0])
+        .filter((id) => fieldIds.includes(id))
+        .map((id) => getItemLabel(itemMap[id]));
+    const csvBody = rows.map((row) =>
+        Object.keys(row)
+            .filter((id) => fieldIds.includes(id))
+            .map((id) => {
+                const rowData = row[id];
+                if (onlyRaw) {
+                    return rowData.value.raw;
+                }
+
+                const item = itemMap[id];
+                const itemIsField = isField(item);
+
+                if (itemIsField && item.type === DimensionType.TIMESTAMP) {
+                    return moment(rowData.value.raw).format(
+                        'YYYY-MM-DD HH:mm:ss',
+                    );
+                }
+                if (itemIsField && item.type === DimensionType.DATE) {
+                    return moment(rowData.value.raw).format('YYYY-MM-DD');
+                }
+
+                return rowData.value.formatted;
+            }),
+    );
+
+    return new Promise((resolve, reject) => {
+        stringify(
+            [csvHeader, ...csvBody],
+            {
+                delimiter: ',',
+            },
+            (err, output) => {
+                if (err) {
+                    reject(new Error(err.message));
+                }
+                resolve(output);
+            },
+        );
+    });
 };
 
 const getCsvLimit = (
@@ -79,83 +170,46 @@ export class CsvService {
             ...metricQuery.dimensions,
             ...metricQuery.tableCalculations.map((tc: any) => tc.name),
         ];
-        const csvHeader = Object.keys(results.rows[0])
-            .filter((id) => selectedFieldIds.includes(id))
-            .map((id) => getItemLabel(itemMap[id]));
-        const csvBody = results.rows.map((row) =>
-            Object.keys(row)
-                .filter((id) => selectedFieldIds.includes(id))
-                .map((id) => {
-                    const rowData = row[id];
-                    const item = itemMap[id];
-                    if (
-                        isField(item) &&
-                        item.type === DimensionType.TIMESTAMP
-                    ) {
-                        return moment(rowData.value.raw).format(
-                            'YYYY-MM-DD HH:mm:ss',
-                        );
-                    }
-                    if (isField(item) && item.type === DimensionType.DATE) {
-                        return moment(rowData.value.raw).format('YYYY-MM-DD');
-                    }
-                    if (onlyRaw) {
-                        return rowData.value.raw;
-                    }
-                    return rowData.value.formatted;
-                }),
-        );
 
-        return new Promise((resolve, reject) => {
-            stringify(
-                [csvHeader, ...csvBody],
-                {
-                    delimiter: ',',
-                },
-                (err, output) => {
-                    if (err) {
-                        reject(new Error(err.message));
-                    }
-                    resolve(output);
-                },
+        if (results.rows.length > 500) {
+            Logger.debug(
+                `Using worker to format csv with ${results.rows.length} lines`,
             );
-        });
+            return runWorkerThread<string>(
+                new Worker('./src/services/CsvService/convertApiToCsv.js', {
+                    workerData: {
+                        fieldIds: selectedFieldIds,
+                        rows: results.rows,
+                        onlyRaw,
+                        itemMap,
+                    },
+                }),
+            );
+        }
+        return convertApiToCsv(
+            selectedFieldIds,
+            results.rows,
+            onlyRaw,
+            itemMap,
+        );
     }
 
     static async convertSqlQueryResultsToCsv(
         results: ApiSqlQueryResults,
     ): Promise<string> {
-        const csvHeader = Object.keys(results.rows[0]);
-        const csvBody = results?.rows.map((row) =>
-            Object.values(results?.fields).map((field, fieldIndex) => {
-                if (field.type === DimensionType.TIMESTAMP) {
-                    return moment(Object.values(row)[fieldIndex]).format(
-                        'YYYY-MM-DD HH:mm:ss',
-                    );
-                }
-                if (field.type === DimensionType.DATE) {
-                    return moment(Object.values(row)[fieldIndex]).format(
-                        'YYYY-MM-DD',
-                    );
-                }
-                return Object.values(row)[fieldIndex];
-            }),
-        );
-
-        return new Promise((resolve, reject) => {
-            stringify(
-                [csvHeader, ...csvBody],
-                {
-                    delimiter: ',',
-                },
-                (err, output) => {
-                    if (err) {
-                        reject(new Error(err.message));
-                    }
-                    resolve(output);
-                },
+        if (results.rows.length > 500) {
+            Logger.debug(
+                `Using worker to format csv with ${results.rows.length} lines`,
             );
-        });
+            return runWorkerThread<string>(
+                new Worker('./src/services/CsvService/convertSqlToCsv.js', {
+                    workerData: {
+                        results,
+                    },
+                }),
+            );
+        }
+        return convertSqlToCsv(results);
     }
 
     async getCsvForChart(
