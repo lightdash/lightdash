@@ -1,20 +1,7 @@
-import { Button, Card, Colors, H3, H4, Icon, Tag } from '@blueprintjs/core';
+import { Colors, H3, H4, Icon, Tag } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 const paddingX = 20;
-
-interface ResourceViewTabProps {
-    selected: boolean;
-}
-
-export const ResourceViewContainer = styled(Card)`
-    width: 768px;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    overflow: hidden;
-    padding: 0;
-`;
 
 export const ResourceViewHeader = styled.div`
     display: flex;
@@ -78,14 +65,4 @@ export const ResourceEmptyStateHeader = styled(H4)`
 
 export const ResourceEmptyStateText = styled.span`
     color: ${Colors.GRAY1};
-`;
-
-export const ResourceViewTab = styled(Button)<ResourceViewTabProps>`
-    margin: 15px 5px 15px 0;
-    font-weight: 600;
-
-    ${(props: ResourceViewTabProps) =>
-        !props.selected
-            ? `color: ${Colors.GRAY2} !important`
-            : `background-color: rgba(33, 93, 176, 0.2) !important; color: ${Colors.BLUE2} !important`}
 `;
