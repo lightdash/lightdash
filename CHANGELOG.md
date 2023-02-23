@@ -1,3 +1,10 @@
+## [0.431.1](https://github.com/lightdash/lightdash/compare/0.431.0...0.431.1) (2023-02-23)
+
+
+### Bug Fixes
+
+* most popular items ([#4564](https://github.com/lightdash/lightdash/issues/4564)) ([2e2239f](https://github.com/lightdash/lightdash/commit/2e2239f58cda76592c55197b774de2f0781aaeb0))
+
 # [0.431.0](https://github.com/lightdash/lightdash/compare/0.430.0...0.431.0) (2023-02-23)
 
 
