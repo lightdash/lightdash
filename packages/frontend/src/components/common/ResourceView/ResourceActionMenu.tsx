@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { assertUnreachable, Space } from '@lightdash/common';
-import { ActionIcon, Box, Menu } from '@mantine/core';
+import { ActionIcon, Box, Menu, Text } from '@mantine/core';
 import {
     IconCheck,
     IconCopy,
@@ -64,14 +64,14 @@ const ResourceViewItemActionMenu: FC<Props> = ({
         <Menu shadow="md" position="bottom-end" trigger="hover">
             <Menu.Target>
                 <ActionIcon>
-                    <IconDots size={17} />
+                    <IconDots size={16} />
                 </ActionIcon>
             </Menu.Target>
 
-            <Menu.Dropdown>
+            <Menu.Dropdown maw={320}>
                 <Menu.Item
                     icon={<IconEdit size={18} />}
-                    onClick={() => {
+                    onClickCapture={() => {
                         onAction({
                             type: ResourceViewItemAction.UPDATE,
                             item,
@@ -85,7 +85,7 @@ const ResourceViewItemActionMenu: FC<Props> = ({
                 item.type === ResourceViewItemType.DASHBOARD ? (
                     <Menu.Item
                         icon={<IconCopy size={18} />}
-                        onClick={() => {
+                        onClickCapture={() => {
                             onAction({
                                 type: ResourceViewItemAction.DUPLICATE,
                                 item,
@@ -100,7 +100,7 @@ const ResourceViewItemActionMenu: FC<Props> = ({
                     <Menu.Item
                         icon={<IconSquarePlus size={18} />}
                         role="menuitem"
-                        onClick={() => {
+                        onClickCapture={() => {
                             onAction({
                                 type: ResourceViewItemAction.ADD_TO_DASHBOARD,
                                 item,
@@ -127,7 +127,7 @@ const ResourceViewItemActionMenu: FC<Props> = ({
                                 <IconPin size={18} />
                             )
                         }
-                        onClick={() => {
+                        onClickCapture={() => {
                             onAction({
                                 type: ResourceViewItemAction.PIN_TO_HOMEPAGE,
                                 item,
@@ -159,7 +159,7 @@ const ResourceViewItemActionMenu: FC<Props> = ({
                                             <Box w={18} h={18} />
                                         )
                                     }
-                                    onClick={() => {
+                                    onClickCapture={() => {
                                         if (!isSelected) {
                                             onAction({
                                                 type: ResourceViewItemAction.MOVE_TO_SPACE,
@@ -179,7 +179,7 @@ const ResourceViewItemActionMenu: FC<Props> = ({
 
                         <Menu.Item
                             icon={<IconPlus size={18} />}
-                            onClick={() => {
+                            onClickCapture={() => {
                                 onAction({
                                     type: ResourceViewItemAction.CREATE_SPACE,
                                     item,
@@ -196,7 +196,7 @@ const ResourceViewItemActionMenu: FC<Props> = ({
                 <Menu.Item
                     color="red"
                     icon={<IconTrash size={18} />}
-                    onClick={() => {
+                    onClickCapture={() => {
                         onAction({
                             type: ResourceViewItemAction.DELETE,
                             item,
