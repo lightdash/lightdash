@@ -1,9 +1,17 @@
-import { Divider, Menu, Position } from '@blueprintjs/core';
-import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import { assertUnreachable, Space } from '@lightdash/common';
-import { ActionIcon } from '@mantine/core';
-import { IconDots } from '@tabler/icons-react';
+import { ActionIcon, Box, Menu } from '@mantine/core';
+import {
+    IconCheck,
+    IconCopy,
+    IconDots,
+    IconEdit,
+    IconPin,
+    IconPinned,
+    IconPlus,
+    IconSquarePlus,
+    IconTrash,
+} from '@tabler/icons-react';
 import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useApp } from '../../../providers/AppProvider';
@@ -53,149 +61,159 @@ const ResourceViewItemActionMenu: FC<Props> = ({
     }
 
     return (
-        <Popover2
-            lazy
-            position={Position.BOTTOM_RIGHT}
-            content={
-                <Menu>
-                    <MenuItem2
-                        role="menuitem"
-                        icon="edit"
-                        text="Rename"
+        <Menu shadow="md" position="bottom-end">
+            <Box
+                onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                }}
+            >
+                <Menu.Target>
+                    <ActionIcon>
+                        <IconDots size={17} />
+                    </ActionIcon>
+                </Menu.Target>
+            </Box>
+
+            <Menu.Dropdown>
+                <Menu.Item
+                    icon={<IconEdit size={18} />}
+                    onClick={() => {
+                        onAction({
+                            type: ResourceViewItemAction.UPDATE,
+                            item,
+                        });
+                    }}
+                >
+                    Rename
+                </Menu.Item>
+
+                {item.type === ResourceViewItemType.CHART ||
+                item.type === ResourceViewItemType.DASHBOARD ? (
+                    <Menu.Item
+                        icon={<IconCopy size={18} />}
                         onClick={() => {
                             onAction({
-                                type: ResourceViewItemAction.UPDATE,
+                                type: ResourceViewItemAction.DUPLICATE,
                                 item,
                             });
                         }}
-                    />
+                    >
+                        Duplicate
+                    </Menu.Item>
+                ) : null}
 
-                    {item.type === ResourceViewItemType.CHART ||
-                    item.type === ResourceViewItemType.DASHBOARD ? (
-                        <MenuItem2
-                            role="menuitem"
-                            icon="duplicate"
-                            text="Duplicate"
-                            onClick={() => {
-                                onAction({
-                                    type: ResourceViewItemAction.DUPLICATE,
-                                    item,
-                                });
-                            }}
-                        />
-                    ) : null}
+                {!isDashboardPage && item.type === ResourceViewItemType.CHART && (
+                    <Menu.Item
+                        icon={<IconSquarePlus size={18} />}
+                        role="menuitem"
+                        onClick={() => {
+                            onAction({
+                                type: ResourceViewItemAction.ADD_TO_DASHBOARD,
+                                item,
+                            });
+                        }}
+                    >
+                        Add to Dashboard
+                    </Menu.Item>
+                )}
 
-                    {user.data?.ability.can(
-                        'update',
-                        subject('Project', { organizationUuid, projectUuid }),
-                    ) &&
-                    (item.type === ResourceViewItemType.CHART ||
-                        item.type === ResourceViewItemType.DASHBOARD ||
-                        (item.type === ResourceViewItemType.SPACE &&
-                            localStorage.getItem('feat-pin-space'))) ? (
-                        <MenuItem2
-                            role="menuitem"
-                            icon="pin"
-                            text={
-                                isPinned
-                                    ? 'Unpin from homepage'
-                                    : 'Pin to homepage'
-                            }
-                            onClick={() => {
-                                onAction({
-                                    type: ResourceViewItemAction.PIN_TO_HOMEPAGE,
-                                    item,
-                                });
-                            }}
-                        />
-                    ) : null}
+                {user.data?.ability.can(
+                    'update',
+                    subject('Project', { organizationUuid, projectUuid }),
+                ) &&
+                (item.type === ResourceViewItemType.CHART ||
+                    item.type === ResourceViewItemType.DASHBOARD ||
+                    (item.type === ResourceViewItemType.SPACE &&
+                        localStorage.getItem('feat-pin-space'))) ? (
+                    <Menu.Item
+                        icon={
+                            isPinned ? (
+                                <IconPinned size={18} />
+                            ) : (
+                                <IconPin size={18} />
+                            )
+                        }
+                        onClick={() => {
+                            onAction({
+                                type: ResourceViewItemAction.PIN_TO_HOMEPAGE,
+                                item,
+                            });
+                        }}
+                    >
+                        {isPinned ? 'Unpin from homepage' : 'Pin to homepage'}
+                    </Menu.Item>
+                ) : null}
 
-                    {!isDashboardPage &&
-                        item.type === ResourceViewItemType.CHART && (
-                            <MenuItem2
-                                icon="insert"
-                                text="Add to Dashboard"
-                                role="menuitem"
-                                onClick={() => {
-                                    onAction({
-                                        type: ResourceViewItemAction.ADD_TO_DASHBOARD,
-                                        item,
-                                    });
-                                }}
-                            />
-                        )}
+                {item.type === ResourceViewItemType.CHART ||
+                item.type === ResourceViewItemType.DASHBOARD ? (
+                    <>
+                        <Menu.Divider />
 
-                    {item.type === ResourceViewItemType.CHART ||
-                    item.type === ResourceViewItemType.DASHBOARD ? (
-                        <MenuItem2
-                            tagName="div"
-                            icon="folder-close"
-                            text="Move to Space"
-                        >
-                            {spaces.map((space) => {
-                                const isSelected =
-                                    item.data.spaceUuid === space.uuid;
-                                return (
-                                    <MenuItem2
-                                        key={space.uuid}
-                                        roleStructure="listoption"
-                                        text={space.name}
-                                        selected={isSelected}
-                                        className={
-                                            isSelected ? 'bp4-disabled' : ''
+                        <Menu.Label>Move to Space</Menu.Label>
+
+                        {spaces.map((space) => {
+                            const isSelected =
+                                item.data.spaceUuid === space.uuid;
+                            return (
+                                <Menu.Item
+                                    key={space.uuid}
+                                    disabled={isSelected}
+                                    icon={
+                                        isSelected ? (
+                                            <IconCheck size={18} />
+                                        ) : (
+                                            <Box w={18} h={18} />
+                                        )
+                                    }
+                                    onClick={() => {
+                                        if (!isSelected) {
+                                            onAction({
+                                                type: ResourceViewItemAction.MOVE_TO_SPACE,
+                                                item,
+                                                data: {
+                                                    ...item.data,
+                                                    spaceUuid: space.uuid,
+                                                },
+                                            });
                                         }
-                                        onClick={() => {
-                                            if (!isSelected) {
-                                                onAction({
-                                                    type: ResourceViewItemAction.MOVE_TO_SPACE,
-                                                    item,
-                                                    data: {
-                                                        ...item.data,
-                                                        spaceUuid: space.uuid,
-                                                    },
-                                                });
-                                            }
-                                        }}
-                                    />
-                                );
-                            })}
+                                    }}
+                                >
+                                    {space.name}
+                                </Menu.Item>
+                            );
+                        })}
 
-                            <Divider />
+                        <Menu.Item
+                            icon={<IconPlus size={18} />}
+                            onClick={() => {
+                                onAction({
+                                    type: ResourceViewItemAction.CREATE_SPACE,
+                                    item,
+                                });
+                            }}
+                        >
+                            Create new space
+                        </Menu.Item>
+                    </>
+                ) : null}
 
-                            <MenuItem2
-                                icon="plus"
-                                text="Create new"
-                                onClick={() => {
-                                    onAction({
-                                        type: ResourceViewItemAction.CREATE_SPACE,
-                                        item,
-                                    });
-                                }}
-                            />
-                        </MenuItem2>
-                    ) : null}
+                <Menu.Divider />
 
-                    <Divider />
-
-                    <MenuItem2
-                        role="menuitem"
-                        icon="cross"
-                        text="Delete"
-                        intent="danger"
-                        onClick={() => {
-                            onAction({
-                                type: ResourceViewItemAction.DELETE,
-                                item,
-                            });
-                        }}
-                    />
-                </Menu>
-            }
-        >
-            <ActionIcon>
-                <IconDots size={17} />
-            </ActionIcon>
-        </Popover2>
+                <Menu.Item
+                    color="red"
+                    icon={<IconTrash size={18} />}
+                    onClick={() => {
+                        onAction({
+                            type: ResourceViewItemAction.DELETE,
+                            item,
+                        });
+                    }}
+                >
+                    Delete
+                </Menu.Item>
+            </Menu.Dropdown>
+        </Menu>
     );
 };
 
