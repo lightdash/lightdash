@@ -40,8 +40,6 @@ const DashboardCellContextMenu: FC<
         tileUuid,
         explore,
     );
-    const { user } = useApp();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;

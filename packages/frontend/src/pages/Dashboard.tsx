@@ -52,7 +52,6 @@ const GridTile: FC<
         projectUuid: string;
         dashboardUuid: string;
     }>();
-    const { user } = useApp();
 
     const savedChartUuid: string | undefined =
         tile.type === DashboardTileTypes.SAVED_CHART

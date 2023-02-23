@@ -51,8 +51,6 @@ export const SeriesContextMenu: FC<{
         left: number;
         top: number;
     }>();
-    const { user } = useApp();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const { track } = useTracking();
     const { user } = useApp();
@@ -137,7 +135,6 @@ export const SeriesContextMenu: FC<{
                                 });
                             }}
                         />
-
                         {underlyingData?.value && (
                             <CopyToClipboard
                                 text={underlyingData.value.formatted}

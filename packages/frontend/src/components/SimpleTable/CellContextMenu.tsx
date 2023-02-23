@@ -18,8 +18,6 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
     const { showToastSuccess } = useToaster();
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
-    const { user } = useApp();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const value: ResultRow[0]['value'] = cell.getValue()?.value || {};
 

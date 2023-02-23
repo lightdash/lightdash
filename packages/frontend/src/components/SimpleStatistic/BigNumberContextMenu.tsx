@@ -24,8 +24,6 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
     const { resultsData, bigNumberConfig } = useVisualizationContext();
     const { openUnderlyingDataModel, tableName } = useMetricQueryDataContext();
     const { data: explore } = useExplore(tableName);
-    const { user } = useApp();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const { track } = useTracking();
     const { user } = useApp();
