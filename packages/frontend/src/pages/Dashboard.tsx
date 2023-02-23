@@ -33,6 +33,7 @@ import {
 } from '../hooks/dashboard/useDashboard';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import { useSpaces } from '../hooks/useSpaces';
+import { useApp } from '../providers/AppProvider';
 import { useDashboardContext } from '../providers/DashboardProvider';
 import { TrackSection } from '../providers/TrackingProvider';
 import '../styles/react-grid.css';
@@ -47,6 +48,11 @@ const GridTile: FC<
     >
 > = memo((props) => {
     const { tile } = props;
+    const { projectUuid, dashboardUuid } = useParams<{
+        projectUuid: string;
+        dashboardUuid: string;
+    }>();
+    const { user } = useApp();
 
     const savedChartUuid: string | undefined =
         tile.type === DashboardTileTypes.SAVED_CHART
@@ -85,7 +91,14 @@ const GridTile: FC<
                     tableName={savedQuery?.tableName || ''}
                 >
                     <ChartTile {...props} tile={tile} />
-                    <UnderlyingDataModal />
+                    <UnderlyingDataModal
+                        trackingData={{
+                            organizationId: user?.data?.organizationUuid,
+                            userId: user?.data?.userUuid,
+                            projectId: projectUuid,
+                            context: 'dashboard',
+                        }}
+                    />
                     <DrillDownModal />
                 </MetricQueryDataProvider>
             );

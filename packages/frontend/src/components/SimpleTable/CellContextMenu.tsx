@@ -4,6 +4,10 @@ import { isDimension, isField, ResultRow } from '@lightdash/common';
 import React, { FC } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
 import useToaster from '../../hooks/toaster/useToaster';
+import { useApp } from '../../providers/AppProvider';
+import { useTracking } from '../../providers/TrackingProvider';
+import { EventName } from '../../types/Events';
+import { useFiltersContext } from '../common/Filters/FiltersProvider';
 import { CellContextMenuProps } from '../common/Table/types';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
@@ -17,6 +21,9 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
 
     const value: ResultRow[0]['value'] = cell.getValue()?.value || {};
 
+    const { track } = useTracking();
+    const { user } = useApp();
+    const { projectUuid } = useFiltersContext();
     return (
         <Menu>
             {item && value.raw && isField(item) && (
@@ -44,6 +51,15 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
                             meta,
                             cell.row.original || {},
                         );
+                        track({
+                            name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
+                            properties: {
+                                organizationId: user?.data?.organizationUuid,
+                                userId: user?.data?.userUuid,
+                                projectId: projectUuid,
+                                context: 'explore_view',
+                            },
+                        });
                     }}
                 />
             )}

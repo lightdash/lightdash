@@ -195,6 +195,7 @@ const DashboardChartTile: FC<Props> = (props) => {
         left: number;
         top: number;
     }>();
+    const { user } = useApp();
 
     const { openUnderlyingDataModel } = useMetricQueryDataContext();
     const contextMenuRenderTarget = useCallback(
@@ -224,7 +225,6 @@ const DashboardChartTile: FC<Props> = (props) => {
     }>();
     const [isCSVExportModalOpen, setIsCSVExportModalOpen] = useState(false);
     useState(false);
-    const { user } = useApp();
 
     const onSeriesContextMenu = useCallback(
         (e: EchartSeriesClickEvent, series: EChartSeries[]) => {
@@ -509,6 +509,20 @@ const DashboardChartTile: FC<Props> = (props) => {
                                                         pivotReference,
                                                         dashboardFiltersThatApplyToChart,
                                                     );
+                                                    track({
+                                                        name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
+                                                        properties: {
+                                                            organizationId:
+                                                                user?.data
+                                                                    ?.organizationUuid,
+                                                            userId: user?.data
+                                                                ?.userUuid,
+                                                            projectId:
+                                                                projectUuid,
+                                                            context:
+                                                                'dashboard',
+                                                        },
+                                                    });
                                                 }
                                             }}
                                         />

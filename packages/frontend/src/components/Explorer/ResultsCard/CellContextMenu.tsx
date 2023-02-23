@@ -12,8 +12,10 @@ import { FC } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useFilters } from '../../../hooks/useFilters';
+import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
+import { useFiltersContext } from '../../common/Filters/FiltersProvider';
 import { CellContextMenuProps } from '../../common/Table/types';
 import DrillDownMenuItem from '../../MetricQueryData/DrillDownMenuItem';
 import { useMetricQueryDataContext } from '../../MetricQueryData/MetricQueryDataProvider';
@@ -30,6 +32,8 @@ const CellContextMenu: FC<
     const { showToastSuccess } = useToaster();
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
+    const { user } = useApp();
+    const { projectUuid } = useFiltersContext();
 
     const value: ResultRow[0]['value'] = cell.getValue()?.value || {};
     return (
@@ -63,6 +67,15 @@ const CellContextMenu: FC<
                             meta,
                             cell.row.original || {},
                         );
+                        track({
+                            name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
+                            properties: {
+                                organizationId: user?.data?.organizationUuid,
+                                userId: user?.data?.userUuid,
+                                projectId: projectUuid,
+                                context: 'dashboard',
+                            },
+                        });
                     }}
                 />
             )}

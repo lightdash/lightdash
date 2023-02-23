@@ -5,6 +5,10 @@ import { FC, useCallback, useMemo } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useExplore } from '../../hooks/useExplore';
+import { useApp } from '../../providers/AppProvider';
+import { useTracking } from '../../providers/TrackingProvider';
+import { EventName } from '../../types/Events';
+import { useFiltersContext } from '../common/Filters/FiltersProvider';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
 import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';
@@ -20,6 +24,10 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
     const { resultsData, bigNumberConfig } = useVisualizationContext();
     const { openUnderlyingDataModel, tableName } = useMetricQueryDataContext();
     const { data: explore } = useExplore(tableName);
+
+    const { track } = useTracking();
+    const { user } = useApp();
+    const { projectUuid } = useFiltersContext();
 
     const selectedItem = useMemo(
         () =>
@@ -50,6 +58,15 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
             };
 
             openUnderlyingDataModel(value, meta, row);
+            track({
+                name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
+                properties: {
+                    organizationId: user?.data?.organizationUuid,
+                    userId: user?.data?.userUuid,
+                    projectId: projectUuid,
+                    context: 'explore_view',
+                },
+            });
         }
     }, [explore, bigNumberConfig, row, value, openUnderlyingDataModel]);
 

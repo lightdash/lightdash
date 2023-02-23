@@ -1,4 +1,6 @@
 import { FC, memo } from 'react';
+import { useParams } from 'react-router-dom';
+import { useApp } from '../../providers/AppProvider';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
 import DrillDownModal from '../MetricQueryData/DrillDownModal';
 import MetricQueryDataProvider from '../MetricQueryData/MetricQueryDataProvider';
@@ -16,6 +18,10 @@ const Explorer: FC = memo(() => {
     const unsavedChartVersionMetricQuery = useExplorerContext(
         (context) => context.state.unsavedChartVersion.metricQuery,
     );
+    const { user } = useApp();
+    const { projectUuid } = useParams<{
+        projectUuid: string;
+    }>();
     return (
         <MetricQueryDataProvider
             metricQuery={unsavedChartVersionMetricQuery}
@@ -26,7 +32,14 @@ const Explorer: FC = memo(() => {
             <VisualizationCard />
             <ResultsCard />
             <SqlCard />
-            <UnderlyingDataModal />
+            <UnderlyingDataModal
+                trackingData={{
+                    organizationId: user?.data?.organizationUuid,
+                    userId: user?.data?.userUuid,
+                    projectId: projectUuid,
+                    context: 'explore_view',
+                }}
+            />
             <DrillDownModal />
         </MetricQueryDataProvider>
     );
