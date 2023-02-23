@@ -11,6 +11,8 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import { FC } from 'react';
+import { useTracking } from '../../providers/TrackingProvider';
+import { EventName } from '../../types/Events';
 import { useMetricQueryDataContext } from './MetricQueryDataProvider';
 
 export const DrillDownMenuItem: FC<{
@@ -18,9 +20,21 @@ export const DrillDownMenuItem: FC<{
     selectedItem: Field | TableCalculation | undefined;
     dashboardFilters?: DashboardFilters;
     pivotReference?: PivotReference;
-}> = ({ row, selectedItem, dashboardFilters, pivotReference }) => {
+    trackingData: {
+        organizationId: string | undefined;
+        userId: string | undefined;
+        projectId: string | undefined;
+    };
+}> = ({
+    row,
+    selectedItem,
+    dashboardFilters,
+    pivotReference,
+    trackingData,
+}) => {
     const { explore, metricQuery, openDrillDownModel } =
         useMetricQueryDataContext();
+    const { track } = useTracking();
 
     if (
         selectedItem &&
@@ -40,14 +54,22 @@ export const DrillDownMenuItem: FC<{
             <MenuItem2
                 text={`Drill into "${value}"`}
                 icon="path"
-                onClick={() =>
+                onClick={() => {
                     openDrillDownModel({
                         row,
                         selectedItem,
                         dashboardFilters,
                         pivotReference,
-                    })
-                }
+                    });
+                    track({
+                        name: EventName.DRILL_BY_CLICKED,
+                        properties: {
+                            organizationId: trackingData.organizationId,
+                            userId: trackingData.userId,
+                            projectId: trackingData.projectId,
+                        },
+                    });
+                }}
             />
         );
     }

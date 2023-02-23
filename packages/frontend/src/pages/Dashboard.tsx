@@ -33,6 +33,7 @@ import {
 } from '../hooks/dashboard/useDashboard';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import { useSpaces } from '../hooks/useSpaces';
+import { useApp } from '../providers/AppProvider';
 import { useDashboardContext } from '../providers/DashboardProvider';
 import { TrackSection } from '../providers/TrackingProvider';
 import '../styles/react-grid.css';
@@ -59,6 +60,8 @@ const GridTile: FC<
     } = useSavedQuery({
         id: savedChartUuid,
     });
+
+    const { user } = useApp();
     switch (tile.type) {
         case DashboardTileTypes.SAVED_CHART:
             if (isLoading)
@@ -86,7 +89,12 @@ const GridTile: FC<
                 >
                     <ChartTile {...props} tile={tile} />
                     <UnderlyingDataModal />
-                    <DrillDownModal />
+                    <DrillDownModal
+                        trackingData={{
+                            organizationId: user?.data?.organizationUuid,
+                            userId: user?.data?.userUuid,
+                        }}
+                    />
                 </MetricQueryDataProvider>
             );
         case DashboardTileTypes.MARKDOWN:
@@ -142,7 +150,6 @@ const Dashboard = () => {
         showRedirectButton: true,
     });
     const { mutateAsync: deleteDashboard } = useDeleteMutation();
-    const queryClient = useQueryClient();
 
     const layouts = useMemo(
         () => ({

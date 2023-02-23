@@ -14,9 +14,11 @@ import React, {
     useState,
 } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
+import { useParams } from 'react-router-dom';
 import { EChartSeries } from '../../../hooks/echarts/useEcharts';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useExplore } from '../../../hooks/useExplore';
+import { useApp } from '../../../providers/AppProvider';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import DrillDownMenuItem from '../../MetricQueryData/DrillDownMenuItem';
@@ -47,6 +49,8 @@ export const SeriesContextMenu: FC<{
         left: number;
         top: number;
     }>();
+    const { user } = useApp();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
 
     useEffect(() => {
         if (echartSeriesClickEvent !== undefined) {
@@ -134,6 +138,11 @@ export const SeriesContextMenu: FC<{
                             row={underlyingData?.row}
                             selectedItem={underlyingData?.meta?.item}
                             pivotReference={underlyingData?.pivotReference}
+                            trackingData={{
+                                organizationId: user?.data?.organizationUuid,
+                                userId: user?.data?.userUuid,
+                                projectId: projectUuid,
+                            }}
                         />
                     </Menu>
                 </div>

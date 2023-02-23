@@ -15,8 +15,10 @@ import {
 import { uuid4 } from '@sentry/utils';
 import React, { FC } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
+import { useParams } from 'react-router-dom';
 import useDashboardFiltersForExplore from '../../hooks/dashboard/useDashboardFiltersForExplore';
 import useToaster from '../../hooks/toaster/useToaster';
+import { useApp } from '../../providers/AppProvider';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { CellContextMenuProps } from '../common/Table/types';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
@@ -36,6 +38,8 @@ const DashboardCellContextMenu: FC<
         tileUuid,
         explore,
     );
+    const { user } = useApp();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
@@ -121,6 +125,11 @@ const DashboardCellContextMenu: FC<
                 dashboardFilters={dashboardFiltersThatApplyToChart}
                 pivotReference={meta?.pivotReference}
                 selectedItem={item}
+                trackingData={{
+                    organizationId: user?.data?.organizationUuid,
+                    userId: user?.data?.userUuid,
+                    projectId: projectUuid,
+                }}
             />
 
             {filters.length > 0 && (
