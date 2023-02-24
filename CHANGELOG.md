@@ -1,3 +1,10 @@
+## [0.432.2](https://github.com/lightdash/lightdash/compare/0.432.1...0.432.2) (2023-02-24)
+
+
+### Bug Fixes
+
+* scheduler slack message ([#4550](https://github.com/lightdash/lightdash/issues/4550)) ([028cdef](https://github.com/lightdash/lightdash/commit/028cdefe042aedeff02dda164e8b8486769cf0db))
+
 ## [0.432.1](https://github.com/lightdash/lightdash/compare/0.432.0...0.432.1) (2023-02-23)
 
 
