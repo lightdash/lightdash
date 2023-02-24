@@ -1,5 +1,5 @@
-import { Icon } from '@blueprintjs/core';
 import { Tooltip } from '@mantine/core';
+import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
 import React, { FC, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import { ResourceViewCommonProps } from '..';
@@ -359,14 +359,12 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                                 {enableSorting &&
                                                     {
                                                         asc: (
-                                                            <Icon
-                                                                icon="chevron-up"
+                                                            <IconChevronUp
                                                                 size={12}
                                                             />
                                                         ),
                                                         desc: (
-                                                            <Icon
-                                                                icon="chevron-down"
+                                                            <IconChevronDown
                                                                 size={12}
                                                             />
                                                         ),

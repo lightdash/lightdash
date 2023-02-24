@@ -1,12 +1,8 @@
-import { Tooltip } from '@mantine/core';
+import { Text, Tooltip } from '@mantine/core';
 import moment from 'moment';
 import { FC } from 'react';
 
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
-import {
-    ResourceLastEditedBy,
-    ResourceLastEditedTimeAgo,
-} from './ResourceLastEdited.styles';
 import {
     ResourceViewChartItem,
     ResourceViewDashboardItem,
@@ -30,13 +26,15 @@ const ResourceLastEdited: FC<ResourceLastEditedProps> = ({
                 withArrow
                 label={moment(updatedAt).format('YYYY-MM-DD HH:mm:ss')}
             >
-                <ResourceLastEditedTimeAgo>{timeAgo}</ResourceLastEditedTimeAgo>
+                <Text fz={12} fw={500} color="gray.7">
+                    {timeAgo}
+                </Text>
             </Tooltip>
 
             {user && user.firstName ? (
-                <ResourceLastEditedBy>
+                <Text fz={12} color="gray.6">
                     by {user.firstName} {user.lastName}
-                </ResourceLastEditedBy>
+                </Text>
             ) : null}
         </div>
     );
