@@ -1,3 +1,10 @@
+## [0.432.3](https://github.com/lightdash/lightdash/compare/0.432.2...0.432.3) (2023-02-24)
+
+
+### Bug Fixes
+
+* empty where clause ([#4594](https://github.com/lightdash/lightdash/issues/4594)) ([114fc53](https://github.com/lightdash/lightdash/commit/114fc538aafe2f511f30399e40ed3f3d50b1ba11))
+
 ## [0.432.2](https://github.com/lightdash/lightdash/compare/0.432.1...0.432.2) (2023-02-24)
 
 
