@@ -1,4 +1,4 @@
-import { Colors, H4, Icon, Tag } from '@blueprintjs/core';
+import { Colors, H4, Icon } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const ResourceEmptyStateWrapper = styled.div`

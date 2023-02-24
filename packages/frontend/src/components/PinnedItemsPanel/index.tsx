@@ -48,7 +48,7 @@ const PinnedItemsPanel: FC<Props> = ({ projectUuid, organizationUuid }) => {
             ]}
             enableSorting={false}
             defaultSort={{ updatedAt: SortDirection.DESC }}
-            defaultColumnVisibility={{ space: false, type: false }}
+            defaultColumnVisibility={{ space: false }}
             headerTitle={
                 userCanUpdateProject ? 'Pinned items' : 'Pinned for you'
             }

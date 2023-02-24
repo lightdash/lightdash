@@ -1,4 +1,4 @@
-import { Tooltip } from '@mantine/core';
+import { Group, Stack, Text, Tooltip } from '@mantine/core';
 import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
 import React, { FC, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
@@ -9,7 +9,6 @@ import {
     isResourceViewItemDashboard,
     isResourceViewSpaceItem,
     ResourceViewItem,
-    ResourceViewItemType,
 } from '../resourceTypeUtils';
 import { getResourceTypeName, getResourceUrl } from '../resourceUtils';
 import { ResourceViewItemActionState } from './../ResourceActionHandlers';
@@ -17,13 +16,9 @@ import ResourceActionMenu from './../ResourceActionMenu';
 import ResourceIcon from './../ResourceIcon';
 import ResourceLastEdited from './../ResourceLastEdited';
 import {
-    ResourceViewListFlex,
     ResourceViewListLink,
     ResourceViewListMetadata,
-    ResourceViewListName,
-    ResourceViewListNameBox,
     ResourceViewListSpaceLink,
-    ResourceViewListSpacer,
     ResourceViewListTable,
     ResourceViewListTBody,
     ResourceViewListTd,
@@ -38,7 +33,7 @@ export enum SortDirection {
     DESC = 'desc',
 }
 
-type ColumnName = 'name' | 'space' | 'type' | 'updatedAt' | 'actions';
+type ColumnName = 'name' | 'space' | 'updatedAt' | 'actions';
 
 type ColumnVisibilityMap = Map<ColumnName, boolean>;
 
@@ -137,22 +132,20 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                 to={getResourceUrl(projectUuid, item)}
                                 onClick={(e) => e.stopPropagation()}
                             >
-                                <ResourceIcon item={item} />
+                                <Group noWrap>
+                                    <ResourceIcon item={item} />
 
-                                <ResourceViewListSpacer $width={16} />
+                                    <Stack spacing={2}>
+                                        <Text fw={600}>{item.data.name}</Text>
 
-                                <ResourceViewListNameBox>
-                                    <ResourceViewListName>
-                                        {item.data.name}
-                                    </ResourceViewListName>
-
-                                    {canBelongToSpace && (
-                                        <ResourceViewListMetadata>
-                                            {getResourceTypeName(item)} •{' '}
-                                            {item.data.views || '0'} views
-                                        </ResourceViewListMetadata>
-                                    )}
-                                </ResourceViewListNameBox>
+                                        {canBelongToSpace && (
+                                            <ResourceViewListMetadata>
+                                                {getResourceTypeName(item)} •{' '}
+                                                {item.data.views || '0'} views
+                                            </ResourceViewListMetadata>
+                                        )}
+                                    </Stack>
+                                </Group>
                             </ResourceViewListLink>
                         </Tooltip>
                     );
@@ -243,29 +236,6 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                 },
             },
             {
-                id: 'type',
-                label: 'Type',
-                cell: (item: ResourceViewItem) => (
-                    <ResourceViewListNameBox>
-                        <ResourceViewListMetadata>
-                            {getResourceTypeName(item)}
-                        </ResourceViewListMetadata>
-                    </ResourceViewListNameBox>
-                ),
-                enableSorting,
-                sortingFn: (a: ResourceViewItem) => {
-                    return a.type === ResourceViewItemType.DASHBOARD ? 1 : -1;
-                },
-                meta: {
-                    style: {
-                        width:
-                            columnVisibility.get('type') === false
-                                ? undefined
-                                : '25%',
-                    },
-                },
-            },
-            {
                 id: 'actions',
                 cell: (item: ResourceViewItem) => (
                     <ResourceActionMenu
@@ -347,31 +317,24 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                         )
                                     }
                                 >
-                                    <ResourceViewListFlex>
+                                    <Group spacing={2}>
                                         {column?.label}
 
-                                        {columnSort ? (
-                                            <>
-                                                <ResourceViewListSpacer
-                                                    $width={5}
-                                                />
-
-                                                {enableSorting &&
-                                                    {
-                                                        asc: (
-                                                            <IconChevronUp
-                                                                size={12}
-                                                            />
-                                                        ),
-                                                        desc: (
-                                                            <IconChevronDown
-                                                                size={12}
-                                                            />
-                                                        ),
-                                                    }[columnSort]}
-                                            </>
-                                        ) : null}
-                                    </ResourceViewListFlex>
+                                        {enableSorting && columnSort
+                                            ? {
+                                                  asc: (
+                                                      <IconChevronUp
+                                                          size={12}
+                                                      />
+                                                  ),
+                                                  desc: (
+                                                      <IconChevronDown
+                                                          size={12}
+                                                      />
+                                                  ),
+                                              }[columnSort]
+                                            : null}
+                                    </Group>
                                 </ResourceViewListThInteractiveWrapper>
                             </ResourceViewListTh>
                         );

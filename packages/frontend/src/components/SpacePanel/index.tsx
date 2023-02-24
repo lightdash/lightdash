@@ -160,8 +160,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
             </PageHeader>
             <ResourceView
                 items={allItems}
-                defaultSort={{ type: SortDirection.DESC }}
-                defaultColumnVisibility={{ space: false, type: false }}
+                defaultColumnVisibility={{ space: false }}
                 headerTitle="All items"
                 headerAction={
                     !isDemo && (

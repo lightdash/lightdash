@@ -62,31 +62,6 @@ export const ResourceViewListTd = styled.td`
     padding: 15px ${paddingX}px !important;
 `;
 
-export const ResourceViewListFlex = styled.div`
-    display: flex;
-    align-items: center;
-`;
-
-interface ResourceViewListSpacerProps {
-    $width: number;
-}
-
-export const ResourceViewListSpacer = styled.div<ResourceViewListSpacerProps>`
-    width: ${(props) => props.$width}px;
-`;
-
-export const ResourceViewListNameBox = styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-`;
-
-export const ResourceViewListName = styled.div`
-    font-size: 14px;
-    font-weight: 600;
-    color: ${Colors.DARK_GRAY1};
-`;
-
 export const ResourceViewListMetadata = styled.div`
     font-size: 12px;
     font-weight: 400;

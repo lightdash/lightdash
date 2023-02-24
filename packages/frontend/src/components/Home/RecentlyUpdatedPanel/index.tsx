@@ -63,7 +63,7 @@ const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
             items={recentItems}
             maxItems={10}
             enableSorting={false}
-            defaultColumnVisibility={{ space: false, type: false }}
+            defaultColumnVisibility={{ space: false }}
             tabs={[
                 {
                     id: 'recently-updated',
