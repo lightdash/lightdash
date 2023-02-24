@@ -1,3 +1,10 @@
+# [0.433.0](https://github.com/lightdash/lightdash/compare/0.432.4...0.433.0) (2023-02-24)
+
+
+### Features
+
+* add a click event for `View underlying data` ([#4582](https://github.com/lightdash/lightdash/issues/4582)) ([d6609c1](https://github.com/lightdash/lightdash/commit/d6609c10e8fc100d9005e3e6b72635fa72bb2cb7))
+
 ## [0.432.4](https://github.com/lightdash/lightdash/compare/0.432.3...0.432.4) (2023-02-24)
 
 
