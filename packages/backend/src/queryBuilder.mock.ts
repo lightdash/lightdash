@@ -686,6 +686,21 @@ export const METRIC_QUERY_WITH_ADDITIONAL_METRIC: CompiledMetricQuery = {
     ],
 };
 
+export const METRIC_QUERY_WITH_EMPTY_FILTER_GROUPS = {
+    ...METRIC_QUERY,
+    filters: {
+        dimensions: {
+            id: '1',
+            and: [
+                {
+                    id: '2',
+                    or: [],
+                },
+            ],
+        },
+    },
+};
+
 export const METRIC_QUERY_SQL = `WITH metrics AS (
 SELECT
   "table1".dim1 AS "table1_dim1",
