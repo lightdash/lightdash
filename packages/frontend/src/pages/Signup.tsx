@@ -214,7 +214,7 @@ const Signup: FC = () => {
                                 target="_blank"
                             >
                                 Privacy Policy
-                            </FooterCta>
+                            </FooterCta>{' '}
                             and our{' '}
                             <FooterCta
                                 href="https://www.lightdash.com/terms-of-service"
