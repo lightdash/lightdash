@@ -10,7 +10,6 @@ import React, {
 } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
 import { Helmet } from 'react-helmet';
-import { useQueryClient } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ErrorState from '../components/common/ErrorState';
@@ -22,7 +21,9 @@ import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
 import EmptyStateNoTiles from '../components/DashboardTiles/EmptyStateNoTiles';
 import TileBase from '../components/DashboardTiles/TileBase/index';
 import DrillDownModal from '../components/MetricQueryData/DrillDownModal';
-import MetricQueryDataProvider from '../components/MetricQueryData/MetricQueryDataProvider';
+import MetricQueryDataProvider, {
+    useMetricQueryDataContext,
+} from '../components/MetricQueryData/MetricQueryDataProvider';
 import UnderlyingDataModal from '../components/MetricQueryData/UnderlyingDataModal';
 import {
     appendNewTilesToBottom,
@@ -35,9 +36,9 @@ import { useSavedQuery } from '../hooks/useSavedQuery';
 import { useSpaces } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
 import { useDashboardContext } from '../providers/DashboardProvider';
-import { TrackSection } from '../providers/TrackingProvider';
+import { TrackSection, useTracking } from '../providers/TrackingProvider';
 import '../styles/react-grid.css';
-import { SectionName } from '../types/Events';
+import { EventName, SectionName } from '../types/Events';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -47,11 +48,13 @@ const GridTile: FC<
         'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
     >
 > = memo((props) => {
+    const { track } = useTracking();
     const { tile } = props;
-    const { projectUuid, dashboardUuid } = useParams<{
+    const { projectUuid } = useParams<{
         projectUuid: string;
-        dashboardUuid: string;
     }>();
+    const { isUnderlyingDataModalOpen, isDrillDownModalOpen } =
+        useMetricQueryDataContext();
 
     const savedChartUuid: string | undefined =
         tile.type === DashboardTileTypes.SAVED_CHART
@@ -92,19 +95,26 @@ const GridTile: FC<
                     tableName={savedQuery?.tableName || ''}
                 >
                     <ChartTile {...props} tile={tile} />
-                    <UnderlyingDataModal
-                        trackingData={{
-                            organizationId: user?.data?.organizationUuid,
-                            userId: user?.data?.userUuid,
-                            projectId: projectUuid,
-                        }}
-                    />
-                    <DrillDownModal
-                        trackingData={{
-                            organizationId: user?.data?.organizationUuid,
-                            userId: user?.data?.userUuid,
-                        }}
-                    />
+                    <UnderlyingDataModal />
+                    {isUnderlyingDataModalOpen &&
+                        track({
+                            name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
+                            properties: {
+                                organizationId: user?.data?.organizationUuid,
+                                userId: user?.data?.userUuid,
+                                projectId: projectUuid,
+                            },
+                        })}
+                    <DrillDownModal />
+                    {isDrillDownModalOpen &&
+                        track({
+                            name: EventName.DRILL_BY_CLICKED,
+                            properties: {
+                                organizationId: user?.data?.organizationUuid,
+                                userId: user?.data?.userUuid,
+                                projectId: projectUuid,
+                            },
+                        })}
                 </MetricQueryDataProvider>
             );
         case DashboardTileTypes.MARKDOWN:
