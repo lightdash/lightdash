@@ -31,7 +31,7 @@ export const getChartAndDashboardBlocks = ({
             type: 'section',
             text: {
                 type: 'mrkdwn',
-                text: description,
+                text: `${description || ' '}`,
             },
             accessory: {
                 type: 'button',
@@ -94,7 +94,7 @@ export const getChartCsvResultsBlocks = ({
             type: 'section',
             text: {
                 type: 'mrkdwn',
-                text: `${description || ''}`,
+                text: `${description || ' '}`,
             },
             accessory: {
                 type: 'button',
