@@ -1,3 +1,10 @@
+## [0.433.1](https://github.com/lightdash/lightdash/compare/0.433.0...0.433.1) (2023-02-24)
+
+
+### Bug Fixes
+
+* explorer and sql runner pages icons updated ([#4602](https://github.com/lightdash/lightdash/issues/4602)) ([367f596](https://github.com/lightdash/lightdash/commit/367f596fe916fdfc50cb269691aef6eba1133dbb))
+
 # [0.433.0](https://github.com/lightdash/lightdash/compare/0.432.4...0.433.0) (2023-02-24)
 
 
