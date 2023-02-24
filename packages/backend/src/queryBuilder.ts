@@ -221,22 +221,27 @@ export const buildQuery = ({
 
     const getNestedFilterSQLFromGroup = (
         filterGroup: FilterGroup | undefined,
-    ): string => {
+    ): string | undefined => {
         if (filterGroup) {
             const operator = isAndFilterGroup(filterGroup) ? 'AND' : 'OR';
             const items = isAndFilterGroup(filterGroup)
                 ? filterGroup.and
                 : filterGroup.or;
-            if (items.length === 0) return '';
-            const filterRules = items.reduce((sum, item) => {
-                const filterSql = isFilterGroup(item)
-                    ? getNestedFilterSQLFromGroup(item)
-                    : `(\n  ${sqlFilterRule(item)}\n)`;
-                return [...sum, filterSql];
-            }, [] as string[]);
-            return `(${filterRules.join(` ${operator} `)})`;
+            if (items.length === 0) return undefined;
+            const filterRules: string[] = items.reduce<string[]>(
+                (sum, item) => {
+                    const filterSql: string | undefined = isFilterGroup(item)
+                        ? getNestedFilterSQLFromGroup(item)
+                        : `(\n  ${sqlFilterRule(item)}\n)`;
+                    return filterSql ? [...sum, filterSql] : sum;
+                },
+                [],
+            );
+            return filterRules.length > 0
+                ? `(${filterRules.join(` ${operator} `)})`
+                : undefined;
         }
-        return `${filterGroup}`;
+        return undefined;
     };
 
     const nestedFilterSql = getNestedFilterSQLFromGroup(filters.dimensions);

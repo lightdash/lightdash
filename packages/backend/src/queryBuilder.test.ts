@@ -15,6 +15,7 @@ import {
     METRIC_QUERY_WITH_ADDITIONAL_METRIC,
     METRIC_QUERY_WITH_ADDITIONAL_METRIC_SQL,
     METRIC_QUERY_WITH_EMPTY_FILTER,
+    METRIC_QUERY_WITH_EMPTY_FILTER_GROUPS,
     METRIC_QUERY_WITH_EMPTY_FILTER_SQL,
     METRIC_QUERY_WITH_EMPTY_METRIC_FILTER,
     METRIC_QUERY_WITH_EMPTY_METRIC_FILTER_SQL,
@@ -109,6 +110,15 @@ describe('Query builder', () => {
                 warehouseClient: warehouseClientMock,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS_SQL);
+    });
+    test('Should build query with no filter when there are only empty filter groups ', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: METRIC_QUERY_WITH_EMPTY_FILTER_GROUPS,
+                warehouseClient: warehouseClientMock,
+            }).query,
+        ).toStrictEqual(METRIC_QUERY_SQL);
     });
     test('Should build second query with metric filter', () => {
         expect(
