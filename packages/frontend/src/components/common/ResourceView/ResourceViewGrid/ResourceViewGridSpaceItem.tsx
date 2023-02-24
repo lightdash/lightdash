@@ -34,8 +34,6 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
     const { hovered, ref } = useHover();
     const theme = useMantineTheme();
 
-    console.log(item.data.access);
-
     return (
         <Paper ref={ref} p={0} withBorder>
             <Group p="md" align="center" spacing="md" noWrap>
