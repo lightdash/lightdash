@@ -21,9 +21,7 @@ import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
 import EmptyStateNoTiles from '../components/DashboardTiles/EmptyStateNoTiles';
 import TileBase from '../components/DashboardTiles/TileBase/index';
 import DrillDownModal from '../components/MetricQueryData/DrillDownModal';
-import MetricQueryDataProvider, {
-    useMetricQueryDataContext,
-} from '../components/MetricQueryData/MetricQueryDataProvider';
+import MetricQueryDataProvider from '../components/MetricQueryData/MetricQueryDataProvider';
 import UnderlyingDataModal from '../components/MetricQueryData/UnderlyingDataModal';
 import {
     appendNewTilesToBottom,
@@ -34,11 +32,10 @@ import {
 } from '../hooks/dashboard/useDashboard';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import { useSpaces } from '../hooks/useSpaces';
-import { useApp } from '../providers/AppProvider';
 import { useDashboardContext } from '../providers/DashboardProvider';
-import { TrackSection, useTracking } from '../providers/TrackingProvider';
+import { TrackSection } from '../providers/TrackingProvider';
 import '../styles/react-grid.css';
-import { EventName, SectionName } from '../types/Events';
+import { SectionName } from '../types/Events';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -48,13 +45,7 @@ const GridTile: FC<
         'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
     >
 > = memo((props) => {
-    const { track } = useTracking();
     const { tile } = props;
-    const { projectUuid } = useParams<{
-        projectUuid: string;
-    }>();
-    const { isUnderlyingDataModalOpen, isDrillDownModalOpen } =
-        useMetricQueryDataContext();
 
     const savedChartUuid: string | undefined =
         tile.type === DashboardTileTypes.SAVED_CHART
@@ -68,7 +59,6 @@ const GridTile: FC<
         id: savedChartUuid,
     });
 
-    const { user } = useApp();
     switch (tile.type) {
         case DashboardTileTypes.SAVED_CHART:
             if (isLoading)
@@ -96,25 +86,7 @@ const GridTile: FC<
                 >
                     <ChartTile {...props} tile={tile} />
                     <UnderlyingDataModal />
-                    {isUnderlyingDataModalOpen &&
-                        track({
-                            name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
-                            properties: {
-                                organizationId: user?.data?.organizationUuid,
-                                userId: user?.data?.userUuid,
-                                projectId: projectUuid,
-                            },
-                        })}
                     <DrillDownModal />
-                    {isDrillDownModalOpen &&
-                        track({
-                            name: EventName.DRILL_BY_CLICKED,
-                            properties: {
-                                organizationId: user?.data?.organizationUuid,
-                                userId: user?.data?.userUuid,
-                                projectId: projectUuid,
-                            },
-                        })}
                 </MetricQueryDataProvider>
             );
         case DashboardTileTypes.MARKDOWN:

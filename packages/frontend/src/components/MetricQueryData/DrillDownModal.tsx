@@ -21,7 +21,6 @@ import {
     getItemId,
     hashFieldReference,
     isField,
-    isMetric,
     MetricQuery,
     PivotReference,
     ResultRow,
@@ -30,8 +29,6 @@ import React, { FC, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
-import { useTracking } from '../../providers/TrackingProvider';
-import { EventName } from '../../types/Events';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import { useMetricQueryDataContext } from './MetricQueryDataProvider';
 
