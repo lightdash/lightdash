@@ -67,6 +67,14 @@ const CellContextMenu: FC<
                             meta,
                             cell.row.original || {},
                         );
+                        track({
+                            name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
+                            properties: {
+                                organizationId: user?.data?.organizationUuid,
+                                userId: user?.data?.userUuid,
+                                projectId: projectUuid,
+                            },
+                        });
                     }}
                 />
             )}

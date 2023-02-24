@@ -7,6 +7,8 @@ import { useParams } from 'react-router-dom';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useExplore } from '../../hooks/useExplore';
 import { useApp } from '../../providers/AppProvider';
+import { useTracking } from '../../providers/TrackingProvider';
+import { EventName } from '../../types/Events';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
 import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';
@@ -22,9 +24,10 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
     const { resultsData, bigNumberConfig } = useVisualizationContext();
     const { openUnderlyingDataModel, tableName } = useMetricQueryDataContext();
     const { data: explore } = useExplore(tableName);
+
+    const { track } = useTracking();
     const { user } = useApp();
     const { projectUuid } = useParams<{ projectUuid: string }>();
-
     const selectedItem = useMemo(
         () =>
             bigNumberConfig?.selectedField
@@ -54,6 +57,14 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
             };
 
             openUnderlyingDataModel(value, meta, row);
+            track({
+                name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
+                properties: {
+                    organizationId: user?.data?.organizationUuid,
+                    userId: user?.data?.userUuid,
+                    projectId: projectUuid,
+                },
+            });
         }
     }, [explore, bigNumberConfig, row, value, openUnderlyingDataModel]);
 

@@ -6,6 +6,8 @@ import CopyToClipboard from 'react-copy-to-clipboard';
 import { useParams } from 'react-router-dom';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useApp } from '../../providers/AppProvider';
+import { useTracking } from '../../providers/TrackingProvider';
+import { EventName } from '../../types/Events';
 import { CellContextMenuProps } from '../common/Table/types';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
@@ -16,11 +18,12 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
     const { showToastSuccess } = useToaster();
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
-    const { user } = useApp();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const value: ResultRow[0]['value'] = cell.getValue()?.value || {};
 
+    const { track } = useTracking();
+    const { user } = useApp();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     return (
         <Menu>
             {item && value.raw && isField(item) && (
@@ -48,6 +51,14 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
                             meta,
                             cell.row.original || {},
                         );
+                        track({
+                            name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
+                            properties: {
+                                organizationId: user?.data?.organizationUuid,
+                                userId: user?.data?.userUuid,
+                                projectId: projectUuid,
+                            },
+                        });
                     }}
                 />
             )}

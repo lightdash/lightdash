@@ -20,6 +20,8 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import { useExplore } from '../../../hooks/useExplore';
 import { useApp } from '../../../providers/AppProvider';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import { useTracking } from '../../../providers/TrackingProvider';
+import { EventName } from '../../../types/Events';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import DrillDownMenuItem from '../../MetricQueryData/DrillDownMenuItem';
 import {
@@ -49,6 +51,8 @@ export const SeriesContextMenu: FC<{
         left: number;
         top: number;
     }>();
+
+    const { track } = useTracking();
     const { user } = useApp();
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
@@ -118,9 +122,19 @@ export const SeriesContextMenu: FC<{
                         <MenuItem2
                             text={`View underlying data`}
                             icon={'layers'}
-                            onClick={onViewUnderlyingData}
+                            onClick={() => {
+                                onViewUnderlyingData();
+                                track({
+                                    name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
+                                    properties: {
+                                        organizationId:
+                                            user?.data?.organizationUuid,
+                                        userId: user?.data?.userUuid,
+                                        projectId: projectUuid,
+                                    },
+                                });
+                            }}
                         />
-
                         {underlyingData?.value && (
                             <CopyToClipboard
                                 text={underlyingData.value.formatted}

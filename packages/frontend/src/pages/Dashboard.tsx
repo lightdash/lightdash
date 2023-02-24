@@ -10,7 +10,6 @@ import React, {
 } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
 import { Helmet } from 'react-helmet';
-import { useQueryClient } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ErrorState from '../components/common/ErrorState';
@@ -33,7 +32,6 @@ import {
 } from '../hooks/dashboard/useDashboard';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import { useSpaces } from '../hooks/useSpaces';
-import { useApp } from '../providers/AppProvider';
 import { useDashboardContext } from '../providers/DashboardProvider';
 import { TrackSection } from '../providers/TrackingProvider';
 import '../styles/react-grid.css';
@@ -61,7 +59,6 @@ const GridTile: FC<
         id: savedChartUuid,
     });
 
-    const { user } = useApp();
     switch (tile.type) {
         case DashboardTileTypes.SAVED_CHART:
             if (isLoading)
@@ -89,12 +86,7 @@ const GridTile: FC<
                 >
                     <ChartTile {...props} tile={tile} />
                     <UnderlyingDataModal />
-                    <DrillDownModal
-                        trackingData={{
-                            organizationId: user?.data?.organizationUuid,
-                            userId: user?.data?.userUuid,
-                        }}
-                    />
+                    <DrillDownModal />
                 </MetricQueryDataProvider>
             );
         case DashboardTileTypes.MARKDOWN:
