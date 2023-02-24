@@ -163,7 +163,6 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                 defaultSort={{ type: SortDirection.DESC }}
                 defaultColumnVisibility={{ space: false, type: false }}
                 headerTitle="All items"
-                showCount={false}
                 headerAction={
                     !isDemo && (
                         <Popover2

@@ -49,20 +49,10 @@ const PinnedItemsPanel: FC<Props> = ({ projectUuid, organizationUuid }) => {
             enableSorting={false}
             defaultSort={{ updatedAt: SortDirection.DESC }}
             defaultColumnVisibility={{ space: false, type: false }}
-            showCount={false}
             headerTitle={
                 userCanUpdateProject ? 'Pinned items' : 'Pinned for you'
             }
-            headerIcon={
-                <IconInfoCircle
-                    color={Colors.GRAY5}
-                    size={17}
-                    style={{
-                        marginTop: '7px',
-                    }}
-                />
-            }
-            headerIconTooltipContent={
+            headerDescription={
                 userCanUpdateProject
                     ? 'Pin Spaces, Dashboards and Charts to the top of the homepage to guide your business users to the right content.'
                     : 'Your data team have pinned these items to help guide you towards the most relevant content!'

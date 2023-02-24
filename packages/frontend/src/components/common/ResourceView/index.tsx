@@ -1,18 +1,22 @@
 import { assertUnreachable } from '@lightdash/common';
-import { Box, Button, Group, Paper, Tooltip } from '@mantine/core';
+import {
+    Box,
+    Button,
+    Divider,
+    Group,
+    Paper,
+    Title,
+    Tooltip,
+    useMantineTheme,
+} from '@mantine/core';
+import { IconInfoCircle } from '@tabler/icons-react';
 import React, { useCallback, useMemo, useState } from 'react';
 import ResourceActionHandlers, {
     ResourceViewItemAction,
     ResourceViewItemActionState,
 } from './ResourceActionHandlers';
 import { ResourceViewItem, ResourceViewItemType } from './resourceTypeUtils';
-import {
-    ResourceEmptyStateWrapper,
-    ResourceTag,
-    ResourceTitle,
-    ResourceViewHeader,
-    ResourceViewSpacer,
-} from './ResourceView.styles';
+import { ResourceEmptyStateWrapper } from './ResourceView.styles';
 import ResourceViewGrid from './ResourceViewGrid';
 import ResourceViewList, {
     ResourceViewListCommonProps,
@@ -29,14 +33,12 @@ type GroupType = ResourceViewItemType[];
 
 export interface ResourceViewCommonProps {
     headerTitle?: string;
-    headerIcon?: JSX.Element;
-    headerIconTooltipContent?: string;
+    headerDescription?: string;
     headerAction?: React.ReactNode;
     items: ResourceViewItem[];
     tabs?: TabType[];
     groups?: GroupType[];
     maxItems?: number;
-    showCount?: boolean;
     renderEmptyState?: () => React.ReactNode;
     view?: ResourceViewType;
 }
@@ -54,17 +56,17 @@ const ResourceView: React.FC<ResourceViewProps> = ({
     tabs,
     groups,
     headerTitle,
-    headerIcon,
-    headerIconTooltipContent,
+    headerDescription,
     headerAction,
     enableSorting,
     enableMultiSort,
     defaultSort,
     defaultColumnVisibility,
-    showCount = true,
     maxItems,
     renderEmptyState,
 }) => {
+    const theme = useMantineTheme();
+
     const [action, setAction] = useState<ResourceViewItemActionState>({
         type: ResourceViewItemAction.CLOSE,
     });
@@ -123,32 +125,34 @@ const ResourceView: React.FC<ResourceViewProps> = ({
             ) : null}
 
             <Paper withBorder sx={{ overflow: 'hidden' }}>
-                {tabs && tabs?.length > 0 ? null : headerTitle ||
-                  headerAction ? (
-                    <ResourceViewHeader>
-                        {headerTitle && (
-                            <ResourceTitle>{headerTitle}</ResourceTitle>
-                        )}
-                        {headerIcon && (
-                            <Tooltip
-                                withArrow
-                                label={headerIconTooltipContent || ''}
-                                disabled={!headerIconTooltipContent}
-                                position="right"
-                            >
-                                {headerIcon}
-                            </Tooltip>
-                        )}
-                        {showCount && slicedSortedItems.length > 0 && (
-                            <ResourceTag round>
-                                {slicedSortedItems.length}
-                            </ResourceTag>
-                        )}
+                {headerTitle || headerAction ? (
+                    <>
+                        <Group align="center" h={50} px="md" spacing="xs">
+                            {headerTitle && (
+                                <Title order={5} fw={600}>
+                                    {headerTitle}
+                                </Title>
+                            )}
 
-                        <ResourceViewSpacer />
+                            {headerDescription && (
+                                <Tooltip
+                                    withArrow
+                                    label={headerDescription || ''}
+                                    disabled={!headerDescription}
+                                    position="right"
+                                >
+                                    <IconInfoCircle
+                                        color={theme.colors.gray[6]}
+                                        size={18}
+                                    />
+                                </Tooltip>
+                            )}
 
-                        {headerAction}
-                    </ResourceViewHeader>
+                            <Box ml="auto">{headerAction}</Box>
+                        </Group>
+
+                        <Divider color="gray.3" />
+                    </>
                 ) : null}
 
                 {slicedSortedItems.length === 0 ? (

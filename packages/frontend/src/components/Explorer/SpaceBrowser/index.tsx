@@ -59,7 +59,6 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                         </Button>
                     ) : null
                 }
-                showCount={false}
                 renderEmptyState={() => (
                     <>
                         <ResourceEmptyStateIcon icon="folder-close" size={40} />
