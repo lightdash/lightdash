@@ -47,6 +47,7 @@ const IconBox: FC<IconBoxProps> = ({ color, icon, iconProps }) => {
             shadow="sm"
             radius="sm"
             withBorder
+            sx={{ flexGrow: 0, flexShrink: 0 }}
         >
             <Icon
                 color={color}

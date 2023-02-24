@@ -1,5 +1,5 @@
-import { Icon, Position } from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
+import { Icon } from '@blueprintjs/core';
+import { Tooltip } from '@mantine/core';
 import React, { FC, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import { ResourceViewCommonProps } from '..';
@@ -121,17 +121,17 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                         isResourceViewItemDashboard(item);
 
                     return (
-                        <Tooltip2
-                            lazy
+                        <Tooltip
+                            withArrow
                             disabled={
                                 canBelongToSpace ? !item.data.description : true
                             }
-                            content={
+                            label={
                                 canBelongToSpace
                                     ? item.data.description
                                     : undefined
                             }
-                            position={Position.TOP_LEFT}
+                            position="top-start"
                         >
                             <ResourceViewListLink
                                 to={getResourceUrl(projectUuid, item)}
@@ -154,7 +154,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                     )}
                                 </ResourceViewListNameBox>
                             </ResourceViewListLink>
-                        </Tooltip2>
+                        </Tooltip>
                     );
                 },
                 enableSorting,

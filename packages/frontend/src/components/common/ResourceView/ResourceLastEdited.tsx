@@ -1,5 +1,4 @@
-import { Position } from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
+import { Tooltip } from '@mantine/core';
 import moment from 'moment';
 import { FC } from 'react';
 
@@ -26,13 +25,13 @@ const ResourceLastEdited: FC<ResourceLastEditedProps> = ({
 
     return (
         <div>
-            <Tooltip2
-                lazy
-                position={Position.TOP}
-                content={moment(updatedAt).format('YYYY-MM-DD HH:mm:ss')}
+            <Tooltip
+                position="top-start"
+                withArrow
+                label={moment(updatedAt).format('YYYY-MM-DD HH:mm:ss')}
             >
                 <ResourceLastEditedTimeAgo>{timeAgo}</ResourceLastEditedTimeAgo>
-            </Tooltip2>
+            </Tooltip>
 
             {user && user.firstName ? (
                 <ResourceLastEditedBy>

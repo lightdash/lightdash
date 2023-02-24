@@ -1,6 +1,5 @@
-import { Tooltip2 } from '@blueprintjs/popover2';
 import { assertUnreachable } from '@lightdash/common';
-import { Box, Button, Group, Paper } from '@mantine/core';
+import { Box, Button, Group, Paper, Tooltip } from '@mantine/core';
 import React, { useCallback, useMemo, useState } from 'react';
 import ResourceActionHandlers, {
     ResourceViewItemAction,
@@ -131,12 +130,14 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                             <ResourceTitle>{headerTitle}</ResourceTitle>
                         )}
                         {headerIcon && (
-                            <Tooltip2
-                                content={headerIconTooltipContent || ''}
+                            <Tooltip
+                                withArrow
+                                label={headerIconTooltipContent || ''}
                                 disabled={!headerIconTooltipContent}
+                                position="right"
                             >
                                 {headerIcon}
-                            </Tooltip2>
+                            </Tooltip>
                         )}
                         {showCount && slicedSortedItems.length > 0 && (
                             <ResourceTag round>

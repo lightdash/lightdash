@@ -37,9 +37,7 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
     return (
         <Paper ref={ref} p={0} withBorder>
             <Group p="md" align="center" spacing="md" noWrap>
-                <Box sx={{ flexGrow: 0, flexShrink: 0 }}>
-                    <ResourceIcon item={item} />
-                </Box>
+                <ResourceIcon item={item} />
 
                 <Stack spacing={4} sx={{ flexGrow: 1, flexShrink: 1 }}>
                     <Text lineClamp={1} fz="sm" fw={600}>

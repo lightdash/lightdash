@@ -37,9 +37,7 @@ const ResourceViewGridDashboardItem: FC<ResourceViewGridDashboardItemProps> = ({
                 noWrap
                 sx={{ flexGrow: 1 }}
             >
-                <Box sx={{ flexShrink: 0 }}>
-                    <ResourceIcon item={item} />
-                </Box>
+                <ResourceIcon item={item} />
 
                 <Text lineClamp={2} fz="sm" fw={600}>
                     {item.data.name}
