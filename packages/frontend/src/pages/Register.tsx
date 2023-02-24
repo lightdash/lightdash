@@ -117,7 +117,7 @@ const Register: FC = () => {
                         href="https://www.lightdash.com/privacy-policy"
                         target="_blank"
                     >
-                        Privacy Policy.
+                        Privacy Policy
                     </FooterCta>
                     and our{' '}
                     <FooterCta
