@@ -1,4 +1,3 @@
-import { Colors } from '@blueprintjs/core';
 import {
     Box,
     Divider,
@@ -7,6 +6,7 @@ import {
     Paper,
     Text,
     Transition,
+    useMantineTheme,
 } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { IconEye } from '@tabler/icons-react';
@@ -26,6 +26,7 @@ const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
     renderActions,
 }) => {
     const { hovered, ref } = useHover();
+    const theme = useMantineTheme();
 
     return (
         <Paper component={Flex} direction="column" p={0} withBorder ref={ref}>
@@ -49,7 +50,7 @@ const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
 
             <Flex pl="md" pr="xs" h={32} justify="space-between" align="center">
                 <Flex align="center" gap={4}>
-                    <IconEye color={Colors.GRAY2} size={14} />
+                    <IconEye color={theme.colors.gray[6]} size={14} />
 
                     <Text size={14} color="gray.6" fz="xs">
                         {item.data.views} views
