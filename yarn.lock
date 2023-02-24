@@ -1543,7 +1543,7 @@
   dependencies:
     regenerator-runtime "^0.13.4"
 
-"@babel/runtime@^7.13.10", "@babel/runtime@^7.18.3":
+"@babel/runtime@^7.13.10", "@babel/runtime@^7.17.8", "@babel/runtime@^7.18.3":
   version "7.21.0"
   resolved "https://registry.yarnpkg.com/@babel/runtime/-/runtime-7.21.0.tgz#5b55c9d394e5fcf304909a8b00c07dc217b56673"
   integrity sha512-xwII0//EObnq89Ji5AKYQaRYiW/nZ3llSv29d49IuxPhKbtJoLP+9QUUZ4nVragQVtaVGeZrpB+ZtG/Pdy/POw==
@@ -1563,13 +1563,6 @@
   integrity sha512-lkqXDcvlFT5rvEjiu6+QYO+1GXrEHRo2LOtS7E4GtX5ESIZOgepqsZBVIj6Pv+a6zqsya9VCgiK1KAK4BvJDAw==
   dependencies:
     regenerator-runtime "^0.13.4"
-
-"@babel/runtime@^7.17.8":
-  version "7.21.0"
-  resolved "https://registry.yarnpkg.com/@babel/runtime/-/runtime-7.21.0.tgz#5b55c9d394e5fcf304909a8b00c07dc217b56673"
-  integrity sha512-xwII0//EObnq89Ji5AKYQaRYiW/nZ3llSv29d49IuxPhKbtJoLP+9QUUZ4nVragQVtaVGeZrpB+ZtG/Pdy/POw==
-  dependencies:
-    regenerator-runtime "^0.13.11"
 
 "@babel/runtime@^7.18.9":
   version "7.19.0"
@@ -3496,6 +3489,11 @@
   version "4.0.0"
   resolved "https://registry.npmjs.org/@types/parse-json/-/parse-json-4.0.0.tgz"
   integrity sha512-//oorEZjL6sbPcKUaCdIGlIUeH26mgzimjBB77G6XRgnDl/L5wOnpyBGRe/Mmf5CVW3PwEBE1NjiMZ/ssFh4wA==
+
+"@types/parse-node-version@^1.0.0":
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/@types/parse-node-version/-/parse-node-version-1.0.0.tgz#521f7c1c4a5130e26c6c8cc853814a61b731fa4b"
+  integrity sha512-BG9NGr5cHPeGvjZt6aQJrYaQ6iVWBP9kieyfDhuVKFvZ3bKbZudAPzdEw2znylt+z0/l1pkGvVUrNMK5KA0FQg==
 
 "@types/parse5@^6.0.0":
   version "6.0.2"
@@ -12483,6 +12481,11 @@ parse-json@^5.0.0, parse-json@^5.2.0:
     error-ex "^1.3.1"
     json-parse-even-better-errors "^2.3.0"
     lines-and-columns "^1.1.6"
+
+parse-node-version@^2.0.0:
+  version "2.0.0"
+  resolved "https://registry.yarnpkg.com/parse-node-version/-/parse-node-version-2.0.0.tgz#784ca2d72a9d450d2ffb5538edb8d03410f9d00e"
+  integrity sha512-/jc2J3E6IazoQF4RlwJg4E4FByHqXlcoaHVrWQvjr7LEQd8QVLBT3AO5dqZlFPIzluYUosVTLAM0t8OTEc2AdQ==
 
 parse-passwd@^1.0.0:
   version "1.0.0"

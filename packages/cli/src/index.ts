@@ -17,6 +17,17 @@ import {
 import { setProjectInteractivelyHandler } from './handlers/setProject';
 import * as styles from './styles';
 
+const nodeVersion = require('parse-node-version')(process.version);
+
+const OPTIMIZED_NODE_VERSION = 16;
+if (nodeVersion.major !== OPTIMIZED_NODE_VERSION) {
+    console.warn(
+        styles.warning(
+            `⚠️ You are using Node.js version ${process.version}. Lightdash CLI is optimized for v${OPTIMIZED_NODE_VERSION} so you might experience issues.`,
+        ),
+    );
+}
+
 const { version: VERSION } = require('../package.json');
 
 const defaultProjectDir = process.env.DBT_PROJECT_DIR || '.';
