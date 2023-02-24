@@ -1,3 +1,10 @@
+## [0.432.4](https://github.com/lightdash/lightdash/compare/0.432.3...0.432.4) (2023-02-24)
+
+
+### Bug Fixes
+
+* empty description on slack unfurl ([#4597](https://github.com/lightdash/lightdash/issues/4597)) ([360330b](https://github.com/lightdash/lightdash/commit/360330b445d33c546156378f1654c9c096b2c33d))
+
 ## [0.432.3](https://github.com/lightdash/lightdash/compare/0.432.2...0.432.3) (2023-02-24)
 
 
