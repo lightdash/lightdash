@@ -1,6 +1,5 @@
-import { Colors } from '@blueprintjs/core';
 import { assertUnreachable, ChartKind } from '@lightdash/common';
-import { Center, Paper } from '@mantine/core';
+import { Center, Paper, useMantineTheme } from '@mantine/core';
 import {
     IconChartArea,
     IconChartAreaLine,
@@ -61,50 +60,76 @@ const IconBox: FC<IconBoxProps> = ({ color, icon, iconProps }) => {
 };
 
 const ResourceIcon: FC<ResourceIconProps> = ({ item }) => {
+    const theme = useMantineTheme();
+
     switch (item.type) {
         case ResourceViewItemType.DASHBOARD:
-            return <IconBox icon="IconLayoutDashboard" color={Colors.GREEN3} />;
+            return (
+                <IconBox
+                    icon="IconLayoutDashboard"
+                    color={theme.colors.green[8]}
+                />
+            );
         case ResourceViewItemType.SPACE:
-            return <IconBox icon="IconFolder" color={Colors.INDIGO3} />;
+            return <IconBox icon="IconFolder" color={theme.colors.violet[8]} />;
         case ResourceViewItemType.CHART:
             switch (item.data.chartType) {
                 case undefined:
                 case ChartKind.VERTICAL_BAR:
-                    return <IconBox icon="IconChartBar" color={Colors.BLUE3} />;
+                    return (
+                        <IconBox
+                            icon="IconChartBar"
+                            color={theme.colors.blue[8]}
+                        />
+                    );
                 case ChartKind.HORIZONTAL_BAR:
                     return (
                         <IconBox
                             icon="IconChartBar"
-                            color={Colors.BLUE3}
+                            color={theme.colors.blue[8]}
                             iconProps={{ style: { rotate: '90deg' } }}
                         />
                     );
                 case ChartKind.LINE:
                     return (
-                        <IconBox icon="IconChartLine" color={Colors.BLUE3} />
+                        <IconBox
+                            icon="IconChartLine"
+                            color={theme.colors.blue[8]}
+                        />
                     );
                 case ChartKind.SCATTER:
                     return (
-                        <IconBox icon="IconChartDots" color={Colors.BLUE3} />
+                        <IconBox
+                            icon="IconChartDots"
+                            color={theme.colors.blue[8]}
+                        />
                     );
                 case ChartKind.AREA:
                     return (
-                        <IconBox icon="IconChartArea" color={Colors.BLUE3} />
+                        <IconBox
+                            icon="IconChartArea"
+                            color={theme.colors.blue[8]}
+                        />
                     );
                 case ChartKind.MIXED:
                     return (
                         <IconBox
                             icon="IconChartAreaLine"
-                            color={Colors.BLUE3}
+                            color={theme.colors.blue[8]}
                         />
                     );
                 case ChartKind.TABLE:
-                    return <IconBox icon="IconTable" color={Colors.BLUE3} />;
+                    return (
+                        <IconBox
+                            icon="IconTable"
+                            color={theme.colors.blue[8]}
+                        />
+                    );
                 case ChartKind.BIG_NUMBER:
                     return (
                         <IconBox
                             icon="IconSquareNumber1"
-                            color={Colors.BLUE3}
+                            color={theme.colors.blue[8]}
                         />
                     );
                 default:
