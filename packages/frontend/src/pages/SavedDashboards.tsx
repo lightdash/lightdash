@@ -18,10 +18,8 @@ import {
     wrapResourceView,
 } from '../components/common/ResourceView/resourceTypeUtils';
 import {
-    ResourceBreadcrumbTitle,
     ResourceEmptyStateHeader,
     ResourceEmptyStateIcon,
-    ResourceTag,
 } from '../components/common/ResourceView/ResourceView.styles';
 import { SortDirection } from '../components/common/ResourceView/ResourceViewList';
 import { useCreateMutation } from '../hooks/dashboard/useDashboard';
@@ -98,11 +96,7 @@ const SavedDashboards = () => {
                                     },
                                 },
                                 {
-                                    text: (
-                                        <ResourceBreadcrumbTitle>
-                                            All dashboards
-                                        </ResourceBreadcrumbTitle>
-                                    ),
+                                    text: 'All dashboards',
                                 },
                             ]}
                         />

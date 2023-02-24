@@ -11,10 +11,6 @@ import {
     PageContentWrapper,
     PageHeader,
 } from '../components/common/Page/Page.styles';
-import {
-    ResourceBreadcrumbTitle,
-    ResourceTag,
-} from '../components/common/ResourceView/ResourceView.styles';
 import SpaceBrowser from '../components/Explorer/SpaceBrowser';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useSpaces } from '../hooks/useSpaces';
@@ -68,11 +64,7 @@ const Spaces: FC = () => {
                                     onClick: () => history.push('/home'),
                                 },
                                 {
-                                    text: (
-                                        <ResourceBreadcrumbTitle>
-                                            All spaces
-                                        </ResourceBreadcrumbTitle>
-                                    ),
+                                    text: 'All spaces',
                                 },
                             ]}
                         />

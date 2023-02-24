@@ -1,12 +1,6 @@
 import { Colors, H4, Icon, Tag } from '@blueprintjs/core';
 import styled from 'styled-components';
 
-export const ResourceBreadcrumbTitle = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 10px;
-`;
-
 export const ResourceEmptyStateWrapper = styled.div`
     padding: 40px 0;
     display: flex;

@@ -14,7 +14,6 @@ import {
     PageBreadcrumbsWrapper,
     PageHeader,
 } from '../components/common/Page/Page.styles';
-import { ResourceBreadcrumbTitle } from '../components/common/ResourceView/ResourceView.styles';
 import { Table } from '../components/common/Table/Table.styles';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useUserActivity } from '../hooks/analytics/useUserActivity';
@@ -166,10 +165,16 @@ const UserActivity: FC = () => {
                                 },
                                 {
                                     text: (
-                                        <ResourceBreadcrumbTitle>
+                                        <div
+                                            style={{
+                                                display: 'flex',
+                                                gap: 6,
+                                                alignItems: 'center',
+                                            }}
+                                        >
                                             <IconUsers size={20} /> User
                                             activity for {project?.name}
-                                        </ResourceBreadcrumbTitle>
+                                        </div>
                                     ),
                                 },
                             ]}

@@ -17,10 +17,8 @@ import {
     wrapResourceView,
 } from '../components/common/ResourceView/resourceTypeUtils';
 import {
-    ResourceBreadcrumbTitle,
     ResourceEmptyStateHeader,
     ResourceEmptyStateIcon,
-    ResourceTag,
 } from '../components/common/ResourceView/ResourceView.styles';
 import { SortDirection } from '../components/common/ResourceView/ResourceViewList';
 import { LoadingChart } from '../components/SimpleChart';
@@ -72,11 +70,7 @@ const SavedQueries: FC = () => {
                                     },
                                 },
                                 {
-                                    text: (
-                                        <ResourceBreadcrumbTitle>
-                                            All saved charts
-                                        </ResourceBreadcrumbTitle>
-                                    ),
+                                    text: 'All saved charts',
                                 },
                             ]}
                         />
