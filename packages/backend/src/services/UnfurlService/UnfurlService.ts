@@ -22,15 +22,6 @@ const viewport = {
     height: 768,
 };
 
-const blockedUrls = [
-    'headwayapp.co',
-    'rudderlabs.com',
-    'analytics.lightdash.com',
-    'cohere.so',
-    'intercom.io',
-    'sentry.io',
-];
-
 export enum LightdashPage {
     DASHBOARD = 'dashboard',
     CHART = 'chart',
@@ -106,8 +97,19 @@ export class UnfurlService {
     ): Promise<Buffer | undefined> {
         let browser;
 
+        if (this.lightdashConfig.headlessBrowser?.host === undefined) {
+            Logger.error(
+                `Can't get screenshot if HEADLESS_BROWSER_HOST env variable is not defined`,
+            );
+            throw new Error(
+                `Can't get screenshot if HEADLESS_BROWSER_HOST env variable is not defined`,
+            );
+        }
+
         try {
-            const browserWSEndpoint = `ws://${this.lightdashConfig.headlessBrowser?.host}:${this.lightdashConfig.headlessBrowser?.port}`;
+            const browserWSEndpoint = `ws://s${
+                this.lightdashConfig.headlessBrowser?.host
+            }:${this.lightdashConfig.headlessBrowser?.port || 3001}`;
             browser = await puppeteer.connect({
                 browserWSEndpoint,
             });
@@ -121,17 +123,24 @@ export class UnfurlService {
             await page.setRequestInterception(true);
             page.on('request', (request: any) => {
                 const requestUrl = request.url();
-                if (blockedUrls.includes(requestUrl)) {
+                const urlHost = url.split('/')[2];
+                // Only allow request to the same host
+                if (!requestUrl.includes(urlHost)) {
                     request.abort();
                     return;
                 }
-
                 request.continue();
             });
-            await page.goto(url, {
-                timeout: 180000,
-                waitUntil: 'networkidle0',
-            });
+            try {
+                await page.goto(url, {
+                    timeout: 60000,
+                    waitUntil: 'networkidle0',
+                });
+            } catch (e) {
+                Logger.warn(
+                    `Got a timeout when waiting for the page to load, returning current content`,
+                );
+            }
 
             const path = `/tmp/${imageId}.png`;
 
@@ -173,6 +182,11 @@ export class UnfurlService {
                 Logger.warn(
                     `Retrying (${retries}) to fetch screenshots from headless chrome ${e.message}`,
                 );
+                const delay = (ms: number) =>
+                    new Promise((res) => {
+                        setTimeout(res, ms);
+                    });
+                await delay(10000); // Wait 10 seconds before retrying
                 return await this.saveScreenshot(
                     imageId,
                     cookie,
