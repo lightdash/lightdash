@@ -112,12 +112,21 @@ const Register: FC = () => {
                     {logins}
                 </CardWrapper>
                 <FormFooterCopy>
-                    By creating an account, you agree to our{' '}
+                    By creating an account, you agree to
+                    <br />
+                    our{' '}
                     <FooterCta
                         href="https://www.lightdash.com/privacy-policy"
                         target="_blank"
                     >
-                        Privacy Policy.
+                        Privacy Policy
+                    </FooterCta>{' '}
+                    and our{' '}
+                    <FooterCta
+                        href="https://www.lightdash.com/terms-of-service"
+                        target="_blank"
+                    >
+                        Terms of Service.
                     </FooterCta>
                 </FormFooterCopy>
             </FormWrapper>
