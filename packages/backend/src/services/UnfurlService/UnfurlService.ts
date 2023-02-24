@@ -178,6 +178,8 @@ export class UnfurlService {
 
             return imageBuffer;
         } catch (e) {
+            if (browser) await browser.close();
+
             if (retries > 0) {
                 Logger.warn(
                     `Retrying (${retries}) to fetch screenshots from headless chrome ${e.message}`,
