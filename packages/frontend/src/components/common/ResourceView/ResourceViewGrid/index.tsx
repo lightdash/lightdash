@@ -1,5 +1,6 @@
 import { assertUnreachable } from '@lightdash/common';
 import { SimpleGrid, Stack, Text } from '@mantine/core';
+import { useHover } from '@mantine/hooks';
 import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { ResourceViewCommonProps } from '..';

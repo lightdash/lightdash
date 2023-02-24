@@ -1,5 +1,14 @@
-import { Colors } from '@blueprintjs/core';
-import { Box, Flex, Group, Paper, Stack, Text } from '@mantine/core';
+import {
+    Box,
+    Flex,
+    Group,
+    Paper,
+    Stack,
+    Text,
+    Transition,
+    useMantineTheme,
+} from '@mantine/core';
+import { useHover } from '@mantine/hooks';
 import {
     IconChartBar,
     IconLayoutDashboard,
@@ -21,8 +30,11 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
     url,
     renderActions,
 }) => {
+    const { hovered, ref } = useHover();
+    const theme = useMantineTheme();
+
     return (
-        <Paper p={0} withBorder>
+        <Paper ref={ref} p={0} withBorder>
             <Group p="md" align="center" spacing="md" noWrap>
                 <Box sx={{ flexGrow: 0, flexShrink: 0 }}>
                     <ResourceIcon item={item} />
@@ -37,9 +49,15 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
                         <Flex align="center" gap={4}>
                             {/* Private, restricted, only visible to you? */}
                             {item.data.isPrivate ? (
-                                <IconLock color={Colors.GRAY2} size={14} />
+                                <IconLock
+                                    color={theme.colors.gray[6]}
+                                    size={14}
+                                />
                             ) : (
-                                <IconUsers color={Colors.GRAY2} size={14} />
+                                <IconUsers
+                                    color={theme.colors.gray[6]}
+                                    size={14}
+                                />
                             )}
 
                             <Text size={14} color="gray.6" fz="xs">
@@ -49,7 +67,7 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
 
                         <Flex align="center" gap={4}>
                             <IconLayoutDashboard
-                                color={Colors.GRAY2}
+                                color={theme.colors.gray[6]}
                                 size={14}
                             />
 
@@ -59,7 +77,10 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
                         </Flex>
 
                         <Flex align="center" gap={4}>
-                            <IconChartBar color={Colors.GRAY2} size={14} />
+                            <IconChartBar
+                                color={theme.colors.gray[6]}
+                                size={14}
+                            />
 
                             <Text size={14} color="gray.6" fz="xs">
                                 {item.data.queries.length}
@@ -68,7 +89,18 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
                     </Group>
                 </Stack>
 
-                <Box sx={{ flexGrow: 0, flexShrink: 0 }}>{renderActions()}</Box>
+                <Transition
+                    mounted={hovered}
+                    transition="fade"
+                    duration={200}
+                    timingFunction="ease"
+                >
+                    {(styles) => (
+                        <Box sx={{ flexGrow: 0, flexShrink: 0 }} style={styles}>
+                            {renderActions()}
+                        </Box>
+                    )}
+                </Transition>
             </Group>
         </Paper>
     );

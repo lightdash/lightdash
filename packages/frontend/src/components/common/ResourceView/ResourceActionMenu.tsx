@@ -61,7 +61,7 @@ const ResourceViewItemActionMenu: FC<Props> = ({
     }
 
     return (
-        <Menu shadow="md" position="bottom-end" trigger="hover">
+        <Menu shadow="md" position="bottom-end">
             <Menu.Target>
                 <ActionIcon>
                     <IconDots size={16} />
