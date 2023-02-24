@@ -1,14 +1,15 @@
 import { Button, Classes, Divider, Intent, Menu } from '@blueprintjs/core';
 import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { Dashboard, Space, UpdatedByUser } from '@lightdash/common';
-import { useState } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
 import DashboardSchedulersModal from '../../SchedulerModals/DashboardSchedulersModal';
+import { getSchedulerUuidFromUrlParams } from '../../SchedulerModals/SchedulerModalBase/SchedulerModalContent';
 import ShareLinkButton from '../../ShareLinkButton';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
 import {
@@ -64,6 +65,7 @@ const DashboardHeader = ({
     onDuplicate,
     onMoveToSpace,
 }: DashboardHeaderProps) => {
+    const { search } = useLocation();
     const { projectUuid, dashboardUuid } = useParams<{
         projectUuid: string;
         dashboardUuid: string;
@@ -78,6 +80,14 @@ const DashboardHeader = ({
         setIsUpdating(true);
         track({ name: EventName.UPDATE_DASHBOARD_NAME_CLICKED });
     };
+
+    useEffect(() => {
+        const schedulerUuidFromUrlParams =
+            getSchedulerUuidFromUrlParams(search);
+        if (schedulerUuidFromUrlParams) {
+            toggleSchedulerDeliveriesModel(true);
+        }
+    }, [search, toggleSchedulerDeliveriesModel]);
 
     const { user } = useApp();
     const userCanManageDashboard = user.data?.ability.can(

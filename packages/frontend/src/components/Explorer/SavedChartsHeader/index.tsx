@@ -9,7 +9,7 @@ import {
 import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import { FC, useEffect, useState } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
+import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
 import {
     useDuplicateChartMutation,
@@ -39,9 +39,11 @@ import { UpdatedInfo } from '../../common/PageHeader/UpdatedInfo';
 import ViewInfo from '../../common/PageHeader/ViewInfo';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import ChartSchedulersModal from '../../SchedulerModals/ChartSchedulersModal';
+import { getSchedulerUuidFromUrlParams } from '../../SchedulerModals/SchedulerModalBase/SchedulerModalContent';
 import SaveChartButton from '../SaveChartButton';
 
 const SavedChartsHeader: FC = () => {
+    const { search } = useLocation();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const dashboardUuid = useSearchParams('fromDashboard');
 
@@ -80,6 +82,14 @@ const SavedChartsHeader: FC = () => {
 
     const { mutate: duplicateChart } = useDuplicateChartMutation();
     const chartId = savedChart?.uuid || '';
+
+    useEffect(() => {
+        const schedulerUuidFromUrlParams =
+            getSchedulerUuidFromUrlParams(search);
+        if (schedulerUuidFromUrlParams) {
+            toggleSchedulerDeliveriesModel(true);
+        }
+    }, [search, toggleSchedulerDeliveriesModel]);
 
     useEffect(() => {
         const checkReload = (event: BeforeUnloadEvent) => {

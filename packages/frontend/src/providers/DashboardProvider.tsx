@@ -244,7 +244,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
     });
 
     useEffect(() => {
-        const newParams = new URLSearchParams();
+        const newParams = new URLSearchParams(search);
         if (
             dashboardTemporaryFilters.dimensions.length === 0 &&
             dashboardTemporaryFilters.metrics.length === 0
@@ -258,7 +258,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
             pathname,
             search: newParams.toString(),
         });
-    }, [dashboardTemporaryFilters, history, pathname]);
+    }, [dashboardTemporaryFilters, history, pathname, search]);
 
     const value = {
         dashboard,

@@ -1,7 +1,6 @@
 import { LightdashMode } from '@lightdash/common';
-import { App, ExpressReceiver, LogLevel } from '@slack/bolt';
-
 import * as Sentry from '@sentry/node';
+import { App, ExpressReceiver, LogLevel } from '@slack/bolt';
 import { nanoid } from 'nanoid';
 import { analytics } from '../../analytics/client';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -9,12 +8,9 @@ import Logger from '../../logger';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 import { apiV1Router } from '../../routers/apiV1Router';
 import { unfurlService } from '../../services/services';
-import {
-    LightdashPage,
-    Unfurl,
-} from '../../services/UnfurlService/UnfurlService';
+import { Unfurl } from '../../services/UnfurlService/UnfurlService';
+import { getUnfurlBlocks } from './SlackMessageBlocks';
 import { slackOptions } from './SlackOptions';
-import { unfurlChartAndDashboard, unfurlExplore } from './SlackUnfurl';
 
 const notifySlackError = async (
     error: unknown,
@@ -107,15 +103,12 @@ export class SlackService {
         unfurl: Unfurl,
         client: any,
     ) {
-        const blocks =
-            unfurl?.pageType === LightdashPage.EXPLORE
-                ? unfurlExplore(originalUrl, unfurl)
-                : unfurlChartAndDashboard(originalUrl, unfurl);
+        const unfurlBlocks = getUnfurlBlocks(originalUrl, unfurl);
         await client.chat
             .unfurl({
                 ts: event.message_ts,
                 channel: event.channel,
-                unfurls: blocks,
+                unfurls: unfurlBlocks,
             })
             .catch((e: any) => {
                 analytics.track({
@@ -127,7 +120,7 @@ export class SlackService {
                 });
                 Logger.error(
                     `Unable to unfurl on slack ${JSON.stringify(
-                        blocks,
+                        unfurlBlocks,
                     )}: ${JSON.stringify(e)}`,
                 );
             });
