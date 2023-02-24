@@ -11,6 +11,7 @@ import {
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
 import { getItemBgColor } from '../../../../../hooks/useColumns';
+import FieldIcon from '../../../../common/Filters/FieldIcon';
 import HighlightedText from '../../../../common/HighlightedText';
 import { Highlighted, Row, RowIcon, SpanFlex } from '../TableTree.styles';
 import CustomMetricButtons from './CustomMetricButtons';
@@ -68,10 +69,11 @@ const TreeSingleNode: FC<{ node: Node; depth: number }> = ({ node, depth }) => {
             onMouseEnter={() => toggle(true)}
             onMouseLeave={() => toggle(false)}
         >
-            <RowIcon
-                icon={getItemIconName(item.type)}
+            <FieldIcon
+                item={item}
                 color={isDimension(item) ? Colors.BLUE1 : Colors.ORANGE1}
                 size={16}
+                style={{ marginRight: '8px' }}
             />
             <Tooltip2
                 lazy

@@ -64,7 +64,13 @@ const FieldAutoComplete = <T extends Field | TableCalculation>({
                     name,
                     autoFocus,
                     placeholder: placeholder || 'Search field...',
-                    leftIcon: activeField && <FieldIcon item={activeField} />,
+                    leftElement: activeField && (
+                        <FieldIcon
+                            item={activeField}
+                            size={16}
+                            style={{ margin: '6px 8px' }}
+                        />
+                    ),
                     ...inputProps,
                 }}
                 items={sortedFields}
