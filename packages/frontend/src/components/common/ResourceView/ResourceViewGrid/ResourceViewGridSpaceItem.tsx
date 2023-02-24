@@ -13,6 +13,7 @@ import {
     IconChartBar,
     IconLayoutDashboard,
     IconLock,
+    IconUser,
     IconUsers,
 } from '@tabler/icons-react';
 import { FC } from 'react';
@@ -33,6 +34,8 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
     const { hovered, ref } = useHover();
     const theme = useMantineTheme();
 
+    console.log(item.data.access);
+
     return (
         <Paper ref={ref} p={0} withBorder>
             <Group p="md" align="center" spacing="md" noWrap>
@@ -47,22 +50,40 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
 
                     <Group spacing="sm">
                         <Flex align="center" gap={4}>
-                            {/* Private, restricted, only visible to you? */}
-                            {item.data.isPrivate ? (
-                                <IconLock
-                                    color={theme.colors.gray[6]}
-                                    size={14}
-                                />
-                            ) : (
-                                <IconUsers
-                                    color={theme.colors.gray[6]}
-                                    size={14}
-                                />
-                            )}
+                            {!item.data.isPrivate ? (
+                                <>
+                                    <IconUsers
+                                        color={theme.colors.gray[6]}
+                                        size={14}
+                                    />
 
-                            <Text size={14} color="gray.6" fz="xs">
-                                {item.data.isPrivate ? 'Private' : 'Restricted'}
-                            </Text>
+                                    <Text size={14} color="gray.6" fz="xs">
+                                        Public
+                                    </Text>
+                                </>
+                            ) : item.data.access.length > 1 ? (
+                                <>
+                                    <IconUser
+                                        color={theme.colors.gray[6]}
+                                        size={14}
+                                    />
+
+                                    <Text size={14} color="gray.6" fz="xs">
+                                        Shared
+                                    </Text>
+                                </>
+                            ) : (
+                                <>
+                                    <IconLock
+                                        color={theme.colors.gray[6]}
+                                        size={14}
+                                    />
+
+                                    <Text size={14} color="gray.6" fz="xs">
+                                        Private
+                                    </Text>
+                                </>
+                            )}
                         </Flex>
 
                         <Flex align="center" gap={4}>
