@@ -123,9 +123,9 @@ export class UnfurlService {
             await page.setRequestInterception(true);
             page.on('request', (request: any) => {
                 const requestUrl = request.url();
-                const urlHost = url.split('/')[2];
+                const parsedUrl = new URL(url);
                 // Only allow request to the same host
-                if (!requestUrl.includes(urlHost)) {
+                if (!requestUrl.includes(parsedUrl.hostname)) {
                     request.abort();
                     return;
                 }
