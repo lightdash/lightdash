@@ -12,7 +12,7 @@ import {
     NotFoundError,
     TableBase,
 } from '@lightdash/common';
-import { Icon123, IconTable } from '@tabler/icons-react';
+import { Icon123 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { useParams } from 'react-router-dom';
