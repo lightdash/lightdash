@@ -92,7 +92,11 @@ const ResourceView: React.FC<ResourceViewProps> = ({
 
     const sortProps =
         tabs && tabs?.length > 0
-            ? null
+            ? {
+                  enableSorting: false,
+                  enableMultiSort: false,
+                  defaultSort: undefined,
+              }
             : {
                   enableSorting,
                   enableMultiSort,
