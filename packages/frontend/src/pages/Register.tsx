@@ -119,6 +119,13 @@ const Register: FC = () => {
                     >
                         Privacy Policy.
                     </FooterCta>
+                    and our{' '}
+                    <FooterCta
+                        href="https://www.lightdash.com/terms-of-service"
+                        target="_blank"
+                    >
+                        Terms of Service.
+                    </FooterCta>
                 </FormFooterCopy>
             </FormWrapper>
         </Page>
