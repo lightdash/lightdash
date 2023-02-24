@@ -19,17 +19,7 @@ const UnderlyingDataModal: FC<{
     return (
         <Dialog
             isOpen={isUnderlyingDataModalOpen}
-            onClose={() => {
-                closeUnderlyingDataModal();
-                track({
-                    name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
-                    properties: {
-                        organizationId: trackingData.organizationId,
-                        userId: trackingData.userId,
-                        projectId: trackingData.projectId,
-                    },
-                });
-            }}
+            onClose={closeUnderlyingDataModal}
             lazy
             title={`View underlying data`}
             style={{
@@ -39,6 +29,15 @@ const UnderlyingDataModal: FC<{
                 minWidth: '500px',
             }}
         >
+            {isUnderlyingDataModalOpen &&
+                track({
+                    name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
+                    properties: {
+                        organizationId: trackingData.organizationId,
+                        userId: trackingData.userId,
+                        projectId: trackingData.projectId,
+                    },
+                })}
             <UnderlyingDataModalContent />
         </Dialog>
     );

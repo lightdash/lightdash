@@ -138,7 +138,7 @@ export type ViewUnderlyingDataClickedEvent = {
         userId: string;
         projectId: string;
     };
- };
+};
 
 export type DrillByClickedEvent = {
     name: EventName.DRILL_BY_CLICKED;

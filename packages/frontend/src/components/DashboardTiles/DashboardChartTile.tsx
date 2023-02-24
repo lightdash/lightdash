@@ -518,8 +518,6 @@ const DashboardChartTile: FC<Props> = (props) => {
                                                                 ?.userUuid,
                                                             projectId:
                                                                 projectUuid,
-                                                            context:
-                                                                'dashboard',
                                                         },
                                                     });
                                                 }
