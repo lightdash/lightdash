@@ -1,5 +1,14 @@
 import { Colors } from '@blueprintjs/core';
-import { Box, Divider, Flex, Group, Paper, Text } from '@mantine/core';
+import {
+    Box,
+    Divider,
+    Flex,
+    Group,
+    Paper,
+    Text,
+    Transition,
+} from '@mantine/core';
+import { useHover } from '@mantine/hooks';
 import { IconEye } from '@tabler/icons-react';
 import { FC } from 'react';
 import ResourceIcon from '../ResourceIcon';
@@ -16,8 +25,10 @@ const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
     url,
     renderActions,
 }) => {
+    const { hovered, ref } = useHover();
+
     return (
-        <Paper component={Flex} direction="column" p={0} withBorder>
+        <Paper component={Flex} direction="column" p={0} withBorder ref={ref}>
             <Group
                 p="md"
                 align="center"
@@ -36,7 +47,7 @@ const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
 
             <Divider color="gray.3" />
 
-            <Flex pl="md" pr="xs" py={2} justify="space-between" align="center">
+            <Flex pl="md" pr="xs" h={32} justify="space-between" align="center">
                 <Flex align="center" gap={4}>
                     <IconEye color={Colors.GRAY2} size={14} />
 
@@ -45,7 +56,14 @@ const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
                     </Text>
                 </Flex>
 
-                <Box>{renderActions()}</Box>
+                <Transition
+                    mounted={hovered}
+                    transition="fade"
+                    duration={200}
+                    timingFunction="ease"
+                >
+                    {(styles) => <Box style={styles}>{renderActions()}</Box>}
+                </Transition>
             </Flex>
         </Paper>
     );
