@@ -159,13 +159,18 @@ export class UnfurlService {
                 element = await page.$('body');
             }
 
-            if (lightdashPage === LightdashPage.DASHBOARD) {
-                // Remove navbar from screenshot
+            const removeComponents = async (selectorToRemove: string) => {
                 await page.evaluate((sel: any) => {
                     // @ts-ignore
                     const elements = document.querySelectorAll(sel);
                     elements.forEach((el) => el.parentNode.removeChild(el));
-                }, '.bp4-navbar');
+                }, selectorToRemove);
+            };
+            if (lightdashPage === LightdashPage.DASHBOARD) {
+                // Remove navbar from screenshot
+                removeComponents('.bp4-navbar');
+                removeComponents('button');
+                removeComponents('[data-icon="filter"]');
             }
 
             if (!element) {
