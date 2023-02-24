@@ -12,6 +12,7 @@ import {
     NotFoundError,
     TableBase,
 } from '@lightdash/common';
+import { Icon123 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { useParams } from 'react-router-dom';
@@ -247,7 +248,7 @@ const SqlRunnerPage = () => {
                                 {metrics.data.metrics.map((metric) => (
                                     <MenuItem2
                                         key={metric.uniqueId}
-                                        icon="numerical"
+                                        icon={<Icon123 />}
                                         text={metric.label}
                                         onClick={() =>
                                             setSql(

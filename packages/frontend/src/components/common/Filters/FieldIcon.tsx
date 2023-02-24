@@ -9,7 +9,20 @@ import {
     isMetric,
     TableCalculation,
 } from '@lightdash/common';
-import { FC } from 'react';
+import {
+    Icon123,
+    IconAbc,
+    IconAlphabetLatin,
+    IconCalendar,
+    IconClockHour4,
+    IconFunction,
+    IconLetterCase,
+    IconMathFunction,
+    IconQuote,
+    IconTag,
+    IconToggleLeft,
+} from '@tabler/icons-react';
+import { CSSProperties, FC } from 'react';
 import { getItemIconName } from '../../Explorer/ExploreTree/TableTree/Tree/TreeSingleNode';
 
 const getFieldIcon = (field: Field | TableCalculation | AdditionalMetric) => {
@@ -19,12 +32,51 @@ const getFieldIcon = (field: Field | TableCalculation | AdditionalMetric) => {
     return getItemIcon(field);
 };
 
-interface FieldIconProps {
+const FieldIcon: FC<{
     item: Field | TableCalculation | AdditionalMetric;
-}
+    color?: string | undefined;
+    size?: number | undefined;
+    style?: CSSProperties | undefined;
+}> = ({ item, color, size, style }) => {
+    const iconColor = color ? color : getItemColor(item);
+    const iconSize = size ? size : 20;
 
-const FieldIcon: FC<FieldIconProps> = ({ item }) => {
-    return <Icon icon={getFieldIcon(item)} color={getItemColor(item)} />;
+    switch (getFieldIcon(item)) {
+        case 'citation':
+            return <IconAbc color={iconColor} size={iconSize} style={style} />;
+        case 'numerical':
+            return <Icon123 color={iconColor} size={iconSize} style={style} />;
+        case 'calendar':
+            return (
+                <IconCalendar color={iconColor} size={iconSize} style={style} />
+            );
+        case 'time':
+            return (
+                <IconClockHour4
+                    color={iconColor}
+                    size={iconSize}
+                    style={style}
+                />
+            );
+        case 'segmented-control':
+            return (
+                <IconToggleLeft
+                    color={iconColor}
+                    size={iconSize}
+                    style={style}
+                />
+            );
+        case 'function':
+            return (
+                <IconMathFunction
+                    color={iconColor}
+                    size={iconSize}
+                    style={style}
+                />
+            );
+        case 'tag':
+            return <IconTag color={iconColor} size={iconSize} style={style} />;
+    }
 };
 
 export default FieldIcon;

@@ -1,6 +1,7 @@
 import { Colors, Icon, Intent, Position } from '@blueprintjs/core';
 import { MenuItem2, Tooltip2 } from '@blueprintjs/popover2';
 import { InlineErrorType, SummaryExplore } from '@lightdash/common';
+import { IconTable } from '@tabler/icons-react';
 import React from 'react';
 import styled from 'styled-components';
 
@@ -55,7 +56,7 @@ export const ExploreMenuItem: React.FC<ExploreMenuItemProps> = ({
             <Tooltip2 content={errorMessage} targetTagName="div">
                 <MenuItem2
                     roleStructure="listoption"
-                    icon="th"
+                    icon={<IconTable size={20} />}
                     text={explore.label}
                     disabled
                     labelElement={
@@ -72,7 +73,7 @@ export const ExploreMenuItem: React.FC<ExploreMenuItemProps> = ({
     return (
         <StyledMenuItem2
             roleStructure="listoption"
-            icon="th"
+            icon={<IconTable size={20} />}
             text={explore.label}
             onClick={onClick}
             labelClassName="menu-item-label-element"

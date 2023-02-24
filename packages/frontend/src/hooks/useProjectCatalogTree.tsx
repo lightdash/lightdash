@@ -1,5 +1,6 @@
-import { TreeNodeInfo } from '@blueprintjs/core';
+import { Colors, TreeNodeInfo } from '@blueprintjs/core';
 import { ProjectCatalog } from '@lightdash/common';
+import { IconBinaryTree2, IconDatabase, IconTable } from '@tabler/icons-react';
 import { useMemo } from 'react';
 
 export type ProjectCatalogTreeNode = TreeNodeInfo<
@@ -20,7 +21,13 @@ export const useProjectCatalogTree = (
                         id: database,
                         isExpanded: databaseIndex === 0,
                         label: database,
-                        icon: 'database',
+                        icon: (
+                            <IconDatabase
+                                color={Colors.GRAY1}
+                                size={20}
+                                style={{ marginRight: '7px' }}
+                            />
+                        ),
                         childNodes: Object.entries(schemas).reduce<
                             ProjectCatalogTreeNode[]
                         >(
@@ -30,7 +37,13 @@ export const useProjectCatalogTree = (
                                     id: schema,
                                     isExpanded: schemaIndex === 0,
                                     label: schema,
-                                    icon: 'diagram-tree',
+                                    icon: (
+                                        <IconBinaryTree2
+                                            color={Colors.GRAY1}
+                                            size={20}
+                                            style={{ marginRight: '7px' }}
+                                        />
+                                    ),
                                     childNodes: Object.entries(tables).reduce<
                                         ProjectCatalogTreeNode[]
                                     >(
@@ -39,7 +52,15 @@ export const useProjectCatalogTree = (
                                             {
                                                 id: table,
                                                 label: table,
-                                                icon: 'th',
+                                                icon: (
+                                                    <IconTable
+                                                        color={Colors.GRAY1}
+                                                        size={20}
+                                                        style={{
+                                                            marginRight: '7px',
+                                                        }}
+                                                    />
+                                                ),
                                                 nodeData,
                                             },
                                         ],
