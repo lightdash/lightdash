@@ -2,6 +2,7 @@ import { Button, Intent, Menu, PopoverPosition } from '@blueprintjs/core';
 import { Breadcrumbs2, MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import { LightdashMode, Space } from '@lightdash/common';
+import { Stack } from '@mantine/core';
 import { IconChartAreaLine, IconLayoutDashboard } from '@tabler/icons-react';
 import React, { useCallback, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
@@ -11,11 +12,7 @@ import { useSavedCharts } from '../../hooks/useSpaces';
 import { useApp } from '../../providers/AppProvider';
 import { Can } from '../common/Authorization';
 import DashboardCreateModal from '../common/modal/DashboardCreateModal';
-import {
-    PageBreadcrumbsWrapper,
-    PageContentWrapper,
-    PageHeader,
-} from '../common/Page/Page.styles';
+import { PageBreadcrumbsWrapper, PageHeader } from '../common/Page/Page.styles';
 import ResourceView from '../common/ResourceView';
 import {
     ResourceViewItemType,
@@ -84,7 +81,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
     );
 
     return (
-        <PageContentWrapper>
+        <Stack spacing="xl" w={960}>
             <PageHeader>
                 <PageBreadcrumbsWrapper>
                     <Breadcrumbs2
@@ -158,6 +155,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                     />
                 )}
             </PageHeader>
+
             <ResourceView
                 items={allItems}
                 defaultColumnVisibility={{ space: false }}
@@ -266,7 +264,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                     setIsCreateDashboardOpen(false);
                 }}
             />
-        </PageContentWrapper>
+        </Stack>
     );
 };
 

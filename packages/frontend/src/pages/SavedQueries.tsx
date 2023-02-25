@@ -2,13 +2,13 @@ import { Button } from '@blueprintjs/core';
 import { Breadcrumbs2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import { LightdashMode } from '@lightdash/common';
+import { Stack } from '@mantine/core';
 import { FC } from 'react';
 import { Helmet } from 'react-helmet';
 import { useHistory, useParams } from 'react-router-dom';
 import Page from '../components/common/Page/Page';
 import {
     PageBreadcrumbsWrapper,
-    PageContentWrapper,
     PageHeader,
 } from '../components/common/Page/Page.styles';
 import ResourceView from '../components/common/ResourceView';
@@ -56,7 +56,8 @@ const SavedQueries: FC = () => {
             <Helmet>
                 <title>Saved charts - Lightdash</title>
             </Helmet>
-            <PageContentWrapper>
+
+            <Stack spacing="xl" w={960}>
                 <PageHeader>
                     <PageBreadcrumbsWrapper>
                         <Breadcrumbs2
@@ -113,7 +114,7 @@ const SavedQueries: FC = () => {
                         </>
                     )}
                 />
-            </PageContentWrapper>
+            </Stack>
         </Page>
     );
 };

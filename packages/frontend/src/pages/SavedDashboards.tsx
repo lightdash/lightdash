@@ -2,6 +2,7 @@ import { Button, NonIdealState, Spinner } from '@blueprintjs/core';
 import { Breadcrumbs2, Tooltip2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import { LightdashMode } from '@lightdash/common';
+import { Stack } from '@mantine/core';
 import { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Redirect, useHistory, useParams } from 'react-router-dom';
@@ -9,7 +10,6 @@ import DashboardCreateModal from '../components/common/modal/DashboardCreateModa
 import Page from '../components/common/Page/Page';
 import {
     PageBreadcrumbsWrapper,
-    PageContentWrapper,
     PageHeader,
 } from '../components/common/Page/Page.styles';
 import ResourceView from '../components/common/ResourceView';
@@ -82,7 +82,8 @@ const SavedDashboards = () => {
             <Helmet>
                 <title>Dashboards - Lightdash</title>
             </Helmet>
-            <PageContentWrapper>
+
+            <Stack spacing="xl" w={960}>
                 <PageHeader>
                     <PageBreadcrumbsWrapper>
                         <Breadcrumbs2
@@ -167,7 +168,7 @@ const SavedDashboards = () => {
                         </>
                     )}
                 />
-            </PageContentWrapper>
+            </Stack>
         </Page>
     );
 };

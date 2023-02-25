@@ -53,11 +53,12 @@ const themeOverride: MantineThemeOverride = {
         },
 
         a: {
+            cursor: 'pointer',
             color: Colors.BLUE2,
             textDecoration: 'none',
+
             ':hover': {
                 color: Colors.BLUE2,
-                cursor: 'pointer',
                 textDecoration: 'underline',
             },
         },

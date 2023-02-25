@@ -1,7 +1,7 @@
-import { Group, Stack, Text, Tooltip } from '@mantine/core';
+import { Anchor, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
 import React, { FC, useMemo, useState } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
+import { Link, useHistory, useParams } from 'react-router-dom';
 import { ResourceViewCommonProps } from '..';
 import { useSpaces } from '../../../../hooks/useSpaces';
 import {
@@ -16,9 +16,6 @@ import ResourceActionMenu from './../ResourceActionMenu';
 import ResourceIcon from './../ResourceIcon';
 import ResourceLastEdited from './../ResourceLastEdited';
 import {
-    ResourceViewListLink,
-    ResourceViewListMetadata,
-    ResourceViewListSpaceLink,
     ResourceViewListTable,
     ResourceViewListTBody,
     ResourceViewListTd,
@@ -128,7 +125,15 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                             }
                             position="top-start"
                         >
-                            <ResourceViewListLink
+                            <Anchor
+                                component={Link}
+                                sx={{
+                                    color: 'unset',
+                                    ':hover': {
+                                        color: 'unset',
+                                        textDecoration: 'none',
+                                    },
+                                }}
                                 to={getResourceUrl(projectUuid, item)}
                                 onClick={(e) => e.stopPropagation()}
                             >
@@ -136,17 +141,19 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                     <ResourceIcon item={item} />
 
                                     <Stack spacing={2}>
-                                        <Text fw={600}>{item.data.name}</Text>
+                                        <Text fw={600} lineClamp={1}>
+                                            {item.data.name}
+                                        </Text>
 
                                         {canBelongToSpace && (
-                                            <ResourceViewListMetadata>
+                                            <Text fz={12} color="gray.6">
                                                 {getResourceTypeName(item)} •{' '}
                                                 {item.data.views || '0'} views
-                                            </ResourceViewListMetadata>
+                                            </Text>
                                         )}
                                     </Stack>
                                 </Group>
-                            </ResourceViewListLink>
+                            </Anchor>
                         </Tooltip>
                     );
                 },
@@ -176,12 +183,16 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                     );
 
                     return space ? (
-                        <ResourceViewListSpaceLink
+                        <Anchor
+                            color="gray.6"
+                            component={Link}
                             to={`/projects/${projectUuid}/spaces/${space.uuid}`}
                             onClick={(e) => e.stopPropagation()}
+                            fz={13}
+                            fw={500}
                         >
                             {space.name}
-                        </ResourceViewListSpaceLink>
+                        </Anchor>
                     ) : null;
                 },
                 enableSorting,

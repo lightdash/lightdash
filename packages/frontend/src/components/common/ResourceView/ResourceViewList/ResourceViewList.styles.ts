@@ -1,5 +1,4 @@
 import { Colors, HTMLTable } from '@blueprintjs/core';
-import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 
 const paddingX = 20;
@@ -60,30 +59,4 @@ export const ResourceViewListThInteractiveWrapper = styled.div<ResourceViewListT
 export const ResourceViewListTd = styled.td`
     vertical-align: middle !important;
     padding: 15px ${paddingX}px !important;
-`;
-
-export const ResourceViewListMetadata = styled.div`
-    font-size: 12px;
-    font-weight: 400;
-    color: ${Colors.GRAY2};
-`;
-
-export const ResourceViewListLink = styled(Link)`
-    display: inline-flex;
-    align-items: center;
-    color: ${Colors.DARK_GRAY4};
-
-    :hover {
-        text-decoration: none;
-    }
-`;
-
-export const ResourceViewListSpaceLink = styled(Link)`
-    font-size: 13px;
-    font-weight: 500;
-    color: ${Colors.GRAY2};
-
-    &:hover {
-        color: ${Colors.GRAY1};
-    }
 `;

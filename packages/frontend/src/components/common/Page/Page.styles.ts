@@ -38,12 +38,6 @@ export const PageContentContainer = styled.div<PageContentContainerProps>`
     gap: 10px;
 `;
 
-export const PageContentWrapper = styled.div`
-    .bp4-card:not(:last-child) {
-        margin-bottom: 20px;
-    }
-`;
-
 export const PageHeader = styled.div`
     display: flex;
     justify-content: space-between;

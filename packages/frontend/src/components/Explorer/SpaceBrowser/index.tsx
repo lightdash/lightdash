@@ -33,6 +33,8 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
         setIsCreateModalOpen(true);
     };
 
+    if (isLoading) return null;
+
     return (
         <>
             <ResourceView
@@ -52,7 +54,6 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                             minimal
                             intent="primary"
                             icon="plus"
-                            loading={isLoading}
                             onClick={handleCreateSpace}
                         >
                             Create new
