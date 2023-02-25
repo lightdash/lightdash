@@ -22,13 +22,11 @@ import { ResourceViewSpaceItem } from '../resourceTypeUtils';
 
 interface ResourceViewGridSpaceItemProps {
     item: ResourceViewSpaceItem;
-    url: string;
     renderActions: () => JSX.Element;
 }
 
 const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
     item,
-    url,
     renderActions,
 }) => {
     const { hovered, ref } = useHover();

@@ -16,13 +16,11 @@ import { ResourceViewDashboardItem } from '../resourceTypeUtils';
 
 interface ResourceViewGridDashboardItemProps {
     item: ResourceViewDashboardItem;
-    url: string;
     renderActions: () => JSX.Element;
 }
 
 const ResourceViewGridDashboardItem: FC<ResourceViewGridDashboardItemProps> = ({
     item,
-    url,
     renderActions,
 }) => {
     const { hovered, ref } = useHover();

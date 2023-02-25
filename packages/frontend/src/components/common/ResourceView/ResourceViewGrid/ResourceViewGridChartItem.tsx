@@ -16,13 +16,11 @@ import { ResourceViewChartItem } from '../resourceTypeUtils';
 
 interface ResourceViewGridChartItemProps {
     item: ResourceViewChartItem;
-    url: string;
     renderActions: () => JSX.Element;
 }
 
 const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
     item,
-    url,
     renderActions,
 }) => {
     const { hovered, ref } = useHover();

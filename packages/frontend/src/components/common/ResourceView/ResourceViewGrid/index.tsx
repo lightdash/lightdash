@@ -1,7 +1,7 @@
 import { assertUnreachable } from '@lightdash/common';
-import { SimpleGrid, Stack, Text } from '@mantine/core';
+import { Anchor, SimpleGrid, Stack, Text } from '@mantine/core';
 import { FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { ResourceViewCommonProps } from '..';
 import { useSpaces } from '../../../../hooks/useSpaces';
 import { ResourceViewItemActionState } from '../ResourceActionHandlers';
@@ -62,63 +62,75 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                         )}
 
                         <SimpleGrid cols={3} spacing="md">
-                            {groupedItems.map((item) =>
-                                item.type === ResourceViewItemType.SPACE ? (
-                                    <ResourceViewGridSpaceItem
-                                        url={getResourceUrl(projectUuid, item)}
-                                        item={item}
-                                        renderActions={() => (
-                                            <ResourceActionMenu
-                                                item={item}
-                                                url={getResourceUrl(
-                                                    projectUuid,
-                                                    item,
-                                                )}
-                                                onAction={onAction}
-                                                spaces={spaces}
-                                            />
-                                        )}
-                                    />
-                                ) : item.type ===
-                                  ResourceViewItemType.DASHBOARD ? (
-                                    <ResourceViewGridDashboardItem
-                                        url={getResourceUrl(projectUuid, item)}
-                                        item={item}
-                                        renderActions={() => (
-                                            <ResourceActionMenu
-                                                item={item}
-                                                url={getResourceUrl(
-                                                    projectUuid,
-                                                    item,
-                                                )}
-                                                onAction={onAction}
-                                                spaces={spaces}
-                                            />
-                                        )}
-                                    />
-                                ) : item.type === ResourceViewItemType.CHART ? (
-                                    <ResourceViewGridChartItem
-                                        url={getResourceUrl(projectUuid, item)}
-                                        item={item}
-                                        renderActions={() => (
-                                            <ResourceActionMenu
-                                                item={item}
-                                                url={getResourceUrl(
-                                                    projectUuid,
-                                                    item,
-                                                )}
-                                                onAction={onAction}
-                                                spaces={spaces}
-                                            />
-                                        )}
-                                    />
-                                ) : (
-                                    assertUnreachable(
-                                        item,
-                                        `Resource type not supported`,
-                                    )
-                                ),
-                            )}
+                            {groupedItems.map((item) => (
+                                <Anchor
+                                    component={Link}
+                                    to={getResourceUrl(projectUuid, item)}
+                                    key={item.type + '-' + item.data.uuid}
+                                    sx={{
+                                        color: 'unset',
+                                        ':hover': {
+                                            color: 'unset',
+                                            textDecoration: 'unset',
+                                        },
+                                    }}
+                                >
+                                    {item.type ===
+                                    ResourceViewItemType.SPACE ? (
+                                        <ResourceViewGridSpaceItem
+                                            item={item}
+                                            renderActions={() => (
+                                                <ResourceActionMenu
+                                                    item={item}
+                                                    url={getResourceUrl(
+                                                        projectUuid,
+                                                        item,
+                                                    )}
+                                                    onAction={onAction}
+                                                    spaces={spaces}
+                                                />
+                                            )}
+                                        />
+                                    ) : item.type ===
+                                      ResourceViewItemType.DASHBOARD ? (
+                                        <ResourceViewGridDashboardItem
+                                            item={item}
+                                            renderActions={() => (
+                                                <ResourceActionMenu
+                                                    item={item}
+                                                    url={getResourceUrl(
+                                                        projectUuid,
+                                                        item,
+                                                    )}
+                                                    onAction={onAction}
+                                                    spaces={spaces}
+                                                />
+                                            )}
+                                        />
+                                    ) : item.type ===
+                                      ResourceViewItemType.CHART ? (
+                                        <ResourceViewGridChartItem
+                                            item={item}
+                                            renderActions={() => (
+                                                <ResourceActionMenu
+                                                    item={item}
+                                                    url={getResourceUrl(
+                                                        projectUuid,
+                                                        item,
+                                                    )}
+                                                    onAction={onAction}
+                                                    spaces={spaces}
+                                                />
+                                            )}
+                                        />
+                                    ) : (
+                                        assertUnreachable(
+                                            item,
+                                            `Resource type not supported`,
+                                        )
+                                    )}
+                                </Anchor>
+                            ))}
                         </SimpleGrid>
                     </Stack>
                 );
