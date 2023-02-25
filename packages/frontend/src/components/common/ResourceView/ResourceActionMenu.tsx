@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { assertUnreachable, Space } from '@lightdash/common';
-import { ActionIcon, Box, Menu, Text } from '@mantine/core';
+import { ActionIcon, Box, Menu } from '@mantine/core';
 import {
     IconCheck,
     IconCopy,
@@ -63,9 +63,11 @@ const ResourceViewItemActionMenu: FC<Props> = ({
     return (
         <Menu shadow="md" position="bottom-end">
             <Menu.Target>
-                <ActionIcon>
-                    <IconDots size={16} />
-                </ActionIcon>
+                <Box component="div" onClick={(e) => e.stopPropagation()}>
+                    <ActionIcon>
+                        <IconDots size={16} />
+                    </ActionIcon>
+                </Box>
             </Menu.Target>
 
             <Menu.Dropdown maw={320}>
