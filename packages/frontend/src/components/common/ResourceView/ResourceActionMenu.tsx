@@ -78,8 +78,12 @@ const ResourceViewItemActionMenu: FC<Props> = ({
 
             <Menu.Dropdown maw={320}>
                 <Menu.Item
+                    component="button"
                     icon={<IconEdit size={18} />}
-                    onClickCapture={() => {
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+
                         onAction({
                             type: ResourceViewItemAction.UPDATE,
                             item,
@@ -92,8 +96,12 @@ const ResourceViewItemActionMenu: FC<Props> = ({
                 {item.type === ResourceViewItemType.CHART ||
                 item.type === ResourceViewItemType.DASHBOARD ? (
                     <Menu.Item
+                        component="button"
                         icon={<IconCopy size={18} />}
-                        onClickCapture={() => {
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+
                             onAction({
                                 type: ResourceViewItemAction.DUPLICATE,
                                 item,
@@ -106,9 +114,13 @@ const ResourceViewItemActionMenu: FC<Props> = ({
 
                 {!isDashboardPage && item.type === ResourceViewItemType.CHART && (
                     <Menu.Item
+                        component="button"
                         icon={<IconSquarePlus size={18} />}
                         role="menuitem"
-                        onClickCapture={() => {
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+
                             onAction({
                                 type: ResourceViewItemAction.ADD_TO_DASHBOARD,
                                 item,
@@ -128,6 +140,7 @@ const ResourceViewItemActionMenu: FC<Props> = ({
                     (item.type === ResourceViewItemType.SPACE &&
                         localStorage.getItem('feat-pin-space'))) ? (
                     <Menu.Item
+                        component="button"
                         icon={
                             isPinned ? (
                                 <IconPinned size={18} />
@@ -135,7 +148,10 @@ const ResourceViewItemActionMenu: FC<Props> = ({
                                 <IconPin size={18} />
                             )
                         }
-                        onClickCapture={() => {
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+
                             onAction({
                                 type: ResourceViewItemAction.PIN_TO_HOMEPAGE,
                                 item,
@@ -158,6 +174,7 @@ const ResourceViewItemActionMenu: FC<Props> = ({
                                 item.data.spaceUuid === space.uuid;
                             return (
                                 <Menu.Item
+                                    component="button"
                                     key={space.uuid}
                                     disabled={isSelected}
                                     icon={
@@ -167,7 +184,10 @@ const ResourceViewItemActionMenu: FC<Props> = ({
                                             <Box w={18} h={18} />
                                         )
                                     }
-                                    onClickCapture={() => {
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+
                                         if (!isSelected) {
                                             onAction({
                                                 type: ResourceViewItemAction.MOVE_TO_SPACE,
@@ -186,8 +206,12 @@ const ResourceViewItemActionMenu: FC<Props> = ({
                         })}
 
                         <Menu.Item
+                            component="button"
                             icon={<IconPlus size={18} />}
-                            onClickCapture={() => {
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+
                                 onAction({
                                     type: ResourceViewItemAction.CREATE_SPACE,
                                     item,
@@ -202,9 +226,13 @@ const ResourceViewItemActionMenu: FC<Props> = ({
                 <Menu.Divider />
 
                 <Menu.Item
+                    component="button"
                     color="red"
                     icon={<IconTrash size={18} />}
-                    onClickCapture={() => {
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+
                         onAction({
                             type: ResourceViewItemAction.DELETE,
                             item,
