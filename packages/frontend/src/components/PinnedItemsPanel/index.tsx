@@ -1,6 +1,6 @@
-import { Colors } from '@blueprintjs/core';
+import { Button, Colors } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
-import { IconInfoCircle } from '@tabler/icons-react';
+import { IconChartBar, IconInfoCircle } from '@tabler/icons-react';
 import { FC, useMemo } from 'react';
 import { useDashboards } from '../../hooks/dashboard/useDashboards';
 import { useSavedCharts, useSpaces } from '../../hooks/useSpaces';

@@ -3,6 +3,7 @@ import { Breadcrumbs2, Tooltip2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import { LightdashMode } from '@lightdash/common';
 import { Stack } from '@mantine/core';
+import { IconLayoutDashboard } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Redirect, useHistory, useParams } from 'react-router-dom';
@@ -17,10 +18,6 @@ import {
     ResourceViewItemType,
     wrapResourceView,
 } from '../components/common/ResourceView/resourceTypeUtils';
-import {
-    ResourceEmptyStateHeader,
-    ResourceEmptyStateIcon,
-} from '../components/common/ResourceView/ResourceView.styles';
 import { SortDirection } from '../components/common/ResourceView/ResourceViewList';
 import { useCreateMutation } from '../hooks/dashboard/useDashboard';
 import { useDashboards } from '../hooks/dashboard/useDashboards';
@@ -146,27 +143,22 @@ const SavedDashboards = () => {
                         ResourceViewItemType.DASHBOARD,
                     )}
                     defaultSort={{ updatedAt: SortDirection.DESC }}
-                    renderEmptyState={() => (
-                        <>
-                            <ResourceEmptyStateIcon icon="chart" size={40} />
-
-                            <ResourceEmptyStateHeader>
-                                No dashboards added yet
-                            </ResourceEmptyStateHeader>
-
-                            {!isDemo &&
-                                !hasNoSpaces &&
-                                userCanManageDashboards && (
-                                    <Button
-                                        icon="plus"
-                                        intent="primary"
-                                        onClick={handleCreateDashboard}
-                                    >
-                                        Create dashboard
-                                    </Button>
-                                )}
-                        </>
-                    )}
+                    emptyStateProps={{
+                        icon: <IconLayoutDashboard size={30} />,
+                        title: 'No dashboards added yet',
+                        action:
+                            !isDemo &&
+                            !hasNoSpaces &&
+                            userCanManageDashboards ? (
+                                <Button
+                                    icon="plus"
+                                    intent="primary"
+                                    onClick={handleCreateDashboard}
+                                >
+                                    Create dashboard
+                                </Button>
+                            ) : undefined,
+                    }}
                 />
             </Stack>
         </Page>

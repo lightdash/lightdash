@@ -15,8 +15,10 @@ import ResourceActionHandlers, {
     ResourceViewItemAction,
     ResourceViewItemActionState,
 } from './ResourceActionHandlers';
+import ResourceEmptyState, {
+    ResourceEmptyStateProps,
+} from './ResourceEmptyState';
 import { ResourceViewItem, ResourceViewItemType } from './resourceTypeUtils';
-import { ResourceEmptyStateWrapper } from './ResourceView.styles';
 import ResourceViewGrid from './ResourceViewGrid';
 import ResourceViewList, {
     ResourceViewListCommonProps,
@@ -39,7 +41,7 @@ export interface ResourceViewCommonProps {
     tabs?: TabType[];
     groups?: GroupType[];
     maxItems?: number;
-    renderEmptyState?: () => React.ReactNode;
+    emptyStateProps?: ResourceEmptyStateProps;
     view?: ResourceViewType;
 }
 
@@ -63,7 +65,7 @@ const ResourceView: React.FC<ResourceViewProps> = ({
     defaultSort,
     defaultColumnVisibility,
     maxItems,
-    renderEmptyState,
+    emptyStateProps,
 }) => {
     const theme = useMantineTheme();
 
@@ -106,7 +108,7 @@ const ResourceView: React.FC<ResourceViewProps> = ({
 
     return (
         <Box>
-            {tabs && tabs?.length > 0 ? (
+            {tabs && tabs?.length > 0 && items.length > 0 ? (
                 <Group spacing="xs" mb="md">
                     {tabs.map((tab) => (
                         <Button
@@ -156,11 +158,7 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                 ) : null}
 
                 {slicedSortedItems.length === 0 ? (
-                    !!renderEmptyState ? (
-                        <ResourceEmptyStateWrapper>
-                            {renderEmptyState()}
-                        </ResourceEmptyStateWrapper>
-                    ) : null
+                    <ResourceEmptyState {...emptyStateProps} />
                 ) : view === ResourceViewType.LIST ? (
                     <ResourceViewList
                         items={slicedSortedItems}

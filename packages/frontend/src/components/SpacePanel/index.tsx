@@ -18,10 +18,6 @@ import {
     ResourceViewItemType,
     wrapResourceView,
 } from '../common/ResourceView/resourceTypeUtils';
-import {
-    ResourceEmptyStateHeader,
-    ResourceEmptyStateIcon,
-} from '../common/ResourceView/ResourceView.styles';
 import { SortDirection } from '../common/ResourceView/ResourceViewList';
 import ShareSpaceModal from '../common/ShareSpaceModal';
 import SpaceActionModal, { ActionType } from '../common/SpaceActionModal';
@@ -230,14 +226,10 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                         </Popover2>
                     )
                 }
-                renderEmptyState={() => (
-                    <>
-                        <ResourceEmptyStateIcon icon="control" size={40} />
-                        <ResourceEmptyStateHeader>
-                            No items added yet
-                        </ResourceEmptyStateHeader>
-                    </>
-                )}
+                emptyStateProps={{
+                    icon: <IconLayoutDashboard size={30} />,
+                    title: 'No items added yet',
+                }}
             />
 
             {addToSpace && (

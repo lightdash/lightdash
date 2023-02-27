@@ -1,6 +1,7 @@
 import { AnchorButton, Button } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { LightdashMode } from '@lightdash/common';
+import { IconFolders } from '@tabler/icons-react';
 import { FC, useState } from 'react';
 import { useSpaces } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
@@ -9,10 +10,6 @@ import {
     ResourceViewItemType,
     wrapResourceView,
 } from '../../common/ResourceView/resourceTypeUtils';
-import {
-    ResourceEmptyStateHeader,
-    ResourceEmptyStateIcon,
-} from '../../common/ResourceView/ResourceView.styles';
 import SpaceActionModal, { ActionType } from '../../common/SpaceActionModal';
 
 const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
@@ -60,24 +57,19 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                         </Button>
                     ) : null
                 }
-                renderEmptyState={() => (
-                    <>
-                        <ResourceEmptyStateIcon icon="folder-close" size={40} />
-
-                        <ResourceEmptyStateHeader>
-                            No spaces added yet
-                        </ResourceEmptyStateHeader>
-
-                        {!isDemo && userCanManageSpace && (
+                emptyStateProps={{
+                    icon: <IconFolders size={30} />,
+                    title: 'No spaces added yet',
+                    action:
+                        !isDemo && userCanManageSpace ? (
                             <Button
                                 text="Create space"
                                 icon="plus"
                                 intent="primary"
                                 onClick={handleCreateSpace}
                             />
-                        )}
-                    </>
-                )}
+                        ) : undefined,
+                }}
             />
 
             {isCreateModalOpen && (

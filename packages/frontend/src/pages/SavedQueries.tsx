@@ -3,6 +3,7 @@ import { Breadcrumbs2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import { LightdashMode } from '@lightdash/common';
 import { Stack } from '@mantine/core';
+import { IconChartBar } from '@tabler/icons-react';
 import { FC } from 'react';
 import { Helmet } from 'react-helmet';
 import { useHistory, useParams } from 'react-router-dom';
@@ -16,10 +17,6 @@ import {
     ResourceViewItemType,
     wrapResourceView,
 } from '../components/common/ResourceView/resourceTypeUtils';
-import {
-    ResourceEmptyStateHeader,
-    ResourceEmptyStateIcon,
-} from '../components/common/ResourceView/ResourceView.styles';
 import { SortDirection } from '../components/common/ResourceView/ResourceViewList';
 import { LoadingChart } from '../components/SimpleChart';
 import { useSavedCharts } from '../hooks/useSpaces';
@@ -94,15 +91,11 @@ const SavedQueries: FC = () => {
                         ResourceViewItemType.CHART,
                     )}
                     defaultSort={{ updatedAt: SortDirection.DESC }}
-                    renderEmptyState={() => (
-                        <>
-                            <ResourceEmptyStateIcon icon="chart" size={40} />
-
-                            <ResourceEmptyStateHeader>
-                                No charts added yet
-                            </ResourceEmptyStateHeader>
-
-                            {!isDemo && userCanManageCharts && (
+                    emptyStateProps={{
+                        icon: <IconChartBar size={30} />,
+                        title: 'No charts added yet',
+                        action:
+                            !isDemo && userCanManageCharts ? (
                                 <Button
                                     icon="plus"
                                     intent="primary"
@@ -110,9 +103,8 @@ const SavedQueries: FC = () => {
                                 >
                                     Create chart
                                 </Button>
-                            )}
-                        </>
-                    )}
+                            ) : undefined,
+                    }}
                 />
             </Stack>
         </Page>
