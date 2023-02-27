@@ -1,4 +1,4 @@
-import { Card, H5, Icon } from '@blueprintjs/core';
+import { Card, H5, HTMLSelect } from '@blueprintjs/core';
 import { IconMail } from '@tabler/icons-react';
 import styled from 'styled-components';
 import { ReactComponent as SlackSvg } from '../../../svgs/slack.svg';
@@ -42,15 +42,19 @@ export const SchedulerDetailsContainer = styled.div`
     gap: 10px;
 `;
 
-export const Title = styled.span`
-    font-weight: 500;
+export const Title = styled.p`
+    margin: 8px 0px;
+    font-weight: 600;
 `;
 
-export const SettingsWrapper = styled.div`
-    margin-top: 50px;
+export const ModalTitle = styled.p`
+    margin: 3px 0px;
+`;
+
+export const StyledSelect = styled(HTMLSelect)`
+    margin-bottom: 10px;
 `;
 
 export const InputWrapper = styled.div`
-    margin-bottom: 10px;
     width: 130px;
 `;

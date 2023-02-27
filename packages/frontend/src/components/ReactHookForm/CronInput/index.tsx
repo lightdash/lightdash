@@ -44,7 +44,7 @@ const CronInternalInputs: FC<
 
     return (
         <div>
-            <FormGroup label={'Frequency *'} className={'input-wrapper'}>
+            <FormGroup className={'input-wrapper'}>
                 <FrequencySelect
                     value={frequency}
                     disabled={disabled}

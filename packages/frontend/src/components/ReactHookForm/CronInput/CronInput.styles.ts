@@ -1,12 +1,14 @@
-import { NumericInput } from '@blueprintjs/core';
+import { Colors, NumericInput } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const InlinedLabel = styled.label`
     line-height: 30px;
+    color: ${Colors.GRAY1};
 `;
 export const InlinedInputs = styled.div`
     display: inline-flex;
     gap: 10px;
+    color: ${Colors.GRAY1};
 `;
 
 export const DaysInput = styled(NumericInput)`
