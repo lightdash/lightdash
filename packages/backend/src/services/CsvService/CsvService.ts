@@ -176,7 +176,7 @@ export class CsvService {
                 `Using worker to format csv with ${results.rows.length} lines`,
             );
             return runWorkerThread<string>(
-                new Worker('./src/services/CsvService/convertApiToCsv.js', {
+                new Worker('./dist/services/CsvService/convertApiToCsv.js', {
                     workerData: {
                         fieldIds: selectedFieldIds,
                         rows: results.rows,
@@ -202,7 +202,7 @@ export class CsvService {
                 `Using worker to format csv with ${results.rows.length} lines`,
             );
             return runWorkerThread<string>(
-                new Worker('./src/services/CsvService/convertSqlToCsv.js', {
+                new Worker('./dist/services/CsvService/convertSqlToCsv.js', {
                     workerData: {
                         results,
                     },

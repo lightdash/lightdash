@@ -616,7 +616,7 @@ export class ProjectService {
                       async () =>
                           runWorkerThread<ResultRow[]>(
                               new Worker(
-                                  './src/services/ProjectService/formatRows.js',
+                                  './dist/services/ProjectService/formatRows.js',
                                   {
                                       workerData: {
                                           rows,
