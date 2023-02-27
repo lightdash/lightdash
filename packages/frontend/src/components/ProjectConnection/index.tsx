@@ -46,7 +46,9 @@ import WarehouseSettingsForm from './WarehouseSettingsForm';
 
 type ProjectConnectionForm = {
     name: string;
+
     dbt: DbtProjectConfig;
+
     warehouse?: CreateWarehouseCredentials;
 };
 
@@ -330,6 +332,7 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         if (selectedWarehouse) {
             const data = await mutateAsync({
                 name: name || user.data?.organizationName || 'My project',
+                type: ProjectType.DEFAULT,
                 dbtConnection,
                 //@ts-ignore
                 warehouseConnection: {
