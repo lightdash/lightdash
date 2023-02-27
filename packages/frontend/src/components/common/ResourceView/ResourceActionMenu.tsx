@@ -62,13 +62,19 @@ const ResourceViewItemActionMenu: FC<Props> = ({
 
     return (
         <Menu shadow="md" position="bottom-end">
-            <Menu.Target>
-                <Box component="div" onClick={(e) => e.stopPropagation()}>
+            <Box
+                component="div"
+                onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }}
+            >
+                <Menu.Target>
                     <ActionIcon>
                         <IconDots size={16} />
                     </ActionIcon>
-                </Box>
-            </Menu.Target>
+                </Menu.Target>
+            </Box>
 
             <Menu.Dropdown maw={320}>
                 <Menu.Item
