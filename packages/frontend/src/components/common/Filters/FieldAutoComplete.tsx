@@ -68,7 +68,7 @@ const FieldAutoComplete = <T extends Field | TableCalculation>({
                         <FieldIcon
                             item={activeField}
                             size={16}
-                            style={{ margin: '6px 8px' }}
+                            style={{ margin: '7px 8px' }}
                         />
                     ),
                     ...inputProps,
