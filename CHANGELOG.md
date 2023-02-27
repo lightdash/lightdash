@@ -1,3 +1,10 @@
+## [0.433.2](https://github.com/lightdash/lightdash/compare/0.433.1...0.433.2) (2023-02-27)
+
+
+### Bug Fixes
+
+* start of week validation ([#4605](https://github.com/lightdash/lightdash/issues/4605)) ([612255e](https://github.com/lightdash/lightdash/commit/612255e002f20296b39c0338df02d5e662675d22))
+
 ## [0.433.1](https://github.com/lightdash/lightdash/compare/0.433.0...0.433.1) (2023-02-24)
 
 
