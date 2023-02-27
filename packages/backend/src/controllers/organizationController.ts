@@ -1,7 +1,10 @@
 import {
     ApiErrorPayload,
     ApiOrganization,
+    ApiOrganizationMemberProfile,
+    ApiOrganizationMemberProfiles,
     ApiSuccessEmpty,
+    OrganizationMemberProfileUpdate,
     UpdateOrganization,
 } from '@lightdash/common';
 import { Controller, Delete } from '@tsoa/runtime';
@@ -83,6 +86,48 @@ export class OrganizationController extends Controller {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    /**
+     * Gets all the members of the current user's organization
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('/users')
+    @OperationId('getOrganizationMembers')
+    async getOrganizationMembers(
+        @Request() req: express.Request,
+    ): Promise<ApiOrganizationMemberProfiles> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await organizationService.getUsers(req.user!),
+        };
+    }
+
+    /**
+     * Updates the membership profile for a user in the current user's organization
+     * @param req express request
+     * @param userUuid the uuid of the user to update
+     * @param body the new membership profile
+     */
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @Patch('/users/{userUuid}')
+    @OperationId('updateOrganizationMember')
+    async updateOrganizationMember(
+        @Request() req: express.Request,
+        @Path() userUuid: string,
+        @Body() body: OrganizationMemberProfileUpdate,
+    ): Promise<ApiOrganizationMemberProfile> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await organizationService.updateMember(
+                req.user!,
+                userUuid,
+                body,
+            ),
         };
     }
 }
