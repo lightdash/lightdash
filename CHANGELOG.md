@@ -1,3 +1,10 @@
+## [0.433.4](https://github.com/lightdash/lightdash/compare/0.433.3...0.433.4) (2023-02-27)
+
+
+### Bug Fixes
+
+* vertically center icons in selected fields ([#4610](https://github.com/lightdash/lightdash/issues/4610)) ([5b82b23](https://github.com/lightdash/lightdash/commit/5b82b238ba95803734ffa34a58611ee26704388b))
+
 ## [0.433.3](https://github.com/lightdash/lightdash/compare/0.433.2...0.433.3) (2023-02-27)
 
 
