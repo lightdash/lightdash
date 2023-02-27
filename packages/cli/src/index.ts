@@ -33,7 +33,7 @@ function parseIntArgument(value: string) {
 
 function parseStartOfWeekArgument(value: string) {
     const number = parseIntArgument(value);
-    if (number <= 0 || number > 6) {
+    if (number < 0 || number > 6) {
         throw new InvalidArgumentError(
             'Not a valid number. Please use a number from 0 (Monday) to 6 (Sunday)',
         );
