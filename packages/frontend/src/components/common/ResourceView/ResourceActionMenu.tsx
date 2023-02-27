@@ -70,7 +70,13 @@ const ResourceViewItemActionMenu: FC<Props> = ({
                         e.stopPropagation();
                     }}
                 >
-                    <ActionIcon>
+                    <ActionIcon
+                        sx={(theme) => ({
+                            ':hover': {
+                                backgroundColor: theme.colors.gray[1],
+                            },
+                        })}
+                    >
                         <IconDots size={16} />
                     </ActionIcon>
                 </Box>
