@@ -19,6 +19,10 @@ import CronInput from '../../ReactHookForm/CronInput';
 import Form from '../../ReactHookForm/Form';
 import Input from '../../ReactHookForm/Input';
 
+import {
+    InlinedInputs,
+    InlinedLabel,
+} from '../../ReactHookForm/CronInput/CronInput.styles';
 import { hasRequiredScopes } from '../../UserSettings/SlackSettingsPanel';
 import {
     EmailIcon,
@@ -221,25 +225,29 @@ const SchedulerForm: FC<
                 />
             </FormGroup>
             <FormGroup label={<Title>3. Select the destination(s)</Title>}>
-                <Title>Format</Title>
-                <StyledSelect
-                    name="format"
-                    value={format}
-                    onChange={(e) => {
-                        methods.setValue('format', e.currentTarget.value);
+                <InlinedInputs>
+                    <InlinedLabel>Format</InlinedLabel>
+                    <StyledSelect
+                        name="format"
+                        value={format}
+                        onChange={(e) => {
+                            methods.setValue('format', e.currentTarget.value);
 
-                        const isCsvValue = e.currentTarget.value === 'csv';
-                        if (!isCsvValue) methods.setValue('options', {});
-                    }}
-                    options={[
-                        { value: 'image', label: 'Image' },
-                        { value: 'csv', label: 'CSV' },
-                    ]}
-                />
-                {format === 'csv' && (
-                    <SchedulerOptions disabled={disabled} methods={methods} />
-                )}
-
+                            const isCsvValue = e.currentTarget.value === 'csv';
+                            if (!isCsvValue) methods.setValue('options', {});
+                        }}
+                        options={[
+                            { value: 'image', label: 'Image' },
+                            { value: 'csv', label: 'CSV' },
+                        ]}
+                    />
+                    {format === 'csv' && (
+                        <SchedulerOptions
+                            disabled={disabled}
+                            methods={methods}
+                        />
+                    )}
+                </InlinedInputs>
                 <Title>Send to</Title>
                 <ArrayInput
                     name="targets"
