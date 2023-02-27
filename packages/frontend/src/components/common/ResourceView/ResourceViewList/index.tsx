@@ -73,7 +73,7 @@ const useTableStyles = createStyles((theme) => ({
         },
 
         '& thead tr th, & tbody tr td': {
-            padding: '16px 24px',
+            padding: '12px 24px',
         },
 
         '&[data-hover] tbody tr': theme.fn.hover({
@@ -200,11 +200,11 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
 
                     return space ? (
                         <Anchor
-                            color="gray.6"
+                            color="gray.7"
                             component={Link}
                             to={`/projects/${projectUuid}/spaces/${space.uuid}`}
                             onClick={(e) => e.stopPropagation()}
-                            fz={13}
+                            fz={12}
                             fw={500}
                         >
                             {space.name}
