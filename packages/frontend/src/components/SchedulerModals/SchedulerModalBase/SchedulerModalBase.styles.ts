@@ -58,3 +58,9 @@ export const StyledSelect = styled(HTMLSelect)`
 export const InputWrapper = styled.div`
     width: 130px;
 `;
+
+export const InputGroupWrapper = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+`;
