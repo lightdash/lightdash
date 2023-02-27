@@ -79,6 +79,7 @@ const ResourceViewItemActionMenu: FC<Props> = ({
             <Menu.Dropdown maw={320}>
                 <Menu.Item
                     component="button"
+                    role="menuitem"
                     icon={<IconEdit size={18} />}
                     onClick={(e) => {
                         e.preventDefault();
@@ -97,6 +98,7 @@ const ResourceViewItemActionMenu: FC<Props> = ({
                 item.type === ResourceViewItemType.DASHBOARD ? (
                     <Menu.Item
                         component="button"
+                        role="menuitem"
                         icon={<IconCopy size={18} />}
                         onClick={(e) => {
                             e.preventDefault();
@@ -115,8 +117,8 @@ const ResourceViewItemActionMenu: FC<Props> = ({
                 {!isDashboardPage && item.type === ResourceViewItemType.CHART && (
                     <Menu.Item
                         component="button"
-                        icon={<IconSquarePlus size={18} />}
                         role="menuitem"
+                        icon={<IconSquarePlus size={18} />}
                         onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
@@ -141,6 +143,7 @@ const ResourceViewItemActionMenu: FC<Props> = ({
                         localStorage.getItem('feat-pin-space'))) ? (
                     <Menu.Item
                         component="button"
+                        role="menuitem"
                         icon={
                             isPinned ? (
                                 <IconPinned size={18} />
@@ -175,6 +178,7 @@ const ResourceViewItemActionMenu: FC<Props> = ({
                             return (
                                 <Menu.Item
                                     component="button"
+                                    role="menuitem"
                                     key={space.uuid}
                                     disabled={isSelected}
                                     icon={
@@ -207,6 +211,7 @@ const ResourceViewItemActionMenu: FC<Props> = ({
 
                         <Menu.Item
                             component="button"
+                            role="menuitem"
                             icon={<IconPlus size={18} />}
                             onClick={(e) => {
                                 e.preventDefault();
@@ -227,6 +232,7 @@ const ResourceViewItemActionMenu: FC<Props> = ({
 
                 <Menu.Item
                     component="button"
+                    role="menuitem"
                     color="red"
                     icon={<IconTrash size={18} />}
                     onClick={(e) => {
