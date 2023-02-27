@@ -1,3 +1,10 @@
+## [0.433.3](https://github.com/lightdash/lightdash/compare/0.433.2...0.433.3) (2023-02-27)
+
+
+### Bug Fixes
+
+* worker threads ([1227fb2](https://github.com/lightdash/lightdash/commit/1227fb208850a411497f7bdc4f2b9642ae8f48e0))
+
 ## [0.433.2](https://github.com/lightdash/lightdash/compare/0.433.1...0.433.2) (2023-02-27)
 
 
