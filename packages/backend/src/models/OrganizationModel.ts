@@ -1,8 +1,7 @@
 import {
-    NotExistsError,
     NotFoundError,
     Organisation,
-    UpdateOrganisation,
+    UpdateOrganization,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
@@ -45,11 +44,9 @@ export class OrganizationModel {
 
     async update(
         organizationUuid: string,
-        data: UpdateOrganisation,
+        data: UpdateOrganization,
     ): Promise<Organisation> {
-        if (!organizationUuid) {
-            throw new NotExistsError('Organization not found');
-        }
+        // Undefined values are ignored by .update (it DOES NOT set null)
         const [org] = await this.database(OrganizationTableName)
             .where('organization_uuid', organizationUuid)
             .update({
