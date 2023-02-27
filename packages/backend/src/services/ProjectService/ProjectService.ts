@@ -14,7 +14,6 @@ import {
     deepEqual,
     Explore,
     ExploreError,
-    Field,
     fieldId as getFieldId,
     FilterableField,
     FilterOperator,
@@ -48,7 +47,6 @@ import {
     ResultRow,
     SessionUser,
     SummaryExplore,
-    TableCalculation,
     TablesConfiguration,
     TableSelectionType,
     UpdateProject,
@@ -127,19 +125,6 @@ export class ProjectService {
             await this.projectModel.getWarehouseCredentialsForProject(
                 projectUuid,
             );
-        // These clients reconnect for every query so no benefit to caching
-        if (
-            [
-                WarehouseTypes.SNOWFLAKE,
-                WarehouseTypes.DATABRICKS,
-                WarehouseTypes.TRINO,
-            ].includes(credentials.type)
-        ) {
-            return this.projectModel.getWarehouseClientFromCredentials(
-                credentials,
-            );
-        }
-
         // Check cache for existing client
         const existingClient = this.warehouseClients[projectUuid] as
             | typeof this.warehouseClients[string]
@@ -257,9 +242,11 @@ export class ProjectService {
                     job.jobUuid,
                     JobStepType.COMPILING,
                     async () => {
-                        const e = await adapter.compileAllExplores();
-                        await adapter.destroy();
-                        return e;
+                        try {
+                            return await adapter.compileAllExplores();
+                        } finally {
+                            await adapter.destroy();
+                        }
                     },
                 );
 
@@ -387,9 +374,11 @@ export class ProjectService {
                         job.jobUuid,
                         JobStepType.COMPILING,
                         async () => {
-                            const e = await adapter.compileAllExplores();
-                            await adapter.destroy();
-                            return e;
+                            try {
+                                return await adapter.compileAllExplores();
+                            } finally {
+                                await adapter.destroy();
+                            }
                         },
                     );
                     await this.projectModel.saveExploresToCache(
@@ -527,18 +516,7 @@ export class ProjectService {
         ) {
             throw new ForbiddenError();
         }
-        const project = await this.projectModel.getWithSensitiveFields(
-            projectUuid,
-        );
-        if (!project.warehouseConnection) {
-            throw new MissingWarehouseCredentialsError(
-                'Warehouse credentials must be provided to connect to your dbt project',
-            );
-        }
-        const warehouseClient =
-            this.projectModel.getWarehouseClientFromCredentials(
-                project.warehouseConnection,
-            );
+        const warehouseClient = await this._getWarehouseClient(projectUuid);
         const explore = await this.getExplore(user, projectUuid, exploreName);
         const compiledMetricQuery = compileMetricQuery({
             explore,
@@ -907,6 +885,8 @@ export class ProjectService {
                 },
             });
             throw errorResponse;
+        } finally {
+            await adapter.destroy();
         }
     }
 
