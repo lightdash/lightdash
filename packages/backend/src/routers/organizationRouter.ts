@@ -19,60 +19,6 @@ import {
 export const organizationRouter = express.Router();
 
 organizationRouter.get(
-    '/',
-    allowApiKeyAuthentication,
-    isAuthenticated,
-    async (req, res, next) => {
-        organizationService
-            .get(req.user!)
-            .then((results) => {
-                res.json({
-                    status: 'ok',
-                    results,
-                });
-            })
-            .catch(next);
-    },
-);
-
-organizationRouter.patch(
-    '/',
-    isAuthenticated,
-    unauthorisedInDemo,
-    async (req, res, next) =>
-        organizationService
-            .updateOrg(req.user!, req.body)
-            .then(() => {
-                res.json({
-                    status: 'ok',
-                });
-            })
-            .catch(next),
-);
-
-organizationRouter.delete(
-    '/:organizationUuid',
-    isAuthenticated,
-    unauthorisedInDemo,
-    async (req, res, next) =>
-        organizationService
-            .delete(req.params.organizationUuid, req.user!)
-            .then((results) => {
-                req.session.destroy((err2) => {
-                    if (err2) {
-                        next(err2);
-                    } else {
-                        res.json({
-                            status: 'ok',
-                            results,
-                        });
-                    }
-                });
-            })
-            .catch(next),
-);
-
-organizationRouter.get(
     '/projects',
     allowApiKeyAuthentication,
     isAuthenticated,
