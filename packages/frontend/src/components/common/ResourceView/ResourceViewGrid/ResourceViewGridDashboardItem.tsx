@@ -27,7 +27,15 @@ const ResourceViewGridDashboardItem: FC<ResourceViewGridDashboardItemProps> = ({
     const theme = useMantineTheme();
 
     return (
-        <Paper component={Flex} direction="column" p={0} withBorder ref={ref}>
+        <Paper
+            ref={ref}
+            component={Flex}
+            direction="column"
+            p={0}
+            withBorder
+            bg={hovered ? 'gray.0' : undefined}
+            h="100%"
+        >
             <Group
                 p="md"
                 align="center"

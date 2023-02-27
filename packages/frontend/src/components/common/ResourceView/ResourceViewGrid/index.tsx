@@ -34,7 +34,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
     const { data: spaces = [] } = useSpaces(projectUuid);
 
     return (
-        <Stack spacing="md" px="md" py="sm">
+        <Stack spacing="xl" p="lg">
             {groups.map((group) => {
                 const groupedItems = items.filter((item) =>
                     group.includes(item.type),
@@ -61,13 +61,14 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                             </Text>
                         )}
 
-                        <SimpleGrid cols={3} spacing="md">
+                        <SimpleGrid cols={3} spacing="lg">
                             {groupedItems.map((item) => (
                                 <Anchor
                                     component={Link}
                                     to={getResourceUrl(projectUuid, item)}
                                     key={item.type + '-' + item.data.uuid}
                                     sx={{
+                                        display: 'block',
                                         color: 'unset',
                                         ':hover': {
                                             color: 'unset',

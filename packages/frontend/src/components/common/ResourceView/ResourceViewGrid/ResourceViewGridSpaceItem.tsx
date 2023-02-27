@@ -33,7 +33,13 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
     const theme = useMantineTheme();
 
     return (
-        <Paper ref={ref} p={0} withBorder>
+        <Paper
+            ref={ref}
+            p={0}
+            withBorder
+            bg={hovered ? 'gray.0' : undefined}
+            h="100%"
+        >
             <Group p="md" align="center" spacing="md" noWrap>
                 <ResourceIcon item={item} />
 
