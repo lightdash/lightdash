@@ -77,6 +77,7 @@ const useTableStyles = createStyles((theme) => ({
         },
 
         '&[data-hover] tbody tr': theme.fn.hover({
+            cursor: 'pointer',
             backgroundColor: theme.colors.gray[0],
         }),
     },
