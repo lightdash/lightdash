@@ -21,7 +21,7 @@ import {
     Route,
 } from 'tsoa';
 import { promisify } from 'util';
-import { organizationService } from '../services/services';
+import { organizationService, userService } from '../services/services';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -128,6 +128,26 @@ export class OrganizationController extends Controller {
                 userUuid,
                 body,
             ),
+        };
+    }
+
+    /**
+     * Deletes a user
+     * @param req express request
+     * @param userUuid the uuid of the user to delete
+     */
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @Delete('/user/{userUuid}')
+    @OperationId('deleteUser')
+    async deleteUser(
+        @Request() req: express.Request,
+        @Path() userUuid: string,
+    ): Promise<ApiSuccessEmpty> {
+        await userService.delete(req.user!, userUuid);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 }
