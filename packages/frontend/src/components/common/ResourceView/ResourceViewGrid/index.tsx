@@ -3,9 +3,7 @@ import { Anchor, SimpleGrid, Stack, Text } from '@mantine/core';
 import { FC } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ResourceViewCommonProps } from '..';
-import { useSpaces } from '../../../../hooks/useSpaces';
 import { ResourceViewItemActionState } from '../ResourceActionHandlers';
-import ResourceActionMenu from '../ResourceActionMenu';
 import { ResourceViewItemType } from '../resourceTypeUtils';
 import { getResourceName, getResourceUrl } from '../resourceUtils';
 import ResourceViewGridChartItem from './ResourceViewGridChartItem';
@@ -33,7 +31,6 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
     onAction,
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { data: spaces = [] } = useSpaces(projectUuid);
 
     return (
         <Stack spacing="xl" p="lg">
@@ -82,49 +79,19 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
                                     ResourceViewItemType.SPACE ? (
                                         <ResourceViewGridSpaceItem
                                             item={item}
-                                            renderActions={() => (
-                                                <ResourceActionMenu
-                                                    item={item}
-                                                    url={getResourceUrl(
-                                                        projectUuid,
-                                                        item,
-                                                    )}
-                                                    onAction={onAction}
-                                                    spaces={spaces}
-                                                />
-                                            )}
+                                            onAction={onAction}
                                         />
                                     ) : item.type ===
                                       ResourceViewItemType.DASHBOARD ? (
                                         <ResourceViewGridDashboardItem
                                             item={item}
-                                            renderActions={() => (
-                                                <ResourceActionMenu
-                                                    item={item}
-                                                    url={getResourceUrl(
-                                                        projectUuid,
-                                                        item,
-                                                    )}
-                                                    onAction={onAction}
-                                                    spaces={spaces}
-                                                />
-                                            )}
+                                            onAction={onAction}
                                         />
                                     ) : item.type ===
                                       ResourceViewItemType.CHART ? (
                                         <ResourceViewGridChartItem
                                             item={item}
-                                            renderActions={() => (
-                                                <ResourceActionMenu
-                                                    item={item}
-                                                    url={getResourceUrl(
-                                                        projectUuid,
-                                                        item,
-                                                    )}
-                                                    onAction={onAction}
-                                                    spaces={spaces}
-                                                />
-                                            )}
+                                            onAction={onAction}
                                         />
                                     ) : (
                                         assertUnreachable(

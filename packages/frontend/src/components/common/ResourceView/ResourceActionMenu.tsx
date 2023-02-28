@@ -1,11 +1,13 @@
 import { subject } from '@casl/ability';
-import { assertUnreachable, Space } from '@lightdash/common';
+import { assertUnreachable } from '@lightdash/common';
 import { ActionIcon, Box, Menu } from '@mantine/core';
 import {
     IconCheck,
+    IconChevronRight,
     IconCopy,
     IconDots,
     IconEdit,
+    IconFolders,
     IconPin,
     IconPinned,
     IconPlus,
@@ -13,7 +15,8 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
+import { useSpaces } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
 import {
     ResourceViewItemAction,
@@ -21,24 +24,30 @@ import {
 } from './ResourceActionHandlers';
 import { ResourceViewItem, ResourceViewItemType } from './resourceTypeUtils';
 
-type Props = {
-    item: ResourceViewItem;
-    spaces: Space[];
-    url: string;
+export interface ResourceViewItemActionMenuCommonProps {
     onAction: (newAction: ResourceViewItemActionState) => void;
-};
+}
 
-const ResourceViewItemActionMenu: FC<Props> = ({
+interface ResourceViewItemActionMenuProps
+    extends ResourceViewItemActionMenuCommonProps {
+    item: ResourceViewItem;
+    isOpen: boolean;
+    onToggle: () => void;
+}
+
+const ResourceViewItemActionMenu: FC<ResourceViewItemActionMenuProps> = ({
     item,
-    spaces,
-    url,
+    isOpen,
+    onToggle,
     onAction,
 }) => {
     const { user } = useApp();
-    const isPinned = !!item.data.pinnedListUuid;
-    const isDashboardPage = url.includes('/dashboards');
-    const organizationUuid = user.data?.organizationUuid;
+    const location = useLocation();
     const { projectUuid } = useParams<{ projectUuid: string }>();
+    const organizationUuid = user.data?.organizationUuid;
+    const { data: spaces = [] } = useSpaces(projectUuid);
+    const isPinned = !!item.data.pinnedListUuid;
+    const isDashboardPage = location.pathname.includes('/dashboards');
 
     switch (item.type) {
         case ResourceViewItemType.CHART:
@@ -61,15 +70,16 @@ const ResourceViewItemActionMenu: FC<Props> = ({
     }
 
     return (
-        <Menu shadow="md" position="bottom-end">
+        <Menu
+            opened={isOpen}
+            shadow="md"
+            position="bottom-start"
+            withArrow
+            withinPortal
+            onClose={() => onToggle()}
+        >
             <Menu.Target>
-                <Box
-                    component="div"
-                    onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                    }}
-                >
+                <Box onClick={onToggle}>
                     <ActionIcon
                         sx={(theme) => ({
                             ':hover': {
@@ -87,10 +97,7 @@ const ResourceViewItemActionMenu: FC<Props> = ({
                     component="button"
                     role="menuitem"
                     icon={<IconEdit size={18} />}
-                    onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-
+                    onClick={() => {
                         onAction({
                             type: ResourceViewItemAction.UPDATE,
                             item,
@@ -106,10 +113,7 @@ const ResourceViewItemActionMenu: FC<Props> = ({
                         component="button"
                         role="menuitem"
                         icon={<IconCopy size={18} />}
-                        onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-
+                        onClick={() => {
                             onAction({
                                 type: ResourceViewItemAction.DUPLICATE,
                                 item,
@@ -125,10 +129,7 @@ const ResourceViewItemActionMenu: FC<Props> = ({
                         component="button"
                         role="menuitem"
                         icon={<IconSquarePlus size={18} />}
-                        onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-
+                        onClick={() => {
                             onAction({
                                 type: ResourceViewItemAction.ADD_TO_DASHBOARD,
                                 item,
@@ -153,10 +154,7 @@ const ResourceViewItemActionMenu: FC<Props> = ({
                                 <IconPin size={18} />
                             )
                         }
-                        onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-
+                        onClick={() => {
                             onAction({
                                 type: ResourceViewItemAction.PIN_TO_HOMEPAGE,
                                 item,
@@ -172,61 +170,78 @@ const ResourceViewItemActionMenu: FC<Props> = ({
                     <>
                         <Menu.Divider />
 
-                        <Menu.Label>Move to Space</Menu.Label>
-
-                        {spaces.map((space) => {
-                            const isSelected =
-                                item.data.spaceUuid === space.uuid;
-                            return (
+                        <Menu
+                            shadow="md"
+                            position="right-start"
+                            trigger="hover"
+                            offset={0}
+                        >
+                            <Menu.Target>
                                 <Menu.Item
                                     component="button"
                                     role="menuitem"
-                                    key={space.uuid}
-                                    disabled={isSelected}
-                                    icon={
-                                        isSelected ? (
-                                            <IconCheck size={18} />
-                                        ) : (
-                                            <Box w={18} h={18} />
-                                        )
+                                    icon={<IconFolders size={18} />}
+                                    rightSection={
+                                        <Box w={18} h={18}>
+                                            <IconChevronRight size={18} />
+                                        </Box>
                                     }
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
+                                >
+                                    Move to Space
+                                </Menu.Item>
+                            </Menu.Target>
 
-                                        if (!isSelected) {
-                                            onAction({
-                                                type: ResourceViewItemAction.MOVE_TO_SPACE,
-                                                item,
-                                                data: {
-                                                    ...item.data,
-                                                    spaceUuid: space.uuid,
-                                                },
-                                            });
-                                        }
+                            <Menu.Dropdown maw={320}>
+                                {spaces.map((space) => {
+                                    const isSelected =
+                                        item.data.spaceUuid === space.uuid;
+                                    return (
+                                        <Menu.Item
+                                            component="button"
+                                            role="menuitem"
+                                            key={space.uuid}
+                                            disabled={isSelected}
+                                            icon={
+                                                isSelected ? (
+                                                    <IconCheck size={18} />
+                                                ) : (
+                                                    <Box w={18} h={18} />
+                                                )
+                                            }
+                                            onClick={() => {
+                                                if (!isSelected) {
+                                                    onAction({
+                                                        type: ResourceViewItemAction.MOVE_TO_SPACE,
+                                                        item,
+                                                        data: {
+                                                            ...item.data,
+                                                            spaceUuid:
+                                                                space.uuid,
+                                                        },
+                                                    });
+                                                }
+                                            }}
+                                        >
+                                            {space.name}
+                                        </Menu.Item>
+                                    );
+                                })}
+
+                                <Menu.Item
+                                    component="button"
+                                    role="menuitem"
+                                    icon={<IconPlus size={18} />}
+                                    onClick={() => {
+                                        onAction({
+                                            type: ResourceViewItemAction.CREATE_SPACE,
+                                            item,
+                                        });
                                     }}
                                 >
-                                    {space.name}
+                                    Create new space
                                 </Menu.Item>
-                            );
-                        })}
-
-                        <Menu.Item
-                            component="button"
-                            role="menuitem"
-                            icon={<IconPlus size={18} />}
-                            onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-
-                                onAction({
-                                    type: ResourceViewItemAction.CREATE_SPACE,
-                                    item,
-                                });
-                            }}
-                        >
-                            Create new space
-                        </Menu.Item>
+                            </Menu.Dropdown>
+                        </Menu>
                     </>
                 ) : null}
 
@@ -237,10 +252,7 @@ const ResourceViewItemActionMenu: FC<Props> = ({
                     role="menuitem"
                     color="red"
                     icon={<IconTrash size={18} />}
-                    onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-
+                    onClick={() => {
                         onAction({
                             type: ResourceViewItemAction.DELETE,
                             item,

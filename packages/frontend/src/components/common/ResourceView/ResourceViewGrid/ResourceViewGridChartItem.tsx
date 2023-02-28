@@ -5,25 +5,28 @@ import {
     Group,
     Paper,
     Text,
-    Transition,
     useMantineTheme,
 } from '@mantine/core';
-import { useHover } from '@mantine/hooks';
+import { useDisclosure, useHover } from '@mantine/hooks';
 import { IconEye } from '@tabler/icons-react';
 import { FC } from 'react';
+import ResourceViewItemActionMenu, {
+    ResourceViewItemActionMenuCommonProps,
+} from '../ResourceActionMenu';
 import ResourceIcon from '../ResourceIcon';
 import { ResourceViewChartItem } from '../resourceTypeUtils';
 
-interface ResourceViewGridChartItemProps {
+interface ResourceViewGridChartItemProps
+    extends Pick<ResourceViewItemActionMenuCommonProps, 'onAction'> {
     item: ResourceViewChartItem;
-    renderActions: () => JSX.Element;
 }
 
 const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
     item,
-    renderActions,
+    onAction,
 }) => {
     const { hovered, ref } = useHover();
+    const [opened, handlers] = useDisclosure(false);
     const theme = useMantineTheme();
 
     return (
@@ -61,14 +64,29 @@ const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
                     </Text>
                 </Flex>
 
-                <Transition
-                    mounted={hovered}
-                    transition="fade"
-                    duration={200}
-                    timingFunction="ease"
+                <Box
+                    sx={{
+                        flexGrow: 0,
+                        flexShrink: 0,
+                        transition: 'opacity 0.2s',
+                        opacity: hovered || opened ? 1 : 0,
+                    }}
+                    component="div"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                    }}
                 >
-                    {(styles) => <Box style={styles}>{renderActions()}</Box>}
-                </Transition>
+                    <ResourceViewItemActionMenu
+                        item={item}
+                        isOpen={opened}
+                        onAction={(action) => {
+                            onAction(action);
+                            handlers.close();
+                        }}
+                        onToggle={() => handlers.toggle()}
+                    />
+                </Box>
             </Flex>
         </Paper>
     );
