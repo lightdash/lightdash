@@ -1,504 +1,476 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <link
-    href="https://fonts.googleapis.com/css?family=Roboto"
-    rel="stylesheet"
-  />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-  <title>Simple Transactional Email</title>
-  <style>
-      /* -------------------------------------GLOBAL RESETS------------------------------------- */
-      /*All the styling goes here*/
+    <head>
+        <link
+            href="https://fonts.googleapis.com/css?family=Roboto"
+            rel="stylesheet"
+        />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+        <title>Simple Transactional Email</title>
+        <style>
+            /* -------------------------------------GLOBAL RESETS------------------------------------- */
+            /*All the styling goes here*/
 
-      body {
-          background-color: #f6f7f9;
-          font-family: 'Roboto', sans-serif;
-          -webkit-font-smoothing: antialiased;
-          font-size: 14px;
-          line-height: 28px;
-          margin: 0;
-          padding: 0;
-          -ms-text-size-adjust: 100%;
-          -webkit-text-size-adjust: 100%;
-          text-decoration: none;
-      }
+            body {
+                background-color: #f6f7f9;
+                font-family: 'Roboto', sans-serif;
+                -webkit-font-smoothing: antialiased;
+                font-size: 14px;
+                line-height: 28px;
+                margin: 0;
+                padding: 0;
+                -ms-text-size-adjust: 100%;
+                -webkit-text-size-adjust: 100%;
+                text-decoration: none;
+            }
 
-      table {
-          border-collapse: separate;
-          mso-table-lspace: 0pt;
-          mso-table-rspace: 0pt;
-          width: 100%;
-      }
+            table {
+                border-collapse: separate;
+                mso-table-lspace: 0pt;
+                mso-table-rspace: 0pt;
+                width: 100%;
+            }
 
-      table td {
-          vertical-align: top;
-      }
+            table td {
+                vertical-align: top;
+            }
 
-      /* -------------------------------------BODY & CONTAINER------------------------------------- */
+            /* -------------------------------------BODY & CONTAINER------------------------------------- */
 
-      .body {
-          background-color: #f6f7f9;
-          width: 100%;
-      }
+            .body {
+                background-color: #f6f7f9;
+                width: 100%;
+            }
 
-      /* Set a max-width, and make it display as block so it will automatically stretch to that width, but will also shrink down on a phone or something */
-      .container {
-          display: block;
-          margin: 0 auto !important;
-          /* makes it centered */
-          max-width: 660px;
-          padding: 50px;
-          width: 660px;
-          text-align: center;
-      }
+            /* Set a max-width, and make it display as block so it will automatically stretch to that width, but will also shrink down on a phone or something */
+            .container {
+                display: block;
+                margin: 0 auto !important;
+                /* makes it centered */
+                max-width: 660px;
+                padding: 50px;
+                width: 660px;
+                text-align: center;
+            }
 
-      /* This should also be a block element, so that it will fill 100% of the .container */
-      .content {
-          box-sizing: border-box;
-          display: block;
-          margin: 0 auto;
-          max-width: 660px;
-          padding: 10px;
-      }
+            /* This should also be a block element, so that it will fill 100% of the .container */
+            .content {
+                box-sizing: border-box;
+                display: block;
+                margin: 0 auto;
+                max-width: 660px;
+                padding: 10px;
+            }
 
-      /* -------------------------------------
+            /* -------------------------------------
 HEADER, FOOTER, MAIN
 ------------------------------------- */
-      img {
-          border: none;
-          -ms-interpolation-mode: bicubic;
-          max-width: 100%;
-      }
+            img {
+                border: none;
+                -ms-interpolation-mode: bicubic;
+                max-width: 100%;
+            }
 
-      .miniature-logo {
-          width: 39px;
-          height: 39px;
-          margin-right: 15px;
-      }
+            .miniature-logo {
+                width: 39px;
+                height: 39px;
+                margin-right: 15px;
+            }
 
-      .main {
-          border-radius: 3px;
-          width: 100%;
-      }
+            .main {
+                border-radius: 3px;
+                width: 100%;
+            }
 
-      .wrapper {
-          box-sizing: border-box;
-          padding: 64px 64px 20px 64px;
-      }
+            .wrapper {
+                box-sizing: border-box;
+                padding: 64px 64px 20px 64px;
+            }
 
-      .header {
-          display: flex;
-          flex-direction: row;
-      }
+            .header {
+                display: flex;
+                flex-direction: row;
+            }
 
-      .title {
-          font-family: 'Roboto', sans-serif;
-          font-size: 18px;
-          font-weight: 600;
-          color: #171818;
-          margin: 0;
-      }
+            .title {
+                font-family: 'Roboto', sans-serif;
+                font-size: 18px;
+                font-weight: 600;
+                color: #171818;
+                margin: 0;
+            }
 
-      .description {
-          margin: 0 0 0 54px;
-      }
+            .description {
+                margin: -15px 0 0 54px;
+            }
 
-      .content-block {
-          padding-bottom: 10px;
-          padding-top: 10px;
-      }
+            .content-block {
+                padding-bottom: 10px;
+                padding-top: 10px;
+            }
 
-      .footer {
-          clear: both;
-          margin-top: 40px;
-          padding-top: 25px;
-          text-align: center;
-          width: 100%;
-          border-top: 1px solid rgba(0, 0, 0, 0.1);
-      }
+            .footer {
+                clear: both;
+                margin-top: 40px;
+                padding-top: 25px;
+                text-align: center;
+                width: 100%;
+                border-top: 1px solid rgba(0, 0, 0, 0.1);
+            }
 
-      .footer td,
-      .footer p,
-      .footer span,
-      .footer a {
-          color: #999999;
-          font-size: 12px;
-          text-align: center;
-      }
+            .footer td,
+            .footer p,
+            .footer span,
+            .footer a {
+                color: #999999;
+                font-size: 12px;
+                text-align: center;
+            }
 
-      /* -------------------------------------
+            /* -------------------------------------
 TYPOGRAPHY
 ------------------------------------- */
-      h1,
-      h2,
-      h3,
-      h4 {
-          color: #000000;
-          font-family: 'Roboto', sans-serif;
-          font-weight: 400;
-          margin: 0;
-      }
+            h1,
+            h2,
+            h3,
+            h4 {
+                color: #000000;
+                font-family: 'Roboto', sans-serif;
+                font-weight: 400;
+                margin: 0;
+            }
 
-      h1 {
-          font-size: 35px;
-          font-weight: 300;
-          text-align: center;
-          text-transform: capitalize;
-      }
+            h1 {
+                font-size: 35px;
+                font-weight: 300;
+                text-align: center;
+                text-transform: capitalize;
+            }
 
-      p,
-      ul,
-      ol {
-          font-family: 'Roboto', sans-serif;
-          color: #5c7080;
-      }
+            p,
+            ul,
+            ol {
+                font-family: 'Roboto', sans-serif;
+                color: #5c7080;
+            }
 
-      p li,
-      ul li,
-      ol li {
-          list-style-position: inside;
-          margin-left: 5px;
-      }
+            p li,
+            ul li,
+            ol li {
+                list-style-position: inside;
+                margin-left: 5px;
+            }
 
-      a {
-          color: #2d72d2;
-          text-decoration: none;
-      }
+            a {
+                color: #2d72d2;
+                text-decoration: none;
+            }
 
-      /* -------------------------------------
+            /* -------------------------------------
 BUTTONS
 ------------------------------------- */
 
-      .btn > tbody > tr > td {
-          padding-bottom: 15px;
-      }
+            .btn > tbody > tr > td {
+                padding-bottom: 15px;
+            }
 
-      .btn table {
-          width: auto;
-      }
+            .btn table {
+                width: auto;
+            }
 
-      .btn table td {
-          background-color: #ffffff;
-          border-radius: 5px;
-          text-align: center;
-      }
+            .btn table td {
+                background-color: #ffffff;
+                border-radius: 5px;
+                text-align: center;
+            }
 
-      .btn-container {
-          display: flex;
-          justify-content: center;
-      }
+            .btn-container {
+                display: flex;
+                justify-content: center;
+            }
 
-      .btn-primary {
-          background-color: #2d72d2;
-          color: #fff;
-          width: 189px;
-          height: 48px;
-          border: 0;
-          border-radius: 4px;
-          font-weight: 500;
-          font-size: 16px;
-          line-height: 24px;
-          padding: 10px;
-          margin: 55px 0 20px 0;
-      }
+            .btn-primary {
+                background-color: #2d72d2;
+                color: #fff;
+                width: 189px;
+                height: 48px;
+                border: 0;
+                border-radius: 4px;
+                font-weight: 500;
+                font-size: 16px;
+                line-height: 24px;
+                padding: 10px;
+                margin: 55px 0 20px 0;
+            }
 
-      .card {
-          max-width: 600px;
-          background-color: #fff;
-          display: block;
-          margin: 30px 0;
-          border-radius: 4px;
-          box-shadow: 0px 4px 10px 0px #0000000d;
-      }
+            .card {
+                max-width: 600px;
+                background-color: #fff;
+                display: block;
+                margin: 30px 0;
+                border-radius: 4px;
+                box-shadow: 0px 4px 10px 0px #0000000d;
+            }
 
-      .chart,
-      .dashboard {
-          box-sizing: border-box;
-          max-width: 600px;
-          display: block;
-          padding: 10px 20px;
-      }
+            .chart,
+            .dashboard {
+                box-sizing: border-box;
+                max-width: 600px;
+                display: block;
+                padding: 10px 20px;
+            }
 
-      /* -------------------------------------
+            /* -------------------------------------
 OTHER STYLES THAT MIGHT BE USEFUL
 ------------------------------------- */
 
-      .align-left {
-          text-align: left;
-      }
+            .align-left {
+                text-align: left;
+            }
 
-      .social {
-          width: 20px;
-          height: 20px;
-          margin: 0 10px 0 10px;
-      }
+            .social {
+                width: 20px;
+                height: 20px;
+                margin: 0 10px 0 10px;
+            }
 
-      hr {
-          border: 0;
-          border-bottom: 1px solid #f6f6f6;
-          margin: 20px 0;
-      }
+            hr {
+                border: 0;
+                border-bottom: 1px solid #f6f6f6;
+                margin: 20px 0;
+            }
 
-      /* -------------------------------------
+            /* -------------------------------------
 RESPONSIVE AND MOBILE FRIENDLY STYLES
 ------------------------------------- */
-      @media only screen and (max-width: 620px) {
-          table.body h1 {
-              font-size: 28px !important;
-              margin-bottom: 10px !important;
-          }
+            @media only screen and (max-width: 620px) {
+                table.body h1 {
+                    font-size: 28px !important;
+                    margin-bottom: 10px !important;
+                }
 
-          table.body p,
-          table.body ul,
-          table.body ol,
-          table.body td,
-          table.body span,
-          table.body a {
-              font-size: 16px !important;
-          }
+                table.body p,
+                table.body ul,
+                table.body ol,
+                table.body td,
+                table.body span,
+                table.body a {
+                    font-size: 16px !important;
+                }
 
-          table.body .wrapper,
-          table.body .article {
-              padding: 10px !important;
-          }
+                table.body .wrapper,
+                table.body .article {
+                    padding: 10px !important;
+                }
 
-          table.body .content {
-              padding: 0 !important;
-          }
+                table.body .content {
+                    padding: 0 !important;
+                }
 
-          table.body .container {
-              padding: 0 !important;
-              width: 100% !important;
-          }
+                table.body .container {
+                    padding: 0 !important;
+                    width: 100% !important;
+                }
 
-          table.body .main {
-              border-left-width: 0 !important;
-              border-radius: 0 !important;
-              border-right-width: 0 !important;
-          }
+                table.body .main {
+                    border-left-width: 0 !important;
+                    border-radius: 0 !important;
+                    border-right-width: 0 !important;
+                }
 
-          table.body .btn table {
-              width: 100% !important;
-          }
+                table.body .btn table {
+                    width: 100% !important;
+                }
 
-          table.body .btn a {
-              width: 100% !important;
-          }
+                table.body .btn a {
+                    width: 100% !important;
+                }
 
-          table.body .img-responsive {
-              height: auto !important;
-              max-width: 100% !important;
-              width: auto !important;
-          }
-      }
+                table.body .img-responsive {
+                    height: auto !important;
+                    max-width: 100% !important;
+                    width: auto !important;
+                }
+            }
 
-      /* -------------------------------------
+            /* -------------------------------------
 PRESERVE THESE STYLES IN THE HEAD
 ------------------------------------- */
-      @media all {
-          .ExternalClass {
-              width: 100%;
-          }
+            @media all {
+                .ExternalClass {
+                    width: 100%;
+                }
 
-          .ExternalClass,
-          .ExternalClass p,
-          .ExternalClass span,
-          .ExternalClass font,
-          .ExternalClass td,
-          .ExternalClass div {
-              line-height: 100%;
-          }
+                .ExternalClass,
+                .ExternalClass p,
+                .ExternalClass span,
+                .ExternalClass font,
+                .ExternalClass td,
+                .ExternalClass div {
+                    line-height: 100%;
+                }
 
-          .apple-link a {
-              color: inherit !important;
-              font-family: inherit !important;
-              font-size: inherit !important;
-              font-weight: inherit !important;
-              line-height: inherit !important;
-              text-decoration: none !important;
-          }
+                .apple-link a {
+                    color: inherit !important;
+                    font-family: inherit !important;
+                    font-size: inherit !important;
+                    font-weight: inherit !important;
+                    line-height: inherit !important;
+                    text-decoration: none !important;
+                }
 
-          #MessageViewBody a {
-              color: inherit;
-              text-decoration: none;
-              font-size: inherit;
-              font-family: inherit;
-              font-weight: inherit;
-              line-height: inherit;
-          }
+                #MessageViewBody a {
+                    color: inherit;
+                    text-decoration: none;
+                    font-size: inherit;
+                    font-family: inherit;
+                    font-weight: inherit;
+                    line-height: inherit;
+                }
 
-          .btn-primary table td:hover {
-              background-color: #215db0 !important;
-          }
+                .btn-primary table td:hover {
+                    background-color: #215db0 !important;
+                }
 
-          .btn-primary a:hover {
-              background-color: #215db0 !important;
-          }
-      }
-  </style>
-</head>
-<body>
-<table
-  role="presentation"
-  border="0"
-  cellpadding="0"
-  cellspacing="0"
-  class="body"
->
-  <tr>
-    <td>&nbsp;</td>
-    <td class="container">
-      <div class="content">
-        <!-- START CENTERED WHITE CONTAINER -->
-        <table role="presentation" class="main">
-          <!-- START MAIN CONTENT AREA -->
-          <tr>
-            <td class="wrapper align-left">
-              <table
-                role="presentation"
-                border="0"
-                cellpadding="0"
-                cellspacing="0"
-              >
-                <th class="header">
-                  <img
-                    class="miniature-logo"
-                    alt="miniature logo"
-                    src="{{host}}/lightdash-miniature-logo.png"
-                  />
-                  <h3 class="title">{{title}}</h3>
-                </th>
-                <tr>
-                  <td>
-                    <p class="description">
-                      {{date}}
-                    </p>
-                  </td>
-                </tr>
-                <tr>
-                  <td class="card">
-                    <img
-                      alt="chart or dashboard image"
-                      src="{{imageUrl}}"
-                      class="chart dashboard"
-                    />
-                  </td>
-                </tr>
+                .btn-primary a:hover {
+                    background-color: #215db0 !important;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <table
+            role="presentation"
+            border="0"
+            cellpadding="0"
+            cellspacing="0"
+            class="body"
+        >
+            <tr>
+                <td>&nbsp;</td>
+                <td class="container">
+                    <div class="content">
+                        <!-- START CENTERED WHITE CONTAINER -->
+                        <table role="presentation" class="main">
+                            <!-- START MAIN CONTENT AREA -->
+                            <tr>
+                                <td class="wrapper align-left">
+                                    <table
+                                        role="presentation"
+                                        border="0"
+                                        cellpadding="0"
+                                        cellspacing="0"
+                                    >
+                                        <th class="header">
+                                            <img
+                                                class="miniature-logo"
+                                                alt="miniature logo"
+                                                src="{{host}}/lightdash-miniature-logo.png"
+                                            />
+                                            <h3 class="title">{{title}}</h3>
+                                        </th>
+                                        <tr>
+                                            <td>
+                                                <p class="description">
+                                                    {{date}}
+                                                </p>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="card">
+                                                <img
+                                                    alt="chart or dashboard image"
+                                                    src="{{imageUrl}}"
+                                                    class="chart dashboard"
+                                                />
+                                            </td>
+                                        </tr>
 
-                <tr>
-                  <td class="btn-container">
-                    <button
-                      href="{{url}}"
-                      class="btn-primary"
-                    >
-                      View in Lightdash
-                    </button>
-                  </td>
-                </tr>
-                <tr>
-                  <td>
-                    <div class="footer">
-                      <table
-                        role="presentation"
-                        border="0"
-                        cellpadding="0"
-                        cellspacing="0"
-                      >
-                        <tr>
-                          <td
-                            class="content-block"
-                          >
-                            <a
-                              href="https://twitter.com/lightdash_devs"
-                            >
-                              <img
-                                alt="twitter"
-                                class="social"
-                                src="{{host}}/twitter.png"
-                              /></a>
-                            <a
-                              href="https://github.com/lightdash/lightdash"
-                            >
-                              <img
-                                alt="github"
-                                class="social"
-                                src="{{host}}/github.png"
-                              /></a>
-                            <a
-                              href="https://www.linkedin.com/company/lightdash"
-                            >
-                              <img
-                                alt="linkedin"
-                                class="social"
-                                src="{{host}}/linkedin.png"
-                              /></a>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td
-                            class="content-block powered-by"
-                          >
-                            <a
-                              href="https://lightdash.com"
-                            >lightdash.com</a
-                            >
-                          </td>
-                        </tr>
-                      </table>
+                                        <tr>
+                                            <td class="btn-container">
+                                                <button
+                                                    href="{{url}}"
+                                                    class="btn-primary"
+                                                >
+                                                    View in Lightdash
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>
+                                                <div class="footer">
+                                                    <table
+                                                        role="presentation"
+                                                        border="0"
+                                                        cellpadding="0"
+                                                        cellspacing="0"
+                                                    >
+                                                        <tr>
+                                                            <td
+                                                                class="content-block"
+                                                            >
+                                                                <a
+                                                                    >Scheduled
+                                                                    delivery:</a
+                                                                >
+                                                                {{frequency}}
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td
+                                                                class="content-block"
+                                                            >
+                                                                <a
+                                                                    href="https://twitter.com/lightdash_devs"
+                                                                >
+                                                                    <img
+                                                                        alt="twitter"
+                                                                        class="social"
+                                                                        src="{{host}}/twitter.png"
+                                                                /></a>
+                                                                <a
+                                                                    href="https://github.com/lightdash/lightdash"
+                                                                >
+                                                                    <img
+                                                                        alt="github"
+                                                                        class="social"
+                                                                        src="{{host}}/github.png"
+                                                                /></a>
+                                                                <a
+                                                                    href="https://www.linkedin.com/company/lightdash"
+                                                                >
+                                                                    <img
+                                                                        alt="linkedin"
+                                                                        class="social"
+                                                                        src="{{host}}/linkedin.png"
+                                                                /></a>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td
+                                                                class="content-block powered-by"
+                                                            >
+                                                                <a
+                                                                    href="https://lightdash.com"
+                                                                    >lightdash.com</a
+                                                                >
+                                                            </td>
+                                                        </tr>
+                                                    </table>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                            <!-- END MAIN CONTENT AREA -->
+                        </table>
+                        <!-- END CENTERED WHITE CONTAINER -->
                     </div>
-                    <!--                    &lt;!&ndash; START FOOTER &ndash;&gt;-->
-                    <!--                    <div class="footer">-->
-                    <!--                      <table-->
-                    <!--                        role="presentation"-->
-                    <!--                        border="0"-->
-                    <!--                        cellpadding="0"-->
-                    <!--                        cellspacing="0"-->
-                    <!--                      >-->
-                    <!--                        <tr>-->
-                    <!--                          <td-->
-                    <!--                            class="content-block"-->
-                    <!--                          >-->
-                    <!--                            <a-->
-                    <!--                            >Scheduled-->
-                    <!--                              delivery:</a-->
-                    <!--                            >-->
-                    <!--                            {{frequency}}-->
-                    <!--                          </td>-->
-                    <!--                        </tr>-->
-                    <!--                        <tr>-->
-                    <!--                          <td-->
-                    <!--                            class="content-block powered-by"-->
-                    <!--                          >-->
-                    <!--                            Powered by:-->
-                    <!--                            <br />-->
-                    <!--                            <a-->
-                    <!--                              href="https://www.lightdash.com/"-->
-                    <!--                            >-->
-                    <!--                              <img-->
-                    <!--                                class="logo"-->
-                    <!--                                alt="logo"-->
-                    <!--                                src="{{host}}/lightdash-logo.png"-->
-                    <!--                              />-->
-                    <!--                            </a>-->
-                    <!--                          </td>-->
-                    <!--                        </tr>-->
-                    <!--                      </table>-->
-                    <!--                    </div>-->
-                    <!--                    &lt;!&ndash; END FOOTER &ndash;&gt;-->
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-          <!-- END MAIN CONTENT AREA -->
+                </td>
+                <td>&nbsp;</td>
+            </tr>
         </table>
-        <!-- END CENTERED WHITE CONTAINER -->
-      </div>
-    </td>
-    <td>&nbsp;</td>
-  </tr>
-</table>
-</body>
+    </body>
 </html>
