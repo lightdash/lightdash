@@ -57,6 +57,20 @@ const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
             maxItems={10}
             tabs={[
                 {
+                    id: 'most-popular',
+                    name: 'Most popular',
+                    sort: (a, b) => {
+                        if (
+                            isResourceViewSpaceItem(a) ||
+                            isResourceViewSpaceItem(b)
+                        ) {
+                            return 0;
+                        }
+
+                        return b.data.views - a.data.views;
+                    },
+                },
+                {
                     id: 'recently-updated',
                     name: 'Recently updated',
                     sort: (a, b) => {
@@ -71,20 +85,6 @@ const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
                             new Date(b.data.updatedAt).getTime() -
                             new Date(a.data.updatedAt).getTime()
                         );
-                    },
-                },
-                {
-                    id: 'most-popular',
-                    name: 'Most popular',
-                    sort: (a, b) => {
-                        if (
-                            isResourceViewSpaceItem(a) ||
-                            isResourceViewSpaceItem(b)
-                        ) {
-                            return 0;
-                        }
-
-                        return b.data.views - a.data.views;
                     },
                 },
             ]}
