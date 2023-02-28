@@ -1,4 +1,11 @@
-import { Button, Classes, KeyCombo, Spinner, Tag } from '@blueprintjs/core';
+import {
+    Button,
+    Classes,
+    Colors,
+    KeyCombo,
+    Spinner,
+    Tag,
+} from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import { ItemPredicate, ItemRenderer } from '@blueprintjs/select';
 import { getSearchResultId } from '@lightdash/common';
@@ -8,6 +15,7 @@ import { useToggle } from 'react-use';
 import { useProject } from '../../../hooks/useProject';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
+import FieldIcon from '../../common/Filters/FieldIcon';
 import HighlightedText from '../../common/HighlightedText';
 import {
     FirstLine,
@@ -22,6 +30,7 @@ import {
     useDebouncedSearch,
     useGlobalSearchHotKeys,
 } from './hooks';
+import { SearchIcon } from './SearchIcon';
 
 const renderItem: ItemRenderer<SearchItem> = (
     field,
@@ -35,7 +44,7 @@ const renderItem: ItemRenderer<SearchItem> = (
             key={getSearchResultId(field.meta)}
             selected={modifiers.active}
             disabled={modifiers.disabled}
-            icon={field.icon}
+            icon={<SearchIcon item={field} color={Colors.GRAY1} />}
             text={
                 <ResultContent>
                     <FirstLine>
