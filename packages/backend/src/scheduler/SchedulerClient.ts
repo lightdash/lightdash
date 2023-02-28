@@ -66,7 +66,7 @@ export class SchedulerClient {
         const scheduledJobs = await graphileClient.withPgClient((pgClient) =>
             pgClient.query(
                 "select id, run_at from graphile_worker.jobs where payload->>'schedulerUuid' = $1",
-                [`${schedulerUuid}%`],
+                [schedulerUuid],
             ),
         );
         return scheduledJobs.rows.map((r) => ({
@@ -77,23 +77,15 @@ export class SchedulerClient {
 
     async deleteScheduledJobs(schedulerUuid: string): Promise<void> {
         const graphileClient = await this.graphileUtils;
-        console.log('here');
-        const deletedJobs = await graphileClient.withPgClient((pgClient) =>
-            pgClient.query<{
-                id: string;
-            }>(
-                `select id from graphile_worker.jobs where payload->>'schedulerUuid' = $1`,
-                [`${schedulerUuid}%`],
-            ),
-        );
+        const jobsToDelete = await this.getScheduledJobs(schedulerUuid);
         Logger.info(
-            `Deleting ${deletedJobs.rows.length} notification scheduled jobs: ${schedulerUuid}`,
+            `Deleting ${jobsToDelete.length} scheduled delivery jobs for scheduler ${schedulerUuid}`,
         );
-        const deletedJobIds = deletedJobs.rows.map((r) => r.id);
+        const jobIdsToDelete = jobsToDelete.map((r) => r.id);
 
-        await graphileClient.completeJobs(deletedJobIds);
+        await graphileClient.completeJobs(jobIdsToDelete);
 
-        deletedJobs.rows.forEach(({ id }) => {
+        jobsToDelete.forEach(({ id }) => {
             analytics.track({
                 event: 'scheduler_job.deleted',
                 anonymousId: LightdashAnalytics.anonymousId,
