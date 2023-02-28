@@ -92,17 +92,21 @@ const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
                 enableSorting: false,
                 defaultColumnVisibility: { space: false },
             }}
-            headerProps={{
-                action:
-                    recentItems.length === 0 ? (
-                        <AnchorButton
-                            text="Learn"
-                            minimal
-                            target="_blank"
-                            href="https://docs.lightdash.com/get-started/exploring-data/intro"
-                        />
-                    ) : undefined,
-            }}
+            headerProps={
+                recentItems.length === 0
+                    ? {
+                          title: 'Charts and Dashboards',
+                          action: (
+                              <AnchorButton
+                                  text="Learn"
+                                  minimal
+                                  target="_blank"
+                                  href="https://docs.lightdash.com/get-started/exploring-data/intro"
+                              />
+                          ),
+                      }
+                    : undefined
+            }
             emptyStateProps={{
                 icon: <IconChartBar size={30} />,
                 title: 'Feels a little bit empty over here...',
