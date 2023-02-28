@@ -1,3 +1,10 @@
+# [0.435.0](https://github.com/lightdash/lightdash/compare/0.434.0...0.435.0) (2023-02-28)
+
+
+### Features
+
+* generate image/csv once per scheduled delivery job ([#4625](https://github.com/lightdash/lightdash/issues/4625)) ([18e166b](https://github.com/lightdash/lightdash/commit/18e166b3bb8282680c9fe8719281397ab2fb59a5))
+
 # [0.434.0](https://github.com/lightdash/lightdash/compare/0.433.8...0.434.0) (2023-02-28)
 
 
