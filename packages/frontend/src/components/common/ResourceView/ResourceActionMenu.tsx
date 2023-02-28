@@ -73,16 +73,16 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
 
     return (
         <Menu
+            withinPortal
             opened={isOpen}
-            shadow="md"
             position="bottom-start"
             withArrow
-            onClose={onClose}
             arrowPosition="center"
+            shadow="md"
+            offset={-4}
             closeOnItemClick
             closeOnClickOutside
-            offset={-4}
-            withinPortal
+            onClose={onClose}
         >
             <Menu.Target>
                 <Box onClick={isOpen ? onClose : onOpen}>
@@ -177,12 +177,12 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                         <Menu.Divider />
 
                         <Menu
-                            shadow="md"
-                            position="right-start"
+                            withinPortal
                             trigger="hover"
                             offset={0}
+                            position="right-start"
+                            shadow="md"
                             closeOnItemClick
-                            withinPortal
                         >
                             <Menu.Target>
                                 <Menu.Item
