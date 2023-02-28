@@ -66,11 +66,10 @@
       /* -------------------------------------
 HEADER, FOOTER, MAIN
 ------------------------------------- */
-
-      .logo {
-          margin: 10px 0;
-          width: 116px;
-          height: 25px;
+      img {
+          border: none;
+          -ms-interpolation-mode: bicubic;
+          max-width: 100%;
       }
 
       .miniature-logo {
@@ -112,12 +111,21 @@ HEADER, FOOTER, MAIN
       }
 
       .footer {
+          clear: both;
           margin-top: 40px;
           padding-top: 25px;
           text-align: center;
           width: 100%;
           border-top: 1px solid rgba(0, 0, 0, 0.1);
-          color: #5f6b7c;
+      }
+
+      .footer td,
+      .footer p,
+      .footer span,
+      .footer a {
+          color: #999999;
+          font-size: 12px;
+          text-align: center;
       }
 
       /* -------------------------------------
@@ -219,6 +227,12 @@ OTHER STYLES THAT MIGHT BE USEFUL
 
       .align-left {
           text-align: left;
+      }
+
+      .social {
+          width: 20px;
+          height: 20px;
+          margin: 0 10px 0 10px;
       }
 
       hr {
@@ -385,7 +399,6 @@ PRESERVE THESE STYLES IN THE HEAD
                 </tr>
                 <tr>
                   <td>
-                    <!-- START FOOTER -->
                     <div class="footer">
                       <table
                         role="presentation"
@@ -398,32 +411,82 @@ PRESERVE THESE STYLES IN THE HEAD
                             class="content-block"
                           >
                             <a
-                            >Scheduled
-                              delivery:</a
+                              href="https://twitter.com/lightdash_devs"
                             >
-                            {{frequency}}
+                              <img
+                                alt="twitter"
+                                class="social"
+                                src="{{host}}/twitter.png"
+                              /></a>
+                            <a
+                              href="https://github.com/lightdash/lightdash"
+                            >
+                              <img
+                                alt="github"
+                                class="social"
+                                src="{{host}}/github.png"
+                              /></a>
+                            <a
+                              href="https://www.linkedin.com/company/lightdash"
+                            >
+                              <img
+                                alt="linkedin"
+                                class="social"
+                                src="{{host}}/linkedin.png"
+                              /></a>
                           </td>
                         </tr>
                         <tr>
                           <td
                             class="content-block powered-by"
                           >
-                            Powered by:
-                            <br />
                             <a
-                              href="https://www.lightdash.com/"
+                              href="https://lightdash.com"
+                            >lightdash.com</a
                             >
-                              <img
-                                class="logo"
-                                alt="logo"
-                                src="{{host}}/lightdash-logo.png"
-                              />
-                            </a>
                           </td>
                         </tr>
                       </table>
                     </div>
-                    <!-- END FOOTER -->
+                    <!--                    &lt;!&ndash; START FOOTER &ndash;&gt;-->
+                    <!--                    <div class="footer">-->
+                    <!--                      <table-->
+                    <!--                        role="presentation"-->
+                    <!--                        border="0"-->
+                    <!--                        cellpadding="0"-->
+                    <!--                        cellspacing="0"-->
+                    <!--                      >-->
+                    <!--                        <tr>-->
+                    <!--                          <td-->
+                    <!--                            class="content-block"-->
+                    <!--                          >-->
+                    <!--                            <a-->
+                    <!--                            >Scheduled-->
+                    <!--                              delivery:</a-->
+                    <!--                            >-->
+                    <!--                            {{frequency}}-->
+                    <!--                          </td>-->
+                    <!--                        </tr>-->
+                    <!--                        <tr>-->
+                    <!--                          <td-->
+                    <!--                            class="content-block powered-by"-->
+                    <!--                          >-->
+                    <!--                            Powered by:-->
+                    <!--                            <br />-->
+                    <!--                            <a-->
+                    <!--                              href="https://www.lightdash.com/"-->
+                    <!--                            >-->
+                    <!--                              <img-->
+                    <!--                                class="logo"-->
+                    <!--                                alt="logo"-->
+                    <!--                                src="{{host}}/lightdash-logo.png"-->
+                    <!--                              />-->
+                    <!--                            </a>-->
+                    <!--                          </td>-->
+                    <!--                        </tr>-->
+                    <!--                      </table>-->
+                    <!--                    </div>-->
+                    <!--                    &lt;!&ndash; END FOOTER &ndash;&gt;-->
                   </td>
                 </tr>
               </table>
