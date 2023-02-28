@@ -1,4 +1,11 @@
-import { Button, Classes, KeyCombo, Spinner, Tag } from '@blueprintjs/core';
+import {
+    Button,
+    Classes,
+    Colors,
+    KeyCombo,
+    Spinner,
+    Tag,
+} from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import { ItemPredicate, ItemRenderer } from '@blueprintjs/select';
 import { getSearchResultId } from '@lightdash/common';
@@ -36,7 +43,7 @@ const renderItem: ItemRenderer<SearchItem> = (
             key={getSearchResultId(field.meta)}
             selected={modifiers.active}
             disabled={modifiers.disabled}
-            icon={<FieldIcon item={field} />}
+            icon={<FieldIcon item={field} color={Colors.GRAY1} />}
             text={
                 <ResultContent>
                     <FirstLine>
