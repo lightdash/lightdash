@@ -111,12 +111,12 @@ export class SchedulerClient {
     ): Promise<void> {
         const graphileClient = await this.graphileUtils;
 
-        const notification: ScheduledDeliveryPayload = {
+        const payload: ScheduledDeliveryPayload = {
             schedulerUuid: scheduler.schedulerUuid,
         };
         const { id } = await graphileClient.addJob(
             'handleScheduledDelivery',
-            notification,
+            payload,
             {
                 runAt: date,
                 maxAttempts: 3,
@@ -140,26 +140,23 @@ export class SchedulerClient {
     ): Promise<void> {
         const graphileClient = await this.graphileUtils;
 
-        const baseNotification: NotificationPayloadBase = {
-            schedulerUuid: scheduler.schedulerUuid,
-            page,
-        };
-        const notification:
-            | SlackNotificationPayload
-            | EmailNotificationPayload = isSlackTarget(target)
-            ? {
-                  ...baseNotification,
-                  schedulerSlackTargetUuid: target.schedulerSlackTargetUuid,
-              }
-            : {
-                  ...baseNotification,
-                  schedulerEmailTargetUuid: target.schedulerEmailTargetUuid,
-              };
+        const payload: SlackNotificationPayload | EmailNotificationPayload =
+            isSlackTarget(target)
+                ? {
+                      schedulerUuid: scheduler.schedulerUuid,
+                      page,
+                      schedulerSlackTargetUuid: target.schedulerSlackTargetUuid,
+                  }
+                : {
+                      schedulerUuid: scheduler.schedulerUuid,
+                      page,
+                      schedulerEmailTargetUuid: target.schedulerEmailTargetUuid,
+                  };
         const { id } = await graphileClient.addJob(
             isSlackTarget(target)
                 ? 'sendSlackNotification'
                 : 'sendEmailNotification',
-            notification,
+            payload,
             {
                 runAt: date,
                 maxAttempts: 3,
