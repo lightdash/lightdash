@@ -1,6 +1,6 @@
 import { WeekDay } from '../utils/timeFrames';
 import { DimensionType, Metric } from './field';
-import { CreateWarehouseCredentials } from './warehouseCredentials';
+import { CreateWarehouseCredentials } from './projects';
 
 export type WarehouseTableSchema = {
     [column: string]: DimensionType;

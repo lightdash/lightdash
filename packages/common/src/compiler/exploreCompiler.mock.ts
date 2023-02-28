@@ -2,8 +2,8 @@ import { SupportedDbtAdapter } from '../types/dbt';
 import { Explore, Table } from '../types/explore';
 import { DimensionType, FieldType, MetricType, Source } from '../types/field';
 import { FilterOperator } from '../types/filter';
+import { CreateWarehouseCredentials } from '../types/projects';
 import { WarehouseClient } from '../types/warehouse';
-import { CreateWarehouseCredentials } from '../types/warehouseCredentials';
 import { UncompiledExplore } from './exploreCompiler';
 
 export const warehouseClientMock: WarehouseClient = {
