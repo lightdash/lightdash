@@ -190,7 +190,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                     role="menuitem"
                                     icon={<IconFolders size={18} />}
                                     rightSection={
-                                        <Box w={18} h={18}>
+                                        <Box w={18} h={18} ml="lg">
                                             <IconChevronRight size={18} />
                                         </Box>
                                     }
