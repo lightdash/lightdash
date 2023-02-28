@@ -1,3 +1,10 @@
+## [0.435.2](https://github.com/lightdash/lightdash/compare/0.435.1...0.435.2) (2023-02-28)
+
+
+### Bug Fixes
+
+* scheduled emails layout ([#4618](https://github.com/lightdash/lightdash/issues/4618)) ([2714739](https://github.com/lightdash/lightdash/commit/2714739f009699d354388b2c70cfa0f5007a7066))
+
 ## [0.435.1](https://github.com/lightdash/lightdash/compare/0.435.0...0.435.1) (2023-02-28)
 
 
