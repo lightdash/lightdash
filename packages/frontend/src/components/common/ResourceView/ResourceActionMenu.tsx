@@ -77,6 +77,8 @@ const ResourceViewItemActionMenu: FC<ResourceViewItemActionMenuProps> = ({
             withArrow
             withinPortal
             onClose={() => onToggle()}
+            arrowOffset={9}
+            offset={-4}
         >
             <Menu.Target>
                 <Box onClick={onToggle}>
