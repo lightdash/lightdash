@@ -65,7 +65,7 @@ export class SchedulerClient {
 
         const scheduledJobs = await graphileClient.withPgClient((pgClient) =>
             pgClient.query(
-                "select id, run_at from graphile_worker.jobs where payload->>'schedulerUuid' IS $1",
+                "select id, run_at from graphile_worker.jobs where payload->>'schedulerUuid' = $1",
                 [`${schedulerUuid}%`],
             ),
         );
@@ -77,12 +77,12 @@ export class SchedulerClient {
 
     async deleteScheduledJobs(schedulerUuid: string): Promise<void> {
         const graphileClient = await this.graphileUtils;
-
+        console.log('here');
         const deletedJobs = await graphileClient.withPgClient((pgClient) =>
             pgClient.query<{
                 id: string;
             }>(
-                `select id from graphile_worker.jobs where payload->>'schedulerUuid' IS $1`,
+                `select id from graphile_worker.jobs where payload->>'schedulerUuid' = $1`,
                 [`${schedulerUuid}%`],
             ),
         );
