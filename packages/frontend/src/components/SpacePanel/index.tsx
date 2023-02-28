@@ -18,7 +18,6 @@ import {
     ResourceViewItemType,
     wrapResourceView,
 } from '../common/ResourceView/resourceTypeUtils';
-import { SortDirection } from '../common/ResourceView/ResourceViewList';
 import ShareSpaceModal from '../common/ShareSpaceModal';
 import SpaceActionModal, { ActionType } from '../common/SpaceActionModal';
 import AddResourceToSpaceMenu from '../Explorer/SpaceBrowser/AddResourceToSpaceMenu';
@@ -77,7 +76,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
     );
 
     return (
-        <Stack spacing="xl" w={960}>
+        <Stack spacing="xl" w={900}>
             <PageHeader>
                 <PageBreadcrumbsWrapper>
                     <Breadcrumbs2
@@ -154,10 +153,12 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
 
             <ResourceView
                 items={allItems}
-                defaultColumnVisibility={{ space: false }}
-                headerTitle="All items"
-                headerAction={
-                    !isDemo && (
+                listProps={{
+                    defaultColumnVisibility: { space: false },
+                }}
+                headerProps={{
+                    title: 'All items',
+                    action: !isDemo && (
                         <Popover2
                             captureDismiss
                             position={PopoverPosition.BOTTOM_RIGHT}
@@ -224,8 +225,8 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                         >
                             <Button icon="plus" intent="primary" />
                         </Popover2>
-                    )
-                }
+                    ),
+                }}
                 emptyStateProps={{
                     icon: <IconLayoutDashboard size={30} />,
                     title: 'No items added yet',

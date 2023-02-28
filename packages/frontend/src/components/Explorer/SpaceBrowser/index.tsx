@@ -37,26 +37,28 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
             <ResourceView
                 view={ResourceViewType.GRID}
                 items={wrapResourceView(spaces, ResourceViewItemType.SPACE)}
-                headerTitle="Spaces"
-                headerAction={
-                    spaces.length === 0 ? (
-                        <AnchorButton
-                            text="Learn"
-                            minimal
-                            target="_blank"
-                            href="https://docs.lightdash.com/guides/spaces/"
-                        />
-                    ) : !isDemo && userCanManageSpace ? (
-                        <Button
-                            minimal
-                            intent="primary"
-                            icon="plus"
-                            onClick={handleCreateSpace}
-                        >
-                            Create new
-                        </Button>
-                    ) : null
-                }
+                headerProps={{
+                    title: 'Spaces',
+
+                    action:
+                        spaces.length === 0 ? (
+                            <AnchorButton
+                                text="Learn"
+                                minimal
+                                target="_blank"
+                                href="https://docs.lightdash.com/guides/spaces/"
+                            />
+                        ) : !isDemo && userCanManageSpace ? (
+                            <Button
+                                minimal
+                                intent="primary"
+                                icon="plus"
+                                onClick={handleCreateSpace}
+                            >
+                                Create new
+                            </Button>
+                        ) : null,
+                }}
                 emptyStateProps={{
                     icon: <IconFolders size={30} />,
                     title: 'No spaces added yet',

@@ -12,14 +12,16 @@ import ResourceViewGridChartItem from './ResourceViewGridChartItem';
 import ResourceViewGridDashboardItem from './ResourceViewGridDashboardItem';
 import ResourceViewGridSpaceItem from './ResourceViewGridSpaceItem';
 
-type ResourceViewListProps = Pick<
-    ResourceViewCommonProps,
-    'items' | 'groups'
-> & {
-    onAction: (newAction: ResourceViewItemActionState) => void;
-};
+export interface ResourceViewGridCommonProps {
+    groups?: ResourceViewItemType[][];
+}
 
-const ResourceViewList: FC<ResourceViewListProps> = ({
+type ResourceViewGridProps = ResourceViewGridCommonProps &
+    Pick<ResourceViewCommonProps, 'items'> & {
+        onAction: (newAction: ResourceViewItemActionState) => void;
+    };
+
+const ResourceViewGrid: FC<ResourceViewGridProps> = ({
     items,
     groups = [
         [
@@ -140,4 +142,4 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
     );
 };
 
-export default ResourceViewList;
+export default ResourceViewGrid;

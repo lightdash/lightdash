@@ -18,8 +18,10 @@ import ResourceActionHandlers, {
 import ResourceEmptyState, {
     ResourceEmptyStateProps,
 } from './ResourceEmptyState';
-import { ResourceViewItem, ResourceViewItemType } from './resourceTypeUtils';
-import ResourceViewGrid from './ResourceViewGrid';
+import { ResourceViewItem } from './resourceTypeUtils';
+import ResourceViewGrid, {
+    ResourceViewGridCommonProps,
+} from './ResourceViewGrid';
 import ResourceViewList, {
     ResourceViewListCommonProps,
 } from './ResourceViewList';
@@ -31,16 +33,17 @@ type TabType = {
     sort?: (a: ResourceViewItem, b: ResourceViewItem) => number;
 };
 
-type GroupType = ResourceViewItemType[];
+interface ResourceHeaderProps {
+    title?: string;
+    description?: string;
+    action?: React.ReactNode;
+}
 
 export interface ResourceViewCommonProps {
-    headerTitle?: string;
-    headerDescription?: string;
-    headerAction?: React.ReactNode;
     items: ResourceViewItem[];
     tabs?: TabType[];
-    groups?: GroupType[];
     maxItems?: number;
+    headerProps?: ResourceHeaderProps;
     emptyStateProps?: ResourceEmptyStateProps;
     view?: ResourceViewType;
 }
@@ -50,22 +53,20 @@ export enum ResourceViewType {
     GRID = 'grid',
 }
 
-type ResourceViewProps = ResourceViewCommonProps & ResourceViewListCommonProps;
+interface ResourceViewProps extends ResourceViewCommonProps {
+    listProps?: ResourceViewListCommonProps;
+    gridProps?: ResourceViewGridCommonProps;
+}
 
 const ResourceView: React.FC<ResourceViewProps> = ({
     view = ResourceViewType.LIST,
     items,
-    tabs,
-    groups,
-    headerTitle,
-    headerDescription,
-    headerAction,
-    enableSorting,
-    enableMultiSort,
-    defaultSort,
-    defaultColumnVisibility,
     maxItems,
-    emptyStateProps,
+    tabs,
+    gridProps = {},
+    listProps = {},
+    headerProps = {},
+    emptyStateProps = {},
 }) => {
     const theme = useMantineTheme();
 
@@ -101,9 +102,9 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                   defaultSort: undefined,
               }
             : {
-                  enableSorting,
-                  enableMultiSort,
-                  defaultSort,
+                  enableSorting: listProps.enableSorting,
+                  enableMultiSort: listProps.enableMultiSort,
+                  defaultSort: listProps.defaultSort,
               };
 
     return (
@@ -127,20 +128,20 @@ const ResourceView: React.FC<ResourceViewProps> = ({
             ) : null}
 
             <Paper withBorder sx={{ overflow: 'hidden' }}>
-                {headerTitle || headerAction ? (
+                {headerProps?.title || headerProps?.action ? (
                     <>
                         <Group align="center" h={50} px="md" spacing="xs">
-                            {headerTitle && (
+                            {headerProps?.title ? (
                                 <Title order={5} fw={600}>
-                                    {headerTitle}
+                                    {headerProps.title}
                                 </Title>
-                            )}
+                            ) : null}
 
-                            {headerDescription && (
+                            {headerProps?.description ? (
                                 <Tooltip
                                     withArrow
-                                    label={headerDescription || ''}
-                                    disabled={!headerDescription}
+                                    label={headerProps.description || ''}
+                                    disabled={!headerProps.description}
                                     position="right"
                                 >
                                     <IconInfoCircle
@@ -148,9 +149,9 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                                         size={18}
                                     />
                                 </Tooltip>
-                            )}
+                            ) : null}
 
-                            <Box ml="auto">{headerAction}</Box>
+                            <Box ml="auto">{headerProps.action}</Box>
                         </Group>
 
                         <Divider color="gray.3" />
@@ -163,13 +164,15 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                     <ResourceViewList
                         items={slicedSortedItems}
                         {...sortProps}
-                        defaultColumnVisibility={defaultColumnVisibility}
+                        defaultColumnVisibility={
+                            listProps.defaultColumnVisibility
+                        }
                         onAction={handleAction}
                     />
                 ) : view === ResourceViewType.GRID ? (
                     <ResourceViewGrid
                         items={slicedSortedItems}
-                        groups={groups}
+                        groups={gridProps.groups}
                         onAction={handleAction}
                     />
                 ) : (

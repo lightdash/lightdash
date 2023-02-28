@@ -36,7 +36,7 @@ const Spaces: FC = () => {
                 <title>Spaces - Lightdash</title>
             </Helmet>
 
-            <Stack spacing="xl" w={960}>
+            <Stack spacing="xl" w={900}>
                 <PageHeader>
                     <PageBreadcrumbsWrapper>
                         <Breadcrumbs2

@@ -54,7 +54,7 @@ const SavedQueries: FC = () => {
                 <title>Saved charts - Lightdash</title>
             </Helmet>
 
-            <Stack spacing="xl" w={960}>
+            <Stack spacing="xl" w={900}>
                 <PageHeader>
                     <PageBreadcrumbsWrapper>
                         <Breadcrumbs2
@@ -90,7 +90,9 @@ const SavedQueries: FC = () => {
                         savedQueries,
                         ResourceViewItemType.CHART,
                     )}
-                    defaultSort={{ updatedAt: SortDirection.DESC }}
+                    listProps={{
+                        defaultSort: { updatedAt: SortDirection.DESC },
+                    }}
                     emptyStateProps={{
                         icon: <IconChartBar size={30} />,
                         title: 'No charts added yet',

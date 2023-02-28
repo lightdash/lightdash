@@ -51,7 +51,7 @@ const Home: FC = () => {
 
     return (
         <Page>
-            <Stack spacing="xl" w={960}>
+            <Stack spacing="xl" w={900}>
                 {!onboarding.data.ranQuery ? (
                     <OnboardingPanel
                         projectUuid={project.data.projectUuid}

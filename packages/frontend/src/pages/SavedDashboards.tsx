@@ -80,7 +80,7 @@ const SavedDashboards = () => {
                 <title>Dashboards - Lightdash</title>
             </Helmet>
 
-            <Stack spacing="xl" w={960}>
+            <Stack spacing="xl" w={900}>
                 <PageHeader>
                     <PageBreadcrumbsWrapper>
                         <Breadcrumbs2
@@ -142,7 +142,9 @@ const SavedDashboards = () => {
                         dashboards,
                         ResourceViewItemType.DASHBOARD,
                     )}
-                    defaultSort={{ updatedAt: SortDirection.DESC }}
+                    listProps={{
+                        defaultSort: { updatedAt: SortDirection.DESC },
+                    }}
                     emptyStateProps={{
                         icon: <IconLayoutDashboard size={30} />,
                         title: 'No dashboards added yet',
