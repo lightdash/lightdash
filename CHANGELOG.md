@@ -1,3 +1,10 @@
+## [0.433.5](https://github.com/lightdash/lightdash/compare/0.433.4...0.433.5) (2023-02-28)
+
+
+### Bug Fixes
+
+* styling changes to scheduled deliveries ([#4608](https://github.com/lightdash/lightdash/issues/4608)) ([5cb744f](https://github.com/lightdash/lightdash/commit/5cb744fe7894a3b0fa12022721917bd0674e03d6))
+
 ## [0.433.4](https://github.com/lightdash/lightdash/compare/0.433.3...0.433.4) (2023-02-27)
 
 
