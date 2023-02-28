@@ -1,3 +1,10 @@
+## [0.433.6](https://github.com/lightdash/lightdash/compare/0.433.5...0.433.6) (2023-02-28)
+
+
+### Bug Fixes
+
+* override cache-control on express root ([#4621](https://github.com/lightdash/lightdash/issues/4621)) ([b13f21b](https://github.com/lightdash/lightdash/commit/b13f21b99eff3ec4682c8451f5fe17077d97bf2f))
+
 ## [0.433.5](https://github.com/lightdash/lightdash/compare/0.433.4...0.433.5) (2023-02-28)
 
 
