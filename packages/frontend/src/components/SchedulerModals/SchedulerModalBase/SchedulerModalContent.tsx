@@ -100,7 +100,7 @@ const CreateStateContent: FC<{
                             loading={createMutation.isLoading}
                             onClick={methods.handleSubmit(handleSubmit)}
                         >
-                            Create new
+                            Create schedule
                         </Button>
                     </>
                 }

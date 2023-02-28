@@ -1,12 +1,6 @@
-import {
-    Button,
-    Dialog,
-    DialogBody,
-    DialogFooter,
-    NonIdealState,
-    Spinner,
-} from '@blueprintjs/core';
+import { Dialog } from '@blueprintjs/core';
 import React, { FC } from 'react';
+import { ModalTitle } from './SchedulerModalBase.styles';
 import SchedulersModalContent from './SchedulerModalContent';
 
 const SchedulersModalBase: FC<
@@ -22,9 +16,9 @@ const SchedulersModalBase: FC<
         <Dialog
             lazy
             title={
-                <>
-                    Scheduled deliveries for <b>"{name}"</b>
-                </>
+                <ModalTitle>
+                    Scheduled deliveries <b>"{name}"</b>
+                </ModalTitle>
             }
             icon="send-message"
             style={{
