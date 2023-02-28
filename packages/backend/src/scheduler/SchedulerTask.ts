@@ -314,6 +314,8 @@ export const sendEmailNotification = async (
                 name,
                 details.name,
                 details.description || '',
+                new Date().toLocaleDateString('en-GB'),
+                getHumanReadableCronExpression(scheduler.cron),
                 imageUrl,
                 url,
             );
