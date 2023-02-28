@@ -1,4 +1,4 @@
-import { Colors } from '@blueprintjs/core';
+import { Card, Colors } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
 
 export const UserAnalyticsPageHeader = styled.div`
