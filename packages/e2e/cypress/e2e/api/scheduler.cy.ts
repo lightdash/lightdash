@@ -86,9 +86,6 @@ describe('Lightdash scheduler endpoints', () => {
                         failOnStatusCode: false,
                     }).then((response) => {
                         expect(response.body.results).to.be.length(1);
-                        expect(response.body.results[0].date).to.be.eq(
-                            response.body.results[1].date,
-                        );
                         expect(
                             `${response.body.results[0].date}`.split('T')[1],
                         ).to.be.eq('23:59:00.000Z');
@@ -180,9 +177,6 @@ describe('Lightdash scheduler endpoints', () => {
                         failOnStatusCode: false,
                     }).then((response) => {
                         expect(response.body.results).to.be.length(1);
-                        expect(response.body.results[0].date).to.be.eq(
-                            response.body.results[1].date,
-                        );
                         expect(
                             `${response.body.results[0].date}`.split('T')[1],
                         ).to.be.eq('23:59:00.000Z');
