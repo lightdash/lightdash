@@ -30,6 +30,7 @@ import {
     useDebouncedSearch,
     useGlobalSearchHotKeys,
 } from './hooks';
+import { SearchIcon } from './SearchIcon';
 
 const renderItem: ItemRenderer<SearchItem> = (
     field,
@@ -43,7 +44,7 @@ const renderItem: ItemRenderer<SearchItem> = (
             key={getSearchResultId(field.meta)}
             selected={modifiers.active}
             disabled={modifiers.disabled}
-            icon={<FieldIcon item={field} color={Colors.GRAY1} />}
+            icon={<SearchIcon item={field} color={Colors.GRAY1} />}
             text={
                 <ResultContent>
                     <FirstLine>

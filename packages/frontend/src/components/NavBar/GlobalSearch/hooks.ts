@@ -1,4 +1,4 @@
-import { HotkeyConfig, IconName, useHotkeys } from '@blueprintjs/core';
+import { HotkeyConfig, useHotkeys } from '@blueprintjs/core';
 import { ChartType, fieldId, FieldType, SearchResult } from '@lightdash/common';
 import { useMemo, useState } from 'react';
 import { useDebounce } from 'react-use';
@@ -6,7 +6,6 @@ import useGlobalSearch from '../../../hooks/globalSearch/useGlobalSearch';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
-import { getItemIconName } from '../../Explorer/ExploreTree/TableTree/Tree/TreeSingleNode';
 
 export type SearchItem = {
     type: 'space' | 'dashboard' | 'saved_chart' | 'table' | 'field' | 'page';
@@ -19,7 +18,6 @@ export type SearchItem = {
         | 'Dimension'
         | 'Metric'
         | 'Page';
-    icon: IconName;
     name: string;
     prefix?: string;
     description?: string;
@@ -77,7 +75,6 @@ export const useDebouncedSearch = (
             data?.spaces.map<SearchItem>((item) => ({
                 type: 'space',
                 typeLabel: 'Space',
-                icon: 'folder-close',
                 name: item.name,
                 meta: item,
                 location: {
@@ -89,7 +86,6 @@ export const useDebouncedSearch = (
             data?.dashboards.map<SearchItem>((item) => ({
                 type: 'dashboard',
                 typeLabel: 'Dashboard',
-                icon: 'control',
                 name: item.name,
                 description: item.description,
                 meta: item,
@@ -116,7 +112,6 @@ export const useDebouncedSearch = (
                 type: 'table',
                 typeLabel:
                     item.name === item.explore ? 'Table' : 'Joined table',
-                icon: 'th',
                 prefix:
                     item.name === item.explore
                         ? undefined
@@ -167,7 +162,6 @@ export const useDebouncedSearch = (
                         item.fieldType === FieldType.DIMENSION
                             ? 'Dimension'
                             : 'Metric',
-                    icon: getItemIconName(item.type),
                     prefix:
                         item.table === item.explore
                             ? `${item.tableLabel} - `
@@ -183,7 +177,6 @@ export const useDebouncedSearch = (
             data?.pages.map<SearchItem>((item) => ({
                 type: 'page',
                 typeLabel: 'Page',
-                icon: 'application',
                 name: item.name,
                 meta: item,
                 location: {

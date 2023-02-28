@@ -1,4 +1,3 @@
-import { Icon } from '@blueprintjs/core';
 import {
     AdditionalMetric,
     Field,
@@ -12,18 +11,9 @@ import {
 import {
     Icon123,
     IconAbc,
-    IconAlphabetLatin,
-    IconAppWindow,
     IconCalendar,
-    IconChartAreaLine,
     IconClockHour4,
-    IconFolder,
-    IconFunction,
-    IconLayoutDashboard,
-    IconLetterCase,
     IconMathFunction,
-    IconQuote,
-    IconTable,
     IconTag,
     IconToggleLeft,
 } from '@tabler/icons-react';
@@ -31,35 +21,15 @@ import { CSSProperties, FC } from 'react';
 import { getItemIconName } from '../../Explorer/ExploreTree/TableTree/Tree/TreeSingleNode';
 import { SearchItem } from '../../NavBar/GlobalSearch/hooks';
 
-const getFieldIcon = (
-    field: Field | TableCalculation | AdditionalMetric | SearchItem,
-) => {
+const getFieldIcon = (field: Field | TableCalculation | AdditionalMetric) => {
     if (isField(field) && (isDimension(field) || isMetric(field))) {
         return getItemIconName(field.type);
-    }
-    if (typeof field === SearchItem) {
-        switch (field.type) {
-            case 'dashboard':
-                return 'dashboard';
-            case 'saved_chart':
-                return 'chart';
-            case 'space':
-                return 'space';
-            case 'table':
-                return 'table';
-            case 'page':
-                return 'page';
-            case 'field':
-                return field.typeLabel.toLowerCase() === 'dimension'
-                    ? 'citation'
-                    : 'numerical';
-        }
     }
     return getItemIcon(field);
 };
 
 const FieldIcon: FC<{
-    item: Field | TableCalculation | AdditionalMetric | SearchItem;
+    item: Field | TableCalculation | AdditionalMetric;
     color?: string | undefined;
     size?: number | undefined;
     style?: CSSProperties | undefined;
@@ -102,38 +72,6 @@ const FieldIcon: FC<{
             );
         case 'tag':
             return <IconTag color={iconColor} size={iconSize} style={style} />;
-        case 'dashboard':
-            return (
-                <IconLayoutDashboard
-                    color={iconColor}
-                    size={iconSize}
-                    style={style}
-                />
-            );
-        case 'chart':
-            return (
-                <IconChartAreaLine
-                    color={iconColor}
-                    size={iconSize}
-                    style={style}
-                />
-            );
-        case 'space':
-            return (
-                <IconFolder color={iconColor} size={iconSize} style={style} />
-            );
-        case 'table':
-            return (
-                <IconTable color={iconColor} size={iconSize} style={style} />
-            );
-        case 'page':
-            return (
-                <IconAppWindow
-                    color={iconColor}
-                    size={iconSize}
-                    style={style}
-                />
-            );
     }
 };
 
