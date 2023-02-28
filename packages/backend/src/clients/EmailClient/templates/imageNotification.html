@@ -1,14 +1,17 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css?family=Roboto"
+    rel="stylesheet"
+  />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
   <title>Simple Transactional Email</title>
   <style>
       /* -------------------------------------
-      GLOBAL RESETS
-  ------------------------------------- */
+GLOBAL RESETS
+------------------------------------- */
 
       /*All the styling goes here*/
 
@@ -44,8 +47,8 @@
       }
 
       /* -------------------------------------
-      BODY & CONTAINER
-  ------------------------------------- */
+BODY & CONTAINER
+------------------------------------- */
 
       .body {
           background-color: #e5e8eb;
@@ -73,8 +76,8 @@
       }
 
       /* -------------------------------------
-      HEADER, FOOTER, MAIN
-  ------------------------------------- */
+HEADER, FOOTER, MAIN
+------------------------------------- */
 
       .logo {
           margin: 10px 0;
@@ -103,7 +106,6 @@
           box-sizing: border-box;
           padding: 64px;
           padding-bottom: 20px;
-
       }
 
       .header {
@@ -145,8 +147,8 @@
       }
 
       /* -------------------------------------
-      TYPOGRAPHY
-  ------------------------------------- */
+TYPOGRAPHY
+------------------------------------- */
       h1,
       h2,
       h3,
@@ -191,8 +193,8 @@
       }
 
       /* -------------------------------------
-      BUTTONS
-  ------------------------------------- */
+BUTTONS
+------------------------------------- */
       .btn {
           box-sizing: border-box;
           width: 100%;
@@ -257,13 +259,14 @@
           border-radius: 4px;
       }
 
-      .chart, .dashboard {
+      .chart,
+      .dashboard {
           padding: 20px;
       }
 
       /* -------------------------------------
-      OTHER STYLES THAT MIGHT BE USEFUL
-  ------------------------------------- */
+OTHER STYLES THAT MIGHT BE USEFUL
+------------------------------------- */
       .last {
           margin-bottom: 0;
       }
@@ -320,8 +323,8 @@
       }
 
       /* -------------------------------------
-      RESPONSIVE AND MOBILE FRIENDLY STYLES
-  ------------------------------------- */
+RESPONSIVE AND MOBILE FRIENDLY STYLES
+------------------------------------- */
       @media only screen and (max-width: 620px) {
           table.body h1 {
               font-size: 28px !important;
@@ -373,8 +376,8 @@
       }
 
       /* -------------------------------------
-      PRESERVE THESE STYLES IN THE HEAD
-  ------------------------------------- */
+PRESERVE THESE STYLES IN THE HEAD
+------------------------------------- */
       @media all {
           .ExternalClass {
               width: 100%;
@@ -450,9 +453,10 @@
                 </th>
                 <tr>
                   <td>
-                    <p class="description">{{description}}</p>
+                    <p class="description">
+                      {{description}}
+                    </p>
                   </td>
-
                 </tr>
                 <tr>
                   <td>
@@ -468,11 +472,13 @@
 
                 <tr>
                   <td class="btn-container">
-                    <button href="{{url}}" class="btn-primary">
+                    <button
+                      href="{{url}}"
+                      class="btn-primary"
+                    >
                       View in Lightdash
                     </button>
                   </td>
-
                 </tr>
                 <tr>
                   <td>
@@ -488,7 +494,9 @@
                           <td
                             class="content-block"
                           >
-                            Scheduled delivery: {{frequency}}
+                            Scheduled
+                            delivery:
+                            {{frequency}}
                           </td>
                         </tr>
                         <tr>
@@ -496,7 +504,7 @@
                             class="content-block powered-by"
                           >
                             Powered by:
-                            <br>
+                            <br />
                             <a
                               href="https://www.lightdash.com/"
                             >
