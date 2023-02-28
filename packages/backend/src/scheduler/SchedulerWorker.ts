@@ -1,3 +1,4 @@
+import { ScheduledDeliveryPayload } from '@lightdash/common';
 import { getSchedule, stringToArray } from 'cron-converter';
 import {
     JobHelpers,
@@ -5,11 +6,17 @@ import {
     run as runGraphileWorker,
 } from 'graphile-worker';
 import moment from 'moment';
+import { analytics } from '../analytics/client';
+import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { schedulerClient } from '../clients/clients';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logger';
 import { schedulerService } from '../services/services';
-import { sendEmailNotification, sendSlackNotification } from './SchedulerTask';
+import {
+    getNotificationPageData,
+    sendEmailNotification,
+    sendSlackNotification,
+} from './SchedulerTask';
 
 type SchedulerWorkerDependencies = {
     lightdashConfig: LightdashConfig;
@@ -71,6 +78,53 @@ export class SchedulerWorker {
                         ),
                     );
                     await Promise.all(promises);
+                },
+                handleScheduledDelivery: async (
+                    payload: any,
+                    helpers: JobHelpers,
+                ) => {
+                    Logger.info(
+                        `Processing new job handleScheduledDelivery`,
+                        payload,
+                    );
+                    const { schedulerUuid } =
+                        payload as ScheduledDeliveryPayload;
+                    try {
+                        analytics.track({
+                            event: 'scheduler_job.started',
+                            anonymousId: LightdashAnalytics.anonymousId,
+                            properties: {
+                                jobId: helpers.job.id,
+                                schedulerId: schedulerUuid,
+                            },
+                        });
+                        const scheduler =
+                            await schedulerService.schedulerModel.getSchedulerAndTargets(
+                                schedulerUuid,
+                            );
+                        const page = await getNotificationPageData(scheduler);
+                        await schedulerClient.generateJobsForSchedulerTargets(
+                            scheduler,
+                            page,
+                        );
+                        analytics.track({
+                            event: 'scheduler_job.completed',
+                            anonymousId: LightdashAnalytics.anonymousId,
+                            properties: {
+                                jobId: helpers.job.id,
+                                schedulerId: schedulerUuid,
+                            },
+                        });
+                    } catch (e) {
+                        analytics.track({
+                            event: 'scheduler_job.failed',
+                            anonymousId: LightdashAnalytics.anonymousId,
+                            properties: {
+                                jobId: helpers.job.id,
+                                schedulerId: schedulerUuid,
+                            },
+                        });
+                    }
                 },
                 sendSlackNotification: async (
                     payload: any,

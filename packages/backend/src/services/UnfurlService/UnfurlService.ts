@@ -1,4 +1,8 @@
-import { assertUnreachable, AuthorizationError } from '@lightdash/common';
+import {
+    assertUnreachable,
+    AuthorizationError,
+    LightdashPage,
+} from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import fetch from 'node-fetch';
 import puppeteer from 'puppeteer';
@@ -21,12 +25,6 @@ const viewport = {
     width: 1400,
     height: 768,
 };
-
-export enum LightdashPage {
-    DASHBOARD = 'dashboard',
-    CHART = 'chart',
-    EXPLORE = 'explore',
-}
 
 export type Unfurl = {
     title: string;

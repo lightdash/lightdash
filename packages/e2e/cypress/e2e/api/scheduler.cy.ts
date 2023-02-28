@@ -16,6 +16,8 @@ const createSchedulerBody: CreateSchedulerAndTargetsWithoutIds = {
     name: 'test',
     cron,
     targets: [{ channel: 'C1' }, { channel: 'C2' }],
+    format: 'image',
+    options: {},
 };
 
 const getUpdateSchedulerBody = (
@@ -24,6 +26,8 @@ const getUpdateSchedulerBody = (
     name: 'test2',
     cron,
     targets: [{ schedulerSlackTargetUuid, channel: 'C1' }, { channel: 'C3' }],
+    format: 'image',
+    options: {},
 });
 
 describe('Lightdash scheduler endpoints', () => {
@@ -34,7 +38,13 @@ describe('Lightdash scheduler endpoints', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
         cy.request(`${apiUrl}/projects/${projectUuid}/spaces`).then(
             (projectResponse) => {
-                const savedChart = projectResponse.body.results[0].queries[0];
+                const savedChart = projectResponse.body.results
+                    .find((s) => s.name === SEED_PROJECT.name)
+                    .queries.find(
+                        (s) =>
+                            s.name ===
+                            'How much revenue do we have per payment method?',
+                    );
 
                 // Create
                 cy.request<{ results: SchedulerAndTargets }>({
@@ -75,11 +85,7 @@ describe('Lightdash scheduler endpoints', () => {
                         method: 'GET',
                         failOnStatusCode: false,
                     }).then((response) => {
-                        expect(response.body.results).to.be.length(2); // 1 per channel
-                        const channels = response.body.results.map(
-                            (r) => r.channel,
-                        );
-                        expect(channels).to.have.deep.members(['C1', 'C2']);
+                        expect(response.body.results).to.be.length(1);
                         expect(response.body.results[0].date).to.be.eq(
                             response.body.results[1].date,
                         );
@@ -143,7 +149,9 @@ describe('Lightdash scheduler endpoints', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
         cy.request(`${apiUrl}/projects/${projectUuid}/dashboards`).then(
             (projectResponse) => {
-                const dashboard = projectResponse.body.results[0];
+                const dashboard = projectResponse.body.results.find(
+                    (d) => d.name === 'Jaffle dashboard',
+                );
 
                 cy.request<{ results: SchedulerAndTargets }>({
                     url: `${apiUrl}/dashboards/${dashboard.uuid}/schedulers`,
@@ -171,11 +179,7 @@ describe('Lightdash scheduler endpoints', () => {
                         method: 'GET',
                         failOnStatusCode: false,
                     }).then((response) => {
-                        expect(response.body.results).to.be.length(2); // 1 per channel
-                        const channels = response.body.results.map(
-                            (r) => r.channel,
-                        );
-                        expect(channels).to.have.deep.members(['C1', 'C2']);
+                        expect(response.body.results).to.be.length(1);
                         expect(response.body.results[0].date).to.be.eq(
                             response.body.results[1].date,
                         );
