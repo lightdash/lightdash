@@ -1,3 +1,10 @@
+## [0.433.8](https://github.com/lightdash/lightdash/compare/0.433.7...0.433.8) (2023-02-28)
+
+
+### Bug Fixes
+
+* org members can get share urls ([#4627](https://github.com/lightdash/lightdash/issues/4627)) ([85042dd](https://github.com/lightdash/lightdash/commit/85042dd963ff4847aeeb430ce9739c145f5b9251))
+
 ## [0.433.7](https://github.com/lightdash/lightdash/compare/0.433.6...0.433.7) (2023-02-28)
 
 
