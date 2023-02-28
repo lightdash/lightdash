@@ -74,7 +74,9 @@ const SavedQueries: FC = () => {
                         />
                     </PageBreadcrumbsWrapper>
 
-                    {userCanManageCharts && !isDemo && savedQueries.length > 0 && (
+                    {savedQueries.length > 0 &&
+                    !isDemo &&
+                    userCanManageCharts ? (
                         <Button
                             icon="plus"
                             intent="primary"
@@ -82,7 +84,7 @@ const SavedQueries: FC = () => {
                         >
                             Create chart
                         </Button>
-                    )}
+                    ) : undefined}
                 </PageHeader>
 
                 <ResourceView

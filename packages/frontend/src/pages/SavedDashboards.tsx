@@ -100,9 +100,9 @@ const SavedDashboards = () => {
                         />
                     </PageBreadcrumbsWrapper>
 
-                    {userCanManageDashboards &&
-                        !isDemo &&
-                        (dashboards.length > 0 || hasNoSpaces) && (
+                    {dashboards.length > 0 &&
+                        userCanManageDashboards &&
+                        !isDemo && (
                             <Tooltip2
                                 content={
                                     hasNoSpaces
@@ -149,16 +149,25 @@ const SavedDashboards = () => {
                         icon: <IconLayoutDashboard size={30} />,
                         title: 'No dashboards added yet',
                         action:
-                            !isDemo &&
-                            !hasNoSpaces &&
-                            userCanManageDashboards ? (
-                                <Button
-                                    icon="plus"
-                                    intent="primary"
-                                    onClick={handleCreateDashboard}
+                            userCanManageDashboards && !isDemo ? (
+                                <Tooltip2
+                                    content={
+                                        hasNoSpaces
+                                            ? 'First you must create a space for this dashboard'
+                                            : undefined
+                                    }
+                                    interactionKind="hover"
                                 >
-                                    Create dashboard
-                                </Button>
+                                    <Button
+                                        icon="plus"
+                                        loading={isCreatingDashboard}
+                                        onClick={handleCreateDashboard}
+                                        disabled={hasNoSpaces}
+                                        intent="primary"
+                                    >
+                                        Create dashboard
+                                    </Button>
+                                </Tooltip2>
                             ) : undefined,
                     }}
                 />
