@@ -36,7 +36,7 @@ const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
             direction="column"
             p={0}
             withBorder
-            bg={hovered ? 'gray.0' : undefined}
+            bg={hovered ? theme.fn.rgba(theme.colors.gray[0], 0.5) : undefined}
             h="100%"
         >
             <Group
