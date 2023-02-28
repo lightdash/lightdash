@@ -1,6 +1,7 @@
 import {
     CompiledMetricQuery,
     CompiledTable,
+    CreateWarehouseCredentials,
     DimensionType,
     Explore,
     FieldType,
@@ -8,9 +9,13 @@ import {
     MetricType,
     SupportedDbtAdapter,
     WarehouseClient,
+    WarehouseTypes,
 } from '@lightdash/common';
 
 export const warehouseClientMock: WarehouseClient = {
+    credentials: {
+        type: WarehouseTypes.POSTGRES,
+    } as CreateWarehouseCredentials,
     getCatalog: async () => ({
         default: {
             public: {
@@ -41,6 +46,7 @@ export const warehouseClientMock: WarehouseClient = {
 };
 
 export const bigqueryClientMock: WarehouseClient = {
+    credentials: {} as CreateWarehouseCredentials,
     getCatalog: async () => ({
         default: {
             public: {

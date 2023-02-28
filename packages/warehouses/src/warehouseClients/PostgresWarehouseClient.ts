@@ -125,7 +125,7 @@ const convertDataTypeIdToDimensionType = (
     }
 };
 
-export class PostgresClient implements WarehouseClient {
+export class PostgresClient {
     pool: pg.Pool;
 
     startOfWeek: WeekDay | null | undefined;
@@ -269,6 +269,8 @@ export class PostgresWarehouseClient
     extends PostgresClient
     implements WarehouseClient
 {
+    credentials: CreatePostgresCredentials;
+
     constructor(credentials: CreatePostgresCredentials) {
         super(
             {
@@ -284,5 +286,6 @@ export class PostgresWarehouseClient
             },
             credentials.startOfWeek,
         );
+        this.credentials = credentials;
     }
 }

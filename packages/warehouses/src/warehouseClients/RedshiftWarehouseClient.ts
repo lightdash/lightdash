@@ -38,6 +38,8 @@ export class RedshiftWarehouseClient
     extends PostgresClient
     implements WarehouseClient
 {
+    credentials: CreateRedshiftCredentials;
+
     constructor(credentials: CreateRedshiftCredentials) {
         const sslmode = credentials.sslmode || 'prefer';
         const ssl = getSSLConfigFromMode(sslmode);
@@ -54,5 +56,6 @@ export class RedshiftWarehouseClient
             },
             credentials.startOfWeek,
         );
+        this.credentials = credentials;
     }
 }
