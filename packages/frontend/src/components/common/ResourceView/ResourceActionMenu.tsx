@@ -142,11 +142,7 @@ const ResourceViewItemActionMenu: FC<Props> = ({
                 {user.data?.ability.can(
                     'update',
                     subject('Project', { organizationUuid, projectUuid }),
-                ) &&
-                (item.type === ResourceViewItemType.CHART ||
-                    item.type === ResourceViewItemType.DASHBOARD ||
-                    (item.type === ResourceViewItemType.SPACE &&
-                        localStorage.getItem('feat-pin-space'))) ? (
+                ) ? (
                     <Menu.Item
                         component="button"
                         role="menuitem"
