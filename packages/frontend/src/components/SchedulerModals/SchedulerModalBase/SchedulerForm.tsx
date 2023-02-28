@@ -227,192 +227,208 @@ const SchedulerForm: FC<
                     }}
                 />
             </FormGroup>
+            <FormGroup
+                label={<Title>3. Select format and destination(s)</Title>}
+            >
+                <InputGroupWrapper>
+                    <InlinedInputs>
+                        <InlinedLabel>Format</InlinedLabel>
+                        <StyledSelect
+                            name="format"
+                            value={format}
+                            onChange={(e) => {
+                                methods.setValue(
+                                    'format',
+                                    e.currentTarget.value,
+                                );
 
-            <InputGroupWrapper>
-                <Title>3. Select format and destination(s)</Title>
-                <InlinedInputs>
-                    <InlinedLabel>Format</InlinedLabel>
-                    <StyledSelect
-                        name="format"
-                        value={format}
-                        onChange={(e) => {
-                            methods.setValue('format', e.currentTarget.value);
-
-                            const isCsvValue = e.currentTarget.value === 'csv';
-                            if (!isCsvValue) methods.setValue('options', {});
-                        }}
-                        options={[
-                            { value: 'image', label: 'Image' },
-                            { value: 'csv', label: 'CSV' },
-                        ]}
-                    />
-                    {format === 'csv' && (
-                        <SchedulerOptions
-                            disabled={disabled}
-                            methods={methods}
+                                const isCsvValue =
+                                    e.currentTarget.value === 'csv';
+                                if (!isCsvValue)
+                                    methods.setValue('options', {});
+                            }}
+                            options={[
+                                { value: 'image', label: 'Image' },
+                                { value: 'csv', label: 'CSV' },
+                            ]}
                         />
-                    )}
-                </InlinedInputs>
-                <InlinedInputs>
-                    {showDestinationLabel && (
-                        <InlinedLabel>No destination(s) selected</InlinedLabel>
-                    )}
-                    <ArrayInput
-                        name="targets"
-                        label=""
-                        disabled={disabled}
-                        renderRow={(key, index, remove) => {
-                            setShowDestinationLabel(false);
-                            const isSlack =
-                                methods.getValues()?.targets?.[index]
-                                    ?.channel !== undefined;
-
-                            if (isSlack) {
-                                return (
-                                    <TargetRow key={key}>
-                                        <SlackIcon />
-                                        <AutoComplete
-                                            groupBy={(item) => {
-                                                const channelPrefix =
-                                                    item.label.charAt(0);
-                                                return channelPrefix === '#'
-                                                    ? 'Channels'
-                                                    : 'Users';
-                                            }}
-                                            name={`targets.${index}.channel`}
-                                            items={slackChannels}
-                                            disabled={disabled}
-                                            isLoading={
-                                                slackChannelsQuery.isLoading
-                                            }
-                                            rules={{
-                                                required: 'Required field',
-                                            }}
-                                            suggestProps={{
-                                                inputProps: {
-                                                    placeholder:
-                                                        'Search slack channel...',
-                                                },
-                                            }}
-                                        />
-
-                                        <Button
-                                            minimal={true}
-                                            icon={'cross'}
-                                            onClick={() => {
-                                                remove(index);
-                                                setShowDestinationLabel(true);
-                                            }}
-                                            disabled={disabled}
-                                        />
-                                    </TargetRow>
-                                );
-                            } else {
-                                return (
-                                    <TargetRow key={key}>
-                                        <EmailIcon
-                                            size={20}
-                                            color={Colors.GRAY1}
-                                        />
-                                        <Input
-                                            name={`targets.${index}.recipient`}
-                                            placeholder="Email recipient"
-                                            disabled={disabled}
-                                            rules={{
-                                                required: 'Required field',
-                                            }}
-                                        />
-                                        <Button
-                                            minimal={true}
-                                            icon={'cross'}
-                                            onClick={() => {
-                                                remove(index);
-                                                setShowDestinationLabel(true);
-                                            }}
-                                            disabled={disabled}
-                                        />
-                                    </TargetRow>
-                                );
-                            }
-                        }}
-                        renderAppendRowButton={(append) => (
-                            <>
-                                <Tooltip2
-                                    interactionKind="hover"
-                                    content={
-                                        <>
-                                            {SlackErrorContent({
-                                                slackState,
-                                            })}
-                                        </>
-                                    }
-                                    position="bottom"
-                                    disabled={
-                                        slackState === SlackStates.SUCCESS
-                                    }
-                                >
-                                    <Button
-                                        minimal
-                                        className={
-                                            isAddSlackDisabled
-                                                ? Classes.DISABLED
-                                                : undefined
-                                        }
-                                        onClick={
-                                            isAddSlackDisabled
-                                                ? undefined
-                                                : () =>
-                                                      append({
-                                                          channel: '',
-                                                      })
-                                        }
-                                        icon={'plus'}
-                                        text="Add slack"
-                                    />
-                                </Tooltip2>
-                                <Tooltip2
-                                    interactionKind="hover"
-                                    content={
-                                        <>
-                                            <p>No Email integration found</p>
-                                            <p>
-                                                To create a slack scheduled
-                                                delivery, you need to add
-                                                <a href="https://docs.lightdash.com/references/environmentVariables">
-                                                    {' '}
-                                                    SMTP environment variables{' '}
-                                                </a>
-                                                for your Lightdash instance
-                                            </p>
-                                        </>
-                                    }
-                                    position="bottom"
-                                    disabled={health.data?.hasEmailClient}
-                                >
-                                    <Button
-                                        minimal
-                                        onClick={
-                                            isAddEmailDisabled
-                                                ? undefined
-                                                : () =>
-                                                      append({
-                                                          recipients: '',
-                                                      })
-                                        }
-                                        icon={'plus'}
-                                        text="Add email"
-                                        className={
-                                            isAddEmailDisabled
-                                                ? Classes.DISABLED
-                                                : undefined
-                                        }
-                                    />
-                                </Tooltip2>
-                            </>
+                        {format === 'csv' && (
+                            <SchedulerOptions
+                                disabled={disabled}
+                                methods={methods}
+                            />
                         )}
-                    />
-                </InlinedInputs>
-            </InputGroupWrapper>
+                    </InlinedInputs>
+                    <InlinedInputs>
+                        {showDestinationLabel && (
+                            <InlinedLabel>
+                                No destination(s) selected
+                            </InlinedLabel>
+                        )}
+                        <ArrayInput
+                            name="targets"
+                            label=""
+                            disabled={disabled}
+                            renderRow={(key, index, remove) => {
+                                setShowDestinationLabel(false);
+                                const isSlack =
+                                    methods.getValues()?.targets?.[index]
+                                        ?.channel !== undefined;
+
+                                if (isSlack) {
+                                    return (
+                                        <TargetRow key={key}>
+                                            <SlackIcon />
+                                            <AutoComplete
+                                                groupBy={(item) => {
+                                                    const channelPrefix =
+                                                        item.label.charAt(0);
+                                                    return channelPrefix === '#'
+                                                        ? 'Channels'
+                                                        : 'Users';
+                                                }}
+                                                name={`targets.${index}.channel`}
+                                                items={slackChannels}
+                                                disabled={disabled}
+                                                isLoading={
+                                                    slackChannelsQuery.isLoading
+                                                }
+                                                rules={{
+                                                    required: 'Required field',
+                                                }}
+                                                suggestProps={{
+                                                    inputProps: {
+                                                        placeholder:
+                                                            'Search slack channel...',
+                                                    },
+                                                }}
+                                            />
+
+                                            <Button
+                                                minimal={true}
+                                                icon={'cross'}
+                                                onClick={() => {
+                                                    remove(index);
+                                                    setShowDestinationLabel(
+                                                        true,
+                                                    );
+                                                }}
+                                                disabled={disabled}
+                                            />
+                                        </TargetRow>
+                                    );
+                                } else {
+                                    return (
+                                        <TargetRow key={key}>
+                                            <EmailIcon
+                                                size={20}
+                                                color={Colors.GRAY1}
+                                            />
+                                            <Input
+                                                name={`targets.${index}.recipient`}
+                                                placeholder="Email recipient"
+                                                disabled={disabled}
+                                                rules={{
+                                                    required: 'Required field',
+                                                }}
+                                            />
+                                            <Button
+                                                minimal={true}
+                                                icon={'cross'}
+                                                onClick={() => {
+                                                    remove(index);
+                                                    setShowDestinationLabel(
+                                                        true,
+                                                    );
+                                                }}
+                                                disabled={disabled}
+                                            />
+                                        </TargetRow>
+                                    );
+                                }
+                            }}
+                            renderAppendRowButton={(append) => (
+                                <>
+                                    <Tooltip2
+                                        interactionKind="hover"
+                                        content={
+                                            <>
+                                                {SlackErrorContent({
+                                                    slackState,
+                                                })}
+                                            </>
+                                        }
+                                        position="bottom"
+                                        disabled={
+                                            slackState === SlackStates.SUCCESS
+                                        }
+                                    >
+                                        <Button
+                                            minimal
+                                            className={
+                                                isAddSlackDisabled
+                                                    ? Classes.DISABLED
+                                                    : undefined
+                                            }
+                                            onClick={
+                                                isAddSlackDisabled
+                                                    ? undefined
+                                                    : () =>
+                                                          append({
+                                                              channel: '',
+                                                          })
+                                            }
+                                            icon={'plus'}
+                                            text="Add slack"
+                                        />
+                                    </Tooltip2>
+                                    <Tooltip2
+                                        interactionKind="hover"
+                                        content={
+                                            <>
+                                                <p>
+                                                    No Email integration found
+                                                </p>
+                                                <p>
+                                                    To create a slack scheduled
+                                                    delivery, you need to add
+                                                    <a href="https://docs.lightdash.com/references/environmentVariables">
+                                                        {' '}
+                                                        SMTP environment
+                                                        variables{' '}
+                                                    </a>
+                                                    for your Lightdash instance
+                                                </p>
+                                            </>
+                                        }
+                                        position="bottom"
+                                        disabled={health.data?.hasEmailClient}
+                                    >
+                                        <Button
+                                            minimal
+                                            onClick={
+                                                isAddEmailDisabled
+                                                    ? undefined
+                                                    : () =>
+                                                          append({
+                                                              recipients: '',
+                                                          })
+                                            }
+                                            icon={'plus'}
+                                            text="Add email"
+                                            className={
+                                                isAddEmailDisabled
+                                                    ? Classes.DISABLED
+                                                    : undefined
+                                            }
+                                        />
+                                    </Tooltip2>
+                                </>
+                            )}
+                        />
+                    </InlinedInputs>
+                </InputGroupWrapper>
+            </FormGroup>
         </Form>
     );
 };
