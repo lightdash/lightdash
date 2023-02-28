@@ -1,8 +1,6 @@
+import { LightdashPage } from '@lightdash/common';
 import { KnownBlock, LinkUnfurls } from '@slack/bolt';
-import {
-    LightdashPage,
-    Unfurl,
-} from '../../services/UnfurlService/UnfurlService';
+import { Unfurl } from '../../services/UnfurlService/UnfurlService';
 import { AttachmentUrl } from '../EmailClient/EmailClient';
 
 type GetChartAndDashboardBlocksArgs = {

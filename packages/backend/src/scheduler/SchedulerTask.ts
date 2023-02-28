@@ -3,7 +3,9 @@ import {
     isEmailTarget,
     isSchedulerCsvOptions,
     isSlackTarget,
+    LightdashPage,
     NotificationPayloadBase,
+    ScheduledDeliveryPayload,
     Scheduler,
     SlackNotificationPayload,
 } from '@lightdash/common';
@@ -11,7 +13,7 @@ import cronstrue from 'cronstrue';
 import { nanoid } from 'nanoid';
 import { analytics } from '../analytics/client';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
-import { emailClient, slackClient } from '../clients/clients';
+import { emailClient, schedulerClient, slackClient } from '../clients/clients';
 import {
     getChartAndDashboardBlocks,
     getChartCsvResultsBlocks,
@@ -25,7 +27,6 @@ import {
     unfurlService,
     userService,
 } from '../services/services';
-import { LightdashPage } from '../services/UnfurlService/UnfurlService';
 
 const getChartOrDashboard = async (
     chartUuid: string | null,
@@ -249,9 +250,7 @@ export const sendSlackNotification = async (
             },
         });
     } catch (e) {
-        Logger.error(
-            `Unable to sendNotification on slack : ${JSON.stringify(e)}`,
-        );
+        Logger.error(`Unable to complete job "${jobId}": ${JSON.stringify(e)}`);
         analytics.track({
             event: 'scheduler_notification_job.failed',
             anonymousId: LightdashAnalytics.anonymousId,
@@ -360,9 +359,7 @@ export const sendEmailNotification = async (
             },
         });
     } catch (e) {
-        Logger.error(
-            `Unable to send notification on email : ${JSON.stringify(e)}`,
-        );
+        Logger.error(`Unable to complete job "${jobId}": ${JSON.stringify(e)}`);
         analytics.track({
             event: 'scheduler_notification_job.failed',
             anonymousId: LightdashAnalytics.anonymousId,
@@ -375,5 +372,45 @@ export const sendEmailNotification = async (
             },
         });
         throw e; // Cascade error to it can be retried by graphile
+    }
+};
+
+export const handleScheduledDelivery = async (
+    jobId: string,
+    { schedulerUuid }: ScheduledDeliveryPayload,
+) => {
+    try {
+        analytics.track({
+            event: 'scheduler_job.started',
+            anonymousId: LightdashAnalytics.anonymousId,
+            properties: {
+                jobId,
+                schedulerId: schedulerUuid,
+            },
+        });
+        const scheduler =
+            await schedulerService.schedulerModel.getSchedulerAndTargets(
+                schedulerUuid,
+            );
+        const page = await getNotificationPageData(scheduler);
+        await schedulerClient.generateJobsForSchedulerTargets(scheduler, page);
+        analytics.track({
+            event: 'scheduler_job.completed',
+            anonymousId: LightdashAnalytics.anonymousId,
+            properties: {
+                jobId,
+                schedulerId: schedulerUuid,
+            },
+        });
+    } catch (e) {
+        Logger.error(`Unable to complete job "${jobId}": ${JSON.stringify(e)}`);
+        analytics.track({
+            event: 'scheduler_job.failed',
+            anonymousId: LightdashAnalytics.anonymousId,
+            properties: {
+                jobId,
+                schedulerId: schedulerUuid,
+            },
+        });
     }
 };

@@ -190,11 +190,15 @@ export class SchedulerClient {
             );
 
             Logger.info(
-                `Creating new ${promises.length} scheduled delivery jobs: ${scheduler.name}`,
+                `Creating ${promises.length} scheduled delivery jobs for scheduler ${scheduler.schedulerUuid}`,
             );
             await Promise.all(promises);
         } catch (err: any) {
-            Logger.error(`Unable to schedule job ${scheduler.name}`, err);
+            Logger.error(
+                `Unable to schedule job for scheduler ${scheduler.schedulerUuid}`,
+                err,
+            );
+            throw err;
         }
     }
 
@@ -208,14 +212,15 @@ export class SchedulerClient {
             );
 
             Logger.info(
-                `Creating new ${promises.length} notification jobs: ${scheduler.name}`,
+                `Creating ${promises.length} notification jobs for scheduler ${scheduler.schedulerUuid}`,
             );
             await Promise.all(promises);
         } catch (err: any) {
             Logger.error(
-                `Unable to schedule notification job ${scheduler.name}`,
+                `Unable to schedule notification job for scheduler ${scheduler.schedulerUuid}`,
                 err,
             );
+            throw err;
         }
     }
 }

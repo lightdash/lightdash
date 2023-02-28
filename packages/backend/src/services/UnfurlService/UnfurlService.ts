@@ -151,7 +151,7 @@ export class UnfurlService {
                 await page.waitForSelector(selector, { timeout: 30000 });
                 element = await page.$(selector);
             } catch (e) {
-                Logger.info(
+                Logger.warn(
                     `Can't find element ${selector} on page ${e}, returning body`,
                 );
                 element = await page.$('body');
@@ -166,9 +166,9 @@ export class UnfurlService {
             };
             if (lightdashPage === LightdashPage.DASHBOARD) {
                 // Remove navbar from screenshot
-                removeComponents('.bp4-navbar');
-                removeComponents('button');
-                removeComponents('[data-icon="filter"]');
+                await removeComponents('.bp4-navbar');
+                await removeComponents('button');
+                await removeComponents('[data-icon="filter"]');
             }
 
             if (!element) {

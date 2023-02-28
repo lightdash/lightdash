@@ -1,4 +1,3 @@
-import { ScheduledDeliveryPayload } from '@lightdash/common';
 import { getSchedule, stringToArray } from 'cron-converter';
 import {
     JobHelpers,
@@ -6,14 +5,12 @@ import {
     run as runGraphileWorker,
 } from 'graphile-worker';
 import moment from 'moment';
-import { analytics } from '../analytics/client';
-import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { schedulerClient } from '../clients/clients';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logger';
 import { schedulerService } from '../services/services';
 import {
-    getNotificationPageData,
+    handleScheduledDelivery,
     sendEmailNotification,
     sendSlackNotification,
 } from './SchedulerTask';
@@ -69,7 +66,9 @@ export class SchedulerWorker {
                     payload: any,
                     helpers: JobHelpers,
                 ) => {
-                    Logger.info(`Processing new job generateDailyJobs`);
+                    Logger.info(
+                        `Processing generateDailyJobs job "${helpers.job.id}"`,
+                    );
                     const schedulers =
                         await schedulerService.getAllSchedulers();
                     const promises = schedulers.map((scheduler) =>
@@ -84,54 +83,17 @@ export class SchedulerWorker {
                     helpers: JobHelpers,
                 ) => {
                     Logger.info(
-                        `Processing new job handleScheduledDelivery`,
+                        `Processing handleScheduledDelivery job "${helpers.job.id}"`,
                         payload,
                     );
-                    const { schedulerUuid } =
-                        payload as ScheduledDeliveryPayload;
-                    try {
-                        analytics.track({
-                            event: 'scheduler_job.started',
-                            anonymousId: LightdashAnalytics.anonymousId,
-                            properties: {
-                                jobId: helpers.job.id,
-                                schedulerId: schedulerUuid,
-                            },
-                        });
-                        const scheduler =
-                            await schedulerService.schedulerModel.getSchedulerAndTargets(
-                                schedulerUuid,
-                            );
-                        const page = await getNotificationPageData(scheduler);
-                        await schedulerClient.generateJobsForSchedulerTargets(
-                            scheduler,
-                            page,
-                        );
-                        analytics.track({
-                            event: 'scheduler_job.completed',
-                            anonymousId: LightdashAnalytics.anonymousId,
-                            properties: {
-                                jobId: helpers.job.id,
-                                schedulerId: schedulerUuid,
-                            },
-                        });
-                    } catch (e) {
-                        analytics.track({
-                            event: 'scheduler_job.failed',
-                            anonymousId: LightdashAnalytics.anonymousId,
-                            properties: {
-                                jobId: helpers.job.id,
-                                schedulerId: schedulerUuid,
-                            },
-                        });
-                    }
+                    await handleScheduledDelivery(helpers.job.id, payload);
                 },
                 sendSlackNotification: async (
                     payload: any,
                     helpers: JobHelpers,
                 ) => {
                     Logger.info(
-                        `Processing new job sendSlackNotification`,
+                        `Processing sendSlackNotification job "${helpers.job.id}"`,
                         payload,
                     );
                     await sendSlackNotification(helpers.job.id, payload);
@@ -141,7 +103,7 @@ export class SchedulerWorker {
                     helpers: JobHelpers,
                 ) => {
                     Logger.info(
-                        `Processing new job sendEmailNotification`,
+                        `Processing sendEmailNotification job "${helpers.job.id}"`,
                         payload,
                     );
                     await sendEmailNotification(helpers.job.id, payload);
