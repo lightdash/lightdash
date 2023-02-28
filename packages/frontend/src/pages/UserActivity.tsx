@@ -10,11 +10,7 @@ import { FC } from 'react';
 import { Helmet } from 'react-helmet';
 import { useHistory, useParams } from 'react-router-dom';
 import Page from '../components/common/Page/Page';
-import {
-    PageBreadcrumbsWrapper,
-    PageHeader,
-} from '../components/common/Page/Page.styles';
-import { ResourceBreadcrumbTitle } from '../components/common/ResourceView/ResourceView.styles';
+import { PageBreadcrumbsWrapper } from '../components/common/Page/Page.styles';
 import { Table } from '../components/common/Table/Table.styles';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useUserActivity } from '../hooks/analytics/useUserActivity';
@@ -28,6 +24,7 @@ import {
     ChartCard,
     Container,
     Description,
+    UserAnalyticsPageHeader,
 } from './UserActivity.styles';
 
 const showTableBodyWithUsers = (key: string, userList: UserWithCount[]) => {
@@ -151,7 +148,7 @@ const UserActivity: FC = () => {
                 <title>User activity for {project?.name} - Lightdash</title>
             </Helmet>
             <Page>
-                <PageHeader>
+                <UserAnalyticsPageHeader>
                     <PageBreadcrumbsWrapper>
                         <Breadcrumbs2
                             items={[
@@ -166,16 +163,22 @@ const UserActivity: FC = () => {
                                 },
                                 {
                                     text: (
-                                        <ResourceBreadcrumbTitle>
+                                        <div
+                                            style={{
+                                                display: 'flex',
+                                                gap: 6,
+                                                alignItems: 'center',
+                                            }}
+                                        >
                                             <IconUsers size={20} /> User
                                             activity for {project?.name}
-                                        </ResourceBreadcrumbTitle>
+                                        </div>
                                     ),
                                 },
                             ]}
                         />
                     </PageBreadcrumbsWrapper>
-                </PageHeader>
+                </UserAnalyticsPageHeader>
                 <Container>
                     <ActivityCard grid="total-users">
                         <BigNumberContainer>

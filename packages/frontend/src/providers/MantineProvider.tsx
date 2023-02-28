@@ -7,6 +7,7 @@ import { FC } from 'react';
 
 const themeOverride: MantineThemeOverride = {
     black: Colors.DARK_GRAY1,
+    white: Colors.WHITE,
 
     fontFamily: [
         '-apple-system',
@@ -52,11 +53,12 @@ const themeOverride: MantineThemeOverride = {
         },
 
         a: {
+            cursor: 'pointer',
             color: Colors.BLUE2,
             textDecoration: 'none',
+
             ':hover': {
                 color: Colors.BLUE2,
-                cursor: 'pointer',
                 textDecoration: 'underline',
             },
         },

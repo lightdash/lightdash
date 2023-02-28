@@ -1,9 +1,9 @@
+import { Stack } from '@mantine/core';
 import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useUnmount } from 'react-use';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
-import { PageContentWrapper } from '../components/common/Page/Page.styles';
 import SpaceBrowser from '../components/Explorer/SpaceBrowser';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import LandingPanel from '../components/Home/LandingPanel';
@@ -51,7 +51,7 @@ const Home: FC = () => {
 
     return (
         <Page>
-            <PageContentWrapper>
+            <Stack spacing="xl" w={900}>
                 {!onboarding.data.ranQuery ? (
                     <OnboardingPanel
                         projectUuid={project.data.projectUuid}
@@ -74,7 +74,7 @@ const Home: FC = () => {
                         />
                     </>
                 )}
-            </PageContentWrapper>
+            </Stack>
         </Page>
     );
 };

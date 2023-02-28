@@ -1,36 +1,92 @@
+import {
+    Box,
+    Divider,
+    Flex,
+    Group,
+    Paper,
+    Text,
+    useMantineTheme,
+} from '@mantine/core';
+import { useDisclosure, useHover } from '@mantine/hooks';
+import { IconEye } from '@tabler/icons-react';
 import { FC } from 'react';
+import ResourceViewActionMenu, {
+    ResourceViewActionMenuCommonProps,
+} from '../ResourceActionMenu';
 import ResourceIcon from '../ResourceIcon';
 import { ResourceViewDashboardItem } from '../resourceTypeUtils';
-import {
-    // ResourceGridItemFooter,
-    ResourceViewGridItemHeader,
-    ResourceViewGridItemLink,
-    ResourceViewGridItemTitle,
-} from './ResourceViewGridItem.styles';
 
-interface ResourceViewGridDashboardItemProps {
+interface ResourceViewGridDashboardItemProps
+    extends Pick<ResourceViewActionMenuCommonProps, 'onAction'> {
     item: ResourceViewDashboardItem;
-    url: string;
-    renderActions: () => JSX.Element;
 }
 
 const ResourceViewGridDashboardItem: FC<ResourceViewGridDashboardItemProps> = ({
     item,
-    url,
-    renderActions,
+    onAction,
 }) => {
+    const { hovered, ref } = useHover();
+    const [opened, handlers] = useDisclosure(false);
+    const theme = useMantineTheme();
+
     return (
-        <ResourceViewGridItemLink minimal outlined href={url}>
-            <ResourceViewGridItemHeader>
+        <Paper
+            ref={ref}
+            component={Flex}
+            direction="column"
+            p={0}
+            withBorder
+            bg={hovered ? theme.fn.rgba(theme.colors.gray[0], 0.5) : undefined}
+            h="100%"
+        >
+            <Group
+                p="md"
+                align="center"
+                spacing="md"
+                noWrap
+                sx={{ flexGrow: 1 }}
+            >
                 <ResourceIcon item={item} />
-                {renderActions()}
-            </ResourceViewGridItemHeader>
-            <ResourceViewGridItemTitle ellipsize>
-                {item.data.name}
-            </ResourceViewGridItemTitle>
-            {/* TODO: add footer for dashboards */}
-            {/* <ResourceViewGridItemFooter></ResourceViewGridItemFooter> */}
-        </ResourceViewGridItemLink>
+
+                <Text lineClamp={2} fz="sm" fw={600}>
+                    {item.data.name}
+                </Text>
+            </Group>
+
+            <Divider color="gray.3" />
+
+            <Flex pl="md" pr="xs" h={32} justify="space-between" align="center">
+                <Flex align="center" gap={4}>
+                    <IconEye color={theme.colors.gray[6]} size={14} />
+
+                    <Text size={14} color="gray.6" fz="xs">
+                        {item.data.views} views
+                    </Text>
+                </Flex>
+
+                <Box
+                    sx={{
+                        flexGrow: 0,
+                        flexShrink: 0,
+                        transition: 'opacity 0.2s',
+                        opacity: hovered || opened ? 1 : 0,
+                    }}
+                    component="div"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                    }}
+                >
+                    <ResourceViewActionMenu
+                        item={item}
+                        isOpen={opened}
+                        onOpen={handlers.open}
+                        onClose={handlers.close}
+                        onAction={onAction}
+                    />
+                </Box>
+            </Flex>
+        </Paper>
     );
 };
 

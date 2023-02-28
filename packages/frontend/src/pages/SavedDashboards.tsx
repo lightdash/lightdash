@@ -2,6 +2,8 @@ import { Button, NonIdealState, Spinner } from '@blueprintjs/core';
 import { Breadcrumbs2, Tooltip2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import { LightdashMode } from '@lightdash/common';
+import { Stack } from '@mantine/core';
+import { IconLayoutDashboard } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Redirect, useHistory, useParams } from 'react-router-dom';
@@ -9,7 +11,6 @@ import DashboardCreateModal from '../components/common/modal/DashboardCreateModa
 import Page from '../components/common/Page/Page';
 import {
     PageBreadcrumbsWrapper,
-    PageContentWrapper,
     PageHeader,
 } from '../components/common/Page/Page.styles';
 import ResourceView from '../components/common/ResourceView';
@@ -17,12 +18,6 @@ import {
     ResourceViewItemType,
     wrapResourceView,
 } from '../components/common/ResourceView/resourceTypeUtils';
-import {
-    ResourceBreadcrumbTitle,
-    ResourceEmptyStateHeader,
-    ResourceEmptyStateIcon,
-    ResourceTag,
-} from '../components/common/ResourceView/ResourceView.styles';
 import { SortDirection } from '../components/common/ResourceView/ResourceViewList';
 import { useCreateMutation } from '../hooks/dashboard/useDashboard';
 import { useDashboards } from '../hooks/dashboard/useDashboards';
@@ -84,7 +79,8 @@ const SavedDashboards = () => {
             <Helmet>
                 <title>Dashboards - Lightdash</title>
             </Helmet>
-            <PageContentWrapper>
+
+            <Stack spacing="xl" w={900}>
                 <PageHeader>
                     <PageBreadcrumbsWrapper>
                         <Breadcrumbs2
@@ -98,19 +94,15 @@ const SavedDashboards = () => {
                                     },
                                 },
                                 {
-                                    text: (
-                                        <ResourceBreadcrumbTitle>
-                                            All dashboards
-                                        </ResourceBreadcrumbTitle>
-                                    ),
+                                    text: 'All dashboards',
                                 },
                             ]}
                         />
                     </PageBreadcrumbsWrapper>
 
-                    {userCanManageDashboards &&
-                        !isDemo &&
-                        (dashboards.length > 0 || hasNoSpaces) && (
+                    {dashboards.length > 0 &&
+                        userCanManageDashboards &&
+                        !isDemo && (
                             <Tooltip2
                                 content={
                                     hasNoSpaces
@@ -150,31 +142,36 @@ const SavedDashboards = () => {
                         dashboards,
                         ResourceViewItemType.DASHBOARD,
                     )}
-                    defaultSort={{ updatedAt: SortDirection.DESC }}
-                    defaultColumnVisibility={{ type: false }}
-                    renderEmptyState={() => (
-                        <>
-                            <ResourceEmptyStateIcon icon="chart" size={40} />
-
-                            <ResourceEmptyStateHeader>
-                                No dashboards added yet
-                            </ResourceEmptyStateHeader>
-
-                            {!isDemo &&
-                                !hasNoSpaces &&
-                                userCanManageDashboards && (
+                    listProps={{
+                        defaultSort: { updatedAt: SortDirection.DESC },
+                    }}
+                    emptyStateProps={{
+                        icon: <IconLayoutDashboard size={30} />,
+                        title: 'No dashboards added yet',
+                        action:
+                            userCanManageDashboards && !isDemo ? (
+                                <Tooltip2
+                                    content={
+                                        hasNoSpaces
+                                            ? 'First you must create a space for this dashboard'
+                                            : undefined
+                                    }
+                                    interactionKind="hover"
+                                >
                                     <Button
                                         icon="plus"
-                                        intent="primary"
+                                        loading={isCreatingDashboard}
                                         onClick={handleCreateDashboard}
+                                        disabled={hasNoSpaces}
+                                        intent="primary"
                                     >
                                         Create dashboard
                                     </Button>
-                                )}
-                        </>
-                    )}
+                                </Tooltip2>
+                            ) : undefined,
+                    }}
                 />
-            </PageContentWrapper>
+            </Stack>
         </Page>
     );
 };

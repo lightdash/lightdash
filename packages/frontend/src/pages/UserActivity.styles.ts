@@ -1,6 +1,10 @@
-import { Callout, Card, Colors, H5, Tabs } from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
+import { Card, Colors } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
+
+export const UserAnalyticsPageHeader = styled.div`
+    margin-top: 10px;
+    margin-bottom: 30px;
+`;
 
 export const Container = styled.div`
     display: grid;
@@ -14,6 +18,7 @@ export const Container = styled.div`
         'table-most-queries table-most-queries table-most-charts table-most-charts'
         'table-not-logged-in table-not-logged-in . .';
 `;
+
 export const ActivityCard = styled(Card)<{ grid: string }>`
     vertical-align: middle;
     text-align: center;

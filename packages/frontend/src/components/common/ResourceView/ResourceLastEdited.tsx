@@ -1,13 +1,8 @@
-import { Position } from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
+import { Text, Tooltip } from '@mantine/core';
 import moment from 'moment';
 import { FC } from 'react';
 
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
-import {
-    ResourceLastEditedBy,
-    ResourceLastEditedTimeAgo,
-} from './ResourceLastEdited.styles';
 import {
     ResourceViewChartItem,
     ResourceViewDashboardItem,
@@ -26,18 +21,20 @@ const ResourceLastEdited: FC<ResourceLastEditedProps> = ({
 
     return (
         <div>
-            <Tooltip2
-                lazy
-                position={Position.TOP}
-                content={moment(updatedAt).format('YYYY-MM-DD HH:mm:ss')}
+            <Tooltip
+                position="top-start"
+                withArrow
+                label={moment(updatedAt).format('YYYY-MM-DD HH:mm:ss')}
             >
-                <ResourceLastEditedTimeAgo>{timeAgo}</ResourceLastEditedTimeAgo>
-            </Tooltip2>
+                <Text fz={12} fw={500} color="gray.7">
+                    {timeAgo}
+                </Text>
+            </Tooltip>
 
             {user && user.firstName ? (
-                <ResourceLastEditedBy>
+                <Text fz={12} color="gray.6">
                     by {user.firstName} {user.lastName}
-                </ResourceLastEditedBy>
+                </Text>
             ) : null}
         </div>
     );

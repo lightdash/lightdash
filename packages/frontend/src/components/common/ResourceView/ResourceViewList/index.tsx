@@ -1,7 +1,8 @@
-import { Icon, Position } from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
+import { Anchor, Box, Group, Stack, Table, Text, Tooltip } from '@mantine/core';
+import { createStyles } from '@mantine/styles';
+import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
 import React, { FC, useMemo, useState } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
+import { Link, useHistory, useParams } from 'react-router-dom';
 import { ResourceViewCommonProps } from '..';
 import { useSpaces } from '../../../../hooks/useSpaces';
 import {
@@ -9,36 +10,19 @@ import {
     isResourceViewItemDashboard,
     isResourceViewSpaceItem,
     ResourceViewItem,
-    ResourceViewItemType,
 } from '../resourceTypeUtils';
 import { getResourceTypeName, getResourceUrl } from '../resourceUtils';
 import { ResourceViewItemActionState } from './../ResourceActionHandlers';
 import ResourceActionMenu from './../ResourceActionMenu';
 import ResourceIcon from './../ResourceIcon';
 import ResourceLastEdited from './../ResourceLastEdited';
-import {
-    ResourceViewListFlex,
-    ResourceViewListLink,
-    ResourceViewListMetadata,
-    ResourceViewListName,
-    ResourceViewListNameBox,
-    ResourceViewListSpaceLink,
-    ResourceViewListSpacer,
-    ResourceViewListTable,
-    ResourceViewListTBody,
-    ResourceViewListTd,
-    ResourceViewListTh,
-    ResourceViewListTHead,
-    ResourceViewListThInteractiveWrapper,
-    ResourceViewListTr,
-} from './ResourceViewList.styles';
 
 export enum SortDirection {
     ASC = 'asc',
     DESC = 'desc',
 }
 
-type ColumnName = 'name' | 'space' | 'type' | 'updatedAt' | 'actions';
+type ColumnName = 'name' | 'space' | 'updatedAt' | 'actions';
 
 type ColumnVisibilityMap = Map<ColumnName, boolean>;
 
@@ -76,6 +60,29 @@ const getNextSortDirection = (current: SortingState): SortingState => {
     return sortOrder.concat(sortOrder[0])[currentIndex + 1];
 };
 
+const useTableStyles = createStyles((theme) => ({
+    root: {
+        '& thead tr': {
+            backgroundColor: theme.colors.gray[0],
+        },
+
+        '& thead tr th': {
+            color: theme.colors.gray[6],
+            fontWeight: 600,
+            fontSize: '12px',
+        },
+
+        '& thead tr th, & tbody tr td': {
+            padding: '12px 20px',
+        },
+
+        '&[data-hover] tbody tr': theme.fn.hover({
+            cursor: 'pointer',
+            backgroundColor: theme.fn.rgba(theme.colors.gray[0], 0.5),
+        }),
+    },
+}));
+
 const ResourceViewList: FC<ResourceViewListProps> = ({
     items,
     enableSorting: enableSortingProp = true,
@@ -84,6 +91,8 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
     defaultSort,
     onAction,
 }) => {
+    const { classes } = useTableStyles();
+
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: spaces = [] } = useSpaces(projectUuid);
@@ -121,40 +130,48 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                         isResourceViewItemDashboard(item);
 
                     return (
-                        <Tooltip2
-                            lazy
+                        <Tooltip
+                            withArrow
                             disabled={
                                 canBelongToSpace ? !item.data.description : true
                             }
-                            content={
+                            label={
                                 canBelongToSpace
                                     ? item.data.description
                                     : undefined
                             }
-                            position={Position.TOP_LEFT}
+                            position="top-start"
                         >
-                            <ResourceViewListLink
+                            <Anchor
+                                component={Link}
+                                sx={{
+                                    color: 'unset',
+                                    ':hover': {
+                                        color: 'unset',
+                                        textDecoration: 'none',
+                                    },
+                                }}
                                 to={getResourceUrl(projectUuid, item)}
                                 onClick={(e) => e.stopPropagation()}
                             >
-                                <ResourceIcon item={item} />
+                                <Group noWrap>
+                                    <ResourceIcon item={item} />
 
-                                <ResourceViewListSpacer $width={16} />
+                                    <Stack spacing={2}>
+                                        <Text fw={600} lineClamp={1}>
+                                            {item.data.name}
+                                        </Text>
 
-                                <ResourceViewListNameBox>
-                                    <ResourceViewListName>
-                                        {item.data.name}
-                                    </ResourceViewListName>
-
-                                    {canBelongToSpace && (
-                                        <ResourceViewListMetadata>
-                                            {getResourceTypeName(item)} •{' '}
-                                            {item.data.views || '0'} views
-                                        </ResourceViewListMetadata>
-                                    )}
-                                </ResourceViewListNameBox>
-                            </ResourceViewListLink>
-                        </Tooltip2>
+                                        {canBelongToSpace && (
+                                            <Text fz={12} color="gray.6">
+                                                {getResourceTypeName(item)} •{' '}
+                                                {item.data.views || '0'} views
+                                            </Text>
+                                        )}
+                                    </Stack>
+                                </Group>
+                            </Anchor>
+                        </Tooltip>
                     );
                 },
                 enableSorting,
@@ -183,12 +200,16 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                     );
 
                     return space ? (
-                        <ResourceViewListSpaceLink
+                        <Anchor
+                            color="gray.7"
+                            component={Link}
                             to={`/projects/${projectUuid}/spaces/${space.uuid}`}
                             onClick={(e) => e.stopPropagation()}
+                            fz={12}
+                            fw={500}
                         >
                             {space.name}
-                        </ResourceViewListSpaceLink>
+                        </Anchor>
                     ) : null;
                 },
                 enableSorting,
@@ -243,37 +264,17 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                 },
             },
             {
-                id: 'type',
-                label: 'Type',
-                cell: (item: ResourceViewItem) => (
-                    <ResourceViewListNameBox>
-                        <ResourceViewListMetadata>
-                            {getResourceTypeName(item)}
-                        </ResourceViewListMetadata>
-                    </ResourceViewListNameBox>
-                ),
-                enableSorting,
-                sortingFn: (a: ResourceViewItem) => {
-                    return a.type === ResourceViewItemType.DASHBOARD ? 1 : -1;
-                },
-                meta: {
-                    style: {
-                        width:
-                            columnVisibility.get('type') === false
-                                ? undefined
-                                : '25%',
-                    },
-                },
-            },
-            {
                 id: 'actions',
                 cell: (item: ResourceViewItem) => (
-                    <ResourceActionMenu
-                        item={item}
-                        spaces={spaces}
-                        url={getResourceUrl(projectUuid, item)}
-                        onAction={onAction}
-                    />
+                    <Box
+                        component="div"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                        }}
+                    >
+                        <ResourceActionMenu item={item} onAction={onAction} />
+                    </Box>
                 ),
                 enableSorting: false,
                 meta: {
@@ -326,78 +327,71 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
     }, [items, columnSorts, columns]);
 
     return (
-        <ResourceViewListTable>
-            <ResourceViewListTHead>
-                <ResourceViewListTr>
+        <Table className={classes.root} highlightOnHover>
+            <thead>
+                <tr>
                     {visibleColumns.map((column) => {
                         const columnSort = columnSorts.get(column.id) || null;
 
                         return (
-                            <ResourceViewListTh
+                            <Box
+                                component="th"
                                 key={column.id}
                                 style={column?.meta?.style}
+                                sx={
+                                    column.enableSorting
+                                        ? (theme) => ({
+                                              cursor: 'pointer',
+                                              userSelect: 'none',
+                                              '&:hover': {
+                                                  backgroundColor:
+                                                      theme.colors.gray[1],
+                                              },
+                                          })
+                                        : undefined
+                                }
+                                onClick={() =>
+                                    column.enableSorting
+                                        ? handleSort(
+                                              column.id,
+                                              getNextSortDirection(columnSort),
+                                          )
+                                        : undefined
+                                }
                             >
-                                <ResourceViewListThInteractiveWrapper
-                                    $isInteractive={column.enableSorting}
-                                    onClick={() =>
-                                        column.enableSorting &&
-                                        handleSort(
-                                            column.id,
-                                            getNextSortDirection(columnSort),
-                                        )
-                                    }
-                                >
-                                    <ResourceViewListFlex>
-                                        {column?.label}
+                                <Group spacing={2}>
+                                    {column?.label}
 
-                                        {columnSort ? (
-                                            <>
-                                                <ResourceViewListSpacer
-                                                    $width={5}
-                                                />
-
-                                                {enableSorting &&
-                                                    {
-                                                        asc: (
-                                                            <Icon
-                                                                icon="chevron-up"
-                                                                size={12}
-                                                            />
-                                                        ),
-                                                        desc: (
-                                                            <Icon
-                                                                icon="chevron-down"
-                                                                size={12}
-                                                            />
-                                                        ),
-                                                    }[columnSort]}
-                                            </>
-                                        ) : null}
-                                    </ResourceViewListFlex>
-                                </ResourceViewListThInteractiveWrapper>
-                            </ResourceViewListTh>
+                                    {enableSorting && columnSort
+                                        ? {
+                                              asc: <IconChevronUp size={12} />,
+                                              desc: (
+                                                  <IconChevronDown size={12} />
+                                              ),
+                                          }[columnSort]
+                                        : null}
+                                </Group>
+                            </Box>
                         );
                     })}
-                </ResourceViewListTr>
-            </ResourceViewListTHead>
+                </tr>
+            </thead>
 
-            <ResourceViewListTBody>
+            <tbody>
                 {sortedResourceItems.map((item) => (
-                    <ResourceViewListTr
+                    <tr
                         key={item.data.uuid}
                         onClick={() =>
                             history.push(getResourceUrl(projectUuid, item))
                         }
                     >
                         {visibleColumns.map((column) => (
-                            <ResourceViewListTd key={column.id}>
-                                {column.cell(item)}
-                            </ResourceViewListTd>
+                            <td key={column.id}>{column.cell(item)}</td>
                         ))}
-                    </ResourceViewListTr>
+                    </tr>
                 ))}
-            </ResourceViewListTBody>
-        </ResourceViewListTable>
+            </tbody>
+        </Table>
     );
 };
 

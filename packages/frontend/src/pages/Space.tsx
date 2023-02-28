@@ -49,6 +49,7 @@ const Space: FC = () => {
             <Helmet>
                 <title>{data?.name} - Lightdash</title>
             </Helmet>
+
             <SpacePanel space={data}></SpacePanel>
         </Page>
     );

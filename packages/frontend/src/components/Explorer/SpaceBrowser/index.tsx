@@ -1,6 +1,7 @@
 import { AnchorButton, Button } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { LightdashMode } from '@lightdash/common';
+import { IconFolders } from '@tabler/icons-react';
 import { FC, useState } from 'react';
 import { useSpaces } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
@@ -9,10 +10,6 @@ import {
     ResourceViewItemType,
     wrapResourceView,
 } from '../../common/ResourceView/resourceTypeUtils';
-import {
-    ResourceEmptyStateHeader,
-    ResourceEmptyStateIcon,
-} from '../../common/ResourceView/ResourceView.styles';
 import SpaceActionModal, { ActionType } from '../../common/SpaceActionModal';
 
 const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
@@ -33,51 +30,48 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
         setIsCreateModalOpen(true);
     };
 
+    if (isLoading) return null;
+
     return (
         <>
             <ResourceView
                 view={ResourceViewType.GRID}
                 items={wrapResourceView(spaces, ResourceViewItemType.SPACE)}
-                headerTitle="Spaces"
-                headerAction={
-                    spaces.length === 0 ? (
-                        <AnchorButton
-                            text="Learn"
-                            minimal
-                            target="_blank"
-                            href="https://docs.lightdash.com/guides/spaces/"
-                        />
-                    ) : !isDemo && userCanManageSpace ? (
-                        <Button
-                            minimal
-                            intent="primary"
-                            icon="plus"
-                            loading={isLoading}
-                            onClick={handleCreateSpace}
-                        >
-                            Create new
-                        </Button>
-                    ) : null
-                }
-                showCount={false}
-                renderEmptyState={() => (
-                    <>
-                        <ResourceEmptyStateIcon icon="folder-close" size={40} />
+                headerProps={{
+                    title: 'Spaces',
 
-                        <ResourceEmptyStateHeader>
-                            No spaces added yet
-                        </ResourceEmptyStateHeader>
-
-                        {!isDemo && userCanManageSpace && (
+                    action:
+                        spaces.length === 0 ? (
+                            <AnchorButton
+                                text="Learn"
+                                minimal
+                                target="_blank"
+                                href="https://docs.lightdash.com/guides/spaces/"
+                            />
+                        ) : !isDemo && userCanManageSpace ? (
+                            <Button
+                                minimal
+                                intent="primary"
+                                icon="plus"
+                                onClick={handleCreateSpace}
+                            >
+                                Create new
+                            </Button>
+                        ) : null,
+                }}
+                emptyStateProps={{
+                    icon: <IconFolders size={30} />,
+                    title: 'No spaces added yet',
+                    action:
+                        !isDemo && userCanManageSpace ? (
                             <Button
                                 text="Create space"
                                 icon="plus"
                                 intent="primary"
                                 onClick={handleCreateSpace}
                             />
-                        )}
-                    </>
-                )}
+                        ) : undefined,
+                }}
             />
 
             {isCreateModalOpen && (

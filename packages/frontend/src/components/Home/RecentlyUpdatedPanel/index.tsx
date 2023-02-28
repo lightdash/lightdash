@@ -1,6 +1,7 @@
 import { AnchorButton, Button } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { LightdashMode } from '@lightdash/common';
+import { IconChartBar, IconEye, IconStar } from '@tabler/icons-react';
 import { FC, useMemo } from 'react';
 import { useHistory } from 'react-router-dom';
 import { useDashboards } from '../../../hooks/dashboard/useDashboards';
@@ -12,13 +13,6 @@ import {
     ResourceViewItemType,
     wrapResourceView,
 } from '../../common/ResourceView/resourceTypeUtils';
-import {
-    ResourceEmptyStateHeader,
-    ResourceEmptyStateHeaderWrapper,
-    ResourceEmptyStateIcon,
-    ResourceEmptyStateText,
-} from '../../common/ResourceView/ResourceView.styles';
-import { SortDirection } from '../../common/ResourceView/ResourceViewList';
 
 interface Props {
     projectUuid: string;
@@ -61,11 +55,6 @@ const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
         <ResourceView
             items={recentItems}
             maxItems={10}
-            enableSorting={false}
-            defaultSort={{ updatedAt: SortDirection.DESC }}
-            defaultColumnVisibility={{ space: false, type: false }}
-            showCount={false}
-            headerTitle="Recently updated"
             tabs={[
                 {
                     id: 'recently-updated',
@@ -99,31 +88,31 @@ const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
                     },
                 },
             ]}
-            headerAction={
-                recentItems.length === 0 && (
-                    <AnchorButton
-                        text="Learn"
-                        minimal
-                        target="_blank"
-                        href="https://docs.lightdash.com/get-started/exploring-data/intro"
-                    />
-                )
+            listProps={{
+                enableSorting: false,
+                defaultColumnVisibility: { space: false },
+            }}
+            headerProps={
+                recentItems.length === 0
+                    ? {
+                          title: 'Charts and Dashboards',
+                          action: (
+                              <AnchorButton
+                                  text="Learn"
+                                  minimal
+                                  target="_blank"
+                                  href="https://docs.lightdash.com/get-started/exploring-data/intro"
+                              />
+                          ),
+                      }
+                    : undefined
             }
-            renderEmptyState={() => (
-                <>
-                    <ResourceEmptyStateIcon icon="chart" size={40} />
-
-                    <ResourceEmptyStateHeaderWrapper>
-                        <ResourceEmptyStateHeader>
-                            Feels a little bit empty over here...
-                        </ResourceEmptyStateHeader>
-
-                        <ResourceEmptyStateText>
-                            get started by creating some charts
-                        </ResourceEmptyStateText>
-                    </ResourceEmptyStateHeaderWrapper>
-
-                    {!isDemo && userCanManageCharts && (
+            emptyStateProps={{
+                icon: <IconChartBar size={30} />,
+                title: 'Feels a little bit empty over here...',
+                description: 'get started by creating some charts',
+                action:
+                    !isDemo && userCanManageCharts ? (
                         <Button
                             icon="plus"
                             intent="primary"
@@ -131,9 +120,8 @@ const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
                         >
                             Create chart
                         </Button>
-                    )}
-                </>
-            )}
+                    ) : undefined,
+            }}
         />
     );
 };

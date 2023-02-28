@@ -2,6 +2,7 @@ import { Button, Intent, Menu, PopoverPosition } from '@blueprintjs/core';
 import { Breadcrumbs2, MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import { LightdashMode, Space } from '@lightdash/common';
+import { Stack } from '@mantine/core';
 import { IconChartAreaLine, IconLayoutDashboard } from '@tabler/icons-react';
 import React, { useCallback, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
@@ -11,21 +12,12 @@ import { useSavedCharts } from '../../hooks/useSpaces';
 import { useApp } from '../../providers/AppProvider';
 import { Can } from '../common/Authorization';
 import DashboardCreateModal from '../common/modal/DashboardCreateModal';
-import {
-    PageBreadcrumbsWrapper,
-    PageContentWrapper,
-    PageHeader,
-} from '../common/Page/Page.styles';
+import { PageBreadcrumbsWrapper, PageHeader } from '../common/Page/Page.styles';
 import ResourceView from '../common/ResourceView';
 import {
     ResourceViewItemType,
     wrapResourceView,
 } from '../common/ResourceView/resourceTypeUtils';
-import {
-    ResourceEmptyStateHeader,
-    ResourceEmptyStateIcon,
-} from '../common/ResourceView/ResourceView.styles';
-import { SortDirection } from '../common/ResourceView/ResourceViewList';
 import ShareSpaceModal from '../common/ShareSpaceModal';
 import SpaceActionModal, { ActionType } from '../common/SpaceActionModal';
 import AddResourceToSpaceMenu from '../Explorer/SpaceBrowser/AddResourceToSpaceMenu';
@@ -84,7 +76,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
     );
 
     return (
-        <PageContentWrapper>
+        <Stack spacing="xl" w={900}>
             <PageHeader>
                 <PageBreadcrumbsWrapper>
                     <Breadcrumbs2
@@ -158,14 +150,15 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                     />
                 )}
             </PageHeader>
+
             <ResourceView
                 items={allItems}
-                defaultSort={{ type: SortDirection.DESC }}
-                defaultColumnVisibility={{ space: false, type: false }}
-                headerTitle="All items"
-                showCount={false}
-                headerAction={
-                    !isDemo && (
+                listProps={{
+                    defaultColumnVisibility: { space: false },
+                }}
+                headerProps={{
+                    title: 'All items',
+                    action: !isDemo && (
                         <Popover2
                             captureDismiss
                             position={PopoverPosition.BOTTOM_RIGHT}
@@ -232,16 +225,12 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                         >
                             <Button icon="plus" intent="primary" />
                         </Popover2>
-                    )
-                }
-                renderEmptyState={() => (
-                    <>
-                        <ResourceEmptyStateIcon icon="control" size={40} />
-                        <ResourceEmptyStateHeader>
-                            No items added yet
-                        </ResourceEmptyStateHeader>
-                    </>
-                )}
+                    ),
+                }}
+                emptyStateProps={{
+                    icon: <IconLayoutDashboard size={30} />,
+                    title: 'No items added yet',
+                }}
             />
 
             {addToSpace && (
@@ -268,7 +257,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                     setIsCreateDashboardOpen(false);
                 }}
             />
-        </PageContentWrapper>
+        </Stack>
     );
 };
 

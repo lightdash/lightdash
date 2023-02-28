@@ -1,45 +1,52 @@
-import { Tooltip2 } from '@blueprintjs/popover2';
 import { assertUnreachable } from '@lightdash/common';
+import {
+    Box,
+    Button,
+    Divider,
+    Group,
+    Paper,
+    Tabs,
+    Text,
+    Title,
+    Tooltip,
+    useMantineTheme,
+} from '@mantine/core';
+import { IconInfoCircle } from '@tabler/icons-react';
 import React, { useCallback, useMemo, useState } from 'react';
 import ResourceActionHandlers, {
     ResourceViewItemAction,
     ResourceViewItemActionState,
 } from './ResourceActionHandlers';
-import { ResourceViewItem, ResourceViewItemType } from './resourceTypeUtils';
-import {
-    ResourceEmptyStateWrapper,
-    ResourceTag,
-    ResourceTitle,
-    ResourceViewContainer,
-    ResourceViewHeader,
-    ResourceViewSpacer,
-    ResourceViewTab,
-} from './ResourceView.styles';
-import ResourceViewGrid from './ResourceViewGrid';
+import ResourceEmptyState, {
+    ResourceEmptyStateProps,
+} from './ResourceEmptyState';
+import { ResourceViewItem } from './resourceTypeUtils';
+import ResourceViewGrid, {
+    ResourceViewGridCommonProps,
+} from './ResourceViewGrid';
 import ResourceViewList, {
     ResourceViewListCommonProps,
 } from './ResourceViewList';
 
-type Tab = {
+type TabType = {
     id: string;
     name: string;
     icon?: JSX.Element;
     sort?: (a: ResourceViewItem, b: ResourceViewItem) => number;
 };
 
-type Group = ResourceViewItemType[];
+interface ResourceHeaderProps {
+    title?: string;
+    description?: string;
+    action?: React.ReactNode;
+}
 
 export interface ResourceViewCommonProps {
-    headerTitle?: string;
-    headerIcon?: JSX.Element;
-    headerIconTooltipContent?: string;
-    headerAction?: React.ReactNode;
     items: ResourceViewItem[];
-    tabs?: Tab[];
-    groups?: Group[];
+    tabs?: TabType[];
     maxItems?: number;
-    showCount?: boolean;
-    renderEmptyState?: () => React.ReactNode;
+    headerProps?: ResourceHeaderProps;
+    emptyStateProps?: ResourceEmptyStateProps;
     view?: ResourceViewType;
 }
 
@@ -48,25 +55,23 @@ export enum ResourceViewType {
     GRID = 'grid',
 }
 
-type ResourceViewProps = ResourceViewCommonProps & ResourceViewListCommonProps;
+interface ResourceViewProps extends ResourceViewCommonProps {
+    listProps?: ResourceViewListCommonProps;
+    gridProps?: ResourceViewGridCommonProps;
+}
 
 const ResourceView: React.FC<ResourceViewProps> = ({
     view = ResourceViewType.LIST,
     items,
-    tabs,
-    groups,
-    headerTitle,
-    headerIcon,
-    headerIconTooltipContent,
-    headerAction,
-    enableSorting,
-    enableMultiSort,
-    defaultSort,
-    defaultColumnVisibility,
-    showCount = true,
     maxItems,
-    renderEmptyState,
+    tabs,
+    gridProps = {},
+    listProps = {},
+    headerProps = {},
+    emptyStateProps = {},
 }) => {
+    const theme = useMantineTheme();
+
     const [action, setAction] = useState<ResourceViewItemActionState>({
         type: ResourceViewItemAction.CLOSE,
     });
@@ -92,81 +97,103 @@ const ResourceView: React.FC<ResourceViewProps> = ({
     }, [items, activeTabId, maxItems, tabs]);
 
     const sortProps =
-        tabs && tabs?.length > 0
-            ? null
+        tabs && tabs?.length > 0 && items.length > 1
+            ? {
+                  enableSorting: false,
+                  enableMultiSort: false,
+                  defaultSort: undefined,
+              }
             : {
-                  enableSorting,
-                  enableMultiSort,
-                  defaultSort,
+                  enableSorting: listProps.enableSorting,
+                  enableMultiSort: listProps.enableMultiSort,
+                  defaultSort: listProps.defaultSort,
               };
 
     return (
         <>
-            {tabs && tabs?.length > 0
-                ? tabs.map((tab) => (
-                      <ResourceViewTab
-                          key={tab.id}
-                          icon={tab.icon}
-                          intent={tab.id === activeTabId ? 'primary' : 'none'}
-                          onClick={() => setActiveTabId(tab.id)}
-                          minimal
-                          selected={activeTabId === tab.id}
-                      >
-                          {tab.name}
-                      </ResourceViewTab>
-                  ))
-                : null}
+            <Paper withBorder sx={{ overflow: 'hidden' }}>
+                {tabs && tabs?.length > 0 && items.length > 1 ? (
+                    <Tabs
+                        styles={{
+                            tab: {
+                                borderRadius: 0,
+                                height: 50,
+                                padding: '0 20px',
+                            },
+                            tabsList: {
+                                borderBottom: `1px solid ${theme.colors.gray[3]}`,
+                            },
+                        }}
+                        value={activeTabId}
+                        onTabChange={(t: string) => setActiveTabId(t)}
+                    >
+                        <Tabs.List>
+                            {tabs.map((tab) => (
+                                <Tabs.Tab
+                                    key={tab.id}
+                                    icon={tab.icon}
+                                    value={tab.id}
+                                >
+                                    <Text color="gray.7" fz={15} fw={500}>
+                                        {tab.name}
+                                    </Text>
+                                </Tabs.Tab>
+                            ))}
+                        </Tabs.List>
+                    </Tabs>
+                ) : null}
 
-            <ResourceViewContainer>
-                {tabs && tabs?.length > 0 ? null : headerTitle ||
-                  headerAction ? (
-                    <ResourceViewHeader>
-                        {headerTitle && (
-                            <ResourceTitle>{headerTitle}</ResourceTitle>
-                        )}
-                        {headerIcon && (
-                            <Tooltip2
-                                content={headerIconTooltipContent || ''}
-                                disabled={!headerIconTooltipContent}
-                            >
-                                {headerIcon}
-                            </Tooltip2>
-                        )}
-                        {showCount && slicedSortedItems.length > 0 && (
-                            <ResourceTag round>
-                                {slicedSortedItems.length}
-                            </ResourceTag>
-                        )}
+                {headerProps?.title || headerProps?.action ? (
+                    <>
+                        <Group align="center" h={50} px="md" spacing="xs">
+                            {headerProps?.title ? (
+                                <Title order={5} fw={600}>
+                                    {headerProps.title}
+                                </Title>
+                            ) : null}
 
-                        <ResourceViewSpacer />
+                            {headerProps?.description ? (
+                                <Tooltip
+                                    withArrow
+                                    label={headerProps.description || ''}
+                                    disabled={!headerProps.description}
+                                    position="right"
+                                >
+                                    <IconInfoCircle
+                                        color={theme.colors.gray[6]}
+                                        size={18}
+                                    />
+                                </Tooltip>
+                            ) : null}
 
-                        {headerAction}
-                    </ResourceViewHeader>
+                            <Box ml="auto">{headerProps.action}</Box>
+                        </Group>
+
+                        <Divider color="gray.3" />
+                    </>
                 ) : null}
 
                 {slicedSortedItems.length === 0 ? (
-                    !!renderEmptyState ? (
-                        <ResourceEmptyStateWrapper>
-                            {renderEmptyState()}
-                        </ResourceEmptyStateWrapper>
-                    ) : null
+                    <ResourceEmptyState {...emptyStateProps} />
                 ) : view === ResourceViewType.LIST ? (
                     <ResourceViewList
                         items={slicedSortedItems}
                         {...sortProps}
-                        defaultColumnVisibility={defaultColumnVisibility}
+                        defaultColumnVisibility={
+                            listProps.defaultColumnVisibility
+                        }
                         onAction={handleAction}
                     />
                 ) : view === ResourceViewType.GRID ? (
                     <ResourceViewGrid
                         items={slicedSortedItems}
-                        groups={groups}
+                        groups={gridProps.groups}
                         onAction={handleAction}
                     />
                 ) : (
                     assertUnreachable(view, 'Unknown resource view type')
                 )}
-            </ResourceViewContainer>
+            </Paper>
 
             <ResourceActionHandlers action={action} onAction={handleAction} />
         </>

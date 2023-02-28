@@ -2,13 +2,14 @@ import { Button } from '@blueprintjs/core';
 import { Breadcrumbs2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import { LightdashMode } from '@lightdash/common';
+import { Stack } from '@mantine/core';
+import { IconChartBar } from '@tabler/icons-react';
 import { FC } from 'react';
 import { Helmet } from 'react-helmet';
 import { useHistory, useParams } from 'react-router-dom';
 import Page from '../components/common/Page/Page';
 import {
     PageBreadcrumbsWrapper,
-    PageContentWrapper,
     PageHeader,
 } from '../components/common/Page/Page.styles';
 import ResourceView from '../components/common/ResourceView';
@@ -16,12 +17,6 @@ import {
     ResourceViewItemType,
     wrapResourceView,
 } from '../components/common/ResourceView/resourceTypeUtils';
-import {
-    ResourceBreadcrumbTitle,
-    ResourceEmptyStateHeader,
-    ResourceEmptyStateIcon,
-    ResourceTag,
-} from '../components/common/ResourceView/ResourceView.styles';
 import { SortDirection } from '../components/common/ResourceView/ResourceViewList';
 import { LoadingChart } from '../components/SimpleChart';
 import { useSavedCharts } from '../hooks/useSpaces';
@@ -58,7 +53,8 @@ const SavedQueries: FC = () => {
             <Helmet>
                 <title>Saved charts - Lightdash</title>
             </Helmet>
-            <PageContentWrapper>
+
+            <Stack spacing="xl" w={900}>
                 <PageHeader>
                     <PageBreadcrumbsWrapper>
                         <Breadcrumbs2
@@ -72,17 +68,15 @@ const SavedQueries: FC = () => {
                                     },
                                 },
                                 {
-                                    text: (
-                                        <ResourceBreadcrumbTitle>
-                                            All saved charts
-                                        </ResourceBreadcrumbTitle>
-                                    ),
+                                    text: 'All saved charts',
                                 },
                             ]}
                         />
                     </PageBreadcrumbsWrapper>
 
-                    {userCanManageCharts && !isDemo && savedQueries.length > 0 && (
+                    {savedQueries.length > 0 &&
+                    !isDemo &&
+                    userCanManageCharts ? (
                         <Button
                             icon="plus"
                             intent="primary"
@@ -90,7 +84,7 @@ const SavedQueries: FC = () => {
                         >
                             Create chart
                         </Button>
-                    )}
+                    ) : undefined}
                 </PageHeader>
 
                 <ResourceView
@@ -98,17 +92,14 @@ const SavedQueries: FC = () => {
                         savedQueries,
                         ResourceViewItemType.CHART,
                     )}
-                    defaultSort={{ updatedAt: SortDirection.DESC }}
-                    defaultColumnVisibility={{ type: false }}
-                    renderEmptyState={() => (
-                        <>
-                            <ResourceEmptyStateIcon icon="chart" size={40} />
-
-                            <ResourceEmptyStateHeader>
-                                No charts added yet
-                            </ResourceEmptyStateHeader>
-
-                            {!isDemo && userCanManageCharts && (
+                    listProps={{
+                        defaultSort: { updatedAt: SortDirection.DESC },
+                    }}
+                    emptyStateProps={{
+                        icon: <IconChartBar size={30} />,
+                        title: 'No charts added yet',
+                        action:
+                            !isDemo && userCanManageCharts ? (
                                 <Button
                                     icon="plus"
                                     intent="primary"
@@ -116,11 +107,10 @@ const SavedQueries: FC = () => {
                                 >
                                     Create chart
                                 </Button>
-                            )}
-                        </>
-                    )}
+                            ) : undefined,
+                    }}
                 />
-            </PageContentWrapper>
+            </Stack>
         </Page>
     );
 };
