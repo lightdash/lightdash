@@ -1,3 +1,10 @@
+# [0.434.0](https://github.com/lightdash/lightdash/compare/0.433.8...0.434.0) (2023-02-28)
+
+
+### Features
+
+* resource view redesign ([#4586](https://github.com/lightdash/lightdash/issues/4586)) ([cf26548](https://github.com/lightdash/lightdash/commit/cf26548cbfcdea038dc961f0dc0b561713928bb8))
+
 ## [0.433.8](https://github.com/lightdash/lightdash/compare/0.433.7...0.433.8) (2023-02-28)
 
 
