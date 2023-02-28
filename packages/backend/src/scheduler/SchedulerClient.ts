@@ -65,7 +65,7 @@ export class SchedulerClient {
 
         const scheduledJobs = await graphileClient.withPgClient((pgClient) =>
             pgClient.query(
-                "select id, run_at from graphile_worker.jobs where payload->>'schedulerUuid' like $1",
+                "select id, run_at from graphile_worker.jobs where payload->>'schedulerUuid' IS $1",
                 [`${schedulerUuid}%`],
             ),
         );
@@ -82,7 +82,7 @@ export class SchedulerClient {
             pgClient.query<{
                 id: string;
             }>(
-                `select id from graphile_worker.jobs where payload->>'schedulerUuid' like $1`,
+                `select id from graphile_worker.jobs where payload->>'schedulerUuid' IS $1`,
                 [`${schedulerUuid}%`],
             ),
         );
