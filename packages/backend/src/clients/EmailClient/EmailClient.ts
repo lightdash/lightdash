@@ -179,6 +179,8 @@ export default class EmailClient {
         subject: string,
         title: string,
         description: string,
+        date: string,
+        frequency: string,
         imageUrl: string,
         url: string,
     ) {
@@ -190,6 +192,8 @@ export default class EmailClient {
                 title,
                 imageUrl,
                 description,
+                date,
+                frequency,
                 url,
                 host: this.lightdashConfig.siteUrl,
             },

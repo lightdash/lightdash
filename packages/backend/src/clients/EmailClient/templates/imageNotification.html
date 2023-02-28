@@ -9,28 +9,20 @@
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
   <title>Simple Transactional Email</title>
   <style>
-      /* -------------------------------------
-GLOBAL RESETS
-------------------------------------- */
-
+      /* -------------------------------------GLOBAL RESETS------------------------------------- */
       /*All the styling goes here*/
 
-      img {
-          border: none;
-          -ms-interpolation-mode: bicubic;
-          max-width: 100%;
-      }
-
       body {
-          background-color: #e5e8eb;
+          background-color: #f6f7f9;
           font-family: 'Roboto', sans-serif;
           -webkit-font-smoothing: antialiased;
           font-size: 14px;
-          line-height: 1.4;
+          line-height: 28px;
           margin: 0;
           padding: 0;
           -ms-text-size-adjust: 100%;
           -webkit-text-size-adjust: 100%;
+          text-decoration: none;
       }
 
       table {
@@ -41,17 +33,13 @@ GLOBAL RESETS
       }
 
       table td {
-          font-family: 'Roboto', sans-serif;
-          font-size: 14px;
           vertical-align: top;
       }
 
-      /* -------------------------------------
-BODY & CONTAINER
-------------------------------------- */
+      /* -------------------------------------BODY & CONTAINER------------------------------------- */
 
       .body {
-          background-color: #e5e8eb;
+          background-color: #f6f7f9;
           width: 100%;
       }
 
@@ -91,12 +79,6 @@ HEADER, FOOTER, MAIN
           margin-right: 15px;
       }
 
-      .social {
-          width: 20px;
-          height: 20px;
-          margin: 0 10px 0 10px;
-      }
-
       .main {
           border-radius: 3px;
           width: 100%;
@@ -104,23 +86,24 @@ HEADER, FOOTER, MAIN
 
       .wrapper {
           box-sizing: border-box;
-          padding: 64px;
-          padding-bottom: 20px;
+          padding: 64px 64px 20px 64px;
       }
 
       .header {
           display: flex;
           flex-direction: row;
-          margin-bottom: 5px;
       }
 
       .title {
           font-family: 'Roboto', sans-serif;
-          font-size: 20px;
-          line-height: 28px;
-          font-weight: 500;
+          font-size: 18px;
+          font-weight: 600;
           color: #171818;
           margin: 0;
+      }
+
+      .description {
+          margin: 0 0 0 54px;
       }
 
       .content-block {
@@ -129,21 +112,12 @@ HEADER, FOOTER, MAIN
       }
 
       .footer {
-          clear: both;
           margin-top: 40px;
           padding-top: 25px;
           text-align: center;
           width: 100%;
           border-top: 1px solid rgba(0, 0, 0, 0.1);
-      }
-
-      .footer td,
-      .footer p,
-      .footer span,
-      .footer a {
-          color: #999999;
-          font-size: 12px;
-          text-align: center;
+          color: #5f6b7c;
       }
 
       /* -------------------------------------
@@ -156,9 +130,7 @@ TYPOGRAPHY
           color: #000000;
           font-family: 'Roboto', sans-serif;
           font-weight: 400;
-          line-height: 1.4;
           margin: 0;
-          margin-bottom: 30px;
       }
 
       h1 {
@@ -172,11 +144,6 @@ TYPOGRAPHY
       ul,
       ol {
           font-family: 'Roboto', sans-serif;
-          margin: 0;
-          margin-bottom: 20px;
-          font-weight: 400;
-          font-size: 14px;
-          line-height: 24px;
           color: #5c7080;
       }
 
@@ -188,18 +155,13 @@ TYPOGRAPHY
       }
 
       a {
-          color: #3498db;
-          text-decoration: underline;
+          color: #2d72d2;
+          text-decoration: none;
       }
 
       /* -------------------------------------
 BUTTONS
 ------------------------------------- */
-      .btn {
-          box-sizing: border-box;
-          width: 100%;
-          margin-top: 40px;
-      }
 
       .btn > tbody > tr > td {
           padding-bottom: 15px;
@@ -213,22 +175,6 @@ BUTTONS
           background-color: #ffffff;
           border-radius: 5px;
           text-align: center;
-      }
-
-      .btn {
-          background-color: #ffffff;
-          border-radius: 4px;
-          box-sizing: border-box;
-          color: #3498db;
-          cursor: pointer;
-          display: inline-block;
-          font-style: normal;
-          font-weight: 500;
-          font-size: 16px;
-          line-height: 24px;
-          margin: 0;
-          padding: 12px 25px;
-          text-decoration: none;
       }
 
       .btn-container {
@@ -251,69 +197,28 @@ BUTTONS
       }
 
       .card {
+          max-width: 600px;
           background-color: #fff;
-          display: flex;
-          justify-content: center;
-          align-items: center;
+          display: block;
           margin: 30px 0;
           border-radius: 4px;
+          box-shadow: 0px 4px 10px 0px #0000000d;
       }
 
       .chart,
       .dashboard {
-          padding: 20px;
+          box-sizing: border-box;
+          max-width: 600px;
+          display: block;
+          padding: 10px 20px;
       }
 
       /* -------------------------------------
 OTHER STYLES THAT MIGHT BE USEFUL
 ------------------------------------- */
-      .last {
-          margin-bottom: 0;
-      }
-
-      .first {
-          margin-top: 0;
-      }
-
-      .align-center {
-          text-align: center;
-      }
-
-      .align-right {
-          text-align: right;
-      }
 
       .align-left {
           text-align: left;
-      }
-
-      .clear {
-          clear: both;
-      }
-
-      .mt0 {
-          margin-top: 0;
-      }
-
-      .mb0 {
-          margin-bottom: 0;
-      }
-
-      .preheader {
-          color: transparent;
-          display: none;
-          height: 0;
-          max-height: 0;
-          max-width: 0;
-          opacity: 0;
-          overflow: hidden;
-          mso-hide: all;
-          visibility: hidden;
-          width: 0;
-      }
-
-      .powered-by a {
-          text-decoration: none;
       }
 
       hr {
@@ -454,19 +359,17 @@ PRESERVE THESE STYLES IN THE HEAD
                 <tr>
                   <td>
                     <p class="description">
-                      {{description}}
+                      {{date}}
                     </p>
                   </td>
                 </tr>
                 <tr>
-                  <td>
-                    <div class="card">
-                      <img
-                        alt="chart or dashboard image"
-                        src="{{imageUrl}}"
-                        class="chart dashboard"
-                      />
-                    </div>
+                  <td class="card">
+                    <img
+                      alt="chart or dashboard image"
+                      src="{{imageUrl}}"
+                      class="chart dashboard"
+                    />
                   </td>
                 </tr>
 
@@ -494,8 +397,10 @@ PRESERVE THESE STYLES IN THE HEAD
                           <td
                             class="content-block"
                           >
-                            Scheduled
-                            delivery:
+                            <a
+                            >Scheduled
+                              delivery:</a
+                            >
                             {{frequency}}
                           </td>
                         </tr>
