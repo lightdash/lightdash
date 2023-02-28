@@ -64,6 +64,7 @@ export const FullShareUrl = {
 };
 
 export const ShareUrlWithoutParams = {
+    ...SampleShareUrl,
     nanoid: 'abc123',
     params: '',
     path: '/projects/uuid/tables/customers',
