@@ -36,7 +36,7 @@ export class ShareService {
         if (
             user.ability.cannot(
                 'view',
-                subject('Organization', {
+                subject('OrganizationMemberProfile', {
                     organizationUuid: shareUrl.organizationUuid,
                 }),
             )
