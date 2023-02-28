@@ -29,36 +29,37 @@ import {
 } from '@tabler/icons-react';
 import { CSSProperties, FC } from 'react';
 import { getItemIconName } from '../../Explorer/ExploreTree/TableTree/Tree/TreeSingleNode';
+import { SearchItem } from '../../NavBar/GlobalSearch/hooks';
 
-const getFieldIcon = (field: Field | TableCalculation | AdditionalMetric) => {
+const getFieldIcon = (
+    field: Field | TableCalculation | AdditionalMetric | SearchItem,
+) => {
     if (isField(field) && (isDimension(field) || isMetric(field))) {
         return getItemIconName(field.type);
     }
-    switch (field.type) {
-        case 'dashboard':
-            return 'dashboard';
-        case 'saved_chart':
-            return 'chart';
-        case 'space':
-            return 'space';
-        case 'table':
-            return 'table';
-        case 'page':
-            return 'page';
-    }
-    if (field.type === 'field') {
-        switch (field.typeLabel.toLowerCase()) {
-            case 'dimension':
-                return 'citation';
-            case 'metric':
-                return 'numerical';
+    if (typeof field === SearchItem) {
+        switch (field.type) {
+            case 'dashboard':
+                return 'dashboard';
+            case 'saved_chart':
+                return 'chart';
+            case 'space':
+                return 'space';
+            case 'table':
+                return 'table';
+            case 'page':
+                return 'page';
+            case 'field':
+                return field.typeLabel.toLowerCase() === 'dimension'
+                    ? 'citation'
+                    : 'numerical';
         }
     }
     return getItemIcon(field);
 };
 
 const FieldIcon: FC<{
-    item: Field | TableCalculation | AdditionalMetric;
+    item: Field | TableCalculation | AdditionalMetric | SearchItem;
     color?: string | undefined;
     size?: number | undefined;
     style?: CSSProperties | undefined;
