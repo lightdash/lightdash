@@ -68,7 +68,7 @@ const useTableStyles = createStyles((theme) => ({
 
         '& thead tr th': {
             color: theme.colors.gray[6],
-            fontWeight: 500,
+            fontWeight: 600,
             fontSize: '12px',
         },
 
