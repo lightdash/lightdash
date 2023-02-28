@@ -42,7 +42,7 @@ export const PageHeader = styled.div`
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 11px 0px 31px 0px;
+    padding-top: 10px;
 `;
 
 export const PageBreadcrumbsWrapper = styled.div`
