@@ -59,7 +59,6 @@ const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
                 {
                     id: 'recently-updated',
                     name: 'Recently updated',
-                    icon: <IconEye size={20} />,
                     sort: (a, b) => {
                         if (
                             isResourceViewSpaceItem(a) ||
@@ -77,7 +76,6 @@ const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
                 {
                     id: 'most-popular',
                     name: 'Most popular',
-                    icon: <IconStar size={20} />,
                     sort: (a, b) => {
                         if (
                             isResourceViewSpaceItem(a) ||
