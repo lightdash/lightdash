@@ -73,7 +73,7 @@ const useTableStyles = createStyles((theme) => ({
         },
 
         '& thead tr th, & tbody tr td': {
-            padding: '12px 24px',
+            padding: '12px 20px',
         },
 
         '&[data-hover] tbody tr': theme.fn.hover({

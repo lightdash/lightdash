@@ -5,6 +5,8 @@ import {
     Divider,
     Group,
     Paper,
+    Tabs,
+    Text,
     Title,
     Tooltip,
     useMantineTheme,
@@ -108,26 +110,39 @@ const ResourceView: React.FC<ResourceViewProps> = ({
               };
 
     return (
-        <Box>
-            {tabs && tabs?.length > 0 && items.length > 1 ? (
-                <Group spacing="xs" mb="md">
-                    {tabs.map((tab) => (
-                        <Button
-                            key={tab.id}
-                            leftIcon={tab.icon}
-                            variant={
-                                tab.id === activeTabId ? 'light' : 'subtle'
-                            }
-                            color={tab.id === activeTabId ? 'blue.9' : 'none'}
-                            onClick={() => setActiveTabId(tab.id)}
-                        >
-                            {tab.name}
-                        </Button>
-                    ))}
-                </Group>
-            ) : null}
-
+        <>
             <Paper withBorder sx={{ overflow: 'hidden' }}>
+                {tabs && tabs?.length > 0 && items.length > 1 ? (
+                    <Tabs
+                        styles={{
+                            tab: {
+                                borderRadius: 0,
+                                height: 50,
+                                padding: '0 20px',
+                            },
+                            tabsList: {
+                                borderBottom: `1px solid ${theme.colors.gray[3]}`,
+                            },
+                        }}
+                        value={activeTabId}
+                        onTabChange={(t: string) => setActiveTabId(t)}
+                    >
+                        <Tabs.List>
+                            {tabs.map((tab) => (
+                                <Tabs.Tab
+                                    key={tab.id}
+                                    icon={tab.icon}
+                                    value={tab.id}
+                                >
+                                    <Text color="gray.7" fz={15} fw={500}>
+                                        {tab.name}
+                                    </Text>
+                                </Tabs.Tab>
+                            ))}
+                        </Tabs.List>
+                    </Tabs>
+                ) : null}
+
                 {headerProps?.title || headerProps?.action ? (
                     <>
                         <Group align="center" h={50} px="md" spacing="xs">
@@ -181,7 +196,7 @@ const ResourceView: React.FC<ResourceViewProps> = ({
             </Paper>
 
             <ResourceActionHandlers action={action} onAction={handleAction} />
-        </Box>
+        </>
     );
 };
 
