@@ -158,6 +158,13 @@ app.use(
 app.use(flash());
 app.use(passport.initialize());
 app.use(passport.session());
+
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '../../frontend/build', 'index.html'), {
+        headers: { 'Cache-Control': 'no-cache, private' },
+    });
+});
+
 // api router
 app.use('/api/v1', apiV1Router);
 RegisterRoutes(app);
