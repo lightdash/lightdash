@@ -8,6 +8,7 @@ import { useToggle } from 'react-use';
 import { useProject } from '../../../hooks/useProject';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
+import FieldIcon from '../../common/Filters/FieldIcon';
 import HighlightedText from '../../common/HighlightedText';
 import {
     FirstLine,
@@ -35,7 +36,7 @@ const renderItem: ItemRenderer<SearchItem> = (
             key={getSearchResultId(field.meta)}
             selected={modifiers.active}
             disabled={modifiers.disabled}
-            icon={field.icon}
+            icon={<FieldIcon item={field} />}
             text={
                 <ResultContent>
                     <FirstLine>

@@ -13,12 +13,17 @@ import {
     Icon123,
     IconAbc,
     IconAlphabetLatin,
+    IconAppWindow,
     IconCalendar,
+    IconChartAreaLine,
     IconClockHour4,
+    IconFolder,
     IconFunction,
+    IconLayoutDashboard,
     IconLetterCase,
     IconMathFunction,
     IconQuote,
+    IconTable,
     IconTag,
     IconToggleLeft,
 } from '@tabler/icons-react';
@@ -28,6 +33,26 @@ import { getItemIconName } from '../../Explorer/ExploreTree/TableTree/Tree/TreeS
 const getFieldIcon = (field: Field | TableCalculation | AdditionalMetric) => {
     if (isField(field) && (isDimension(field) || isMetric(field))) {
         return getItemIconName(field.type);
+    }
+    switch (field.type) {
+        case 'dashboard':
+            return 'dashboard';
+        case 'saved_chart':
+            return 'chart';
+        case 'space':
+            return 'space';
+        case 'table':
+            return 'table';
+        case 'page':
+            return 'page';
+    }
+    if (field.type === 'field') {
+        switch (field.typeLabel.toLowerCase()) {
+            case 'dimension':
+                return 'citation';
+            case 'metric':
+                return 'numerical';
+        }
     }
     return getItemIcon(field);
 };
@@ -76,6 +101,38 @@ const FieldIcon: FC<{
             );
         case 'tag':
             return <IconTag color={iconColor} size={iconSize} style={style} />;
+        case 'dashboard':
+            return (
+                <IconLayoutDashboard
+                    color={iconColor}
+                    size={iconSize}
+                    style={style}
+                />
+            );
+        case 'chart':
+            return (
+                <IconChartAreaLine
+                    color={iconColor}
+                    size={iconSize}
+                    style={style}
+                />
+            );
+        case 'space':
+            return (
+                <IconFolder color={iconColor} size={iconSize} style={style} />
+            );
+        case 'table':
+            return (
+                <IconTable color={iconColor} size={iconSize} style={style} />
+            );
+        case 'page':
+            return (
+                <IconAppWindow
+                    color={iconColor}
+                    size={iconSize}
+                    style={style}
+                />
+            );
     }
 };
 
