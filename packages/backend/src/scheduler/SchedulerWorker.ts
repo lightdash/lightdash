@@ -9,7 +9,11 @@ import { schedulerClient } from '../clients/clients';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logger';
 import { schedulerService } from '../services/services';
-import { sendEmailNotification, sendSlackNotification } from './SchedulerTask';
+import {
+    handleScheduledDelivery,
+    sendEmailNotification,
+    sendSlackNotification,
+} from './SchedulerTask';
 
 type SchedulerWorkerDependencies = {
     lightdashConfig: LightdashConfig;
@@ -62,7 +66,9 @@ export class SchedulerWorker {
                     payload: any,
                     helpers: JobHelpers,
                 ) => {
-                    Logger.info(`Processing new job generateDailyJobs`);
+                    Logger.info(
+                        `Processing generateDailyJobs job "${helpers.job.id}"`,
+                    );
                     const schedulers =
                         await schedulerService.getAllSchedulers();
                     const promises = schedulers.map((scheduler) =>
@@ -72,12 +78,22 @@ export class SchedulerWorker {
                     );
                     await Promise.all(promises);
                 },
+                handleScheduledDelivery: async (
+                    payload: any,
+                    helpers: JobHelpers,
+                ) => {
+                    Logger.info(
+                        `Processing handleScheduledDelivery job "${helpers.job.id}"`,
+                        payload,
+                    );
+                    await handleScheduledDelivery(helpers.job.id, payload);
+                },
                 sendSlackNotification: async (
                     payload: any,
                     helpers: JobHelpers,
                 ) => {
                     Logger.info(
-                        `Processing new job sendSlackNotification`,
+                        `Processing sendSlackNotification job "${helpers.job.id}"`,
                         payload,
                     );
                     await sendSlackNotification(helpers.job.id, payload);
@@ -87,7 +103,7 @@ export class SchedulerWorker {
                     helpers: JobHelpers,
                 ) => {
                     Logger.info(
-                        `Processing new job sendEmailNotification`,
+                        `Processing sendEmailNotification job "${helpers.job.id}"`,
                         payload,
                     );
                     await sendEmailNotification(helpers.job.id, payload);

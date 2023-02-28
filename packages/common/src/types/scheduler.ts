@@ -109,6 +109,10 @@ export const isSlackTarget = (
     target: SchedulerSlackTarget | SchedulerEmailTarget,
 ): target is SchedulerSlackTarget => 'channel' in target;
 
+export const isEmailTarget = (
+    target: SchedulerSlackTarget | SchedulerEmailTarget,
+): target is SchedulerEmailTarget => !isSlackTarget(target);
+
 export const isCreateSchedulerSlackTarget = (
     target:
         | Pick<SchedulerSlackTarget, 'channel'>
@@ -127,7 +131,6 @@ export type ApiSchedulerAndTargetsResponse = {
 export type ScheduledJobs = {
     date: Date;
     id: string;
-    channel?: string;
 };
 export type ApiScheduledJobsResponse = {
     status: 'ok';
@@ -136,25 +139,40 @@ export type ApiScheduledJobsResponse = {
 
 // Scheduler task types
 
-export type ScheduledSlackNotification = Pick<
-    SchedulerBase,
-    | 'createdBy'
-    | 'savedChartUuid'
-    | 'dashboardUuid'
-    | 'schedulerUuid'
-    | 'format'
-    | 'options'
-> &
-    Pick<SchedulerSlackTarget, 'channel' | 'schedulerSlackTargetUuid'>;
+export type ScheduledDeliveryPayload = { schedulerUuid: string };
 
-export type ScheduledEmailNotification = Pick<
-    SchedulerBase,
-    | 'createdBy'
-    | 'savedChartUuid'
-    | 'dashboardUuid'
-    | 'schedulerUuid'
-    | 'name'
-    | 'format'
-    | 'options'
-> &
-    Pick<SchedulerEmailTarget, 'recipient' | 'schedulerEmailTargetUuid'>;
+export enum LightdashPage {
+    DASHBOARD = 'dashboard',
+    CHART = 'chart',
+    EXPLORE = 'explore',
+}
+
+export type NotificationPayloadBase = {
+    schedulerUuid: string;
+    page: {
+        url: string;
+        details: {
+            name: string;
+            description: string | undefined;
+        };
+        pageType: LightdashPage;
+        organizationUuid: string;
+        imageUrl?: string;
+        csvUrl?: {
+            path: string;
+            filename: string;
+        };
+        csvUrls?: {
+            path: string;
+            filename: string;
+        }[];
+    };
+};
+
+export type SlackNotificationPayload = NotificationPayloadBase & {
+    schedulerSlackTargetUuid: string;
+};
+
+export type EmailNotificationPayload = NotificationPayloadBase & {
+    schedulerEmailTargetUuid: string;
+};

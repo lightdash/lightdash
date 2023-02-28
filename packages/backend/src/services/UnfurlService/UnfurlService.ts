@@ -1,4 +1,8 @@
-import { assertUnreachable, AuthorizationError } from '@lightdash/common';
+import {
+    assertUnreachable,
+    AuthorizationError,
+    LightdashPage,
+} from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import fetch from 'node-fetch';
 import puppeteer from 'puppeteer';
@@ -21,12 +25,6 @@ const viewport = {
     width: 1400,
     height: 768,
 };
-
-export enum LightdashPage {
-    DASHBOARD = 'dashboard',
-    CHART = 'chart',
-    EXPLORE = 'explore',
-}
 
 export type Unfurl = {
     title: string;
@@ -153,7 +151,7 @@ export class UnfurlService {
                 await page.waitForSelector(selector, { timeout: 30000 });
                 element = await page.$(selector);
             } catch (e) {
-                Logger.info(
+                Logger.warn(
                     `Can't find element ${selector} on page ${e}, returning body`,
                 );
                 element = await page.$('body');
@@ -168,9 +166,9 @@ export class UnfurlService {
             };
             if (lightdashPage === LightdashPage.DASHBOARD) {
                 // Remove navbar from screenshot
-                removeComponents('.bp4-navbar');
-                removeComponents('button');
-                removeComponents('[data-icon="filter"]');
+                await removeComponents('.bp4-navbar');
+                await removeComponents('button');
+                await removeComponents('[data-icon="filter"]');
             }
 
             if (!element) {

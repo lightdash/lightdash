@@ -499,10 +499,23 @@ export type SchedulerJobEvent = BaseTrack & {
     properties: {
         jobId: string;
         schedulerId: string;
+    };
+};
+
+export type SchedulerNotificationJobEvent = BaseTrack & {
+    event:
+        | 'scheduler_notification_job.created'
+        | 'scheduler_notification_job.started'
+        | 'scheduler_notification_job.completed'
+        | 'scheduler_notification_job.failed';
+    anonymousId: string;
+    properties: {
+        jobId: string;
+        schedulerId: string;
         schedulerTargetId: string;
         resourceType?: 'dashboard' | 'chart';
         type: 'slack' | 'email';
-        format: 'csv' | 'image';
+        format?: 'csv' | 'image';
     };
 };
 
@@ -546,6 +559,7 @@ type Track =
     | SchedulerUpsertEvent
     | SchedulerDeleteEvent
     | SchedulerJobEvent
+    | SchedulerNotificationJobEvent
     | PinnedListUpdated;
 
 export class LightdashAnalytics extends Analytics {
