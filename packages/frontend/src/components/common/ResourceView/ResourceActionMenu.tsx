@@ -24,21 +24,23 @@ import {
 } from './ResourceActionHandlers';
 import { ResourceViewItem, ResourceViewItemType } from './resourceTypeUtils';
 
-export interface ResourceViewItemActionMenuCommonProps {
+export interface ResourceViewActionMenuCommonProps {
     onAction: (newAction: ResourceViewItemActionState) => void;
 }
 
-interface ResourceViewItemActionMenuProps
-    extends ResourceViewItemActionMenuCommonProps {
+interface ResourceViewActionMenuProps
+    extends ResourceViewActionMenuCommonProps {
     item: ResourceViewItem;
-    isOpen: boolean;
-    onToggle: () => void;
+    isOpen?: boolean;
+    onOpen?: () => void;
+    onClose?: () => void;
 }
 
-const ResourceViewItemActionMenu: FC<ResourceViewItemActionMenuProps> = ({
+const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     item,
     isOpen,
-    onToggle,
+    onOpen,
+    onClose,
     onAction,
 }) => {
     const { user } = useApp();
@@ -75,13 +77,15 @@ const ResourceViewItemActionMenu: FC<ResourceViewItemActionMenuProps> = ({
             shadow="md"
             position="bottom-start"
             withArrow
-            withinPortal
-            onClose={() => onToggle()}
-            arrowOffset={9}
+            onClose={onClose}
+            arrowPosition="center"
+            closeOnItemClick
+            closeOnClickOutside
             offset={-4}
+            withinPortal
         >
             <Menu.Target>
-                <Box onClick={onToggle}>
+                <Box onClick={isOpen ? onClose : onOpen}>
                     <ActionIcon
                         sx={(theme) => ({
                             ':hover': {
@@ -177,6 +181,8 @@ const ResourceViewItemActionMenu: FC<ResourceViewItemActionMenuProps> = ({
                             position="right-start"
                             trigger="hover"
                             offset={0}
+                            closeOnItemClick
+                            withinPortal
                         >
                             <Menu.Target>
                                 <Menu.Item
@@ -194,40 +200,41 @@ const ResourceViewItemActionMenu: FC<ResourceViewItemActionMenuProps> = ({
                             </Menu.Target>
 
                             <Menu.Dropdown maw={320}>
-                                {spaces.map((space) => {
-                                    const isSelected =
-                                        item.data.spaceUuid === space.uuid;
-                                    return (
-                                        <Menu.Item
-                                            component="button"
-                                            role="menuitem"
-                                            key={space.uuid}
-                                            disabled={isSelected}
-                                            icon={
-                                                isSelected ? (
-                                                    <IconCheck size={18} />
-                                                ) : (
-                                                    <Box w={18} h={18} />
-                                                )
+                                {spaces.map((space) => (
+                                    <Menu.Item
+                                        key={space.uuid}
+                                        role="menuitem"
+                                        disabled={
+                                            item.data.spaceUuid === space.uuid
+                                        }
+                                        icon={
+                                            item.data.spaceUuid ===
+                                            space.uuid ? (
+                                                <IconCheck size={18} />
+                                            ) : (
+                                                <Box w={18} h={18} />
+                                            )
+                                        }
+                                        component="button"
+                                        onClick={() => {
+                                            if (
+                                                item.data.spaceUuid !==
+                                                space.uuid
+                                            ) {
+                                                onAction({
+                                                    type: ResourceViewItemAction.MOVE_TO_SPACE,
+                                                    item,
+                                                    data: {
+                                                        ...item.data,
+                                                        spaceUuid: space.uuid,
+                                                    },
+                                                });
                                             }
-                                            onClick={() => {
-                                                if (!isSelected) {
-                                                    onAction({
-                                                        type: ResourceViewItemAction.MOVE_TO_SPACE,
-                                                        item,
-                                                        data: {
-                                                            ...item.data,
-                                                            spaceUuid:
-                                                                space.uuid,
-                                                        },
-                                                    });
-                                                }
-                                            }}
-                                        >
-                                            {space.name}
-                                        </Menu.Item>
-                                    );
-                                })}
+                                        }}
+                                    >
+                                        {space.name}
+                                    </Menu.Item>
+                                ))}
 
                                 <Menu.Item
                                     component="button"
@@ -268,4 +275,4 @@ const ResourceViewItemActionMenu: FC<ResourceViewItemActionMenuProps> = ({
     );
 };
 
-export default ResourceViewItemActionMenu;
+export default ResourceViewActionMenu;

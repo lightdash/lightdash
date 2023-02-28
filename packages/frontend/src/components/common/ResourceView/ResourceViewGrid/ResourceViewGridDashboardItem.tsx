@@ -10,14 +10,14 @@ import {
 import { useDisclosure, useHover } from '@mantine/hooks';
 import { IconEye } from '@tabler/icons-react';
 import { FC } from 'react';
-import ResourceViewItemActionMenu, {
-    ResourceViewItemActionMenuCommonProps,
+import ResourceViewActionMenu, {
+    ResourceViewActionMenuCommonProps,
 } from '../ResourceActionMenu';
 import ResourceIcon from '../ResourceIcon';
 import { ResourceViewDashboardItem } from '../resourceTypeUtils';
 
 interface ResourceViewGridDashboardItemProps
-    extends Pick<ResourceViewItemActionMenuCommonProps, 'onAction'> {
+    extends Pick<ResourceViewActionMenuCommonProps, 'onAction'> {
     item: ResourceViewDashboardItem;
 }
 
@@ -77,14 +77,12 @@ const ResourceViewGridDashboardItem: FC<ResourceViewGridDashboardItemProps> = ({
                         e.preventDefault();
                     }}
                 >
-                    <ResourceViewItemActionMenu
+                    <ResourceViewActionMenu
                         item={item}
                         isOpen={opened}
-                        onAction={(action) => {
-                            onAction(action);
-                            handlers.close();
-                        }}
-                        onToggle={() => handlers.toggle()}
+                        onOpen={handlers.open}
+                        onClose={handlers.close}
+                        onAction={onAction}
                     />
                 </Box>
             </Flex>

@@ -16,14 +16,14 @@ import {
     IconUsers,
 } from '@tabler/icons-react';
 import { FC } from 'react';
-import ResourceViewItemActionMenu, {
-    ResourceViewItemActionMenuCommonProps,
+import ResourceViewActionMenu, {
+    ResourceViewActionMenuCommonProps,
 } from '../ResourceActionMenu';
 import ResourceIcon from '../ResourceIcon';
 import { ResourceViewSpaceItem } from '../resourceTypeUtils';
 
 interface ResourceViewGridSpaceItemProps
-    extends Pick<ResourceViewItemActionMenuCommonProps, 'onAction'> {
+    extends Pick<ResourceViewActionMenuCommonProps, 'onAction'> {
     item: ResourceViewSpaceItem;
 }
 
@@ -127,14 +127,12 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
                         e.preventDefault();
                     }}
                 >
-                    <ResourceViewItemActionMenu
+                    <ResourceViewActionMenu
                         item={item}
                         isOpen={opened}
-                        onAction={(action) => {
-                            onAction(action);
-                            handlers.close();
-                        }}
-                        onToggle={() => handlers.toggle()}
+                        onOpen={handlers.open}
+                        onClose={handlers.close}
+                        onAction={onAction}
                     />
                 </Box>
             </Group>

@@ -266,12 +266,15 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
             {
                 id: 'actions',
                 cell: (item: ResourceViewItem) => (
-                    <ResourceActionMenu
-                        item={item}
-                        spaces={spaces}
-                        url={getResourceUrl(projectUuid, item)}
-                        onAction={onAction}
-                    />
+                    <Box
+                        component="div"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                        }}
+                    >
+                        <ResourceActionMenu item={item} onAction={onAction} />
+                    </Box>
                 ),
                 enableSorting: false,
                 meta: {
