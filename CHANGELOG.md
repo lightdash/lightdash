@@ -1,3 +1,10 @@
+## [0.433.7](https://github.com/lightdash/lightdash/compare/0.433.6...0.433.7) (2023-02-28)
+
+
+### Bug Fixes
+
+* validate cached warehouse connections against most recent credentials ([#4580](https://github.com/lightdash/lightdash/issues/4580)) ([3bd5129](https://github.com/lightdash/lightdash/commit/3bd5129d3bcc51ca9abdf58699039cb1447b7805))
+
 ## [0.433.6](https://github.com/lightdash/lightdash/compare/0.433.5...0.433.6) (2023-02-28)
 
 
