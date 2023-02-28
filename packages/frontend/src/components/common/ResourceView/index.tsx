@@ -95,7 +95,7 @@ const ResourceView: React.FC<ResourceViewProps> = ({
     }, [items, activeTabId, maxItems, tabs]);
 
     const sortProps =
-        tabs && tabs?.length > 0
+        tabs && tabs?.length > 0 && items.length > 1
             ? {
                   enableSorting: false,
                   enableMultiSort: false,
@@ -109,7 +109,7 @@ const ResourceView: React.FC<ResourceViewProps> = ({
 
     return (
         <Box>
-            {tabs && tabs?.length > 0 && items.length > 0 ? (
+            {tabs && tabs?.length > 0 && items.length > 1 ? (
                 <Group spacing="xs" mb="md">
                     {tabs.map((tab) => (
                         <Button
