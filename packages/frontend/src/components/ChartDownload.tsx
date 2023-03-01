@@ -192,7 +192,12 @@ export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
 };
 
 interface ChartDownloadMenuProps {
-    getCsvLink?: (limit: number | null, onlyRaw: boolean) => Promise<string>;
+    getCsvLink?: (
+        limit: number | null,
+        onlyRaw: boolean,
+        showTableNames: boolean,
+        customLabels?: Record<string, string>,
+    ) => Promise<string>;
 }
 
 export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
@@ -200,7 +205,7 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
         const {
             chartRef,
             chartType,
-            tableConfig: { rows },
+            tableConfig: { showTableNames, columnProperties, rows },
             resultsData,
         } = useVisualizationContext();
         const eChartsOptions = useEcharts();
@@ -211,12 +216,34 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
             chartType === ChartType.BIG_NUMBER ||
             (chartType === ChartType.CARTESIAN && !eChartsOptions);
 
+        const customLabels = columnProperties
+            ? Object.entries(columnProperties).reduce(
+                  (acc, [key, value]) => ({ ...acc, [key]: value.name }),
+                  {},
+              )
+            : undefined;
+
         return chartType === ChartType.TABLE && getCsvLink ? (
             <Popover2
                 lazy
                 position={PopoverPosition.BOTTOM_LEFT}
                 popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
-                content={<ExportCSV getCsvLink={getCsvLink} rows={rows} />}
+                content={
+                    <ExportCSV
+                        getCsvLink={async (
+                            limit: number | null,
+                            onlyRaw: boolean,
+                        ) =>
+                            getCsvLink(
+                                limit,
+                                onlyRaw,
+                                showTableNames,
+                                customLabels,
+                            )
+                        }
+                        rows={rows}
+                    />
+                }
             >
                 <Button text="Export CSV" rightIcon="caret-down" minimal />
             </Popover2>

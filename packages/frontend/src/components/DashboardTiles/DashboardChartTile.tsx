@@ -19,6 +19,7 @@ import {
     getItemMap,
     getVisibleFields,
     isFilterableField,
+    isTableChartConfig,
     PivotReference,
     ResultRow,
     SavedChart,
@@ -82,12 +83,24 @@ const ExportResultAsCSVModal: FC<ExportResultAsCSVModalProps> = ({
 
     const rows = resultData?.rows;
     const getCsvLink = async (limit: number | null, onlyRaw: boolean) => {
+        const customLabels =
+            isTableChartConfig(savedChart.chartConfig.config) &&
+            savedChart.chartConfig.config.columns
+                ? Object.entries(savedChart.chartConfig.config.columns).reduce(
+                      (acc, [key, value]) => ({ ...acc, [key]: value.name }),
+                      {},
+                  )
+                : undefined;
         const csvResponse = await downloadCsv({
             projectUuid: savedChart.projectUuid,
             tableId: savedChart.tableName,
             query: savedChart.metricQuery,
             csvLimit: limit,
             onlyRaw: onlyRaw,
+            showTableNames: isTableChartConfig(savedChart.chartConfig.config)
+                ? savedChart.chartConfig.config.showTableNames ?? false
+                : true,
+            customLabels,
         });
         return csvResponse.url;
     };

@@ -7,11 +7,13 @@ import {
     getItemMap,
     isDashboardChartTileType,
     isField,
+    isTableChartConfig,
     MetricQuery,
     SchedulerCsvOptions,
     SessionUser,
     TableCalculation,
 } from '@lightdash/common';
+import { getItemLabelWithoutTableName } from '@lightdash/common/src/utils/item';
 import { stringify } from 'csv-stringify';
 import * as fs from 'fs/promises';
 import moment from 'moment';
@@ -74,12 +76,24 @@ export const convertApiToCsv = (
     rows: { [col: string]: any }[],
     onlyRaw: boolean,
     itemMap: Record<string, Field | TableCalculation>,
+    showTableNames: boolean,
+    customLabels: Record<string, string> = {},
 ): Promise<string> => {
     // Ignore fields from results that are not selected in metrics or dimensions
 
     const csvHeader = Object.keys(rows[0])
         .filter((id) => fieldIds.includes(id))
-        .map((id) => getItemLabel(itemMap[id]));
+        .map((id) => {
+            if (customLabels[id]) {
+                return customLabels[id];
+            }
+            if (itemMap[id]) {
+                return showTableNames
+                    ? getItemLabel(itemMap[id])
+                    : getItemLabelWithoutTableName(itemMap[id]);
+            }
+            return id;
+        });
     const csvBody = rows.map((row) =>
         Object.keys(row)
             .filter((id) => fieldIds.includes(id))
@@ -162,6 +176,8 @@ export class CsvService {
         onlyRaw: boolean,
         metricQuery: MetricQuery,
         itemMap: Record<string, Field | TableCalculation>,
+        showTableNames: boolean,
+        customLabels: Record<string, string> | undefined,
     ): Promise<string> {
         // Ignore fields from results that are not selected in metrics or dimensions
         const selectedFieldIds = [
@@ -181,6 +197,8 @@ export class CsvService {
                         rows: results.rows,
                         onlyRaw,
                         itemMap,
+                        showTableNames,
+                        customLabels,
                     },
                 }),
             );
@@ -190,6 +208,8 @@ export class CsvService {
             results.rows,
             onlyRaw,
             itemMap,
+            showTableNames,
+            customLabels,
         );
     }
 
@@ -217,7 +237,10 @@ export class CsvService {
         options: SchedulerCsvOptions | undefined,
     ): Promise<AttachmentUrl> {
         const chart = await this.savedChartModel.get(chartUuid);
-        const { metricQuery } = chart;
+        const {
+            metricQuery,
+            chartConfig: { config },
+        } = chart;
         const exploreId = chart.tableName;
         const onlyRaw = options?.formatted === false;
 
@@ -239,11 +262,21 @@ export class CsvService {
             metricQuery.additionalMetrics,
             metricQuery.tableCalculations,
         );
+
+        const customColumnLabels =
+            isTableChartConfig(config) && config.columns
+                ? Object.entries(config.columns).reduce(
+                      (acc, [key, value]) => ({ ...acc, [key]: value.name }),
+                      {},
+                  )
+                : undefined;
         const csvContent = await CsvService.convertApiResultsToCsv(
             results,
             onlyRaw,
             metricQuery,
             itemMap,
+            isTableChartConfig(config) ? config.showTableNames ?? false : true,
+            customColumnLabels,
         );
 
         const fileId = `csv-${nanoid()}.csv`;

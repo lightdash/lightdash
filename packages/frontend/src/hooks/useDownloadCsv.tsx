@@ -9,18 +9,28 @@ export const downloadCsv = async ({
     query,
     csvLimit,
     onlyRaw,
+    showTableNames,
+    customLabels,
 }: {
     projectUuid: string;
     tableId: string;
     query: MetricQuery;
     csvLimit?: number | null; //giving null returns all results (no limit)
     onlyRaw: boolean;
+    showTableNames: boolean;
+    customLabels?: Record<string, string>;
 }) => {
     const timezoneFixQuery = convertDateFilters(query);
     return lightdashApi<ApiDownloadCsv>({
         url: `/projects/${projectUuid}/explores/${tableId}/downloadCsv`,
         method: 'POST',
-        body: JSON.stringify({ ...timezoneFixQuery, csvLimit, onlyRaw }),
+        body: JSON.stringify({
+            ...timezoneFixQuery,
+            csvLimit,
+            onlyRaw,
+            showTableNames,
+            customLabels,
+        }),
     });
 };
 
