@@ -24,6 +24,7 @@ import EmailVerification from './pages/EmailVerification';
 import Explorer from './pages/Explorer';
 import Home from './pages/Home';
 import Login from './pages/Login';
+import MinimalSavedExplorer from './pages/MinimalSavedExplorer';
 import PasswordRecovery from './pages/PasswordRecovery';
 import PasswordReset from './pages/PasswordReset';
 import { Projects } from './pages/Projects';
@@ -123,6 +124,10 @@ const App = () => (
                                                 <UserCompletionModal />
 
                                                 <Switch>
+                                                    <Route path="/minimal/projects/:projectUuid/saved/:savedQueryUuid">
+                                                        <MinimalSavedExplorer />
+                                                    </Route>
+
                                                     <Route path="/createProject/:method?">
                                                         <NavBar />
                                                         <TrackPage
@@ -197,6 +202,7 @@ const App = () => (
                                                                             <SavedExplorer />
                                                                         </TrackPage>
                                                                     </Route>
+
                                                                     <Route path="/projects/:projectUuid/saved">
                                                                         <NavBar />
                                                                         <TrackPage
