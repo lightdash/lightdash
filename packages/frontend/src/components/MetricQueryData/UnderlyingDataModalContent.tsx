@@ -312,6 +312,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
             query: underlyingDataMetricQuery,
             csvLimit: resultsData?.rows.length,
             onlyRaw: false,
+            showTableNames: true,
         });
         return csvResponse.url;
     };
