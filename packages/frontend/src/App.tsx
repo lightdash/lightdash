@@ -89,9 +89,9 @@ const App = () => (
                                         {/*this is just for testing purposes will delete before merging*/}
                                         <Route path="/emailverification">
                                             <EmailVerification
-                                                nbrOfAttempts={2}
+                                                nbrOfAttempts={5}
                                                 expirationTime={
-                                                    '2023-03-01T17:29:30'
+                                                    '2023-03-01T19:49:50'
                                                 }
                                                 onSubmit={() => {}}
                                                 onResend={() => {}}

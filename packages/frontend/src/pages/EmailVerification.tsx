@@ -59,7 +59,7 @@ const EmailVerification: FC<{
                 <CardWrapper elevation={2}>
                     <Title>Check your inbox!</Title>
                     <Subtitle>
-                        Verify your e-mail address by entering the OTP we've
+                        Verify your e-mail address by entering the code we've
                         just sent to <b>email</b>@email.com
                     </Subtitle>
                     <Form
@@ -68,7 +68,7 @@ const EmailVerification: FC<{
                         methods={methods}
                     >
                         <PasswordInputField
-                            label="OTP"
+                            label="One-time password"
                             name="otp"
                             placeholder="XXXXXX"
                             disabled={health.isLoading}
@@ -89,7 +89,7 @@ const EmailVerification: FC<{
                                             setCountdownCompleted(completed);
                                             return (
                                                 <Subtitle>
-                                                    Your one time password has
+                                                    Your one-time password has
                                                     expired. <br /> Please
                                                     resend a verification email.
                                                 </Subtitle>
@@ -97,7 +97,7 @@ const EmailVerification: FC<{
                                         }
                                         return (
                                             <Subtitle>
-                                                Your one time password expires
+                                                Your one-time password expires
                                                 in{' '}
                                                 <b>
                                                     {zeroPad(minutes)}:
