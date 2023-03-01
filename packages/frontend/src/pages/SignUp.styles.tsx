@@ -6,6 +6,7 @@ import PasswordInput from '../components/ReactHookForm/PasswordInput';
 
 const inputFieldStyles = css`
     margin-bottom: 20px;
+
     input {
         height: 40px;
     }
@@ -93,6 +94,14 @@ export const FooterCta = styled.a`
 export const Subtitle = styled.p`
     color: ${Colors.GRAY2};
     margin: 5px 0 20px;
+    text-align: center;
+`;
+
+export const ErrorMessage = styled.p`
+    color: ${Colors.RED3};
+    font-size: 12px;
+    font-weight: 500;
+    margin: 5px 30px 15px;
     text-align: center;
 `;
 

@@ -20,6 +20,7 @@ import UserCompletionModal from './components/UserCompletionModal';
 import CreateProject from './pages/CreateProject';
 import CreateProjectSettings from './pages/CreateProjectSettings';
 import Dashboard from './pages/Dashboard';
+import EmailVerification from './pages/EmailVerification';
 import Explorer from './pages/Explorer';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -84,6 +85,17 @@ const App = () => (
                                             <TrackPage name={PageName.REGISTER}>
                                                 <Register />
                                             </TrackPage>
+                                        </Route>
+                                        {/*this is just for testing purposes will delete before merging*/}
+                                        <Route path="/emailverification">
+                                            <EmailVerification
+                                                nbrOfAttempts={2}
+                                                expirationTime={
+                                                    '2023-03-01T17:29:30'
+                                                }
+                                                onSubmit={() => {}}
+                                                onResend={() => {}}
+                                            />
                                         </Route>
                                         <Route path="/login">
                                             <TrackPage name={PageName.LOGIN}>
