@@ -27,11 +27,12 @@ export const TargetRow = styled.div`
 export const SchedulerContainer = styled(Card)`
     display: flex;
     flex-direction: column;
-    padding: 10px;
+    padding: 5px 10px 11px;
     margin-bottom: 10px;
 `;
 
 export const SchedulerName = styled(H5)`
+    font-size: 14px !important;
     flex: 1;
     margin: 0;
 `;
@@ -39,7 +40,6 @@ export const SchedulerName = styled(H5)`
 export const SchedulerDetailsContainer = styled.div`
     display: flex;
     align-items: center;
-    gap: 10px;
 `;
 
 export const Title = styled.p`
