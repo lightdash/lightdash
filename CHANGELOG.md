@@ -1,3 +1,10 @@
+## [0.436.1](https://github.com/lightdash/lightdash/compare/0.436.0...0.436.1) (2023-03-01)
+
+
+### Bug Fixes
+
+* all results in scheduled delivery CSV ([#4642](https://github.com/lightdash/lightdash/issues/4642)) ([cfd1f53](https://github.com/lightdash/lightdash/commit/cfd1f53801d4b2006fd52c0f75aff97dbd8e8916))
+
 # [0.436.0](https://github.com/lightdash/lightdash/compare/0.435.2...0.436.0) (2023-03-01)
 
 
