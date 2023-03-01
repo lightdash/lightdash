@@ -12,7 +12,7 @@ import {
     SessionUser,
     TableCalculation,
 } from '@lightdash/common';
-import { Input, stringify } from 'csv-stringify';
+import { stringify } from 'csv-stringify';
 import * as fs from 'fs/promises';
 import moment from 'moment';
 import { nanoid } from 'nanoid';
@@ -121,16 +121,15 @@ export const convertApiToCsv = (
     });
 };
 
-const getCsvLimit = (
+const getSchedulerCsvLimit = (
     options: SchedulerCsvOptions | undefined,
-    defaultQueryLimit: number,
-): number | undefined => {
+): number | null | undefined => {
     switch (options?.limit) {
         case 'table':
         case undefined:
-            return defaultQueryLimit;
-        case 'all':
             return undefined;
+        case 'all':
+            return null;
         default:
             // Custom
             return options?.limit;
@@ -227,7 +226,7 @@ export class CsvService {
             metricQuery,
             chart.projectUuid,
             exploreId,
-            getCsvLimit(options, metricQuery.limit),
+            getSchedulerCsvLimit(options),
         );
 
         const explore = await this.projectService.getExplore(
