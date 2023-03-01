@@ -7,7 +7,10 @@ import {
     PopoverPosition,
 } from '@blueprintjs/core';
 import { Classes, Popover2 } from '@blueprintjs/popover2';
-import { ChartType } from '@lightdash/common';
+import {
+    ChartType,
+    getCustomLabelsFromColumnProperties,
+} from '@lightdash/common';
 import EChartsReact from 'echarts-for-react';
 import JsPDF from 'jspdf';
 import React, { memo, RefObject, useCallback, useState } from 'react';
@@ -216,13 +219,6 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
             chartType === ChartType.BIG_NUMBER ||
             (chartType === ChartType.CARTESIAN && !eChartsOptions);
 
-        const customLabels = columnProperties
-            ? Object.entries(columnProperties).reduce(
-                  (acc, [key, value]) => ({ ...acc, [key]: value.name }),
-                  {},
-              )
-            : undefined;
-
         return chartType === ChartType.TABLE && getCsvLink ? (
             <Popover2
                 lazy
@@ -238,7 +234,9 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                                 limit,
                                 onlyRaw,
                                 showTableNames,
-                                customLabels,
+                                getCustomLabelsFromColumnProperties(
+                                    columnProperties,
+                                ),
                             )
                         }
                         rows={rows}

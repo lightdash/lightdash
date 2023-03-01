@@ -674,6 +674,7 @@ projectRouter.post(
 
             const csvContent = await CsvService.convertSqlQueryResultsToCsv(
                 results,
+                req.body.customLabels,
             );
 
             const fileId = `csv-${nanoid()}.csv`;

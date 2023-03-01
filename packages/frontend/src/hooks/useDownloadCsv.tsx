@@ -37,13 +37,15 @@ export const downloadCsv = async ({
 export const downloadCsvFromSqlRunner = async ({
     projectUuid,
     sql,
+    customLabels,
 }: {
     projectUuid: string;
     sql: string;
+    customLabels?: Record<string, string>;
 }) => {
     return lightdashApi<ApiDownloadCsv>({
         url: `/projects/${projectUuid}/sqlRunner/downloadCsv`,
         method: 'POST',
-        body: JSON.stringify({ sql }),
+        body: JSON.stringify({ sql, customLabels }),
     });
 };

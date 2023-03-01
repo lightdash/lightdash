@@ -9,6 +9,7 @@ import { MenuItem2 } from '@blueprintjs/popover2';
 import {
     ChartType,
     DbtCloudMetric,
+    getCustomLabelsFromTableConfig,
     NotFoundError,
     TableBase,
 } from '@lightdash/common';
@@ -197,6 +198,9 @@ const SqlRunnerPage = () => {
             const csvResponse = await downloadCsvFromSqlRunner({
                 projectUuid,
                 sql,
+                customLabels: getCustomLabelsFromTableConfig(
+                    createSavedChart?.chartConfig.config,
+                ),
             });
             return csvResponse.url;
         }

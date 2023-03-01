@@ -3,6 +3,7 @@ import {
     ApiSqlQueryResults,
     DimensionType,
     Field,
+    getCustomLabelsFromTableConfig,
     getItemLabel,
     getItemMap,
     isDashboardChartTileType,
@@ -37,8 +38,11 @@ type CsvServiceDependencies = {
 
 export const convertSqlToCsv = (
     results: ApiSqlQueryResults,
+    customLabels: Record<string, string> = {},
 ): Promise<string> => {
-    const csvHeader = Object.keys(results.rows[0]);
+    const csvHeader = Object.keys(results.rows[0]).map(
+        (id) => customLabels[`sql_runner_${id}`] || id,
+    );
     const csvBody = results?.rows.map((row) =>
         Object.values(results?.fields).map((field, fieldIndex) => {
             if (field.type === DimensionType.TIMESTAMP) {
@@ -215,6 +219,7 @@ export class CsvService {
 
     static async convertSqlQueryResultsToCsv(
         results: ApiSqlQueryResults,
+        customLabels: Record<string, string> | undefined,
     ): Promise<string> {
         if (results.rows.length > 500) {
             Logger.debug(
@@ -224,11 +229,12 @@ export class CsvService {
                 new Worker('./dist/services/CsvService/convertSqlToCsv.js', {
                     workerData: {
                         results,
+                        customLabels,
                     },
                 }),
             );
         }
-        return convertSqlToCsv(results);
+        return convertSqlToCsv(results, customLabels);
     }
 
     async getCsvForChart(
@@ -263,20 +269,13 @@ export class CsvService {
             metricQuery.tableCalculations,
         );
 
-        const customColumnLabels =
-            isTableChartConfig(config) && config.columns
-                ? Object.entries(config.columns).reduce(
-                      (acc, [key, value]) => ({ ...acc, [key]: value.name }),
-                      {},
-                  )
-                : undefined;
         const csvContent = await CsvService.convertApiResultsToCsv(
             results,
             onlyRaw,
             metricQuery,
             itemMap,
             isTableChartConfig(config) ? config.showTableNames ?? false : true,
-            customColumnLabels,
+            getCustomLabelsFromTableConfig(config),
         );
 
         const fileId = `csv-${nanoid()}.csv`;

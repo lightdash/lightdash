@@ -14,6 +14,7 @@ import {
     FilterGroup,
     FilterOperator,
     friendlyName,
+    getCustomLabelsFromTableConfig,
     getDimensions,
     getFields,
     getItemMap,
@@ -83,14 +84,6 @@ const ExportResultAsCSVModal: FC<ExportResultAsCSVModalProps> = ({
 
     const rows = resultData?.rows;
     const getCsvLink = async (limit: number | null, onlyRaw: boolean) => {
-        const customLabels =
-            isTableChartConfig(savedChart.chartConfig.config) &&
-            savedChart.chartConfig.config.columns
-                ? Object.entries(savedChart.chartConfig.config.columns).reduce(
-                      (acc, [key, value]) => ({ ...acc, [key]: value.name }),
-                      {},
-                  )
-                : undefined;
         const csvResponse = await downloadCsv({
             projectUuid: savedChart.projectUuid,
             tableId: savedChart.tableName,
@@ -100,7 +93,9 @@ const ExportResultAsCSVModal: FC<ExportResultAsCSVModalProps> = ({
             showTableNames: isTableChartConfig(savedChart.chartConfig.config)
                 ? savedChart.chartConfig.config.showTableNames ?? false
                 : true,
-            customLabels,
+            customLabels: getCustomLabelsFromTableConfig(
+                savedChart.chartConfig.config,
+            ),
         });
         return csvResponse.url;
     };
