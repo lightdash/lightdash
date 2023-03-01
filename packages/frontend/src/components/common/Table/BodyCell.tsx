@@ -10,7 +10,7 @@ import { CellContextMenuProps } from './types';
 
 interface CommonBodyCellProps {
     cell: Cell<ResultRow, unknown>;
-    rowIndex: number;
+    index: number;
     isNumericItem: boolean;
     hasData: boolean;
     cellContextMenu?: FC<CellContextMenuProps>;
@@ -36,7 +36,7 @@ const BodyCell: FC<CommonBodyCellProps> = ({
     copying = false,
     hasData,
     isNumericItem,
-    rowIndex,
+    index,
     selected = false,
     style,
     tooltipContent,
@@ -86,7 +86,7 @@ const BodyCell: FC<CommonBodyCellProps> = ({
                             {...popoverProps}
                             className={className}
                             style={style}
-                            $rowIndex={rowIndex}
+                            $rowIndex={index}
                             $isSelected={selected}
                             $isInteractive={hasContextMenu}
                             $isCopying={copying}

@@ -1,22 +1,28 @@
 import { FC, useRef } from 'react';
 import { Table, TableScrollableWrapper } from '../Table.styles';
 import { useTableContext } from '../TableProvider';
-import TableBody from './TableBody';
+import { TableBody, VirtualizedTableBody } from './TableBody';
 import TableFooter from './TableFooter';
 import TableHeader from './TableHeader';
 
 interface ScrollableTableProps {
-    $shouldExpand?: boolean;
+    virtualized?: boolean;
 }
 
-const ScrollableTable: FC<ScrollableTableProps> = ({ $shouldExpand }) => {
+const ScrollableTable: FC<ScrollableTableProps> = ({ virtualized = true }) => {
     const { footer } = useTableContext();
     const tableContainerRef = useRef<HTMLDivElement>(null);
     return (
         <TableScrollableWrapper ref={tableContainerRef}>
             <Table $showFooter={!!footer?.show}>
                 <TableHeader />
-                <TableBody tableContainerRef={tableContainerRef} />
+                {virtualized ? (
+                    <VirtualizedTableBody
+                        tableContainerRef={tableContainerRef}
+                    />
+                ) : (
+                    <TableBody />
+                )}
                 <TableFooter />
             </Table>
         </TableScrollableWrapper>

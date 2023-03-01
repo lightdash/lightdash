@@ -3,7 +3,6 @@ import { useParams } from 'react-router-dom';
 import styled from 'styled-components';
 import LightdashVisualization from '../components/LightdashVisualization';
 import VisualizationProvider from '../components/LightdashVisualization/VisualizationProvider';
-// import MetricQueryDataProvider from '../components/MetricQueryData/MetricQueryDataProvider';
 import { useExplore } from '../hooks/useExplore';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import {
@@ -17,17 +16,6 @@ const StyledLightdashVisualization = styled(LightdashVisualization)`
 `;
 
 const MinimalExplorer: FC = ({}) => {
-    // const unsavedChartVersionTableName = useExplorerContext(
-    //     (context) => context.state.unsavedChartVersion.tableName,
-    // );
-    // const unsavedChartVersionMetricQuery = useExplorerContext(
-    //     (context) => context.state.unsavedChartVersion.metricQuery,
-    // );
-
-    // const unsavedChartVersion = useExplorerContext(
-    //     (context) => context.state.unsavedChartVersion,
-    // );
-
     const queryResults = useExplorerContext(
         (context) => context.queryResults.data,
     );
@@ -46,13 +34,7 @@ const MinimalExplorer: FC = ({}) => {
         return null;
     }
 
-    console.log(explore, savedChart);
-
     return (
-        // <MetricQueryDataProvider
-        //     metricQuery={unsavedChartVersionMetricQuery}
-        //     tableName={unsavedChartVersionTableName}
-        // >
         <VisualizationProvider
             isMinimal
             initialChartConfig={savedChart.chartConfig}
@@ -64,11 +46,11 @@ const MinimalExplorer: FC = ({}) => {
             columnOrder={savedChart.tableConfig.columnOrder}
         >
             <StyledLightdashVisualization
+                // get rid of the classNames once you remove analytics providers
                 className="sentry-block fs-block cohere-block"
                 data-testid="visualization"
             />
         </VisualizationProvider>
-        // </MetricQueryDataProvider>
     );
 };
 

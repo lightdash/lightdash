@@ -13,6 +13,7 @@ type SimpleTableProps = {
     className?: string;
     $padding?: number;
     $shouldExpand?: boolean;
+    virtualized?: boolean;
 };
 
 const SimpleTable: FC<SimpleTableProps> = ({
@@ -21,6 +22,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
     className,
     $shouldExpand,
     $padding,
+    virtualized = true,
     ...rest
 }) => {
     const {
@@ -52,6 +54,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
 
     return (
         <Table
+            virtualized={virtualized}
             $shouldExpand={$shouldExpand}
             $padding={$padding}
             className={className}

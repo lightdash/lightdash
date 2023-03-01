@@ -49,7 +49,7 @@ type Props = {
     onColumnOrderChange?: (value: string[]) => void;
 };
 
-type TableContext = Props & {
+export type TableContext = Props & {
     table: Table<ResultRow>;
     selectedCell: Cell<ResultRow, unknown> | undefined;
     onSelectCell: (cell: Cell<ResultRow, unknown> | undefined) => void;

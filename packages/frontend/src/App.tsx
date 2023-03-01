@@ -82,6 +82,12 @@ const App = () => (
                                 <Router>
                                     <Intercom />
                                     <Switch>
+                                        <PrivateRoute path="/minimal/projects/:projectUuid/saved/:savedQueryUuid">
+                                            <div style={{ height: '100vh' }}>
+                                                <MinimalSavedExplorer />
+                                            </div>
+                                        </PrivateRoute>
+
                                         <Route path="/register">
                                             <TrackPage name={PageName.REGISTER}>
                                                 <Register />
@@ -124,10 +130,6 @@ const App = () => (
                                                 <UserCompletionModal />
 
                                                 <Switch>
-                                                    <Route path="/minimal/projects/:projectUuid/saved/:savedQueryUuid">
-                                                        <MinimalSavedExplorer />
-                                                    </Route>
-
                                                     <Route path="/createProject/:method?">
                                                         <NavBar />
                                                         <TrackPage

@@ -36,6 +36,7 @@ export const AppProvider: FC = ({ children }) => {
         user,
     };
 
+    // TODO: move this to a separate file.
     return (
         <Context.Provider value={value}>
             <IntercomProvider
