@@ -48,6 +48,7 @@ export class SchedulerWorker {
         // Run a worker to execute jobs:
         Logger.info('Running scheduler');
         const runner = await runGraphileWorker({
+            connectionString: this.lightdashConfig.database.connectionUri,
             concurrency: this.lightdashConfig.scheduler?.concurrency,
             noHandleSignals: false,
             pollInterval: 1000,
