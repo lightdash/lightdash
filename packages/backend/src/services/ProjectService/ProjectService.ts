@@ -536,7 +536,7 @@ export class ProjectService {
         metricQuery: MetricQuery,
         projectUuid: string,
         exploreName: string,
-        csvLimit: number | undefined,
+        csvLimit: number | null | undefined,
     ): Promise<ApiQueryResults> {
         const { organizationUuid, warehouseConnection } =
             await this.projectModel.getWithSensitiveFields(projectUuid);
