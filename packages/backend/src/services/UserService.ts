@@ -110,10 +110,7 @@ export class UserService {
             ? activateUser.openId.email
             : inviteLink.email;
         if (
-            !(await this.verifyUserEmail(
-                inviteLink.organisationUuid,
-                userEmail,
-            ))
+            !(await this.isEmailAllowed(inviteLink.organisationUuid, userEmail))
         ) {
             throw new AuthorizationError('Email domain not allowed');
         }
@@ -193,7 +190,7 @@ export class UserService {
             throw new NotExistsError('Organization not found');
         }
 
-        if (!(await this.verifyUserEmail(organizationUuid, email))) {
+        if (!(await this.isEmailAllowed(organizationUuid, email))) {
             throw new AuthorizationError('Email domain not allowed');
         }
 
@@ -295,6 +292,10 @@ export class UserService {
             await this.openIdIdentityModel.updateIdentityByOpenId(
                 openIdUser.openId,
             );
+            await this.userModel.verifyUserEmailIfExists(
+                loginUser.userUuid,
+                openIdUser.openId.email.toLowerCase(),
+            );
             identifyUser(loginUser);
             analytics.track({
                 userId: loginUser.userUuid,
@@ -309,7 +310,7 @@ export class UserService {
         // User already logged in? Link openid identity to logged-in user
         if (sessionUser?.userId) {
             if (
-                !(await this.verifyUserEmail(
+                !(await this.isEmailAllowed(
                     sessionUser.organizationUuid,
                     openIdUser.openId.email,
                 ))
@@ -320,9 +321,13 @@ export class UserService {
                 userId: sessionUser.userId,
                 issuer: openIdUser.openId.issuer,
                 subject: openIdUser.openId.subject,
-                email: openIdUser.openId.email,
+                email: openIdUser.openId.email.toLowerCase(), // no guarantee on casing from OpenID
                 issuerType: openIdUser.openId.issuerType,
             });
+            await this.userModel.verifyUserEmailIfExists(
+                sessionUser.userUuid,
+                openIdUser.openId.email.toLowerCase(),
+            );
             analytics.track({
                 userId: sessionUser.userUuid,
                 event: 'user.identity_linked',
@@ -334,7 +339,15 @@ export class UserService {
         }
 
         // Create user
-        return this.activateUserWithOpenId(openIdUser, inviteCode);
+        const createdUser = await this.activateUserWithOpenId(
+            openIdUser,
+            inviteCode,
+        );
+        await this.userModel.verifyUserEmailIfExists(
+            createdUser.userUuid,
+            openIdUser.openId.email.toLowerCase(),
+        );
+        return createdUser;
     }
 
     async activateUserWithOpenId(
@@ -400,7 +413,7 @@ export class UserService {
         return completeUser;
     }
 
-    async verifyUserEmail(
+    async isEmailAllowed(
         organisationUuid: string,
         email: string,
     ): Promise<boolean> {

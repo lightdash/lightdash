@@ -615,4 +615,22 @@ export class UserModel {
                 ),
             });
     }
+
+    async verifyUserEmailIfExists(
+        userUuid: string,
+        email: string,
+    ): Promise<{ email: string }[]> {
+        const updatedRows = await this.database.raw<{ email: string }[]>(
+            `
+        UPDATE emails
+        SET is_verified = true
+        FROM users
+        WHERE emails.user_id = users.user_id
+        AND users.user_uuid = ?
+        AND emails.email = ?
+        RETURNING emails.email`,
+            [userUuid, email],
+        );
+        return updatedRows;
+    }
 }
