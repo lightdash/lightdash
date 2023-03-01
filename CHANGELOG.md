@@ -1,3 +1,10 @@
+# [0.436.0](https://github.com/lightdash/lightdash/compare/0.435.2...0.436.0) (2023-03-01)
+
+
+### Features
+
+* swap tabs ([#4634](https://github.com/lightdash/lightdash/issues/4634)) ([4042c1a](https://github.com/lightdash/lightdash/commit/4042c1a7afed8bd72683d344e3caaa1fc6b794f4))
+
 ## [0.435.2](https://github.com/lightdash/lightdash/compare/0.435.1...0.435.2) (2023-02-28)
 
 
