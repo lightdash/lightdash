@@ -15,11 +15,7 @@ const SchedulersModalBase: FC<
     return (
         <Dialog
             lazy
-            title={
-                <ModalTitle>
-                    Scheduled deliveries <b>"{name}"</b>
-                </ModalTitle>
-            }
+            title={<ModalTitle>Scheduled deliveries</ModalTitle>}
             icon="send-message"
             style={{
                 minHeight: '300px',
