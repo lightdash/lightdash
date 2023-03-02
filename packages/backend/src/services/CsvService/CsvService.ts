@@ -3,6 +3,7 @@ import {
     ApiSqlQueryResults,
     DimensionType,
     Field,
+    friendlyName,
     getCustomLabelsFromTableConfig,
     getItemLabel,
     getItemMap,
@@ -41,7 +42,7 @@ export const convertSqlToCsv = (
     customLabels: Record<string, string> = {},
 ): Promise<string> => {
     const csvHeader = Object.keys(results.rows[0]).map(
-        (id) => customLabels[`sql_runner_${id}`] || id,
+        (id) => customLabels[id] || friendlyName(id),
     );
     const csvBody = results?.rows.map((row) =>
         Object.values(results?.fields).map((field, fieldIndex) => {
