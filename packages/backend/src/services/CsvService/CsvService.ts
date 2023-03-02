@@ -6,6 +6,7 @@ import {
     friendlyName,
     getCustomLabelsFromTableConfig,
     getItemLabel,
+    getItemLabelWithoutTableName,
     getItemMap,
     isDashboardChartTileType,
     isField,
@@ -15,7 +16,6 @@ import {
     SessionUser,
     TableCalculation,
 } from '@lightdash/common';
-import { getItemLabelWithoutTableName } from '@lightdash/common/src/utils/item';
 import { stringify } from 'csv-stringify';
 import * as fs from 'fs/promises';
 import moment from 'moment';
