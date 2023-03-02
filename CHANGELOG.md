@@ -1,3 +1,10 @@
+## [0.436.4](https://github.com/lightdash/lightdash/compare/0.436.3...0.436.4) (2023-03-02)
+
+
+### Bug Fixes
+
+* scheduler migration ([#4654](https://github.com/lightdash/lightdash/issues/4654)) ([8d5f52d](https://github.com/lightdash/lightdash/commit/8d5f52d2950ab79a10bbd7f46f1ad2bf1d60ada9))
+
 ## [0.436.3](https://github.com/lightdash/lightdash/compare/0.436.2...0.436.3) (2023-03-02)
 
 
