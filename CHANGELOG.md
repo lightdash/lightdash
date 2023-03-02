@@ -1,3 +1,10 @@
+## [0.436.3](https://github.com/lightdash/lightdash/compare/0.436.2...0.436.3) (2023-03-02)
+
+
+### Bug Fixes
+
+* scheduler database connection override ([#4643](https://github.com/lightdash/lightdash/issues/4643)) ([29c1726](https://github.com/lightdash/lightdash/commit/29c172658c7d1bd824f1dc8e591d366fbd8d61db))
+
 ## [0.436.2](https://github.com/lightdash/lightdash/compare/0.436.1...0.436.2) (2023-03-01)
 
 
