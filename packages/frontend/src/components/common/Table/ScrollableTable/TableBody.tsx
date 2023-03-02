@@ -31,18 +31,16 @@ const VirtualizedArea: FC<{ cellCount: number; padding: number }> = ({
     );
 };
 
-interface TableRowProps
-    extends Pick<
-        TableContext,
-        | 'cellContextMenu'
-        | 'selectedCell'
-        | 'onSelectCell'
-        | 'copyingCellId'
-        | 'onCopyCell'
-        | 'conditionalFormattings'
-    > {
-    row: Row<ResultRow>;
+interface TableRowProps {
     index: number;
+    row: Row<ResultRow>;
+
+    cellContextMenu?: TableContext['cellContextMenu'];
+    selectedCell?: TableContext['selectedCell'];
+    onSelectCell?: TableContext['onSelectCell'];
+    copyingCellId?: TableContext['copyingCellId'];
+    onCopyCell?: TableContext['onCopyCell'];
+    conditionalFormattings: TableContext['conditionalFormattings'];
 }
 
 const TableRow: FC<TableRowProps> = ({
@@ -101,9 +99,9 @@ const TableRow: FC<TableRowProps> = ({
                         copying={cell.id === copyingCellId}
                         selected={cell.id === selectedCell?.id}
                         tooltipContent={tooltipContent}
-                        onSelect={() => onSelectCell(cell)}
-                        onDeselect={() => onSelectCell(undefined)}
-                        onKeyDown={onCopyCell}
+                        onSelect={() => onSelectCell?.(cell)}
+                        onDeselect={() => onSelectCell?.(undefined)}
+                        onKeyDown={(e) => onCopyCell?.(e)}
                     >
                         {flexRender(
                             cell.column.columnDef.cell,
@@ -175,15 +173,7 @@ const VirtualizedTableBody: FC<{
 };
 
 const TableBody: FC = () => {
-    const {
-        table,
-        cellContextMenu,
-        selectedCell,
-        onSelectCell,
-        copyingCellId,
-        onCopyCell,
-        conditionalFormattings,
-    } = useTableContext();
+    const { table, conditionalFormattings } = useTableContext();
     const { rows } = table.getRowModel();
 
     return (
@@ -193,11 +183,6 @@ const TableBody: FC = () => {
                     key={row.index}
                     index={row.index}
                     row={row}
-                    cellContextMenu={cellContextMenu}
-                    selectedCell={selectedCell}
-                    onSelectCell={onSelectCell}
-                    copyingCellId={copyingCellId}
-                    onCopyCell={onCopyCell}
                     conditionalFormattings={conditionalFormattings}
                 />
             ))}
