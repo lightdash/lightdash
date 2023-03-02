@@ -51,7 +51,9 @@ export class SchedulerClient {
 
     constructor({ lightdashConfig }: SchedulerClientDependencies) {
         this.lightdashConfig = lightdashConfig;
-        this.graphileUtils = makeWorkerUtils({});
+        this.graphileUtils = makeWorkerUtils({
+            connectionString: lightdashConfig.database.connectionUri,
+        });
 
         this.graphileUtils.then((utils) => {
             utils.migrate().catch((e: any) => {
