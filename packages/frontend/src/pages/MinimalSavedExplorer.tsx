@@ -15,7 +15,7 @@ const StyledLightdashVisualization = styled(LightdashVisualization)`
     min-height: inherit;
 `;
 
-const MinimalExplorer: FC = ({}) => {
+const MinimalExplorer: FC = () => {
     const queryResults = useExplorerContext(
         (context) => context.queryResults.data,
     );
