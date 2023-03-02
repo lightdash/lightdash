@@ -87,7 +87,12 @@ const VisualizationCard: FC = memo(() => {
         return <CollapsableCard title="Charts" disabled />;
     }
 
-    const getCsvLink = async (csvLimit: number | null, onlyRaw: boolean) => {
+    const getCsvLink = async (
+        csvLimit: number | null,
+        onlyRaw: boolean,
+        showTableNames: boolean,
+        customLabels?: Record<string, string>,
+    ) => {
         if (explore?.name && unsavedChartVersion?.metricQuery && projectUuid) {
             const csvResponse = await downloadCsv({
                 projectUuid,
@@ -95,6 +100,8 @@ const VisualizationCard: FC = memo(() => {
                 query: unsavedChartVersion?.metricQuery,
                 csvLimit,
                 onlyRaw,
+                showTableNames,
+                customLabels,
             });
             return csvResponse.url;
         }

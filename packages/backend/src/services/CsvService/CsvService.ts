@@ -3,10 +3,14 @@ import {
     ApiSqlQueryResults,
     DimensionType,
     Field,
+    friendlyName,
+    getCustomLabelsFromTableConfig,
     getItemLabel,
+    getItemLabelWithoutTableName,
     getItemMap,
     isDashboardChartTileType,
     isField,
+    isTableChartConfig,
     MetricQuery,
     SchedulerCsvOptions,
     SessionUser,
@@ -35,8 +39,11 @@ type CsvServiceDependencies = {
 
 export const convertSqlToCsv = (
     results: ApiSqlQueryResults,
+    customLabels: Record<string, string> = {},
 ): Promise<string> => {
-    const csvHeader = Object.keys(results.rows[0]);
+    const csvHeader = Object.keys(results.rows[0]).map(
+        (id) => customLabels[id] || friendlyName(id),
+    );
     const csvBody = results?.rows.map((row) =>
         Object.values(results?.fields).map((field, fieldIndex) => {
             if (field.type === DimensionType.TIMESTAMP) {
@@ -74,12 +81,24 @@ export const convertApiToCsv = (
     rows: { [col: string]: any }[],
     onlyRaw: boolean,
     itemMap: Record<string, Field | TableCalculation>,
+    showTableNames: boolean,
+    customLabels: Record<string, string> = {},
 ): Promise<string> => {
     // Ignore fields from results that are not selected in metrics or dimensions
 
     const csvHeader = Object.keys(rows[0])
         .filter((id) => fieldIds.includes(id))
-        .map((id) => getItemLabel(itemMap[id]));
+        .map((id) => {
+            if (customLabels[id]) {
+                return customLabels[id];
+            }
+            if (itemMap[id]) {
+                return showTableNames
+                    ? getItemLabel(itemMap[id])
+                    : getItemLabelWithoutTableName(itemMap[id]);
+            }
+            return id;
+        });
     const csvBody = rows.map((row) =>
         Object.keys(row)
             .filter((id) => fieldIds.includes(id))
@@ -162,6 +181,8 @@ export class CsvService {
         onlyRaw: boolean,
         metricQuery: MetricQuery,
         itemMap: Record<string, Field | TableCalculation>,
+        showTableNames: boolean,
+        customLabels: Record<string, string> | undefined,
     ): Promise<string> {
         // Ignore fields from results that are not selected in metrics or dimensions
         const selectedFieldIds = [
@@ -181,6 +202,8 @@ export class CsvService {
                         rows: results.rows,
                         onlyRaw,
                         itemMap,
+                        showTableNames,
+                        customLabels,
                     },
                 }),
             );
@@ -190,11 +213,14 @@ export class CsvService {
             results.rows,
             onlyRaw,
             itemMap,
+            showTableNames,
+            customLabels,
         );
     }
 
     static async convertSqlQueryResultsToCsv(
         results: ApiSqlQueryResults,
+        customLabels: Record<string, string> | undefined,
     ): Promise<string> {
         if (results.rows.length > 500) {
             Logger.debug(
@@ -204,11 +230,12 @@ export class CsvService {
                 new Worker('./dist/services/CsvService/convertSqlToCsv.js', {
                     workerData: {
                         results,
+                        customLabels,
                     },
                 }),
             );
         }
-        return convertSqlToCsv(results);
+        return convertSqlToCsv(results, customLabels);
     }
 
     async getCsvForChart(
@@ -217,7 +244,10 @@ export class CsvService {
         options: SchedulerCsvOptions | undefined,
     ): Promise<AttachmentUrl> {
         const chart = await this.savedChartModel.get(chartUuid);
-        const { metricQuery } = chart;
+        const {
+            metricQuery,
+            chartConfig: { config },
+        } = chart;
         const exploreId = chart.tableName;
         const onlyRaw = options?.formatted === false;
 
@@ -239,11 +269,14 @@ export class CsvService {
             metricQuery.additionalMetrics,
             metricQuery.tableCalculations,
         );
+
         const csvContent = await CsvService.convertApiResultsToCsv(
             results,
             onlyRaw,
             metricQuery,
             itemMap,
+            isTableChartConfig(config) ? config.showTableNames ?? false : true,
+            getCustomLabelsFromTableConfig(config),
         );
 
         const fileId = `csv-${nanoid()}.csv`;

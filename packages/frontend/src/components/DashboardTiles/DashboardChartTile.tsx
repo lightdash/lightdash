@@ -14,11 +14,13 @@ import {
     FilterGroup,
     FilterOperator,
     friendlyName,
+    getCustomLabelsFromTableConfig,
     getDimensions,
     getFields,
     getItemMap,
     getVisibleFields,
     isFilterableField,
+    isTableChartConfig,
     PivotReference,
     ResultRow,
     SavedChart,
@@ -88,6 +90,12 @@ const ExportResultAsCSVModal: FC<ExportResultAsCSVModalProps> = ({
             query: savedChart.metricQuery,
             csvLimit: limit,
             onlyRaw: onlyRaw,
+            showTableNames: isTableChartConfig(savedChart.chartConfig.config)
+                ? savedChart.chartConfig.config.showTableNames ?? false
+                : true,
+            customLabels: getCustomLabelsFromTableConfig(
+                savedChart.chartConfig.config,
+            ),
         });
         return csvResponse.url;
     };

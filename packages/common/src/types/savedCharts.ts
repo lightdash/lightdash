@@ -285,6 +285,29 @@ export const isTableChartConfig = (
     value: ChartConfig['config'],
 ): value is TableChart => !!value && !isCartesianChartConfig(value);
 
+export const getCustomLabelsFromColumnProperties = (
+    columns: Record<string, ColumnProperties> | undefined,
+): Record<string, string> | undefined =>
+    columns
+        ? Object.entries(columns).reduce(
+              (acc, [key, value]) =>
+                  value.name
+                      ? {
+                            ...acc,
+                            [key]: value.name,
+                        }
+                      : acc,
+              {},
+          )
+        : undefined;
+
+export const getCustomLabelsFromTableConfig = (
+    config: ChartConfig['config'],
+): Record<string, string> | undefined =>
+    isTableChartConfig(config)
+        ? getCustomLabelsFromColumnProperties(config.columns)
+        : undefined;
+
 export const hashFieldReference = (reference: PivotReference) =>
     reference.pivotValues
         ? `${reference.field}.${reference.pivotValues
