@@ -86,10 +86,6 @@ const App = () => (
                                                 <Register />
                                             </TrackPage>
                                         </Route>
-                                        {/*this is just for testing purposes will delete before merging*/}
-                                        <Route path="/emailverification">
-                                            <EmailVerification />
-                                        </Route>
                                         <Route path="/login">
                                             <TrackPage name={PageName.LOGIN}>
                                                 <Login />

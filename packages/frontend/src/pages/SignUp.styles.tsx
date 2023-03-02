@@ -91,28 +91,9 @@ export const FooterCta = styled.a`
     color: ${Colors.BLUE3};
 `;
 
-export const LinkButton = styled.button`
-    color: ${Colors.BLUE3};
-    border: none;
-    background-color: transparent;
-
-    &:hover {
-        cursor: pointer;
-        text-decoration: underline;
-    }
-`;
-
 export const Subtitle = styled.p`
     color: ${Colors.GRAY2};
     margin: 5px 0 20px;
-    text-align: center;
-`;
-
-export const ErrorMessage = styled.p`
-    color: ${Colors.RED3};
-    font-size: 12px;
-    font-weight: 500;
-    margin: 5px 30px 15px;
     text-align: center;
 `;
 
