@@ -18,20 +18,24 @@ import {
 
 interface SavedChartsAvailableProps {
     onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
+    isEditMode: boolean;
 }
 
 const SavedChartsAvailable: FC<SavedChartsAvailableProps> = ({
     onAddTiles,
+    isEditMode,
 }) => {
     return (
         <EmptyStateWrapper>
             <EmptyStateIcon icon="grouped-bar-chart" size={59} />
             <Title>Start building your dashboard!</Title>
-            <AddTileButton
-                onAddTiles={onAddTiles}
-                intent={Intent.PRIMARY}
-                popoverPosition={PopoverPosition.BOTTOM}
-            />
+            {isEditMode && (
+                <AddTileButton
+                    onAddTiles={onAddTiles}
+                    intent={Intent.PRIMARY}
+                    popoverPosition={PopoverPosition.BOTTOM}
+                />
+            )}
         </EmptyStateWrapper>
     );
 };
@@ -53,7 +57,10 @@ const NoSavedChartsAvailable = () => (
     </EmptyStateWrapper>
 );
 
-const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({ onAddTiles }) => {
+const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
+    onAddTiles,
+    isEditMode,
+}) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const savedChartsRequest = useSavedCharts(projectUuid);
     const savedCharts = savedChartsRequest.data || [];
@@ -65,7 +72,10 @@ const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({ onAddTiles }) => {
                 <NonIdealState
                     description={
                         hasSavedCharts ? (
-                            <SavedChartsAvailable onAddTiles={onAddTiles} />
+                            <SavedChartsAvailable
+                                onAddTiles={onAddTiles}
+                                isEditMode={isEditMode}
+                            />
                         ) : (
                             <NoSavedChartsAvailable />
                         )
