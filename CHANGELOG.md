@@ -1,3 +1,10 @@
+# [0.437.0](https://github.com/lightdash/lightdash/compare/0.436.5...0.437.0) (2023-03-02)
+
+
+### Features
+
+* page for entering otp ([#4650](https://github.com/lightdash/lightdash/issues/4650)) ([b6e4b29](https://github.com/lightdash/lightdash/commit/b6e4b29cd9a165b6ceb1ee44d960b8d40e8eda3f))
+
 ## [0.436.5](https://github.com/lightdash/lightdash/compare/0.436.4...0.436.5) (2023-03-02)
 
 
