@@ -25,12 +25,10 @@ Sentry.init({
 });
 
 if (process.env.CI !== 'true') {
-    try {
-        const worker = new SchedulerWorker({ lightdashConfig });
-        worker.run();
-    } catch (e) {
+    const worker = new SchedulerWorker({ lightdashConfig });
+    worker.run().catch((e) => {
         Logger.error('Error starting standalone scheduler worker', e);
-    }
+    });
 } else {
     Logger.info('Not running scheduler on CI');
 }

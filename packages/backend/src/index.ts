@@ -291,10 +291,8 @@ export const slackService = new SlackService({
 });
 
 if (lightdashConfig.scheduler?.enabled) {
-    try {
-        const worker = new SchedulerWorker({ lightdashConfig });
-        worker.run();
-    } catch (e) {
+    const worker = new SchedulerWorker({ lightdashConfig });
+    worker.run().catch((e) => {
         Logger.error('Error starting scheduler worker', e);
-    }
+    });
 }
