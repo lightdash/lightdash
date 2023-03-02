@@ -6,6 +6,7 @@ import PasswordInput from '../components/ReactHookForm/PasswordInput';
 
 const inputFieldStyles = css`
     margin-bottom: 20px;
+
     input {
         height: 40px;
     }

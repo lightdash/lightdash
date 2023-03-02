@@ -20,6 +20,7 @@ import UserCompletionModal from './components/UserCompletionModal';
 import CreateProject from './pages/CreateProject';
 import CreateProjectSettings from './pages/CreateProjectSettings';
 import Dashboard from './pages/Dashboard';
+import EmailVerification from './pages/EmailVerification';
 import Explorer from './pages/Explorer';
 import Home from './pages/Home';
 import Login from './pages/Login';
