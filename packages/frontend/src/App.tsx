@@ -88,14 +88,7 @@ const App = () => (
                                         </Route>
                                         {/*this is just for testing purposes will delete before merging*/}
                                         <Route path="/emailverification">
-                                            <EmailVerification
-                                                nbrOfAttempts={5}
-                                                expirationTime={
-                                                    '2023-03-01T19:49:50'
-                                                }
-                                                onSubmit={() => {}}
-                                                onResend={() => {}}
-                                            />
+                                            <EmailVerification />
                                         </Route>
                                         <Route path="/login">
                                             <TrackPage name={PageName.LOGIN}>
