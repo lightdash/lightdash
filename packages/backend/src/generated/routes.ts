@@ -20,9 +20,11 @@ import { SchedulerController } from './../controllers/schedulerController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { ShareController } from './../controllers/shareController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { SlackController } from './../controllers/slackController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import type { RequestHandler } from 'express';
 import * as express from 'express';
-import { SlackController } from './../controllers/slackController';
+import { UserController } from './../controllers/userController';
 
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 
@@ -514,7 +516,6 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                channel: { dataType: 'string' },
                 id: { dataType: 'string', required: true },
                 date: { dataType: 'datetime', required: true },
             },
@@ -607,6 +608,43 @@ const models: TsoaRoute.Models = {
                     array: { dataType: 'refAlias', ref: 'SlackChannel' },
                     required: true,
                 },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    EmailOneTimePassword: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                numberOfAttempts: { dataType: 'double', required: true },
+                createdAt: { dataType: 'datetime', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    EmailStatus: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                otp: { ref: 'EmailOneTimePassword' },
+                isVerified: { dataType: 'boolean', required: true },
+                email: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiEmailStatusResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'EmailStatus', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
@@ -1377,6 +1415,46 @@ export function RegisterRoutes(app: express.Router) {
                     validatedArgs as any,
                 );
                 promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.put(
+        '/api/v1/user/me/email/otp',
+        ...fetchMiddlewares<RequestHandler>(UserController),
+        ...fetchMiddlewares<RequestHandler>(
+            UserController.prototype.createEmailOneTimePasscode,
+        ),
+
+        function UserController_createEmailOneTimePasscode(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const controller = new UserController();
+
+                const promise = controller.createEmailOneTimePasscode.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, undefined, next);
             } catch (err) {
                 return next(err);
             }

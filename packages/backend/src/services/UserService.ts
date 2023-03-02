@@ -6,6 +6,7 @@ import {
     CreatePasswordResetLink,
     CreateUserArgs,
     DeleteOpenIdentity,
+    EmailStatus,
     ExpiredError,
     ForbiddenError,
     InviteLink,
@@ -22,6 +23,7 @@ import {
     SessionUser,
     UpdateUserArgs,
 } from '@lightdash/common';
+import { randomInt } from 'crypto';
 import { nanoid } from 'nanoid';
 import { analytics, identifyUser } from '../analytics/client';
 import EmailClient from '../clients/EmailClient/EmailClient';
@@ -670,5 +672,20 @@ export class UserService {
 
     async getSessionByUserUuid(userUuid: string): Promise<SessionUser> {
         return this.userModel.findSessionUserByUUID(userUuid);
+    }
+
+    async sendOneTimePasscodeToPrimaryEmail(
+        user: SessionUser,
+    ): Promise<EmailStatus> {
+        const passcode = randomInt(999999).toString().padStart(6, '0');
+        const emailStatus = await this.emailModel.createPrimaryEmailOtp({
+            passcode,
+            userUuid: user.userUuid,
+        });
+        await this.emailClient.sendOneTimePasscodeEmail({
+            recipient: emailStatus.email,
+            passcode,
+        });
+        return emailStatus;
     }
 }
