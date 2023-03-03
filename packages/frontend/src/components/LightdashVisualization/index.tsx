@@ -21,6 +21,7 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
             case ChartType.BIG_NUMBER:
                 return (
                     <SimpleStatistic
+                        minimal={minimal}
                         className={className}
                         data-testid={props['data-testid']}
                         {...props}
