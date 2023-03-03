@@ -114,8 +114,9 @@ const SchedulerOptions: FC<
     useEffect(() => {
         if (limit === Limit.CUSTOM) {
             methods.setValue('options.limit', customLimit);
+        } else {
+            methods.setValue('options.limit', limit);
         }
-        methods.setValue('options.limit', limit);
     }, [methods, customLimit, limit]);
     useEffect(() => {
         methods.setValue('options.formatted', format === Values.FORMATTED);
