@@ -108,6 +108,7 @@ export class SpaceService {
                 ),
             );
         await this.spaceModel.addSpaceAccess(newSpace.uuid, user.userUuid);
+
         analytics.track({
             event: 'space.created',
             userId: user.userUuid,
@@ -116,7 +117,7 @@ export class SpaceService {
                 spaceId: newSpace.uuid,
                 projectId: projectUuid,
                 isPrivate: space.isPrivate,
-                userAccessCount: space.access.length,
+                userAccessCount: space.access?.length ?? 1,
             },
         });
         return newSpace;
