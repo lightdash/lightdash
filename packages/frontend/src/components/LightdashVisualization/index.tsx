@@ -15,7 +15,7 @@ interface LightdashVisualizationProps {
 
 const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
     ({ isDashboard, tileUuid, className, ...props }) => {
-        const { chartType, isMinimal } = useVisualizationContext();
+        const { chartType, minimal } = useVisualizationContext();
 
         switch (chartType) {
             case ChartType.BIG_NUMBER:
@@ -29,7 +29,7 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
             case ChartType.TABLE:
                 return (
                     <SimpleTable
-                        virtualized={!isMinimal}
+                        virtualized={!minimal}
                         tileUuid={tileUuid}
                         isDashboard={!!isDashboard}
                         className={className}

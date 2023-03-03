@@ -41,6 +41,7 @@ interface TableRowProps {
     copyingCellId?: TableContext['copyingCellId'];
     onCopyCell?: TableContext['onCopyCell'];
     conditionalFormattings: TableContext['conditionalFormattings'];
+    minimal?: boolean;
 }
 
 const TableRow: FC<TableRowProps> = ({
@@ -52,6 +53,7 @@ const TableRow: FC<TableRowProps> = ({
     conditionalFormattings,
     onCopyCell,
     onSelectCell,
+    minimal = false,
 }) => {
     return (
         <Tr $index={index}>
@@ -80,6 +82,7 @@ const TableRow: FC<TableRowProps> = ({
 
                 return (
                     <BodyCell
+                        minimal={minimal}
                         key={cell.id}
                         style={meta?.style}
                         backgroundColor={conditionalFormattingConfig?.color}
@@ -181,6 +184,7 @@ const TableBody: FC = () => {
             {rows.map((row) => (
                 <TableRow
                     key={row.index}
+                    minimal
                     index={row.index}
                     row={row}
                     conditionalFormattings={conditionalFormattings}

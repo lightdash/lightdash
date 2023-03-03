@@ -21,6 +21,7 @@ interface CommonBodyCellProps {
     copying?: boolean;
     selected?: boolean;
     tooltipContent?: string;
+    minimal?: boolean;
     onSelect: () => void;
     onDeselect: () => void;
     onKeyDown: React.KeyboardEventHandler<HTMLElement>;
@@ -40,6 +41,7 @@ const BodyCell: FC<CommonBodyCellProps> = ({
     selected = false,
     style,
     tooltipContent,
+    minimal = false,
     onSelect,
     onDeselect,
     onKeyDown,
@@ -78,6 +80,7 @@ const BodyCell: FC<CommonBodyCellProps> = ({
                 <Tooltip2
                     lazy
                     position={Position.TOP}
+                    disabled={!tooltipContent || minimal}
                     content={tooltipContent}
                     renderTarget={({ ref: ref1, ...tooltipProps }) => (
                         <Td

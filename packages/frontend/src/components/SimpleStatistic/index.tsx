@@ -16,7 +16,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({ ...wrapperProps }) => {
     const {
         resultsData,
         isLoading,
-        isMinimal,
+        minimal,
         bigNumberConfig: { bigNumber, bigNumberLabel, defaultLabel },
         isSqlRunner,
     } = useVisualizationContext();
@@ -28,7 +28,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({ ...wrapperProps }) => {
 
     return validData ? (
         <BigNumberContainer {...wrapperProps}>
-            {isMinimal || isSqlRunner ? (
+            {minimal || isSqlRunner ? (
                 <AutoFitBigNumber min={15} max={100} start={50}>
                     <BigNumber>{bigNumber}</BigNumber>
                 </AutoFitBigNumber>
