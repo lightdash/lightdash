@@ -1,5 +1,5 @@
-import { Button, Intent } from '@blueprintjs/core';
-import React, { FC, useEffect } from 'react';
+import { Intent } from '@blueprintjs/core';
+import React, { FC } from 'react';
 import Countdown, { zeroPad } from 'react-countdown';
 import { UseFormReturn } from 'react-hook-form';
 import { useIntercom } from 'react-use-intercom';

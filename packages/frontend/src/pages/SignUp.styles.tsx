@@ -104,3 +104,12 @@ export const BoldSubtitle = styled.p`
     color: ${Colors.DARK_GRAY1};
     margin-bottom: 15px;
 `;
+
+export const SuccessWrapper = styled.div`
+    display: flex;
+    margin: 150px 0;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+`;
