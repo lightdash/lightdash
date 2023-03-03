@@ -65,7 +65,6 @@ const TableBody: FC<{ tableContainerRef: React.RefObject<HTMLDivElement> }> = ({
             {virtualRows.map((virtualRow) => {
                 const rowIndex = virtualRow.index;
                 const row = rows[rowIndex];
-
                 return (
                     <Tr key={row.id} $index={rowIndex}>
                         {row.getVisibleCells().map((cell) => {
