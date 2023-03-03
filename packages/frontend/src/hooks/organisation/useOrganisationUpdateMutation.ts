@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from 'react-query';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
-const updateOrgQuery = async (data: Organisation) =>
+const updateOrgQuery = async (data: UpdateOrganization) =>
     lightdashApi<undefined>({
         url: `/org`,
         method: 'PATCH',
