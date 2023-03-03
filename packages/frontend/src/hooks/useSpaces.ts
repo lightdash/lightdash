@@ -66,7 +66,7 @@ export const useDeleteMutation = (projectUuid: string) => {
             onSuccess: async () => {
                 await queryClient.refetchQueries(['spaces', projectUuid]);
                 history.push({
-                    pathname: `/projects/${projectUuid}/home`,
+                    pathname: `/projects/${projectUuid}/spaces`,
                 });
                 showToastSuccess({
                     title: `Success! Space was deleted.`,
