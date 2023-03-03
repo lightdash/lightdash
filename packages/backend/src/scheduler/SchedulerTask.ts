@@ -414,5 +414,6 @@ export const handleScheduledDelivery = async (
                 schedulerId: schedulerUuid,
             },
         });
+        throw e; // Cascade error to it can be retried by graphile
     }
 };
