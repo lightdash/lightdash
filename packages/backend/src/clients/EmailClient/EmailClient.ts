@@ -129,7 +129,7 @@ export default class EmailClient {
         return this.sendEmail({
             to: invite.email,
             subject: `You've been invited to join Lightdash`,
-            template: 'invite',
+            template: 'invitation',
             context: {
                 orgName: userThatInvited.organizationName,
                 inviteUrl: `${invite.inviteUrl}?from=email`,
