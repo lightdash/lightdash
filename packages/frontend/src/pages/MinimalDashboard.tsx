@@ -1,6 +1,6 @@
 import { NonIdealState } from '@blueprintjs/core';
-import { DashboardTileTypes } from '@lightdash/common';
-import React, { FC, memo, useMemo } from 'react';
+import { assertUnreachable, DashboardTileTypes } from '@lightdash/common';
+import React, { FC, memo, useEffect, useMemo } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
 import ChartTile from '../components/DashboardTiles/DashboardChartTile';
 import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
@@ -15,71 +15,100 @@ import '../styles/react-grid.css';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
-const GridTile: FC<
-    Pick<
-        React.ComponentProps<typeof TileBase>,
-        'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
-    >
-> = memo((props) => {
-    const { tile } = props;
+const GridTile: FC<Pick<React.ComponentProps<typeof TileBase>, 'tile'>> = memo(
+    (props) => {
+        const { tile } = props;
 
-    const savedChartUuid: string | undefined =
-        tile.type === DashboardTileTypes.SAVED_CHART
-            ? tile.properties?.savedChartUuid || undefined
-            : undefined;
-    const {
-        data: savedQuery,
-        isLoading,
-        isError,
-    } = useSavedQuery({
-        id: savedChartUuid,
-    });
+        const savedChartUuid: string | undefined =
+            tile.type === DashboardTileTypes.SAVED_CHART
+                ? tile.properties?.savedChartUuid || undefined
+                : undefined;
+        const {
+            data: savedQuery,
+            isLoading,
+            isError,
+        } = useSavedQuery({
+            id: savedChartUuid,
+        });
 
-    switch (tile.type) {
-        case DashboardTileTypes.SAVED_CHART:
-            if (isLoading)
+        switch (tile.type) {
+            case DashboardTileTypes.SAVED_CHART:
+                if (isLoading)
+                    return (
+                        <TileBase
+                            isLoading={true}
+                            isEditMode={false}
+                            title={''}
+                            tile={tile}
+                            clickableTitle={false}
+                            onDelete={() => {}}
+                            onEdit={() => {}}
+                        />
+                    );
+                if (isError)
+                    return (
+                        <TileBase
+                            title={''}
+                            tile={tile}
+                            clickableTitle={false}
+                            isEditMode={false}
+                            onDelete={() => {}}
+                            onEdit={() => {}}
+                        >
+                            <NonIdealState
+                                icon="lock"
+                                title={`You don't have access to view this chart`}
+                            />
+                        </TileBase>
+                    );
                 return (
-                    <TileBase
-                        isLoading={true}
-                        title={''}
-                        {...props}
-                        clickableTitle={false}
+                    <MetricQueryDataProvider
+                        metricQuery={savedQuery?.metricQuery}
+                        tableName={savedQuery?.tableName || ''}
+                    >
+                        <ChartTile
+                            minimal
+                            tile={tile}
+                            isEditMode={false}
+                            onDelete={() => {}}
+                            onEdit={() => {}}
+                        />
+                        <UnderlyingDataModal />
+                        <DrillDownModal />
+                    </MetricQueryDataProvider>
+                );
+            case DashboardTileTypes.MARKDOWN:
+                return (
+                    <MarkdownTile
+                        tile={tile}
+                        isEditMode={false}
+                        onDelete={() => {}}
+                        onEdit={() => {}}
                     />
                 );
-            if (isError)
+            case DashboardTileTypes.LOOM:
                 return (
-                    <TileBase title={''} {...props} clickableTitle={false}>
-                        <NonIdealState
-                            icon="lock"
-                            title={`You don't have access to view this chart`}
-                        ></NonIdealState>
-                    </TileBase>
+                    <LoomTile
+                        tile={tile}
+                        isEditMode={false}
+                        onDelete={() => {}}
+                        onEdit={() => {}}
+                    />
                 );
-            return (
-                <MetricQueryDataProvider
-                    metricQuery={savedQuery?.metricQuery}
-                    tableName={savedQuery?.tableName || ''}
-                >
-                    <ChartTile {...props} tile={tile} />
-                    <UnderlyingDataModal />
-                    <DrillDownModal />
-                </MetricQueryDataProvider>
-            );
-        case DashboardTileTypes.MARKDOWN:
-            return <MarkdownTile {...props} tile={tile} />;
-        case DashboardTileTypes.LOOM:
-            return <LoomTile {...props} tile={tile} />;
-        default: {
-            const never: never = tile;
-            throw new Error(
-                `Dashboard tile type "${props.tile.type}" not recognised`,
-            );
+            default: {
+                return assertUnreachable(
+                    tile,
+                    `Dashboard tile type "${props.tile.type}" not recognised`,
+                );
+            }
         }
-    }
-});
+    },
+);
 
 const MinimalDashboard = () => {
-    const { dashboard, dashboardError, dashboardTiles } = useDashboardContext();
+    const { dashboard, dashboardError, dashboardTiles, setDashboardTiles } =
+        useDashboardContext();
+    console.log(dashboardTiles);
 
     const layouts = useMemo(
         () => ({
@@ -98,6 +127,12 @@ const MinimalDashboard = () => {
         [dashboardTiles],
     );
 
+    useEffect(() => {
+        if (dashboard?.tiles) {
+            setDashboardTiles(dashboard.tiles);
+        }
+    }, [dashboard, setDashboardTiles]);
+
     if (dashboardError) {
         return <>{dashboardError.error}</>;
     }
@@ -113,7 +148,6 @@ const MinimalDashboard = () => {
     return (
         <ResponsiveGridLayout
             useCSSTransforms={false}
-            draggableCancel=".non-draggable"
             breakpoints={{ lg: 1200, md: 996, sm: 768 }}
             cols={{ lg: 36, md: 30, sm: 18 }}
             rowHeight={50}
@@ -121,8 +155,7 @@ const MinimalDashboard = () => {
         >
             {dashboardTiles.map((tile) => (
                 <div key={tile.uuid}>
-                    test
-                    {/* <GridTile isEditMode={isEditMode} tile={tile} /> */}
+                    <GridTile tile={tile} />
                 </div>
             ))}
         </ResponsiveGridLayout>

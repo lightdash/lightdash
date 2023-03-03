@@ -115,11 +115,12 @@ const ValidDashboardChartTile: FC<{
     tileUuid: string;
     data: SavedChart;
     project: string;
+    minimal?: boolean;
     onSeriesContextMenu?: (
         e: EchartSeriesClickEvent,
         series: EChartSeries[],
     ) => void;
-}> = ({ tileUuid, data, project, onSeriesContextMenu }) => {
+}> = ({ tileUuid, data, project, minimal = false, onSeriesContextMenu }) => {
     const { data: resultData, isLoading } = useSavedChartResults(project, data);
     const { addSuggestions } = useDashboardContext();
     const { data: explore } = useExplore(data.tableName);
@@ -144,6 +145,7 @@ const ValidDashboardChartTile: FC<{
 
     return (
         <VisualizationProvider
+            minimal={minimal}
             chartType={data.chartConfig.type}
             initialChartConfig={data.chartConfig}
             initialPivotDimensions={data.pivotConfig?.columns}
@@ -170,12 +172,15 @@ const InvalidDashboardChartTile: FC = () => (
     />
 );
 
-type Props = Pick<
-    React.ComponentProps<typeof TileBase>,
-    'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
-> & { tile: IDashboardChartTile };
+interface DashboardChartTileMainProps
+    extends Pick<
+        React.ComponentProps<typeof TileBase>,
+        'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
+    > {
+    tile: IDashboardChartTile;
+}
 
-const DashboardChartTile: FC<Props> = (props) => {
+const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     const { showToastSuccess } = useToaster();
     const { track } = useTracking();
     const {
@@ -231,7 +236,6 @@ const DashboardChartTile: FC<Props> = (props) => {
         pivotReference?: PivotReference;
     }>();
     const [isCSVExportModalOpen, setIsCSVExportModalOpen] = useState(false);
-    useState(false);
 
     const onSeriesContextMenu = useCallback(
         (e: EchartSeriesClickEvent, series: EChartSeries[]) => {
@@ -649,6 +653,106 @@ const DashboardChartTile: FC<Props> = (props) => {
             ) : null}
         </>
     );
+};
+
+const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
+    const {
+        tile: {
+            uuid: tileUuid,
+            properties: { savedChartUuid },
+        },
+    } = props;
+    const { projectUuid } = useParams<{
+        projectUuid: string;
+    }>();
+    const { data: savedQuery, isLoading } = useSavedQuery({
+        id: savedChartUuid || undefined,
+        useQueryOptions: { refetchOnMount: false },
+    });
+    const { data: explore, isLoading: isLoadingExplore } = useExplore(
+        savedQuery?.tableName,
+    );
+
+    // START DASHBOARD FILTER LOGIC
+    // TODO: move this logic out of component
+    let savedQueryWithDashboardFilters: SavedChart | undefined;
+
+    const dashboardFiltersThatApplyToChart = useDashboardFiltersForExplore(
+        tileUuid,
+        explore,
+    );
+
+    if (savedQuery) {
+        const dimensionFilters: FilterGroup = {
+            id: 'yes',
+            and: [
+                ...(savedQuery.metricQuery.filters.dimensions
+                    ? [savedQuery.metricQuery.filters.dimensions]
+                    : []),
+                ...dashboardFiltersThatApplyToChart.dimensions,
+            ],
+        };
+        const metricFilters: FilterGroup = {
+            id: 'no',
+            and: [
+                ...(savedQuery.metricQuery.filters.metrics
+                    ? [savedQuery.metricQuery.filters.metrics]
+                    : []),
+                ...dashboardFiltersThatApplyToChart.metrics,
+            ],
+        };
+        savedQueryWithDashboardFilters = {
+            ...savedQuery,
+            metricQuery: {
+                ...savedQuery.metricQuery,
+                filters: {
+                    dimensions: dimensionFilters,
+                    metrics: metricFilters,
+                },
+            },
+        };
+    }
+    // END DASHBOARD FILTER LOGIC
+    return (
+        <>
+            <GlobalTileStyles />
+
+            <TileBase
+                title={savedQueryWithDashboardFilters?.name || ''}
+                clickableTitle={false}
+                titleHref={`/projects/${projectUuid}/saved/${savedChartUuid}/`}
+                description={savedQueryWithDashboardFilters?.description}
+                isLoading={isLoading || isLoadingExplore}
+                {...props}
+            >
+                {savedQueryWithDashboardFilters ? (
+                    <ValidDashboardChartTile
+                        minimal
+                        tileUuid={tileUuid}
+                        data={savedQueryWithDashboardFilters}
+                        project={projectUuid}
+                    />
+                ) : (
+                    <InvalidDashboardChartTile />
+                )}
+            </TileBase>
+        </>
+    );
+};
+
+interface DashboardChartTileProps extends DashboardChartTileMainProps {
+    minimal?: boolean;
+}
+
+const DashboardChartTile: FC<DashboardChartTileProps> = ({
+    minimal = false,
+    ...rest
+}) => {
+    if (minimal) {
+        return <DashboardChartTileMinimal {...rest} />;
+    } else {
+        return <DashboardChartTileMain {...rest} />;
+    }
 };
 
 export default DashboardChartTile;
