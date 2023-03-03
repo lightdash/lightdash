@@ -10,7 +10,7 @@ import { useVirtual } from 'react-virtual';
 import { readableColor } from '../../../../utils/colorUtils';
 import { getConditionalRuleLabel } from '../../Filters/configs';
 import BodyCell from '../BodyCell';
-import { Tr } from '../Table.styles';
+import { BaseTr, Tr } from '../Table.styles';
 import { useTableContext } from '../TableProvider';
 
 const VirtualizedArea: FC<{ cellCount: number; padding: number }> = ({
@@ -18,7 +18,7 @@ const VirtualizedArea: FC<{ cellCount: number; padding: number }> = ({
     padding,
 }) => {
     return (
-        <Tr>
+        <BaseTr>
             {[...Array(cellCount)].map((_, index) => (
                 <td
                     key={index}
@@ -27,7 +27,7 @@ const VirtualizedArea: FC<{ cellCount: number; padding: number }> = ({
                     }}
                 />
             ))}
-        </Tr>
+        </BaseTr>
     );
 };
 
@@ -65,6 +65,7 @@ const TableBody: FC<{ tableContainerRef: React.RefObject<HTMLDivElement> }> = ({
             {virtualRows.map((virtualRow) => {
                 const rowIndex = virtualRow.index;
                 const row = rows[rowIndex];
+
                 return (
                     <Tr key={row.id} $index={rowIndex}>
                         {row.getVisibleCells().map((cell) => {

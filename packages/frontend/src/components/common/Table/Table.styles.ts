@@ -115,7 +115,7 @@ const CellStyles = css<{ $isNaN: boolean }>`
     text-align: ${({ $isNaN }) => ($isNaN ? 'left' : 'right')} !important;
 `;
 
-export const Tr = styled.tr<{
+export const BaseTr = styled.tr<{
     $index?: number;
 }>`
     ${({ $index = 0 }) =>
@@ -124,7 +124,11 @@ export const Tr = styled.tr<{
                 background-color: ${transparentize(0.7, Colors.LIGHT_GRAY5)};
             `
             : ''}
+`;
 
+export const Tr = styled(BaseTr)<{
+    $index?: number;
+}>`
     :hover {
         background-color: ${Colors.LIGHT_GRAY3};
     }
