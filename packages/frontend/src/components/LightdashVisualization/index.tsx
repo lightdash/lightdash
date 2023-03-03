@@ -29,7 +29,7 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
             case ChartType.TABLE:
                 return (
                     <SimpleTable
-                        virtualized={!minimal}
+                        minimal={minimal}
                         tileUuid={tileUuid}
                         isDashboard={!!isDashboard}
                         className={className}

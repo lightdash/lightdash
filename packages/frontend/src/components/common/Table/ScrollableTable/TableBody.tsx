@@ -175,7 +175,7 @@ const VirtualizedTableBody: FC<{
     );
 };
 
-const TableBody: FC = () => {
+const NormalTableBody: FC = () => {
     const { table, conditionalFormattings } = useTableContext();
     const { rows } = table.getRowModel();
 
@@ -194,4 +194,17 @@ const TableBody: FC = () => {
     );
 };
 
-export { VirtualizedTableBody, TableBody };
+interface TableBodyProps {
+    minimal?: boolean;
+    tableContainerRef: React.RefObject<HTMLDivElement>;
+}
+
+const TableBody: FC<TableBodyProps> = ({ minimal, tableContainerRef }) => {
+    if (minimal) {
+        return <NormalTableBody />;
+    } else {
+        return <VirtualizedTableBody tableContainerRef={tableContainerRef} />;
+    }
+};
+
+export default TableBody;
