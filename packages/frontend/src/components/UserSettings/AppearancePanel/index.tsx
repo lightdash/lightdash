@@ -23,11 +23,13 @@ const AppearancePanel: FC = () => {
     );
 
     const update = useCallback(() => {
-        if (data)
+        if (data) {
+            const { needsProject, organizationUuid, ...params } = data;
             updateMutation.mutate({
-                ...data,
+                ...params,
                 chartColors: colors,
             });
+        }
     }, [colors, data, updateMutation]);
 
     useEffect(() => {
