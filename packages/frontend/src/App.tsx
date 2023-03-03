@@ -25,6 +25,7 @@ import EmailVerification from './pages/EmailVerification';
 import Explorer from './pages/Explorer';
 import Home from './pages/Home';
 import Login from './pages/Login';
+import MinimalDashboard from './pages/MinimalDashboard';
 import MinimalSavedExplorer from './pages/MinimalSavedExplorer';
 import PasswordRecovery from './pages/PasswordRecovery';
 import PasswordReset from './pages/PasswordReset';
@@ -106,6 +107,12 @@ const App = () => (
                                                                     >
                                                                         <MinimalSavedExplorer />
                                                                     </div>
+                                                                </Route>
+
+                                                                <Route path="/minimal/projects/:projectUuid/dashboards/:dashboardUuid">
+                                                                    <DashboardProvider>
+                                                                        <MinimalDashboard />
+                                                                    </DashboardProvider>
                                                                 </Route>
                                                             </Switch>
                                                         </PrivateRoute>
