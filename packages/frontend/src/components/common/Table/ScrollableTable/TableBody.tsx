@@ -10,7 +10,7 @@ import { useVirtual } from 'react-virtual';
 import { readableColor } from '../../../../utils/colorUtils';
 import { getConditionalRuleLabel } from '../../Filters/configs';
 import BodyCell from '../BodyCell';
-import { BaseTr, Tr } from '../Table.styles';
+import { Tr } from '../Table.styles';
 import { useTableContext } from '../TableProvider';
 
 const VirtualizedArea: FC<{ cellCount: number; padding: number }> = ({
@@ -18,7 +18,7 @@ const VirtualizedArea: FC<{ cellCount: number; padding: number }> = ({
     padding,
 }) => {
     return (
-        <BaseTr>
+        <tr>
             {[...Array(cellCount)].map((_, index) => (
                 <td
                     key={index}
@@ -27,7 +27,7 @@ const VirtualizedArea: FC<{ cellCount: number; padding: number }> = ({
                     }}
                 />
             ))}
-        </BaseTr>
+        </tr>
     );
 };
 
