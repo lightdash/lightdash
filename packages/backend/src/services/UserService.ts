@@ -7,6 +7,7 @@ import {
     CreateUserArgs,
     DeleteOpenIdentity,
     EmailStatus,
+    EmailStatusExpiring,
     ExpiredError,
     ForbiddenError,
     InviteLink,
@@ -72,6 +73,10 @@ export class UserService {
     private readonly organizationModel: OrganizationModel;
 
     private readonly personalAccessTokenModel: PersonalAccessTokenModel;
+
+    private readonly emailOneTimePasscodeExpirySeconds = 60 * 15;
+
+    private readonly emailOneTimePasscodeMaxAttempts = 5;
 
     constructor({
         inviteLinkModel,
@@ -294,7 +299,7 @@ export class UserService {
             await this.openIdIdentityModel.updateIdentityByOpenId(
                 openIdUser.openId,
             );
-            await this.userModel.verifyUserEmailIfExists(
+            await this.emailModel.verifyUserEmailIfExists(
                 loginUser.userUuid,
                 openIdUser.openId.email,
             );
@@ -326,7 +331,7 @@ export class UserService {
                 email: openIdUser.openId.email,
                 issuerType: openIdUser.openId.issuerType,
             });
-            await this.userModel.verifyUserEmailIfExists(
+            await this.emailModel.verifyUserEmailIfExists(
                 sessionUser.userUuid,
                 openIdUser.openId.email,
             );
@@ -345,7 +350,7 @@ export class UserService {
             openIdUser,
             inviteCode,
         );
-        await this.userModel.verifyUserEmailIfExists(
+        await this.emailModel.verifyUserEmailIfExists(
             createdUser.userUuid,
             openIdUser.openId.email,
         );
@@ -674,9 +679,15 @@ export class UserService {
         return this.userModel.findSessionUserByUUID(userUuid);
     }
 
+    private otpExpirationDate(createdAt: Date) {
+        return new Date(
+            createdAt.getTime() + this.emailOneTimePasscodeExpirySeconds * 1000,
+        );
+    }
+
     async sendOneTimePasscodeToPrimaryEmail(
         user: SessionUser,
-    ): Promise<EmailStatus> {
+    ): Promise<EmailStatusExpiring> {
         const passcode = randomInt(999999).toString().padStart(6, '0');
         const emailStatus = await this.emailModel.createPrimaryEmailOtp({
             passcode,
@@ -686,6 +697,56 @@ export class UserService {
             recipient: emailStatus.email,
             passcode,
         });
-        return emailStatus;
+        return {
+            ...emailStatus,
+            otp: emailStatus.otp && {
+                ...emailStatus.otp,
+                expiresAt: this.otpExpirationDate(emailStatus.otp.createdAt),
+            },
+        };
+    }
+
+    async getPrimaryEmailStatus(
+        user: SessionUser,
+        passcode?: string,
+    ): Promise<EmailStatusExpiring> {
+        const isExpired = (createdAt: Date) =>
+            this.otpExpirationDate(createdAt) < new Date();
+        const isMaxAttemptsReached = (attempts: number) =>
+            attempts >= this.emailOneTimePasscodeMaxAttempts;
+
+        // Attempt to verify the passcode if it's provided
+        if (passcode) {
+            const emailStatus =
+                await this.emailModel.getPrimaryEmailStatusByUserAndOtp({
+                    userUuid: user.userUuid,
+                    passcode,
+                });
+            if (
+                emailStatus.otp &&
+                !isMaxAttemptsReached(emailStatus.otp.numberOfAttempts) &&
+                !isExpired(emailStatus.otp.createdAt)
+            ) {
+                await this.emailModel.verifyUserEmailIfExists(
+                    user.userUuid,
+                    emailStatus.email,
+                );
+            } else {
+                await this.emailModel.incrementEmailOtpAttempts(
+                    user.userUuid,
+                    emailStatus.email,
+                );
+            }
+        }
+        const emailStatus = await this.emailModel.getPrimaryEmailStatus(
+            user.userUuid,
+        );
+        return {
+            ...emailStatus,
+            otp: emailStatus.otp && {
+                ...emailStatus.otp,
+                expiresAt: this.otpExpirationDate(emailStatus.otp.createdAt),
+            },
+        };
     }
 }

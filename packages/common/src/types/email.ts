@@ -9,17 +9,25 @@ type EmailOneTimePassword = {
     numberOfAttempts: number;
 };
 
-/**
- * Verification status of an email address
- */
+type EmailOneTimePasswordExpiring = EmailOneTimePassword & {
+    expiresAt: Date;
+};
+
 export type EmailStatus = {
     email: string;
     isVerified: boolean;
+    otp?: EmailOneTimePassword;
+};
+
+/**
+ * Verification status of an email address
+ */
+export type EmailStatusExpiring = EmailStatus & {
     /**
      * One time passcode information
      * If there is no active passcode, this will be undefined
      */
-    otp?: EmailOneTimePassword;
+    otp?: EmailOneTimePasswordExpiring;
 };
 
 /**
@@ -27,5 +35,5 @@ export type EmailStatus = {
  */
 export type ApiEmailStatusResponse = {
     status: 'ok';
-    results: EmailStatus;
+    results: EmailStatusExpiring;
 };

@@ -1,38 +1,13 @@
 import { EmailStatus, NotFoundError } from '@lightdash/common';
 import bcrypt from 'bcrypt';
 import { Knex } from 'knex';
-import { DbEmailIn, DbEmailRemove } from '../database/entities/emails';
+import { DbEmail, DbEmailIn, DbEmailRemove } from '../database/entities/emails';
+import { DbEmailOneTimePasscode } from '../database/entities/email_one_time_passcodes';
 
-const getPrimaryEmailStatus = async (
-    userUuid: string,
-    trx: Knex,
-): Promise<EmailStatus> => {
-    const rows = await trx('emails')
-        .innerJoin('users', 'users.user_id', 'emails.user_id')
-        .leftJoin(
-            'email_one_time_passcodes',
-            'email_one_time_passcodes.email_id',
-            'emails.email_id',
-        )
-        .where('email.is_primary', true)
-        .andWhere('users.user_uuid', userUuid)
-        .select<
-            {
-                email: string;
-                is_verified: boolean;
-                created_at?: Date;
-                number_of_attempts?: number;
-            }[]
-        >([
-            'emails.email',
-            'emails.is_verified',
-            'email_one_time_passcodes.created_at',
-            'email_one_time_passcodes.number_of_attempts',
-        ]);
-    if (rows.length === 0) {
-        throw new NotFoundError('Cannot find primary email for user');
-    }
-    const row = rows[0];
+type DbEmailStatus = Pick<DbEmail, 'email' | 'is_verified'> &
+    Partial<DbEmailOneTimePasscode>;
+
+const convertEmailStatusRow = (row: DbEmailStatus): EmailStatus => {
     const emailStatus: EmailStatus = {
         email: row.email,
         isVerified: row.is_verified,
@@ -81,7 +56,27 @@ export class EmailModel {
     }
 
     async getPrimaryEmailStatus(userUuid: string): Promise<EmailStatus> {
-        return getPrimaryEmailStatus(userUuid, this.database);
+        const [row] = await this.database('emails')
+            .innerJoin('users', 'users.user_id', 'emails.user_id')
+            .leftJoin(
+                'email_one_time_passcodes',
+                'email_one_time_passcodes.email_id',
+                'emails.email_id',
+            )
+            .where('users.user_uuid', userUuid)
+            .andWhere('is_primary', true)
+            .select<DbEmailStatus[]>([
+                'emails.email',
+                'emails.is_verified',
+                'email_one_time_passcodes.created_at',
+                'email_one_time_passcodes.number_of_attempts',
+            ]);
+        if (row === undefined) {
+            throw new NotFoundError(
+                `Cannot find matching verification status for user's email`,
+            );
+        }
+        return convertEmailStatusRow(row);
     }
 
     async createPrimaryEmailOtp({
@@ -95,9 +90,8 @@ export class EmailModel {
             passcode,
             await bcrypt.genSalt(),
         );
-        return this.database.transaction(async (trx) => {
-            trx.raw(
-                `
+        const [updated] = await this.database.raw<DbEmailStatus[]>(
+            `
             INSERT INTO email_one_time_passcodes (email_id, passcode)
             SELECT email_id, ?
             FROM emails
@@ -108,40 +102,96 @@ export class EmailModel {
             DO UPDATE 
                 SET passcode = EXCLUDED.passcode, 
                 created_at = DEFAULT, 
-                number_of_attempts = DEFAULT;
+                number_of_attempts = DEFAULT
+            RETURNING emails.email, emails.is_verified, email_one_time_passcodes.created_at, email_one_time_passcodes.number_of_attempts
         `,
-                [hashedPasscode, userUuid],
+            [hashedPasscode, userUuid],
+        );
+        if (updated === undefined) {
+            throw new NotFoundError(
+                'Cannot find user with primary email to create otp',
             );
-            return getPrimaryEmailStatus(userUuid, trx);
-        });
+        }
+        return convertEmailStatusRow(updated);
     }
 
-    async verifyPrimaryEmailOtp({
+    async getPrimaryEmailStatusByUserAndOtp({
         userUuid,
         passcode,
     }: {
         userUuid: string;
         passcode: string;
     }): Promise<EmailStatus> {
-        const emailStatus = await this.database.transaction(async (trx) => {
-            const [row] = await trx('email_one_time_passcodes')
-                .innerJoin(
-                    'emails',
-                    'emails.email_id',
-                    'email_one_time_passcodes.email_id',
-                )
-                .innerJoin('users', 'users.user_id', 'emails.user_id')
-                .where('users.user_uuid', userUuid)
-                .andWhere('is_primary', true)
-                .select('passcode');
-            const match = await bcrypt.compare(passcode, row?.passcode || '');
-            if (row?.email_id && match) {
-                trx('emails')
-                    .update({ is_verified: true })
-                    .where('email_id', row.email_id);
-            }
-            return getPrimaryEmailStatus(userUuid, trx);
-        });
-        return emailStatus;
+        const [row] = await this.database('email_one_time_passcodes')
+            .innerJoin(
+                'emails',
+                'emails.email_id',
+                'email_one_time_passcodes.email_id',
+            )
+            .innerJoin('users', 'users.user_id', 'emails.user_id')
+            .where('users.user_uuid', userUuid)
+            .andWhere('is_primary', true)
+            .select<DbEmailStatus[]>([
+                'emails.email',
+                'emails.is_verified',
+                'email_one_time_passcodes.passcode',
+                'email_one_time_passcodes.created_at',
+                'email_one_time_passcodes.number_of_attempts',
+            ]);
+        const match =
+            row !== undefined &&
+            (await bcrypt.compare(passcode, row.passcode || ''));
+        if (!match) {
+            throw new NotFoundError(
+                `Cannot find matching verification status for user's email`,
+            );
+        }
+        return convertEmailStatusRow(row);
+    }
+
+    /**
+     * No-op if email/user/otp does not exist
+     * @param userUuid
+     * @param email
+     */
+    async incrementEmailOtpAttempts(
+        userUuid: string,
+        email: string,
+    ): Promise<void> {
+        await this.database.raw(
+            `
+            UPDATE email_one_time_passcodes
+            SET number_of_attempts = number_of_attempts + 1
+            FROM emails
+            INNER JOIN users ON users.user_id = emails.user_id
+            WHERE emails.email = ?
+            AND users.user_uuid = ?
+            AND email_one_time_passcodes.email_id = emails.email_id
+        `,
+            [email, userUuid],
+        );
+    }
+
+    /**
+     * No-op if email/user does not exist
+     * @param userUuid
+     * @param email
+     */
+    async verifyUserEmailIfExists(
+        userUuid: string,
+        email: string,
+    ): Promise<{ email: string }[]> {
+        const updatedRows = await this.database.raw<{ email: string }[]>(
+            `
+        UPDATE emails
+        SET is_verified = true
+        FROM users
+        WHERE emails.user_id = users.user_id
+        AND users.user_uuid = ?
+        AND emails.email = ?
+        RETURNING emails.email`,
+            [userUuid, email],
+        );
+        return updatedRows;
     }
 }
