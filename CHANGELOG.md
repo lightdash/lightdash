@@ -1,3 +1,11 @@
+## [0.437.1](https://github.com/lightdash/lightdash/compare/0.437.0...0.437.1) (2023-03-03)
+
+
+### Bug Fixes
+
+* enable scheduler by default ([#4658](https://github.com/lightdash/lightdash/issues/4658)) ([c1e19ac](https://github.com/lightdash/lightdash/commit/c1e19ac41edd7a184437c9a91eea3845704d8815))
+* scheduler custom limit ([#4668](https://github.com/lightdash/lightdash/issues/4668)) ([7c41f71](https://github.com/lightdash/lightdash/commit/7c41f710da70cb22d044c4c9234d74b57d8b8cdf))
+
 # [0.437.0](https://github.com/lightdash/lightdash/compare/0.436.5...0.437.0) (2023-03-02)
 
 
