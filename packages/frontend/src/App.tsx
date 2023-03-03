@@ -110,9 +110,7 @@ const App = () => (
                                                                 </Route>
 
                                                                 <Route path="/minimal/projects/:projectUuid/dashboards/:dashboardUuid">
-                                                                    <DashboardProvider>
-                                                                        <MinimalDashboard />
-                                                                    </DashboardProvider>
+                                                                    <MinimalDashboard />
                                                                 </Route>
                                                             </Switch>
                                                         </PrivateRoute>
