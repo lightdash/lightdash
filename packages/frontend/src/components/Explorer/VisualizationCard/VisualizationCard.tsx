@@ -95,7 +95,7 @@ const VisualizationCard: FC = memo(() => {
     ) => {
         if (explore?.name && unsavedChartVersion?.metricQuery && projectUuid) {
             const csvResponse = await downloadCsv({
-                projectUuid,
+                projectUuid: projectUuid || unsavedChartVersion.projectUuid,
                 tableId: explore?.name,
                 query: unsavedChartVersion?.metricQuery,
                 csvLimit,

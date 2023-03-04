@@ -211,6 +211,7 @@ const defaultState: ExplorerReduceState = {
     expandedSections: [ExplorerSection.RESULTS],
     unsavedChartVersion: {
         tableName: '',
+        projectUuid: '',
         metricQuery: {
             dimensions: [],
             metrics: [],

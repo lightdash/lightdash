@@ -233,7 +233,6 @@ export type CreateSavedChartVersion = Omit<
     | 'uuid'
     | 'name'
     | 'updatedAt'
-    | 'projectUuid'
     | 'organizationUuid'
     | 'spaceUuid'
     | 'spaceName'
