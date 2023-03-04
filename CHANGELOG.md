@@ -1,3 +1,10 @@
+# [0.438.0](https://github.com/lightdash/lightdash/compare/0.437.1...0.438.0) (2023-03-04)
+
+
+### Features
+
+* update invite email layout ([#4672](https://github.com/lightdash/lightdash/issues/4672)) ([cc4207a](https://github.com/lightdash/lightdash/commit/cc4207a5884d6de35d4e28918050562c472d948c))
+
 ## [0.437.1](https://github.com/lightdash/lightdash/compare/0.437.0...0.437.1) (2023-03-03)
 
 
