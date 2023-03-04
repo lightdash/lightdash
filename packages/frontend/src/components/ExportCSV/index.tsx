@@ -11,6 +11,7 @@ import {
 } from '@blueprintjs/core';
 import { ResultRow } from '@lightdash/common';
 import { FC, Fragment, memo, useState } from 'react';
+import { useQuery } from 'react-query';
 import useToaster from '../../hooks/toaster/useToaster';
 import { InputWrapper, LimitWarning, Title } from './ExportCSV.styles';
 
@@ -50,35 +51,35 @@ const ExportCSV: FC<ExportCSVProps> = memo(
         const [limit, setLimit] = useState<string>(Limit.TABLE);
         const [customLimit, setCustomLimit] = useState<number>(1);
         const [format, setFormat] = useState<string>(Values.FORMATTED);
-        const [isExporting, setIsExporting] = useState<boolean>(false);
+
+        const { isFetching: isExporting, refetch: handleExport } = useQuery(
+            [limit, customLimit, rows, format],
+            () =>
+                getCsvLink(
+                    limit === Limit.CUSTOM
+                        ? customLimit
+                        : limit === Limit.TABLE
+                        ? rows?.length ?? 0
+                        : null,
+                    format === Values.RAW,
+                )
+                    .then((url) => {
+                        if (url) window.open(url, '_blank');
+                    })
+                    .catch((error) => {
+                        showToastError({
+                            title: `Unable to download CSV`,
+                            subtitle: error?.error?.message,
+                        });
+                    }),
+            { enabled: false },
+        );
 
         if (!rows || rows.length <= 0) {
             return <ExportAsCSVButton disabled />;
         }
 
         const Wrapper = isDialogBody ? DialogBody : Fragment;
-
-        const handleExport = async () => {
-            setIsExporting(true);
-
-            const url = await getCsvLink(
-                limit === Limit.CUSTOM
-                    ? customLimit
-                    : limit === Limit.TABLE
-                    ? rows.length
-                    : null,
-                format === Values.RAW,
-            ).catch((error) => {
-                showToastError({
-                    title: `Unable to download CSV`,
-                    subtitle: error?.error?.message,
-                });
-            });
-
-            setIsExporting(false);
-
-            if (url) window.open(url, '_blank');
-        };
 
         return (
             <>
