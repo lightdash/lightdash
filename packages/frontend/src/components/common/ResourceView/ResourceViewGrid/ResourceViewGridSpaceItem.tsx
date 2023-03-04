@@ -1,3 +1,4 @@
+import { Tooltip2 } from '@blueprintjs/popover2';
 import {
     Box,
     Flex,
@@ -15,7 +16,7 @@ import {
     IconUser,
     IconUsers,
 } from '@tabler/icons-react';
-import { FC } from 'react';
+import React, { FC, useCallback } from 'react';
 import ResourceViewActionMenu, {
     ResourceViewActionMenuCommonProps,
 } from '../ResourceActionMenu';
@@ -27,6 +28,22 @@ interface ResourceViewGridSpaceItemProps
     item: ResourceViewSpaceItem;
 }
 
+const AttributeCount: FC<{ Icon: React.ReactNode; count: number }> = ({
+    Icon,
+    count,
+}) => {
+    const theme = useMantineTheme();
+    return (
+        <Flex align="center" gap={4}>
+            <Icon color={theme.colors.gray[6]} size={14} />
+
+            <Text size={14} color="gray.6" fz="xs">
+                {count}
+            </Text>
+        </Flex>
+    );
+};
+
 const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
     item,
     onAction,
@@ -36,107 +53,113 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
 
     const theme = useMantineTheme();
 
+    const renderAccess = useCallback(() => {
+        let Icon = IconLock;
+        let status = 'Private';
+
+        if (!item.data.isPrivate) {
+            Icon = IconUsers;
+            status = 'Public';
+        } else if (item.data.access.length > 1) {
+            Icon = IconUser;
+            status = 'Shared';
+        }
+
+        return (
+            <>
+                <Icon color={theme.colors.gray[6]} size={14} />
+
+                <Text size={14} color="gray.6" fz="xs">
+                    {status}
+                </Text>
+            </>
+        );
+    }, [item]);
+
+    const getToolTipText = useCallback(() => {
+        if (!item.data.isPrivate) {
+            return 'Everyone in this project has access';
+        }
+        if (item.data.access.length > 1) {
+            const userCount = item.data.access.length;
+            return `Shared with ${userCount} user${userCount > 1 ? 's' : ''}`;
+        }
+
+        return 'Only visible to you';
+    }, [item]);
+    console.log(item);
     return (
-        <Paper
-            ref={ref}
-            p={0}
-            withBorder
-            bg={hovered ? theme.fn.rgba(theme.colors.gray[0], 0.5) : undefined}
-            h="100%"
-        >
-            <Group p="md" align="center" spacing="md" noWrap>
-                <ResourceIcon item={item} />
-
-                <Stack spacing={4} sx={{ flexGrow: 1, flexShrink: 1 }}>
+        <Tooltip2
+            className="documentation-help-button"
+            position="top"
+            content={
+                <Stack spacing={4}>
                     <Text lineClamp={1} fz="sm" fw={600}>
-                        {item.data.name}
+                        {getToolTipText()}
                     </Text>
-
-                    <Group spacing="sm">
-                        <Flex align="center" gap={4}>
-                            {!item.data.isPrivate ? (
-                                <>
-                                    <IconUsers
-                                        color={theme.colors.gray[6]}
-                                        size={14}
-                                    />
-
-                                    <Text size={14} color="gray.6" fz="xs">
-                                        Public
-                                    </Text>
-                                </>
-                            ) : item.data.access.length > 1 ? (
-                                <>
-                                    <IconUser
-                                        color={theme.colors.gray[6]}
-                                        size={14}
-                                    />
-
-                                    <Text size={14} color="gray.6" fz="xs">
-                                        Shared
-                                    </Text>
-                                </>
-                            ) : (
-                                <>
-                                    <IconLock
-                                        color={theme.colors.gray[6]}
-                                        size={14}
-                                    />
-
-                                    <Text size={14} color="gray.6" fz="xs">
-                                        Private
-                                    </Text>
-                                </>
-                            )}
-                        </Flex>
-
-                        <Flex align="center" gap={4}>
-                            <IconLayoutDashboard
-                                color={theme.colors.gray[6]}
-                                size={14}
-                            />
-
-                            <Text size={14} color="gray.6" fz="xs">
-                                {item.data.dashboards.length}
-                            </Text>
-                        </Flex>
-
-                        <Flex align="center" gap={4}>
-                            <IconChartBar
-                                color={theme.colors.gray[6]}
-                                size={14}
-                            />
-
-                            <Text size={14} color="gray.6" fz="xs">
-                                {item.data.queries.length}
-                            </Text>
-                        </Flex>
+                    <Group>
+                        <AttributeCount
+                            Icon={IconLayoutDashboard}
+                            count={item.data.dashboards.length}
+                        />
+                        <AttributeCount
+                            Icon={IconChartBar}
+                            count={item.data.queries.length}
+                        />
                     </Group>
                 </Stack>
+            }
+        >
+            <Paper
+                ref={ref}
+                p={0}
+                withBorder
+                bg={
+                    hovered
+                        ? theme.fn.rgba(theme.colors.gray[0], 0.5)
+                        : undefined
+                }
+                h="100%"
+            >
+                <Group p="md" align="center" spacing="md" noWrap>
+                    <ResourceIcon item={item} />
 
-                <Box
-                    sx={{
-                        flexGrow: 0,
-                        flexShrink: 0,
-                        transition: 'opacity 0.2s',
-                        opacity: hovered || opened ? 1 : 0,
-                    }}
-                    component="div"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                    }}
-                >
-                    <ResourceViewActionMenu
-                        item={item}
-                        isOpen={opened}
-                        onOpen={handlers.open}
-                        onClose={handlers.close}
-                        onAction={onAction}
-                    />
-                </Box>
-            </Group>
-        </Paper>
+                    <Stack spacing={4} sx={{ flexGrow: 1, flexShrink: 1 }}>
+                        <Text lineClamp={1} fz="sm" fw={600}>
+                            {item.data.name}
+                        </Text>
+
+                        <Group spacing="sm">
+                            <Flex align="center" gap={4}>
+                                {renderAccess()}
+                            </Flex>
+                        </Group>
+                    </Stack>
+
+                    <Box
+                        sx={{
+                            flexGrow: 0,
+                            flexShrink: 0,
+                            transition: 'opacity 0.2s',
+                            opacity: hovered || opened ? 1 : 0,
+                        }}
+                        component="div"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                        }}
+                    >
+                        <ResourceViewActionMenu
+                            item={item}
+                            isOpen={opened}
+                            onOpen={handlers.open}
+                            onClose={handlers.close}
+                            onAction={onAction}
+                        />
+                    </Box>
+                </Group>
+            </Paper>
+        </Tooltip2>
     );
 };
 
