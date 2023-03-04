@@ -84,10 +84,9 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
             const userCount = item.data.access.length;
             return `Shared with ${userCount} user${userCount > 1 ? 's' : ''}`;
         }
-
         return 'Only visible to you';
     }, [item]);
-    console.log(item);
+
     return (
         <Tooltip2
             className="documentation-help-button"
