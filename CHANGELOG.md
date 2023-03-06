@@ -1,3 +1,10 @@
+# [0.446.0](https://github.com/lightdash/lightdash/compare/0.445.1...0.446.0) (2023-03-06)
+
+
+### Features
+
+* updating project access email layout ([#4697](https://github.com/lightdash/lightdash/issues/4697)) ([a9788ca](https://github.com/lightdash/lightdash/commit/a9788cacc1142739979579eeb457267a707b6f55))
+
 ## [0.445.1](https://github.com/lightdash/lightdash/compare/0.445.0...0.445.1) (2023-03-06)
 
 
