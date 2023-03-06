@@ -46,7 +46,7 @@ export type ExportCSVProps = {
 
 const ExportCSV: FC<ExportCSVProps> = memo(
     ({ rows, getCsvLink, isDialogBody, renderDialogActions }) => {
-        const { showToastError } = useToaster();
+        const { showToastError, showToastInfo } = useToaster();
 
         const [limit, setLimit] = useState<string>(Limit.TABLE);
         const [customLimit, setCustomLimit] = useState<number>(1);
@@ -54,25 +54,33 @@ const ExportCSV: FC<ExportCSVProps> = memo(
 
         const { isFetching: isExporting, refetch: handleExport } = useQuery(
             [limit, customLimit, rows, format],
-            () =>
-                getCsvLink(
+            () => {
+                if (rows?.length ?? 0 > 500) {
+                    showToastInfo({
+                        title: 'Fetching results. This might take a while...',
+                    });
+                }
+                return getCsvLink(
                     limit === Limit.CUSTOM
                         ? customLimit
                         : limit === Limit.TABLE
                         ? rows?.length ?? 0
                         : null,
                     format === Values.RAW,
-                )
-                    .then((url) => {
-                        if (url) window.open(url, '_blank');
-                    })
-                    .catch((error) => {
-                        showToastError({
-                            title: `Unable to download CSV`,
-                            subtitle: error?.error?.message,
-                        });
-                    }),
-            { enabled: false },
+                );
+            },
+            {
+                enabled: false,
+                onSuccess: (url) => {
+                    if (url) window.open(url, '_blank');
+                },
+                onError: (error: { error: Error }) => {
+                    showToastError({
+                        title: `Unable to download CSV`,
+                        subtitle: error?.error?.message,
+                    });
+                },
+            },
         );
 
         if (!rows || rows.length <= 0) {
