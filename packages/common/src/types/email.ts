@@ -11,6 +11,8 @@ type EmailOneTimePassword = {
 
 type EmailOneTimePasswordExpiring = EmailOneTimePassword & {
     expiresAt: Date;
+    isExpired: boolean;
+    isMaxAttempts: boolean;
 };
 
 export type EmailStatus = {

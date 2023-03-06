@@ -201,4 +201,17 @@ export class EmailModel {
         );
         return updatedRows;
     }
+
+    async deleteEmailOtp(userUuid: string, email: string): Promise<void> {
+        await this.database('email_one_time_passcodes')
+            .innerJoin(
+                'emails',
+                'emails.email_id',
+                'email_one_time_passcodes.email_id',
+            )
+            .innerJoin('users', 'users.user_id', 'emails.user_id')
+            .where('users.user_uuid', userUuid)
+            .andWhere('emails.email', email)
+            .delete();
+    }
 }

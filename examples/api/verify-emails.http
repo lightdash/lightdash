@@ -14,4 +14,4 @@ GET http://localhost:8080/api/v1/user/me/email/status
 PUT http://localhost:8080/api/v1/user/me/email/otp
 
 ### Try to get verified status
-GET http://localhost:8080/api/v1/user/me/email/status?passcode=123456
+GET http://localhost:8080/api/v1/user/me/email/status?passcode=073557

@@ -6,7 +6,6 @@ import {
     CreatePasswordResetLink,
     CreateUserArgs,
     DeleteOpenIdentity,
-    EmailStatus,
     EmailStatusExpiring,
     ExpiredError,
     ForbiddenError,
@@ -702,19 +701,26 @@ export class UserService {
             otp: emailStatus.otp && {
                 ...emailStatus.otp,
                 expiresAt: this.otpExpirationDate(emailStatus.otp.createdAt),
+                isExpired: this.isOtpExpired(emailStatus.otp.createdAt),
+                isMaxAttempts: this.isOtpMaxAttempts(
+                    emailStatus.otp.numberOfAttempts,
+                ),
             },
         };
+    }
+
+    private isOtpExpired(createdAt: Date) {
+        return this.otpExpirationDate(createdAt) < new Date();
+    }
+
+    private isOtpMaxAttempts(attempts: number) {
+        return attempts >= this.emailOneTimePasscodeMaxAttempts;
     }
 
     async getPrimaryEmailStatus(
         user: SessionUser,
         passcode?: string,
     ): Promise<EmailStatusExpiring> {
-        const isExpired = (createdAt: Date) =>
-            this.otpExpirationDate(createdAt) < new Date();
-        const isMaxAttemptsReached = (attempts: number) =>
-            attempts >= this.emailOneTimePasscodeMaxAttempts;
-
         // Attempt to verify the passcode if it's provided
         if (passcode) {
             try {
@@ -725,15 +731,20 @@ export class UserService {
                     });
                 if (
                     emailStatus.otp &&
-                    !isMaxAttemptsReached(emailStatus.otp.numberOfAttempts) &&
-                    !isExpired(emailStatus.otp.createdAt)
+                    !this.isOtpMaxAttempts(emailStatus.otp.numberOfAttempts) &&
+                    !this.isOtpExpired(emailStatus.otp.createdAt)
                 ) {
                     await this.emailModel.verifyUserEmailIfExists(
                         user.userUuid,
                         emailStatus.email,
                     );
+                    await this.emailModel.deleteEmailOtp(
+                        user.userUuid,
+                        emailStatus.email,
+                    );
                 }
             } catch (e) {
+                // Attempt to find an email+passcode combo failed, increment the number of attempts
                 if (e instanceof NotFoundError) {
                     await this.emailModel.incrementPrimaryEmailOtpAttempts(
                         user.userUuid,
@@ -747,12 +758,26 @@ export class UserService {
         const emailStatus = await this.emailModel.getPrimaryEmailStatus(
             user.userUuid,
         );
-        return {
+        const emailStatusExpiring = {
             ...emailStatus,
             otp: emailStatus.otp && {
                 ...emailStatus.otp,
                 expiresAt: this.otpExpirationDate(emailStatus.otp.createdAt),
+                isMaxAttempts: this.isOtpMaxAttempts(
+                    emailStatus.otp.numberOfAttempts,
+                ),
+                isExpired: this.isOtpExpired(emailStatus.otp.createdAt),
             },
         };
+        if (
+            emailStatusExpiring.otp?.isExpired ||
+            emailStatusExpiring.otp?.isMaxAttempts
+        ) {
+            await this.emailModel.deleteEmailOtp(
+                user.userUuid,
+                emailStatusExpiring.email,
+            );
+        }
+        return emailStatusExpiring;
     }
 }
