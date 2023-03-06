@@ -13,7 +13,13 @@ export type DbEmailOneTimePasscodeIn = Pick<
     DbEmailOneTimePasscode,
     'email_id' | 'passcode'
 >;
+
+export type DbEmailOneTimePasscodeUpdate = Pick<
+    DbEmailOneTimePasscode,
+    'number_of_attempts'
+>;
 export type EmailOneTimePasscodeTable = Knex.CompositeTableType<
     DbEmailOneTimePasscode,
-    DbEmailOneTimePasscodeIn
+    DbEmailOneTimePasscodeIn,
+    DbEmailOneTimePasscodeUpdate
 >;

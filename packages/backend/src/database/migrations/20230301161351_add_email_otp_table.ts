@@ -4,7 +4,7 @@ export async function up(knex: Knex): Promise<void> {
     if (!(await knex.schema.hasTable('email_one_time_passcodes'))) {
         await knex.schema.createTable('email_one_time_passcodes', (table) => {
             table
-                .increments('email_id')
+                .integer('email_id')
                 .primary()
                 .references('email_id')
                 .inTable('emails');
