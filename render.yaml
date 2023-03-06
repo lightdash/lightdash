@@ -54,6 +54,3 @@ services:
           type: pserv
           name: headless-browser
           property: host
-
-envVarGroups:
-  - name: pr-settings
