@@ -36,6 +36,7 @@ const getChartOrDashboard = async (
         const chart = await schedulerService.savedChartModel.get(chartUuid);
         return {
             url: `${lightdashConfig.siteUrl}/projects/${chart.projectUuid}/saved/${chartUuid}`,
+            minimalUrl: `${lightdashConfig.siteUrl}/minimal/projects/${chart.projectUuid}/saved/${chartUuid}`,
             details: {
                 name: chart.name,
                 description: chart.description,
@@ -51,6 +52,7 @@ const getChartOrDashboard = async (
         );
         return {
             url: `${lightdashConfig.siteUrl}/projects/${dashboard.projectUuid}/dashboards/${dashboardUuid}/view`,
+            minimalUrl: `${lightdashConfig.siteUrl}/minimal/projects/${dashboard.projectUuid}/dashboards/${dashboardUuid}`,
             details: {
                 name: dashboard.name,
                 description: dashboard.description,
@@ -77,11 +79,11 @@ export const getNotificationPageData = async (
     let imageUrl;
     let csvUrl;
     let csvUrls;
-    const { url, pageType, details, organizationUuid } =
+    const { url, minimalUrl, pageType, details, organizationUuid } =
         await getChartOrDashboard(savedChartUuid, dashboardUuid);
     if (format === 'image') {
         imageUrl = await unfurlService.unfurlImage(
-            url,
+            minimalUrl,
             pageType,
             `slack-notification-image-${nanoid()}`,
             userUuid,

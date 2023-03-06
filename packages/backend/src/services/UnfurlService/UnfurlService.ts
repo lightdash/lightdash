@@ -31,12 +31,14 @@ export type Unfurl = {
     description?: string;
     imageUrl: string | undefined;
     pageType: LightdashPage;
+    minimalUrl: string;
 };
 
 export type ParsedUrl = {
     isValid: boolean;
     lightdashPage?: LightdashPage;
     url: string;
+    minimalUrl: string;
     dashboardUuid?: string;
     projectUuid?: string;
     chartUuid?: string;
@@ -142,40 +144,25 @@ export class UnfurlService {
 
             const path = `/tmp/${imageId}.png`;
 
-            const selector =
-                lightdashPage === LightdashPage.DASHBOARD
-                    ? '.react-grid-layout'
-                    : `.echarts-for-react, [data-testid="visualization"]`; // Get .echarts-for-react, otherwise fallsback to data-testid (tables and bignumbers)
-            let element;
-            try {
-                await page.waitForSelector(selector, { timeout: 30000 });
-                element = await page.$(selector);
-            } catch (e) {
-                Logger.warn(
-                    `Can't find element ${selector} on page ${e}, returning body`,
-                );
-                element = await page.$('body');
-            }
+            if (LightdashPage.EXPLORE) {
+                // On explore pages, we take a screenshot of the chart
+                const selector = `.echarts-for-react, [data-testid="visualization"]`;
+                const element = await page.waitForSelector(selector, {
+                    timeout: 30000,
+                });
 
-            const removeComponents = async (selectorToRemove: string) => {
-                await page.evaluate((sel: any) => {
-                    // @ts-ignore
-                    const elements = document.querySelectorAll(sel);
-                    elements.forEach((el) => el.parentNode.removeChild(el));
-                }, selectorToRemove);
-            };
-            if (lightdashPage === LightdashPage.DASHBOARD) {
-                // Remove navbar from screenshot
-                await removeComponents('.bp4-navbar');
-                await removeComponents('button');
-                await removeComponents('[data-icon="filter"]');
-            }
+                if (!element) {
+                    Logger.warn(`Can't find element on page`);
+                    return undefined;
+                }
+                const imageBuffer = (await element.screenshot({
+                    path,
+                })) as Buffer;
 
-            if (!element) {
-                Logger.warn(`Can't find element on page`);
-                return undefined;
+                return imageBuffer;
             }
-            const imageBuffer = (await element.screenshot({
+            // Dashboards and charts are minimal, so we take a screenshot of the whole page
+            const imageBuffer = (await page.screenshot({
                 path,
             })) as Buffer;
 
@@ -241,6 +228,7 @@ export class UnfurlService {
                 isValid: true,
                 lightdashPage: LightdashPage.DASHBOARD,
                 url,
+                minimalUrl: `${this.lightdashConfig.siteUrl}/minimal/projects/${projectUuid}/dashboards/${dashboardUuid}`,
                 projectUuid,
                 dashboardUuid,
             };
@@ -252,6 +240,7 @@ export class UnfurlService {
                 isValid: true,
                 lightdashPage: LightdashPage.CHART,
                 url,
+                minimalUrl: `${this.lightdashConfig.siteUrl}/minimal/projects/${projectUuid}/saved/${chartUuid}`,
                 projectUuid,
                 chartUuid,
             };
@@ -266,6 +255,7 @@ export class UnfurlService {
                 isValid: true,
                 lightdashPage: LightdashPage.EXPLORE,
                 url,
+                minimalUrl: url,
                 projectUuid,
                 exploreModel,
             };
@@ -275,6 +265,7 @@ export class UnfurlService {
         return {
             isValid: false,
             url,
+            minimalUrl: url,
         };
     }
 
@@ -366,6 +357,7 @@ export class UnfurlService {
             description,
             pageType: parsedUrl.lightdashPage,
             imageUrl: undefined,
+            minimalUrl: parsedUrl.minimalUrl,
         };
     }
 
