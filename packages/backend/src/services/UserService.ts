@@ -294,7 +294,7 @@ export class UserService {
             );
             await this.userModel.verifyUserEmailIfExists(
                 loginUser.userUuid,
-                openIdUser.openId.email.toLowerCase(),
+                openIdUser.openId.email,
             );
             identifyUser(loginUser);
             analytics.track({
@@ -321,12 +321,12 @@ export class UserService {
                 userId: sessionUser.userId,
                 issuer: openIdUser.openId.issuer,
                 subject: openIdUser.openId.subject,
-                email: openIdUser.openId.email.toLowerCase(), // no guarantee on casing from OpenID
+                email: openIdUser.openId.email,
                 issuerType: openIdUser.openId.issuerType,
             });
             await this.userModel.verifyUserEmailIfExists(
                 sessionUser.userUuid,
-                openIdUser.openId.email.toLowerCase(),
+                openIdUser.openId.email,
             );
             analytics.track({
                 userId: sessionUser.userUuid,
@@ -345,7 +345,7 @@ export class UserService {
         );
         await this.userModel.verifyUserEmailIfExists(
             createdUser.userUuid,
-            openIdUser.openId.email.toLowerCase(),
+            openIdUser.openId.email,
         );
         return createdUser;
     }

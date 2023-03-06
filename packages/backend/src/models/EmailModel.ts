@@ -10,7 +10,10 @@ export class EmailModel {
     }
 
     async createEmail(emailIn: DbEmailIn) {
-        await this.database('emails').insert(emailIn);
+        await this.database('emails').insert({
+            ...emailIn,
+            email: emailIn.email.toLowerCase(),
+        });
     }
 
     async deleteEmail(emailRemove: DbEmailRemove) {
