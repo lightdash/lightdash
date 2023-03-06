@@ -1,3 +1,10 @@
+# [0.447.0](https://github.com/lightdash/lightdash/compare/0.446.0...0.447.0) (2023-03-06)
+
+
+### Features
+
+* updating password recovery email layout ([#4698](https://github.com/lightdash/lightdash/issues/4698)) ([973deca](https://github.com/lightdash/lightdash/commit/973deca4622912b5d80a384ac12265d4483e2146))
+
 # [0.446.0](https://github.com/lightdash/lightdash/compare/0.445.1...0.446.0) (2023-03-06)
 
 
