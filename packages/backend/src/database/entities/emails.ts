@@ -11,8 +11,13 @@ export type DbEmail = {
 
 export type DbEmailIn = Pick<DbEmail, 'user_id' | 'email' | 'is_primary'>;
 export type DbEmailRemove = Pick<DbEmail, 'user_id' | 'email'>;
+export type DbEmailUpdate = Pick<DbEmail, 'is_verified'>;
 
-export type EmailTable = Knex.CompositeTableType<DbEmail, DbEmailIn>;
+export type EmailTable = Knex.CompositeTableType<
+    DbEmail,
+    DbEmailIn,
+    DbEmailUpdate
+>;
 
 export const EmailTableName = 'emails';
 

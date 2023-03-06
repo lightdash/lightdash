@@ -260,4 +260,27 @@ export default class EmailClient {
             text: title,
         });
     }
+
+    async sendOneTimePasscodeEmail({
+        recipient,
+        passcode,
+    }: {
+        recipient: string;
+        passcode: string;
+    }): Promise<void> {
+        const subject = 'Verify your email address';
+        const text = `
+        Verify your email address by entering the following passcode in Lightdash: ${passcode}
+            `;
+        return this.sendEmail({
+            to: recipient,
+            subject,
+            template: 'oneTimePasscode',
+            context: {
+                passcode,
+                title: subject,
+            },
+            text,
+        });
+    }
 }

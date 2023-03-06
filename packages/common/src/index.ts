@@ -85,6 +85,7 @@ export * from './types/conditionalRule';
 export * from './types/dashboard';
 export * from './types/dbt';
 export * from './types/dbtCloud';
+export * from './types/email';
 export * from './types/errors';
 export * from './types/explore';
 export * from './types/field';
