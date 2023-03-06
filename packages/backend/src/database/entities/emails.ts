@@ -6,6 +6,7 @@ export type DbEmail = {
     created_at: Date;
     email: string;
     is_primary: boolean;
+    is_verified: boolean;
 };
 
 export type DbEmailIn = Pick<DbEmail, 'user_id' | 'email' | 'is_primary'>;

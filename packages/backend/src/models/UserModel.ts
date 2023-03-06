@@ -159,18 +159,18 @@ export class UserModel {
                     issuer: createUser.openId.issuer,
                     subject: createUser.openId.subject,
                     user_id: newUser.user_id,
-                    email: createUser.openId.email,
+                    email: createUser.openId.email.toLowerCase(),
                 })
                 .returning('*');
             await createEmail(trx, {
                 user_id: newUser.user_id,
-                email: createUser.openId.email,
+                email: createUser.openId.email.toLowerCase(),
                 is_primary: true,
             });
         } else {
             await createEmail(trx, {
                 user_id: newUser.user_id,
-                email: createUser.email,
+                email: createUser.email.toLowerCase(),
                 is_primary: true,
             });
             if (createUser.password) {
@@ -307,7 +307,7 @@ export class UserModel {
                 }
                 await createEmail(trx, {
                     user_id: user.user_id,
-                    email,
+                    email: email.toLowerCase(),
                     is_primary: true,
                 });
             }
@@ -443,7 +443,7 @@ export class UserModel {
                         issuer: activateUser.openId.issuer,
                         subject: activateUser.openId.subject,
                         user_id: user.user_id,
-                        email: activateUser.openId.email,
+                        email: activateUser.openId.email.toLowerCase(),
                     })
                     .returning('*');
             }
@@ -614,5 +614,23 @@ export class UserModel {
                     await bcrypt.genSalt(),
                 ),
             });
+    }
+
+    async verifyUserEmailIfExists(
+        userUuid: string,
+        email: string,
+    ): Promise<{ email: string }[]> {
+        const updatedRows = await this.database.raw<{ email: string }[]>(
+            `
+        UPDATE emails
+        SET is_verified = true
+        FROM users
+        WHERE emails.user_id = users.user_id
+        AND users.user_uuid = ?
+        AND emails.email = ?
+        RETURNING emails.email`,
+            [userUuid, email.toLowerCase()],
+        );
+        return updatedRows;
     }
 }
