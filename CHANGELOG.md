@@ -1,3 +1,10 @@
+# [0.445.0](https://github.com/lightdash/lightdash/compare/0.444.0...0.445.0) (2023-03-06)
+
+
+### Features
+
+* add OTP flow for email verification ([#4660](https://github.com/lightdash/lightdash/issues/4660)) ([a5af465](https://github.com/lightdash/lightdash/commit/a5af465f241eb8c853099e387b6b8d76d1182277))
+
 # [0.444.0](https://github.com/lightdash/lightdash/compare/0.443.1...0.444.0) (2023-03-06)
 
 
