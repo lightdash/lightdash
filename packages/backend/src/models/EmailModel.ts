@@ -13,7 +13,6 @@ const convertEmailStatusRow = (row: DbEmailStatus): EmailStatus => {
         isVerified: row.is_verified,
         otp: undefined,
     };
-    console.log(row);
     if (row.created_at && row.number_of_attempts !== undefined) {
         emailStatus.otp = {
             createdAt: row.created_at,
