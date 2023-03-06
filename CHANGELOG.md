@@ -1,3 +1,10 @@
+# [0.443.0](https://github.com/lightdash/lightdash/compare/0.442.1...0.443.0) (2023-03-06)
+
+
+### Features
+
+* take screenshots from minimal pages ([#4688](https://github.com/lightdash/lightdash/issues/4688)) ([ac7be5b](https://github.com/lightdash/lightdash/commit/ac7be5bb8b285101493e2179e464ba17d85d3785))
+
 ## [0.442.1](https://github.com/lightdash/lightdash/compare/0.442.0...0.442.1) (2023-03-06)
 
 
