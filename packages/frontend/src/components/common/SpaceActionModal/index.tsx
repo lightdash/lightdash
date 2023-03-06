@@ -235,6 +235,9 @@ const SpaceActionModal: FC<Omit<ActionModalProps, 'data' | 'isDisabled'>> = ({
         } else if (actionType === ActionType.DELETE) {
             const result = await deleteMutation(spaceUuid!);
             onSubmitForm?.(result);
+            history.push({
+                pathname: `/projects/${projectUuid}/spaces`,
+            });
         } else {
             return assertUnreachable(actionType, 'Unexpected action in space');
         }

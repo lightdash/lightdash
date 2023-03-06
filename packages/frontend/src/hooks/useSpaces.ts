@@ -5,7 +5,6 @@ import {
     useQueryClient,
     UseQueryOptions,
 } from 'react-query';
-import { useHistory } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 
@@ -55,7 +54,6 @@ const deleteQuery = async (projectUuid: string, spaceUuid: string) =>
     });
 
 export const useDeleteMutation = (projectUuid: string) => {
-    const history = useHistory();
     const { showToastSuccess, showToastError } = useToaster();
     const queryClient = useQueryClient();
 
@@ -65,9 +63,6 @@ export const useDeleteMutation = (projectUuid: string) => {
             mutationKey: ['space_delete', projectUuid],
             onSuccess: async () => {
                 await queryClient.refetchQueries(['spaces', projectUuid]);
-                history.push({
-                    pathname: `/projects/${projectUuid}/spaces`,
-                });
                 showToastSuccess({
                     title: `Success! Space was deleted.`,
                 });
