@@ -1,471 +1,737 @@
-<!DOCTYPE html>
-<html>
-    <head>
-        <link
-            href="https://fonts.googleapis.com/css?family=Roboto"
-            rel="stylesheet"
-        />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-        <title>Simple Transactional Email</title>
-        <style>
-            /* -------------------------------------GLOBAL RESETS------------------------------------- */
-            /*All the styling goes here*/
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml"
+      xmlns:o="urn:schemas-microsoft-com:office:office" lang="en">
+<head>
+  <meta name="x-apple-disable-message-reformatting">
+  <meta http-equiv="X-UA-Compatible">
+  <meta charset="utf-8">
+  <meta name="viewport" content="target-densitydpi=device-dpi">
+  <meta content="true" name="HandheldFriendly">
+  <meta content="width=device-width" name="viewport">
+  <style type="text/css">
+      table {
+          border-collapse: separate;
+          table-layout: fixed;
+          mso-table-lspace: 0pt;
+          mso-table-rspace: 0pt
+      }
 
-            body {
-                background-color: #f6f7f9;
-                font-family: 'Roboto', sans-serif;
-                -webkit-font-smoothing: antialiased;
-                font-size: 14px;
-                line-height: 28px;
-                margin: 0;
-                padding: 0;
-                -ms-text-size-adjust: 100%;
-                -webkit-text-size-adjust: 100%;
-                text-decoration: none;
-            }
+      table td {
+          border-collapse: collapse
+      }
 
-            table {
-                border-collapse: separate;
-                mso-table-lspace: 0pt;
-                mso-table-rspace: 0pt;
-                width: 100%;
-            }
+      .ExternalClass {
+          width: 100%
+      }
 
-            table td {
-                vertical-align: top;
-            }
+      .ExternalClass,
+      .ExternalClass p,
+      .ExternalClass span,
+      .ExternalClass font,
+      .ExternalClass td,
+      .ExternalClass div {
+          line-height: 100%
+      }
 
-            /* -------------------------------------BODY & CONTAINER------------------------------------- */
+      * {
+          line-height: inherit;
+          text-size-adjust: 100%;
+          -ms-text-size-adjust: 100%;
+          -moz-text-size-adjust: 100%;
+          -o-text-size-adjust: 100%;
+          -webkit-text-size-adjust: 100%;
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale
+      }
 
-            .body {
-                background-color: #f6f7f9;
-                width: 100%;
-            }
+      html {
+          -webkit-text-size-adjust: none !important
+      }
 
-            /* Set a max-width, and make it display as block so it will automatically stretch to that width, but will also shrink down on a phone or something */
-            .container {
-                display: block;
-                margin: 0 auto !important;
-                /* makes it centered */
-                max-width: 800px;
-                padding: 50px;
-                width: 800px;
-                text-align: center;
-            }
+      img + div {
+          display: none;
+          display: none !important
+      }
 
-            /* This should also be a block element, so that it will fill 100% of the .container */
-            .content {
-                box-sizing: border-box;
-                display: block;
-                margin: 0 auto;
-                max-width: 800px;
-                padding: 10px;
-            }
+      img {
+          Margin: 0;
+          padding: 0;
+          -ms-interpolation-mode: bicubic
+      }
 
-            /* -------------------------------------
-HEADER, FOOTER, MAIN
-------------------------------------- */
-            img {
-                border: none;
-                -ms-interpolation-mode: bicubic;
-                max-width: 100%;
-            }
+      h1, h2, h3, p, a {
+          line-height: 1;
+          overflow-wrap: normal;
+          white-space: normal;
+          word-break: break-word
+      }
 
-            .miniature-logo {
-                width: 39px;
-                height: 39px;
-                margin-right: 15px;
-            }
+      a {
+          text-decoration: none
+      }
 
-            .main {
-                border-radius: 3px;
-                width: 100%;
-            }
+      h1, h2, h3, p {
+          min-width: 100% !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          display: inline-block !important;
+          border: 0;
+          padding: 0;
+          margin: 0
+      }
 
-            .header {
-                display: flex;
-                flex-direction: row;
-            }
+      a[x-apple-data-detectors] {
+          color: inherit !important;
+          text-decoration: none !important;
+          font-size: inherit !important;
+          font-family: inherit !important;
+          font-weight: inherit !important;
+          line-height: inherit !important
+      }
 
-            .title {
-                font-family: 'Roboto', sans-serif;
-                font-size: 18px;
-                font-weight: 600;
-                color: #171818;
-                margin: 0;
-            }
+      a[href^="mailto"],
+      a[href^="tel"],
+      a[href^="sms"] {
+          color: inherit !important;
+          text-decoration: none !important
+      }
 
-            .description {
-                margin: -15px 0 0 54px;
-            }
+      @media only screen and (min-width: 481px) {
+          .hd {
+              display: none !important
+          }
+      }
 
-            .content-block {
-                padding-bottom: 10px;
-                padding-top: 10px;
-            }
+      @media only screen and (max-width: 480px) {
+          .hm {
+              display: none !important
+          }
+      }
 
-            .footer {
-                clear: both;
-                margin-top: 40px;
-                padding-top: 25px;
-                text-align: center;
-                width: 100%;
-                border-top: 1px solid rgba(0, 0, 0, 0.1);
-            }
+      [style*="Roboto"] {
+          font-family: 'Roboto', BlinkMacSystemFont, Segoe UI, Helvetica Neue, Arial, sans-serif !important;
+      }
 
-            .footer td,
-            .footer p,
-            .footer span,
-            .footer a {
-                color: #999999;
-                font-size: 12px;
-                text-align: center;
-            }
+      [style*="Inter Tight"] {
+          font-family: 'Inter Tight', BlinkMacSystemFont, Segoe UI, Helvetica Neue, Arial, sans-serif !important;
+      }
 
-            /* -------------------------------------
-TYPOGRAPHY
-------------------------------------- */
-            h1,
-            h2,
-            h3,
-            h4 {
-                color: #000000;
-                font-family: 'Roboto', sans-serif;
-                font-weight: 400;
-                margin: 0;
-            }
+      [style*="Albert Sans"] {
+          font-family: 'Albert Sans', BlinkMacSystemFont, Segoe UI, Helvetica Neue, Arial, sans-serif !important;
+      }
 
-            h1 {
-                font-size: 35px;
-                font-weight: 300;
-                text-align: center;
-                text-transform: capitalize;
-            }
+      @media only screen and (min-width: 481px) {
+          .t3, .t4 {
+              mso-line-height-alt: 60px !important;
+              line-height: 60px !important;
+              display: block !important
+          }
 
-            p,
-            ul,
-            ol {
-                font-family: 'Roboto', sans-serif;
-                color: #5c7080;
-            }
+          .t9 {
+              padding-left: 20px !important;
+              padding-right: 20px !important
+          }
 
-            p li,
-            ul li,
-            ol li {
-                list-style-position: inside;
-                margin-left: 5px;
-            }
+          .t11 {
+              padding-left: 20px !important;
+              padding-right: 20px !important;
+              width: 760px !important
+          }
 
-            a {
-                color: #2d72d2;
-                text-decoration: none;
-            }
+          .t15 {
+              padding-left: 40px !important;
+              padding-right: 40px !important;
+              border-top-left-radius: 14px !important;
+              border-top-right-radius: 14px !important;
+              width: 720px !important
+          }
 
-            /* -------------------------------------
-BUTTONS
-------------------------------------- */
+          .t20 {
+              border-top-left-radius: 14px !important;
+              border-top-right-radius: 14px !important;
+              padding-left: 40px !important;
+              padding-right: 40px !important
+          }
 
-            .btn > tbody > tr > td {
-                padding-bottom: 15px;
-            }
+          .t28 {
+              border-bottom-right-radius: 14px !important;
+              border-bottom-left-radius: 14px !important;
+              padding: 40px !important
+          }
 
-            .btn table {
-                width: auto;
-            }
+          .t30 {
+              padding: 40px !important;
+              border-bottom-right-radius: 14px !important;
+              border-bottom-left-radius: 14px !important;
+              width: 720px !important
+          }
 
-            .btn table td {
-                background-color: #ffffff;
-                border-radius: 5px;
-                text-align: center;
-            }
+          .t58 {
+              max-width: 100px !important
+          }
 
-            .btn-container {
-                display: flex;
-                justify-content: center;
-            }
+          .t63 {
+              mso-line-height-alt: 5px !important;
+              line-height: 5px !important;
+              display: block !important
+          }
 
-            .btn-primary {
-                background-color: #2d72d2;
-                color: #fff;
-                width: 189px;
-                height: 48px;
-                border: 0;
-                border-radius: 4px;
-                font-weight: 500;
-                font-size: 16px;
-                line-height: 24px;
-                padding: 10px;
-                margin: 55px 0 20px 0;
-            }
+          .t72 {
+              font-size: 14px !important;
+              mso-text-raise: 2px !important
+          }
 
-            .card {
-                max-width: 800px;
-                background-color: #fff;
-                display: block;
-                margin: 30px 0;
-                border-radius: 4px;
-                box-shadow: 0px 4px 10px 0px #0000000d;
-            }
+          .t73 {
+              mso-line-height-alt: 0px !important;
+              line-height: 0 !important;
+              display: none !important
+          }
 
-            .chart,
-            .dashboard {
-                box-sizing: border-box;
-                max-width: 800px;
-                display: block;
-                padding: 10px 20px;
-            }
+          .t82 {
+              font-size: 18px !important
+          }
 
-            /* -------------------------------------
-OTHER STYLES THAT MIGHT BE USEFUL
-------------------------------------- */
+          .t83 {
+              mso-line-height-alt: 24px !important;
+              line-height: 24px !important
+          }
 
-            .align-left {
-                text-align: left;
-            }
+          .t86 {
+              width: 856px !important
+          }
 
-            .social {
-                width: 20px;
-                height: 20px;
-                margin: 0 10px 0 10px;
-            }
+          .t99 {
+              padding: 48px 50px 2px !important
+          }
 
-            hr {
-                border: 0;
-                border-bottom: 1px solid #f6f6f6;
-                margin: 20px 0;
-            }
+          .t101 {
+              padding: 48px 50px 2px !important;
+              width: 500px !important
+          }
 
-            /* -------------------------------------
-RESPONSIVE AND MOBILE FRIENDLY STYLES
-------------------------------------- */
-            @media only screen and (max-width: 620px) {
-                table.body h1 {
-                    font-size: 28px !important;
-                    margin-bottom: 10px !important;
-                }
+          .t105, .t110 {
+              padding-bottom: 40px !important
+          }
 
-                table.body p,
-                table.body ul,
-                table.body ol,
-                table.body td,
-                table.body span,
-                table.body a {
-                    font-size: 16px !important;
-                }
+          .t117, .t127, .t137 {
+              max-width: 44px !important
+          }
+      }
+  </style>
+  <!--[if !mso]><!-->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Roboto:wght@500;600&family=Inter+Tight:wght@500&family=Albert+Sans:wght@500;700&display=swap"
+    rel="stylesheet" type="text/css">
+  <!--<![endif]-->
+  <!--[if mso]>
+  <style type="text/css">
+    div.t3, div.t4 {
+      mso-line-height-alt: 60px !important;
+      line-height: 60px !important;
+      display: block !important
+    }
 
-                table.body .wrapper,
-                table.body .article {
-                    padding: 10px !important;
-                }
+    td.t11, td.t9 {
+      padding-left: 20px !important;
+      padding-right: 20px !important
+    }
 
-                table.body .content {
-                    padding: 0 !important;
-                }
+    td.t15 {
+      padding-left: 40px !important;
+      padding-right: 40px !important;
+      border-top-left-radius: 14px !important;
+      border-top-right-radius: 14px !important
+    }
 
-                table.body .container {
-                    padding: 0 !important;
-                    width: 100% !important;
-                }
+    td.t20 {
+      border-top-left-radius: 14px !important;
+      border-top-right-radius: 14px !important;
+      padding-left: 40px !important;
+      padding-right: 40px !important
+    }
 
-                table.body .main {
-                    border-left-width: 0 !important;
-                    border-radius: 0 !important;
-                    border-right-width: 0 !important;
-                }
+    td.t28 {
+      border-bottom-right-radius: 14px !important;
+      border-bottom-left-radius: 14px !important;
+      padding: 40px !important
+    }
 
-                table.body .btn table {
-                    width: 100% !important;
-                }
+    td.t30 {
+      padding: 40px !important;
+      border-bottom-right-radius: 14px !important;
+      border-bottom-left-radius: 14px !important;
+      width: 800px !important
+    }
 
-                table.body .btn a {
-                    width: 100% !important;
-                }
+    td.t56 {
+      width: 100px !important
+    }
 
-                table.body .img-responsive {
-                    height: auto !important;
-                    max-width: 100% !important;
-                    width: auto !important;
-                }
-            }
+    div.t58 {
+      max-width: 100px !important
+    }
 
-            /* -------------------------------------
-PRESERVE THESE STYLES IN THE HEAD
-------------------------------------- */
-            @media all {
-                .ExternalClass {
-                    width: 100%;
-                }
+    div.t63 {
+      mso-line-height-alt: 5px !important;
+      line-height: 5px !important;
+      display: block !important
+    }
 
-                .ExternalClass,
-                .ExternalClass p,
-                .ExternalClass span,
-                .ExternalClass font,
-                .ExternalClass td,
-                .ExternalClass div {
-                    line-height: 100%;
-                }
+    p.t72 {
+      font-size: 14px !important;
+      mso-text-raise: 2px !important
+    }
 
-                .apple-link a {
-                    color: inherit !important;
-                    font-family: inherit !important;
-                    font-size: inherit !important;
-                    font-weight: inherit !important;
-                    line-height: inherit !important;
-                    text-decoration: none !important;
-                }
+    div.t73 {
+      mso-line-height-alt: 0px !important;
+      line-height: 0 !important;
+      display: none !important
+    }
 
-                #MessageViewBody a {
-                    color: inherit;
-                    text-decoration: none;
-                    font-size: inherit;
-                    font-family: inherit;
-                    font-weight: inherit;
-                    line-height: inherit;
-                }
+    h1.t82 {
+      font-size: 18px !important
+    }
 
-                .btn-primary table td:hover {
-                    background-color: #215db0 !important;
-                }
+    div.t83 {
+      mso-line-height-alt: 24px !important;
+      line-height: 24px !important
+    }
 
-                .btn-primary a:hover {
-                    background-color: #215db0 !important;
-                }
-            }
-        </style>
-    </head>
-    <body>
-        <table
-            role="presentation"
-            border="0"
-            cellpadding="0"
-            cellspacing="0"
-            class="body"
-        >
-            <tr>
-                <td>&nbsp;</td>
-                <td class="container">
-                    <div class="content">
-                        <!-- START CENTERED WHITE CONTAINER -->
-                        <table role="presentation" class="main">
-                            <!-- START MAIN CONTENT AREA -->
+    td.t86 {
+      width: 856px !important
+    }
+
+    td.t101, td.t99 {
+      padding: 48px 50px 2px !important
+    }
+
+    td.t105, td.t110 {
+      padding-bottom: 40px !important
+    }
+
+    td.t115 {
+      width: 24px !important
+    }
+
+    div.t117 {
+      max-width: 44px !important
+    }
+
+    td.t125 {
+      width: 24px !important
+    }
+
+    div.t127 {
+      max-width: 44px !important
+    }
+
+    td.t135 {
+      width: 24px !important
+    }
+
+    div.t137 {
+      max-width: 44px !important
+    }
+  </style>
+  <![endif]-->
+  <!--[if mso]>
+  <xml>
+    <o:OfficeDocumentSettings>
+      <o:AllowPNG />
+      <o:PixelsPerInch>96</o:PixelsPerInch>
+    </o:OfficeDocumentSettings>
+  </xml>
+  <![endif]-->
+</head>
+<body class="t0" style="min-width:100%;Margin:0px;padding:0px;background-color:#292929;">
+<div class="t1" style="background-color:#292929;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" align="center">
+    <tr>
+      <td class="t166" style="font-size:0;line-height:0;mso-line-height-rule:exactly;" valign="top" align="center">
+        <!--[if mso]>
+        <v:background xmlns:v="urn:schemas-microsoft-com:vml" fill="true" stroke="false">
+          <v:fill color="#292929" />
+        </v:background>
+        <![endif]-->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" align="center">
+          <tr>
+            <td>
+              <div class="t3" style="mso-line-height-rule:exactly;font-size:1px;display:none;">&nbsp;</div>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <table class="t10" role="presentation" cellpadding="0" cellspacing="0" align="center">
+                <tr>
+                  <!--[if !mso]><!-->
+                  <td class="t11" style="overflow:hidden;width:800px;">
+                    <!--<![endif]-->
+                    <!--[if mso]>
+                    <td class="t11" style="overflow:hidden;width:800px;"><![endif]-->
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td>
+                          <table class="t14" role="presentation" cellpadding="0" cellspacing="0" align="left">
                             <tr>
-                                <td class="align-left">
-                                    <table
-                                        role="presentation"
-                                        border="0"
-                                        cellpadding="0"
-                                        cellspacing="0"
-                                    >
-                                        <th class="header">
-                                            <img
-                                                class="miniature-logo"
-                                                alt="miniature logo"
-                                                src="{{host}}/lightdash-miniature-logo.png"
-                                            />
-                                            <h3 class="title">{{title}}</h3>
-                                        </th>
-                                        <tr>
-                                            <td>
-                                                <p class="description">
-                                                    {{date}}
-                                                </p>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td class="card">
-                                                <img
-                                                    alt="chart or dashboard image"
-                                                    src="{{imageUrl}}"
-                                                    class="chart dashboard"
-                                                />
-                                            </td>
-                                        </tr>
-
-                                        <tr>
-                                            <td class="btn-container">
-                                                <button
-                                                    href="{{url}}"
-                                                    class="btn-primary"
-                                                >
-                                                    View in Lightdash
-                                                </button>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>
-                                                <div class="footer">
-                                                    <table
-                                                        role="presentation"
-                                                        border="0"
-                                                        cellpadding="0"
-                                                        cellspacing="0"
-                                                    >
-                                                        <tr>
-                                                            <td
-                                                                class="content-block"
-                                                            >
-                                                                <a
-                                                                    >Scheduled
-                                                                    delivery:</a
-                                                                >
-                                                                {{frequency}}
-                                                            </td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td
-                                                                class="content-block"
-                                                            >
-                                                                <a
-                                                                    href="https://twitter.com/lightdash_devs"
-                                                                >
-                                                                    <img
-                                                                        alt="twitter"
-                                                                        class="social"
-                                                                        src="{{host}}/twitter.png"
-                                                                /></a>
-                                                                <a
-                                                                    href="https://github.com/lightdash/lightdash"
-                                                                >
-                                                                    <img
-                                                                        alt="github"
-                                                                        class="social"
-                                                                        src="{{host}}/github.png"
-                                                                /></a>
-                                                                <a
-                                                                    href="https://www.linkedin.com/company/lightdash"
-                                                                >
-                                                                    <img
-                                                                        alt="linkedin"
-                                                                        class="social"
-                                                                        src="{{host}}/linkedin.png"
-                                                                /></a>
-                                                            </td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td
-                                                                class="content-block powered-by"
-                                                            >
-                                                                <a
-                                                                    href="https://lightdash.com"
-                                                                    >lightdash.com</a
-                                                                >
-                                                            </td>
-                                                        </tr>
-                                                    </table>
-                                                </div>
-                                            </td>
-                                        </tr>
+                              <!--[if !mso]><!-->
+                              <td class="t15"
+                                  style="background-color:#7262FF;background-image:url({{host}}/banner.jpg);background-repeat:no-repeat;background-size:contain;background-position:right top;overflow:hidden;width:770px;padding:16px 15px 16px 15px;">
+                                <!--<![endif]-->
+                                <!--[if mso]>
+                                <td class="t15"
+                                    style="background-color:#7262FF;background-image:url({{host}}/banner.jpg);background-repeat:no-repeat;background-size:contain;background-position:right top;overflow:hidden;width:800px;padding:16px 15px 16px 15px;">
+                                <![endif]-->
+                                <div class="t21"
+                                     style="display:inline-table;width:100%;text-align:left;vertical-align:top;">
+                                  <!--[if mso]>
+                                  <table role="presentation" cellpadding="0" cellspacing="0" align="left" valign="top">
+                                    <tr>
+                                      <td width="100" valign="top"><![endif]-->
+                                  <div class="t58"
+                                       style="display:inline-table;text-align:initial;vertical-align:inherit;width:100%;max-width:92px;">
+                                    <div class="t53"
+                                         style="mso-line-height-rule:exactly;mso-line-height-alt:4px;line-height:4px;font-size:1px;display:block;">
+                                      &nbsp;
+                                    </div>
+                                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="t60">
+                                      <tr>
+                                        <td class="t61">
+                                          <div style="font-size:0px;"><img class="t62"
+                                                                           style="display:block;border:0;height:auto;width:100%;Margin:0;max-width:100%;"
+                                                                           width="100"
+                                                                           src="{{host}}/lightdash-logo.png" /></div>
+                                        </td>
+                                      </tr>
                                     </table>
-                                </td>
+                                  </div>
+                                  <!--[if mso]>
+                                  </td>
+                                  </tr></table>
+                                  <![endif]-->
+                                </div>
+                              </td>
                             </tr>
-                            <!-- END MAIN CONTENT AREA -->
-                        </table>
-                        <!-- END CENTERED WHITE CONTAINER -->
-                    </div>
-                </td>
-                <td>&nbsp;</td>
-            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <table class="t29" role="presentation" cellpadding="0" cellspacing="0" align="center">
+                            <tr>
+                              <!--[if !mso]><!-->
+                              <td class="t30"
+                                  style="background-color:#F7F7F9;overflow:hidden;width:386px;padding:8px 16px 49px 16px;">
+                                <!--<![endif]-->
+                                <!--[if mso]>
+                                <td class="t30"
+                                    style="background-color:#F7F7F9;overflow:hidden;width:418px;padding:8px 16px 49px 16px;">
+                                <![endif]-->
+                                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                                  <!--[if !mso]><!-->
+                                  <tr>
+                                    <td>
+                                      <div class="t73"
+                                           style="mso-line-height-rule:exactly;mso-line-height-alt:8px;line-height:8px;font-size:1px;display:block;">
+                                        &nbsp;
+                                      </div>
+                                    </td>
+                                  </tr>
+                                  <!--<![endif]-->
+                                  <tr>
+                                    <td>
+                                      <table class="t75" role="presentation" cellpadding="0" cellspacing="0"
+                                             align="left">
+                                        <tr>
+                                          <!--[if !mso]><!-->
+                                          <td class="t76" style="width:678px;">
+                                            <!--<![endif]-->
+                                            <!--[if mso]>
+                                            <td class="t76" style="width:678px;"><![endif]-->
+                                            <h1 class="t82"
+                                                style="font-family:BlinkMacSystemFont,Segoe UI,Helvetica Neue,Arial,sans-serif, 'Roboto';line-height:20px;font-weight:500;font-style:normal;font-size:15px;text-decoration:none;text-transform:none;direction:ltr;color:#121212;text-align:left;mso-line-height-rule:exactly;mso-text-raise:2px;">
+                                              {{title}}</h1></td>
+                                        </tr>
+                                      </table>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td>
+                                      <div class="t63" style="mso-line-height-rule:exactly;font-size:1px;display:none;">
+                                        &nbsp;
+                                      </div>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td>
+                                      <table class="t65" role="presentation" cellpadding="0" cellspacing="0"
+                                             align="center">
+                                        <tr>
+                                          <!--[if !mso]><!-->
+                                          <td class="t66" style="width:966px;">
+                                            <!--<![endif]-->
+                                            <!--[if mso]>
+                                            <td class="t66" style="width:966px;"><![endif]-->
+                                            <p class="t72"
+                                               style="font-family:BlinkMacSystemFont,Segoe UI,Helvetica Neue,Arial,sans-serif, 'Inter Tight';line-height:21px;font-weight:500;font-style:normal;font-size:12px;text-decoration:none;text-transform:none;direction:ltr;color:#95959E;text-align:left;mso-line-height-rule:exactly;mso-text-raise:3px;">
+                                              {{date}}</p></td>
+                                        </tr>
+                                      </table>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td>
+                                      <div class="t83"
+                                           style="mso-line-height-rule:exactly;mso-line-height-alt:16px;line-height:16px;font-size:1px;display:block;">
+                                        &nbsp;
+                                      </div>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td>
+                                      <table class="t85" role="presentation" cellpadding="0" cellspacing="0"
+                                             align="center">
+                                        <tr>
+                                          <!--[if !mso]><!-->
+                                          <td class="t86"
+                                              style="background-color:#FFFFFF;overflow:hidden;width:385px;border-radius:4px 4px 4px 4px;">
+                                            <!--<![endif]-->
+                                            <!--[if mso]>
+                                            <td class="t86"
+                                                style="background-color:#FFFFFF;overflow:hidden;width:385px;border-radius:4px 4px 4px 4px;">
+                                            <![endif]-->
+                                            <div style="font-size:0px;"><img class="t92"
+                                                                             style="display:block;border:0;height:auto;width:100%;Margin:0;max-width:100%;"
+                                                                             width="680" src="{{imageUrl}}" /></div>
+                                          </td>
+                                        </tr>
+                                      </table>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td>
+                                      <div class="t31 hm"
+                                           style="mso-line-height-rule:exactly;mso-line-height-alt:24px;line-height:24px;font-size:1px;display:block;">
+                                        &nbsp;
+                                      </div>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td>
+                                      <table class="t33 hm" role="presentation" cellpadding="0" cellspacing="0"
+                                             align="center">
+                                        <tr>
+                                          <!--[if !mso]><!-->
+                                          <td class="t34 hm"
+                                              style="background-color:#7262FF;overflow:hidden;width:198px;text-align:center;line-height:40px;mso-line-height-rule:exactly;mso-text-raise:8px;border-radius:3px 3px 3px 3px;">
+                                            <!--<![endif]-->
+                                            <!--[if mso]>
+                                            <td class="t34 hm"
+                                                style="background-color:#7262FF;overflow:hidden;width:198px;text-align:center;line-height:40px;mso-line-height-rule:exactly;mso-text-raise:8px;border-radius:3px 3px 3px 3px;">
+                                            <![endif]-->
+                                            <a class="t40 hm"
+                                               style="display:block;font-family:BlinkMacSystemFont,Segoe UI,Helvetica Neue,Arial,sans-serif, 'Roboto';line-height:40px;font-weight:600;font-style:normal;font-size:14px;text-decoration:none;direction:ltr;color:#FFFFFF;text-align:center;mso-line-height-rule:exactly;mso-text-raise:8px;"
+                                               href="{{url}}"
+                                               target="_blank">View in Lightdash</a></td>
+                                        </tr>
+                                      </table>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td>
+                                      <div class="t43 hm"
+                                           style="mso-line-height-rule:exactly;mso-line-height-alt:20px;line-height:20px;font-size:1px;display:block;">
+                                        &nbsp;
+                                      </div>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td>
+                                      <table class="t45 hm" role="presentation" cellpadding="0" cellspacing="0"
+                                             align="center">
+                                        <tr>
+                                          <!--[if !mso]><!-->
+                                          <td class="t46 hm" style="width:600px;">
+                                            <!--<![endif]-->
+                                            <!--[if mso]>
+                                            <td class="t46 hm" style="width:600px;"><![endif]-->
+                                            <p class="t52 hm"
+                                               style="font-family:BlinkMacSystemFont,Segoe UI,Helvetica Neue,Arial,sans-serif, 'Roboto';line-height:21px;font-weight:500;font-style:normal;font-size:12px;text-decoration:none;text-transform:none;direction:ltr;color:#95959E;text-align:center;mso-line-height-rule:exactly;mso-text-raise:3px;">
+                                              <span class="t165" style="color:#6178C2;mso-line-height-rule:exactly;">Scheduled delivery:</span> {{frequency}}
+                                            </p></td>
+                                        </tr>
+                                      </table>
+                                    </td>
+                                  </tr>
+                                </table>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <table class="t100" role="presentation" cellpadding="0" cellspacing="0" align="center">
+                            <tr>
+                              <!--[if !mso]><!-->
+                              <td class="t101" style="overflow:hidden;width:540px;padding:40px 30px 40px 30px;">
+                                <!--<![endif]-->
+                                <!--[if mso]>
+                                <td class="t101" style="overflow:hidden;width:600px;padding:40px 30px 40px 30px;">
+                                <![endif]-->
+                                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                                  <tr>
+                                    <td>
+                                      <table class="t104" role="presentation" cellpadding="0" cellspacing="0"
+                                             align="center">
+                                        <tr>
+                                          <!--[if !mso]><!-->
+                                          <td class="t105" style="overflow:hidden;width:800px;padding:10px 0 21px 0;">
+                                            <!--<![endif]-->
+                                            <!--[if mso]>
+                                            <td class="t105" style="overflow:hidden;width:800px;padding:10px 0 21px 0;">
+                                            <![endif]-->
+                                            <div class="t111"
+                                                 style="display:inline-table;width:100%;text-align:center;vertical-align:top;">
+                                              <!--[if mso]>
+                                              <table role="presentation" cellpadding="0" cellspacing="0" align="center"
+                                                     valign="top">
+                                                <tr>
+                                                  <td class="t116" style="width:10px;" width="10"></td>
+                                                  <td width="24" valign="top"><![endif]-->
+                                              <div class="t117"
+                                                   style="display:inline-table;text-align:initial;vertical-align:inherit;width:33.33333%;max-width:40px;">
+                                                <div class="t118" style="padding:0 10px 0 10px;">
+                                                  <table role="presentation" width="100%" cellpadding="0"
+                                                         cellspacing="0" class="t119">
+                                                    <tr>
+                                                      <td class="t120"><a href="https://twitter.com/lightdash_devs"
+                                                                          style="font-size:0px;"><img class="t121"
+                                                                                                      style="display:block;border:0;height:auto;width:100%;Margin:0;max-width:100%;"
+                                                                                                      width="24"
+                                                                                                      src="{{host}}/twitter.png" /></a>
+                                                      </td>
+                                                    </tr>
+                                                  </table>
+                                                </div>
+                                              </div>
+                                              <!--[if mso]>
+                                              </td>
+                                              <td class="t116" style="width:10px;" width="10"></td>
+                                              <td class="t126" style="width:10px;" width="10"></td>
+                                              <td width="24" valign="top"><![endif]-->
+                                              <div class="t127"
+                                                   style="display:inline-table;text-align:initial;vertical-align:inherit;width:33.33333%;max-width:40px;">
+                                                <div class="t128" style="padding:0 10px 0 10px;">
+                                                  <table role="presentation" width="100%" cellpadding="0"
+                                                         cellspacing="0" class="t129">
+                                                    <tr>
+                                                      <td class="t130"><a href="https://github.com/lightdash/lightdash"
+                                                                          style="font-size:0px;"><img class="t131"
+                                                                                                      style="display:block;border:0;height:auto;width:100%;Margin:0;max-width:100%;"
+                                                                                                      width="24"
+                                                                                                      src="{{host}}/github.png" /></a>
+                                                      </td>
+                                                    </tr>
+                                                  </table>
+                                                </div>
+                                              </div>
+                                              <!--[if mso]>
+                                              </td>
+                                              <td class="t126" style="width:10px;" width="10"></td>
+                                              <td class="t136" style="width:10px;" width="10"></td>
+                                              <td width="24" valign="top"><![endif]-->
+                                              <div class="t137"
+                                                   style="display:inline-table;text-align:initial;vertical-align:inherit;width:33.33333%;max-width:40px;">
+                                                <div class="t138" style="padding:0 10px 0 10px;">
+                                                  <table role="presentation" width="100%" cellpadding="0"
+                                                         cellspacing="0" class="t139">
+                                                    <tr>
+                                                      <td class="t140"><a
+                                                        href="https://www.linkedin.com/company/lightdash"
+                                                        style="font-size:0px;"><img class="t141"
+                                                                                    style="display:block;border:0;height:auto;width:100%;Margin:0;max-width:100%;"
+                                                                                    width="24"
+                                                                                    src="{{host}}/linkedin.png" /></a>
+                                                      </td>
+                                                    </tr>
+                                                  </table>
+                                                </div>
+                                              </div>
+                                              <!--[if mso]>
+                                              </td>
+                                              <td class="t136" style="width:10px;" width="10"></td>
+                                              </tr></table>
+                                              <![endif]-->
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      </table>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td>
+                                      <table class="t156" role="presentation" cellpadding="0" cellspacing="0"
+                                             align="center">
+                                        <tr>
+                                          <!--[if !mso]><!-->
+                                          <td class="t157" style="width:600px;">
+                                            <!--<![endif]-->
+                                            <!--[if mso]>
+                                            <td class="t157" style="width:600px;"><![endif]-->
+                                            <p class="t163"
+                                               style="font-family:BlinkMacSystemFont,Segoe UI,Helvetica Neue,Arial,sans-serif, 'Albert Sans';line-height:22px;font-weight:500;font-style:normal;font-size:12px;text-decoration:none;text-transform:none;direction:ltr;color:#888888;text-align:center;mso-line-height-rule:exactly;mso-text-raise:3px;">
+                                              <a class="t164"
+                                                 href=https://www.lightdash.com/ style="font-weight:700;font-style:normal;text-decoration:none;direction:ltr;color:#878787;mso-line-height-rule:exactly;"
+                                                 target="_blank">Lightdash</a></p></td>
+                                        </tr>
+                                      </table>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td>
+                                      <table class="t144" role="presentation" cellpadding="0" cellspacing="0"
+                                             align="center">
+                                        <tr>
+                                          <!--[if !mso]><!-->
+                                          <td class="t145" style="width:600px;">
+                                            <!--<![endif]-->
+                                            <!--[if mso]>
+                                            <td class="t145" style="width:600px;"><![endif]-->
+                                            <p class="t151"
+                                               style="font-family:BlinkMacSystemFont,Segoe UI,Helvetica Neue,Arial,sans-serif, 'Albert Sans';line-height:22px;font-weight:500;font-style:normal;font-size:12px;text-decoration:none;text-transform:none;direction:ltr;color:#888888;text-align:center;mso-line-height-rule:exactly;mso-text-raise:3px;">
+                                                  <a class="t152" href="https://www.lightdash.com/privacy-policy"
+                                                     style="font-weight:700;font-style:normal;text-decoration:none;direction:ltr;color:#888888;mso-line-height-rule:exactly;"
+                                                     target="_blank">Privacy policy</a>  •  <a class="t153"
+                                                                                               href="https://lightdash-community.slack.com/ssb/redirect"
+                                                                                               style="font-weight:700;font-style:normal;text-decoration:none;direction:ltr;color:#878787;mso-line-height-rule:exactly;"
+                                                                                               target="_blank">Join our
+                                              community</a></p></td>
+                                        </tr>
+                                      </table>
+                                    </td>
+                                  </tr>
+                                </table>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <div class="t4" style="mso-line-height-rule:exactly;font-size:1px;display:none;">&nbsp;</div>
+            </td>
+          </tr>
         </table>
-    </body>
+      </td>
+    </tr>
+  </table>
+</div>
+</body>
 </html>
