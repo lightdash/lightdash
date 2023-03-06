@@ -18,7 +18,7 @@ const VirtualizedArea: FC<{ cellCount: number; padding: number }> = ({
     padding,
 }) => {
     return (
-        <Tr>
+        <tr>
             {[...Array(cellCount)].map((_, index) => (
                 <td
                     key={index}
@@ -27,7 +27,7 @@ const VirtualizedArea: FC<{ cellCount: number; padding: number }> = ({
                     }}
                 />
             ))}
-        </Tr>
+        </tr>
     );
 };
 
