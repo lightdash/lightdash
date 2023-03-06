@@ -144,25 +144,20 @@ export class UnfurlService {
 
             const path = `/tmp/${imageId}.png`;
 
-            if (LightdashPage.EXPLORE) {
-                // On explore pages, we take a screenshot of the chart
-                const selector = `.echarts-for-react, [data-testid="visualization"]`;
-                const element = await page.waitForSelector(selector, {
-                    timeout: 30000,
-                });
+            const selector =
+                lightdashPage === LightdashPage.EXPLORE
+                    ? `.echarts-for-react, [data-testid="visualization"]`
+                    : 'body';
 
-                if (!element) {
-                    Logger.warn(`Can't find element on page`);
-                    return undefined;
-                }
-                const imageBuffer = (await element.screenshot({
-                    path,
-                })) as Buffer;
+            const element = await page.waitForSelector(selector, {
+                timeout: 30000,
+            });
 
-                return imageBuffer;
+            if (!element) {
+                Logger.warn(`Can't find element on page`);
+                return undefined;
             }
-            // Dashboards and charts are minimal, so we take a screenshot of the whole page
-            const imageBuffer = (await page.screenshot({
+            const imageBuffer = (await element.screenshot({
                 path,
             })) as Buffer;
 
