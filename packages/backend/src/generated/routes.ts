@@ -648,6 +648,8 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        isMaxAttempts: { dataType: 'boolean', required: true },
+                        isExpired: { dataType: 'boolean', required: true },
                         expiresAt: { dataType: 'datetime', required: true },
                     },
                 },
