@@ -1,3 +1,10 @@
+## [0.442.1](https://github.com/lightdash/lightdash/compare/0.442.0...0.442.1) (2023-03-06)
+
+
+### Bug Fixes
+
+* safari mantine divider issue ([#4689](https://github.com/lightdash/lightdash/issues/4689)) ([3c639bb](https://github.com/lightdash/lightdash/commit/3c639bbeb7253be34385ab9688ffde0010faa80d))
+
 # [0.442.0](https://github.com/lightdash/lightdash/compare/0.441.0...0.442.0) (2023-03-06)
 
 
