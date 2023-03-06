@@ -1,15 +1,16 @@
-import { Tooltip2 } from '@blueprintjs/popover2';
 import {
     Box,
     Flex,
     Group,
     Paper,
+    Popover,
     Stack,
     Text,
     useMantineTheme,
 } from '@mantine/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
 import {
+    Icon as IconType,
     IconChartBar,
     IconLayoutDashboard,
     IconLock,
@@ -28,7 +29,7 @@ interface ResourceViewGridSpaceItemProps
     item: ResourceViewSpaceItem;
 }
 
-const AttributeCount: FC<{ Icon: React.ReactNode; count: number }> = ({
+const AttributeCount: FC<{ Icon: IconType; count: number }> = ({
     Icon,
     count,
 }) => {
@@ -88,12 +89,69 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
     }, [item]);
 
     return (
-        <Tooltip2
-            className="documentation-help-button"
+        <Popover
             position="top"
-            content={
+            opened={hovered || opened}
+            withArrow
+            styles={{
+                dropdown: { backgroundColor: theme.colors.dark[6] },
+                arrow: { backgroundColor: theme.colors.dark[6] },
+            }}
+        >
+            <Popover.Target>
+                <Paper
+                    ref={ref}
+                    p={0}
+                    withBorder
+                    bg={
+                        hovered
+                            ? theme.fn.rgba(theme.colors.gray[0], 0.5)
+                            : undefined
+                    }
+                    h="100%"
+                >
+                    <Group p="md" align="center" spacing="md" noWrap>
+                        <ResourceIcon item={item} />
+
+                        <Stack spacing={4} sx={{ flexGrow: 1, flexShrink: 1 }}>
+                            <Text lineClamp={1} fz="sm" fw={600}>
+                                {item.data.name}
+                            </Text>
+
+                            <Group spacing="sm">
+                                <Flex align="center" gap={4}>
+                                    {renderAccess()}
+                                </Flex>
+                            </Group>
+                        </Stack>
+
+                        <Box
+                            sx={{
+                                flexGrow: 0,
+                                flexShrink: 0,
+                                transition: 'opacity 0.2s',
+                                opacity: hovered || opened ? 1 : 0,
+                            }}
+                            component="div"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                            }}
+                        >
+                            <ResourceViewActionMenu
+                                item={item}
+                                isOpen={opened}
+                                onOpen={handlers.open}
+                                onClose={handlers.close}
+                                onAction={onAction}
+                            />
+                        </Box>
+                    </Group>
+                </Paper>
+            </Popover.Target>
+            <Popover.Dropdown>
                 <Stack spacing={4}>
-                    <Text lineClamp={1} fz="sm" fw={600}>
+                    <Text lineClamp={1} fz="sm" fw={600} color="white">
                         {getToolTipText()}
                     </Text>
                     <Group>
@@ -107,58 +165,8 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
                         />
                     </Group>
                 </Stack>
-            }
-        >
-            <Paper
-                ref={ref}
-                p={0}
-                withBorder
-                bg={
-                    hovered
-                        ? theme.fn.rgba(theme.colors.gray[0], 0.5)
-                        : undefined
-                }
-                h="100%"
-            >
-                <Group p="md" align="center" spacing="md" noWrap>
-                    <ResourceIcon item={item} />
-
-                    <Stack spacing={4} sx={{ flexGrow: 1, flexShrink: 1 }}>
-                        <Text lineClamp={1} fz="sm" fw={600}>
-                            {item.data.name}
-                        </Text>
-
-                        <Group spacing="sm">
-                            <Flex align="center" gap={4}>
-                                {renderAccess()}
-                            </Flex>
-                        </Group>
-                    </Stack>
-
-                    <Box
-                        sx={{
-                            flexGrow: 0,
-                            flexShrink: 0,
-                            transition: 'opacity 0.2s',
-                            opacity: hovered || opened ? 1 : 0,
-                        }}
-                        component="div"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                        }}
-                    >
-                        <ResourceViewActionMenu
-                            item={item}
-                            isOpen={opened}
-                            onOpen={handlers.open}
-                            onClose={handlers.close}
-                            onAction={onAction}
-                        />
-                    </Box>
-                </Group>
-            </Paper>
-        </Tooltip2>
+            </Popover.Dropdown>
+        </Popover>
     );
 };
 
