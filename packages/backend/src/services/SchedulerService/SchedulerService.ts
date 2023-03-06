@@ -8,6 +8,8 @@ import {
     ScheduledJobs,
     Scheduler,
     SchedulerAndTargets,
+    SchedulerJobStatus,
+    SchedulerLog,
     SessionUser,
     UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
@@ -186,5 +188,9 @@ export class SchedulerService {
     ): Promise<ScheduledJobs[]> {
         await this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
         return schedulerClient.getScheduledJobs(schedulerUuid);
+    }
+
+    async logSchedulerJob(log: SchedulerLog): Promise<void> {
+        await this.schedulerModel.logSchedulerJob(log);
     }
 }

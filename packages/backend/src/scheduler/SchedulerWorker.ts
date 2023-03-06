@@ -96,7 +96,11 @@ export class SchedulerWorker {
                         `Processing handleScheduledDelivery job "${helpers.job.id}"`,
                         payload,
                     );
-                    await handleScheduledDelivery(helpers.job.id, payload);
+                    await handleScheduledDelivery(
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                    );
                 },
                 sendSlackNotification: async (
                     payload: any,

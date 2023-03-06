@@ -140,11 +140,13 @@ export class SchedulerClient {
             isSlackTarget(target)
                 ? {
                       schedulerUuid: scheduler.schedulerUuid,
+                      scheduledTime: date,
                       page,
                       schedulerSlackTargetUuid: target.schedulerSlackTargetUuid,
                   }
                 : {
                       schedulerUuid: scheduler.schedulerUuid,
+                      scheduledTime: date,
                       page,
                       schedulerEmailTargetUuid: target.schedulerEmailTargetUuid,
                   };

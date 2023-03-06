@@ -3,6 +3,7 @@ import { Knex } from 'knex';
 export const SchedulerTableName = 'scheduler';
 export const SchedulerSlackTargetTableName = 'scheduler_slack_target';
 export const SchedulerEmailTargetTableName = 'scheduler_email_target';
+export const SchedulerLogTableName = 'scheduler_log';
 
 export type SchedulerDb = {
     scheduler_uuid: string;
