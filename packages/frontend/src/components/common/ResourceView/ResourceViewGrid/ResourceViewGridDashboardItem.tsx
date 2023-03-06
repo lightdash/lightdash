@@ -44,7 +44,12 @@ const ResourceViewGridDashboardItem: FC<ResourceViewGridDashboardItemProps> = ({
                 align="center"
                 spacing="md"
                 noWrap
-                sx={{ flexGrow: 1 }}
+                sx={{
+                    flexGrow: 1,
+                    borderBottomWidth: 1,
+                    borderBottomStyle: 'solid',
+                    borderBottomColor: theme.colors.gray[3],
+                }}
             >
                 <ResourceIcon item={item} />
 
@@ -52,8 +57,6 @@ const ResourceViewGridDashboardItem: FC<ResourceViewGridDashboardItemProps> = ({
                     {item.data.name}
                 </Text>
             </Group>
-
-            <Divider color="gray.3" />
 
             <Flex pl="md" pr="xs" h={32} justify="space-between" align="center">
                 <Flex align="center" gap={4}>
