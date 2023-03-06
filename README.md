@@ -313,6 +313,9 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/pvanderlinden"><img src="https://avatars.githubusercontent.com/u/391586?v=4?s=100" width="100px;" alt="Paul van der Linden"/><br /><sub><b>Paul van der Linden</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3Apvanderlinden" title="Bug reports">🐛</a></td>
       <td align="center" valign="top" width="14.28%"><a href="http://chrischuck.com"><img src="https://avatars.githubusercontent.com/u/13311268?v=4?s=100" width="100px;" alt="Chris"/><br /><sub><b>Chris</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=Chrischuck" title="Code">💻</a></td>
     </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="http://mikethoun.com"><img src="https://avatars.githubusercontent.com/u/8367471?v=4?s=100" width="100px;" alt="Mike Thoun"/><br /><sub><b>Mike Thoun</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=mikethoun" title="Code">💻</a></td>
+    </tr>
   </tbody>
 </table>
 
