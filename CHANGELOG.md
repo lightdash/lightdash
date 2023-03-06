@@ -1,3 +1,17 @@
+# [0.440.0](https://github.com/lightdash/lightdash/compare/0.439.2...0.440.0) (2023-03-06)
+
+
+### Features
+
+* minimal dashboard page ([#4674](https://github.com/lightdash/lightdash/issues/4674)) ([2327da4](https://github.com/lightdash/lightdash/commit/2327da42b017ba5959a0098dec9bb3934f67bcee))
+
+## [0.439.2](https://github.com/lightdash/lightdash/compare/0.439.1...0.439.2) (2023-03-06)
+
+
+### Bug Fixes
+
+* error when updating color palette ([#4676](https://github.com/lightdash/lightdash/issues/4676)) ([22d2863](https://github.com/lightdash/lightdash/commit/22d2863bf05564869fc9fab2d8666e0418eb8f63))
+
 ## [0.439.1](https://github.com/lightdash/lightdash/compare/0.439.0...0.439.1) (2023-03-06)
 
 

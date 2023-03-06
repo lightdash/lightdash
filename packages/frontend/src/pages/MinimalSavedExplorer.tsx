@@ -54,20 +54,22 @@ const MinimalExplorer: FC = () => {
     );
 };
 
-const MinimalSavedExplorer = () => {
+const MinimalSavedExplorer: FC = () => {
     const { savedQueryUuid } = useParams<{
         savedQueryUuid: string;
         projectUuid: string;
     }>();
 
-    const { data, isLoading, error } = useSavedQuery({ id: savedQueryUuid });
+    const { data, isLoading, isError, error } = useSavedQuery({
+        id: savedQueryUuid,
+    });
 
     if (isLoading) {
         return null;
     }
 
-    if (error) {
-        return <>{error.error}</>;
+    if (isError) {
+        return <>{error.error.message}</>;
     }
 
     return (
