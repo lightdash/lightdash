@@ -1,3 +1,10 @@
+# [0.441.0](https://github.com/lightdash/lightdash/compare/0.440.0...0.441.0) (2023-03-06)
+
+
+### Features
+
+* verify emails for SSO users ([#4648](https://github.com/lightdash/lightdash/issues/4648)) ([40bc5e9](https://github.com/lightdash/lightdash/commit/40bc5e971009dbe786c2753757004287d93bbab4))
+
 # [0.440.0](https://github.com/lightdash/lightdash/compare/0.439.2...0.440.0) (2023-03-06)
 
 
