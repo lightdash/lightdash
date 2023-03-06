@@ -311,6 +311,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center" valign="top" width="14.28%"><a href="http://www.dradrian.com"><img src="https://avatars.githubusercontent.com/u/7521223?v=4?s=100" width="100px;" alt="Adrian Letchford"/><br /><sub><b>Adrian Letchford</b></sub></a><br /><a href="#ideas-robolyst" title="Ideas, Planning, & Feedback">🤔</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Ifunanyacollins"><img src="https://avatars.githubusercontent.com/u/31220512?v=4?s=100" width="100px;" alt="Collins"/><br /><sub><b>Collins</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=Ifunanyacollins" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/pvanderlinden"><img src="https://avatars.githubusercontent.com/u/391586?v=4?s=100" width="100px;" alt="Paul van der Linden"/><br /><sub><b>Paul van der Linden</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3Apvanderlinden" title="Bug reports">🐛</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="http://chrischuck.com"><img src="https://avatars.githubusercontent.com/u/13311268?v=4?s=100" width="100px;" alt="Chris"/><br /><sub><b>Chris</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=Chrischuck" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>

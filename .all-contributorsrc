@@ -931,6 +931,15 @@
       "contributions": [
         "bug"
       ]
+    },
+    {
+      "login": "Chrischuck",
+      "name": "Chris",
+      "avatar_url": "https://avatars.githubusercontent.com/u/13311268?v=4",
+      "profile": "http://chrischuck.com",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
