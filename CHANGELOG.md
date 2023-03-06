@@ -1,3 +1,10 @@
+## [0.439.1](https://github.com/lightdash/lightdash/compare/0.439.0...0.439.1) (2023-03-06)
+
+
+### Bug Fixes
+
+* make placeholder table row non interactive ([#4662](https://github.com/lightdash/lightdash/issues/4662)) ([3d3a37e](https://github.com/lightdash/lightdash/commit/3d3a37e722bcef9347bd0beb4570313ae4c58578))
+
 # [0.439.0](https://github.com/lightdash/lightdash/compare/0.438.0...0.439.0) (2023-03-06)
 
 
