@@ -717,27 +717,33 @@ export class UserService {
 
         // Attempt to verify the passcode if it's provided
         if (passcode) {
-            const emailStatus =
-                await this.emailModel.getPrimaryEmailStatusByUserAndOtp({
-                    userUuid: user.userUuid,
-                    passcode,
-                });
-            if (
-                emailStatus.otp &&
-                !isMaxAttemptsReached(emailStatus.otp.numberOfAttempts) &&
-                !isExpired(emailStatus.otp.createdAt)
-            ) {
-                await this.emailModel.verifyUserEmailIfExists(
-                    user.userUuid,
-                    emailStatus.email,
-                );
-            } else {
-                await this.emailModel.incrementEmailOtpAttempts(
-                    user.userUuid,
-                    emailStatus.email,
-                );
+            try {
+                const emailStatus =
+                    await this.emailModel.getPrimaryEmailStatusByUserAndOtp({
+                        userUuid: user.userUuid,
+                        passcode,
+                    });
+                if (
+                    emailStatus.otp &&
+                    !isMaxAttemptsReached(emailStatus.otp.numberOfAttempts) &&
+                    !isExpired(emailStatus.otp.createdAt)
+                ) {
+                    await this.emailModel.verifyUserEmailIfExists(
+                        user.userUuid,
+                        emailStatus.email,
+                    );
+                }
+            } catch (e) {
+                if (e instanceof NotFoundError) {
+                    await this.emailModel.incrementPrimaryEmailOtpAttempts(
+                        user.userUuid,
+                    );
+                } else {
+                    throw e;
+                }
             }
         }
+
         const emailStatus = await this.emailModel.getPrimaryEmailStatus(
             user.userUuid,
         );

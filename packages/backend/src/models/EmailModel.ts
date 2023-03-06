@@ -90,23 +90,33 @@ export class EmailModel {
             passcode,
             await bcrypt.genSalt(),
         );
-        const [updated] = await this.database.raw<DbEmailStatus[]>(
+        const result = await this.database.raw<{ rows: DbEmailStatus[] }>(
             `
-            INSERT INTO email_one_time_passcodes (email_id, passcode)
-            SELECT email_id, ?
+            WITH inserted AS (
+                INSERT
+                INTO email_one_time_passcodes (email_id, passcode)
+                SELECT emails.email_id, ?
+                FROM emails
+                         INNER JOIN users ON users.user_id = emails.user_id
+                WHERE is_primary = true
+                  AND users.user_uuid = ? ON CONFLICT (email_id) 
+                DO
+                UPDATE
+                    SET passcode = EXCLUDED.passcode,
+                    created_at = DEFAULT,
+                    number_of_attempts = DEFAULT
+                RETURNING email_id
+            )
+            SELECT emails.email, emails.is_verified, email_one_time_passcodes.created_at, email_one_time_passcodes.number_of_attempts
             FROM emails
-            INNER JOIN users ON users.user_id = emails.user_id
-            WHERE is_primary = true
-            AND users.user_uuid = ?
-            ON CONFLICT (email_id) 
-            DO UPDATE 
-                SET passcode = EXCLUDED.passcode, 
-                created_at = DEFAULT, 
-                number_of_attempts = DEFAULT
-            RETURNING emails.email, emails.is_verified, email_one_time_passcodes.created_at, email_one_time_passcodes.number_of_attempts
+            LEFT JOIN email_one_time_passcodes 
+                ON email_one_time_passcodes.email_id = emails.email_id
+            INNER JOIN inserted 
+                ON inserted.email_id = emails.email_id
         `,
             [hashedPasscode, userUuid],
         );
+        const [updated] = result.rows;
         if (updated === undefined) {
             throw new NotFoundError(
                 'Cannot find user with primary email to create otp',
@@ -154,21 +164,18 @@ export class EmailModel {
      * @param userUuid
      * @param email
      */
-    async incrementEmailOtpAttempts(
-        userUuid: string,
-        email: string,
-    ): Promise<void> {
+    async incrementPrimaryEmailOtpAttempts(userUuid: string): Promise<void> {
         await this.database.raw(
             `
             UPDATE email_one_time_passcodes
             SET number_of_attempts = number_of_attempts + 1
             FROM emails
             INNER JOIN users ON users.user_id = emails.user_id
-            WHERE emails.email = ?
+            WHERE emails.is_primary = true
             AND users.user_uuid = ?
             AND email_one_time_passcodes.email_id = emails.email_id
         `,
-            [email, userUuid],
+            [userUuid],
         );
     }
 

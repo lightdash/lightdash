@@ -45,12 +45,12 @@ export class UserController extends Controller {
     @OperationId('getEmailVerificationStatus')
     async getEmailVerificationStatus(
         @Request() req: express.Request,
-        @Query() pascode?: string,
+        @Query() passcode?: string,
     ): Promise<ApiEmailStatusResponse> {
         // Throws 404 error if not found
         const status = await userService.getPrimaryEmailStatus(
             req.user!,
-            pascode,
+            passcode,
         );
         this.setStatus(200);
         return {
