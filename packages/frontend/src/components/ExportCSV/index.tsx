@@ -55,11 +55,10 @@ const ExportCSV: FC<ExportCSVProps> = memo(
         const { isFetching: isExporting, refetch: handleExport } = useQuery(
             [limit, customLimit, rows, format],
             () => {
-                if (rows?.length ?? 0 > 500) {
-                    showToastInfo({
-                        title: 'Fetching results. This might take a while...',
-                    });
-                }
+                showToastInfo({
+                    title: 'Fetching results. This might take a while...',
+                });
+
                 return getCsvLink(
                     limit === Limit.CUSTOM
                         ? customLimit
