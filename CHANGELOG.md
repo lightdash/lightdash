@@ -1,3 +1,10 @@
+# [0.444.0](https://github.com/lightdash/lightdash/compare/0.443.1...0.444.0) (2023-03-06)
+
+
+### Features
+
+* move empty state metrics text to pop over ([#4681](https://github.com/lightdash/lightdash/issues/4681)) ([338b24a](https://github.com/lightdash/lightdash/commit/338b24ad6d419fda271583ed20eb9c4b1c503187))
+
 ## [0.443.1](https://github.com/lightdash/lightdash/compare/0.443.0...0.443.1) (2023-03-06)
 
 
