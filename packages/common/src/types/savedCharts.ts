@@ -234,6 +234,7 @@ export type CreateSavedChartVersion = Omit<
     | 'name'
     | 'updatedAt'
     | 'organizationUuid'
+    | 'projectUuid'
     | 'spaceUuid'
     | 'spaceName'
     | 'pinnedListUuid'
