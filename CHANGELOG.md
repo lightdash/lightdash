@@ -1,3 +1,10 @@
+# [0.439.0](https://github.com/lightdash/lightdash/compare/0.438.0...0.439.0) (2023-03-06)
+
+
+### Features
+
+* minimal chart page ([#4653](https://github.com/lightdash/lightdash/issues/4653)) ([e958220](https://github.com/lightdash/lightdash/commit/e95822074e563d3ab1247a1239a1dd1c580477c9))
+
 # [0.438.0](https://github.com/lightdash/lightdash/compare/0.437.1...0.438.0) (2023-03-04)
 
 
