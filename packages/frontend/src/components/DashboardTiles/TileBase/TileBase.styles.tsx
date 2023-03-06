@@ -2,12 +2,8 @@ import { Card, Colors, H5 } from '@blueprintjs/core';
 import styled, { createGlobalStyle } from 'styled-components';
 
 interface HeaderContainerProps {
-    isEditMode: boolean;
-    isHovering?: boolean;
-}
-
-interface TitleWrapperProps {
-    hasDescription: boolean;
+    $isEditMode: boolean;
+    $isHovering?: boolean;
 }
 
 export const TileBaseWrapper = styled(Card)<HeaderContainerProps>`
@@ -16,7 +12,7 @@ export const TileBaseWrapper = styled(Card)<HeaderContainerProps>`
     flex-direction: column;
 
     ${(props) =>
-        props.isEditMode && props.isHovering
+        props.$isEditMode && props.$isHovering
             ? `
                 box-shadow: 0 0 0 1px ${Colors.GRAY4};
             `
@@ -32,7 +28,7 @@ export const HeaderContainer = styled.div<HeaderContainerProps>`
     flex-wrap: wrap;
 
     ${(props) =>
-        props.isEditMode
+        props.$isEditMode
             ? `
                 &:hover {
                     cursor: grab;
@@ -50,13 +46,17 @@ export const GlobalTileStyles = createGlobalStyle`
   }
 `;
 
+interface TitleWrapperProps {
+    $hasDescription: boolean;
+}
+
 export const TitleWrapper = styled.div<TitleWrapperProps>`
     display: flex;
     flex-direction: row;
     align-items: center;
 
     ${(props) =>
-        props.hasDescription
+        props.$hasDescription
             ? `
                 &:hover { cursor: pointer }
             `
