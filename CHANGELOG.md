@@ -1,3 +1,10 @@
+# [0.442.0](https://github.com/lightdash/lightdash/compare/0.441.0...0.442.0) (2023-03-06)
+
+
+### Features
+
+* allow iam role authentication for s3 storage ([#4659](https://github.com/lightdash/lightdash/issues/4659)) ([5b4b6b0](https://github.com/lightdash/lightdash/commit/5b4b6b0ac3fb13e586bcfe78e4f27d67b281d7a8))
+
 # [0.441.0](https://github.com/lightdash/lightdash/compare/0.440.0...0.441.0) (2023-03-06)
 
 
