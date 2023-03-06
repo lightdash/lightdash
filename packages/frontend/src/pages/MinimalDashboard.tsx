@@ -12,13 +12,16 @@ import '../styles/react-grid.css';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
-const MinimalDashboard = () => {
+const MinimalDashboard: FC = () => {
     const { dashboardUuid } = useParams<{ dashboardUuid: string }>();
-    const { data: dashboard, error: dashboardError } =
-        useDashboardQuery(dashboardUuid);
+    const {
+        data: dashboard,
+        isError,
+        error,
+    } = useDashboardQuery(dashboardUuid);
 
-    if (dashboardError) {
-        return <>{dashboardError.error}</>;
+    if (isError) {
+        return <>{error.error.message}</>;
     }
 
     if (!dashboard) {
