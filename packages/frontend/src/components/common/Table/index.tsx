@@ -11,6 +11,7 @@ type Props = ComponentProps<typeof TableProvider> & {
     idleState?: FC;
     emptyState?: FC;
     className?: string;
+    minimal?: boolean;
     $shouldExpand?: boolean;
     $padding?: number;
     'data-testid'?: string;
@@ -24,6 +25,7 @@ const Table: FC<Props> = ({
     idleState,
     emptyState,
     className,
+    minimal = false,
     'data-testid': dataTestId,
     ...rest
 }) => {
@@ -41,7 +43,7 @@ const Table: FC<Props> = ({
                 $padding={$padding}
                 data-testid={dataTestId}
             >
-                <ScrollableTable $shouldExpand={$shouldExpand} />
+                <ScrollableTable minimal={minimal} />
                 {status === 'loading' && <LoadingState />}
                 {status === 'idle' && <IdleState />}
                 {status === 'success' && rest.data.length === 0 && (

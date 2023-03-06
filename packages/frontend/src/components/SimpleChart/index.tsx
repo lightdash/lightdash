@@ -124,10 +124,12 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
             style={
                 props.$shouldExpand
                     ? {
+                          minHeight: 'inherit',
                           height: '100%',
                           width: '100%',
                       }
                     : {
+                          minHeight: 'inherit',
                           // height defaults to 300px
                           width: '100%',
                       }

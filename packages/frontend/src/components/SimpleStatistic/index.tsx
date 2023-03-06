@@ -10,9 +10,14 @@ import {
     BigNumberLabel,
 } from './SimpleStatistics.styles';
 
-type SimpleStatisticsProps = React.HTMLAttributes<HTMLDivElement>;
+interface SimpleStatisticsProps extends React.HTMLAttributes<HTMLDivElement> {
+    minimal?: boolean;
+}
 
-const SimpleStatistic: FC<SimpleStatisticsProps> = ({ ...wrapperProps }) => {
+const SimpleStatistic: FC<SimpleStatisticsProps> = ({
+    minimal = false,
+    ...wrapperProps
+}) => {
     const {
         resultsData,
         isLoading,
@@ -27,7 +32,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({ ...wrapperProps }) => {
 
     return validData ? (
         <BigNumberContainer {...wrapperProps}>
-            {isSqlRunner ? (
+            {minimal || isSqlRunner ? (
                 <AutoFitBigNumber min={15} max={100} start={50}>
                     <BigNumber>{bigNumber}</BigNumber>
                 </AutoFitBigNumber>
@@ -56,6 +61,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({ ...wrapperProps }) => {
                     )}
                 />
             )}
+
             <AutoFitBigNumberLabel
                 min={10}
                 max={labelMaxSize}

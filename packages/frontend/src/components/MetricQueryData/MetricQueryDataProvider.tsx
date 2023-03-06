@@ -184,7 +184,7 @@ export function useMetricQueryDataContext(): MetricQueryDataContext {
     const context = useContext(Context);
     if (context === undefined) {
         throw new Error(
-            'useUnderlyingDataContext must be used within a UnderlyingDataProvider',
+            'useMetricQueryDataContext must be used within a UnderlyingDataProvider',
         );
     }
     return context;

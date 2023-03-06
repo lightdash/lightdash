@@ -777,10 +777,10 @@ function reducer(
 }
 
 export const ExplorerProvider: FC<{
-    isEditMode: boolean;
+    isEditMode?: boolean;
     initialState?: ExplorerReduceState;
     savedChart?: SavedChart;
-}> = ({ isEditMode, initialState, savedChart, children }) => {
+}> = ({ isEditMode = false, initialState, savedChart, children }) => {
     const [reducerState, dispatch] = useReducer(
         reducer,
         initialState || defaultState,

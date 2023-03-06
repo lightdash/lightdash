@@ -30,7 +30,7 @@ export const TableContainer = styled.div<TableContainerProps>`
     ${({ $shouldExpand }) =>
         $shouldExpand
             ? `
-                height: 100%;
+                height: inherit;
             `
             : `
                 max-height: 800px;

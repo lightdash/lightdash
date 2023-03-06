@@ -195,7 +195,7 @@ const Context = createContext<TrackingContext>(undefined as any);
 
 const LIGHTDASH_APP_NAME = 'lightdash_webapp';
 
-export const TrackingProvider: FC<TrackingData> = ({
+export const TrackingProviderMain: FC<TrackingData> = ({
     rudder,
     page: pageContext,
     section: sectionContext,
@@ -312,6 +312,24 @@ export const TrackingProvider: FC<TrackingData> = ({
     return (
         <Context.Provider value={context}>{children || null}</Context.Provider>
     );
+};
+
+interface TrackingProviderProps extends TrackingData {
+    enabled?: boolean;
+}
+
+export const TrackingProvider: FC<TrackingProviderProps> = ({
+    children,
+    enabled = true,
+    ...rest
+}) => {
+    if (enabled) {
+        return (
+            <TrackingProviderMain {...rest}>{children}</TrackingProviderMain>
+        );
+    } else {
+        return <>{children}</>;
+    }
 };
 
 export function useTracking(): TrackingContext {

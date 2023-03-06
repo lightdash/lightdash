@@ -24,6 +24,7 @@ import usePivotDimensions from '../../hooks/usePivotDimensions';
 import { EchartSeriesClickEvent } from '../SimpleChart';
 
 type VisualizationContext = {
+    minimal: boolean;
     chartRef: RefObject<EChartsReact>;
     chartType: ChartType;
     cartesianConfig: ReturnType<typeof useCartesianChartConfig>;
@@ -47,6 +48,7 @@ type VisualizationContext = {
 const Context = createContext<VisualizationContext | undefined>(undefined);
 
 type Props = {
+    minimal?: boolean;
     chartType: ChartType;
     initialChartConfig: ChartConfig | undefined;
     initialPivotDimensions: string[] | undefined;
@@ -64,6 +66,7 @@ type Props = {
 };
 
 export const VisualizationProvider: FC<Props> = ({
+    minimal = false,
     initialChartConfig,
     chartType,
     initialPivotDimensions,
@@ -190,6 +193,7 @@ export const VisualizationProvider: FC<Props> = ({
 
     const value = useMemo(
         () => ({
+            minimal,
             pivotDimensions: validPivotDimensions,
             cartesianConfig,
             bigNumberConfig,
@@ -207,6 +211,7 @@ export const VisualizationProvider: FC<Props> = ({
             setPivotDimensions,
         }),
         [
+            minimal,
             bigNumberConfig,
             cartesianConfig,
             chartType,
