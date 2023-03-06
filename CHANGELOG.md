@@ -1,3 +1,10 @@
+## [0.443.1](https://github.com/lightdash/lightdash/compare/0.443.0...0.443.1) (2023-03-06)
+
+
+### Bug Fixes
+
+* invite email template name ([#4695](https://github.com/lightdash/lightdash/issues/4695)) ([aeaf9b0](https://github.com/lightdash/lightdash/commit/aeaf9b0217b0040319482eb53b5af8273a654c9c))
+
 # [0.443.0](https://github.com/lightdash/lightdash/compare/0.442.1...0.443.0) (2023-03-06)
 
 
