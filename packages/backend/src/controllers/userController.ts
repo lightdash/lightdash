@@ -26,12 +26,13 @@ export class UserController extends Controller {
     async createEmailOneTimePasscode(
         @Request() req: express.Request,
     ): Promise<ApiEmailStatusResponse> {
+        const status = await userService.sendOneTimePasscodeToPrimaryEmail(
+            req.user!,
+        );
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await userService.sendOneTimePasscodeToPrimaryEmail(
-                req.user!,
-            ),
+            results: status,
         };
     }
 

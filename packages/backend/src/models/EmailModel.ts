@@ -89,7 +89,7 @@ export class EmailModel {
             passcode,
             await bcrypt.genSalt(),
         );
-        const result = await this.database.raw<{ rows: DbEmailStatus[] }>(
+        await this.database.raw<{ rows: DbEmailStatus[] }>(
             `
             WITH inserted AS (
                 INSERT
@@ -115,13 +115,7 @@ export class EmailModel {
         `,
             [hashedPasscode, userUuid],
         );
-        const [updated] = result.rows;
-        if (updated === undefined) {
-            throw new NotFoundError(
-                'Cannot find user with primary email to create otp',
-            );
-        }
-        return convertEmailStatusRow(updated);
+        return this.getPrimaryEmailStatus(userUuid);
     }
 
     async getPrimaryEmailStatusByUserAndOtp({
