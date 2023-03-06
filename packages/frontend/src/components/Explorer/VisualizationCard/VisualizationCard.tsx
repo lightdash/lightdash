@@ -84,28 +84,34 @@ const VisualizationCard: FC<{ projectUuid?: string }> = memo(
             [unsavedChartVersion],
         );
 
-    if (!unsavedChartVersion.tableName) {
-        return <CollapsableCard title="Charts" disabled />;
-    }
-
-    const getCsvLink = async (
-        csvLimit: number | null,
-        onlyRaw: boolean,
-        showTableNames: boolean,
-        customLabels?: Record<string, string>,
-    ) => {
-        if (explore?.name && unsavedChartVersion?.metricQuery && projectUuid) {
-            const csvResponse = await downloadCsv({
-                projectUuid: projectUuid || unsavedChartVersion.projectUuid,
-                tableId: explore?.name,
-                query: unsavedChartVersion?.metricQuery,
-                csvLimit,
-                onlyRaw,
-                showTableNames,
-                customLabels,
-            });
-            return csvResponse.url;
+        if (!unsavedChartVersion.tableName) {
+            return <CollapsableCard title="Charts" disabled />;
         }
+
+        const getCsvLink = async (
+            csvLimit: number | null,
+            onlyRaw: boolean,
+            showTableNames: boolean,
+            customLabels?: Record<string, string>,
+        ) => {
+            if (
+                explore?.name &&
+                unsavedChartVersion?.metricQuery &&
+                projectUuid
+            ) {
+                const csvResponse = await downloadCsv({
+                    projectUuid,
+                    tableId: explore?.name,
+                    query: unsavedChartVersion?.metricQuery,
+                    csvLimit,
+                    onlyRaw,
+                    showTableNames,
+                    customLabels,
+                });
+                return csvResponse.url;
+            }
+            throw new NotFoundError('no metric query defined');
+        };
 
         return (
             <VisualizationProvider
