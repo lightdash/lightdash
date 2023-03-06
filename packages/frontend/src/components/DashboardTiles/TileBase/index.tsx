@@ -63,13 +63,13 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     return (
         <TileBaseWrapper
             className={isLoading ? Classes.SKELETON : undefined}
-            isEditMode={isEditMode}
-            isHovering={isHovering}
+            $isEditMode={isEditMode}
+            $isHovering={isHovering}
         >
             {!isLoading && (
                 <>
                     <HeaderContainer
-                        isEditMode={isEditMode}
+                        $isEditMode={isEditMode}
                         onMouseEnter={() => setIsHovering(true)}
                         onMouseLeave={() => setIsHovering(false)}
                     >
@@ -88,7 +88,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                         target="_blank"
                                     >
                                         <TitleWrapper
-                                            hasDescription={hasDescription}
+                                            $hasDescription={hasDescription}
                                         >
                                             <Title className="non-draggable">
                                                 {title}
@@ -99,7 +99,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                             ) : !hideTitle && clickableTitle ? (
                                 <TitleButton href={titleHref} target="_blank">
                                     <TitleWrapper
-                                        hasDescription={hasDescription}
+                                        $hasDescription={hasDescription}
                                     >
                                         <Title className="non-draggable">
                                             {title}
@@ -115,14 +115,14 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                     }
                                     position="bottom-left"
                                 >
-                                    <TitleWrapper hasDescription={true}>
+                                    <TitleWrapper $hasDescription={true}>
                                         <Title className="non-draggable">
                                             {title}
                                         </Title>
                                     </TitleWrapper>
                                 </Tooltip2>
                             ) : !hideTitle ? (
-                                <TitleWrapper hasDescription={hasDescription}>
+                                <TitleWrapper $hasDescription={hasDescription}>
                                     <Title className="non-draggable">
                                         {title}
                                     </Title>
