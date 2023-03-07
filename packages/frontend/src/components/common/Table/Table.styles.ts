@@ -126,7 +126,11 @@ export const Tr = styled.tr<{
             : ''}
 
     :hover {
-        background-color: ${Colors.LIGHT_GRAY3};
+        background-color: ${Colors.LIGHT_GRAY3} !important;
+    }
+
+    :hover td {
+        filter: saturate(1) brightness(0.9);
     }
 `;
 
@@ -171,24 +175,25 @@ export const Td = styled.td<{
             `
             : ''}
 
-    ${({ $isInteractive, $isSelected, $hasData }) =>
+    filter: saturate(1) brightness(1);
+    transition: filter 0.15s linear;
+
+    ${({ $isInteractive, $isSelected, $hasData, $backgroundColor }) =>
         $isInteractive && $isSelected && $hasData
             ? `
                     box-shadow: inset 0 0 0 1px #4170CB !important;
-                    background-color: #ECF6FE !important;
+                    ${
+                        $backgroundColor
+                            ? 'filter: saturate(1) brightness(0.8) !important;'
+                            : `background-color: #ECF6FE !important;`
+                    }
                 `
             : ''}
 
-    transition: filter 0.15s linear;
-
     ${({ $isCopying }) =>
         $isCopying
-            ? `
-                filter: saturate(3);
-            `
-            : `
-                filter: saturate(1);
-            `}
+            ? `filter: saturate(2) brightness(1) !important`
+            : 'filter: initial'}
 `;
 
 export const FooterCell = styled.th<{ $isNaN: boolean }>`

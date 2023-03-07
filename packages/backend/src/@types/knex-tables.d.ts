@@ -115,6 +115,10 @@ import {
     DbAnalyticsDashboardViews,
 } from '../database/entities/analytics';
 import {
+    EmailOneTimePasscodesTableName,
+    EmailOneTimePasscodeTable,
+} from '../database/entities/email_one_time_passcodes';
+import {
     SchedulerEmailTargetTable,
     SchedulerEmailTargetTableName,
     SchedulerSlackTargetTable,
@@ -169,5 +173,6 @@ declare module 'knex/types/tables' {
         [SchedulerTableName]: SchedulerTable;
         [SchedulerSlackTargetTableName]: SchedulerSlackTargetTable;
         [SchedulerEmailTargetTableName]: SchedulerEmailTargetTable;
+        [EmailOneTimePasscodesTableName]: EmailOneTimePasscodeTable;
     }
 }

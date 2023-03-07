@@ -1,0 +1,17 @@
+### Login
+POST http://localhost:8080/api/v1/login
+Content-Type: application/json
+
+{
+    "email": "demo@lightdash.com",
+    "password": "demo_password!"
+}
+
+### Get status of email
+GET http://localhost:8080/api/v1/user/me/email/status
+
+### Trigger a new OTP
+PUT http://localhost:8080/api/v1/user/me/email/otp
+
+### Try to get verified status
+GET http://localhost:8080/api/v1/user/me/email/status?passcode=073557

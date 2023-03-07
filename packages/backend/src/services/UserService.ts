@@ -6,6 +6,7 @@ import {
     CreatePasswordResetLink,
     CreateUserArgs,
     DeleteOpenIdentity,
+    EmailStatusExpiring,
     ExpiredError,
     ForbiddenError,
     InviteLink,
@@ -22,6 +23,7 @@ import {
     SessionUser,
     UpdateUserArgs,
 } from '@lightdash/common';
+import { randomInt } from 'crypto';
 import { nanoid } from 'nanoid';
 import { analytics, identifyUser } from '../analytics/client';
 import EmailClient from '../clients/EmailClient/EmailClient';
@@ -70,6 +72,10 @@ export class UserService {
     private readonly organizationModel: OrganizationModel;
 
     private readonly personalAccessTokenModel: PersonalAccessTokenModel;
+
+    private readonly emailOneTimePasscodeExpirySeconds = 60 * 15;
+
+    private readonly emailOneTimePasscodeMaxAttempts = 5;
 
     constructor({
         inviteLinkModel,
@@ -292,7 +298,7 @@ export class UserService {
             await this.openIdIdentityModel.updateIdentityByOpenId(
                 openIdUser.openId,
             );
-            await this.userModel.verifyUserEmailIfExists(
+            await this.emailModel.verifyUserEmailIfExists(
                 loginUser.userUuid,
                 openIdUser.openId.email,
             );
@@ -324,7 +330,7 @@ export class UserService {
                 email: openIdUser.openId.email,
                 issuerType: openIdUser.openId.issuerType,
             });
-            await this.userModel.verifyUserEmailIfExists(
+            await this.emailModel.verifyUserEmailIfExists(
                 sessionUser.userUuid,
                 openIdUser.openId.email,
             );
@@ -343,7 +349,7 @@ export class UserService {
             openIdUser,
             inviteCode,
         );
-        await this.userModel.verifyUserEmailIfExists(
+        await this.emailModel.verifyUserEmailIfExists(
             createdUser.userUuid,
             openIdUser.openId.email,
         );
@@ -670,5 +676,108 @@ export class UserService {
 
     async getSessionByUserUuid(userUuid: string): Promise<SessionUser> {
         return this.userModel.findSessionUserByUUID(userUuid);
+    }
+
+    private otpExpirationDate(createdAt: Date) {
+        return new Date(
+            createdAt.getTime() + this.emailOneTimePasscodeExpirySeconds * 1000,
+        );
+    }
+
+    async sendOneTimePasscodeToPrimaryEmail(
+        user: SessionUser,
+    ): Promise<EmailStatusExpiring> {
+        const passcode = randomInt(999999).toString().padStart(6, '0');
+        const emailStatus = await this.emailModel.createPrimaryEmailOtp({
+            passcode,
+            userUuid: user.userUuid,
+        });
+        await this.emailClient.sendOneTimePasscodeEmail({
+            recipient: emailStatus.email,
+            passcode,
+        });
+        return {
+            ...emailStatus,
+            otp: emailStatus.otp && {
+                ...emailStatus.otp,
+                expiresAt: this.otpExpirationDate(emailStatus.otp.createdAt),
+                isExpired: this.isOtpExpired(emailStatus.otp.createdAt),
+                isMaxAttempts: this.isOtpMaxAttempts(
+                    emailStatus.otp.numberOfAttempts,
+                ),
+            },
+        };
+    }
+
+    private isOtpExpired(createdAt: Date) {
+        return this.otpExpirationDate(createdAt) < new Date();
+    }
+
+    private isOtpMaxAttempts(attempts: number) {
+        return attempts >= this.emailOneTimePasscodeMaxAttempts;
+    }
+
+    async getPrimaryEmailStatus(
+        user: SessionUser,
+        passcode?: string,
+    ): Promise<EmailStatusExpiring> {
+        // Attempt to verify the passcode if it's provided
+        if (passcode) {
+            try {
+                const emailStatus =
+                    await this.emailModel.getPrimaryEmailStatusByUserAndOtp({
+                        userUuid: user.userUuid,
+                        passcode,
+                    });
+                if (
+                    emailStatus.otp &&
+                    !this.isOtpMaxAttempts(emailStatus.otp.numberOfAttempts) &&
+                    !this.isOtpExpired(emailStatus.otp.createdAt)
+                ) {
+                    await this.emailModel.verifyUserEmailIfExists(
+                        user.userUuid,
+                        emailStatus.email,
+                    );
+                    await this.emailModel.deleteEmailOtp(
+                        user.userUuid,
+                        emailStatus.email,
+                    );
+                }
+            } catch (e) {
+                // Attempt to find an email+passcode combo failed, increment the number of attempts
+                if (e instanceof NotFoundError) {
+                    await this.emailModel.incrementPrimaryEmailOtpAttempts(
+                        user.userUuid,
+                    );
+                } else {
+                    throw e;
+                }
+            }
+        }
+
+        const emailStatus = await this.emailModel.getPrimaryEmailStatus(
+            user.userUuid,
+        );
+        const emailStatusExpiring = {
+            ...emailStatus,
+            otp: emailStatus.otp && {
+                ...emailStatus.otp,
+                expiresAt: this.otpExpirationDate(emailStatus.otp.createdAt),
+                isMaxAttempts: this.isOtpMaxAttempts(
+                    emailStatus.otp.numberOfAttempts,
+                ),
+                isExpired: this.isOtpExpired(emailStatus.otp.createdAt),
+            },
+        };
+        if (
+            emailStatusExpiring.otp?.isExpired ||
+            emailStatusExpiring.otp?.isMaxAttempts
+        ) {
+            await this.emailModel.deleteEmailOtp(
+                user.userUuid,
+                emailStatusExpiring.email,
+            );
+        }
+        return emailStatusExpiring;
     }
 }

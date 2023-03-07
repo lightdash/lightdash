@@ -949,6 +949,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "leonkozlowski",
+      "name": "Leon Kozlowski",
+      "avatar_url": "https://avatars.githubusercontent.com/u/24438337?v=4",
+      "profile": "http://leonkozlowski.com",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,

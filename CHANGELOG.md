@@ -1,3 +1,50 @@
+# [0.448.0](https://github.com/lightdash/lightdash/compare/0.447.0...0.448.0) (2023-03-07)
+
+
+### Bug Fixes
+
+* conditional formatting interactions ([#4691](https://github.com/lightdash/lightdash/issues/4691)) ([6a9bdaf](https://github.com/lightdash/lightdash/commit/6a9bdaf1b42e4f69845e799557e2e671e9d026a1))
+
+
+### Features
+
+* add jinja parser for var from cli ([#4680](https://github.com/lightdash/lightdash/issues/4680)) ([6d3f087](https://github.com/lightdash/lightdash/commit/6d3f087b032dcd9faa72b5611e337a2ea4f5a016))
+
+# [0.447.0](https://github.com/lightdash/lightdash/compare/0.446.0...0.447.0) (2023-03-06)
+
+
+### Features
+
+* updating password recovery email layout ([#4698](https://github.com/lightdash/lightdash/issues/4698)) ([973deca](https://github.com/lightdash/lightdash/commit/973deca4622912b5d80a384ac12265d4483e2146))
+
+# [0.446.0](https://github.com/lightdash/lightdash/compare/0.445.1...0.446.0) (2023-03-06)
+
+
+### Features
+
+* updating project access email layout ([#4697](https://github.com/lightdash/lightdash/issues/4697)) ([a9788ca](https://github.com/lightdash/lightdash/commit/a9788cacc1142739979579eeb457267a707b6f55))
+
+## [0.445.1](https://github.com/lightdash/lightdash/compare/0.445.0...0.445.1) (2023-03-06)
+
+
+### Bug Fixes
+
+* updating scheduled deliveries email layout ([#4696](https://github.com/lightdash/lightdash/issues/4696)) ([45fdff0](https://github.com/lightdash/lightdash/commit/45fdff0db25fc4a338e4bd1a8340a88e95819445))
+
+# [0.445.0](https://github.com/lightdash/lightdash/compare/0.444.0...0.445.0) (2023-03-06)
+
+
+### Features
+
+* add OTP flow for email verification ([#4660](https://github.com/lightdash/lightdash/issues/4660)) ([a5af465](https://github.com/lightdash/lightdash/commit/a5af465f241eb8c853099e387b6b8d76d1182277))
+
+# [0.444.0](https://github.com/lightdash/lightdash/compare/0.443.1...0.444.0) (2023-03-06)
+
+
+### Features
+
+* move empty state metrics text to pop over ([#4681](https://github.com/lightdash/lightdash/issues/4681)) ([338b24a](https://github.com/lightdash/lightdash/commit/338b24ad6d419fda271583ed20eb9c4b1c503187))
+
 ## [0.443.1](https://github.com/lightdash/lightdash/compare/0.443.0...0.443.1) (2023-03-06)
 
 
