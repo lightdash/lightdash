@@ -503,7 +503,6 @@ export class ProjectService {
         metricQuery: MetricQuery,
         projectUuid: string,
         exploreName: string,
-        allResults?: boolean,
     ): Promise<{ query: string; hasExampleMetric: boolean }> {
         const { organizationUuid } =
             await this.projectModel.getWithSensitiveFields(projectUuid);
@@ -526,7 +525,6 @@ export class ProjectService {
         return buildQuery({
             explore,
             compiledMetricQuery,
-            allResults,
             warehouseClient,
         });
     }
@@ -593,7 +591,6 @@ export class ProjectService {
             metricQueryWithLimit,
             projectUuid,
             exploreName,
-            false,
         );
 
         const onboardingRecord =
