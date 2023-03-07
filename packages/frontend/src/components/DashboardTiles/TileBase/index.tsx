@@ -13,10 +13,8 @@ import {
     ButtonsWrapper,
     ChartContainer,
     HeaderContainer,
-    HeaderWrapper,
     TileBaseWrapper,
-    Title,
-    TitleButton,
+    TileTitleLink,
     TitleWrapper,
     TooltipContent,
 } from './TileBase.styles';
@@ -24,10 +22,8 @@ import {
 type Props<T> = {
     isEditMode: boolean;
     title: string;
-    clickableTitle: boolean;
     titleHref?: string;
     description?: string;
-    hasDescription: boolean;
     tile: T;
     isLoading?: boolean;
     extraMenuItems?: React.ReactNode;
@@ -48,8 +44,6 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     onEdit,
     children,
     extraHeaderElement,
-    hasDescription,
-    clickableTitle,
     titleHref,
 }: Props<T>) => {
     const [isEditing, setIsEditing] = useState(false);
@@ -73,9 +67,10 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                         onMouseEnter={() => setIsHovering(true)}
                         onMouseLeave={() => setIsHovering(false)}
                     >
-                        <HeaderWrapper>
-                            {!hideTitle && description && clickableTitle ? (
+                        <TitleWrapper>
+                            {!hideTitle ? (
                                 <Tooltip2
+                                    disabled={!description}
                                     content={
                                         <TooltipContent>
                                             {description}
@@ -83,58 +78,22 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                     }
                                     position="bottom-left"
                                 >
-                                    <TitleButton
+                                    <TileTitleLink
                                         href={titleHref}
                                         target="_blank"
+                                        className="non-draggable"
                                     >
-                                        <TitleWrapper
-                                            $hasDescription={hasDescription}
-                                        >
-                                            <Title className="non-draggable">
-                                                {title}
-                                            </Title>
-                                        </TitleWrapper>
-                                    </TitleButton>
-                                </Tooltip2>
-                            ) : !hideTitle && clickableTitle ? (
-                                <TitleButton href={titleHref} target="_blank">
-                                    <TitleWrapper
-                                        $hasDescription={hasDescription}
-                                    >
-                                        <Title className="non-draggable">
-                                            {title}
-                                        </Title>
-                                    </TitleWrapper>
-                                </TitleButton>
-                            ) : !hideTitle && description ? (
-                                <Tooltip2
-                                    content={
-                                        <TooltipContent>
-                                            {description}
-                                        </TooltipContent>
-                                    }
-                                    position="bottom-left"
-                                >
-                                    <TitleWrapper $hasDescription={true}>
-                                        <Title className="non-draggable">
-                                            {title}
-                                        </Title>
-                                    </TitleWrapper>
-                                </Tooltip2>
-                            ) : !hideTitle ? (
-                                <TitleWrapper $hasDescription={hasDescription}>
-                                    <Title className="non-draggable">
                                         {title}
-                                    </Title>
-                                </TitleWrapper>
+                                    </TileTitleLink>
+                                </Tooltip2>
                             ) : null}
-                        </HeaderWrapper>
-                        <ButtonsWrapper>
+                        </TitleWrapper>
+
+                        <ButtonsWrapper className="non-draggable">
                             {extraHeaderElement}
                             {(isEditMode ||
                                 (!isEditMode && extraMenuItems)) && (
                                 <Popover2
-                                    className="non-draggable"
                                     content={
                                         <Menu>
                                             {extraMenuItems}
@@ -192,7 +151,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                     position={PopoverPosition.BOTTOM_RIGHT}
                                     lazy
                                 >
-                                    <Button minimal icon="more" />
+                                    <Button minimal small icon="more" />
                                 </Popover2>
                             )}
                         </ButtonsWrapper>
@@ -221,7 +180,6 @@ TileBase.defaultProps = {
     isLoading: false,
     extraMenuItems: null,
     description: null,
-    hasDescription: false,
     hasFilters: false,
 };
 

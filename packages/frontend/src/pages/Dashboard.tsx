@@ -62,17 +62,10 @@ const GridTile: FC<
     switch (tile.type) {
         case DashboardTileTypes.SAVED_CHART:
             if (isLoading)
-                return (
-                    <TileBase
-                        isLoading={true}
-                        title={''}
-                        {...props}
-                        clickableTitle={false}
-                    />
-                );
+                return <TileBase isLoading={true} title={''} {...props} />;
             if (isError)
                 return (
-                    <TileBase title={''} {...props} clickableTitle={false}>
+                    <TileBase title={''} {...props}>
                         <NonIdealState
                             icon="lock"
                             title={`You don't have access to view this chart`}

@@ -1,4 +1,4 @@
-import { Icon, Menu, NonIdealState, Portal, Tag } from '@blueprintjs/core';
+import { Button, Menu, NonIdealState, Portal, Tag } from '@blueprintjs/core';
 import {
     MenuItem2,
     Popover2,
@@ -56,7 +56,6 @@ import {
 import { EchartSeriesClickEvent } from '../SimpleChart';
 import TileBase from './TileBase/index';
 import {
-    FilterIcon,
     FilterLabel,
     FilterWrapper,
     GlobalTileStyles,
@@ -396,34 +395,27 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
             <TileBase
                 extraHeaderElement={
                     appliedFilterRules.length > 0 && (
-                        <div>
-                            <Tooltip2
-                                content={
-                                    <FilterWrapper>
-                                        <FilterLabel>
-                                            Dashboard filter
-                                            {appliedFilterRules.length > 1
-                                                ? 's'
-                                                : ''}{' '}
-                                            applied:
-                                        </FilterLabel>
-                                        {appliedFilterRules.map(
-                                            renderFilterRule,
-                                        )}
-                                    </FilterWrapper>
-                                }
-                                interactionKind="hover"
-                                placement="bottom-end"
-                            >
-                                <FilterIcon>
-                                    <Icon icon="filter" />
-                                </FilterIcon>
-                            </Tooltip2>
-                        </div>
+                        <Tooltip2
+                            content={
+                                <FilterWrapper>
+                                    <FilterLabel>
+                                        Dashboard filter
+                                        {appliedFilterRules.length > 1
+                                            ? 's'
+                                            : ''}{' '}
+                                        applied:
+                                    </FilterLabel>
+                                    {appliedFilterRules.map(renderFilterRule)}
+                                </FilterWrapper>
+                            }
+                            interactionKind="hover"
+                            placement="bottom-end"
+                        >
+                            <Button minimal small icon="filter" />
+                        </Tooltip2>
                     )
                 }
                 title={savedQueryWithDashboardFilters?.name || ''}
-                clickableTitle={true}
                 titleHref={`/projects/${projectUuid}/saved/${savedChartUuid}/`}
                 description={savedQueryWithDashboardFilters?.description}
                 isLoading={isLoading || isLoadingExplore}
@@ -665,7 +657,6 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
     return (
         <TileBase
             title={data?.name || ''}
-            clickableTitle={false}
             titleHref={`/projects/${projectUuid}/saved/${savedChartUuid}/`}
             description={data?.description}
             isLoading={isLoading}

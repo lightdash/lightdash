@@ -10,6 +10,7 @@ export const TileBaseWrapper = styled(Card)<HeaderContainerProps>`
     height: 100%;
     display: flex;
     flex-direction: column;
+    padding: 16px;
 
     ${(props) =>
         props.$isEditMode && props.$isHovering
@@ -22,10 +23,9 @@ export const TileBaseWrapper = styled(Card)<HeaderContainerProps>`
 export const HeaderContainer = styled.div<HeaderContainerProps>`
     display: flex;
     flex-direction: row;
-    justify-content: space-between;
-    align-items: baseline;
-    margin-bottom: 15px;
-    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 12px;
 
     ${(props) =>
         props.$isEditMode
@@ -46,37 +46,15 @@ export const GlobalTileStyles = createGlobalStyle`
   }
 `;
 
-interface TitleWrapperProps {
-    $hasDescription: boolean;
-}
-
-export const TitleWrapper = styled.div<TitleWrapperProps>`
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-
-    ${(props) =>
-        props.$hasDescription
-            ? `
-                &:hover { cursor: pointer }
-            `
-            : ''}
-`;
-
-export const Title = styled(H5)`
-    margin: 0;
-`;
-
-export const HeaderWrapper = styled.div`
-    display: flex;
-    flex-direction: column;
-    padding-top: 5px;
+export const TitleWrapper = styled.div`
+    flex-grow: 1;
 `;
 
 export const ButtonsWrapper = styled.div`
     display: flex;
     flex-direction: row;
     justify-content: flex-end;
+    gap: 8px;
 `;
 
 export const ChartContainer = styled.div`
@@ -88,19 +66,6 @@ export const ChartContainer = styled.div`
 export const TooltipContent = styled.p`
     max-width: 400px;
     margin: 0;
-`;
-
-export const FilterIcon = styled.div`
-    border-radius: 2px;
-    box-sizing: border-box;
-    position: relative;
-    color: ${Colors.GRAY1} !important;
-    padding: 6px 7px;
-
-    :hover {
-        cursor: pointer;
-        background: rgba(143, 153, 168, 0.15) !important;
-    }
 `;
 
 export const FilterWrapper = styled.div`
@@ -116,9 +81,21 @@ export const FilterLabel = styled.p`
     font-weight: 500;
 `;
 
-export const TitleButton = styled.a`
-    :hover {
-        text-decoration: underline;
-        text-decoration-color: ${Colors.GRAY5};
+export const TileTitleLink = styled.a`
+    font-weight: 600;
+    font-size: 16px;
+    color: ${Colors.DARK_GRAY1};
+
+    &:hover {
+        color: ${Colors.DARK_GRAY1};
+    }
+
+    &:not([href]) {
+        cursor: default;
+        text-decoration: none;
+        :hover {
+            text-decoration: none;
+            color: ${Colors.DARK_GRAY1};
+        }
     }
 `;
