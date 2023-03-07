@@ -146,20 +146,23 @@ const SchedulerOptions: FC<
                 <Radio label="Results in Table" value={Limit.TABLE} />
                 <Radio label="All Results" value={Limit.ALL} />
                 <Radio label="Custom..." value={Limit.CUSTOM} />
-
-                {limit === Limit.CUSTOM && (
-                    <InputWrapper>
-                        <NumericInput
-                            value={customLimit}
-                            min={1}
-                            fill
-                            onValueChange={(value: any) => {
-                                setCustomLimit(value);
-                            }}
-                        />
-                    </InputWrapper>
-                )}
             </RadioGroup>
+            {limit === Limit.CUSTOM && (
+                <InputWrapper>
+                    <NumericInput
+                        value={customLimit}
+                        min={1}
+                        fill
+                        onValueChange={(value: any) => {
+                            setCustomLimit(value);
+                        }}
+                    />
+                </InputWrapper>
+            )}
+
+            {(limit === Limit.ALL || limit === Limit.CUSTOM) && (
+                <i>Results are limited to 100,000 cells for each table</i>
+            )}
         </Form>
     );
 };
@@ -253,13 +256,16 @@ const SchedulerForm: FC<
                                 { value: 'csv', label: 'CSV' },
                             ]}
                         />
-                        {format === 'csv' && (
+                    </InlinedInputs>
+
+                    {format === 'csv' && (
+                        <InlinedInputs>
                             <SchedulerOptions
                                 disabled={disabled}
                                 methods={methods}
                             />
-                        )}
-                    </InlinedInputs>
+                        </InlinedInputs>
+                    )}
                     <InlinedInputs>
                         {showDestinationLabel && (
                             <InlinedLabel>
