@@ -1,3 +1,10 @@
+## [0.448.1](https://github.com/lightdash/lightdash/compare/0.448.0...0.448.1) (2023-03-07)
+
+
+### Bug Fixes
+
+* explore csv export ([#4685](https://github.com/lightdash/lightdash/issues/4685)) ([9ccdbbe](https://github.com/lightdash/lightdash/commit/9ccdbbe2001afbee51edec378ffdee9b654c25d5))
+
 # [0.448.0](https://github.com/lightdash/lightdash/compare/0.447.0...0.448.0) (2023-03-07)
 
 
