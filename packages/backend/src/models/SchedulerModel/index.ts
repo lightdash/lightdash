@@ -334,10 +334,9 @@ export class SchedulerModel {
             status: log.status,
             job_id: log.jobId,
             scheduled_time: log.scheduledTime,
-            created_at: new Date(),
-            target: log.target,
-            target_type: log.targetType,
-            details: log.details,
+            target: log.target || null,
+            target_type: log.targetType || null,
+            details: log.details || null,
         });
     }
 }

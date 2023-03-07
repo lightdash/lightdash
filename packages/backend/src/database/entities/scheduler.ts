@@ -63,3 +63,20 @@ export type SchedulerEmailTargetTable = Knex.CompositeTableType<
     Omit<SchedulerEmailTargetDb, 'scheduler_email_target_uuid' | 'created_at'>,
     Pick<SchedulerEmailTargetDb, 'recipient' | 'updated_at'>
 >;
+
+export type SchedulerLogDb = {
+    task: string;
+    scheduler_uuid: string;
+    job_id: string;
+    created_at: Date;
+    scheduled_time: Date;
+    status: string;
+    target: string | null;
+    target_type: string | null;
+    details: Record<string, any> | null;
+};
+
+export type SchedulerLogTable = Knex.CompositeTableType<
+    SchedulerLogDb,
+    Omit<SchedulerLogDb, 'created_at'>
+>;

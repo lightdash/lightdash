@@ -245,7 +245,7 @@ export const sendSlackNotification = async (
             await slackClient.postMessage({
                 organizationUuid,
                 text: name,
-                channel: 'Casdfasdfasdfdsaf',
+                channel,
                 blocks,
             });
         }

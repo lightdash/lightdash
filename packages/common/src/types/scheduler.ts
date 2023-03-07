@@ -24,7 +24,7 @@ export type SchedulerLog = {
     status: SchedulerJobStatus;
     target?: string;
     targetType?: 'email' | 'slack';
-    details?: any;
+    details?: Record<string, any>;
 };
 
 export type SchedulerBase = {
