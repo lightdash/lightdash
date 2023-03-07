@@ -245,7 +245,7 @@ export const sendSlackNotification = async (
             await slackClient.postMessage({
                 organizationUuid,
                 text: name,
-                channel,
+                channel: 'Casdfasdfasdfdsaf',
                 blocks,
             });
         }
@@ -291,7 +291,7 @@ export const sendSlackNotification = async (
             scheduledTime,
             targetType: 'slack',
             status: SchedulerJobStatus.ERROR,
-            details: e,
+            details: { error: e.message },
         });
 
         throw e; // Cascade error to it can be retried by graphile
@@ -484,7 +484,7 @@ export const handleScheduledDelivery = async (
             jobId,
             scheduledTime,
             status: SchedulerJobStatus.ERROR,
-            details: e,
+            details: { error: e.message },
         });
 
         throw e; // Cascade error to it can be retried by graphile

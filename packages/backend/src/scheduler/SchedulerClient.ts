@@ -115,7 +115,7 @@ export class SchedulerClient {
             payload,
             {
                 runAt: date,
-                maxAttempts: 3,
+                maxAttempts: 1,
             },
         );
         analytics.track({
@@ -157,7 +157,7 @@ export class SchedulerClient {
             payload,
             {
                 runAt: date,
-                maxAttempts: 3,
+                maxAttempts: 1,
             },
         );
         analytics.track({

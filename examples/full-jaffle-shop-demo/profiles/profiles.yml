@@ -6,10 +6,10 @@ jaffle_shop:
   outputs:
     jaffle:
       type: postgres
-      host: "{{ env_var('PGHOST') }}"
+      host: "{{ var('PGHOST') }}"
       port: "{{ env_var('PGPORT') | as_number }}"
       user: "{{ env_var('PGUSER') }}"
-      pass: "{{ env_var('PGPASSWORD') }}"
+      pass: "{{ var('PGPASSWORD') }}"
       dbname: "{{ env_var('PGDATABASE') }}"
       sslmode: disable
       schema: jaffle
