@@ -1,3 +1,15 @@
+# [0.448.0](https://github.com/lightdash/lightdash/compare/0.447.0...0.448.0) (2023-03-07)
+
+
+### Bug Fixes
+
+* conditional formatting interactions ([#4691](https://github.com/lightdash/lightdash/issues/4691)) ([6a9bdaf](https://github.com/lightdash/lightdash/commit/6a9bdaf1b42e4f69845e799557e2e671e9d026a1))
+
+
+### Features
+
+* add jinja parser for var from cli ([#4680](https://github.com/lightdash/lightdash/issues/4680)) ([6d3f087](https://github.com/lightdash/lightdash/commit/6d3f087b032dcd9faa72b5611e337a2ea4f5a016))
+
 # [0.447.0](https://github.com/lightdash/lightdash/compare/0.446.0...0.447.0) (2023-03-06)
 
 
