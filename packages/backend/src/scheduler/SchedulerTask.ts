@@ -480,6 +480,7 @@ export const handleScheduledDelivery = async (
         const page = await getNotificationPageData(scheduler);
         const scheduledJobs =
             await schedulerClient.generateJobsForSchedulerTargets(
+                scheduledTime,
                 scheduler,
                 page,
                 jobId,
