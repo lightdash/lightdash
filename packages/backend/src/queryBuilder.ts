@@ -54,14 +54,12 @@ const getOperatorSql = (filterGroup: FilterGroup | undefined) => {
 export type BuildQueryProps = {
     explore: Explore;
     compiledMetricQuery: CompiledMetricQuery;
-    allResults?: boolean;
 
     warehouseClient: WarehouseClient;
 };
 export const buildQuery = ({
     explore,
     compiledMetricQuery,
-    allResults,
     warehouseClient,
 }: BuildQueryProps): { query: string; hasExampleMetric: boolean } => {
     let hasExampleMetric: boolean = false;
@@ -272,7 +270,7 @@ export const buildQuery = ({
             );
         },
     );
-    const sqlLimit = allResults ? `` : `LIMIT ${limit}`;
+    const sqlLimit = `LIMIT ${limit}`;
 
     if (
         compiledMetricQuery.compiledTableCalculations.length > 0 ||

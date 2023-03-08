@@ -57,6 +57,7 @@ export const StyledSelect = styled(HTMLSelect)`
 
 export const InputWrapper = styled.div`
     width: 130px;
+    margin-bottom: 10px;
 `;
 
 export const InputGroupWrapper = styled.div`

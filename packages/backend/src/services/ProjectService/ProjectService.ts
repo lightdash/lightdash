@@ -503,7 +503,6 @@ export class ProjectService {
         metricQuery: MetricQuery,
         projectUuid: string,
         exploreName: string,
-        allResults?: boolean,
     ): Promise<{ query: string; hasExampleMetric: boolean }> {
         const { organizationUuid } =
             await this.projectModel.getWithSensitiveFields(projectUuid);
@@ -526,9 +525,41 @@ export class ProjectService {
         return buildQuery({
             explore,
             compiledMetricQuery,
-            allResults,
             warehouseClient,
         });
+    }
+
+    static metricQueryWithLimit(
+        metricQuery: MetricQuery,
+        csvLimit: number | null | undefined,
+    ): MetricQuery {
+        const MAX_CELLS = 100000;
+        if (csvLimit === undefined) {
+            if (metricQuery.limit > lightdashConfig.query?.maxLimit) {
+                throw new ParameterError(
+                    `Query limit can not exceed ${lightdashConfig.query.maxLimit}`,
+                );
+            }
+            return metricQuery;
+        }
+
+        const numberColumns =
+            metricQuery.dimensions.length +
+            metricQuery.metrics.length +
+            metricQuery.tableCalculations.length;
+        if (numberColumns === 0)
+            throw new ParameterError(
+                'Query must have at least one dimension or metric',
+            );
+
+        const maxRows = Math.floor(MAX_CELLS / numberColumns);
+        const csvRowLimit =
+            csvLimit === null ? maxRows : Math.min(csvLimit, maxRows);
+
+        return {
+            ...metricQuery,
+            limit: csvRowLimit,
+        };
     }
 
     async runQuery(
@@ -550,23 +581,16 @@ export class ProjectService {
             throw new ForbiddenError();
         }
 
-        if (
-            csvLimit === undefined &&
-            metricQuery.limit > lightdashConfig.query.maxLimit
-        ) {
-            throw new ParameterError(
-                `Query limit can not exceed ${lightdashConfig.query.maxLimit}`,
-            );
-        }
+        const metricQueryWithLimit = ProjectService.metricQueryWithLimit(
+            metricQuery,
+            csvLimit,
+        );
 
         const { query, hasExampleMetric } = await this.compileQuery(
             user,
-            csvLimit !== undefined && csvLimit !== null
-                ? { ...metricQuery, limit: csvLimit }
-                : metricQuery,
+            metricQueryWithLimit,
             projectUuid,
             exploreName,
-            csvLimit === null,
         );
 
         const onboardingRecord =

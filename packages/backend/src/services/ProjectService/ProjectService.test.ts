@@ -2,6 +2,7 @@ import {
     defineUserAbility,
     NotFoundError,
     OrganizationMemberRole,
+    ParameterError,
     SessionUser,
 } from '@lightdash/common';
 import { analytics } from '../../analytics/client';
@@ -13,7 +14,7 @@ import {
     savedChartModel,
     spaceModel,
 } from '../../models/models';
-import { warehouseClientMock } from '../../queryBuilder.mock';
+import { METRIC_QUERY, warehouseClientMock } from '../../queryBuilder.mock';
 import { projectService } from '../services';
 import { ProjectService } from './ProjectService';
 import {
@@ -39,6 +40,7 @@ jest.mock('../../analytics/client', () => ({
         track: jest.fn(),
     },
 }));
+
 jest.mock('../../clients/clients', () => ({}));
 
 jest.mock('../../models/models', () => ({
@@ -195,6 +197,42 @@ describe('ProjectService', () => {
             await expect(
                 projectService.getJobStatus('jobUuid', anotherUser),
             ).rejects.toThrowError(NotFoundError);
+        });
+
+        test('should limit CSV results', async () => {
+            expect(
+                ProjectService.metricQueryWithLimit(METRIC_QUERY, undefined),
+            ).toEqual(METRIC_QUERY); // Returns same metricquery
+
+            expect(
+                ProjectService.metricQueryWithLimit(METRIC_QUERY, 5).limit,
+            ).toEqual(5);
+            expect(
+                ProjectService.metricQueryWithLimit(METRIC_QUERY, null).limit,
+            ).toEqual(33333);
+            expect(
+                ProjectService.metricQueryWithLimit(METRIC_QUERY, 9999).limit,
+            ).toEqual(9999);
+            expect(
+                ProjectService.metricQueryWithLimit(METRIC_QUERY, 9999999)
+                    .limit,
+            ).toEqual(33333);
+
+            const metricWithoutRows = {
+                ...METRIC_QUERY,
+                dimensions: [],
+                metrics: [],
+                tableCalculations: [],
+            };
+            expect(() =>
+                ProjectService.metricQueryWithLimit(metricWithoutRows, null),
+            ).toThrowError(ParameterError);
+
+            const metricWithDimension = { ...METRIC_QUERY, metrics: [] };
+            expect(
+                ProjectService.metricQueryWithLimit(metricWithDimension, null)
+                    .limit,
+            ).toEqual(50000);
         });
     });
 });

@@ -12,7 +12,7 @@ import {
 import { ResultRow } from '@lightdash/common';
 import { FC, Fragment, memo, useState } from 'react';
 import useToaster from '../../hooks/toaster/useToaster';
-import { InputWrapper, Title } from './ExportCSV.styles';
+import { InputWrapper, LimitWarning, Title } from './ExportCSV.styles';
 
 enum Limit {
     TABLE = 'table',
@@ -122,7 +122,11 @@ const ExportCSV: FC<ExportCSVProps> = memo(
                         </InputWrapper>
                     )}
                 </Wrapper>
-
+                {(limit === Limit.ALL || limit === Limit.CUSTOM) && (
+                    <LimitWarning>
+                        Results are limited to 100,000 cells for each file
+                    </LimitWarning>
+                )}
                 {isDialogBody && renderDialogActions ? (
                     <DialogFooter
                         actions={renderDialogActions({
