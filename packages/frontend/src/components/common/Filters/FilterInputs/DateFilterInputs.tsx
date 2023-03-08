@@ -257,10 +257,24 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         parseDate={parseDate}
                         value={[
                             rule.values?.[0]
-                                ? new Date(rule.values?.[0])
+                                ? parseDate(
+                                      formatDate(
+                                          rule.values?.[0],
+                                          undefined,
+                                          false,
+                                      ),
+                                      TimeFrames.DAY,
+                                  )
                                 : null,
                             rule.values?.[1]
-                                ? new Date(rule.values?.[1])
+                                ? parseDate(
+                                      formatDate(
+                                          rule.values?.[1],
+                                          undefined,
+                                          false,
+                                      ),
+                                      TimeFrames.DAY,
+                                  )
                                 : null,
                         ]}
                         onChange={(
