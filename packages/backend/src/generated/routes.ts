@@ -164,11 +164,6 @@ const models: TsoaRoute.Models = {
                     dataType: 'array',
                     array: { dataType: 'string' },
                 },
-                allowedEmailDomains: {
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                    required: true,
-                },
                 name: { dataType: 'string', required: true },
                 organizationUuid: { dataType: 'string', required: true },
             },
@@ -206,10 +201,6 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 name: { dataType: 'string' },
-                allowedEmailDomains: {
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                },
                 chartColors: {
                     dataType: 'array',
                     array: { dataType: 'string' },
