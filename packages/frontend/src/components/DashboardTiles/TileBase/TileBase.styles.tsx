@@ -1,5 +1,5 @@
 import { Card, Colors, H5 } from '@blueprintjs/core';
-import styled, { createGlobalStyle } from 'styled-components';
+import styled, { createGlobalStyle, css } from 'styled-components';
 
 interface HeaderContainerProps {
     $isEditMode: boolean;
@@ -50,24 +50,66 @@ export const GlobalTileStyles = createGlobalStyle`
   }
 `;
 
-export const TitleWrapper = styled.div`
+interface TileTitleProps {
+    $hovered?: boolean;
+}
+
+export const TitleWrapper = styled.div<TileTitleProps>`
     flex-grow: 1;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
-    height: inherit;
     position: relative;
 
-    :hover {
-        white-space: normal;
-        overflow: visible;
-        z-index: 1;
+    &:hover {
+        ${({ $hovered }) =>
+            $hovered
+                ? css`
+                      white-space: normal;
+                      overflow: visible;
+                      z-index: 1;
 
-        a {
-            outline: 8px solid ${Colors.WHITE};
-            background-color: ${Colors.WHITE};
+                      a {
+                          outline: 8px solid ${Colors.WHITE};
+                          background-color: ${Colors.WHITE};
+                      }
+                  `
+                : ''}
         }
     }
+`;
+
+export const TileTitleLink = styled.a<TileTitleProps>`
+    font-weight: 600;
+    font-size: 16px;
+    color: ${Colors.DARK_GRAY1};
+    text-decoration: none;
+
+    :hover {
+        color: ${Colors.DARK_GRAY1} !important;
+    }
+
+    ${({ $hovered }) =>
+        css`
+            ${$hovered
+                ? css`
+                      text-decoration: underline;
+                  `
+                : ''}
+
+            &:not([href]) {
+                cursor: default;
+                text-decoration: none;
+
+                &:hover {
+                    ${$hovered
+                        ? css`
+                              text-decoration: none;
+                          `
+                        : ''}
+                }
+            }
+        `}
 `;
 
 export const ButtonsWrapper = styled.div`
@@ -99,23 +141,4 @@ export const FilterLabel = styled.p`
     color: ${Colors.GRAY5};
     font-size: 12px;
     font-weight: 500;
-`;
-
-export const TileTitleLink = styled.a`
-    font-weight: 600;
-    font-size: 16px;
-    color: ${Colors.DARK_GRAY1};
-
-    &:hover {
-        color: ${Colors.DARK_GRAY1};
-    }
-
-    &:not([href]) {
-        cursor: default;
-        text-decoration: none;
-        :hover {
-            text-decoration: none;
-            color: ${Colors.DARK_GRAY1};
-        }
-    }
 `;

@@ -8,7 +8,7 @@ import {
 import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { Dashboard, DashboardTileTypes } from '@lightdash/common';
 import { Transition } from '@mantine/core';
-import { useHover } from '@mantine/hooks';
+import { mergeRefs, useHover, useToggle } from '@mantine/hooks';
 import React, { ReactNode, useState } from 'react';
 import TileUpdateModal from '../TileForms/TileUpdateModal';
 import {
@@ -52,6 +52,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     const [isHovering, setIsHovering] = useState(false);
     const { hovered: containerHovered, ref: containerRef } = useHover();
     const { hovered: titleHovered, ref: titleRef } = useHover();
+    const [isMenuOpen, toggleMenu] = useToggle([false, true]);
 
     const hideTitle =
         tile.type !== DashboardTileTypes.MARKDOWN
@@ -72,34 +73,35 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                         onMouseEnter={() => setIsHovering(true)}
                         onMouseLeave={() => setIsHovering(false)}
                     >
-                        <TitleWrapper ref={titleRef}>
-                            {!hideTitle ? (
-                                <Tooltip2
-                                    disabled={!description}
-                                    content={
-                                        <TooltipContent>
-                                            {description}
-                                        </TooltipContent>
-                                    }
-                                    position="bottom-left"
-                                    renderTarget={({ ref, ...props }) => (
+                        <Tooltip2
+                            disabled={!description}
+                            content={
+                                <TooltipContent>{description}</TooltipContent>
+                            }
+                            position="top-left"
+                            renderTarget={({ ref: tooltipRef, ...props }) => (
+                                <TitleWrapper
+                                    ref={mergeRefs(tooltipRef, titleRef)}
+                                    $hovered={titleHovered}
+                                >
+                                    {!hideTitle ? (
                                         <TileTitleLink
-                                            ref={ref}
                                             href={titleHref}
+                                            $hovered={titleHovered}
                                             target="_blank"
                                             {...props}
                                             className="non-draggable"
                                         >
                                             {title}
                                         </TileTitleLink>
-                                    )}
-                                />
-                            ) : null}
-                        </TitleWrapper>
+                                    ) : null}
+                                </TitleWrapper>
+                            )}
+                        />
 
-                        {titleHovered ? null : (
+                        {!isMenuOpen && titleHovered ? null : (
                             <Transition
-                                mounted={containerHovered}
+                                mounted={containerHovered || isMenuOpen}
                                 transition="fade"
                                 duration={150}
                             >
@@ -113,6 +115,12 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                             (!isEditMode &&
                                                 extraMenuItems)) && (
                                             <Popover2
+                                                onOpened={() =>
+                                                    toggleMenu(true)
+                                                }
+                                                onClosed={() =>
+                                                    toggleMenu(false)
+                                                }
                                                 content={
                                                     <Menu>
                                                         {extraMenuItems}
