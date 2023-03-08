@@ -6,11 +6,14 @@ interface HeaderContainerProps {
     $isHovering?: boolean;
 }
 
-export const TileBaseWrapper = styled(Card)<HeaderContainerProps>`
+export const TileBaseWrapper = styled.div<HeaderContainerProps>`
     height: 100%;
     display: flex;
     flex-direction: column;
     padding: 16px;
+    background: ${Colors.WHITE};
+    border-radius: 2px;
+    box-shadow: 0 0 0 1px #11141826;
 
     ${(props) =>
         props.$isEditMode && props.$isHovering
