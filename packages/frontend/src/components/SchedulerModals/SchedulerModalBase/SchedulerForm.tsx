@@ -161,7 +161,7 @@ const SchedulerOptions: FC<
             )}
 
             {(limit === Limit.ALL || limit === Limit.CUSTOM) && (
-                <i>Results are limited to 100,000 cells for each table</i>
+                <i>Results are limited to 100,000 cells for each file</i>
             )}
         </Form>
     );
@@ -231,9 +231,7 @@ const SchedulerForm: FC<
                     }}
                 />
             </FormGroup>
-            <FormGroup
-                label={<Title>3. Select format and destination(s)</Title>}
-            >
+            <FormGroup label={<Title>3. Select format</Title>}>
                 <InputGroupWrapper>
                     <InlinedInputs>
                         <InlinedLabel>Format</InlinedLabel>
@@ -266,6 +264,8 @@ const SchedulerForm: FC<
                             />
                         </InlinedInputs>
                     )}
+                    <Title>4. Add destination(s)</Title>
+
                     <InlinedInputs>
                         {showDestinationLabel && (
                             <InlinedLabel>

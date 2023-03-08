@@ -124,7 +124,7 @@ const ExportCSV: FC<ExportCSVProps> = memo(
                 </Wrapper>
                 {(limit === Limit.ALL || limit === Limit.CUSTOM) && (
                     <LimitWarning>
-                        Results are limited to 100,000 cells for each table
+                        Results are limited to 100,000 cells for each file
                     </LimitWarning>
                 )}
                 {isDialogBody && renderDialogActions ? (
