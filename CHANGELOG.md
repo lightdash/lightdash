@@ -1,3 +1,10 @@
+# [0.450.0](https://github.com/lightdash/lightdash/compare/0.449.0...0.450.0) (2023-03-08)
+
+
+### Features
+
+* remove organisation allowed email domains ([#4722](https://github.com/lightdash/lightdash/issues/4722)) ([95d1881](https://github.com/lightdash/lightdash/commit/95d188146d8d371b3440e5dec93f767fe77cde35))
+
 # [0.449.0](https://github.com/lightdash/lightdash/compare/0.448.2...0.449.0) (2023-03-08)
 
 
