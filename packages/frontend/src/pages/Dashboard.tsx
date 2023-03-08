@@ -139,7 +139,7 @@ const Dashboard = () => {
     const layouts = useMemo(
         () => ({
             lg: dashboardTiles.map<Layout>((tile) => ({
-                minH: 2,
+                minH: 3,
                 minW: 6,
                 x: tile.x,
                 y: tile.y,
