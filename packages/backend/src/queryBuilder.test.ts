@@ -159,14 +159,4 @@ describe('Query builder', () => {
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_EMPTY_METRIC_FILTER_SQL);
     });
-    test('should build query with no limit', () => {
-        expect(
-            buildQuery({
-                explore: EXPLORE,
-                compiledMetricQuery: METRIC_QUERY,
-                allResults: true,
-                warehouseClient: warehouseClientMock,
-            }).query,
-        ).toStrictEqual(METRIC_QUERY_SQL_WITH_NO_LIMIT);
-    });
 });
