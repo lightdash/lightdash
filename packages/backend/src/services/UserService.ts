@@ -115,11 +115,7 @@ export class UserService {
         const userEmail = isOpenIdUser(activateUser)
             ? activateUser.openId.email
             : inviteLink.email;
-        if (
-            !(await this.isEmailAllowed(inviteLink.organisationUuid, userEmail))
-        ) {
-            throw new AuthorizationError('Email domain not allowed');
-        }
+
         if (inviteLink.email.toLowerCase() !== userEmail.toLowerCase()) {
             Logger.error(
                 `User accepted invite with wrong email ${userEmail} when the invited email was ${inviteLink.email}`,
@@ -194,10 +190,6 @@ export class UserService {
         const inviteCode = nanoid(30);
         if (organizationUuid === undefined) {
             throw new NotExistsError('Organization not found');
-        }
-
-        if (!(await this.isEmailAllowed(organizationUuid, email))) {
-            throw new AuthorizationError('Email domain not allowed');
         }
 
         const existingUserWithEmail = await this.userModel.findUserByEmail(
@@ -315,14 +307,6 @@ export class UserService {
 
         // User already logged in? Link openid identity to logged-in user
         if (sessionUser?.userId) {
-            if (
-                !(await this.isEmailAllowed(
-                    sessionUser.organizationUuid,
-                    openIdUser.openId.email,
-                ))
-            ) {
-                throw new AuthorizationError('Email domain not allowed');
-            }
             await this.openIdIdentityModel.createIdentity({
                 userId: sessionUser.userId,
                 issuer: openIdUser.openId.issuer,
@@ -417,21 +401,6 @@ export class UserService {
             },
         });
         return completeUser;
-    }
-
-    async isEmailAllowed(
-        organisationUuid: string,
-        email: string,
-    ): Promise<boolean> {
-        const { allowedEmailDomains } = await this.organizationModel.get(
-            organisationUuid,
-        );
-        return (
-            allowedEmailDomains.length === 0 ||
-            allowedEmailDomains.some((allowedEmailDomain) =>
-                email.endsWith(`@${allowedEmailDomain}`),
-            )
-        );
     }
 
     async getLinkedIdentities({

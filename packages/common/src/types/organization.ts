@@ -13,10 +13,7 @@ export type Organisation = {
      * The name of the organisation
      */
     name: string;
-    /**
-     * List of allowed email domains for the organization. Only user's with these emails are able to be invited
-     */
-    allowedEmailDomains: string[];
+
     /**
      * The default color palette for all projects in the organization
      */
