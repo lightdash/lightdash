@@ -1,4 +1,4 @@
-import { Button, Intent } from '@blueprintjs/core';
+import { Intent } from '@blueprintjs/core';
 import { EmailStatusExpiring } from '@lightdash/common';
 import React, { FC, useEffect } from 'react';
 import Countdown, { zeroPad } from 'react-countdown';
@@ -6,24 +6,19 @@ import { UseFormReturn } from 'react-hook-form';
 import { useIntercom } from 'react-use-intercom';
 import {
     AnchorLinkWrapper,
-    CardWrapper,
     FormFooterCopy,
-    FormWrapper,
-    Logo,
-    LogoWrapper,
     Subtitle,
     Title,
 } from '../../pages/SignUp.styles';
-import LightdashLogo from '../../svgs/lightdash-black.svg';
 import Form from '../ReactHookForm/Form';
 import PasswordInput from '../ReactHookForm/PasswordInput';
-import { LinkButton, SubmitButton } from './CreateUserForm.styles';
+import { FormWrapper, LinkButton, SubmitButton } from './CreateUserForm.styles';
 
 export const VerifyEmailForm: FC<{
     email: string;
     methods: UseFormReturn<{ code: string }>;
     data: EmailStatusExpiring | undefined;
-    expirationTime: Date;
+    expirationTime: Date | string;
     onSubmit: (data: { code: string }) => void;
     onResend: () => void;
 }> = ({ email, methods, data, expirationTime, onSubmit, onResend }) => {
@@ -47,13 +42,12 @@ export const VerifyEmailForm: FC<{
     }, [data, clearErrors, setError]);
 
     return (
-        <>
+        <FormWrapper>
             <Title>Check your inbox!</Title>
             <Subtitle>
                 Verify your e-mail address by entering the code we've just sent
                 to <b>{email}</b>
             </Subtitle>
-
             <Form name="verify-email" onSubmit={onSubmit} methods={methods}>
                 <PasswordInput
                     label="One-time password"
@@ -98,6 +92,6 @@ export const VerifyEmailForm: FC<{
                     chat to support here.
                 </LinkButton>
             </FormFooterCopy>
-        </>
+        </FormWrapper>
     );
 };

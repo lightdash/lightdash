@@ -46,3 +46,7 @@ export const LinkButton = styled.button`
         text-decoration: underline;
     }
 `;
+
+export const FormWrapper = styled.div`
+    margin: 10px 30px;
+`;

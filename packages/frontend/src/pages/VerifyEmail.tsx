@@ -1,3 +1,4 @@
+import { Dialog, DialogBody } from '@blueprintjs/core';
 import { Modal } from '@mantine/core';
 import React, { FC, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
@@ -66,17 +67,19 @@ export const VerifyEmailModal: FC<{ opened: boolean; onClose: () => void }> = ({
     }
 
     return (
-        <Modal opened={opened} onClose={onClose}>
-            <VerifyEmailForm
-                email={user.data?.email || 'your e-mail.'}
-                methods={methods}
-                data={data}
-                expirationTime={data?.otp?.expiresAt || new Date()}
-                onSubmit={({ code }) => {
-                    mutate(code);
-                }}
-                onResend={sendVerificationEmail}
-            />
-        </Modal>
+        <Dialog isOpen={opened} onClose={onClose} title="">
+            <DialogBody>
+                <VerifyEmailForm
+                    email={user.data?.email || 'your e-mail.'}
+                    methods={methods}
+                    data={data}
+                    expirationTime={data?.otp?.expiresAt || new Date()}
+                    onSubmit={({ code }) => {
+                        mutate(code);
+                    }}
+                    onResend={sendVerificationEmail}
+                />
+            </DialogBody>
+        </Dialog>
     );
 };
