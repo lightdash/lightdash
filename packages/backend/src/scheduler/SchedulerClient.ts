@@ -220,6 +220,7 @@ export class SchedulerClient {
     }
 
     async generateJobsForSchedulerTargets(
+        scheduledTime: Date,
         scheduler: SchedulerAndTargets,
         page: NotificationPayloadBase['page'],
         parentJobId: string,
@@ -227,7 +228,7 @@ export class SchedulerClient {
         try {
             const promises = scheduler.targets.map((target) =>
                 this.addNotificationJob(
-                    new Date(),
+                    scheduledTime,
                     parentJobId,
                     scheduler,
                     target,
