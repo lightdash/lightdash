@@ -7,6 +7,7 @@ import {
     Scheduler,
     SchedulerAndTargets,
     SchedulerEmailTarget,
+    SchedulerJobStatus,
     SchedulerSlackTarget,
     SlackNotificationPayload,
 } from '@lightdash/common';
@@ -17,9 +18,11 @@ import { analytics } from '../analytics/client';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logger';
+import { SchedulerModel } from '../models/SchedulerModel';
 
 type SchedulerClientDependencies = {
     lightdashConfig: LightdashConfig;
+    schedulerModel: SchedulerModel;
 };
 
 export const getDailyDatesFromCron = (
@@ -49,8 +52,14 @@ export class SchedulerClient {
 
     graphileUtils: Promise<WorkerUtils>;
 
-    constructor({ lightdashConfig }: SchedulerClientDependencies) {
+    schedulerModel: SchedulerModel;
+
+    constructor({
+        lightdashConfig,
+        schedulerModel,
+    }: SchedulerClientDependencies) {
         this.lightdashConfig = lightdashConfig;
+        this.schedulerModel = schedulerModel;
         this.graphileUtils = makeWorkerUtils({
             connectionString: lightdashConfig.database.connectionUri,
         }).then((utils) =>
@@ -101,10 +110,7 @@ export class SchedulerClient {
         });
     }
 
-    private async addScheduledDeliveryJob(
-        date: Date,
-        scheduler: Scheduler,
-    ): Promise<void> {
+    private async addScheduledDeliveryJob(date: Date, scheduler: Scheduler) {
         const graphileClient = await this.graphileUtils;
 
         const payload: ScheduledDeliveryPayload = {
@@ -126,20 +132,24 @@ export class SchedulerClient {
                 schedulerId: scheduler.schedulerUuid,
             },
         });
+
+        return { jobId: id, date };
     }
 
     private async addNotificationJob(
         date: Date,
+        parentJobId: string,
         scheduler: Scheduler,
         target: SchedulerSlackTarget | SchedulerEmailTarget,
         page: NotificationPayloadBase['page'],
-    ): Promise<void> {
+    ) {
         const graphileClient = await this.graphileUtils;
 
         const payload: SlackNotificationPayload | EmailNotificationPayload =
             isSlackTarget(target)
                 ? {
                       schedulerUuid: scheduler.schedulerUuid,
+                      parentJobId,
                       scheduledTime: date,
                       page,
                       schedulerSlackTargetUuid: target.schedulerSlackTargetUuid,
@@ -147,6 +157,7 @@ export class SchedulerClient {
                 : {
                       schedulerUuid: scheduler.schedulerUuid,
                       scheduledTime: date,
+                      parentJobId,
                       page,
                       schedulerEmailTargetUuid: target.schedulerEmailTargetUuid,
                   };
@@ -173,6 +184,7 @@ export class SchedulerClient {
                 format: scheduler.format,
             },
         });
+        return { target, jobId: id };
     }
 
     async generateDailyJobsForScheduler(
@@ -187,7 +199,17 @@ export class SchedulerClient {
             Logger.info(
                 `Creating ${promises.length} scheduled delivery jobs for scheduler ${scheduler.schedulerUuid}`,
             );
-            await Promise.all(promises);
+            const jobs = await Promise.all(promises);
+            jobs.map(async ({ jobId, date }) => {
+                await this.schedulerModel.logSchedulerJob({
+                    task: 'handleScheduledDelivery',
+                    schedulerUuid: scheduler.schedulerUuid,
+                    parentJobId: jobId,
+                    jobId,
+                    scheduledTime: date,
+                    status: SchedulerJobStatus.SCHEDULED,
+                });
+            });
         } catch (err: any) {
             Logger.error(
                 `Unable to schedule job for scheduler ${scheduler.schedulerUuid}`,
@@ -200,16 +222,23 @@ export class SchedulerClient {
     async generateJobsForSchedulerTargets(
         scheduler: SchedulerAndTargets,
         page: NotificationPayloadBase['page'],
-    ): Promise<void> {
+        parentJobId: string,
+    ) {
         try {
             const promises = scheduler.targets.map((target) =>
-                this.addNotificationJob(new Date(), scheduler, target, page),
+                this.addNotificationJob(
+                    new Date(),
+                    parentJobId,
+                    scheduler,
+                    target,
+                    page,
+                ),
             );
 
             Logger.info(
                 `Creating ${promises.length} notification jobs for scheduler ${scheduler.schedulerUuid}`,
             );
-            await Promise.all(promises);
+            return await Promise.all(promises);
         } catch (err: any) {
             Logger.error(
                 `Unable to schedule notification job for scheduler ${scheduler.schedulerUuid}`,

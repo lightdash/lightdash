@@ -70,6 +70,7 @@ export type SchedulerLogDb = {
     job_id: string;
     created_at: Date;
     scheduled_time: Date;
+    parent_job_id: string;
     status: string;
     target: string | null;
     target_type: string | null;

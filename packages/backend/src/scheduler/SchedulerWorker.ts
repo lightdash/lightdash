@@ -1,3 +1,4 @@
+import { SchedulerJobStatus } from '@lightdash/common';
 import { getSchedule, stringToArray } from 'cron-converter';
 import {
     JobHelpers,
@@ -81,11 +82,12 @@ export class SchedulerWorker {
                     );
                     const schedulers =
                         await schedulerService.getAllSchedulers();
-                    const promises = schedulers.map((scheduler) =>
-                        schedulerClient.generateDailyJobsForScheduler(
+                    const promises = schedulers.map(async (scheduler) => {
+                        await schedulerClient.generateDailyJobsForScheduler(
                             scheduler,
-                        ),
-                    );
+                        );
+                    });
+
                     await Promise.all(promises);
                 },
                 handleScheduledDelivery: async (

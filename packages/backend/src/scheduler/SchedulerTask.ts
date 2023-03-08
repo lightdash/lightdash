@@ -177,6 +177,8 @@ export const sendSlackNotification = async (
             task: 'sendSlackNotification',
             schedulerUuid,
             jobId,
+            parentJobId: notification.parentJobId,
+
             scheduledTime,
             target: channel,
             targetType: 'slack',
@@ -266,6 +268,8 @@ export const sendSlackNotification = async (
             task: 'sendSlackNotification',
             schedulerUuid,
             jobId,
+            parentJobId: notification.parentJobId,
+
             scheduledTime,
             target: channel,
             targetType: 'slack',
@@ -288,6 +292,8 @@ export const sendSlackNotification = async (
             task: 'sendSlackNotification',
             schedulerUuid,
             jobId,
+            parentJobId: notification.parentJobId,
+
             scheduledTime,
             targetType: 'slack',
             status: SchedulerJobStatus.ERROR,
@@ -338,6 +344,8 @@ export const sendEmailNotification = async (
             task: 'sendEmailNotification',
             schedulerUuid,
             jobId,
+            parentJobId: notification.parentJobId,
+
             scheduledTime,
             target: recipient,
             targetType: 'email',
@@ -407,6 +415,8 @@ export const sendEmailNotification = async (
             task: 'sendEmailNotification',
             schedulerUuid,
             jobId,
+            parentJobId: notification.parentJobId,
+
             scheduledTime,
             target: recipient,
             targetType: 'email',
@@ -429,6 +439,7 @@ export const sendEmailNotification = async (
             task: 'sendEmailNotification',
             schedulerUuid,
             jobId,
+            parentJobId: notification.parentJobId,
             scheduledTime,
             targetType: 'email',
             status: SchedulerJobStatus.ERROR,
@@ -453,13 +464,54 @@ export const handleScheduledDelivery = async (
                 schedulerId: schedulerUuid,
             },
         });
+        schedulerService.logSchedulerJob({
+            task: 'handleScheduledDelivery',
+            schedulerUuid,
+            jobId,
+            parentJobId: jobId,
+            scheduledTime,
+            status: SchedulerJobStatus.STARTED,
+        });
 
         const scheduler =
             await schedulerService.schedulerModel.getSchedulerAndTargets(
                 schedulerUuid,
             );
         const page = await getNotificationPageData(scheduler);
-        await schedulerClient.generateJobsForSchedulerTargets(scheduler, page);
+        const scheduledJobs =
+            await schedulerClient.generateJobsForSchedulerTargets(
+                scheduler,
+                page,
+                jobId,
+            );
+
+        // Create scheduled jobs for targets
+        scheduledJobs.map(async ({ target, jobId: targetJobId }) => {
+            await schedulerService.logSchedulerJob({
+                task: isSlackTarget(target)
+                    ? 'sendSlackNotification'
+                    : 'sendEmailNotification',
+                schedulerUuid: scheduler.schedulerUuid,
+                jobId: targetJobId,
+                parentJobId: jobId,
+                scheduledTime,
+                target: isSlackTarget(target)
+                    ? target.channel
+                    : target.recipient,
+                targetType: isSlackTarget(target) ? 'slack' : 'email',
+                status: SchedulerJobStatus.SCHEDULED,
+            });
+        });
+
+        schedulerService.logSchedulerJob({
+            task: 'handleScheduledDelivery',
+            schedulerUuid,
+            jobId,
+            parentJobId: jobId,
+            scheduledTime,
+            status: SchedulerJobStatus.COMPLETED,
+        });
+
         analytics.track({
             event: 'scheduler_job.completed',
             anonymousId: LightdashAnalytics.anonymousId,
@@ -482,6 +534,7 @@ export const handleScheduledDelivery = async (
             task: 'handleScheduledDelivery',
             schedulerUuid,
             jobId,
+            parentJobId: jobId,
             scheduledTime,
             status: SchedulerJobStatus.ERROR,
             details: { error: e.message },
