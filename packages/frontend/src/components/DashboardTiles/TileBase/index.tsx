@@ -77,15 +77,18 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                         </TooltipContent>
                                     }
                                     position="bottom-left"
-                                >
-                                    <TileTitleLink
-                                        href={titleHref}
-                                        target="_blank"
-                                        className="non-draggable"
-                                    >
-                                        {title}
-                                    </TileTitleLink>
-                                </Tooltip2>
+                                    renderTarget={({ ref, ...props }) => (
+                                        <TileTitleLink
+                                            ref={ref}
+                                            href={titleHref}
+                                            target="_blank"
+                                            {...props}
+                                            className="non-draggable"
+                                        >
+                                            {title}
+                                        </TileTitleLink>
+                                    )}
+                                />
                             ) : null}
                         </TitleWrapper>
 

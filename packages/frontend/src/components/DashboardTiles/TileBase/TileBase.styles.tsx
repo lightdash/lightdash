@@ -26,6 +26,7 @@ export const HeaderContainer = styled.div<HeaderContainerProps>`
     align-items: flex-start;
     gap: 8px;
     margin-bottom: 12px;
+    height: 24px;
 
     ${(props) =>
         props.$isEditMode
@@ -48,6 +49,22 @@ export const GlobalTileStyles = createGlobalStyle`
 
 export const TitleWrapper = styled.div`
     flex-grow: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    height: inherit;
+    position: relative;
+
+    :hover {
+        white-space: normal;
+        overflow: visible;
+        z-index: 1;
+
+        a {
+            outline: 8px solid ${Colors.WHITE};
+            background-color: ${Colors.WHITE};
+        }
+    }
 `;
 
 export const ButtonsWrapper = styled.div`
