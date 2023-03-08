@@ -206,12 +206,12 @@ export default class EmailClient {
         subject: string,
         title: string,
         description: string,
+        date: string,
+        frequency: string,
         attachment: AttachmentUrl,
         url: string,
     ) {
-        const downloadCsv = `
-        <h4><a href="${attachment.path}">Download results</a></h4>
-        `;
+        const csvUrl = attachment.path;
         return this.sendEmail({
             to: recipient,
             subject,
@@ -219,9 +219,11 @@ export default class EmailClient {
             context: {
                 title,
                 description,
+                date,
+                frequency,
                 url,
+                csvUrl,
                 host: this.lightdashConfig.siteUrl,
-                downloadCsv,
             },
             text: title,
         });
