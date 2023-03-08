@@ -69,7 +69,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             valueFontSize: valueSize,
             labelFontSize: labelSize,
         };
-    }, []);
+    }, [rect?.width]);
 
     const validData = bigNumber && resultsData?.rows.length;
 
@@ -77,26 +77,32 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
 
     return validData ? (
         <BigNumberContainer ref={containerRef} {...wrapperProps}>
-            {minimal || isSqlRunner ? (
-                <BigNumber $fontSize={valueFontSize}>{bigNumber}</BigNumber>
-            ) : (
-                <BigNumberContextMenu
-                    renderTarget={({ ref, onClick }) => (
-                        <BigNumber
-                            $interactive
-                            ref={ref}
-                            onClick={onClick}
-                            $fontSize={valueFontSize}
-                        >
+            {rect?.width ? (
+                <>
+                    {minimal || isSqlRunner ? (
+                        <BigNumber $fontSize={valueFontSize}>
                             {bigNumber}
                         </BigNumber>
+                    ) : (
+                        <BigNumberContextMenu
+                            renderTarget={({ ref, onClick }) => (
+                                <BigNumber
+                                    $interactive
+                                    ref={ref}
+                                    onClick={onClick}
+                                    $fontSize={valueFontSize}
+                                >
+                                    {bigNumber}
+                                </BigNumber>
+                            )}
+                        />
                     )}
-                />
-            )}
 
-            <BigNumberLabel $fontSize={labelFontSize}>
-                {bigNumberLabel || defaultLabel}
-            </BigNumberLabel>
+                    <BigNumberLabel $fontSize={labelFontSize}>
+                        {bigNumberLabel || defaultLabel}
+                    </BigNumberLabel>
+                </>
+            ) : null}
         </BigNumberContainer>
     ) : (
         <EmptyChart />
