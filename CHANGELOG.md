@@ -1,3 +1,10 @@
+# [0.449.0](https://github.com/lightdash/lightdash/compare/0.448.2...0.449.0) (2023-03-08)
+
+
+### Features
+
+* limit csv download ([#4710](https://github.com/lightdash/lightdash/issues/4710)) ([604e437](https://github.com/lightdash/lightdash/commit/604e437565fadf7485537e844f548ad8f2657842))
+
 ## [0.448.2](https://github.com/lightdash/lightdash/compare/0.448.1...0.448.2) (2023-03-08)
 
 
