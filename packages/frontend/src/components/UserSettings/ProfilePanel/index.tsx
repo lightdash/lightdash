@@ -24,7 +24,6 @@ import {
 import { VerifyEmailModal } from '../../../pages/VerifyEmail';
 import { useApp } from '../../../providers/AppProvider';
 import { useErrorLogs } from '../../../providers/ErrorLogsProvider';
-import PageSpinner from '../../PageSpinner';
 import {
     EmailVerificationCTA,
     EmailVerificationCTALink,
@@ -45,9 +44,12 @@ const ProfilePanel: FC = () => {
     const { showError } = useErrorLogs();
 
     const isEmailServerConfigured = health.data?.hasEmailClient;
-    const { data } = useEmailStatus();
-    const { mutate: sendVerificationEmail, error: sendVerificationEmailError } =
-        useOneTimePassword();
+    const { data, isLoading: statusLoading } = useEmailStatus();
+    const {
+        mutate: sendVerificationEmail,
+        error: sendVerificationEmailError,
+        isLoading: emailLoading,
+    } = useOneTimePassword();
 
     const [firstName, setFirstName] = useState<string | undefined>(
         user.data?.firstName,
@@ -185,11 +187,7 @@ const ProfilePanel: FC = () => {
                         This email has not been verified.{' '}
                         <EmailVerificationCTALink
                             onClick={() => {
-                                if (
-                                    data?.otp?.isExpired ||
-                                    data?.otp?.isMaxAttempts ||
-                                    !data?.otp
-                                ) {
+                                if (!data?.otp) {
                                     sendVerificationEmail();
                                 }
                                 setShowVerifyEmailModal(true);
@@ -216,6 +214,7 @@ const ProfilePanel: FC = () => {
                 onClose={() => {
                     setShowVerifyEmailModal(false);
                 }}
+                isLoading={statusLoading || emailLoading}
             />
         </div>
     );

@@ -738,15 +738,6 @@ export class UserService {
                 isExpired: this.isOtpExpired(emailStatus.otp.createdAt),
             },
         };
-        if (
-            emailStatusExpiring.otp?.isExpired ||
-            emailStatusExpiring.otp?.isMaxAttempts
-        ) {
-            await this.emailModel.deleteEmailOtp(
-                user.userUuid,
-                emailStatusExpiring.email,
-            );
-        }
         return emailStatusExpiring;
     }
 }

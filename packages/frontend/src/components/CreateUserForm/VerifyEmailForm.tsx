@@ -1,28 +1,32 @@
-import { Intent } from '@blueprintjs/core';
+import { Intent, Spinner } from '@blueprintjs/core';
 import { EmailStatusExpiring } from '@lightdash/common';
 import React, { FC, useEffect } from 'react';
 import Countdown, { zeroPad } from 'react-countdown';
 import { UseFormReturn } from 'react-hook-form';
-import { useIntercom } from 'react-use-intercom';
-import {
-    AnchorLinkWrapper,
-    FormFooterCopy,
-    Subtitle,
-    Title,
-} from '../../pages/SignUp.styles';
+import { AnchorLinkWrapper, Subtitle, Title } from '../../pages/SignUp.styles';
 import Form from '../ReactHookForm/Form';
 import PasswordInput from '../ReactHookForm/PasswordInput';
 import { FormWrapper, LinkButton, SubmitButton } from './CreateUserForm.styles';
 
 export const VerifyEmailForm: FC<{
-    email: string;
+    email: string | undefined;
     methods: UseFormReturn<{ code: string }>;
     data: EmailStatusExpiring | undefined;
-    expirationTime: Date | string;
+    expirationTime: Date | string | undefined;
     onSubmit: (data: { code: string }) => void;
     onResend: () => void;
-}> = ({ email, methods, data, expirationTime, onSubmit, onResend }) => {
-    const { show: showIntercom } = useIntercom();
+    isLoading: boolean;
+    verificationLoading: boolean;
+}> = ({
+    email,
+    methods,
+    data,
+    expirationTime,
+    onSubmit,
+    onResend,
+    isLoading,
+    verificationLoading,
+}) => {
     const { setError, clearErrors } = methods;
 
     useEffect(() => {
@@ -41,6 +45,14 @@ export const VerifyEmailForm: FC<{
         }
     }, [data, clearErrors, setError]);
 
+    if (isLoading) {
+        return (
+            <div style={{ margin: '50px' }}>
+                <Spinner />
+            </div>
+        );
+    }
+
     return (
         <FormWrapper>
             <Title>Check your inbox!</Title>
@@ -56,12 +68,13 @@ export const VerifyEmailForm: FC<{
                     rules={{
                         required: 'Required field',
                     }}
+                    disabled={data?.otp?.isMaxAttempts}
                 />
                 <Countdown
-                    key={expirationTime.toString()}
+                    key={expirationTime?.toString()}
                     date={expirationTime}
                     renderer={({ minutes, seconds, completed }) => {
-                        if (completed) {
+                        if (completed || data?.otp?.isMaxAttempts) {
                             return <></>;
                         }
                         return (
@@ -76,6 +89,7 @@ export const VerifyEmailForm: FC<{
                                     type="submit"
                                     intent={Intent.PRIMARY}
                                     text="Submit"
+                                    loading={verificationLoading}
                                 />
                             </>
                         );
@@ -85,13 +99,6 @@ export const VerifyEmailForm: FC<{
                     <LinkButton onClick={onResend}>Resend email</LinkButton>
                 </AnchorLinkWrapper>
             </Form>
-            <FormFooterCopy>
-                You need to verify your email to get access to Lightdash. If you
-                need help, you can
-                <LinkButton onClick={() => showIntercom()}>
-                    chat to support here.
-                </LinkButton>
-            </FormFooterCopy>
         </FormWrapper>
     );
 };

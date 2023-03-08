@@ -3,7 +3,9 @@ import { Modal } from '@mantine/core';
 import React, { FC, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { useForm } from 'react-hook-form';
+import { useIntercom } from 'react-use-intercom';
 import Page from '../components/common/Page/Page';
+import { LinkButton } from '../components/CreateUserForm/CreateUserForm.styles';
 import { VerifyEmailForm } from '../components/CreateUserForm/VerifyEmailForm';
 import PageSpinner from '../components/PageSpinner';
 import {
@@ -13,16 +15,24 @@ import {
 } from '../hooks/useEmailVerification';
 import { useApp } from '../providers/AppProvider';
 import LightdashLogo from '../svgs/lightdash-black.svg';
-import { CardWrapper, FormWrapper, Logo, LogoWrapper } from './SignUp.styles';
+import {
+    CardWrapper,
+    FormFooterCopy,
+    FormWrapper,
+    Logo,
+    LogoWrapper,
+} from './SignUp.styles';
 
 export const VerifyEmailPage: FC = () => {
     const { health, user } = useApp();
     const methods = useForm<{ code: string }>({ mode: 'onSubmit' });
-    const { mutate } = useVerifyEmail();
-    const { data } = useEmailStatus();
-    const { mutate: sendVerificationEmail } = useOneTimePassword();
+    const { mutate, isLoading: verificationLoading } = useVerifyEmail();
+    const { data, isLoading: statusLoading } = useEmailStatus();
+    const { mutate: sendVerificationEmail, isLoading: emailLoading } =
+        useOneTimePassword();
+    const { show: showIntercom } = useIntercom();
 
-    if (health.isLoading && data) {
+    if (health.isLoading) {
         return <PageSpinner />;
     }
 
@@ -45,39 +55,53 @@ export const VerifyEmailPage: FC = () => {
                             mutate(code);
                         }}
                         onResend={sendVerificationEmail}
+                        isLoading={statusLoading || emailLoading}
+                        verificationLoading={verificationLoading}
                     />
                 </CardWrapper>
+                <FormFooterCopy>
+                    You need to verify your email to get access to Lightdash. If
+                    you need help, you can
+                    <LinkButton onClick={() => showIntercom()}>
+                        chat to support here.
+                    </LinkButton>
+                </FormFooterCopy>
             </FormWrapper>
         </Page>
     );
 };
 
-export const VerifyEmailModal: FC<{ opened: boolean; onClose: () => void }> = ({
-    opened,
-    onClose,
-}) => {
+export const VerifyEmailModal: FC<{
+    opened: boolean;
+    onClose: () => void;
+    isLoading: boolean;
+}> = ({ opened, onClose, isLoading }) => {
     const { health, user } = useApp();
     const methods = useForm<{ code: string }>({ mode: 'onSubmit' });
-    const { mutate } = useVerifyEmail();
-    const { data } = useEmailStatus();
-    const { mutate: sendVerificationEmail } = useOneTimePassword();
-
-    if (health.isLoading && !data) {
-        return <PageSpinner />;
-    }
+    const { mutate, isLoading: verificationLoading } = useVerifyEmail();
+    const { data, isLoading: statusLoading } = useEmailStatus();
+    const { mutate: sendVerificationEmail, isLoading: emailLoading } =
+        useOneTimePassword();
 
     return (
         <Dialog isOpen={opened} onClose={onClose} title="">
             <DialogBody>
                 <VerifyEmailForm
-                    email={user.data?.email || 'your e-mail.'}
+                    email={user.data?.email}
                     methods={methods}
                     data={data}
-                    expirationTime={data?.otp?.expiresAt || new Date()}
+                    expirationTime={data?.otp?.expiresAt}
                     onSubmit={({ code }) => {
                         mutate(code);
                     }}
                     onResend={sendVerificationEmail}
+                    isLoading={
+                        statusLoading ||
+                        emailLoading ||
+                        health.isLoading ||
+                        isLoading
+                    }
+                    verificationLoading={verificationLoading}
                 />
             </DialogBody>
         </Dialog>
