@@ -9,6 +9,10 @@ import { useDashboardQuery } from '../hooks/dashboard/useDashboard';
 import { DashboardProvider } from '../providers/DashboardProvider';
 
 import '../styles/react-grid.css';
+import {
+    getReactGridLayoutConfig,
+    RESPONSIVE_GRID_LAYOUT_PROPS,
+} from './Dashboard';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -33,26 +37,15 @@ const MinimalDashboard: FC = () => {
     }
 
     const layouts = {
-        lg: dashboard.tiles.map<Layout>((tile) => ({
-            minH: 2,
-            minW: 6,
-            x: tile.x,
-            y: tile.y,
-            w: tile.w,
-            h: tile.h,
-            i: tile.uuid,
-            isDraggable: false,
-            isResizable: false,
-        })),
+        lg: dashboard.tiles.map<Layout>((tile) =>
+            getReactGridLayoutConfig(tile),
+        ),
     };
 
     return (
         <DashboardProvider>
             <ResponsiveGridLayout
-                useCSSTransforms={false}
-                breakpoints={{ lg: 1200, md: 996, sm: 768 }}
-                cols={{ lg: 36, md: 30, sm: 18 }}
-                rowHeight={50}
+                {...RESPONSIVE_GRID_LAYOUT_PROPS}
                 layouts={layouts}
             >
                 {dashboard.tiles.map((tile) => (

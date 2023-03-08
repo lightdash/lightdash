@@ -1,5 +1,9 @@
 import { Alert, Intent, NonIdealState, Spinner } from '@blueprintjs/core';
-import { Dashboard as IDashboard, DashboardTileTypes } from '@lightdash/common';
+import {
+    Dashboard as IDashboard,
+    DashboardTile,
+    DashboardTileTypes,
+} from '@lightdash/common';
 import React, {
     FC,
     memo,
@@ -36,6 +40,29 @@ import { useDashboardContext } from '../providers/DashboardProvider';
 import { TrackSection } from '../providers/TrackingProvider';
 import '../styles/react-grid.css';
 import { SectionName } from '../types/Events';
+
+export const getReactGridLayoutConfig = (
+    tile: DashboardTile,
+    isEditMode = false,
+): Layout => ({
+    minH: 3,
+    minW: 6,
+    x: tile.x,
+    y: tile.y,
+    w: tile.w,
+    h: tile.h,
+    i: tile.uuid,
+    isDraggable: isEditMode,
+    isResizable: isEditMode,
+});
+
+export const RESPONSIVE_GRID_LAYOUT_PROPS = {
+    draggableCancel: '.non-draggable',
+    useCSSTransforms: false,
+    breakpoints: { lg: 1200, md: 996, sm: 768 },
+    cols: { lg: 36, md: 30, sm: 18 },
+    rowHeight: 50,
+};
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -138,17 +165,9 @@ const Dashboard = () => {
 
     const layouts = useMemo(
         () => ({
-            lg: dashboardTiles.map<Layout>((tile) => ({
-                minH: 3,
-                minW: 6,
-                x: tile.x,
-                y: tile.y,
-                w: tile.w,
-                h: tile.h,
-                i: tile.uuid,
-                isDraggable: isEditMode,
-                isResizable: isEditMode,
-            })),
+            lg: dashboardTiles.map<Layout>((tile) =>
+                getReactGridLayoutConfig(tile, isEditMode),
+            ),
         }),
         [dashboardTiles, isEditMode],
     );
@@ -409,13 +428,9 @@ const Dashboard = () => {
                     <DashboardFilter isEditMode={isEditMode} />
                 )}
                 <ResponsiveGridLayout
-                    useCSSTransforms={false}
-                    draggableCancel=".non-draggable"
+                    {...RESPONSIVE_GRID_LAYOUT_PROPS}
                     onDragStop={handleUpdateTiles}
                     onResizeStop={handleUpdateTiles}
-                    breakpoints={{ lg: 1200, md: 996, sm: 768 }}
-                    cols={{ lg: 36, md: 30, sm: 18 }}
-                    rowHeight={50}
                     layouts={layouts}
                 >
                     {dashboardTiles.map((tile) => {
