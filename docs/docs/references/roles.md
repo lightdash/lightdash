@@ -14,7 +14,6 @@ accessible by users with organization roles.
 | Run metric queries                      |       ✅       |       ✅        |       ✅        |
 | Create/edit charts and dashboards       |       ✅       |       ✅        |       ❌        |    
 | Use the SQL runner                      |       ✅       |       ✅        |       ❌        |
-| Invite users to project                 |       ✅       |       ❌        |       ❌        |
 | Manage project access and permissions   |       ✅       |       ❌        |       ❌        |
 | Delete project                          |       ✅       |       ❌        |       ❌        |
 
@@ -25,11 +24,11 @@ Organization Admins can assign roles to organization members, which gives access
 | Action                                     | Organization Admin | Organization Editor | Organization Viewer | Organization Member |
 |:-------------------------------------------|:------------------:|:-------------------:|:-------------------:|:-------------------:|
 | Create Personal access tokens              |         ✅          |          ✅          |          ✅          |          ✅          |
-| Invite users to organization               |         ✅          |          ✅          |          ✅          |          ✅          |
 | Create new projects                        |         ✅          |          ✅          |          ✅          |          ✅          |   
 | View **all** projects                      |         ✅          |          ✅          |          ✅          |          ❌          |
 | Edit **all** projects                      |         ✅          |          ✅          |          ❌          |          ❌          |
 | Admin for **all** projects                 |         ✅          |          ❌          |          ❌          |          ❌          |
+| Invite users to organization               |         ✅          |          ❌          |          ❌          |          ❌          |
 | Manage organization access and permissions |         ✅          |          ❌          |          ❌          |          ❌          |
 
 ## Space Roles
