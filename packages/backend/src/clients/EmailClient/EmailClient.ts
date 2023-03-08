@@ -206,22 +206,24 @@ export default class EmailClient {
         subject: string,
         title: string,
         description: string,
+        date: string,
+        frequency: string,
         attachment: AttachmentUrl,
         url: string,
     ) {
-        const downloadCsv = `
-        <h4><a href="${attachment.path}">Download results</a></h4>
-        `;
+        const csvUrl = attachment.path;
         return this.sendEmail({
             to: recipient,
             subject,
-            template: 'csvNotification',
+            template: 'chartCsvNotification',
             context: {
                 title,
                 description,
+                date,
+                frequency,
                 url,
+                csvUrl,
                 host: this.lightdashConfig.siteUrl,
-                downloadCsv,
             },
             text: title,
         });
@@ -232,30 +234,66 @@ export default class EmailClient {
         subject: string,
         title: string,
         description: string,
+        date: string,
+        frequency: string,
         attachments: AttachmentUrl[],
         url: string,
     ) {
-        const downloadCsv = `
-        <h3>Download results:</h3>
-        <ul>
+        const csvUrls = `
             ${attachments
                 .map(
                     (attachment) =>
-                        `<li><a href="${attachment.path}">${attachment.filename}</a></li>`,
+                        `<table
+                           role="presentation"
+                           width="100%"
+                           cellpadding="0"
+                           cellspacing="0"
+                           class="t179"
+                        >
+                          <tr>
+                            <td
+                              class="t180"
+                              style="
+       overflow: hidden;
+       text-align: center;
+       line-height: 32px;
+       mso-line-height-rule: exactly;
+       mso-text-raise: 5px;
+       padding: 0
+       5px
+       0
+       5px;
+       border-radius: 3px
+       3px
+       3px
+       3px;
+       "
+                            >
+                                <a class="t181"
+                                   style="display:block;font-family:BlinkMacSystemFont,Segoe UI,Helvetica Neue,Arial,sans-serif, 'Roboto';line-height:32px;font-weight:500;font-style:normal;font-size:14px;text-decoration:underline;direction:ltr;color:#7262FF;text-align:center;mso-line-height-rule:exactly;mso-text-raise:5px;"
+                                   target="_blank"
+                                   href="${attachment.path}">
+                                     ${attachment.filename}
+                                   </a>
+                         </tr>
+                           </td>
+                      </table>
+`,
                 )
                 .join('')}
-        </ul>
         `;
         return this.sendEmail({
             to: recipient,
             subject,
-            template: 'csvNotification',
+            template: 'dashboardCsvNotification',
             context: {
                 title,
                 description,
+                date,
+                frequency,
+                csvUrls,
                 url,
                 host: this.lightdashConfig.siteUrl,
-                downloadCsv,
             },
             text: title,
         });
