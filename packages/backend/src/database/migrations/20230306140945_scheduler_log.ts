@@ -8,7 +8,7 @@ export async function up(knex: Knex): Promise<void> {
         await knex.schema.createTable(SchedulerLogTableName, (table) => {
             table.string('job_id').notNullable();
             table.string('task').notNullable();
-            table.string('parent_job_id').notNullable();
+            table.string('job_group').notNullable();
 
             table
                 .uuid('scheduler_uuid')

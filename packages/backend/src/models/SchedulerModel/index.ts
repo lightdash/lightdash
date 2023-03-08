@@ -333,7 +333,7 @@ export class SchedulerModel {
             scheduler_uuid: log.schedulerUuid,
             status: log.status,
             job_id: log.jobId,
-            parent_job_id: log.parentJobId,
+            job_group: log.jobGroup,
             scheduled_time: log.scheduledTime,
             target: log.target || null,
             target_type: log.targetType || null,

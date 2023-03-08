@@ -138,7 +138,7 @@ export class SchedulerClient {
 
     private async addNotificationJob(
         date: Date,
-        parentJobId: string,
+        jobGroup: string,
         scheduler: Scheduler,
         target: SchedulerSlackTarget | SchedulerEmailTarget,
         page: NotificationPayloadBase['page'],
@@ -149,7 +149,7 @@ export class SchedulerClient {
             isSlackTarget(target)
                 ? {
                       schedulerUuid: scheduler.schedulerUuid,
-                      parentJobId,
+                      jobGroup,
                       scheduledTime: date,
                       page,
                       schedulerSlackTargetUuid: target.schedulerSlackTargetUuid,
@@ -157,7 +157,7 @@ export class SchedulerClient {
                 : {
                       schedulerUuid: scheduler.schedulerUuid,
                       scheduledTime: date,
-                      parentJobId,
+                      jobGroup,
                       page,
                       schedulerEmailTargetUuid: target.schedulerEmailTargetUuid,
                   };
@@ -204,7 +204,7 @@ export class SchedulerClient {
                 await this.schedulerModel.logSchedulerJob({
                     task: 'handleScheduledDelivery',
                     schedulerUuid: scheduler.schedulerUuid,
-                    parentJobId: jobId,
+                    jobGroup: jobId,
                     jobId,
                     scheduledTime: date,
                     status: SchedulerJobStatus.SCHEDULED,

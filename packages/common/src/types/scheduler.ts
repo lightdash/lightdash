@@ -21,7 +21,7 @@ export type SchedulerLog = {
         | 'sendSlackNotification';
     schedulerUuid: string;
     jobId: string;
-    parentJobId: string;
+    jobGroup: string;
     scheduledTime: Date;
     status: SchedulerJobStatus;
     target?: string;
@@ -172,7 +172,7 @@ export enum LightdashPage {
 export type NotificationPayloadBase = {
     schedulerUuid: string;
     scheduledTime: Date;
-    parentJobId: string;
+    jobGroup: string;
     page: {
         url: string;
         details: {

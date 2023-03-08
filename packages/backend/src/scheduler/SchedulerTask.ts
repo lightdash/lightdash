@@ -177,7 +177,7 @@ export const sendSlackNotification = async (
             task: 'sendSlackNotification',
             schedulerUuid,
             jobId,
-            parentJobId: notification.parentJobId,
+            jobGroup: notification.jobGroup,
 
             scheduledTime,
             target: channel,
@@ -268,7 +268,7 @@ export const sendSlackNotification = async (
             task: 'sendSlackNotification',
             schedulerUuid,
             jobId,
-            parentJobId: notification.parentJobId,
+            jobGroup: notification.jobGroup,
 
             scheduledTime,
             target: channel,
@@ -292,7 +292,7 @@ export const sendSlackNotification = async (
             task: 'sendSlackNotification',
             schedulerUuid,
             jobId,
-            parentJobId: notification.parentJobId,
+            jobGroup: notification.jobGroup,
 
             scheduledTime,
             targetType: 'slack',
@@ -344,7 +344,7 @@ export const sendEmailNotification = async (
             task: 'sendEmailNotification',
             schedulerUuid,
             jobId,
-            parentJobId: notification.parentJobId,
+            jobGroup: notification.jobGroup,
 
             scheduledTime,
             target: recipient,
@@ -415,7 +415,7 @@ export const sendEmailNotification = async (
             task: 'sendEmailNotification',
             schedulerUuid,
             jobId,
-            parentJobId: notification.parentJobId,
+            jobGroup: notification.jobGroup,
 
             scheduledTime,
             target: recipient,
@@ -439,7 +439,7 @@ export const sendEmailNotification = async (
             task: 'sendEmailNotification',
             schedulerUuid,
             jobId,
-            parentJobId: notification.parentJobId,
+            jobGroup: notification.jobGroup,
             scheduledTime,
             targetType: 'email',
             status: SchedulerJobStatus.ERROR,
@@ -468,7 +468,7 @@ export const handleScheduledDelivery = async (
             task: 'handleScheduledDelivery',
             schedulerUuid,
             jobId,
-            parentJobId: jobId,
+            jobGroup: jobId,
             scheduledTime,
             status: SchedulerJobStatus.STARTED,
         });
@@ -493,7 +493,7 @@ export const handleScheduledDelivery = async (
                     : 'sendEmailNotification',
                 schedulerUuid: scheduler.schedulerUuid,
                 jobId: targetJobId,
-                parentJobId: jobId,
+                jobGroup: jobId,
                 scheduledTime,
                 target: isSlackTarget(target)
                     ? target.channel
@@ -507,7 +507,7 @@ export const handleScheduledDelivery = async (
             task: 'handleScheduledDelivery',
             schedulerUuid,
             jobId,
-            parentJobId: jobId,
+            jobGroup: jobId,
             scheduledTime,
             status: SchedulerJobStatus.COMPLETED,
         });
@@ -534,7 +534,7 @@ export const handleScheduledDelivery = async (
             task: 'handleScheduledDelivery',
             schedulerUuid,
             jobId,
-            parentJobId: jobId,
+            jobGroup: jobId,
             scheduledTime,
             status: SchedulerJobStatus.ERROR,
             details: { error: e.message },
