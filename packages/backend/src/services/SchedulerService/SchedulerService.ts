@@ -4,6 +4,7 @@ import {
     ForbiddenError,
     isChartScheduler,
     isSlackTarget,
+    isUserWithOrg,
     SavedChart,
     ScheduledJobs,
     Scheduler,
@@ -99,6 +100,9 @@ export class SchedulerService {
         schedulerUuid: string,
         updatedScheduler: UpdateSchedulerAndTargetsWithoutId,
     ): Promise<SchedulerAndTargets> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
         const {
             resource: { organizationUuid, projectUuid },
         } = await this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);

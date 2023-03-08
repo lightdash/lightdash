@@ -7,6 +7,9 @@ import {
     ProjectMemberRole,
 } from '../types/projectMemberProfile';
 
+export const userWithoutOrg = {
+    userUuid: 'user-uuid-1234',
+};
 export const orgProfile: OrganizationMemberProfile = {
     userUuid: 'user-uuid-1234',
     role: OrganizationMemberRole.VIEWER,

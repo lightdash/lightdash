@@ -7,15 +7,25 @@ export interface LightdashUser {
     email: string | undefined;
     firstName: string;
     lastName: string;
-    organizationUuid: string;
-    organizationName: string;
-    organizationCreatedAt: Date;
+    organizationUuid?: string;
+    organizationName?: string;
+    organizationCreatedAt?: Date;
     isTrackingAnonymized: boolean;
     isMarketingOptedIn: boolean;
     isSetupComplete: boolean;
-    role: OrganizationMemberRole;
+    role?: OrganizationMemberRole;
     isActive: boolean;
 }
+
+export type LightdashUserWithOrg = Required<LightdashUser>;
+
+export const isUserWithOrg = (
+    user: LightdashUser,
+): user is LightdashUserWithOrg =>
+    user.organizationUuid !== undefined &&
+    user.organizationName !== undefined &&
+    user.organizationCreatedAt !== undefined &&
+    user.role !== undefined;
 
 export interface LightdashUserWithAbilityRules extends LightdashUser {
     abilityRules: AbilityBuilder<MemberAbility>['rules'];

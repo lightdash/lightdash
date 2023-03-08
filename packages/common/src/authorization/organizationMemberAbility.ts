@@ -11,7 +11,7 @@ export const organizationMemberAbilities: Record<
     (
         member: Pick<
             OrganizationMemberProfile,
-            'role' | 'organizationUuid' | 'userUuid'
+            'organizationUuid' | 'userUuid'
         >,
         builder: Pick<AbilityBuilder<MemberAbility>, 'can'>,
     ) => void
