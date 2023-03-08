@@ -40,12 +40,15 @@ const updateUserQuery = async (data: Partial<UpdateUserArgs>) =>
 
 const ProfilePanel: FC = () => {
     const queryClient = useQueryClient();
-    const { user } = useApp();
+    const { user, health } = useApp();
     const { showToastSuccess, showToastError } = useToaster();
     const { showError } = useErrorLogs();
+
+    const isEmailServerConfigured = health.data?.hasEmailClient;
     const { data } = useEmailStatus();
     const { mutate: sendVerificationEmail, error: sendVerificationEmailError } =
         useOneTimePassword();
+
     const [firstName, setFirstName] = useState<string | undefined>(
         user.data?.firstName,
     );
@@ -79,7 +82,11 @@ const ProfilePanel: FC = () => {
                 body: rest.join('\n'),
             });
         }
-        if (sendVerificationEmailError || data?.isVerified) {
+        if (
+            sendVerificationEmailError ||
+            data?.isVerified ||
+            !isEmailServerConfigured
+        ) {
             setShowVerifyEmailModal(false);
         }
     }, [sendVerificationEmailError, data, error, showError]);
@@ -158,22 +165,22 @@ const ProfilePanel: FC = () => {
                     onChange={(e) => setEmail(e.target.value.trim())}
                     data-cy="email-input"
                     rightElement={
-                        data?.isVerified ? (
+                        isEmailServerConfigured && data?.isVerified ? (
                             <Tooltip2 content="This e-mail has been verified">
                                 <EmailVerificationIcon
                                     icon="tick-circle"
                                     color={Colors.GREEN4}
                                 />
                             </Tooltip2>
-                        ) : (
+                        ) : isEmailServerConfigured && !data?.isVerified ? (
                             <EmailVerificationIcon
                                 icon="issue"
                                 color={Colors.GRAY3}
                             />
-                        )
+                        ) : undefined
                     }
                 />
-                {!data?.isVerified ? (
+                {isEmailServerConfigured && !data?.isVerified ? (
                     <EmailVerificationCTA>
                         This email has not been verified.{' '}
                         <EmailVerificationCTALink
