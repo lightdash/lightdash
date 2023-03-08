@@ -45,7 +45,7 @@ import { SearchResults } from './types/search';
 import { ShareUrl } from './types/share';
 import { SlackSettings } from './types/slackSettings';
 
-import { ApiEmailStatusResponse, EmailStatusExpiring } from './types/email';
+import { EmailStatusExpiring } from './types/email';
 import { FieldValueSearchResult } from './types/fieldMatch';
 import {
     OnboardingStatus,
@@ -481,8 +481,7 @@ type ApiResults =
     | SchedulerAndTargets[]
     | FieldValueSearchResult
     | ApiDownloadCsv
-    | EmailStatusExpiring
-    | ApiEmailStatusResponse;
+    | EmailStatusExpiring;
 
 export type ApiResponse = {
     status: 'ok';

@@ -1,21 +1,8 @@
-import {
-    ApiEmailStatusResponse,
-    ApiError,
-    EmailStatusExpiring,
-} from '@lightdash/common';
-import { useState } from 'react';
+import { ApiError, EmailStatusExpiring } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 
-// ### Get status of email
-// GET http://localhost:3000/api/v1/user/me/email/status
-//
-//   ### Create a new OTP
-// PUT http://localhost:3000/api/v1/user/me/email/otp
-//
-//   ### Try to verify status with code in the url params
-// GET http://localhost:3000/api/v1/user/me/email/status?passcode=073557
 export const getEmailStatusQuery = async () => {
     return lightdashApi<EmailStatusExpiring>({
         url: `/user/me/email/status`,
