@@ -1,3 +1,10 @@
+## [0.448.2](https://github.com/lightdash/lightdash/compare/0.448.1...0.448.2) (2023-03-08)
+
+
+### Bug Fixes
+
+* in between timezone ([#4705](https://github.com/lightdash/lightdash/issues/4705)) ([09f5bb9](https://github.com/lightdash/lightdash/commit/09f5bb977b730d2a7d6c27fc371d518b91ffcc20))
+
 ## [0.448.1](https://github.com/lightdash/lightdash/compare/0.448.0...0.448.1) (2023-03-07)
 
 
