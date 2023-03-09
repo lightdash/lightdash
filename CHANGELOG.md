@@ -1,3 +1,10 @@
+# [0.455.0](https://github.com/lightdash/lightdash/compare/0.454.1...0.455.0) (2023-03-09)
+
+
+### Features
+
+* update verify email layout ([#4728](https://github.com/lightdash/lightdash/issues/4728)) ([c4fae92](https://github.com/lightdash/lightdash/commit/c4fae927fa1f96db9ac60099a497705f04dd5716))
+
 ## [0.454.1](https://github.com/lightdash/lightdash/compare/0.454.0...0.454.1) (2023-03-09)
 
 
