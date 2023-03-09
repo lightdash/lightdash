@@ -1,0 +1,30 @@
+name: Test easy install
+
+on:
+  schedule:
+    - cron: '0 10 * * *'
+  pull_request:
+    branches: [ main ]
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Run easy install
+      run: ./scripts/install.sh
+    - name: Test containers 
+      run: |
+        exited_containers=$(docker-compose -f docker-compose.yml ps | grep exited | wc -l)
+        if [ $exited_containers = '0' ]; then exit 0 ; else echo "Some containers are not running"; docker-compose -f docker-compose.yml ps ;docker-compose -f docker-compose.yml logs; exit 1; fi 
+    - name: Test frontend 
+      run: | 
+        output=$(curl -s http://localhost:8080 | grep "Lightdash - Explore and visualize your team's analytics and metrics." |  wc -l)
+        if [ $output = '1' ]; then exit 0 ; else echo "Frontend is not running"; exit 1; fi 
+    - name: Test backend 
+      run: | 
+        output=$(curl -s "http://localhost:3000/api/v1/health" | grep -o '"healthy":true' | wc -l)
+        if [ $output = '1' ]; then exit 0 ; else echo "Backend is not running"; curl -s "http://localhost:3000/api/v1/health"; exit 1; fi 
