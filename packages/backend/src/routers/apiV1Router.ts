@@ -51,35 +51,6 @@ apiV1Router.get('/flash', (req, res) => {
     });
 });
 
-apiV1Router.post(
-    '/register-with-no-org',
-    unauthorisedInDemo,
-    async (req, res, next) => {
-        try {
-            const lightdashUser = await userService.registerUser({
-                firstName: sanitizeStringParam(req.body.firstName),
-                lastName: sanitizeStringParam(req.body.lastName),
-                email: sanitizeEmailParam(req.body.email),
-                password: sanitizeStringParam(req.body.password),
-            });
-            const sessionUser = await userModel.findSessionUserByUUID(
-                lightdashUser.userUuid,
-            );
-            req.login(sessionUser, (err) => {
-                if (err) {
-                    next(err);
-                }
-                res.json({
-                    status: 'ok',
-                    results: lightdashUser,
-                });
-            });
-        } catch (e) {
-            next(e);
-        }
-    },
-);
-
 apiV1Router.post('/register', unauthorisedInDemo, async (req, res, next) => {
     try {
         const lightdashUser = await userService.registerNewUserWithOrg({
