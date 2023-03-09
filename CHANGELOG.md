@@ -1,3 +1,10 @@
+# [0.452.0](https://github.com/lightdash/lightdash/compare/0.451.0...0.452.0) (2023-03-09)
+
+
+### Features
+
+* verify email on email update ([#4717](https://github.com/lightdash/lightdash/issues/4717)) ([01a5f4e](https://github.com/lightdash/lightdash/commit/01a5f4e31d55218646a26135378d70d9bcbbfed9))
+
 # [0.451.0](https://github.com/lightdash/lightdash/compare/0.450.0...0.451.0) (2023-03-09)
 
 
