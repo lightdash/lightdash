@@ -76,6 +76,11 @@ export type AllowedEmailDomains = {
     projectUuids: string[];
 };
 
+export type UpdateAllowedEmailDomains = Omit<
+    AllowedEmailDomains,
+    'organizationUuid'
+>;
+
 export type ApiOrganizationAllowedEmailDomains = {
     status: 'ok';
     results: AllowedEmailDomains;

@@ -13,6 +13,7 @@ import {
     SessionUser,
     UpdateOrganization,
 } from '@lightdash/common';
+import { UpdateAllowedEmailDomains } from '@lightdash/common/src/types/organization';
 import { analytics } from '../../analytics/client';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { InviteLinkModel } from '../../models/InviteLinkModel';
@@ -297,15 +298,23 @@ export class OrganizationService {
 
     async updateAllowedEmailDomains(
         user: SessionUser,
-        data: AllowedEmailDomains,
+        data: UpdateAllowedEmailDomains,
     ): Promise<AllowedEmailDomains> {
         const { organizationUuid } = user;
         if (organizationUuid === undefined) {
             throw new NotExistsError('Organization not found');
         }
+        if (
+            user.ability.cannot(
+                'update',
+                subject('OrganizationMemberProfile', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
 
         return this.organizationAllowedEmailDomainsModel.upsertAllowedEmailDomains(
-            data,
+            { ...data, organizationUuid },
         );
     }
 }

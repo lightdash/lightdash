@@ -1,5 +1,4 @@
 import {
-    AllowedEmailDomains,
     ApiErrorPayload,
     ApiOrganization,
     ApiOrganizationAllowedEmailDomains,
@@ -7,6 +6,7 @@ import {
     ApiOrganizationMemberProfiles,
     ApiSuccessEmpty,
     OrganizationMemberProfileUpdate,
+    UpdateAllowedEmailDomains,
     UpdateOrganization,
 } from '@lightdash/common';
 import { Controller, Delete } from '@tsoa/runtime';
@@ -177,7 +177,7 @@ export class OrganizationController extends Controller {
     @OperationId('updateOrganizationAllowedEmailDomains')
     async updateOrganizationAllowedEmailDomains(
         @Request() req: express.Request,
-        @Body() body: AllowedEmailDomains,
+        @Body() body: UpdateAllowedEmailDomains,
     ): Promise<ApiOrganizationAllowedEmailDomains> {
         this.setStatus(200);
         return {
