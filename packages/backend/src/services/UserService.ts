@@ -522,6 +522,39 @@ export class UserService {
         return updatedUser;
     }
 
+    async registerUser(createUser: CreateUserArgs | OpenIdUser) {
+        if (
+            !isOpenIdUser(createUser) &&
+            lightdashConfig.auth.disablePasswordAuthentication
+        ) {
+            throw new ForbiddenError('Password credentials are not allowed');
+        }
+        const user = await this.userModel.createUser(createUser);
+        identifyUser({
+            ...user,
+            isMarketingOptedIn: user.isMarketingOptedIn,
+        });
+        analytics.track({
+            event: 'user.created',
+            userId: user.userUuid,
+            properties: {
+                userConnectionType: isOpenIdUser(createUser)
+                    ? 'google'
+                    : 'password',
+            },
+        });
+        if (isOpenIdUser(createUser)) {
+            analytics.track({
+                userId: user.userUuid,
+                event: 'user.identity_linked',
+                properties: {
+                    loginProvider: 'google',
+                },
+            });
+        }
+        return user;
+    }
+
     async registerNewUserWithOrg(createUser: CreateUserArgs | OpenIdUser) {
         if (
             !lightdashConfig.allowMultiOrgs &&
