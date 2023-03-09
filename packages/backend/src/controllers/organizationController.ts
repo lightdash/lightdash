@@ -1,6 +1,8 @@
 import {
+    AllowedEmailDomains,
     ApiErrorPayload,
     ApiOrganization,
+    ApiOrganizationAllowedEmailDomains,
     ApiOrganizationMemberProfile,
     ApiOrganizationMemberProfiles,
     ApiSuccessEmpty,
@@ -148,6 +150,42 @@ export class OrganizationController extends Controller {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    /**
+     * Gets allowed email domains for the current user's organization
+     * @param req express request
+     */
+    @Middlewares([isAuthenticated])
+    @Get('/allowedEmailDomains')
+    @OperationId('getOrganizationAllowedEmailDomains')
+    async getOrganizationAllowedEmailDomains(
+        @Request() req: express.Request,
+    ): Promise<ApiOrganizationAllowedEmailDomains> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await organizationService.getAllowedEmailDomains(
+                req.user!,
+            ),
+        };
+    }
+
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @Patch('/allowedEmailDomains')
+    @OperationId('updateOrganizationAllowedEmailDomains')
+    async updateOrganizationAllowedEmailDomains(
+        @Request() req: express.Request,
+        @Body() body: AllowedEmailDomains,
+    ): Promise<ApiOrganizationAllowedEmailDomains> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await organizationService.updateAllowedEmailDomains(
+                req.user!,
+                body,
+            ),
         };
     }
 }

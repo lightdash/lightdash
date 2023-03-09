@@ -10,6 +10,7 @@ import { InviteLinkModel } from './InviteLinkModel';
 import { JobModel } from './JobModel/JobModel';
 import { OnboardingModel } from './OnboardingModel/OnboardingModel';
 import { OpenIdIdentityModel } from './OpenIdIdentitiesModel';
+import { OrganizationAllowedEmailDomainsModel } from './OrganizationAllowedEmailDomainsModel';
 import { OrganizationMemberProfileModel } from './OrganizationMemberProfileModel';
 import { OrganizationModel } from './OrganizationModel';
 import { PasswordResetLinkModel } from './PasswordResetLinkModel';
@@ -72,3 +73,6 @@ export const analyticsModel = new AnalyticsModel({
 export const pinnedListModel = new PinnedListModel({ database });
 
 export const schedulerModel = new SchedulerModel({ database });
+
+export const organizationAllowedEmailDomainsModel =
+    new OrganizationAllowedEmailDomainsModel({ database });

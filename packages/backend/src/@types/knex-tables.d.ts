@@ -119,6 +119,10 @@ import {
     EmailOneTimePasscodeTable,
 } from '../database/entities/email_one_time_passcodes';
 import {
+    OrganizationAllowedEmailDomainsTable,
+    OrganizationAllowedEmailDomainsTableName,
+} from '../database/entities/organizationsAllowedEmailDomains';
+import {
     SchedulerEmailTargetTable,
     SchedulerEmailTargetTableName,
     SchedulerLogTable,
@@ -177,5 +181,6 @@ declare module 'knex/types/tables' {
         [SchedulerEmailTargetTableName]: SchedulerEmailTargetTable;
         [EmailOneTimePasscodesTableName]: EmailOneTimePasscodeTable;
         [SchedulerLogTableName]: SchedulerLogTable;
+        [OrganizationAllowedEmailDomainsTableName]: OrganizationAllowedEmailDomainsTable;
     }
 }

@@ -1,3 +1,4 @@
+import { OrganizationMemberRole } from './organizationMemberProfile';
 import { ProjectType } from './projects';
 
 /**
@@ -66,4 +67,16 @@ export type OnboardingStatus = {
 export type ApiOnboardingStatusResponse = {
     status: 'ok';
     results: OnboardingStatus;
+};
+
+export type AllowedEmailDomains = {
+    organizationUuid: string;
+    emailDomains: string[];
+    role: OrganizationMemberRole;
+    projectUuids: string[];
+};
+
+export type ApiOrganizationAllowedEmailDomains = {
+    status: 'ok';
+    results: AllowedEmailDomains;
 };
