@@ -2,7 +2,7 @@ import { Knex } from 'knex';
 
 const OrganizationTableName = 'organizations';
 const OrganizationAllowedEmailDomainsTableName =
-    'organizations_allowed_email_domains';
+    'organization_allowed_email_domains';
 const organizationMembershipRolesTableName = 'organization_membership_roles';
 
 export async function up(knex: Knex): Promise<void> {

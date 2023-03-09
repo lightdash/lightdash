@@ -2,7 +2,7 @@ import { OrganizationMemberRole } from '@lightdash/common';
 import { Knex } from 'knex';
 
 export const OrganizationAllowedEmailDomainsTableName =
-    'organizations_allowed_email_domains';
+    'organization_allowed_email_domains';
 
 export type DbOrganizationAllowedEmailDomains = {
     allowed_email_domains_uuid: string;
