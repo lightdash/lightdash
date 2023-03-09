@@ -1,3 +1,10 @@
+# [0.453.0](https://github.com/lightdash/lightdash/compare/0.452.0...0.453.0) (2023-03-09)
+
+
+### Features
+
+* only org admins can invite users ([#4724](https://github.com/lightdash/lightdash/issues/4724)) ([980328f](https://github.com/lightdash/lightdash/commit/980328f23c62d7b876c60ebc2cc2a97a899a484e))
+
 # [0.452.0](https://github.com/lightdash/lightdash/compare/0.451.0...0.452.0) (2023-03-09)
 
 
