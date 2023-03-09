@@ -1,3 +1,10 @@
+# [0.451.0](https://github.com/lightdash/lightdash/compare/0.450.0...0.451.0) (2023-03-09)
+
+
+### Features
+
+* store scheduler job history ([#4699](https://github.com/lightdash/lightdash/issues/4699)) ([56695f8](https://github.com/lightdash/lightdash/commit/56695f83c99f8c5334b7f4bc2166ba459b9aacf0))
+
 # [0.450.0](https://github.com/lightdash/lightdash/compare/0.449.0...0.450.0) (2023-03-08)
 
 
