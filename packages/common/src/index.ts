@@ -45,6 +45,7 @@ import { SearchResults } from './types/search';
 import { ShareUrl } from './types/share';
 import { SlackSettings } from './types/slackSettings';
 
+import { EmailStatusExpiring } from './types/email';
 import { FieldValueSearchResult } from './types/fieldMatch';
 import {
     OnboardingStatus,
@@ -276,6 +277,7 @@ export type ApiSqlQueryResults = {
 export type ApiDownloadCsv = {
     url: string;
 };
+
 export type ProjectCatalog = {
     [database: string]: {
         [schema: string]: {
@@ -478,7 +480,8 @@ type ApiResults =
     | SchedulerAndTargets
     | SchedulerAndTargets[]
     | FieldValueSearchResult
-    | ApiDownloadCsv;
+    | ApiDownloadCsv
+    | EmailStatusExpiring;
 
 export type ApiResponse = {
     status: 'ok';
