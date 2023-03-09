@@ -5,11 +5,11 @@ import {
 } from '@lightdash/common';
 import { ExpressReceiver } from '@slack/bolt';
 import express from 'express';
+import fs from 'fs';
 import path from 'path';
 import { analytics } from '../analytics/client';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { slackOptions } from '../clients/Slack/SlackOptions';
-
 import {
     isAuthenticated,
     unauthorisedInDemo,
@@ -56,15 +56,20 @@ slackRouter.get(
 slackRouter.get(
     '/image/:imageId',
 
-    async (req, res, next) => {
-        if (!req.params.imageId.startsWith('slack-image')) {
-            throw new NotFoundError(`File not found ${req.params.imageId}`);
-        }
+    async (req, res) => {
         try {
+            if (!req.params.imageId.startsWith('slack-image')) {
+                throw new NotFoundError(
+                    `Slack image not found ${req.params.imageId}`,
+                );
+            }
             const filePath = path.join('/tmp', req.params.imageId);
+            if (!fs.existsSync(filePath)) {
+                throw new NotFoundError(`File not found ${req.params.imageId}`);
+            }
             res.sendFile(filePath);
         } catch (error) {
-            next(error);
+            res.status(404).send(`File not found ${req.params.imageId}`);
         }
     },
 );
