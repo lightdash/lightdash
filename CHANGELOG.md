@@ -1,3 +1,10 @@
+# [0.454.0](https://github.com/lightdash/lightdash/compare/0.453.0...0.454.0) (2023-03-09)
+
+
+### Features
+
+* allow create users without org ([#4738](https://github.com/lightdash/lightdash/issues/4738)) ([cb5ee6d](https://github.com/lightdash/lightdash/commit/cb5ee6d2cbb47941e2776c808c15144833e34e79))
+
 # [0.453.0](https://github.com/lightdash/lightdash/compare/0.452.0...0.453.0) (2023-03-09)
 
 
