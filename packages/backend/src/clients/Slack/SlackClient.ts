@@ -158,7 +158,7 @@ export class SlackClient {
                 organizationUuid,
             );
 
-        this.slackApp.client.chat
+        await this.slackApp.client.chat
             .postMessage({
                 token: installation?.token,
                 channel,
@@ -169,6 +169,7 @@ export class SlackClient {
                 Logger.error(
                     `Unable to postmessage on slack : ${JSON.stringify(e)}`,
                 );
+                throw e;
             });
     }
 }

@@ -7,9 +7,11 @@ import {
     NotificationPayloadBase,
     ScheduledDeliveryPayload,
     Scheduler,
+    SchedulerJobStatus,
     SlackNotificationPayload,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
+import { Job } from 'graphile-worker';
 import { nanoid } from 'nanoid';
 import { analytics } from '../analytics/client';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
@@ -136,8 +138,8 @@ export const sendSlackNotification = async (
     jobId: string,
     notification: SlackNotificationPayload,
 ) => {
-    const { schedulerUuid, schedulerSlackTargetUuid } = notification;
-
+    const { schedulerUuid, schedulerSlackTargetUuid, scheduledTime } =
+        notification;
     analytics.track({
         event: 'scheduler_notification_job.started',
         anonymousId: LightdashAnalytics.anonymousId,
@@ -171,6 +173,17 @@ export const sendSlackNotification = async (
             throw new Error('Slack destination not found');
         }
         const { channel } = target;
+        schedulerService.logSchedulerJob({
+            task: 'sendSlackNotification',
+            schedulerUuid,
+            jobId,
+            jobGroup: notification.jobGroup,
+
+            scheduledTime,
+            target: channel,
+            targetType: 'slack',
+            status: SchedulerJobStatus.STARTED,
+        });
 
         // Backwards compatibility for old scheduled deliveries
         const {
@@ -251,6 +264,17 @@ export const sendSlackNotification = async (
                     pageType === LightdashPage.CHART ? 'chart' : 'dashboard',
             },
         });
+        schedulerService.logSchedulerJob({
+            task: 'sendSlackNotification',
+            schedulerUuid,
+            jobId,
+            jobGroup: notification.jobGroup,
+
+            scheduledTime,
+            target: channel,
+            targetType: 'slack',
+            status: SchedulerJobStatus.COMPLETED,
+        });
     } catch (e) {
         Logger.error(`Unable to complete job "${jobId}": ${JSON.stringify(e)}`);
         analytics.track({
@@ -264,6 +288,18 @@ export const sendSlackNotification = async (
                 type: 'slack',
             },
         });
+        schedulerService.logSchedulerJob({
+            task: 'sendSlackNotification',
+            schedulerUuid,
+            jobId,
+            jobGroup: notification.jobGroup,
+
+            scheduledTime,
+            targetType: 'slack',
+            status: SchedulerJobStatus.ERROR,
+            details: { error: e.message },
+        });
+
         throw e; // Cascade error to it can be retried by graphile
     }
 };
@@ -272,7 +308,9 @@ export const sendEmailNotification = async (
     jobId: string,
     notification: EmailNotificationPayload,
 ) => {
-    const { schedulerUuid, schedulerEmailTargetUuid } = notification;
+    const { schedulerUuid, schedulerEmailTargetUuid, scheduledTime } =
+        notification;
+
     analytics.track({
         event: 'scheduler_notification_job.started',
         anonymousId: LightdashAnalytics.anonymousId,
@@ -302,6 +340,17 @@ export const sendEmailNotification = async (
             throw new Error('Email destination not found');
         }
         const { recipient } = target;
+        schedulerService.logSchedulerJob({
+            task: 'sendEmailNotification',
+            schedulerUuid,
+            jobId,
+            jobGroup: notification.jobGroup,
+
+            scheduledTime,
+            target: recipient,
+            targetType: 'email',
+            status: SchedulerJobStatus.STARTED,
+        });
 
         // Backwards compatibility for old scheduled deliveries
         const { url, details, pageType, imageUrl, csvUrl, csvUrls } =
@@ -362,6 +411,17 @@ export const sendEmailNotification = async (
                     pageType === LightdashPage.CHART ? 'chart' : 'dashboard',
             },
         });
+        schedulerService.logSchedulerJob({
+            task: 'sendEmailNotification',
+            schedulerUuid,
+            jobId,
+            jobGroup: notification.jobGroup,
+
+            scheduledTime,
+            target: recipient,
+            targetType: 'email',
+            status: SchedulerJobStatus.COMPLETED,
+        });
     } catch (e) {
         Logger.error(`Unable to complete job "${jobId}": ${JSON.stringify(e)}`);
         analytics.track({
@@ -375,12 +435,24 @@ export const sendEmailNotification = async (
                 type: 'email',
             },
         });
+        schedulerService.logSchedulerJob({
+            task: 'sendEmailNotification',
+            schedulerUuid,
+            jobId,
+            jobGroup: notification.jobGroup,
+            scheduledTime,
+            targetType: 'email',
+            status: SchedulerJobStatus.ERROR,
+            details: e,
+        });
+
         throw e; // Cascade error to it can be retried by graphile
     }
 };
 
 export const handleScheduledDelivery = async (
     jobId: string,
+    scheduledTime: Date,
     { schedulerUuid }: ScheduledDeliveryPayload,
 ) => {
     try {
@@ -392,12 +464,55 @@ export const handleScheduledDelivery = async (
                 schedulerId: schedulerUuid,
             },
         });
+        schedulerService.logSchedulerJob({
+            task: 'handleScheduledDelivery',
+            schedulerUuid,
+            jobId,
+            jobGroup: jobId,
+            scheduledTime,
+            status: SchedulerJobStatus.STARTED,
+        });
+
         const scheduler =
             await schedulerService.schedulerModel.getSchedulerAndTargets(
                 schedulerUuid,
             );
         const page = await getNotificationPageData(scheduler);
-        await schedulerClient.generateJobsForSchedulerTargets(scheduler, page);
+        const scheduledJobs =
+            await schedulerClient.generateJobsForSchedulerTargets(
+                scheduledTime,
+                scheduler,
+                page,
+                jobId,
+            );
+
+        // Create scheduled jobs for targets
+        scheduledJobs.map(async ({ target, jobId: targetJobId }) => {
+            await schedulerService.logSchedulerJob({
+                task: isSlackTarget(target)
+                    ? 'sendSlackNotification'
+                    : 'sendEmailNotification',
+                schedulerUuid: scheduler.schedulerUuid,
+                jobId: targetJobId,
+                jobGroup: jobId,
+                scheduledTime,
+                target: isSlackTarget(target)
+                    ? target.channel
+                    : target.recipient,
+                targetType: isSlackTarget(target) ? 'slack' : 'email',
+                status: SchedulerJobStatus.SCHEDULED,
+            });
+        });
+
+        schedulerService.logSchedulerJob({
+            task: 'handleScheduledDelivery',
+            schedulerUuid,
+            jobId,
+            jobGroup: jobId,
+            scheduledTime,
+            status: SchedulerJobStatus.COMPLETED,
+        });
+
         analytics.track({
             event: 'scheduler_job.completed',
             anonymousId: LightdashAnalytics.anonymousId,
@@ -416,6 +531,16 @@ export const handleScheduledDelivery = async (
                 schedulerId: schedulerUuid,
             },
         });
+        schedulerService.logSchedulerJob({
+            task: 'handleScheduledDelivery',
+            schedulerUuid,
+            jobId,
+            jobGroup: jobId,
+            scheduledTime,
+            status: SchedulerJobStatus.ERROR,
+            details: { error: e.message },
+        });
+
         throw e; // Cascade error to it can be retried by graphile
     }
 };
