@@ -17,9 +17,6 @@ export const organizationMemberAbilities: Record<
     ) => void
 > = {
     member(member, { can }) {
-        can('create', 'InviteLink', {
-            organizationUuid: member.organizationUuid,
-        });
         can('view', 'OrganizationMemberProfile', {
             organizationUuid: member.organizationUuid,
         });
