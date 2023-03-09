@@ -56,7 +56,7 @@ slackRouter.get(
 slackRouter.get(
     '/image/:imageId',
 
-    async (req, res) => {
+    async (req, res, next) => {
         try {
             if (!req.params.imageId.startsWith('slack-image')) {
                 throw new NotFoundError(
@@ -69,7 +69,7 @@ slackRouter.get(
             }
             res.sendFile(filePath);
         } catch (error) {
-            res.status(404).send(`File not found ${req.params.imageId}`);
+            next(error);
         }
     },
 );
