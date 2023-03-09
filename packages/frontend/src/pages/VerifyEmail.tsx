@@ -1,5 +1,5 @@
 import { Colors, Dialog, DialogBody, Intent } from '@blueprintjs/core';
-import React, { FC, useEffect, useState } from 'react';
+import React, { FC } from 'react';
 import { Helmet } from 'react-helmet';
 import { useForm } from 'react-hook-form';
 import { useHistory } from 'react-router-dom';
@@ -13,13 +13,11 @@ import {
     StyledSuccessIcon,
     Title,
 } from '../components/ProjectConnection/ProjectConnectFlow/ProjectConnectFlow.styles';
-import { useOrganisation } from '../hooks/organisation/useOrganisation';
 import {
     useEmailStatus,
     useOneTimePassword,
     useVerifyEmail,
 } from '../hooks/useEmailVerification';
-import useSearchParams from '../hooks/useSearchParams';
 import { useApp } from '../providers/AppProvider';
 import LightdashLogo from '../svgs/lightdash-black.svg';
 import {
@@ -30,7 +28,6 @@ import {
     FormWrapper,
     Logo,
     LogoWrapper,
-    Subtitle,
 } from './SignUp.styles';
 
 export const VerificationSuccess: FC<{
@@ -67,13 +64,6 @@ export const VerifyEmailPage: FC = () => {
         useOneTimePassword();
     const { show: showIntercom } = useIntercom();
     const history = useHistory();
-    const orgRequest = useOrganisation();
-    const userHasProject = !orgRequest?.data?.needsProject;
-    const projectUuid = useSearchParams('projectUuid');
-
-    useEffect(() => {
-        sendVerificationEmail();
-    }, [sendVerificationEmail]);
 
     if (health.isLoading || statusLoading) {
         return <PageSpinner />;
@@ -112,18 +102,10 @@ export const VerifyEmailPage: FC = () => {
                 <VerificationSuccess
                     isOpen={data?.isVerified}
                     onClose={() => {
-                        history.push(
-                            userHasProject
-                                ? `/projects/${projectUuid}`
-                                : '/createProject',
-                        );
+                        history.push('/');
                     }}
                     onContinue={() => {
-                        history.push(
-                            userHasProject
-                                ? `/projects/${projectUuid}`
-                                : '/createProject',
-                        );
+                        history.push('/');
                     }}
                 />
             </FormWrapper>

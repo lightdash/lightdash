@@ -125,10 +125,6 @@ const App = () => (
                                                             </TrackPage>
                                                         </Route>
 
-                                                        <Route path="/verify-email">
-                                                            <VerifyEmailPage />
-                                                        </Route>
-
                                                         <Route path="/login">
                                                             <TrackPage
                                                                 name={
@@ -166,6 +162,15 @@ const App = () => (
                                                                 }
                                                             >
                                                                 <Signup />
+                                                            </TrackPage>
+                                                        </Route>
+                                                        <Route path="/verify-email">
+                                                            <TrackPage
+                                                                name={
+                                                                    PageName.VERIFY_EMAIL
+                                                                }
+                                                            >
+                                                                <VerifyEmailPage />
                                                             </TrackPage>
                                                         </Route>
 

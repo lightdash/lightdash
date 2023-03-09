@@ -138,6 +138,9 @@ export class UserService {
                 userConnectionType: 'password',
             },
         });
+        if (!isOpenIdUser(activateUser)) {
+            await this.sendOneTimePasscodeToPrimaryEmail(user);
+        }
         return user;
     }
 
@@ -551,6 +554,8 @@ export class UserService {
                     loginProvider: 'google',
                 },
             });
+        } else {
+            await this.sendOneTimePasscodeToPrimaryEmail(user);
         }
         return user;
     }
@@ -608,6 +613,8 @@ export class UserService {
                     loginProvider: 'google',
                 },
             });
+        } else {
+            await this.sendOneTimePasscodeToPrimaryEmail(user);
         }
         return user;
     }
@@ -694,7 +701,7 @@ export class UserService {
     }
 
     async sendOneTimePasscodeToPrimaryEmail(
-        user: SessionUser,
+        user: Pick<SessionUser, 'userUuid'>,
     ): Promise<EmailStatusExpiring> {
         const passcode = randomInt(999999).toString().padStart(6, '0');
         const emailStatus = await this.emailModel.createPrimaryEmailOtp({

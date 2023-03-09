@@ -1,3 +1,4 @@
+import { LightdashMode } from '@lightdash/common';
 import React, { ComponentProps, FC } from 'react';
 import { Redirect, Route } from 'react-router-dom';
 import { useOrganisation } from '../hooks/organisation/useOrganisation';
@@ -8,7 +9,7 @@ import PageSpinner from './PageSpinner';
 
 const AppRoute: FC<ComponentProps<typeof Route>> = ({ children, ...rest }) => {
     const { health, user } = useApp();
-    const { data } = useEmailStatus();
+    const emailStatus = useEmailStatus();
     const isEmailServerConfigured = health.data?.hasEmailClient;
     const orgRequest = useOrganisation();
 
@@ -16,7 +17,11 @@ const AppRoute: FC<ComponentProps<typeof Route>> = ({ children, ...rest }) => {
         <Route
             {...rest}
             render={({ location }) => {
-                if (health.isLoading || orgRequest.isLoading) {
+                if (
+                    health.isLoading ||
+                    orgRequest.isLoading ||
+                    emailStatus.isLoading
+                ) {
                     return <PageSpinner />;
                 }
 
@@ -31,7 +36,8 @@ const AppRoute: FC<ComponentProps<typeof Route>> = ({ children, ...rest }) => {
                 }
 
                 if (
-                    !data?.isVerified &&
+                    health.data?.mode !== LightdashMode.PR &&
+                    !emailStatus.data?.isVerified &&
                     isEmailServerConfigured &&
                     !user.data?.isSetupComplete
                 ) {
@@ -45,7 +51,7 @@ const AppRoute: FC<ComponentProps<typeof Route>> = ({ children, ...rest }) => {
                     );
                 }
 
-                if (data?.isVerified && orgRequest?.data?.needsProject) {
+                if (orgRequest?.data?.needsProject) {
                     return (
                         <Redirect
                             to={{

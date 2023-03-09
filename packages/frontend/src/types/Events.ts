@@ -38,6 +38,7 @@ export enum PageName {
     SPACES = 'spaces',
     SHARE = 'share',
     USER_ACTIVITY = 'user_activity',
+    VERIFY_EMAIL = 'verify_email',
 }
 
 export enum CategoryName {
