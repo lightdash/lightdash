@@ -356,7 +356,12 @@ echo ""
 echo -e "👉 ${RED}Please enter how you want to setup Lightdash\n"
 echo -e "${RED}1) Fast install [default]\n"
 echo -e "${RED}2) Custom install\n"
-read -p "⚙️  Enter your preference (1/2):" choice_setup
+
+if [[ $PR == 'true' ]]; then
+    choice_setup=1
+else
+    read -p "⚙️  Enter your preference (1/2):" choice_setup
+fi
 
 while [[ $choice_setup != "1"   &&  $choice_setup != "2" && $choice_setup != "" ]]
 do
