@@ -14,6 +14,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: Debug env
+      run: env
     - name: Run easy install
       run: ./scripts/install.sh
     - name: Test containers 
