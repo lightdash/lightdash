@@ -279,6 +279,7 @@ export default class EmailClient {
             context: {
                 passcode,
                 title: subject,
+                host: this.lightdashConfig.siteUrl,
             },
             text,
         });
