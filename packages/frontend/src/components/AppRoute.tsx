@@ -1,12 +1,15 @@
 import React, { ComponentProps, FC } from 'react';
 import { Redirect, Route } from 'react-router-dom';
 import { useOrganisation } from '../hooks/organisation/useOrganisation';
+import { useEmailStatus } from '../hooks/useEmailVerification';
 import { useApp } from '../providers/AppProvider';
 import ErrorState from './common/ErrorState';
 import PageSpinner from './PageSpinner';
 
 const AppRoute: FC<ComponentProps<typeof Route>> = ({ children, ...rest }) => {
-    const { health } = useApp();
+    const { health, user } = useApp();
+    const { data } = useEmailStatus();
+    const isEmailServerConfigured = health.data?.hasEmailClient;
     const orgRequest = useOrganisation();
 
     return (
@@ -27,7 +30,22 @@ const AppRoute: FC<ComponentProps<typeof Route>> = ({ children, ...rest }) => {
                     );
                 }
 
-                if (orgRequest.data?.needsProject) {
+                if (
+                    !data?.isVerified &&
+                    isEmailServerConfigured &&
+                    !user.data?.isSetupComplete
+                ) {
+                    return (
+                        <Redirect
+                            to={{
+                                pathname: '/verify-email',
+                                state: { from: location },
+                            }}
+                        />
+                    );
+                }
+
+                if (data?.isVerified && orgRequest?.data?.needsProject) {
                     return (
                         <Redirect
                             to={{

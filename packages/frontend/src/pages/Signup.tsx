@@ -175,7 +175,7 @@ const Signup: FC = () => {
                 <DividerWrapper>
                     <Divider />
                     <b>OR</b>
-                    <Divider></Divider>
+                    <Divider />
                 </DividerWrapper>
             )}
             {passwordLogin}
