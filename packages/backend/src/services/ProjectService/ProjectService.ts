@@ -28,6 +28,7 @@ import {
     hasIntersection,
     isExploreError,
     isFilterableDimension,
+    isUserWithOrg,
     Job,
     JobStatusType,
     JobStepType,
@@ -165,6 +166,9 @@ export class ProjectService {
         data: CreateProject,
         method: RequestMethod,
     ): Promise<Project> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
         if (
             user.ability.cannot('create', 'Job') ||
             user.ability.cannot('create', 'Project')
@@ -207,6 +211,9 @@ export class ProjectService {
         data: CreateProject,
         method: RequestMethod,
     ): Promise<{ jobUuid: string }> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
         if (
             user.ability.cannot('create', 'Job') ||
             user.ability.cannot('create', 'Project')
@@ -322,6 +329,9 @@ export class ProjectService {
         data: UpdateProject,
         method: RequestMethod,
     ): Promise<{ jobUuid: string }> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
         const savedProject = await this.projectModel.getWithSensitiveFields(
             projectUuid,
         );
@@ -569,6 +579,9 @@ export class ProjectService {
         exploreName: string,
         csvLimit: number | null | undefined,
     ): Promise<ApiQueryResults> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
         const { organizationUuid, warehouseConnection } =
             await this.projectModel.getWithSensitiveFields(projectUuid);
 

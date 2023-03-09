@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     ForbiddenError,
+    isUserWithOrg,
     LightdashMode,
     NotExistsError,
     OnbordingRecord,
@@ -59,6 +60,9 @@ export class OrganizationService {
     }
 
     async get(user: SessionUser): Promise<Organisation> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
         const needsProject = !(await this.projectModel.hasProjects(
             user.organizationUuid,
         ));
@@ -202,6 +206,9 @@ export class OrganizationService {
     }
 
     async setOnboardingSuccessDate(user: SessionUser): Promise<void> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
         const { shownSuccessAt } = await this.getOnboarding(user);
         if (shownSuccessAt) {
             throw new NotExistsError('Can not override "shown success" date');
@@ -216,6 +223,9 @@ export class OrganizationService {
         memberUserUuid: string,
         data: OrganizationMemberProfileUpdate,
     ): Promise<OrganizationMemberProfile> {
+        if (!isUserWithOrg(authenticatedUser)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
         const { organizationUuid } = authenticatedUser;
         if (
             authenticatedUser.ability.cannot(

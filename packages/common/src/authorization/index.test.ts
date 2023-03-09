@@ -6,11 +6,29 @@ import {
     conditions as defaultConditions,
     orgProfile,
     projectProfile,
+    userWithoutOrg,
 } from './index.mock';
 
 describe('Lightdash member permissions', () => {
     let ability = defineUserAbility(orgProfile, [projectProfile]);
     let conditions = defaultConditions;
+    describe('when user not in an org', () => {
+        beforeEach(() => {
+            ability = defineUserAbility(userWithoutOrg, []);
+        });
+
+        it('can not view org and project', async () => {
+            expect(
+                ability.can('view', subject('SavedChart', { ...conditions })),
+            ).toEqual(false);
+            expect(
+                ability.can('view', subject('Dashboard', { ...conditions })),
+            ).toEqual(false);
+            expect(
+                ability.can('view', subject('Project', { ...conditions })),
+            ).toEqual(false);
+        });
+    });
     describe('when user is an org viewer and project viewer', () => {
         beforeEach(() => {
             ability = defineUserAbility(orgProfile, [projectProfile]);

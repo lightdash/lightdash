@@ -11,6 +11,7 @@ import {
     ForbiddenError,
     InviteLink,
     isOpenIdUser,
+    isUserWithOrg,
     LightdashMode,
     LightdashUser,
     NotExistsError,
@@ -364,6 +365,9 @@ export class UserService {
             isMarketingOptedIn,
         }: CompleteUserArgs,
     ): Promise<LightdashUser> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
         if (organizationName) {
             await this.organizationModel.update(user.organizationUuid, {
                 name: organizationName,
@@ -518,6 +522,39 @@ export class UserService {
         return updatedUser;
     }
 
+    async registerUser(createUser: CreateUserArgs | OpenIdUser) {
+        if (
+            !isOpenIdUser(createUser) &&
+            lightdashConfig.auth.disablePasswordAuthentication
+        ) {
+            throw new ForbiddenError('Password credentials are not allowed');
+        }
+        const user = await this.userModel.createUser(createUser);
+        identifyUser({
+            ...user,
+            isMarketingOptedIn: user.isMarketingOptedIn,
+        });
+        analytics.track({
+            event: 'user.created',
+            userId: user.userUuid,
+            properties: {
+                userConnectionType: isOpenIdUser(createUser)
+                    ? 'google'
+                    : 'password',
+            },
+        });
+        if (isOpenIdUser(createUser)) {
+            analytics.track({
+                userId: user.userUuid,
+                event: 'user.identity_linked',
+                properties: {
+                    loginProvider: 'google',
+                },
+            });
+        }
+        return user;
+    }
+
     async registerNewUserWithOrg(createUser: CreateUserArgs | OpenIdUser) {
         if (
             !lightdashConfig.allowMultiOrgs &&
@@ -535,6 +572,9 @@ export class UserService {
         }
 
         const user = await this.userModel.createNewUserWithOrg(createUser);
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
         identifyUser({
             ...user,
             isMarketingOptedIn: user.isMarketingOptedIn,

@@ -10,6 +10,7 @@ import {
     isDashboardUnversionedFields,
     isDashboardVersionedFields,
     isSlackTarget,
+    isUserWithOrg,
     SchedulerAndTargets,
     SessionUser,
     UpdateDashboard,
@@ -485,6 +486,9 @@ export class DashboardService {
         dashboardUuid: string,
         newScheduler: CreateSchedulerAndTargetsWithoutIds,
     ): Promise<SchedulerAndTargets> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
         const { projectUuid, organizationUuid } = await this.checkUpdateAccess(
             user,
             dashboardUuid,
