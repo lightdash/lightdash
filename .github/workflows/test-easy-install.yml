@@ -17,6 +17,8 @@ jobs:
     - name: Debug env
       run: env
     - name: Run easy install
+      env: 
+        NODE_ENV: 'development'
       run: ./scripts/install.sh
     - name: Test containers 
       run: |
@@ -28,5 +30,6 @@ jobs:
         if [ $output = '1' ]; then exit 0 ; else echo "Frontend is not running"; exit 1; fi 
     - name: Test backend 
       run: | 
-        output=$(curl -s "http://localhost:3000/api/v1/health" | grep -o '"healthy":true' | wc -l)
-        if [ $output = '1' ]; then exit 0 ; else echo "Backend is not running"; curl -s "http://localhost:3000/api/v1/health"; exit 1; fi 
+        curl -s "http://localhost:8080/api/v1/health";
+        output=$(curl -s "http://localhost:8080/api/v1/health" | grep -o '"healthy":true' | wc -l)
+        if [ $output = '1' ]; then exit 0 ; else echo "Backend is not running";  exit 1; fi 
