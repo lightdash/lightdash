@@ -97,7 +97,7 @@ Cypress.Commands.add('anotherLogin', () => {
     );
 });
 Cypress.Commands.add('registerNewUser', () => {
-    const email = `test+${new Date().getTime()}@lightdash.com`;
+    const email = `demo+${new Date().getTime()}@lightdash.com`;
     cy.request({
         url: 'api/v1/register',
         method: 'POST',
@@ -183,7 +183,7 @@ Cypress.Commands.add(
     (orgRole: string, projectPermissions: ProjectPermission[]) => {
         cy.login();
 
-        const email = `${orgRole}-${new Date().getTime()}@lightdash.com`;
+        const email = `demo+${orgRole}-${new Date().getTime()}@lightdash.com`;
 
         cy.invite(email, orgRole).then((inviteCode) => {
             projectPermissions.forEach((projectPermission) => {

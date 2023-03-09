@@ -11,7 +11,7 @@ describe('Settings - Invites', () => {
         cy.contains('User management').click();
         cy.contains('Add user').click();
         cy.findByLabelText('Enter user email address *').type(
-            'marygreen@lightdash.com',
+            'demo+marygreen@lightdash.com',
         );
         cy.contains(/(Generate|Send) invite/).click();
         cy.get('#invite-link-input')
@@ -29,7 +29,7 @@ describe('Settings - Invites', () => {
         cy.findByLabelText('Last name *').type('Green');
         cy.findByLabelText('Email address *')
             .should('be.disabled')
-            .should('have.value', 'marygreen@lightdash.com');
+            .should('have.value', 'demo+marygreen@lightdash.com');
         cy.findByLabelText('Password *').type('PasswordMary1');
         cy.contains('Sign up').click();
         cy.findByTestId('user-avatar').should('contain', 'MG');
@@ -40,7 +40,7 @@ describe('Settings - Invites', () => {
         cy.findByRole('menuitem', { name: 'Organization settings' }).click();
 
         cy.contains('User management').click();
-        cy.findByText('marygreen@lightdash.com')
+        cy.findByText('demo+marygreen@lightdash.com')
             .parents('.bp4-card')
             .find('[icon="delete"]')
             .click();
@@ -49,6 +49,6 @@ describe('Settings - Invites', () => {
             .findByRole('button', { name: 'Delete' })
             .click();
         cy.findByText('Success! User was deleted.').should('be.visible');
-        cy.findByText('marygreen@lightdash.com').should('not.exist');
+        cy.findByText('demo+marygreen@lightdash.com').should('not.exist');
     });
 });
