@@ -1,3 +1,10 @@
+## [0.454.1](https://github.com/lightdash/lightdash/compare/0.454.0...0.454.1) (2023-03-09)
+
+
+### Bug Fixes
+
+* fix slack image crashing ([#4740](https://github.com/lightdash/lightdash/issues/4740)) ([1598645](https://github.com/lightdash/lightdash/commit/15986452d241a44fd98af1bff092daf01e8d30fc))
+
 # [0.454.0](https://github.com/lightdash/lightdash/compare/0.453.0...0.454.0) (2023-03-09)
 
 
