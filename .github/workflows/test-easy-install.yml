@@ -20,7 +20,7 @@ jobs:
     - name: Run easy install
       env: 
         NODE_ENV: 'development'
-        RUDDERSTACK_WRITE_KEY: ''
+        RUDDERSTACK_WRITE_KEY: '1vikeGadtB0Y0oRDFNL2Prdhkbp' # dev key
         RUDDERSTACK_DATA_PLANE_URL: ''
         COHERE_TOKEN: ''
         FULLSTORY_ORG_ID: ''
