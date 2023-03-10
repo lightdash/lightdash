@@ -35,6 +35,7 @@ import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAcces
 import { EmailModel } from '../models/EmailModel';
 import { InviteLinkModel } from '../models/InviteLinkModel';
 import { OpenIdIdentityModel } from '../models/OpenIdIdentitiesModel';
+import { OrganizationAllowedEmailDomainsModel } from '../models/OrganizationAllowedEmailDomainsModel';
 import { OrganizationMemberProfileModel } from '../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../models/OrganizationModel';
 import { PasswordResetLinkModel } from '../models/PasswordResetLinkModel';
@@ -52,6 +53,7 @@ type UserServiceDependencies = {
     organizationMemberProfileModel: OrganizationMemberProfileModel;
     organizationModel: OrganizationModel;
     personalAccessTokenModel: PersonalAccessTokenModel;
+    organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
 };
 
 export class UserService {
@@ -75,6 +77,8 @@ export class UserService {
 
     private readonly personalAccessTokenModel: PersonalAccessTokenModel;
 
+    private readonly organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
+
     private readonly emailOneTimePasscodeExpirySeconds = 60 * 15;
 
     private readonly emailOneTimePasscodeMaxAttempts = 5;
@@ -90,6 +94,7 @@ export class UserService {
         organizationModel,
         organizationMemberProfileModel,
         personalAccessTokenModel,
+        organizationAllowedEmailDomainsModel,
     }: UserServiceDependencies) {
         this.inviteLinkModel = inviteLinkModel;
         this.userModel = userModel;
@@ -101,6 +106,8 @@ export class UserService {
         this.organizationModel = organizationModel;
         this.organizationMemberProfileModel = organizationMemberProfileModel;
         this.personalAccessTokenModel = personalAccessTokenModel;
+        this.organizationAllowedEmailDomainsModel =
+            organizationAllowedEmailDomainsModel;
     }
 
     async activateUserFromInvite(
@@ -801,5 +808,38 @@ export class UserService {
             );
         }
         return [];
+    }
+
+    async joinOrg(user: SessionUser, orgUuid: string): Promise<void> {
+        if (isUserWithOrg(user)) {
+            throw new ForbiddenError('User already has an organization');
+        }
+        const emailStatus = await this.emailModel.getPrimaryEmailStatus(
+            user.userUuid,
+        );
+        if (!emailStatus.isVerified) {
+            throw new ForbiddenError('User has not verified their email');
+        }
+        const userEmailDomain = emailStatus.email.split('@')[1];
+        const allowedEmailDomains =
+            await this.organizationAllowedEmailDomainsModel.getAllowedEmailDomains(
+                emailStatus.email.split('@')[1].toLowerCase(),
+            );
+        if (
+            !allowedEmailDomains.emailDomains.some(
+                (domain) =>
+                    domain.toLowerCase() === userEmailDomain.toLowerCase(),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User is not allowed to join this organization',
+            );
+        }
+        await this.userModel.joinOrg(
+            user.userUuid,
+            orgUuid,
+            allowedEmailDomains.role,
+            allowedEmailDomains.projectUuids,
+        );
     }
 }

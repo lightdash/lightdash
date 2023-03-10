@@ -1,6 +1,7 @@
 import {
     ApiEmailStatusResponse,
     ApiErrorPayload,
+    ApiSuccessEmpty,
     ApiUserAllowedOrganizationsResponse,
 } from '@lightdash/common';
 import { Controller, Query } from '@tsoa/runtime';
@@ -9,6 +10,8 @@ import {
     Get,
     Middlewares,
     OperationId,
+    Path,
+    Post,
     Put,
     Request,
     Response,
@@ -81,4 +84,27 @@ export class UserController extends Controller {
             results: status,
         };
     }
+
+    /**
+     * Get list or organizations the user is allowed to join
+     * @param req express request
+     */
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @Post('/me/joinOrganization/{orgUuid}')
+    @OperationId('joinOrganization')
+    async joinOrganization(
+        @Request() req: express.Request,
+        @Path() orgUuid: string,
+    ): Promise<ApiSuccessEmpty> {
+        await userService.joinOrg(req.user!, orgUuid);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+}
+
+function POST(arg0: string) {
+    throw new Error('Function not implemented.');
 }

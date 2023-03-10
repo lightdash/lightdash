@@ -14,6 +14,7 @@ import {
     ParameterError,
     PersonalAccessToken,
     ProjectMemberProfile,
+    ProjectMemberRole,
     SessionUser,
     UpdateUserArgs,
 } from '@lightdash/common';
@@ -627,5 +628,51 @@ export class UserModel {
                     await bcrypt.genSalt(),
                 ),
             });
+    }
+
+    async joinOrg(
+        userUuid: string,
+        organizationUuid: string,
+        role: OrganizationMemberRole,
+        projectUuids: string[],
+    ): Promise<LightdashUser> {
+        const [org] = await this.database(OrganizationTableName)
+            .where('organization_uuid', organizationUuid)
+            .select('organization_id');
+        if (!org) {
+            throw new NotExistsError('Cannot find organization');
+        }
+
+        const [user] = await this.database(UserTableName)
+            .where('user_uuid', userUuid)
+            .select('user_id');
+        if (!user) {
+            throw new NotExistsError('Cannot find organization');
+        }
+
+        await this.database.transaction(async (trx) => {
+            await trx(OrganizationMembershipsTableName).insert({
+                organization_id: org.organization_id,
+                user_id: user.user_id,
+                role,
+            });
+
+            const projectMemberships = Array.from(new Set(projectUuids)).map(
+                async (projectUuid) => {
+                    const [project] = await this.database('projects')
+                        .select('project_id')
+                        .where('project_uuid', projectUuid);
+
+                    await this.database('project_memberships').insert({
+                        project_id: project.project_id,
+                        role: ProjectMemberRole.VIEWER,
+                        user_id: user.user_id,
+                    });
+                },
+            );
+
+            await Promise.all(projectMemberships);
+        });
+        return this.getUserDetailsByUuid(userUuid);
     }
 }
