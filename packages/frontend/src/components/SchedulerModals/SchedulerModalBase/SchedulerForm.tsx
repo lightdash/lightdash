@@ -261,25 +261,27 @@ const SchedulerForm: FC<
                                 { value: 'csv', label: 'CSV' },
                             ]}
                         />
-                        <Tooltip2
-                            position={'top'}
-                            interactionKind="hover"
-                            content={
-                                <p>
-                                    You must enable the
-                                    <a href="https://docs.lightdash.com/guides/enable-headless-browser-selfhost">
-                                        {' '}
-                                        headless browser{' '}
-                                    </a>
-                                    for sending images.
-                                </p>
-                            }
-                        >
-                            <InlineIcon
-                                icon="warning-sign"
-                                color={Colors.GRAY5}
-                            />
-                        </Tooltip2>
+                        {isImageDisabled && (
+                            <Tooltip2
+                                position={'top'}
+                                interactionKind="hover"
+                                content={
+                                    <p>
+                                        You must enable the
+                                        <a href="https://docs.lightdash.com/guides/enable-headless-browser-selfhost">
+                                            {' '}
+                                            headless browser{' '}
+                                        </a>
+                                        for sending images.
+                                    </p>
+                                }
+                            >
+                                <InlineIcon
+                                    icon="warning-sign"
+                                    color={Colors.GRAY5}
+                                />
+                            </Tooltip2>
+                        )}
                     </InlinedInputs>
 
                     {format === 'csv' && (
