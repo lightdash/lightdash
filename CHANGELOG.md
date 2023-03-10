@@ -1,3 +1,11 @@
+# [0.456.0](https://github.com/lightdash/lightdash/compare/0.455.0...0.456.0) (2023-03-10)
+
+
+### Features
+
+* endpoints for organisation allowed email domains ([#4741](https://github.com/lightdash/lightdash/issues/4741)) ([1b64a14](https://github.com/lightdash/lightdash/commit/1b64a14a6bd7cdf1dfe2b4d11f1c2da9422a4c28)), closes [#4724](https://github.com/lightdash/lightdash/issues/4724)
+* verify email when user signs up or is invited ([#4742](https://github.com/lightdash/lightdash/issues/4742)) ([83848df](https://github.com/lightdash/lightdash/commit/83848df5657de206679f37f6516e5a2b43525768))
+
 # [0.455.0](https://github.com/lightdash/lightdash/compare/0.454.1...0.455.0) (2023-03-09)
 
 
