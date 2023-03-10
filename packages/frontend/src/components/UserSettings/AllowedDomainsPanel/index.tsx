@@ -15,6 +15,7 @@ import {
 import { useProject } from '../../../hooks/useProject';
 import { isValidEmailDomain } from '../../../utils/fieldValidators';
 import Form from '../../ReactHookForm/Form';
+import Input from '../../ReactHookForm/Input';
 import MultiSelect from '../../ReactHookForm/MultiSelect';
 import Select2 from '../../ReactHookForm/Select2';
 import TagInput from '../../ReactHookForm/TagInput';
@@ -35,9 +36,6 @@ const AllowedDomainsPanel: FC = () => {
     const { mutate, isLoading: updateEmailDomainsLoading } =
         useUpdateAllowedEmailDomains();
     const isLoading = updateEmailDomainsLoading || emailDomainsLoading;
-    // const projectNames = data?.projectUuids.map((projectUuid) => {
-    //     return useProject(projectUuid).data?.name;
-    // });
 
     useEffect(() => {
         if (data) {
@@ -45,7 +43,8 @@ const AllowedDomainsPanel: FC = () => {
             methods.setValue('role', data.role);
             methods.setValue('projectUuids', data.projectUuids);
         }
-    }, [data]);
+    }, [data, methods]);
+
     const handleUpdate = (values: UpdateAllowedEmailDomains) => {
         mutate(values);
     };
@@ -71,7 +70,6 @@ const AllowedDomainsPanel: FC = () => {
         },
     ];
 
-    console.log(methods.getValues());
     return (
         <FormWrapper>
             <Form
@@ -84,6 +82,7 @@ const AllowedDomainsPanel: FC = () => {
                 <TagInput
                     label="Allowed email domains"
                     name="emailDomains"
+                    placeholder="No allowed email domains"
                     disabled={isLoading}
                     defaultValue={data?.emailDomains || []}
                     rules={{
@@ -101,13 +100,27 @@ const AllowedDomainsPanel: FC = () => {
                     items={selectItems}
                     defaultValue="viewer"
                 />
-                <MultiSelect
-                    label="Project Viewer Access"
-                    name="projects"
-                    items={data?.projectUuids || []}
-                    defaultValue={data?.projectUuids || []}
-                    placeholder="No projects found"
-                />
+                {methods.getValues().role == OrganizationMemberRole.MEMBER &&
+                data &&
+                data.projectUuids.length > 0 ? (
+                    <MultiSelect
+                        label="Project Viewer Access"
+                        name="projects"
+                        items={data?.projectUuids || []}
+                        defaultValue={data?.projectUuids}
+                        placeholder="Select projects"
+                    />
+                ) : methods.getValues().role == OrganizationMemberRole.MEMBER &&
+                  data &&
+                  data.projectUuids.length <= 0 ? (
+                    <Input
+                        label="Project Viewer Access"
+                        name="projects"
+                        placeholder="No projects found"
+                        disabled
+                    />
+                ) : null}
+
                 <div style={{ flex: 1 }} />
                 <Button
                     style={{ alignSelf: 'flex-end', marginTop: 20 }}
