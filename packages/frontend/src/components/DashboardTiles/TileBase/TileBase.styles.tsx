@@ -1,15 +1,19 @@
 import { Card, Colors, H5 } from '@blueprintjs/core';
-import styled, { createGlobalStyle } from 'styled-components';
+import styled, { createGlobalStyle, css } from 'styled-components';
 
 interface HeaderContainerProps {
     $isEditMode: boolean;
     $isHovering?: boolean;
 }
 
-export const TileBaseWrapper = styled(Card)<HeaderContainerProps>`
+export const TileBaseWrapper = styled.div<HeaderContainerProps>`
     height: 100%;
     display: flex;
     flex-direction: column;
+    padding: 16px;
+    background: ${Colors.WHITE};
+    border-radius: 2px;
+    box-shadow: 0 0 0 1px #11141826;
 
     ${(props) =>
         props.$isEditMode && props.$isHovering
@@ -22,10 +26,10 @@ export const TileBaseWrapper = styled(Card)<HeaderContainerProps>`
 export const HeaderContainer = styled.div<HeaderContainerProps>`
     display: flex;
     flex-direction: row;
-    justify-content: space-between;
-    align-items: baseline;
-    margin-bottom: 15px;
-    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 12px;
+    height: 24px;
 
     ${(props) =>
         props.$isEditMode
@@ -46,37 +50,73 @@ export const GlobalTileStyles = createGlobalStyle`
   }
 `;
 
-interface TitleWrapperProps {
-    $hasDescription: boolean;
+interface TileTitleProps {
+    $hovered?: boolean;
 }
 
-export const TitleWrapper = styled.div<TitleWrapperProps>`
-    display: flex;
-    flex-direction: row;
-    align-items: center;
+export const TitleWrapper = styled.div<TileTitleProps>`
+    flex-grow: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    position: relative;
 
-    ${(props) =>
-        props.$hasDescription
-            ? `
-                &:hover { cursor: pointer }
-            `
-            : ''}
+    &:hover {
+        ${({ $hovered }) =>
+            $hovered
+                ? css`
+                      white-space: normal;
+                      overflow: visible;
+                      z-index: 1;
+
+                      a {
+                          outline: 8px solid ${Colors.WHITE};
+                          background-color: ${Colors.WHITE};
+                      }
+                  `
+                : ''}
+        }
+    }
 `;
 
-export const Title = styled(H5)`
-    margin: 0;
-`;
+export const TileTitleLink = styled.a<TileTitleProps>`
+    font-weight: 600;
+    font-size: 16px;
+    color: ${Colors.DARK_GRAY1};
+    text-decoration: none;
 
-export const HeaderWrapper = styled.div`
-    display: flex;
-    flex-direction: column;
-    padding-top: 5px;
+    :hover {
+        color: ${Colors.DARK_GRAY1} !important;
+    }
+
+    ${({ $hovered }) =>
+        css`
+            ${$hovered
+                ? css`
+                      text-decoration: underline;
+                  `
+                : ''}
+
+            &:not([href]) {
+                cursor: default;
+                text-decoration: none;
+
+                &:hover {
+                    ${$hovered
+                        ? css`
+                              text-decoration: none;
+                          `
+                        : ''}
+                }
+            }
+        `}
 `;
 
 export const ButtonsWrapper = styled.div`
     display: flex;
     flex-direction: row;
     justify-content: flex-end;
+    gap: 8px;
 `;
 
 export const ChartContainer = styled.div`
@@ -90,19 +130,6 @@ export const TooltipContent = styled.p`
     margin: 0;
 `;
 
-export const FilterIcon = styled.div`
-    border-radius: 2px;
-    box-sizing: border-box;
-    position: relative;
-    color: ${Colors.GRAY1} !important;
-    padding: 6px 7px;
-
-    :hover {
-        cursor: pointer;
-        background: rgba(143, 153, 168, 0.15) !important;
-    }
-`;
-
 export const FilterWrapper = styled.div`
     display: flex;
     flex-direction: column;
@@ -114,11 +141,4 @@ export const FilterLabel = styled.p`
     color: ${Colors.GRAY5};
     font-size: 12px;
     font-weight: 500;
-`;
-
-export const TitleButton = styled.a`
-    :hover {
-        text-decoration: underline;
-        text-decoration-color: ${Colors.GRAY5};
-    }
 `;
