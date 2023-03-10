@@ -27,10 +27,11 @@ export const verifyOTPQuery = async (code: string) => {
     });
 };
 
-export const useEmailStatus = () =>
+export const useEmailStatus = (enabled = true) =>
     useQuery<EmailStatusExpiring, ApiError>({
         queryKey: ['email_status'],
         queryFn: () => getEmailStatusQuery(),
+        enabled,
     });
 
 export const useOneTimePassword = () => {

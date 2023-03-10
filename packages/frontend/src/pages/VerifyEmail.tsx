@@ -1,13 +1,18 @@
-import { Dialog, DialogBody } from '@blueprintjs/core';
-import { Modal } from '@mantine/core';
-import React, { FC, useEffect, useState } from 'react';
+import { Colors, Dialog, DialogBody, Intent } from '@blueprintjs/core';
+import React, { FC } from 'react';
 import { Helmet } from 'react-helmet';
 import { useForm } from 'react-hook-form';
+import { useHistory } from 'react-router-dom';
 import { useIntercom } from 'react-use-intercom';
 import Page from '../components/common/Page/Page';
 import { LinkButton } from '../components/CreateUserForm/CreateUserForm.styles';
 import { VerifyEmailForm } from '../components/CreateUserForm/VerifyEmailForm';
+import { SaveButton } from '../components/Explorer/SaveChartButton/SaveChartButton.styles';
 import PageSpinner from '../components/PageSpinner';
+import {
+    StyledSuccessIcon,
+    Title,
+} from '../components/ProjectConnection/ProjectConnectFlow/ProjectConnectFlow.styles';
 import {
     useEmailStatus,
     useOneTimePassword,
@@ -17,11 +22,38 @@ import { useApp } from '../providers/AppProvider';
 import LightdashLogo from '../svgs/lightdash-black.svg';
 import {
     CardWrapper,
+    EmailVerifiedModal,
+    EmailVerifiedWrapper,
     FormFooterCopy,
     FormWrapper,
     Logo,
     LogoWrapper,
 } from './SignUp.styles';
+
+export const VerificationSuccess: FC<{
+    isOpen: boolean | undefined;
+    onClose: () => void;
+    onContinue: () => void;
+}> = ({ isOpen, onClose, onContinue }) => {
+    return (
+        <EmailVerifiedModal isOpen={isOpen} onClose={onClose}>
+            <EmailVerifiedWrapper>
+                <Title>Great, you're verified! 🎉</Title>
+
+                <StyledSuccessIcon
+                    icon="tick-circle"
+                    color={Colors.GREEN4}
+                    size={64}
+                />
+                <SaveButton
+                    intent={Intent.PRIMARY}
+                    text="Continue"
+                    onClick={onContinue}
+                />
+            </EmailVerifiedWrapper>
+        </EmailVerifiedModal>
+    );
+};
 
 export const VerifyEmailPage: FC = () => {
     const { health, user } = useApp();
@@ -31,8 +63,9 @@ export const VerifyEmailPage: FC = () => {
     const { mutate: sendVerificationEmail, isLoading: emailLoading } =
         useOneTimePassword();
     const { show: showIntercom } = useIntercom();
+    const history = useHistory();
 
-    if (health.isLoading) {
+    if (health.isLoading || statusLoading) {
         return <PageSpinner />;
     }
 
@@ -66,6 +99,15 @@ export const VerifyEmailPage: FC = () => {
                         chat to support here.
                     </LinkButton>
                 </FormFooterCopy>
+                <VerificationSuccess
+                    isOpen={data?.isVerified}
+                    onClose={() => {
+                        history.push('/');
+                    }}
+                    onContinue={() => {
+                        history.push('/');
+                    }}
+                />
             </FormWrapper>
         </Page>
     );

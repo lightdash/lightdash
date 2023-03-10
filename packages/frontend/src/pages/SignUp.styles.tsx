@@ -1,4 +1,4 @@
-import { Card, Colors, H3 } from '@blueprintjs/core';
+import { Card, Colors, Dialog, H3 } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
 import { BigButton } from '../components/common/BigButton';
 import Input from '../components/ReactHookForm/Input';
@@ -103,4 +103,18 @@ export const BoldSubtitle = styled.p`
     text-align: center;
     color: ${Colors.DARK_GRAY1};
     margin-bottom: 15px;
+`;
+
+export const EmailVerifiedModal = styled(Dialog)`
+    width: fit-content;
+    height: fit-content;
+`;
+
+export const EmailVerifiedWrapper = styled.div`
+    width: 400px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    margin: 30px 0;
 `;

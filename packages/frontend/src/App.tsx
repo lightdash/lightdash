@@ -40,6 +40,7 @@ import Space from './pages/Space';
 import Spaces from './pages/Spaces';
 import SqlRunner from './pages/SqlRunner';
 import UserActivity from './pages/UserActivity';
+import { VerifyEmailPage } from './pages/VerifyEmail';
 import { ActiveJobProvider } from './providers/ActiveJobProvider';
 import { AppProvider } from './providers/AppProvider';
 import { BlueprintProvider } from './providers/BlueprintProvider';
@@ -161,6 +162,15 @@ const App = () => (
                                                                 }
                                                             >
                                                                 <Signup />
+                                                            </TrackPage>
+                                                        </Route>
+                                                        <Route path="/verify-email">
+                                                            <TrackPage
+                                                                name={
+                                                                    PageName.VERIFY_EMAIL
+                                                                }
+                                                            >
+                                                                <VerifyEmailPage />
                                                             </TrackPage>
                                                         </Route>
 
