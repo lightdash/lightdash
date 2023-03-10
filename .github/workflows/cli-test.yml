@@ -6,7 +6,7 @@ env:
 jobs:
   cli-run:
     # Only trigger for correct environment and status
-    if: ${{ github.event.deployment_status.state == 'success' && (contains(github.event.deployment.environment, '- lightdash PR ' || contains(github.event.deployment.environment, '- lightdash-')))}}
+    if: ${{ github.event.deployment_status.state == 'success' && (contains(github.event.deployment.environment, '- lightdash PR ') || contains(github.event.deployment.environment, '- lightdash-')) }}
     runs-on: ubuntu-latest
     steps:
       - name: Get PR number
