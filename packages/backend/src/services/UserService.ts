@@ -764,7 +764,7 @@ export class UserService {
         const userEmailDomain = emailStatus.email.split('@')[1];
         const allowedEmailDomains =
             await this.organizationAllowedEmailDomainsModel.getAllowedEmailDomains(
-                emailStatus.email.split('@')[1].toLowerCase(),
+                orgUuid,
             );
         if (
             !allowedEmailDomains.emailDomains.some(

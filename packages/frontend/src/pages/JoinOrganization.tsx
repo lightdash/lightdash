@@ -32,10 +32,22 @@ export const JoinOrganizationPage: FC = () => {
         const isPR = health.data?.mode === LightdashMode.PR;
         const isAllowedToJoinOrgs = allowedOrgs && allowedOrgs.length > 0;
         const userHasOrg = user.data && !!user.data.organizationUuid;
-        if (!isCreatingOrg && !userHasOrg && (isPR || !isAllowedToJoinOrgs)) {
+        if (
+            !isCreatingOrg &&
+            !isLoadingAllowedOrgs &&
+            !userHasOrg &&
+            (isPR || !isAllowedToJoinOrgs)
+        ) {
             createOrg({ name: '' });
         }
-    }, [health, allowedOrgs, createOrg, isCreatingOrg, user]);
+    }, [
+        health,
+        allowedOrgs,
+        createOrg,
+        isCreatingOrg,
+        user,
+        isLoadingAllowedOrgs,
+    ]);
 
     useEffect(() => {
         if (hasCreatedOrg || hasJoinedOrg) {
