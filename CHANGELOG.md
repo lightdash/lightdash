@@ -1,3 +1,10 @@
+## [0.457.1](https://github.com/lightdash/lightdash/compare/0.457.0...0.457.1) (2023-03-10)
+
+
+### Bug Fixes
+
+* disallow adding a tile in view mode ([#4661](https://github.com/lightdash/lightdash/issues/4661)) ([aefaabe](https://github.com/lightdash/lightdash/commit/aefaabe46e8a1db61a26438105d981e8b029f889))
+
 # [0.457.0](https://github.com/lightdash/lightdash/compare/0.456.1...0.457.0) (2023-03-10)
 
 
