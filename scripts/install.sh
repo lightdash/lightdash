@@ -132,6 +132,9 @@ check_os() {
 }
 
 track() {
+  if [[ $CI == 'true' ]]; then
+    return
+  fi
   DATA='{
     "anonymousId":"'"$INSTALLATION_ID"'",
     "event": "'"$1"'",
