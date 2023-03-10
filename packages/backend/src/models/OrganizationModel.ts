@@ -44,6 +44,15 @@ export class OrganizationModel {
         return OrganizationModel.mapDBObjectToOrganisation(org);
     }
 
+    async create(name: string): Promise<Organisation> {
+        const [org] = await this.database(OrganizationTableName)
+            .insert({
+                organization_name: name,
+            })
+            .returning('*');
+        return OrganizationModel.mapDBObjectToOrganisation(org);
+    }
+
     async update(
         organizationUuid: string,
         data: UpdateOrganization,

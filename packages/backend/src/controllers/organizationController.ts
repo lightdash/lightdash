@@ -9,7 +9,7 @@ import {
     UpdateAllowedEmailDomains,
     UpdateOrganization,
 } from '@lightdash/common';
-import { Controller, Delete } from '@tsoa/runtime';
+import { Controller, Delete, Query } from '@tsoa/runtime';
 import express from 'express';
 import {
     Body,
@@ -18,6 +18,7 @@ import {
     OperationId,
     Patch,
     Path,
+    Put,
     Request,
     Response,
     Route,
@@ -47,6 +48,26 @@ export class OrganizationController extends Controller {
         return {
             status: 'ok',
             results: await organizationService.get(req.user!),
+        };
+    }
+
+    /**
+     * Create and join a new organization
+     * @param req express request
+     * @param name the name of the new organization
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Put()
+    @OperationId('createOrganization')
+    async createOrganization(
+        @Request() req: express.Request,
+        @Query() name?: string,
+    ): Promise<ApiSuccessEmpty> {
+        await organizationService.createAndJoinOrg(req.user!, name);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 

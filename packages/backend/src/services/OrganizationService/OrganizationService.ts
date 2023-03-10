@@ -328,4 +328,20 @@ export class OrganizationService {
             { ...data, organizationUuid },
         );
     }
+
+    async createAndJoinOrg(
+        user: SessionUser,
+        name: string | undefined,
+    ): Promise<void> {
+        if (isUserWithOrg(user)) {
+            throw new ForbiddenError('User already has an organization');
+        }
+        const org = await this.organizationModel.create(name || '');
+        await this.userModel.joinOrg(
+            user.userUuid,
+            org.organizationUuid,
+            OrganizationMemberRole.ADMIN,
+            [],
+        );
+    }
 }

@@ -18,7 +18,11 @@ import {
     Route,
 } from 'tsoa';
 import { userService } from '../services/services';
-import { isAuthenticated, unauthorisedInDemo } from './authentication';
+import {
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    unauthorisedInDemo,
+} from './authentication';
 
 @Route('/api/v1/user')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -71,7 +75,11 @@ export class UserController extends Controller {
      * Get list or organizations the user is allowed to join
      * @param req express request
      */
-    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @Get('/me/allowedOrganizations')
     @OperationId('getOrganizationsUserCanJoin')
     async getOrganizationsUserCanJoin(
@@ -86,10 +94,14 @@ export class UserController extends Controller {
     }
 
     /**
-     * Get list or organizations the user is allowed to join
+     * Join an organization
      * @param req express request
      */
-    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @Post('/me/joinOrganization/{orgUuid}')
     @OperationId('joinOrganization')
     async joinOrganization(
@@ -103,8 +115,4 @@ export class UserController extends Controller {
             results: undefined,
         };
     }
-}
-
-function POST(arg0: string) {
-    throw new Error('Function not implemented.');
 }
