@@ -98,8 +98,10 @@ const TableTreeSections: FC<Props> = ({
                             tooltipProps={{
                                 content: (
                                     <TooltipContent>
-                                        <b>View docs</b> - Add a metric to your
-                                        project
+                                        No metrics defined in your dbt project.
+                                        <br />
+                                        Click to <b>view docs</b> and learn how
+                                        to add a metric to your project.
                                     </TooltipContent>
                                 ),
                             }}
@@ -113,9 +115,7 @@ const TableTreeSections: FC<Props> = ({
                 </MetricsSectionRow>
             )}
 
-            {hasNoMetrics ? (
-                <EmptyState>No metrics defined in your dbt project</EmptyState>
-            ) : (
+            {!hasNoMetrics && (
                 <TreeProvider
                     orderFieldsBy={table.orderFieldsBy}
                     searchQuery={searchQuery}
@@ -157,12 +157,7 @@ const TableTreeSections: FC<Props> = ({
                 </CustomMetricsSectionRow>
             )}
 
-            {hasNoMetrics && additionalMetrics.length <= 0 ? (
-                <EmptyState>
-                    Add custom metrics by hovering over the dimension of your
-                    choice & selecting the three-dot Action Menu
-                </EmptyState>
-            ) : (
+            {hasNoMetrics || additionalMetrics.length > 0 ? (
                 <TreeProvider
                     orderFieldsBy={table.orderFieldsBy}
                     searchQuery={searchQuery}
@@ -172,7 +167,7 @@ const TableTreeSections: FC<Props> = ({
                 >
                     <TreeRoot depth={treeRootDepth} />
                 </TreeProvider>
-            )}
+            ) : null}
         </>
     );
 };

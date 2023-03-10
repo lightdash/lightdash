@@ -4,9 +4,6 @@ import {
     ApiExploresResults,
     ApiQueryResults,
     ApiSqlQueryResults,
-    DimensionType,
-    formatTimestamp,
-    getItemLabel,
     getItemMap,
     getRequestMethod,
     LightdashRequestMethodHeader,
@@ -230,7 +227,7 @@ projectRouter.post(
     async (req, res, next) => {
         try {
             const { body } = req;
-            const { csvLimit, onlyRaw } = body;
+            const { csvLimit, onlyRaw, showTableNames, customLabels } = body;
             const metricQuery: MetricQuery = {
                 dimensions: body.dimensions,
                 metrics: body.metrics,
@@ -267,6 +264,8 @@ projectRouter.post(
                         onlyRaw,
                         metricQuery,
                         itemMap,
+                        showTableNames,
+                        customLabels,
                     ),
             );
 
@@ -675,6 +674,7 @@ projectRouter.post(
 
             const csvContent = await CsvService.convertSqlQueryResultsToCsv(
                 results,
+                req.body.customLabels,
             );
 
             const fileId = `csv-${nanoid()}.csv`;

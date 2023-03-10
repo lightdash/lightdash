@@ -1,6 +1,8 @@
+import { SchedulerJobStatus } from '@lightdash/common';
 import { getSchedule, stringToArray } from 'cron-converter';
 import {
     JobHelpers,
+    Logger as GraphileLogger,
     parseCronItems,
     run as runGraphileWorker,
 } from 'graphile-worker';
@@ -37,6 +39,11 @@ export const getDailyDatesFromCron = (
     return dailyDates;
 };
 
+const workerLogger = new GraphileLogger((scope) => (level, message, meta) => {
+    const sanitizedLevel = level === 'warning' ? 'warn' : level;
+    Logger[sanitizedLevel](message, meta, scope);
+});
+
 export class SchedulerWorker {
     lightdashConfig: LightdashConfig;
 
@@ -45,9 +52,13 @@ export class SchedulerWorker {
     }
 
     async run() {
+        // Wait for graphile utils to finish migration and prevent race conditions
+        await schedulerClient.graphileUtils;
         // Run a worker to execute jobs:
         Logger.info('Running scheduler');
         const runner = await runGraphileWorker({
+            connectionString: this.lightdashConfig.database.connectionUri,
+            logger: workerLogger,
             concurrency: this.lightdashConfig.scheduler?.concurrency,
             noHandleSignals: false,
             pollInterval: 1000,
@@ -71,11 +82,12 @@ export class SchedulerWorker {
                     );
                     const schedulers =
                         await schedulerService.getAllSchedulers();
-                    const promises = schedulers.map((scheduler) =>
-                        schedulerClient.generateDailyJobsForScheduler(
+                    const promises = schedulers.map(async (scheduler) => {
+                        await schedulerClient.generateDailyJobsForScheduler(
                             scheduler,
-                        ),
-                    );
+                        );
+                    });
+
                     await Promise.all(promises);
                 },
                 handleScheduledDelivery: async (
@@ -86,7 +98,11 @@ export class SchedulerWorker {
                         `Processing handleScheduledDelivery job "${helpers.job.id}"`,
                         payload,
                     );
-                    await handleScheduledDelivery(helpers.job.id, payload);
+                    await handleScheduledDelivery(
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                    );
                 },
                 sendSlackNotification: async (
                     payload: any,

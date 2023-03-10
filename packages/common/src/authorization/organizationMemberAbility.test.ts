@@ -102,7 +102,7 @@ describe('Organization member permissions', () => {
             );
         });
         it('can create invite links', () => {
-            expect(ability.can('create', 'InviteLink')).toEqual(true);
+            expect(ability.can('create', 'InviteLink')).toEqual(false);
         });
         it('can run SQL Queries', () => {
             expect(ability.can('manage', 'SqlRunner')).toEqual(true);
@@ -118,7 +118,7 @@ describe('Organization member permissions', () => {
             );
         });
         it('can create invitations', () => {
-            expect(ability.can('create', 'InviteLink')).toEqual(true);
+            expect(ability.can('create', 'InviteLink')).toEqual(false);
         });
         it('cannot view organizations', () => {
             expect(ability.can('view', 'Organization')).toEqual(false);
@@ -137,7 +137,7 @@ describe('Organization member permissions', () => {
             );
         });
         it('can create invitations', () => {
-            expect(ability.can('create', 'InviteLink')).toEqual(true);
+            expect(ability.can('create', 'InviteLink')).toEqual(false);
         });
         it('can create Project', () => {
             expect(ability.can('create', 'Project')).toEqual(true);

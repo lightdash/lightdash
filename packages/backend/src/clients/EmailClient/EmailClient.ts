@@ -129,7 +129,7 @@ export default class EmailClient {
         return this.sendEmail({
             to: invite.email,
             subject: `You've been invited to join Lightdash`,
-            template: 'invite',
+            template: 'invitation',
             context: {
                 orgName: userThatInvited.organizationName,
                 inviteUrl: `${invite.inviteUrl}?from=email`,
@@ -258,6 +258,30 @@ export default class EmailClient {
                 downloadCsv,
             },
             text: title,
+        });
+    }
+
+    async sendOneTimePasscodeEmail({
+        recipient,
+        passcode,
+    }: {
+        recipient: string;
+        passcode: string;
+    }): Promise<void> {
+        const subject = 'Verify your email address';
+        const text = `
+        Verify your email address by entering the following passcode in Lightdash: ${passcode}
+            `;
+        return this.sendEmail({
+            to: recipient,
+            subject,
+            template: 'oneTimePasscode',
+            context: {
+                passcode,
+                title: subject,
+                host: this.lightdashConfig.siteUrl,
+            },
+            text,
         });
     }
 }

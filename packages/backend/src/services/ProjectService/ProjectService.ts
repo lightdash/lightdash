@@ -28,6 +28,7 @@ import {
     hasIntersection,
     isExploreError,
     isFilterableDimension,
+    isUserWithOrg,
     Job,
     JobStatusType,
     JobStepType,
@@ -165,6 +166,9 @@ export class ProjectService {
         data: CreateProject,
         method: RequestMethod,
     ): Promise<Project> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
         if (
             user.ability.cannot('create', 'Job') ||
             user.ability.cannot('create', 'Project')
@@ -207,6 +211,9 @@ export class ProjectService {
         data: CreateProject,
         method: RequestMethod,
     ): Promise<{ jobUuid: string }> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
         if (
             user.ability.cannot('create', 'Job') ||
             user.ability.cannot('create', 'Project')
@@ -322,6 +329,9 @@ export class ProjectService {
         data: UpdateProject,
         method: RequestMethod,
     ): Promise<{ jobUuid: string }> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
         const savedProject = await this.projectModel.getWithSensitiveFields(
             projectUuid,
         );
@@ -503,7 +513,6 @@ export class ProjectService {
         metricQuery: MetricQuery,
         projectUuid: string,
         exploreName: string,
-        allResults?: boolean,
     ): Promise<{ query: string; hasExampleMetric: boolean }> {
         const { organizationUuid } =
             await this.projectModel.getWithSensitiveFields(projectUuid);
@@ -526,9 +535,41 @@ export class ProjectService {
         return buildQuery({
             explore,
             compiledMetricQuery,
-            allResults,
             warehouseClient,
         });
+    }
+
+    static metricQueryWithLimit(
+        metricQuery: MetricQuery,
+        csvLimit: number | null | undefined,
+    ): MetricQuery {
+        const MAX_CELLS = 100000;
+        if (csvLimit === undefined) {
+            if (metricQuery.limit > lightdashConfig.query?.maxLimit) {
+                throw new ParameterError(
+                    `Query limit can not exceed ${lightdashConfig.query.maxLimit}`,
+                );
+            }
+            return metricQuery;
+        }
+
+        const numberColumns =
+            metricQuery.dimensions.length +
+            metricQuery.metrics.length +
+            metricQuery.tableCalculations.length;
+        if (numberColumns === 0)
+            throw new ParameterError(
+                'Query must have at least one dimension or metric',
+            );
+
+        const maxRows = Math.floor(MAX_CELLS / numberColumns);
+        const csvRowLimit =
+            csvLimit === null ? maxRows : Math.min(csvLimit, maxRows);
+
+        return {
+            ...metricQuery,
+            limit: csvRowLimit,
+        };
     }
 
     async runQuery(
@@ -538,6 +579,9 @@ export class ProjectService {
         exploreName: string,
         csvLimit: number | null | undefined,
     ): Promise<ApiQueryResults> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
         const { organizationUuid, warehouseConnection } =
             await this.projectModel.getWithSensitiveFields(projectUuid);
 
@@ -550,23 +594,16 @@ export class ProjectService {
             throw new ForbiddenError();
         }
 
-        if (
-            csvLimit === undefined &&
-            metricQuery.limit > lightdashConfig.query.maxLimit
-        ) {
-            throw new ParameterError(
-                `Query limit can not exceed ${lightdashConfig.query.maxLimit}`,
-            );
-        }
+        const metricQueryWithLimit = ProjectService.metricQueryWithLimit(
+            metricQuery,
+            csvLimit,
+        );
 
         const { query, hasExampleMetric } = await this.compileQuery(
             user,
-            csvLimit !== undefined && csvLimit !== null
-                ? { ...metricQuery, limit: csvLimit }
-                : metricQuery,
+            metricQueryWithLimit,
             projectUuid,
             exploreName,
-            csvLimit === null,
         );
 
         const onboardingRecord =

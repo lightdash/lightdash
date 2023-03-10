@@ -115,8 +115,18 @@ import {
     DbAnalyticsDashboardViews,
 } from '../database/entities/analytics';
 import {
+    EmailOneTimePasscodesTableName,
+    EmailOneTimePasscodeTable,
+} from '../database/entities/email_one_time_passcodes';
+import {
+    OrganizationAllowedEmailDomainsTable,
+    OrganizationAllowedEmailDomainsTableName,
+} from '../database/entities/organizationsAllowedEmailDomains';
+import {
     SchedulerEmailTargetTable,
     SchedulerEmailTargetTableName,
+    SchedulerLogTable,
+    SchedulerLogTableName,
     SchedulerSlackTargetTable,
     SchedulerSlackTargetTableName,
     SchedulerTable,
@@ -169,5 +179,8 @@ declare module 'knex/types/tables' {
         [SchedulerTableName]: SchedulerTable;
         [SchedulerSlackTargetTableName]: SchedulerSlackTargetTable;
         [SchedulerEmailTargetTableName]: SchedulerEmailTargetTable;
+        [EmailOneTimePasscodesTableName]: EmailOneTimePasscodeTable;
+        [SchedulerLogTableName]: SchedulerLogTable;
+        [OrganizationAllowedEmailDomainsTableName]: OrganizationAllowedEmailDomainsTable;
     }
 }

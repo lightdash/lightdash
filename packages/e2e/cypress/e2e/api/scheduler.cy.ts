@@ -52,7 +52,6 @@ describe('Lightdash scheduler endpoints', () => {
                     headers: { 'Content-type': 'application/json' },
                     method: 'POST',
                     body: createSchedulerBody,
-                    failOnStatusCode: false,
                 }).then((createResponse) => {
                     expect(createResponse.body.results).to.have.property(
                         'schedulerUuid',
@@ -71,7 +70,6 @@ describe('Lightdash scheduler endpoints', () => {
                     cy.request<{ results: ChartScheduler[] }>({
                         url: `${apiUrl}/saved/${savedChart.uuid}/schedulers`,
                         method: 'GET',
-                        failOnStatusCode: false,
                     }).then((response) => {
                         const schedulerIds = response.body.results.map(
                             (r) => r.schedulerUuid,
@@ -83,7 +81,6 @@ describe('Lightdash scheduler endpoints', () => {
                     cy.request<{ results: ScheduledJobs[] }>({
                         url: `${apiUrl}/schedulers/${schedulerUuid}/jobs`,
                         method: 'GET',
-                        failOnStatusCode: false,
                     }).then((response) => {
                         expect(response.body.results).to.be.length(1);
                         expect(
@@ -100,7 +97,6 @@ describe('Lightdash scheduler endpoints', () => {
                             (targets[0] as SchedulerSlackTarget)
                                 .schedulerSlackTargetUuid,
                         ),
-                        failOnStatusCode: false,
                     }).then((updateResponse) => {
                         expect(updateResponse.body.results.name).to.eq('test2');
                         expect(updateResponse.body.results.cron).to.eq(cron);
@@ -155,7 +151,6 @@ describe('Lightdash scheduler endpoints', () => {
                     headers: { 'Content-type': 'application/json' },
                     method: 'POST',
                     body: createSchedulerBody,
-                    failOnStatusCode: false,
                 }).then((createResponse) => {
                     expect(createResponse.body.results).to.have.property(
                         'schedulerUuid',
@@ -174,7 +169,6 @@ describe('Lightdash scheduler endpoints', () => {
                     cy.request<{ results: ScheduledJobs[] }>({
                         url: `${apiUrl}/schedulers/${schedulerUuid}/jobs`,
                         method: 'GET',
-                        failOnStatusCode: false,
                     }).then((response) => {
                         expect(response.body.results).to.be.length(1);
                         expect(
@@ -186,7 +180,6 @@ describe('Lightdash scheduler endpoints', () => {
                     cy.request<{ results: DashboardScheduler[] }>({
                         url: `${apiUrl}/dashboards/${dashboard.uuid}/schedulers`,
                         method: 'GET',
-                        failOnStatusCode: false,
                     }).then((response) => {
                         const schedulerIds = response.body.results.map(
                             (r) => r.schedulerUuid,
@@ -205,7 +198,6 @@ describe('Lightdash scheduler endpoints', () => {
                             (targets[0] as SchedulerSlackTarget)
                                 .schedulerSlackTargetUuid,
                         ),
-                        failOnStatusCode: false,
                     }).then((updateResponse) => {
                         expect(updateResponse.body.results.name).to.eq('test2');
                         expect(updateResponse.body.results.cron).to.eq(cron);

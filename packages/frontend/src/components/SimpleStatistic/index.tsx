@@ -1,71 +1,108 @@
-import React, { FC, useState } from 'react';
+import { useResizeObserver } from '@mantine/hooks';
+import clamp from 'lodash-es/clamp';
+import React, { FC, useMemo } from 'react';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { EmptyChart, LoadingChart } from '../SimpleChart';
 import { BigNumberContextMenu } from './BigNumberContextMenu';
 import {
-    AutoFitBigNumber,
-    AutoFitBigNumberLabel,
     BigNumber,
     BigNumberContainer,
     BigNumberLabel,
 } from './SimpleStatistics.styles';
 
-type SimpleStatisticsProps = React.HTMLAttributes<HTMLDivElement>;
+interface SimpleStatisticsProps extends React.HTMLAttributes<HTMLDivElement> {
+    minimal?: boolean;
+}
 
-const SimpleStatistic: FC<SimpleStatisticsProps> = ({ ...wrapperProps }) => {
+const BOX_MIN_WIDTH = 150;
+const BOX_MAX_WIDTH = 1000;
+
+const VALUE_SIZE_MIN = 24;
+const VALUE_SIZE_MAX = 64;
+
+const LABEL_SIZE_MIN = 14;
+const LABEL_SIZE_MAX = 32;
+
+const calculateFontSize = (
+    fontSizeMin: number,
+    fontSizeMax: number,
+    boundWidth: number,
+) =>
+    Math.floor(
+        fontSizeMin +
+            ((fontSizeMax - fontSizeMin) * (boundWidth - BOX_MIN_WIDTH)) /
+                (BOX_MAX_WIDTH - BOX_MIN_WIDTH),
+    );
+
+const SimpleStatistic: FC<SimpleStatisticsProps> = ({
+    minimal = false,
+    ...wrapperProps
+}) => {
     const {
         resultsData,
         isLoading,
         bigNumberConfig: { bigNumber, bigNumberLabel, defaultLabel },
         isSqlRunner,
     } = useVisualizationContext();
+    const [containerRef, rect] = useResizeObserver();
 
-    const [labelMaxSize, setLabelMaxSize] = useState(20);
+    const { valueFontSize, labelFontSize } = useMemo(() => {
+        const boundWidth = clamp(
+            rect?.width ?? 0,
+            BOX_MIN_WIDTH,
+            BOX_MAX_WIDTH,
+        );
+
+        const valueSize = calculateFontSize(
+            VALUE_SIZE_MIN,
+            VALUE_SIZE_MAX,
+            boundWidth,
+        );
+
+        const labelSize = calculateFontSize(
+            LABEL_SIZE_MIN,
+            LABEL_SIZE_MAX,
+            boundWidth,
+        );
+
+        return {
+            valueFontSize: valueSize,
+            labelFontSize: labelSize,
+        };
+    }, [rect?.width]);
+
     const validData = bigNumber && resultsData?.rows.length;
 
     if (isLoading) return <LoadingChart />;
 
     return validData ? (
-        <BigNumberContainer {...wrapperProps}>
-            {isSqlRunner ? (
-                <AutoFitBigNumber min={15} max={100} start={50}>
-                    <BigNumber>{bigNumber}</BigNumber>
-                </AutoFitBigNumber>
-            ) : (
-                <BigNumberContextMenu
-                    renderTarget={({ ref, ...popoverProps }) => (
-                        <AutoFitBigNumber
-                            min={10}
-                            max={100}
-                            start={30}
-                            onFontSize={(size: number) =>
-                                size > 30
-                                    ? setLabelMaxSize(size / 2.5)
-                                    : undefined
-                            }
-                            hideOnCalc
-                        >
-                            <BigNumber
-                                $interactive
-                                ref={ref}
-                                onClick={(popoverProps as any).onClick}
-                            >
-                                {bigNumber}
-                            </BigNumber>
-                        </AutoFitBigNumber>
+        <BigNumberContainer ref={containerRef} {...wrapperProps}>
+            {rect?.width ? (
+                <>
+                    {minimal || isSqlRunner ? (
+                        <BigNumber $fontSize={valueFontSize}>
+                            {bigNumber}
+                        </BigNumber>
+                    ) : (
+                        <BigNumberContextMenu
+                            renderTarget={({ ref, onClick }) => (
+                                <BigNumber
+                                    $interactive
+                                    ref={ref}
+                                    onClick={onClick}
+                                    $fontSize={valueFontSize}
+                                >
+                                    {bigNumber}
+                                </BigNumber>
+                            )}
+                        />
                     )}
-                />
-            )}
-            <AutoFitBigNumberLabel
-                min={10}
-                max={labelMaxSize}
-                start={15}
-                hideOnCalc
-            >
-                <BigNumberLabel>
-                    {bigNumberLabel || defaultLabel}
-                </BigNumberLabel>
-            </AutoFitBigNumberLabel>
+
+                    <BigNumberLabel $fontSize={labelFontSize}>
+                        {bigNumberLabel || defaultLabel}
+                    </BigNumberLabel>
+                </>
+            ) : null}
         </BigNumberContainer>
     ) : (
         <EmptyChart />

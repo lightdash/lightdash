@@ -42,7 +42,7 @@ export const space: SpaceTable['base'] = {
     is_private: true,
     created_at: new Date(),
     project_id: 0,
-    organization_uuid: user.organizationUuid,
+    organization_uuid: user.organizationUuid!,
 };
 
 export const publicSpace: Space = {
@@ -62,7 +62,7 @@ export const privateSpace: Space = {
 };
 
 export const dashboard: Dashboard = {
-    organizationUuid: user.organizationUuid,
+    organizationUuid: user.organizationUuid!,
     projectUuid: 'projectUuid',
     uuid: 'uuid',
     name: 'name',
@@ -94,7 +94,7 @@ export const dashboard: Dashboard = {
 
 export const dashboardsDetails: DashboardBasicDetails[] = [
     {
-        organizationUuid: user.organizationUuid,
+        organizationUuid: user.organizationUuid!,
         projectUuid: dashboard.projectUuid,
         uuid: dashboard.uuid,
         name: dashboard.name,

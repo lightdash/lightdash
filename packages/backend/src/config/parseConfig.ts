@@ -305,7 +305,7 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
             stateSecret: process.env.SLACK_STATE_SECRET || 'slack-state-secret',
         },
         scheduler: {
-            enabled: process.env.SCHEDULER_ENABLED === 'true',
+            enabled: process.env.SCHEDULER_ENABLED !== 'false',
             concurrency: parseInt(process.env.SCHEDULER_CONCURRENCY || '1', 10),
         },
     };

@@ -1,4 +1,4 @@
-import { Icon, Menu, NonIdealState, Portal, Tag } from '@blueprintjs/core';
+import { Button, Menu, NonIdealState, Portal, Tag } from '@blueprintjs/core';
 import {
     MenuItem2,
     Popover2,
@@ -11,23 +11,25 @@ import {
     DashboardFilterRule,
     Field,
     fieldId,
-    FilterGroup,
     FilterOperator,
     friendlyName,
+    getCustomLabelsFromTableConfig,
     getDimensions,
     getFields,
     getItemMap,
     getVisibleFields,
     isFilterableField,
+    isTableChartConfig,
     PivotReference,
     ResultRow,
     SavedChart,
 } from '@lightdash/common';
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
-import { useHistory, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import useDashboardFiltersForExplore from '../../hooks/dashboard/useDashboardFiltersForExplore';
+import useSavedQueryWithDashboardFilters from '../../hooks/dashboard/useSavedQueryWithDashboardFilters';
 import { EChartSeries } from '../../hooks/echarts/useEcharts';
 import useToaster from '../../hooks/toaster/useToaster';
 import { downloadCsv } from '../../hooks/useDownloadCsv';
@@ -54,7 +56,6 @@ import {
 import { EchartSeriesClickEvent } from '../SimpleChart';
 import TileBase from './TileBase/index';
 import {
-    FilterIcon,
     FilterLabel,
     FilterWrapper,
     GlobalTileStyles,
@@ -88,6 +89,12 @@ const ExportResultAsCSVModal: FC<ExportResultAsCSVModalProps> = ({
             query: savedChart.metricQuery,
             csvLimit: limit,
             onlyRaw: onlyRaw,
+            showTableNames: isTableChartConfig(savedChart.chartConfig.config)
+                ? savedChart.chartConfig.config.showTableNames ?? false
+                : true,
+            customLabels: getCustomLabelsFromTableConfig(
+                savedChart.chartConfig.config,
+            ),
         });
         return csvResponse.url;
     };
@@ -154,6 +161,34 @@ const ValidDashboardChartTile: FC<{
     );
 };
 
+const ValidDashboardChartTileMinimal: FC<{
+    tileUuid: string;
+    data: SavedChart;
+    project: string;
+}> = ({ tileUuid, data, project }) => {
+    const { data: resultData, isLoading } = useSavedChartResults(project, data);
+    const { data: explore } = useExplore(data.tableName);
+
+    return (
+        <VisualizationProvider
+            minimal
+            chartType={data.chartConfig.type}
+            initialChartConfig={data.chartConfig}
+            initialPivotDimensions={data.pivotConfig?.columns}
+            resultsData={resultData}
+            explore={explore}
+            isLoading={isLoading}
+            columnOrder={data.tableConfig.columnOrder}
+        >
+            <LightdashVisualization
+                isDashboard
+                tileUuid={tileUuid}
+                $padding={0}
+            />
+        </VisualizationProvider>
+    );
+};
+
 const InvalidDashboardChartTile: FC = () => (
     <NonIdealState
         title="No chart available"
@@ -162,12 +197,15 @@ const InvalidDashboardChartTile: FC = () => (
     />
 );
 
-type Props = Pick<
-    React.ComponentProps<typeof TileBase>,
-    'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
-> & { tile: IDashboardChartTile };
+interface DashboardChartTileMainProps
+    extends Pick<
+        React.ComponentProps<typeof TileBase>,
+        'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
+    > {
+    tile: IDashboardChartTile;
+}
 
-const DashboardChartTile: FC<Props> = (props) => {
+const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     const { showToastSuccess } = useToaster();
     const { track } = useTracking();
     const {
@@ -223,7 +261,6 @@ const DashboardChartTile: FC<Props> = (props) => {
         pivotReference?: PivotReference;
     }>();
     const [isCSVExportModalOpen, setIsCSVExportModalOpen] = useState(false);
-    useState(false);
 
     const onSeriesContextMenu = useCallback(
         (e: EchartSeriesClickEvent, series: EChartSeries[]) => {
@@ -299,51 +336,18 @@ const DashboardChartTile: FC<Props> = (props) => {
         },
         [explore, savedQuery],
     );
-    // START DASHBOARD FILTER LOGIC
-    // TODO: move this logic out of component
-    let savedQueryWithDashboardFilters: SavedChart | undefined;
+
+    const { data: savedQueryWithDashboardFilters, dashboardFilters } =
+        useSavedQueryWithDashboardFilters(tileUuid, savedChartUuid);
 
     const dashboardFiltersThatApplyToChart = useDashboardFiltersForExplore(
         tileUuid,
         explore,
     );
 
-    if (savedQuery) {
-        const dimensionFilters: FilterGroup = {
-            id: 'yes',
-            and: [
-                ...(savedQuery.metricQuery.filters.dimensions
-                    ? [savedQuery.metricQuery.filters.dimensions]
-                    : []),
-                ...dashboardFiltersThatApplyToChart.dimensions,
-            ],
-        };
-        const metricFilters: FilterGroup = {
-            id: 'no',
-            and: [
-                ...(savedQuery.metricQuery.filters.metrics
-                    ? [savedQuery.metricQuery.filters.metrics]
-                    : []),
-                ...dashboardFiltersThatApplyToChart.metrics,
-            ],
-        };
-        savedQueryWithDashboardFilters = {
-            ...savedQuery,
-            metricQuery: {
-                ...savedQuery.metricQuery,
-                filters: {
-                    dimensions: dimensionFilters,
-                    metrics: metricFilters,
-                },
-            },
-        };
-    }
-    // END DASHBOARD FILTER LOGIC
-
-    const appliedFilterRules = [
-        ...dashboardFiltersThatApplyToChart.dimensions,
-        ...dashboardFiltersThatApplyToChart.metrics,
-    ];
+    const appliedFilterRules = dashboardFilters
+        ? [...dashboardFilters.dimensions, ...dashboardFilters.metrics]
+        : [];
 
     const renderFilterRule = useCallback(
         (filterRule: DashboardFilterRule) => {
@@ -391,34 +395,27 @@ const DashboardChartTile: FC<Props> = (props) => {
             <TileBase
                 extraHeaderElement={
                     appliedFilterRules.length > 0 && (
-                        <div>
-                            <Tooltip2
-                                content={
-                                    <FilterWrapper>
-                                        <FilterLabel>
-                                            Dashboard filter
-                                            {appliedFilterRules.length > 1
-                                                ? 's'
-                                                : ''}{' '}
-                                            applied:
-                                        </FilterLabel>
-                                        {appliedFilterRules.map(
-                                            renderFilterRule,
-                                        )}
-                                    </FilterWrapper>
-                                }
-                                interactionKind="hover"
-                                placement="bottom-end"
-                            >
-                                <FilterIcon>
-                                    <Icon icon="filter" />
-                                </FilterIcon>
-                            </Tooltip2>
-                        </div>
+                        <Tooltip2
+                            content={
+                                <FilterWrapper>
+                                    <FilterLabel>
+                                        Dashboard filter
+                                        {appliedFilterRules.length > 1
+                                            ? 's'
+                                            : ''}{' '}
+                                        applied:
+                                    </FilterLabel>
+                                    {appliedFilterRules.map(renderFilterRule)}
+                                </FilterWrapper>
+                            }
+                            interactionKind="hover"
+                            placement="bottom-end"
+                        >
+                            <Button minimal small icon="filter" />
+                        </Tooltip2>
                     )
                 }
                 title={savedQueryWithDashboardFilters?.name || ''}
-                clickableTitle={true}
                 titleHref={`/projects/${projectUuid}/saved/${savedChartUuid}/`}
                 description={savedQueryWithDashboardFilters?.description}
                 isLoading={isLoading || isLoadingExplore}
@@ -641,6 +638,56 @@ const DashboardChartTile: FC<Props> = (props) => {
             ) : null}
         </>
     );
+};
+
+const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
+    const {
+        tile: {
+            uuid: tileUuid,
+            properties: { savedChartUuid },
+        },
+    } = props;
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+
+    const { isLoading, data } = useSavedQueryWithDashboardFilters(
+        tileUuid,
+        savedChartUuid,
+    );
+
+    return (
+        <TileBase
+            title={data?.name || ''}
+            titleHref={`/projects/${projectUuid}/saved/${savedChartUuid}/`}
+            description={data?.description}
+            isLoading={isLoading}
+            {...props}
+        >
+            {data ? (
+                <ValidDashboardChartTileMinimal
+                    tileUuid={tileUuid}
+                    data={data}
+                    project={projectUuid}
+                />
+            ) : (
+                <InvalidDashboardChartTile />
+            )}
+        </TileBase>
+    );
+};
+
+interface DashboardChartTileProps extends DashboardChartTileMainProps {
+    minimal?: boolean;
+}
+
+const DashboardChartTile: FC<DashboardChartTileProps> = ({
+    minimal = false,
+    ...rest
+}) => {
+    if (minimal) {
+        return <DashboardChartTileMinimal {...rest} />;
+    } else {
+        return <DashboardChartTileMain {...rest} />;
+    }
 };
 
 export default DashboardChartTile;

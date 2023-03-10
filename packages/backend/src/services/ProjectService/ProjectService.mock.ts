@@ -219,7 +219,7 @@ export const expectedCatalog = {
 };
 
 export const projectWithSensitiveFields: Project = {
-    organizationUuid: user.organizationUuid,
+    organizationUuid: user.organizationUuid!,
     projectUuid: 'projectUuid',
     name: 'name',
     type: ProjectType.DEFAULT,
@@ -239,7 +239,7 @@ export const defaultProject: OrganizationProject = {
 
 export const spacesWithSavedCharts: Space[] = [
     {
-        organizationUuid: user.organizationUuid,
+        organizationUuid: user.organizationUuid!,
         name: 'sapce',
         isPrivate: false,
         uuid: 'uuid',
@@ -263,7 +263,7 @@ export const spacesWithSavedCharts: Space[] = [
 
 export const spacesWithNoSavedCharts: Space[] = [
     {
-        organizationUuid: user.organizationUuid,
+        organizationUuid: user.organizationUuid!,
         name: 'sapce',
         uuid: 'uuid',
         pinnedListUuid: null,

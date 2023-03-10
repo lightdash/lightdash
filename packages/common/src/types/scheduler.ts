@@ -7,6 +7,28 @@ export type SchedulerImageOptions = {};
 
 export type SchedulerOptions = SchedulerCsvOptions | SchedulerImageOptions;
 
+export enum SchedulerJobStatus {
+    SCHEDULED = 'scheduled',
+    STARTED = 'started',
+    COMPLETED = 'completed',
+    ERROR = 'error',
+}
+
+export type SchedulerLog = {
+    task:
+        | 'handleScheduledDelivery'
+        | 'sendEmailNotification'
+        | 'sendSlackNotification';
+    schedulerUuid: string;
+    jobId: string;
+    jobGroup: string;
+    scheduledTime: Date;
+    status: SchedulerJobStatus;
+    target?: string;
+    targetType?: 'email' | 'slack';
+    details?: Record<string, any>;
+};
+
 export type SchedulerBase = {
     schedulerUuid: string;
     name: string;
@@ -149,6 +171,8 @@ export enum LightdashPage {
 
 export type NotificationPayloadBase = {
     schedulerUuid: string;
+    scheduledTime: Date;
+    jobGroup: string;
     page: {
         url: string;
         details: {

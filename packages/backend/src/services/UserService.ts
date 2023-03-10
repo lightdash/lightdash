@@ -6,10 +6,12 @@ import {
     CreatePasswordResetLink,
     CreateUserArgs,
     DeleteOpenIdentity,
+    EmailStatusExpiring,
     ExpiredError,
     ForbiddenError,
     InviteLink,
     isOpenIdUser,
+    isUserWithOrg,
     LightdashMode,
     LightdashUser,
     NotExistsError,
@@ -22,6 +24,7 @@ import {
     SessionUser,
     UpdateUserArgs,
 } from '@lightdash/common';
+import { randomInt } from 'crypto';
 import { nanoid } from 'nanoid';
 import { analytics, identifyUser } from '../analytics/client';
 import EmailClient from '../clients/EmailClient/EmailClient';
@@ -71,6 +74,10 @@ export class UserService {
 
     private readonly personalAccessTokenModel: PersonalAccessTokenModel;
 
+    private readonly emailOneTimePasscodeExpirySeconds = 60 * 15;
+
+    private readonly emailOneTimePasscodeMaxAttempts = 5;
+
     constructor({
         inviteLinkModel,
         userModel,
@@ -109,14 +116,7 @@ export class UserService {
         const userEmail = isOpenIdUser(activateUser)
             ? activateUser.openId.email
             : inviteLink.email;
-        if (
-            !(await this.verifyUserEmail(
-                inviteLink.organisationUuid,
-                userEmail,
-            ))
-        ) {
-            throw new AuthorizationError('Email domain not allowed');
-        }
+
         if (inviteLink.email.toLowerCase() !== userEmail.toLowerCase()) {
             Logger.error(
                 `User accepted invite with wrong email ${userEmail} when the invited email was ${inviteLink.email}`,
@@ -138,6 +138,9 @@ export class UserService {
                 userConnectionType: 'password',
             },
         });
+        if (!isOpenIdUser(activateUser)) {
+            await this.sendOneTimePasscodeToPrimaryEmail(user);
+        }
         return user;
     }
 
@@ -191,10 +194,6 @@ export class UserService {
         const inviteCode = nanoid(30);
         if (organizationUuid === undefined) {
             throw new NotExistsError('Organization not found');
-        }
-
-        if (!(await this.verifyUserEmail(organizationUuid, email))) {
-            throw new AuthorizationError('Email domain not allowed');
         }
 
         const existingUserWithEmail = await this.userModel.findUserByEmail(
@@ -295,6 +294,10 @@ export class UserService {
             await this.openIdIdentityModel.updateIdentityByOpenId(
                 openIdUser.openId,
             );
+            await this.emailModel.verifyUserEmailIfExists(
+                loginUser.userUuid,
+                openIdUser.openId.email,
+            );
             identifyUser(loginUser);
             analytics.track({
                 userId: loginUser.userUuid,
@@ -308,14 +311,6 @@ export class UserService {
 
         // User already logged in? Link openid identity to logged-in user
         if (sessionUser?.userId) {
-            if (
-                !(await this.verifyUserEmail(
-                    sessionUser.organizationUuid,
-                    openIdUser.openId.email,
-                ))
-            ) {
-                throw new AuthorizationError('Email domain not allowed');
-            }
             await this.openIdIdentityModel.createIdentity({
                 userId: sessionUser.userId,
                 issuer: openIdUser.openId.issuer,
@@ -323,6 +318,10 @@ export class UserService {
                 email: openIdUser.openId.email,
                 issuerType: openIdUser.openId.issuerType,
             });
+            await this.emailModel.verifyUserEmailIfExists(
+                sessionUser.userUuid,
+                openIdUser.openId.email,
+            );
             analytics.track({
                 userId: sessionUser.userUuid,
                 event: 'user.identity_linked',
@@ -334,7 +333,15 @@ export class UserService {
         }
 
         // Create user
-        return this.activateUserWithOpenId(openIdUser, inviteCode);
+        const createdUser = await this.activateUserWithOpenId(
+            openIdUser,
+            inviteCode,
+        );
+        await this.emailModel.verifyUserEmailIfExists(
+            createdUser.userUuid,
+            openIdUser.openId.email,
+        );
+        return createdUser;
     }
 
     async activateUserWithOpenId(
@@ -361,6 +368,9 @@ export class UserService {
             isMarketingOptedIn,
         }: CompleteUserArgs,
     ): Promise<LightdashUser> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
         if (organizationName) {
             await this.organizationModel.update(user.organizationUuid, {
                 name: organizationName,
@@ -398,21 +408,6 @@ export class UserService {
             },
         });
         return completeUser;
-    }
-
-    async verifyUserEmail(
-        organisationUuid: string,
-        email: string,
-    ): Promise<boolean> {
-        const { allowedEmailDomains } = await this.organizationModel.get(
-            organisationUuid,
-        );
-        return (
-            allowedEmailDomains.length === 0 ||
-            allowedEmailDomains.some((allowedEmailDomain) =>
-                email.endsWith(`@${allowedEmailDomain}`),
-            )
-        );
     }
 
     async getLinkedIdentities({
@@ -530,6 +525,41 @@ export class UserService {
         return updatedUser;
     }
 
+    async registerUser(createUser: CreateUserArgs | OpenIdUser) {
+        if (
+            !isOpenIdUser(createUser) &&
+            lightdashConfig.auth.disablePasswordAuthentication
+        ) {
+            throw new ForbiddenError('Password credentials are not allowed');
+        }
+        const user = await this.userModel.createUser(createUser);
+        identifyUser({
+            ...user,
+            isMarketingOptedIn: user.isMarketingOptedIn,
+        });
+        analytics.track({
+            event: 'user.created',
+            userId: user.userUuid,
+            properties: {
+                userConnectionType: isOpenIdUser(createUser)
+                    ? 'google'
+                    : 'password',
+            },
+        });
+        if (isOpenIdUser(createUser)) {
+            analytics.track({
+                userId: user.userUuid,
+                event: 'user.identity_linked',
+                properties: {
+                    loginProvider: 'google',
+                },
+            });
+        } else {
+            await this.sendOneTimePasscodeToPrimaryEmail(user);
+        }
+        return user;
+    }
+
     async registerNewUserWithOrg(createUser: CreateUserArgs | OpenIdUser) {
         if (
             !lightdashConfig.allowMultiOrgs &&
@@ -547,6 +577,9 @@ export class UserService {
         }
 
         const user = await this.userModel.createNewUserWithOrg(createUser);
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
         identifyUser({
             ...user,
             isMarketingOptedIn: user.isMarketingOptedIn,
@@ -580,6 +613,8 @@ export class UserService {
                     loginProvider: 'google',
                 },
             });
+        } else {
+            await this.sendOneTimePasscodeToPrimaryEmail(user);
         }
         return user;
     }
@@ -657,5 +692,99 @@ export class UserService {
 
     async getSessionByUserUuid(userUuid: string): Promise<SessionUser> {
         return this.userModel.findSessionUserByUUID(userUuid);
+    }
+
+    private otpExpirationDate(createdAt: Date) {
+        return new Date(
+            createdAt.getTime() + this.emailOneTimePasscodeExpirySeconds * 1000,
+        );
+    }
+
+    async sendOneTimePasscodeToPrimaryEmail(
+        user: Pick<SessionUser, 'userUuid'>,
+    ): Promise<EmailStatusExpiring> {
+        const passcode = randomInt(999999).toString().padStart(6, '0');
+        const emailStatus = await this.emailModel.createPrimaryEmailOtp({
+            passcode,
+            userUuid: user.userUuid,
+        });
+        await this.emailClient.sendOneTimePasscodeEmail({
+            recipient: emailStatus.email,
+            passcode,
+        });
+        return {
+            ...emailStatus,
+            otp: emailStatus.otp && {
+                ...emailStatus.otp,
+                expiresAt: this.otpExpirationDate(emailStatus.otp.createdAt),
+                isExpired: this.isOtpExpired(emailStatus.otp.createdAt),
+                isMaxAttempts: this.isOtpMaxAttempts(
+                    emailStatus.otp.numberOfAttempts,
+                ),
+            },
+        };
+    }
+
+    private isOtpExpired(createdAt: Date) {
+        return this.otpExpirationDate(createdAt) < new Date();
+    }
+
+    private isOtpMaxAttempts(attempts: number) {
+        return attempts >= this.emailOneTimePasscodeMaxAttempts;
+    }
+
+    async getPrimaryEmailStatus(
+        user: SessionUser,
+        passcode?: string,
+    ): Promise<EmailStatusExpiring> {
+        // Attempt to verify the passcode if it's provided
+        if (passcode) {
+            try {
+                const emailStatus =
+                    await this.emailModel.getPrimaryEmailStatusByUserAndOtp({
+                        userUuid: user.userUuid,
+                        passcode,
+                    });
+                if (
+                    emailStatus.otp &&
+                    !this.isOtpMaxAttempts(emailStatus.otp.numberOfAttempts) &&
+                    !this.isOtpExpired(emailStatus.otp.createdAt)
+                ) {
+                    await this.emailModel.verifyUserEmailIfExists(
+                        user.userUuid,
+                        emailStatus.email,
+                    );
+                    await this.emailModel.deleteEmailOtp(
+                        user.userUuid,
+                        emailStatus.email,
+                    );
+                }
+            } catch (e) {
+                // Attempt to find an email+passcode combo failed, increment the number of attempts
+                if (e instanceof NotFoundError) {
+                    await this.emailModel.incrementPrimaryEmailOtpAttempts(
+                        user.userUuid,
+                    );
+                } else {
+                    throw e;
+                }
+            }
+        }
+
+        const emailStatus = await this.emailModel.getPrimaryEmailStatus(
+            user.userUuid,
+        );
+        const emailStatusExpiring = {
+            ...emailStatus,
+            otp: emailStatus.otp && {
+                ...emailStatus.otp,
+                expiresAt: this.otpExpirationDate(emailStatus.otp.createdAt),
+                isMaxAttempts: this.isOtpMaxAttempts(
+                    emailStatus.otp.numberOfAttempts,
+                ),
+                isExpired: this.isOtpExpired(emailStatus.otp.createdAt),
+            },
+        };
+        return emailStatusExpiring;
     }
 }

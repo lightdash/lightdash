@@ -11,15 +11,12 @@ export const organizationMemberAbilities: Record<
     (
         member: Pick<
             OrganizationMemberProfile,
-            'role' | 'organizationUuid' | 'userUuid'
+            'organizationUuid' | 'userUuid'
         >,
         builder: Pick<AbilityBuilder<MemberAbility>, 'can'>,
     ) => void
 > = {
     member(member, { can }) {
-        can('create', 'InviteLink', {
-            organizationUuid: member.organizationUuid,
-        });
         can('view', 'OrganizationMemberProfile', {
             organizationUuid: member.organizationUuid,
         });

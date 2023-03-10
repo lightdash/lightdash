@@ -1,20 +1,25 @@
 import { subject } from '@casl/ability';
 import {
+    AllowedEmailDomains,
     ForbiddenError,
+    isUserWithOrg,
     LightdashMode,
     NotExistsError,
     OnbordingRecord,
     Organisation,
     OrganizationMemberProfile,
     OrganizationMemberProfileUpdate,
+    OrganizationMemberRole,
     OrganizationProject,
     SessionUser,
     UpdateOrganization,
 } from '@lightdash/common';
+import { UpdateAllowedEmailDomains } from '@lightdash/common/src/types/organization';
 import { analytics } from '../../analytics/client';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { InviteLinkModel } from '../../models/InviteLinkModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
+import { OrganizationAllowedEmailDomainsModel } from '../../models/OrganizationAllowedEmailDomainsModel';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -27,6 +32,7 @@ type OrganizationServiceDependencies = {
     inviteLinkModel: InviteLinkModel;
     organizationMemberProfileModel: OrganizationMemberProfileModel;
     userModel: UserModel;
+    organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
 };
 
 export class OrganizationService {
@@ -42,6 +48,8 @@ export class OrganizationService {
 
     private readonly userModel: UserModel;
 
+    private readonly organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
+
     constructor({
         organizationModel,
         projectModel,
@@ -49,6 +57,7 @@ export class OrganizationService {
         inviteLinkModel,
         organizationMemberProfileModel,
         userModel,
+        organizationAllowedEmailDomainsModel,
     }: OrganizationServiceDependencies) {
         this.organizationModel = organizationModel;
         this.projectModel = projectModel;
@@ -56,9 +65,14 @@ export class OrganizationService {
         this.inviteLinkModel = inviteLinkModel;
         this.organizationMemberProfileModel = organizationMemberProfileModel;
         this.userModel = userModel;
+        this.organizationAllowedEmailDomainsModel =
+            organizationAllowedEmailDomainsModel;
     }
 
     async get(user: SessionUser): Promise<Organisation> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
         const needsProject = !(await this.projectModel.hasProjects(
             user.organizationUuid,
         ));
@@ -202,6 +216,9 @@ export class OrganizationService {
     }
 
     async setOnboardingSuccessDate(user: SessionUser): Promise<void> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
         const { shownSuccessAt } = await this.getOnboarding(user);
         if (shownSuccessAt) {
             throw new NotExistsError('Can not override "shown success" date');
@@ -216,6 +233,9 @@ export class OrganizationService {
         memberUserUuid: string,
         data: OrganizationMemberProfileUpdate,
     ): Promise<OrganizationMemberProfile> {
+        if (!isUserWithOrg(authenticatedUser)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
         const { organizationUuid } = authenticatedUser;
         if (
             authenticatedUser.ability.cannot(
@@ -260,6 +280,51 @@ export class OrganizationService {
             organizationUuid,
             memberUserUuid,
             data,
+        );
+    }
+
+    async getAllowedEmailDomains(
+        user: SessionUser,
+    ): Promise<AllowedEmailDomains> {
+        const { organizationUuid } = user;
+        if (organizationUuid === undefined) {
+            throw new NotExistsError('Organization not found');
+        }
+
+        const allowedEmailDomains =
+            await this.organizationAllowedEmailDomainsModel.findAllowedEmailDomains(
+                organizationUuid,
+            );
+        if (!allowedEmailDomains) {
+            return {
+                organizationUuid,
+                emailDomains: [],
+                role: OrganizationMemberRole.VIEWER,
+                projectUuids: [],
+            };
+        }
+        return allowedEmailDomains;
+    }
+
+    async updateAllowedEmailDomains(
+        user: SessionUser,
+        data: UpdateAllowedEmailDomains,
+    ): Promise<AllowedEmailDomains> {
+        const { organizationUuid } = user;
+        if (organizationUuid === undefined) {
+            throw new NotExistsError('Organization not found');
+        }
+        if (
+            user.ability.cannot(
+                'update',
+                subject('OrganizationMemberProfile', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        return this.organizationAllowedEmailDomainsModel.upsertAllowedEmailDomains(
+            { ...data, organizationUuid },
         );
     }
 }

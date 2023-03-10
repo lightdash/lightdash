@@ -7,6 +7,7 @@ import PageSpinner from './PageSpinner';
 
 const AppRoute: FC<ComponentProps<typeof Route>> = ({ children, ...rest }) => {
     const { health } = useApp();
+
     const orgRequest = useOrganisation();
 
     return (
@@ -27,7 +28,7 @@ const AppRoute: FC<ComponentProps<typeof Route>> = ({ children, ...rest }) => {
                     );
                 }
 
-                if (orgRequest.data?.needsProject) {
+                if (orgRequest?.data?.needsProject) {
                     return (
                         <Redirect
                             to={{

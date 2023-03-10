@@ -114,8 +114,9 @@ const SchedulerOptions: FC<
     useEffect(() => {
         if (limit === Limit.CUSTOM) {
             methods.setValue('options.limit', customLimit);
+        } else {
+            methods.setValue('options.limit', limit);
         }
-        methods.setValue('options.limit', limit);
     }, [methods, customLimit, limit]);
     useEffect(() => {
         methods.setValue('options.formatted', format === Values.FORMATTED);
@@ -145,20 +146,23 @@ const SchedulerOptions: FC<
                 <Radio label="Results in Table" value={Limit.TABLE} />
                 <Radio label="All Results" value={Limit.ALL} />
                 <Radio label="Custom..." value={Limit.CUSTOM} />
-
-                {limit === Limit.CUSTOM && (
-                    <InputWrapper>
-                        <NumericInput
-                            value={customLimit}
-                            min={1}
-                            fill
-                            onValueChange={(value: any) => {
-                                setCustomLimit(value);
-                            }}
-                        />
-                    </InputWrapper>
-                )}
             </RadioGroup>
+            {limit === Limit.CUSTOM && (
+                <InputWrapper>
+                    <NumericInput
+                        value={customLimit}
+                        min={1}
+                        fill
+                        onValueChange={(value: any) => {
+                            setCustomLimit(value);
+                        }}
+                    />
+                </InputWrapper>
+            )}
+
+            {(limit === Limit.ALL || limit === Limit.CUSTOM) && (
+                <i>Results are limited to 100,000 cells for each file</i>
+            )}
         </Form>
     );
 };
@@ -227,9 +231,7 @@ const SchedulerForm: FC<
                     }}
                 />
             </FormGroup>
-            <FormGroup
-                label={<Title>3. Select format and destination(s)</Title>}
-            >
+            <FormGroup label={<Title>3. Select format</Title>}>
                 <InputGroupWrapper>
                     <InlinedInputs>
                         <InlinedLabel>Format</InlinedLabel>
@@ -252,13 +254,18 @@ const SchedulerForm: FC<
                                 { value: 'csv', label: 'CSV' },
                             ]}
                         />
-                        {format === 'csv' && (
+                    </InlinedInputs>
+
+                    {format === 'csv' && (
+                        <InlinedInputs>
                             <SchedulerOptions
                                 disabled={disabled}
                                 methods={methods}
                             />
-                        )}
-                    </InlinedInputs>
+                        </InlinedInputs>
+                    )}
+                    <Title>4. Add destination(s)</Title>
+
                     <InlinedInputs>
                         {showDestinationLabel && (
                             <InlinedLabel>

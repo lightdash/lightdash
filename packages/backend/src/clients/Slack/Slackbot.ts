@@ -162,7 +162,7 @@ export class SlackService {
                         await this.slackAuthenticationModel.getUserUuid(teamId);
 
                     const imageUrl = await unfurlService.unfurlImage(
-                        l.url,
+                        details.minimalUrl,
                         details.pageType,
                         imageId,
                         authUserUuid,

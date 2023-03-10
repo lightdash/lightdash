@@ -8,6 +8,8 @@ import {
     Scheduler,
     SchedulerAndTargets,
     SchedulerEmailTarget,
+    SchedulerJobStatus,
+    SchedulerLog,
     SchedulerSlackTarget,
     UpdateSchedulerAndTargets,
 } from '@lightdash/common';
@@ -16,6 +18,7 @@ import {
     SchedulerDb,
     SchedulerEmailTargetDb,
     SchedulerEmailTargetTableName,
+    SchedulerLogTableName,
     SchedulerSlackTargetDb,
     SchedulerSlackTargetTableName,
     SchedulerTable,
@@ -321,6 +324,29 @@ export class SchedulerModel {
             await trx(SchedulerEmailTargetTableName)
                 .delete()
                 .where('scheduler_uuid', schedulerUuid);
+        });
+    }
+
+    async logSchedulerJob(log: SchedulerLog): Promise<void> {
+        await this.database(SchedulerLogTableName).insert({
+            task: log.task,
+            scheduler_uuid: log.schedulerUuid,
+            status: log.status,
+            job_id: log.jobId,
+            job_group: log.jobGroup,
+            scheduled_time: log.scheduledTime,
+            target: log.target || null,
+            target_type: log.targetType || null,
+            details: log.details || null,
+        });
+    }
+
+    async deleteScheduledLogs(schedulerUuid: string): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            await trx(SchedulerLogTableName)
+                .delete()
+                .where('scheduler_uuid', schedulerUuid)
+                .andWhere('status', SchedulerJobStatus.SCHEDULED);
         });
     }
 }

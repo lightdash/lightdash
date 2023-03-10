@@ -1,6 +1,5 @@
 import { Colors } from '@blueprintjs/core';
 import styled from 'styled-components';
-import AutoFitText from '../AutoFitText/index';
 
 export const BigNumberContainer = styled.div`
     height: 100%;
@@ -13,27 +12,24 @@ export const BigNumberContainer = styled.div`
 
 interface BigNumberProps extends React.HTMLAttributes<HTMLDivElement> {
     $interactive?: boolean;
+    $fontSize?: number;
 }
 
-export const AutoFitBigNumber = styled(AutoFitText)`
-    display: flex;
-    justify-content: center;
-    align-items: flex-end;
-`;
-
 export const BigNumber = styled.span<BigNumberProps>`
-    ${({ $interactive }) => ($interactive ? 'cursor: pointer;' : '')}
-    font-weight: 500;
     color: ${Colors.DARK_GRAY4};
+    text-align: center;
+    font-weight: 500;
+    font-size: ${({ $fontSize }) => ($fontSize ? `${$fontSize}px` : '32px')};
+    ${({ $interactive }) => ($interactive ? 'cursor: pointer;' : '')}
 `;
 
-export const AutoFitBigNumberLabel = styled(AutoFitText)`
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-`;
-export const BigNumberLabel = styled.span`
-    text-align: center;
+interface BigNumberLabelProps {
+    $fontSize?: number;
+}
+
+export const BigNumberLabel = styled.span<BigNumberLabelProps>`
     color: ${Colors.GRAY3};
+    text-align: center;
     font-weight: 500;
+    font-size: ${({ $fontSize }) => ($fontSize ? `${$fontSize}px` : '16px')};
 `;

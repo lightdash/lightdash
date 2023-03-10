@@ -1,4 +1,12 @@
-import { Button, FormGroup, InputGroup, Intent } from '@blueprintjs/core';
+import {
+    Button,
+    Colors,
+    FormGroup,
+    Icon,
+    InputGroup,
+    Intent,
+} from '@blueprintjs/core';
+import { Tooltip2 } from '@blueprintjs/popover2';
 import {
     ApiError,
     LightdashUser,
@@ -9,8 +17,18 @@ import React, { FC, useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from 'react-query';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import {
+    useEmailStatus,
+    useOneTimePassword,
+} from '../../../hooks/useEmailVerification';
+import { VerifyEmailModal } from '../../../pages/VerifyEmail';
 import { useApp } from '../../../providers/AppProvider';
 import { useErrorLogs } from '../../../providers/ErrorLogsProvider';
+import {
+    EmailVerificationCTA,
+    EmailVerificationCTALink,
+    EmailVerificationIcon,
+} from './ProfilePanel.styles';
 
 const updateUserQuery = async (data: Partial<UpdateUserArgs>) =>
     lightdashApi<LightdashUser>({
@@ -21,9 +39,18 @@ const updateUserQuery = async (data: Partial<UpdateUserArgs>) =>
 
 const ProfilePanel: FC = () => {
     const queryClient = useQueryClient();
-    const { user } = useApp();
+    const { user, health } = useApp();
     const { showToastSuccess, showToastError } = useToaster();
     const { showError } = useErrorLogs();
+
+    const isEmailServerConfigured = health.data?.hasEmailClient;
+    const { data, isLoading: statusLoading } = useEmailStatus();
+    const {
+        mutate: sendVerificationEmail,
+        error: sendVerificationEmailError,
+        isLoading: emailLoading,
+    } = useOneTimePassword();
+
     const [firstName, setFirstName] = useState<string | undefined>(
         user.data?.firstName,
     );
@@ -31,6 +58,8 @@ const ProfilePanel: FC = () => {
         user.data?.lastName,
     );
     const [email, setEmail] = useState<string | undefined>(user.data?.email);
+    const [showVerifyEmailModal, setShowVerifyEmailModal] =
+        useState<boolean>(false);
 
     const { isLoading, error, mutate } = useMutation<
         LightdashUser,
@@ -40,6 +69,7 @@ const ProfilePanel: FC = () => {
         mutationKey: ['user_update'],
         onSuccess: async () => {
             await queryClient.refetchQueries('user');
+            await queryClient.refetchQueries('email_status');
             showToastSuccess({
                 title: 'Success! User details were updated.',
             });
@@ -54,7 +84,14 @@ const ProfilePanel: FC = () => {
                 body: rest.join('\n'),
             });
         }
-    }, [error, showError]);
+        if (
+            sendVerificationEmailError ||
+            data?.isVerified ||
+            !isEmailServerConfigured
+        ) {
+            setShowVerifyEmailModal(false);
+        }
+    }, [sendVerificationEmailError, data, error, showError]);
 
     const handleUpdate = () => {
         if (firstName && lastName && email && validateEmail(email)) {
@@ -129,7 +166,39 @@ const ProfilePanel: FC = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value.trim())}
                     data-cy="email-input"
+                    rightElement={
+                        isEmailServerConfigured && data?.isVerified ? (
+                            <Tooltip2 content="This e-mail has been verified">
+                                <EmailVerificationIcon
+                                    icon="tick-circle"
+                                    color={Colors.GREEN4}
+                                />
+                            </Tooltip2>
+                        ) : isEmailServerConfigured && !data?.isVerified ? (
+                            <EmailVerificationIcon
+                                icon="issue"
+                                color={Colors.GRAY3}
+                            />
+                        ) : undefined
+                    }
                 />
+                {isEmailServerConfigured && !data?.isVerified ? (
+                    <EmailVerificationCTA>
+                        This email has not been verified.{' '}
+                        <EmailVerificationCTALink
+                            onClick={() => {
+                                if (!data?.otp) {
+                                    sendVerificationEmail();
+                                }
+                                setShowVerifyEmailModal(true);
+                            }}
+                        >
+                            Click here to verify it.
+                        </EmailVerificationCTALink>
+                    </EmailVerificationCTA>
+                ) : (
+                    <></>
+                )}
             </FormGroup>
             <div style={{ flex: 1 }} />
             <Button
@@ -139,6 +208,13 @@ const ProfilePanel: FC = () => {
                 onClick={handleUpdate}
                 loading={isLoading}
                 data-cy="update-profile-settings"
+            />
+            <VerifyEmailModal
+                opened={showVerifyEmailModal}
+                onClose={() => {
+                    setShowVerifyEmailModal(false);
+                }}
+                isLoading={statusLoading || emailLoading}
             />
         </div>
     );

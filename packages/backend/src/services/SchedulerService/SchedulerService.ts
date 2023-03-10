@@ -4,10 +4,13 @@ import {
     ForbiddenError,
     isChartScheduler,
     isSlackTarget,
+    isUserWithOrg,
     SavedChart,
     ScheduledJobs,
     Scheduler,
     SchedulerAndTargets,
+    SchedulerJobStatus,
+    SchedulerLog,
     SessionUser,
     UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
@@ -99,11 +102,15 @@ export class SchedulerService {
         schedulerUuid: string,
         updatedScheduler: UpdateSchedulerAndTargetsWithoutId,
     ): Promise<SchedulerAndTargets> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
         const {
             resource: { organizationUuid, projectUuid },
         } = await this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
 
         await schedulerClient.deleteScheduledJobs(schedulerUuid);
+        await this.schedulerModel.deleteScheduledLogs(schedulerUuid);
 
         const scheduler = await this.schedulerModel.updateScheduler({
             ...updatedScheduler,
@@ -162,6 +169,7 @@ export class SchedulerService {
         } = await this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
         await schedulerClient.deleteScheduledJobs(schedulerUuid);
         await this.schedulerModel.deleteScheduler(schedulerUuid);
+        await this.schedulerModel.deleteScheduledLogs(schedulerUuid);
 
         analytics.track({
             userId: user.userUuid,
@@ -186,5 +194,9 @@ export class SchedulerService {
     ): Promise<ScheduledJobs[]> {
         await this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
         return schedulerClient.getScheduledJobs(schedulerUuid);
+    }
+
+    async logSchedulerJob(log: SchedulerLog): Promise<void> {
+        await this.schedulerModel.logSchedulerJob(log);
     }
 }

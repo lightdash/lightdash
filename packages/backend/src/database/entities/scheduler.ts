@@ -3,6 +3,7 @@ import { Knex } from 'knex';
 export const SchedulerTableName = 'scheduler';
 export const SchedulerSlackTargetTableName = 'scheduler_slack_target';
 export const SchedulerEmailTargetTableName = 'scheduler_email_target';
+export const SchedulerLogTableName = 'scheduler_log';
 
 export type SchedulerDb = {
     scheduler_uuid: string;
@@ -61,4 +62,22 @@ export type SchedulerEmailTargetTable = Knex.CompositeTableType<
     SchedulerEmailTargetDb,
     Omit<SchedulerEmailTargetDb, 'scheduler_email_target_uuid' | 'created_at'>,
     Pick<SchedulerEmailTargetDb, 'recipient' | 'updated_at'>
+>;
+
+export type SchedulerLogDb = {
+    task: string;
+    scheduler_uuid: string;
+    job_id: string;
+    created_at: Date;
+    scheduled_time: Date;
+    job_group: string;
+    status: string;
+    target: string | null;
+    target_type: string | null;
+    details: Record<string, any> | null;
+};
+
+export type SchedulerLogTable = Knex.CompositeTableType<
+    SchedulerLogDb,
+    Omit<SchedulerLogDb, 'created_at'>
 >;

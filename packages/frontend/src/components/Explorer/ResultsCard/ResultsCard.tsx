@@ -53,6 +53,7 @@ const ResultsCard: FC = memo(() => {
             query: metricQuery,
             csvLimit,
             onlyRaw,
+            showTableNames: true,
         });
         return csvResponse.url;
     };

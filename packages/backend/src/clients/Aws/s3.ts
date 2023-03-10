@@ -22,22 +22,26 @@ export class S3Service {
     constructor({ lightdashConfig }: S3ServiceDependencies) {
         this.lightdashConfig = lightdashConfig;
 
-        if (
-            lightdashConfig.s3?.accessKey &&
-            lightdashConfig.s3.secretKey &&
-            lightdashConfig.s3.endpoint &&
-            lightdashConfig.s3.region
-        ) {
-            this.s3 = new S3({
+        if (lightdashConfig.s3?.endpoint && lightdashConfig.s3.region) {
+            const s3Config = {
                 region: lightdashConfig.s3.region,
-                credentials: {
-                    accessKeyId: lightdashConfig.s3.accessKey,
-                    secretAccessKey: lightdashConfig.s3.secretKey,
-                },
                 apiVersion: '2006-03-01',
                 endpoint: lightdashConfig.s3.endpoint,
-            });
-            Logger.debug('Using S3 storage');
+            };
+
+            if (lightdashConfig.s3?.accessKey && lightdashConfig.s3.secretKey) {
+                Object.assign(s3Config, {
+                    credentials: {
+                        accessKeyId: lightdashConfig.s3.accessKey,
+                        secretAccessKey: lightdashConfig.s3.secretKey,
+                    },
+                });
+                Logger.debug('Using S3 storage with access key credentials');
+            } else {
+                Logger.debug('Using S3 storage with IAM role credentials');
+            }
+
+            this.s3 = new S3(s3Config);
         } else {
             Logger.debug('Missing S3 bucket configuration');
         }

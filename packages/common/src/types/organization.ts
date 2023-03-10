@@ -1,3 +1,4 @@
+import { OrganizationMemberRole } from './organizationMemberProfile';
 import { ProjectType } from './projects';
 
 /**
@@ -13,10 +14,7 @@ export type Organisation = {
      * The name of the organisation
      */
     name: string;
-    /**
-     * List of allowed email domains for the organization. Only user's with these emails are able to be invited
-     */
-    allowedEmailDomains: string[];
+
     /**
      * The default color palette for all projects in the organization
      */
@@ -69,4 +67,21 @@ export type OnboardingStatus = {
 export type ApiOnboardingStatusResponse = {
     status: 'ok';
     results: OnboardingStatus;
+};
+
+export type AllowedEmailDomains = {
+    organizationUuid: string;
+    emailDomains: string[];
+    role: OrganizationMemberRole;
+    projectUuids: string[];
+};
+
+export type UpdateAllowedEmailDomains = Omit<
+    AllowedEmailDomains,
+    'organizationUuid'
+>;
+
+export type ApiOrganizationAllowedEmailDomains = {
+    status: 'ok';
+    results: AllowedEmailDomains;
 };

@@ -10,6 +10,8 @@ function formatRowsWorker() {
         workerData.rows,
         workerData.onlyRaw,
         workerData.itemMap,
+        workerData.showTableNames,
+        workerData.customLabels,
     ).then((csv) => {
         parentPort.postMessage(csv);
     });

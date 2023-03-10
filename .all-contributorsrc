@@ -931,6 +931,33 @@
       "contributions": [
         "bug"
       ]
+    },
+    {
+      "login": "Chrischuck",
+      "name": "Chris",
+      "avatar_url": "https://avatars.githubusercontent.com/u/13311268?v=4",
+      "profile": "http://chrischuck.com",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "mikethoun",
+      "name": "Mike Thoun",
+      "avatar_url": "https://avatars.githubusercontent.com/u/8367471?v=4",
+      "profile": "http://mikethoun.com",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "leonkozlowski",
+      "name": "Leon Kozlowski",
+      "avatar_url": "https://avatars.githubusercontent.com/u/24438337?v=4",
+      "profile": "http://leonkozlowski.com",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,

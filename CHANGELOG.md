@@ -1,3 +1,255 @@
+## [0.457.1](https://github.com/lightdash/lightdash/compare/0.457.0...0.457.1) (2023-03-10)
+
+
+### Bug Fixes
+
+* disallow adding a tile in view mode ([#4661](https://github.com/lightdash/lightdash/issues/4661)) ([aefaabe](https://github.com/lightdash/lightdash/commit/aefaabe46e8a1db61a26438105d981e8b029f889))
+
+# [0.457.0](https://github.com/lightdash/lightdash/compare/0.456.1...0.457.0) (2023-03-10)
+
+
+### Features
+
+* minor home page improvements ([#4682](https://github.com/lightdash/lightdash/issues/4682)) ([a2ada7b](https://github.com/lightdash/lightdash/commit/a2ada7bb9a6274b9ab69ceb6edfb9cfeede0f6b9))
+
+## [0.456.1](https://github.com/lightdash/lightdash/compare/0.456.0...0.456.1) (2023-03-10)
+
+
+### Bug Fixes
+
+* bignumber text sizes and interactions ([#4712](https://github.com/lightdash/lightdash/issues/4712)) ([78752c8](https://github.com/lightdash/lightdash/commit/78752c88ef46c02c39373ff699a92771875c7a93))
+
+# [0.456.0](https://github.com/lightdash/lightdash/compare/0.455.0...0.456.0) (2023-03-10)
+
+
+### Features
+
+* endpoints for organisation allowed email domains ([#4741](https://github.com/lightdash/lightdash/issues/4741)) ([1b64a14](https://github.com/lightdash/lightdash/commit/1b64a14a6bd7cdf1dfe2b4d11f1c2da9422a4c28)), closes [#4724](https://github.com/lightdash/lightdash/issues/4724)
+* verify email when user signs up or is invited ([#4742](https://github.com/lightdash/lightdash/issues/4742)) ([83848df](https://github.com/lightdash/lightdash/commit/83848df5657de206679f37f6516e5a2b43525768))
+
+# [0.455.0](https://github.com/lightdash/lightdash/compare/0.454.1...0.455.0) (2023-03-09)
+
+
+### Features
+
+* update verify email layout ([#4728](https://github.com/lightdash/lightdash/issues/4728)) ([c4fae92](https://github.com/lightdash/lightdash/commit/c4fae927fa1f96db9ac60099a497705f04dd5716))
+
+## [0.454.1](https://github.com/lightdash/lightdash/compare/0.454.0...0.454.1) (2023-03-09)
+
+
+### Bug Fixes
+
+* fix slack image crashing ([#4740](https://github.com/lightdash/lightdash/issues/4740)) ([1598645](https://github.com/lightdash/lightdash/commit/15986452d241a44fd98af1bff092daf01e8d30fc))
+
+# [0.454.0](https://github.com/lightdash/lightdash/compare/0.453.0...0.454.0) (2023-03-09)
+
+
+### Features
+
+* allow create users without org ([#4738](https://github.com/lightdash/lightdash/issues/4738)) ([cb5ee6d](https://github.com/lightdash/lightdash/commit/cb5ee6d2cbb47941e2776c808c15144833e34e79))
+
+# [0.453.0](https://github.com/lightdash/lightdash/compare/0.452.0...0.453.0) (2023-03-09)
+
+
+### Features
+
+* only org admins can invite users ([#4724](https://github.com/lightdash/lightdash/issues/4724)) ([980328f](https://github.com/lightdash/lightdash/commit/980328f23c62d7b876c60ebc2cc2a97a899a484e))
+
+# [0.452.0](https://github.com/lightdash/lightdash/compare/0.451.0...0.452.0) (2023-03-09)
+
+
+### Features
+
+* verify email on email update ([#4717](https://github.com/lightdash/lightdash/issues/4717)) ([01a5f4e](https://github.com/lightdash/lightdash/commit/01a5f4e31d55218646a26135378d70d9bcbbfed9))
+
+# [0.451.0](https://github.com/lightdash/lightdash/compare/0.450.0...0.451.0) (2023-03-09)
+
+
+### Features
+
+* store scheduler job history ([#4699](https://github.com/lightdash/lightdash/issues/4699)) ([56695f8](https://github.com/lightdash/lightdash/commit/56695f83c99f8c5334b7f4bc2166ba459b9aacf0))
+
+# [0.450.0](https://github.com/lightdash/lightdash/compare/0.449.0...0.450.0) (2023-03-08)
+
+
+### Features
+
+* remove organisation allowed email domains ([#4722](https://github.com/lightdash/lightdash/issues/4722)) ([95d1881](https://github.com/lightdash/lightdash/commit/95d188146d8d371b3440e5dec93f767fe77cde35))
+
+# [0.449.0](https://github.com/lightdash/lightdash/compare/0.448.2...0.449.0) (2023-03-08)
+
+
+### Features
+
+* limit csv download ([#4710](https://github.com/lightdash/lightdash/issues/4710)) ([604e437](https://github.com/lightdash/lightdash/commit/604e437565fadf7485537e844f548ad8f2657842))
+
+## [0.448.2](https://github.com/lightdash/lightdash/compare/0.448.1...0.448.2) (2023-03-08)
+
+
+### Bug Fixes
+
+* in between timezone ([#4705](https://github.com/lightdash/lightdash/issues/4705)) ([09f5bb9](https://github.com/lightdash/lightdash/commit/09f5bb977b730d2a7d6c27fc371d518b91ffcc20))
+
+## [0.448.1](https://github.com/lightdash/lightdash/compare/0.448.0...0.448.1) (2023-03-07)
+
+
+### Bug Fixes
+
+* explore csv export ([#4685](https://github.com/lightdash/lightdash/issues/4685)) ([9ccdbbe](https://github.com/lightdash/lightdash/commit/9ccdbbe2001afbee51edec378ffdee9b654c25d5))
+
+# [0.448.0](https://github.com/lightdash/lightdash/compare/0.447.0...0.448.0) (2023-03-07)
+
+
+### Bug Fixes
+
+* conditional formatting interactions ([#4691](https://github.com/lightdash/lightdash/issues/4691)) ([6a9bdaf](https://github.com/lightdash/lightdash/commit/6a9bdaf1b42e4f69845e799557e2e671e9d026a1))
+
+
+### Features
+
+* add jinja parser for var from cli ([#4680](https://github.com/lightdash/lightdash/issues/4680)) ([6d3f087](https://github.com/lightdash/lightdash/commit/6d3f087b032dcd9faa72b5611e337a2ea4f5a016))
+
+# [0.447.0](https://github.com/lightdash/lightdash/compare/0.446.0...0.447.0) (2023-03-06)
+
+
+### Features
+
+* updating password recovery email layout ([#4698](https://github.com/lightdash/lightdash/issues/4698)) ([973deca](https://github.com/lightdash/lightdash/commit/973deca4622912b5d80a384ac12265d4483e2146))
+
+# [0.446.0](https://github.com/lightdash/lightdash/compare/0.445.1...0.446.0) (2023-03-06)
+
+
+### Features
+
+* updating project access email layout ([#4697](https://github.com/lightdash/lightdash/issues/4697)) ([a9788ca](https://github.com/lightdash/lightdash/commit/a9788cacc1142739979579eeb457267a707b6f55))
+
+## [0.445.1](https://github.com/lightdash/lightdash/compare/0.445.0...0.445.1) (2023-03-06)
+
+
+### Bug Fixes
+
+* updating scheduled deliveries email layout ([#4696](https://github.com/lightdash/lightdash/issues/4696)) ([45fdff0](https://github.com/lightdash/lightdash/commit/45fdff0db25fc4a338e4bd1a8340a88e95819445))
+
+# [0.445.0](https://github.com/lightdash/lightdash/compare/0.444.0...0.445.0) (2023-03-06)
+
+
+### Features
+
+* add OTP flow for email verification ([#4660](https://github.com/lightdash/lightdash/issues/4660)) ([a5af465](https://github.com/lightdash/lightdash/commit/a5af465f241eb8c853099e387b6b8d76d1182277))
+
+# [0.444.0](https://github.com/lightdash/lightdash/compare/0.443.1...0.444.0) (2023-03-06)
+
+
+### Features
+
+* move empty state metrics text to pop over ([#4681](https://github.com/lightdash/lightdash/issues/4681)) ([338b24a](https://github.com/lightdash/lightdash/commit/338b24ad6d419fda271583ed20eb9c4b1c503187))
+
+## [0.443.1](https://github.com/lightdash/lightdash/compare/0.443.0...0.443.1) (2023-03-06)
+
+
+### Bug Fixes
+
+* invite email template name ([#4695](https://github.com/lightdash/lightdash/issues/4695)) ([aeaf9b0](https://github.com/lightdash/lightdash/commit/aeaf9b0217b0040319482eb53b5af8273a654c9c))
+
+# [0.443.0](https://github.com/lightdash/lightdash/compare/0.442.1...0.443.0) (2023-03-06)
+
+
+### Features
+
+* take screenshots from minimal pages ([#4688](https://github.com/lightdash/lightdash/issues/4688)) ([ac7be5b](https://github.com/lightdash/lightdash/commit/ac7be5bb8b285101493e2179e464ba17d85d3785))
+
+## [0.442.1](https://github.com/lightdash/lightdash/compare/0.442.0...0.442.1) (2023-03-06)
+
+
+### Bug Fixes
+
+* safari mantine divider issue ([#4689](https://github.com/lightdash/lightdash/issues/4689)) ([3c639bb](https://github.com/lightdash/lightdash/commit/3c639bbeb7253be34385ab9688ffde0010faa80d))
+
+# [0.442.0](https://github.com/lightdash/lightdash/compare/0.441.0...0.442.0) (2023-03-06)
+
+
+### Features
+
+* allow iam role authentication for s3 storage ([#4659](https://github.com/lightdash/lightdash/issues/4659)) ([5b4b6b0](https://github.com/lightdash/lightdash/commit/5b4b6b0ac3fb13e586bcfe78e4f27d67b281d7a8))
+
+# [0.441.0](https://github.com/lightdash/lightdash/compare/0.440.0...0.441.0) (2023-03-06)
+
+
+### Features
+
+* verify emails for SSO users ([#4648](https://github.com/lightdash/lightdash/issues/4648)) ([40bc5e9](https://github.com/lightdash/lightdash/commit/40bc5e971009dbe786c2753757004287d93bbab4))
+
+# [0.440.0](https://github.com/lightdash/lightdash/compare/0.439.2...0.440.0) (2023-03-06)
+
+
+### Features
+
+* minimal dashboard page ([#4674](https://github.com/lightdash/lightdash/issues/4674)) ([2327da4](https://github.com/lightdash/lightdash/commit/2327da42b017ba5959a0098dec9bb3934f67bcee))
+
+## [0.439.2](https://github.com/lightdash/lightdash/compare/0.439.1...0.439.2) (2023-03-06)
+
+
+### Bug Fixes
+
+* error when updating color palette ([#4676](https://github.com/lightdash/lightdash/issues/4676)) ([22d2863](https://github.com/lightdash/lightdash/commit/22d2863bf05564869fc9fab2d8666e0418eb8f63))
+
+## [0.439.1](https://github.com/lightdash/lightdash/compare/0.439.0...0.439.1) (2023-03-06)
+
+
+### Bug Fixes
+
+* make placeholder table row non interactive ([#4662](https://github.com/lightdash/lightdash/issues/4662)) ([3d3a37e](https://github.com/lightdash/lightdash/commit/3d3a37e722bcef9347bd0beb4570313ae4c58578))
+
+# [0.439.0](https://github.com/lightdash/lightdash/compare/0.438.0...0.439.0) (2023-03-06)
+
+
+### Features
+
+* minimal chart page ([#4653](https://github.com/lightdash/lightdash/issues/4653)) ([e958220](https://github.com/lightdash/lightdash/commit/e95822074e563d3ab1247a1239a1dd1c580477c9))
+
+# [0.438.0](https://github.com/lightdash/lightdash/compare/0.437.1...0.438.0) (2023-03-04)
+
+
+### Features
+
+* update invite email layout ([#4672](https://github.com/lightdash/lightdash/issues/4672)) ([cc4207a](https://github.com/lightdash/lightdash/commit/cc4207a5884d6de35d4e28918050562c472d948c))
+
+## [0.437.1](https://github.com/lightdash/lightdash/compare/0.437.0...0.437.1) (2023-03-03)
+
+
+### Bug Fixes
+
+* enable scheduler by default ([#4658](https://github.com/lightdash/lightdash/issues/4658)) ([c1e19ac](https://github.com/lightdash/lightdash/commit/c1e19ac41edd7a184437c9a91eea3845704d8815))
+* scheduler custom limit ([#4668](https://github.com/lightdash/lightdash/issues/4668)) ([7c41f71](https://github.com/lightdash/lightdash/commit/7c41f710da70cb22d044c4c9234d74b57d8b8cdf))
+
+# [0.437.0](https://github.com/lightdash/lightdash/compare/0.436.5...0.437.0) (2023-03-02)
+
+
+### Features
+
+* page for entering otp ([#4650](https://github.com/lightdash/lightdash/issues/4650)) ([b6e4b29](https://github.com/lightdash/lightdash/commit/b6e4b29cd9a165b6ceb1ee44d960b8d40e8eda3f))
+
+## [0.436.5](https://github.com/lightdash/lightdash/compare/0.436.4...0.436.5) (2023-03-02)
+
+
+### Bug Fixes
+
+* custom labels in CSV export ([#4649](https://github.com/lightdash/lightdash/issues/4649)) ([0fce4f4](https://github.com/lightdash/lightdash/commit/0fce4f45ea9912fb51851eeca172d97b1783535e))
+
+## [0.436.4](https://github.com/lightdash/lightdash/compare/0.436.3...0.436.4) (2023-03-02)
+
+
+### Bug Fixes
+
+* scheduler migration ([#4654](https://github.com/lightdash/lightdash/issues/4654)) ([8d5f52d](https://github.com/lightdash/lightdash/commit/8d5f52d2950ab79a10bbd7f46f1ad2bf1d60ada9))
+
+## [0.436.3](https://github.com/lightdash/lightdash/compare/0.436.2...0.436.3) (2023-03-02)
+
+
+### Bug Fixes
+
+* scheduler database connection override ([#4643](https://github.com/lightdash/lightdash/issues/4643)) ([29c1726](https://github.com/lightdash/lightdash/commit/29c172658c7d1bd824f1dc8e591d366fbd8d61db))
+
 ## [0.436.2](https://github.com/lightdash/lightdash/compare/0.436.1...0.436.2) (2023-03-01)
 
 

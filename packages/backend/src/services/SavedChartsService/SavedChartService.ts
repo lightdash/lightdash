@@ -8,6 +8,7 @@ import {
     ForbiddenError,
     isChartScheduler,
     isSlackTarget,
+    isUserWithOrg,
     SavedChart,
     SchedulerAndTargets,
     SessionUser,
@@ -430,6 +431,9 @@ export class SavedChartService {
         chartUuid: string,
         newScheduler: CreateSchedulerAndTargetsWithoutIds,
     ): Promise<SchedulerAndTargets> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
         const { projectUuid, organizationUuid } = await this.checkUpdateAccess(
             user,
             chartUuid,

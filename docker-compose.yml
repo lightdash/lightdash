@@ -34,6 +34,7 @@ services:
       - LIGHTDASH_MAX_PAYLOAD=${LIGHTDASH_MAX_PAYLOAD:-5mb}
       - HEADLESS_BROWSER_HOST=headless-browser
       - HEADLESS_BROWSER_PORT=3000
+      - RUDDERSTACK_WRITE_KEY=${RUDDERSTACK_WRITE_KEY}
     volumes:
       - "${DBT_PROJECT_DIR}:/usr/app/dbt"
     ports:
