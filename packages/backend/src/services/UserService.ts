@@ -23,6 +23,7 @@ import {
     PasswordReset,
     SessionUser,
     UpdateUserArgs,
+    UserAllowedOrganization,
 } from '@lightdash/common';
 import { randomInt } from 'crypto';
 import { nanoid } from 'nanoid';
@@ -786,5 +787,19 @@ export class UserService {
             },
         };
         return emailStatusExpiring;
+    }
+
+    async getAllowedOrganizations(
+        user: SessionUser,
+    ): Promise<UserAllowedOrganization[]> {
+        const emailStatus = await this.emailModel.getPrimaryEmailStatus(
+            user.userUuid,
+        );
+        if (emailStatus.isVerified) {
+            return this.organizationModel.getAllowedOrgsForDomain(
+                emailStatus.email.split('@')[1].toLowerCase(),
+            );
+        }
+        return [];
     }
 }

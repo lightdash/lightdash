@@ -314,6 +314,7 @@ export class OrganizationService {
         if (organizationUuid === undefined) {
             throw new NotExistsError('Organization not found');
         }
+
         if (
             user.ability.cannot(
                 'update',

@@ -1,4 +1,8 @@
-import { ApiEmailStatusResponse, ApiErrorPayload } from '@lightdash/common';
+import {
+    ApiEmailStatusResponse,
+    ApiErrorPayload,
+    ApiUserAllowedOrganizationsResponse,
+} from '@lightdash/common';
 import { Controller, Query } from '@tsoa/runtime';
 import express from 'express';
 import {
@@ -53,6 +57,24 @@ export class UserController extends Controller {
             req.user!,
             passcode,
         );
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: status,
+        };
+    }
+
+    /**
+     * Get list or organizations the user is allowed to join
+     * @param req express request
+     */
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @Get('/me/allowedOrganizations')
+    @OperationId('getOrganizationsUserCanJoin')
+    async getOrganizationsUserCanJoin(
+        @Request() req: express.Request,
+    ): Promise<ApiUserAllowedOrganizationsResponse> {
+        const status = await userService.getAllowedOrganizations(req.user!);
         this.setStatus(200);
         return {
             status: 'ok',
