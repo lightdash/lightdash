@@ -1,3 +1,4 @@
+import { assertUnreachable } from '@lightdash/common';
 import {
     Box,
     Flex,
@@ -17,7 +18,7 @@ import {
     IconUser,
     IconUsers,
 } from '@tabler/icons-react';
-import React, { FC, useCallback } from 'react';
+import { FC, useMemo } from 'react';
 import ResourceViewActionMenu, {
     ResourceViewActionMenuCommonProps,
 } from '../ResourceActionMenu';
@@ -28,6 +29,57 @@ interface ResourceViewGridSpaceItemProps
     extends Pick<ResourceViewActionMenuCommonProps, 'onAction'> {
     item: ResourceViewSpaceItem;
 }
+
+enum ResourceAccess {
+    Private = 'private',
+    Public = 'public',
+    Shared = 'shared',
+}
+
+const getResourceAccessType = (item: ResourceViewSpaceItem): ResourceAccess => {
+    if (!item.data.isPrivate) {
+        return ResourceAccess.Public;
+    } else if (item.data.access.length > 1) {
+        return ResourceAccess.Shared;
+    } else {
+        return ResourceAccess.Private;
+    }
+};
+
+const AccessInfoData = {
+    [ResourceAccess.Private]: {
+        Icon: IconLock,
+        status: 'Private',
+    },
+    [ResourceAccess.Public]: {
+        Icon: IconUsers,
+        status: 'Public',
+    },
+    [ResourceAccess.Shared]: {
+        Icon: IconUser,
+        status: 'Shared',
+    },
+} as const;
+
+interface AccessInfoProps {
+    item: ResourceViewSpaceItem;
+}
+
+const AccessInfo: FC<AccessInfoProps> = ({ item }) => {
+    const { Icon, status } = AccessInfoData[getResourceAccessType(item)];
+
+    const theme = useMantineTheme();
+
+    return (
+        <>
+            <Icon color={theme.colors.gray[6]} size={14} />
+
+            <Text size={14} color="gray.6" fz="xs">
+                {status}
+            </Text>
+        </>
+    );
+};
 
 const AttributeCount: FC<{ Icon: IconType; count: number }> = ({
     Icon,
@@ -54,38 +106,24 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
 
     const theme = useMantineTheme();
 
-    const renderAccess = useCallback(() => {
-        let Icon = IconLock;
-        let status = 'Private';
+    const tooltipText = useMemo(() => {
+        const accessType = getResourceAccessType(item);
 
-        if (!item.data.isPrivate) {
-            Icon = IconUsers;
-            status = 'Public';
-        } else if (item.data.access.length > 1) {
-            Icon = IconUser;
-            status = 'Shared';
+        switch (accessType) {
+            case ResourceAccess.Private:
+                return 'Only visible to you';
+            case ResourceAccess.Public:
+                return 'Everyone in this project has access';
+            case ResourceAccess.Shared:
+                return `Shared with ${item.data.access.length} user${
+                    item.data.access.length > 1 ? 's' : ''
+                }`;
+            default:
+                return assertUnreachable(
+                    accessType,
+                    `Unknown access type ${accessType}`,
+                );
         }
-
-        return (
-            <>
-                <Icon color={theme.colors.gray[6]} size={14} />
-
-                <Text size={14} color="gray.6" fz="xs">
-                    {status}
-                </Text>
-            </>
-        );
-    }, [item]);
-
-    const getToolTipText = useCallback(() => {
-        if (!item.data.isPrivate) {
-            return 'Everyone in this project has access';
-        }
-        if (item.data.access.length > 1) {
-            const userCount = item.data.access.length;
-            return `Shared with ${userCount} user${userCount > 1 ? 's' : ''}`;
-        }
-        return 'Only visible to you';
     }, [item]);
 
     return (
@@ -120,7 +158,7 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
 
                             <Group spacing="sm">
                                 <Flex align="center" gap={4}>
-                                    {renderAccess()}
+                                    <AccessInfo item={item} />
                                 </Flex>
                             </Group>
                         </Stack>
@@ -149,10 +187,11 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
                     </Group>
                 </Paper>
             </Popover.Target>
+
             <Popover.Dropdown>
                 <Stack spacing={4}>
                     <Text lineClamp={1} fz="sm" fw={600} color="white">
-                        {getToolTipText()}
+                        {tooltipText}
                     </Text>
                     <Group>
                         <AttributeCount
