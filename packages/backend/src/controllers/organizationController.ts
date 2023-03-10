@@ -25,6 +25,7 @@ import {
     Route,
 } from 'tsoa';
 import { promisify } from 'util';
+import { userModel } from '../models/models';
 import { organizationService, userService } from '../services/services';
 import {
     allowApiKeyAuthentication,
@@ -65,6 +66,17 @@ export class OrganizationController extends Controller {
         @Body() body: CreateOrganization,
     ): Promise<ApiSuccessEmpty> {
         await organizationService.createAndJoinOrg(req.user!, body);
+        const sessionUser = await userModel.findSessionUserByUUID(
+            req.user!.userUuid,
+        );
+        await new Promise<void>((resolve, reject) => {
+            req.login(sessionUser, (err) => {
+                if (err) {
+                    reject(err);
+                }
+                resolve();
+            });
+        });
         this.setStatus(200);
         return {
             status: 'ok',

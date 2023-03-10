@@ -23,10 +23,10 @@ export type LightdashUserWithOrg = Required<LightdashUser>;
 export const isUserWithOrg = (
     user: LightdashUser,
 ): user is LightdashUserWithOrg =>
-    user.organizationUuid !== undefined &&
-    user.organizationName !== undefined &&
-    user.organizationCreatedAt !== undefined &&
-    user.role !== undefined;
+    typeof user.organizationUuid === 'string' &&
+    typeof user.organizationName === 'string' &&
+    user.organizationCreatedAt instanceof Date &&
+    typeof user.role === 'string';
 
 export interface LightdashUserWithAbilityRules extends LightdashUser {
     abilityRules: AbilityBuilder<MemberAbility>['rules'];

@@ -13,7 +13,7 @@ import LightdashLogo from '../svgs/lightdash-black.svg';
 import { CardWrapper, FormWrapper, Logo, LogoWrapper } from './SignUp.styles';
 
 export const JoinOrganizationPage: FC = () => {
-    const { health } = useApp();
+    const { health, user } = useApp();
     const history = useHistory();
     const { isLoading: isLoadingAllowedOrgs, data: allowedOrgs } =
         useAllowedOrganizations();
@@ -31,10 +31,11 @@ export const JoinOrganizationPage: FC = () => {
     useEffect(() => {
         const isPR = health.data?.mode === LightdashMode.PR;
         const isAllowedToJoinOrgs = allowedOrgs && allowedOrgs.length > 0;
-        if (isPR || !isAllowedToJoinOrgs) {
+        const userHasOrg = user.data && !!user.data.organizationUuid;
+        if (!isCreatingOrg && !userHasOrg && (isPR || !isAllowedToJoinOrgs)) {
             createOrg({ name: '' });
         }
-    }, [health, allowedOrgs, createOrg]);
+    }, [health, allowedOrgs, createOrg, isCreatingOrg, user]);
 
     useEffect(() => {
         if (hasCreatedOrg || hasJoinedOrg) {
