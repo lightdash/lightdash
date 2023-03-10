@@ -8,11 +8,14 @@ import {
     NumericInput,
     Radio,
     RadioGroup,
+    Spinner,
 } from '@blueprintjs/core';
+import { Classes } from '@blueprintjs/popover2';
 import { ResultRow } from '@lightdash/common';
 import { FC, Fragment, memo, useState } from 'react';
-import { useQuery } from 'react-query';
+import { useMutation } from 'react-query';
 import useToaster from '../../hooks/toaster/useToaster';
+import { AppToaster } from '../AppToaster';
 import { InputWrapper, LimitWarning, Title } from './ExportCSV.styles';
 
 enum Limit {
@@ -33,7 +36,7 @@ const ExportAsCSVButton: FC<ButtonProps> = ({ ...props }) => {
 };
 
 type ExportCsvRenderProps = {
-    onExport: () => Promise<void>;
+    onExport: () => Promise<unknown>;
     isExporting: boolean;
 };
 
@@ -46,41 +49,53 @@ export type ExportCSVProps = {
 
 const ExportCSV: FC<ExportCSVProps> = memo(
     ({ rows, getCsvLink, isDialogBody, renderDialogActions }) => {
-        const { showToastError, showToastInfo } = useToaster();
+        const { showToastError, showToast } = useToaster();
 
         const [limit, setLimit] = useState<string>(Limit.TABLE);
         const [customLimit, setCustomLimit] = useState<number>(1);
         const [format, setFormat] = useState<string>(Values.FORMATTED);
 
-        const { isFetching: isExporting, refetch: handleExport } = useQuery(
-            [limit, customLimit, rows, format],
-            () => {
-                showToastInfo({
-                    title: 'Fetching results. This might take a while...',
-                });
-
-                return getCsvLink(
-                    limit === Limit.CUSTOM
-                        ? customLimit
-                        : limit === Limit.TABLE
-                        ? rows?.length ?? 0
-                        : null,
-                    format === Values.RAW,
-                );
-            },
-            {
-                enabled: false,
-                onSuccess: (url) => {
-                    if (url) window.open(url, '_blank');
+        const { isLoading: isExporting, mutateAsync: exportCsvMutation } =
+            useMutation(
+                [limit, customLimit, rows, format],
+                () =>
+                    getCsvLink(
+                        limit === Limit.CUSTOM
+                            ? customLimit
+                            : limit === Limit.TABLE
+                            ? rows?.length ?? 0
+                            : null,
+                        format === Values.RAW,
+                    ),
+                {
+                    onMutate: () => {
+                        showToast({
+                            title: 'Exporting CSV',
+                            subtitle: 'This may take a few minutes...',
+                            icon: (
+                                <Spinner
+                                    className="bp4-icon bp4-icon-error"
+                                    size={16}
+                                />
+                            ),
+                            key: 'exporting-csv',
+                            timeout: 0,
+                        });
+                    },
+                    onSuccess: (url) => {
+                        if (url) window.open(url, '_blank');
+                    },
+                    onError: (error: { error: Error }) => {
+                        showToastError({
+                            title: `Unable to download CSV`,
+                            subtitle: error?.error?.message,
+                        });
+                    },
+                    onSettled: () => {
+                        AppToaster.dismiss('exporting-csv');
+                    },
                 },
-                onError: (error: { error: Error }) => {
-                    showToastError({
-                        title: `Unable to download CSV`,
-                        subtitle: error?.error?.message,
-                    });
-                },
-            },
-        );
+            );
 
         if (!rows || rows.length <= 0) {
             return <ExportAsCSVButton disabled />;
@@ -130,25 +145,28 @@ const ExportCSV: FC<ExportCSVProps> = memo(
                         </InputWrapper>
                     )}
                 </Wrapper>
+
                 {(limit === Limit.ALL || limit === Limit.CUSTOM) && (
                     <LimitWarning>
                         Results are limited to 100,000 cells for each file
                     </LimitWarning>
                 )}
+
                 {isDialogBody && renderDialogActions ? (
                     <DialogFooter
                         actions={renderDialogActions({
-                            onExport: handleExport,
+                            onExport: exportCsvMutation,
                             isExporting,
                         })}
                     />
                 ) : (
                     <Button
+                        className={Classes.POPOVER2_DISMISS}
                         loading={isExporting}
                         fill
                         intent={Intent.PRIMARY}
                         icon="export"
-                        onClick={handleExport}
+                        onClick={() => exportCsvMutation()}
                     >
                         Export CSV
                     </Button>
