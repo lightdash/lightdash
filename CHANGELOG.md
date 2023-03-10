@@ -1,3 +1,10 @@
+## [0.457.2](https://github.com/lightdash/lightdash/compare/0.457.1...0.457.2) (2023-03-10)
+
+
+### Bug Fixes
+
+* don't skip external pr tests ([#4746](https://github.com/lightdash/lightdash/issues/4746)) ([1b4bd40](https://github.com/lightdash/lightdash/commit/1b4bd40a353bca41d9eb873fc3329d984585f172))
+
 ## [0.457.1](https://github.com/lightdash/lightdash/compare/0.457.0...0.457.1) (2023-03-10)
 
 
