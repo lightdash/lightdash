@@ -1,4 +1,4 @@
-import { Center, Flex, Text, Title } from '@mantine/core';
+import { Box, Center, Flex, Text, Title } from '@mantine/core';
 import { FC } from 'react';
 
 export interface ResourceEmptyStateProps {
@@ -16,7 +16,11 @@ const ResourceEmptyState: FC<ResourceEmptyStateProps> = ({
 }) => {
     return (
         <Center component={Flex} direction="column" gap="md" py={40}>
-            {icon}
+            {icon && (
+                <Box sx={(theme) => ({ color: theme.colors.gray[4] })}>
+                    {icon}
+                </Box>
+            )}
 
             <Center component={Flex} direction="column" gap={4}>
                 <Title order={4} fw={500}>
