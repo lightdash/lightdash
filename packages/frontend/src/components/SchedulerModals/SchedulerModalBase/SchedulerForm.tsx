@@ -22,6 +22,7 @@ import Input from '../../ReactHookForm/Input';
 import {
     InlinedInputs,
     InlinedLabel,
+    InlineIcon,
 } from '../../ReactHookForm/CronInput/CronInput.styles';
 import { hasRequiredScopes } from '../../UserSettings/SlackSettingsPanel';
 import {
@@ -200,6 +201,7 @@ const SchedulerForm: FC<
 
     const isAddSlackDisabled = disabled || slackState !== SlackStates.SUCCESS;
     const isAddEmailDisabled = disabled || !health.data?.hasEmailClient;
+    const isImageDisabled = !health.data?.hasHeadlessBrowser;
 
     const format = methods.watch('format');
 
@@ -235,6 +237,7 @@ const SchedulerForm: FC<
                 <InputGroupWrapper>
                     <InlinedInputs>
                         <InlinedLabel>Format</InlinedLabel>
+
                         <StyledSelect
                             name="format"
                             value={format}
@@ -250,10 +253,33 @@ const SchedulerForm: FC<
                                     methods.setValue('options', {});
                             }}
                             options={[
-                                { value: 'image', label: 'Image' },
+                                {
+                                    value: 'image',
+                                    label: 'Image',
+                                    disabled: isImageDisabled,
+                                },
                                 { value: 'csv', label: 'CSV' },
                             ]}
                         />
+                        <Tooltip2
+                            position={'top'}
+                            interactionKind="hover"
+                            content={
+                                <p>
+                                    You must enable the
+                                    <a href="https://docs.lightdash.com/guides/enable-headless-browser-selfhost">
+                                        {' '}
+                                        headless browser{' '}
+                                    </a>
+                                    for sending images.
+                                </p>
+                            }
+                        >
+                            <InlineIcon
+                                icon="warning-sign"
+                                color={Colors.GRAY5}
+                            />
+                        </Tooltip2>
                     </InlinedInputs>
 
                     {format === 'csv' && (
