@@ -277,7 +277,7 @@ const SchedulerForm: FC<
                                 }
                             >
                                 <InlineIcon
-                                    icon="warning-sign"
+                                    icon="info-sign"
                                     color={Colors.GRAY5}
                                 />
                             </Tooltip2>
