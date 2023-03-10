@@ -352,7 +352,7 @@ export class UserService {
         return createdUser;
     }
 
-    async activateUserWithOpenId(
+    private async activateUserWithOpenId(
         openIdUser: OpenIdUser,
         inviteCode: string | undefined,
     ): Promise<SessionUser> {
@@ -363,7 +363,7 @@ export class UserService {
             );
             return this.userModel.findSessionUserByUUID(user.userUuid);
         }
-        const user = await this.registerNewUserWithOrg(openIdUser);
+        const user = await this.registerUser(openIdUser);
         return this.userModel.findSessionUserByUUID(user.userUuid);
     }
 
@@ -552,65 +552,6 @@ export class UserService {
                 userConnectionType: isOpenIdUser(createUser)
                     ? 'google'
                     : 'password',
-            },
-        });
-        if (isOpenIdUser(createUser)) {
-            analytics.track({
-                userId: user.userUuid,
-                event: 'user.identity_linked',
-                properties: {
-                    loginProvider: 'google',
-                },
-            });
-        } else {
-            await this.sendOneTimePasscodeToPrimaryEmail(user);
-        }
-        return user;
-    }
-
-    async registerNewUserWithOrg(createUser: CreateUserArgs | OpenIdUser) {
-        if (
-            !lightdashConfig.allowMultiOrgs &&
-            (await this.userModel.hasUsers())
-        ) {
-            throw new ForbiddenError(
-                'Cannot register user in a new organization. Ask an existing admin for an invite link.',
-            );
-        }
-        if (
-            !isOpenIdUser(createUser) &&
-            lightdashConfig.auth.disablePasswordAuthentication
-        ) {
-            throw new ForbiddenError('Password credentials are not allowed');
-        }
-
-        const user = await this.userModel.createNewUserWithOrg(createUser);
-        if (!isUserWithOrg(user)) {
-            throw new ForbiddenError('User is not part of an organization');
-        }
-        identifyUser({
-            ...user,
-            isMarketingOptedIn: user.isMarketingOptedIn,
-        });
-        analytics.track({
-            event: 'user.created',
-            userId: user.userUuid,
-            properties: {
-                userConnectionType: isOpenIdUser(createUser)
-                    ? 'google'
-                    : 'password',
-            },
-        });
-        analytics.track({
-            event: 'organization.created',
-            userId: user.userUuid,
-            properties: {
-                type:
-                    lightdashConfig.mode === LightdashMode.CLOUD_BETA
-                        ? 'cloud'
-                        : 'self-hosted',
-                organizationId: user.organizationUuid,
-                organizationName: user.organizationName,
             },
         });
         if (isOpenIdUser(createUser)) {

@@ -28,10 +28,7 @@ import {
 } from '../database/entities/emails';
 import { OpenIdIdentitiesTableName } from '../database/entities/openIdIdentities';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
-import {
-    createOrganization,
-    OrganizationTableName,
-} from '../database/entities/organizations';
+import { OrganizationTableName } from '../database/entities/organizations';
 import {
     DbPasswordLoginIn,
     PasswordLoginTableName,
@@ -460,37 +457,6 @@ export class UserModel {
             const newUser = await UserModel.createUserTransaction(trx, {
                 ...createUser,
                 isActive: true,
-            });
-            return newUser;
-        });
-        return this.getUserDetailsByUuid(user.user_uuid);
-    }
-
-    async createNewUserWithOrg(
-        createUser: CreateUserArgs | OpenIdUser,
-    ): Promise<LightdashUser> {
-        const user = await this.database.transaction(async (trx) => {
-            const duplicatedEmails = await trx(EmailTableName).where(
-                'email',
-                isOpenIdUser(createUser)
-                    ? createUser.openId.email
-                    : createUser.email,
-            );
-            if (duplicatedEmails.length > 0) {
-                throw new ParameterError('Email already in use');
-            }
-
-            const newOrg = await createOrganization(trx, {
-                organization_name: '',
-            });
-            const newUser = await UserModel.createUserTransaction(trx, {
-                ...createUser,
-                isActive: true,
-            });
-            await trx(OrganizationMembershipsTableName).insert({
-                organization_id: newOrg.organization_id,
-                user_id: newUser.user_id,
-                role: OrganizationMemberRole.ADMIN,
             });
             return newUser;
         });

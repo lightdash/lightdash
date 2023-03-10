@@ -28,7 +28,7 @@ const PrivateRoute: FC<ComponentProps<typeof Route>> = ({
         <Route
             {...rest}
             render={({ location }) => {
-                if (health.isLoading || health.error || emailStatus.isLoading) {
+                if (health.isLoading || health.error) {
                     return <PageSpinner />;
                 }
 
@@ -43,7 +43,7 @@ const PrivateRoute: FC<ComponentProps<typeof Route>> = ({
                     );
                 }
 
-                if (isLoading) {
+                if (isLoading || emailStatus.isLoading) {
                     return <PageSpinner />;
                 }
 
@@ -57,6 +57,17 @@ const PrivateRoute: FC<ComponentProps<typeof Route>> = ({
                         <Redirect
                             to={{
                                 pathname: '/verify-email',
+                                state: { from: location },
+                            }}
+                        />
+                    );
+                }
+
+                if (!data?.organizationUuid) {
+                    return (
+                        <Redirect
+                            to={{
+                                pathname: '/join-organization',
                                 state: { from: location },
                             }}
                         />

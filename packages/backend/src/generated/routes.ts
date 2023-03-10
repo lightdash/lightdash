@@ -195,6 +195,20 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_Organisation.name_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: { name: { dataType: 'string', required: true } },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CreateOrganization: {
+        dataType: 'refAlias',
+        type: { ref: 'Pick_Organisation.name_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Partial_Omit_Organisation.organizationUuid-or-needsProject__': {
         dataType: 'refAlias',
         type: {
@@ -1035,7 +1049,12 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'object',
                 },
-                name: { in: 'query', name: 'name', dataType: 'string' },
+                body: {
+                    in: 'body',
+                    name: 'body',
+                    required: true,
+                    ref: 'CreateOrganization',
+                },
             };
 
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -1804,7 +1823,7 @@ export function RegisterRoutes(app: express.Router) {
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.post(
-        '/api/v1/user/me/joinOrganization/:orgUuid',
+        '/api/v1/user/me/joinOrganization/:organizationUuid',
         ...fetchMiddlewares<RequestHandler>(UserController),
         ...fetchMiddlewares<RequestHandler>(
             UserController.prototype.joinOrganization,
@@ -1822,9 +1841,9 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'object',
                 },
-                orgUuid: {
+                organizationUuid: {
                     in: 'path',
-                    name: 'orgUuid',
+                    name: 'organizationUuid',
                     required: true,
                     dataType: 'string',
                 },

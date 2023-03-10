@@ -1,6 +1,5 @@
 import express from 'express';
 import passport from 'passport';
-import { setFlagsFromString } from 'v8';
 import { lightdashConfig } from '../config/lightdashConfig';
 import {
     redirectOIDCFailure,
@@ -53,7 +52,7 @@ apiV1Router.get('/flash', (req, res) => {
 
 apiV1Router.post('/register', unauthorisedInDemo, async (req, res, next) => {
     try {
-        const lightdashUser = await userService.registerNewUserWithOrg({
+        const lightdashUser = await userService.registerUser({
             firstName: sanitizeStringParam(req.body.firstName),
             lastName: sanitizeStringParam(req.body.lastName),
             email: sanitizeEmailParam(req.body.email),

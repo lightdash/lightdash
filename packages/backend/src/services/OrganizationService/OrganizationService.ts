@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     AllowedEmailDomains,
+    CreateOrganization,
     ForbiddenError,
     isUserWithOrg,
     LightdashMode,
@@ -331,12 +332,32 @@ export class OrganizationService {
 
     async createAndJoinOrg(
         user: SessionUser,
-        name: string | undefined,
+        data: CreateOrganization,
     ): Promise<void> {
+        if (
+            !lightdashConfig.allowMultiOrgs &&
+            (await this.userModel.hasUsers())
+        ) {
+            throw new ForbiddenError(
+                'Cannot register user in a new organization. Ask an existing admin for an invite link.',
+            );
+        }
         if (isUserWithOrg(user)) {
             throw new ForbiddenError('User already has an organization');
         }
-        const org = await this.organizationModel.create(name || '');
+        const org = await this.organizationModel.create(data);
+        analytics.track({
+            event: 'organization.created',
+            userId: user.userUuid,
+            properties: {
+                type:
+                    lightdashConfig.mode === LightdashMode.CLOUD_BETA
+                        ? 'cloud'
+                        : 'self-hosted',
+                organizationId: org.organizationUuid,
+                organizationName: org.name,
+            },
+        });
         await this.userModel.joinOrg(
             user.userUuid,
             org.organizationUuid,

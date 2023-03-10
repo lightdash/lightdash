@@ -1,4 +1,5 @@
 import {
+    CreateOrganization,
     NotFoundError,
     Organisation,
     UpdateOrganization,
@@ -44,10 +45,10 @@ export class OrganizationModel {
         return OrganizationModel.mapDBObjectToOrganisation(org);
     }
 
-    async create(name: string): Promise<Organisation> {
+    async create(data: CreateOrganization): Promise<Organisation> {
         const [org] = await this.database(OrganizationTableName)
             .insert({
-                organization_name: name,
+                organization_name: data.name,
             })
             .returning('*');
         return OrganizationModel.mapDBObjectToOrganisation(org);

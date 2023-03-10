@@ -53,6 +53,7 @@ export const userService = new UserService({
     organizationMemberProfileModel,
     organizationModel,
     personalAccessTokenModel,
+    organizationAllowedEmailDomainsModel,
 });
 export const organizationService = new OrganizationService({
     organizationModel,

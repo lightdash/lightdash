@@ -52,7 +52,7 @@ export class UserController extends Controller {
      * @param req express request
      * @param pascode the one-time passcode sent to the user's primary email
      */
-    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @Middlewares([isAuthenticated])
     @Get('/me/email/status')
     @OperationId('getEmailVerificationStatus')
     async getEmailVerificationStatus(
@@ -75,11 +75,7 @@ export class UserController extends Controller {
      * Get list or organizations the user is allowed to join
      * @param req express request
      */
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Get('/me/allowedOrganizations')
     @OperationId('getOrganizationsUserCanJoin')
     async getOrganizationsUserCanJoin(
@@ -96,19 +92,20 @@ export class UserController extends Controller {
     /**
      * Join an organization
      * @param req express request
+     * @param organizationUuid the uuid of the organization to join
      */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
     ])
-    @Post('/me/joinOrganization/{orgUuid}')
+    @Post('/me/joinOrganization/{organizationUuid}')
     @OperationId('joinOrganization')
     async joinOrganization(
         @Request() req: express.Request,
-        @Path() orgUuid: string,
+        @Path() organizationUuid: string,
     ): Promise<ApiSuccessEmpty> {
-        await userService.joinOrg(req.user!, orgUuid);
+        await userService.joinOrg(req.user!, organizationUuid);
         this.setStatus(200);
         return {
             status: 'ok',

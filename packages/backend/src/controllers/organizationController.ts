@@ -5,11 +5,12 @@ import {
     ApiOrganizationMemberProfile,
     ApiOrganizationMemberProfiles,
     ApiSuccessEmpty,
+    CreateOrganization,
     OrganizationMemberProfileUpdate,
     UpdateAllowedEmailDomains,
     UpdateOrganization,
 } from '@lightdash/common';
-import { Controller, Delete, Query } from '@tsoa/runtime';
+import { Controller, Delete } from '@tsoa/runtime';
 import express from 'express';
 import {
     Body,
@@ -54,16 +55,16 @@ export class OrganizationController extends Controller {
     /**
      * Create and join a new organization
      * @param req express request
-     * @param name the name of the new organization
+     * @param body the new organization settings
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Put()
     @OperationId('createOrganization')
     async createOrganization(
         @Request() req: express.Request,
-        @Query() name?: string,
+        @Body() body: CreateOrganization,
     ): Promise<ApiSuccessEmpty> {
-        await organizationService.createAndJoinOrg(req.user!, name);
+        await organizationService.createAndJoinOrg(req.user!, body);
         this.setStatus(200);
         return {
             status: 'ok',
