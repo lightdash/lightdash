@@ -9,6 +9,7 @@ import {
     jobModel,
     onboardingModel,
     openIdIdentityModel,
+    organizationAllowedEmailDomainsModel,
     organizationMemberProfileModel,
     organizationModel,
     passwordResetLinkModel,
@@ -60,6 +61,7 @@ export const organizationService = new OrganizationService({
     inviteLinkModel,
     organizationMemberProfileModel,
     userModel,
+    organizationAllowedEmailDomainsModel,
 });
 
 export const projectService = new ProjectService({

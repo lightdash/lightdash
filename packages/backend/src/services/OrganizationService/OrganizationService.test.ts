@@ -2,6 +2,7 @@ import { LightdashInstallType } from '@lightdash/common';
 import {
     inviteLinkModel,
     onboardingModel,
+    organizationAllowedEmailDomainsModel,
     organizationMemberProfileModel,
     organizationModel,
     projectModel,
@@ -17,6 +18,7 @@ jest.mock('../../models/models', () => ({
     organizationModel: {
         get: jest.fn(async () => organisation),
     },
+    organizationAllowedEmailDomainsModel: {},
 }));
 describe('organization service', () => {
     const organizationService = new OrganizationService({
@@ -26,6 +28,7 @@ describe('organization service', () => {
         inviteLinkModel,
         organizationMemberProfileModel,
         userModel,
+        organizationAllowedEmailDomainsModel,
     });
 
     afterEach(() => {

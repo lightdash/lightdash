@@ -289,6 +289,78 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AllowedEmailDomains: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                projectUuids: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                role: { ref: 'OrganizationMemberRole', required: true },
+                emailDomains: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                organizationUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiOrganizationAllowedEmailDomains: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'AllowedEmailDomains', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_AllowedEmailDomains.Exclude_keyofAllowedEmailDomains.organizationUuid__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    role: { ref: 'OrganizationMemberRole', required: true },
+                    emailDomains: {
+                        dataType: 'array',
+                        array: { dataType: 'string' },
+                        required: true,
+                    },
+                    projectUuids: {
+                        dataType: 'array',
+                        array: { dataType: 'string' },
+                        required: true,
+                    },
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_AllowedEmailDomains.organizationUuid_': {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Pick_AllowedEmailDomains.Exclude_keyofAllowedEmailDomains.organizationUuid__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    UpdateAllowedEmailDomains: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Omit_AllowedEmailDomains.organizationUuid_',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SchedulerCsvOptions: {
         dataType: 'refAlias',
         type: {
@@ -1135,6 +1207,95 @@ export function RegisterRoutes(app: express.Router) {
                     controller,
                     validatedArgs as any,
                 );
+                promiseHandler(controller, promise, response, undefined, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.get(
+        '/api/v1/org/allowedEmailDomains',
+        ...fetchMiddlewares<RequestHandler>(OrganizationController),
+        ...fetchMiddlewares<RequestHandler>(
+            OrganizationController.prototype.getOrganizationAllowedEmailDomains,
+        ),
+
+        function OrganizationController_getOrganizationAllowedEmailDomains(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const controller = new OrganizationController();
+
+                const promise =
+                    controller.getOrganizationAllowedEmailDomains.apply(
+                        controller,
+                        validatedArgs as any,
+                    );
+                promiseHandler(controller, promise, response, undefined, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.patch(
+        '/api/v1/org/allowedEmailDomains',
+        ...fetchMiddlewares<RequestHandler>(OrganizationController),
+        ...fetchMiddlewares<RequestHandler>(
+            OrganizationController.prototype
+                .updateOrganizationAllowedEmailDomains,
+        ),
+
+        function OrganizationController_updateOrganizationAllowedEmailDomains(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+                body: {
+                    in: 'body',
+                    name: 'body',
+                    required: true,
+                    ref: 'UpdateAllowedEmailDomains',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const controller = new OrganizationController();
+
+                const promise =
+                    controller.updateOrganizationAllowedEmailDomains.apply(
+                        controller,
+                        validatedArgs as any,
+                    );
                 promiseHandler(controller, promise, response, undefined, next);
             } catch (err) {
                 return next(err);
