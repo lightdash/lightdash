@@ -48,9 +48,11 @@ import { SlackSettings } from './types/slackSettings';
 import { EmailStatusExpiring } from './types/email';
 import { FieldValueSearchResult } from './types/fieldMatch';
 import {
+    AllowedEmailDomains,
     OnboardingStatus,
     Organisation,
     OrganizationProject,
+    UpdateAllowedEmailDomains,
 } from './types/organization';
 import {
     CreateWarehouseCredentials,
@@ -481,7 +483,9 @@ type ApiResults =
     | SchedulerAndTargets[]
     | FieldValueSearchResult
     | ApiDownloadCsv
-    | EmailStatusExpiring;
+    | EmailStatusExpiring
+    | AllowedEmailDomains
+    | UpdateAllowedEmailDomains;
 
 export type ApiResponse = {
     status: 'ok';

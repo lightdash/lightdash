@@ -9,8 +9,10 @@ import Sidebar from '../components/common/Page/Sidebar';
 import RouterMenuItem from '../components/common/RouterMenuItem';
 import PageSpinner from '../components/PageSpinner';
 import AccessTokensPanel from '../components/UserSettings/AccessTokensPanel';
+import AllowedDomainsPanel from '../components/UserSettings/AllowedDomainsPanel';
 import AppearancePanel from '../components/UserSettings/AppearancePanel';
 import { DeleteOrganisationPanel } from '../components/UserSettings/DeleteOrganisationPanel';
+import { Description } from '../components/UserSettings/DeleteOrganisationPanel/DeleteOrganisationPanel.styles';
 import OrganisationPanel from '../components/UserSettings/OrganisationPanel';
 import PasswordPanel from '../components/UserSettings/PasswordPanel';
 import ProfilePanel from '../components/UserSettings/ProfilePanel';
@@ -24,6 +26,7 @@ import { TrackPage } from '../providers/TrackingProvider';
 import { PageName } from '../types/Events';
 import { PasswordRecoveryForm } from './PasswordRecoveryForm';
 import ProjectSettings from './ProjectSettings';
+import { Subtitle } from './ProjectSettings.styles';
 import {
     CardContainer,
     ContentWrapper,
@@ -193,6 +196,17 @@ const Settings: FC = () => {
                             <CardContainer>
                                 <Title>Organization settings</Title>
                                 <OrganisationPanel />
+                            </CardContainer>
+                            <CardContainer>
+                                <div>
+                                    <Title>Allowed email domains</Title>
+                                    <Description>
+                                        Anyone with email addresses at these
+                                        domains can automatically join the
+                                        organisation.
+                                    </Description>
+                                </div>
+                                <AllowedDomainsPanel />
                             </CardContainer>
                             <DeleteOrganisationPanel />
                         </Content>
