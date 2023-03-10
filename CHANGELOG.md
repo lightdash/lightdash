@@ -1,3 +1,10 @@
+# [0.457.0](https://github.com/lightdash/lightdash/compare/0.456.1...0.457.0) (2023-03-10)
+
+
+### Features
+
+* minor home page improvements ([#4682](https://github.com/lightdash/lightdash/issues/4682)) ([a2ada7b](https://github.com/lightdash/lightdash/commit/a2ada7bb9a6274b9ab69ceb6edfb9cfeede0f6b9))
+
 ## [0.456.1](https://github.com/lightdash/lightdash/compare/0.456.0...0.456.1) (2023-03-10)
 
 
