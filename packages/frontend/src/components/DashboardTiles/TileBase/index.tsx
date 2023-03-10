@@ -107,7 +107,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                     (!isEditMode && extraMenuItems)) && (
                                     <Popover2
                                         lazy
-                                        onOpened={() => toggleMenu(true)}
+                                        onOpening={() => toggleMenu(true)}
                                         onClosed={() => toggleMenu(false)}
                                         position={PopoverPosition.BOTTOM_RIGHT}
                                         content={
