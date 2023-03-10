@@ -1,3 +1,10 @@
+## [0.456.1](https://github.com/lightdash/lightdash/compare/0.456.0...0.456.1) (2023-03-10)
+
+
+### Bug Fixes
+
+* bignumber text sizes and interactions ([#4712](https://github.com/lightdash/lightdash/issues/4712)) ([78752c8](https://github.com/lightdash/lightdash/commit/78752c88ef46c02c39373ff699a92771875c7a93))
+
 # [0.456.0](https://github.com/lightdash/lightdash/compare/0.455.0...0.456.0) (2023-03-10)
 
 
