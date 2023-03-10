@@ -7,8 +7,7 @@ import {
 } from '@blueprintjs/core';
 import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { Dashboard, DashboardTileTypes } from '@lightdash/common';
-import { Transition } from '@mantine/core';
-import { mergeRefs, useHover, useToggle } from '@mantine/hooks';
+import { useHover, useToggle } from '@mantine/hooks';
 import React, { ReactNode, useState } from 'react';
 import TileUpdateModal from '../TileForms/TileUpdateModal';
 import {
@@ -51,7 +50,8 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     const [isEditing, setIsEditing] = useState(false);
     const [isHovering, setIsHovering] = useState(false);
     const { hovered: containerHovered, ref: containerRef } = useHover();
-    const { hovered: titleHovered, ref: titleRef } = useHover();
+    const { hovered: titleHovered, ref: titleRef } =
+        useHover<HTMLAnchorElement>();
     const [isMenuOpen, toggleMenu] = useToggle([false, true]);
 
     const hideTitle =
@@ -81,11 +81,12 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                             position="top-left"
                             renderTarget={({ ref: tooltipRef, ...props }) => (
                                 <TitleWrapper
-                                    ref={mergeRefs(tooltipRef, titleRef)}
+                                    ref={tooltipRef}
                                     $hovered={titleHovered}
                                 >
                                     {!hideTitle ? (
                                         <TileTitleLink
+                                            ref={titleRef}
                                             href={titleHref}
                                             $hovered={titleHovered}
                                             target="_blank"
@@ -99,105 +100,86 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                             )}
                         />
 
-                        {!isMenuOpen && titleHovered ? null : (
-                            <Transition
-                                mounted={containerHovered || isMenuOpen}
-                                transition="fade"
-                                duration={150}
-                            >
-                                {(styles) => (
-                                    <ButtonsWrapper
-                                        className="non-draggable"
-                                        style={styles}
-                                    >
-                                        {extraHeaderElement}
-                                        {(isEditMode ||
-                                            (!isEditMode &&
-                                                extraMenuItems)) && (
-                                            <Popover2
-                                                onOpened={() =>
-                                                    toggleMenu(true)
-                                                }
-                                                onClosed={() =>
-                                                    toggleMenu(false)
-                                                }
-                                                content={
-                                                    <Menu>
-                                                        {extraMenuItems}
-                                                        {isEditMode &&
-                                                            extraMenuItems && (
-                                                                <MenuDivider />
-                                                            )}
-                                                        {isEditMode && (
-                                                            <>
-                                                                <MenuItem2
-                                                                    icon="edit"
-                                                                    text="Edit tile content"
-                                                                    onClick={() =>
-                                                                        setIsEditing(
-                                                                            true,
-                                                                        )
-                                                                    }
-                                                                />
-                                                                {tile.type !==
-                                                                    DashboardTileTypes.MARKDOWN && (
-                                                                    <MenuItem2
-                                                                        icon={
-                                                                            hideTitle
-                                                                                ? 'eye-open'
-                                                                                : 'eye-off'
-                                                                        }
-                                                                        text={`${
-                                                                            hideTitle
-                                                                                ? 'Show'
-                                                                                : 'Hide'
-                                                                        } title`}
-                                                                        onClick={() =>
-                                                                            onEdit(
-                                                                                {
-                                                                                    ...tile,
-                                                                                    properties:
-                                                                                        {
-                                                                                            ...tile.properties,
-                                                                                            hideTitle:
-                                                                                                !hideTitle,
-                                                                                        },
-                                                                                },
-                                                                            )
-                                                                        }
-                                                                    />
-                                                                )}
-                                                                <MenuDivider />
-                                                                <MenuItem2
-                                                                    icon="delete"
-                                                                    intent="danger"
-                                                                    text="Remove tile"
-                                                                    onClick={() =>
-                                                                        onDelete(
-                                                                            tile,
-                                                                        )
-                                                                    }
-                                                                />
-                                                            </>
+                        {(containerHovered && !titleHovered) || isMenuOpen ? (
+                            <ButtonsWrapper className="non-draggable">
+                                {extraHeaderElement}
+                                {(isEditMode ||
+                                    (!isEditMode && extraMenuItems)) && (
+                                    <Popover2
+                                        lazy
+                                        onOpened={() => toggleMenu(true)}
+                                        onClosed={() => toggleMenu(false)}
+                                        position={PopoverPosition.BOTTOM_RIGHT}
+                                        content={
+                                            <Menu>
+                                                {extraMenuItems}
+                                                {isEditMode &&
+                                                    extraMenuItems && (
+                                                        <MenuDivider />
+                                                    )}
+                                                {isEditMode && (
+                                                    <>
+                                                        <MenuItem2
+                                                            icon="edit"
+                                                            text="Edit tile content"
+                                                            onClick={() =>
+                                                                setIsEditing(
+                                                                    true,
+                                                                )
+                                                            }
+                                                        />
+                                                        {tile.type !==
+                                                            DashboardTileTypes.MARKDOWN && (
+                                                            <MenuItem2
+                                                                icon={
+                                                                    hideTitle
+                                                                        ? 'eye-open'
+                                                                        : 'eye-off'
+                                                                }
+                                                                text={`${
+                                                                    hideTitle
+                                                                        ? 'Show'
+                                                                        : 'Hide'
+                                                                } title`}
+                                                                onClick={() =>
+                                                                    onEdit({
+                                                                        ...tile,
+                                                                        properties:
+                                                                            {
+                                                                                ...tile.properties,
+                                                                                hideTitle:
+                                                                                    !hideTitle,
+                                                                            },
+                                                                    })
+                                                                }
+                                                            />
                                                         )}
-                                                    </Menu>
-                                                }
-                                                position={
-                                                    PopoverPosition.BOTTOM_RIGHT
-                                                }
-                                                lazy
-                                            >
-                                                <Button
-                                                    minimal
-                                                    small
-                                                    icon="more"
-                                                />
-                                            </Popover2>
+                                                        <MenuDivider />
+                                                        <MenuItem2
+                                                            icon="delete"
+                                                            intent="danger"
+                                                            text="Remove tile"
+                                                            onClick={() =>
+                                                                onDelete(tile)
+                                                            }
+                                                        />
+                                                    </>
+                                                )}
+                                            </Menu>
+                                        }
+                                        renderTarget={({ ref, ...props }) => (
+                                            <Button
+                                                elementRef={ref}
+                                                minimal
+                                                small
+                                                icon="more"
+                                                {...props}
+                                            />
                                         )}
-                                    </ButtonsWrapper>
+                                    />
                                 )}
-                            </Transition>
-                        )}
+                            </ButtonsWrapper>
+                        ) : null}
                     </HeaderContainer>
                     <ChartContainer className="non-draggable sentry-block fs-block cohere-block">
                         {children}
