@@ -2,6 +2,7 @@ import {
     ActivateUser,
     CreateUserArgs,
     CreateUserWithRole,
+    ForbiddenError,
     getUserAbilityBuilder,
     isOpenIdUser,
     LightdashMode,
@@ -613,10 +614,19 @@ export class UserModel {
             .where('user_uuid', userUuid)
             .select('user_id');
         if (!user) {
-            throw new NotExistsError('Cannot find organization');
+            throw new NotExistsError('Cannot find user');
         }
 
         await this.database.transaction(async (trx) => {
+            const [existingUserMemberships] = await trx(
+                OrganizationMembershipsTableName,
+            )
+                .where('user_id', user.user_id)
+                .select('organization_id');
+            if (existingUserMemberships) {
+                throw new ForbiddenError('User already has an organization');
+            }
+
             await trx(OrganizationMembershipsTableName).insert({
                 organization_id: org.organization_id,
                 user_id: user.user_id,
@@ -629,11 +639,13 @@ export class UserModel {
                         .select('project_id')
                         .where('project_uuid', projectUuid);
 
-                    await this.database('project_memberships').insert({
-                        project_id: project.project_id,
-                        role: ProjectMemberRole.VIEWER,
-                        user_id: user.user_id,
-                    });
+                    if (project) {
+                        await this.database('project_memberships').insert({
+                            project_id: project.project_id,
+                            role: ProjectMemberRole.VIEWER,
+                            user_id: user.user_id,
+                        });
+                    }
                 },
             );
 
