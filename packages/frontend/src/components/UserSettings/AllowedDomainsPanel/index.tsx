@@ -21,6 +21,25 @@ type FormData = {
     projects: { value: string; label: string }[];
 };
 
+const roleOptions = [
+    {
+        value: OrganizationMemberRole.VIEWER,
+        label: 'Organisation Viewer',
+        subLabel: (
+            <Description>
+                Has view access across all projects in the org
+            </Description>
+        ),
+    },
+    {
+        value: OrganizationMemberRole.MEMBER,
+        label: 'Organisation Member',
+        subLabel: (
+            <Description>Has view access to selected projects only</Description>
+        ),
+    },
+];
+
 const AllowedDomainsPanel: FC = () => {
     const methods = useForm<FormData>({
         mode: 'onSubmit',
@@ -63,33 +82,20 @@ const AllowedDomainsPanel: FC = () => {
     }, [data, methods, projectOptions]);
 
     const handleUpdate = (values: FormData) => {
+        const role =
+            values.emailDomains.length > 0
+                ? values.role
+                : OrganizationMemberRole.VIEWER;
+        const projectUuids =
+            role === OrganizationMemberRole.MEMBER
+                ? values.projects.map(({ value }) => value)
+                : [];
         mutate({
             emailDomains: values.emailDomains,
-            role: values.role,
-            projectUuids: values.projects.map(({ value }) => value),
+            role,
+            projectUuids,
         });
     };
-
-    const selectItems = [
-        {
-            value: OrganizationMemberRole.VIEWER,
-            label: 'Organisation Viewer',
-            subLabel: (
-                <Description>
-                    Has view access across all projects in the org
-                </Description>
-            ),
-        },
-        {
-            value: OrganizationMemberRole.MEMBER,
-            label: 'Organisation Member',
-            subLabel: (
-                <Description>
-                    Has view access to selected projects only
-                </Description>
-            ),
-        },
-    ];
 
     return (
         <FormWrapper>
@@ -120,7 +126,7 @@ const AllowedDomainsPanel: FC = () => {
                             name="role"
                             placeholder="Organisation viewer"
                             disabled={isLoading}
-                            items={selectItems}
+                            items={roleOptions}
                             defaultValue="viewer"
                         />
                         {projectOptions.length > 0 &&
