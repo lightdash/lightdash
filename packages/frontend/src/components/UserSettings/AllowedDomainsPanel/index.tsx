@@ -1,52 +1,73 @@
 import { Button, Intent } from '@blueprintjs/core';
-import {
-    AllowedEmailDomains,
-    Organisation,
-    OrganizationMemberRole,
-    TableSelectionType,
-    UpdateAllowedEmailDomains,
-} from '@lightdash/common';
-import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
+import { OrganizationMemberRole, ProjectType } from '@lightdash/common';
+import React, { FC, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import {
     useAllowedEmailDomains,
     useUpdateAllowedEmailDomains,
 } from '../../../hooks/organisation/useAllowedDomains';
-import { useProject } from '../../../hooks/useProject';
+import { useProjects } from '../../../hooks/useProjects';
 import { isValidEmailDomain } from '../../../utils/fieldValidators';
 import Form from '../../ReactHookForm/Form';
-import Input from '../../ReactHookForm/Input';
 import MultiSelect from '../../ReactHookForm/MultiSelect';
 import Select2 from '../../ReactHookForm/Select2';
 import TagInput from '../../ReactHookForm/TagInput';
 import { Description } from '../DeleteOrganisationPanel/DeleteOrganisationPanel.styles';
 import { FormWrapper } from '../OrganisationPanel/OrganisationPanel.styles';
 
+type FormData = {
+    emailDomains: string[];
+    role: OrganizationMemberRole;
+    projects: { value: string; label: string }[];
+};
+
 const AllowedDomainsPanel: FC = () => {
-    const methods = useForm<UpdateAllowedEmailDomains>({
+    const methods = useForm<FormData>({
         mode: 'onSubmit',
         defaultValues: {
             emailDomains: [],
             role: OrganizationMemberRole.VIEWER,
-            projectUuids: [],
+            projects: [],
         },
     });
-
+    const { data: projects, isLoading: isLoadingProjects } = useProjects();
     const { data, isLoading: emailDomainsLoading } = useAllowedEmailDomains();
     const { mutate, isLoading: updateEmailDomainsLoading } =
         useUpdateAllowedEmailDomains();
-    const isLoading = updateEmailDomainsLoading || emailDomainsLoading;
+    const isLoading =
+        updateEmailDomainsLoading || emailDomainsLoading || isLoadingProjects;
+
+    const projectOptions = useMemo(() => {
+        return (projects || [])
+            .filter(({ type }) => type !== ProjectType.PREVIEW)
+            .map((item) => ({
+                value: item.projectUuid,
+                label: item.name,
+            }));
+    }, [projects]);
+
+    const selectedEmailDomains = methods.watch('emailDomains', []);
+    const selectedRole = methods.watch('role', OrganizationMemberRole.VIEWER);
 
     useEffect(() => {
         if (data) {
             methods.setValue('emailDomains', data.emailDomains);
             methods.setValue('role', data.role);
-            methods.setValue('projectUuids', data.projectUuids);
+            methods.setValue(
+                'projects',
+                projectOptions.filter(({ value }) =>
+                    data.projectUuids.includes(value),
+                ),
+            );
         }
-    }, [data, methods]);
+    }, [data, methods, projectOptions]);
 
-    const handleUpdate = (values: UpdateAllowedEmailDomains) => {
-        mutate(values);
+    const handleUpdate = (values: FormData) => {
+        mutate({
+            emailDomains: values.emailDomains,
+            role: values.role,
+            projectUuids: values.projects.map(({ value }) => value),
+        });
     };
 
     const selectItems = [
@@ -82,45 +103,37 @@ const AllowedDomainsPanel: FC = () => {
                 <TagInput
                     label="Allowed email domains"
                     name="emailDomains"
-                    placeholder="No allowed email domains"
+                    placeholder="E.g. lightdash.com"
                     disabled={isLoading}
                     defaultValue={data?.emailDomains || []}
                     rules={{
                         validate: {
                             isValidEmailDomain:
-                                isValidEmailDomain('emailDomains'),
+                                isValidEmailDomain('Email domains'),
                         },
                     }}
                 />
-                <Select2
-                    label="Default role"
-                    name="role"
-                    placeholder="Organisation viewer"
-                    disabled={isLoading}
-                    items={selectItems}
-                    defaultValue="viewer"
-                />
-                {methods.getValues().role == OrganizationMemberRole.MEMBER &&
-                data &&
-                data.projectUuids.length > 0 ? (
-                    <MultiSelect
-                        label="Project Viewer Access"
-                        name="projects"
-                        items={data?.projectUuids || []}
-                        defaultValue={data?.projectUuids}
-                        placeholder="Select projects"
-                    />
-                ) : methods.getValues().role == OrganizationMemberRole.MEMBER &&
-                  data &&
-                  data.projectUuids.length <= 0 ? (
-                    <Input
-                        label="Project Viewer Access"
-                        name="projects"
-                        placeholder="No projects found"
-                        disabled
-                    />
-                ) : null}
-
+                {selectedEmailDomains.length > 0 && (
+                    <>
+                        <Select2
+                            label="Default role"
+                            name="role"
+                            placeholder="Organisation viewer"
+                            disabled={isLoading}
+                            items={selectItems}
+                            defaultValue="viewer"
+                        />
+                        {projectOptions.length > 0 &&
+                            selectedRole === OrganizationMemberRole.MEMBER && (
+                                <MultiSelect
+                                    label="Project Viewer Access"
+                                    name="projects"
+                                    items={projectOptions}
+                                    placeholder="Select projects"
+                                />
+                            )}
+                    </>
+                )}
                 <div style={{ flex: 1 }} />
                 <Button
                     style={{ alignSelf: 'flex-end', marginTop: 20 }}
