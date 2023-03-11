@@ -105,6 +105,15 @@ type UpdateUserEvent = BaseTrack & {
     properties: LightdashUser & { jobTitle?: string };
 };
 
+type UserJoinOrganizationEvent = BaseTrack & {
+    event: 'user.joined_organization';
+    properties: {
+        organizationId: string;
+        role: OrganizationMemberRole;
+        projectIds: string[];
+    };
+};
+
 type QueryExecutionEvent = BaseTrack & {
     event: 'query.executed';
     properties: {
@@ -524,6 +533,7 @@ type Track =
     | CreateUserEvent
     | UpdateUserEvent
     | DeleteUserEvent
+    | UserJoinOrganizationEvent
     | QueryExecutionEvent
     | TrackSavedChart
     | CreateSavedChartOrVersionEvent

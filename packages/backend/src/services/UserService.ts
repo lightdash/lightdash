@@ -782,5 +782,15 @@ export class UserService {
             allowedEmailDomains.role,
             allowedEmailDomains.projectUuids,
         );
+
+        await analytics.track({
+            userId: user.userUuid,
+            event: 'user.joined_organization',
+            properties: {
+                organizationId: orgUuid,
+                role: allowedEmailDomains.role,
+                projectIds: allowedEmailDomains.projectUuids,
+            },
+        });
     }
 }

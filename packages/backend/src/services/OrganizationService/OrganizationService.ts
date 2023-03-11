@@ -364,5 +364,14 @@ export class OrganizationService {
             OrganizationMemberRole.ADMIN,
             [],
         );
+        await analytics.track({
+            userId: user.userUuid,
+            event: 'user.joined_organization',
+            properties: {
+                organizationId: org.organizationUuid,
+                role: OrganizationMemberRole.ADMIN,
+                projectIds: [],
+            },
+        });
     }
 }
