@@ -397,7 +397,7 @@ const SchedulerForm: FC<
                                                     No Email integration found
                                                 </p>
                                                 <p>
-                                                    To create a slack scheduled
+                                                    To create an email scheduled
                                                     delivery, you need to add
                                                     <a href="https://docs.lightdash.com/references/environmentVariables">
                                                         {' '}
