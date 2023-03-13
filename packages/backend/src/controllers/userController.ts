@@ -1,17 +1,29 @@
-import { ApiEmailStatusResponse, ApiErrorPayload } from '@lightdash/common';
+import {
+    ApiEmailStatusResponse,
+    ApiErrorPayload,
+    ApiSuccessEmpty,
+    ApiUserAllowedOrganizationsResponse,
+} from '@lightdash/common';
 import { Controller, Query } from '@tsoa/runtime';
 import express from 'express';
 import {
     Get,
     Middlewares,
     OperationId,
+    Path,
+    Post,
     Put,
     Request,
     Response,
     Route,
 } from 'tsoa';
+import { userModel } from '../models/models';
 import { userService } from '../services/services';
-import { isAuthenticated, unauthorisedInDemo } from './authentication';
+import {
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    unauthorisedInDemo,
+} from './authentication';
 
 @Route('/api/v1/user')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -41,7 +53,7 @@ export class UserController extends Controller {
      * @param req express request
      * @param pascode the one-time passcode sent to the user's primary email
      */
-    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @Middlewares([isAuthenticated])
     @Get('/me/email/status')
     @OperationId('getEmailVerificationStatus')
     async getEmailVerificationStatus(
@@ -57,6 +69,59 @@ export class UserController extends Controller {
         return {
             status: 'ok',
             results: status,
+        };
+    }
+
+    /**
+     * Get list or organizations the user is allowed to join
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('/me/allowedOrganizations')
+    @OperationId('getOrganizationsUserCanJoin')
+    async getOrganizationsUserCanJoin(
+        @Request() req: express.Request,
+    ): Promise<ApiUserAllowedOrganizationsResponse> {
+        const status = await userService.getAllowedOrganizations(req.user!);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: status,
+        };
+    }
+
+    /**
+     * Join an organization
+     * @param req express request
+     * @param organizationUuid the uuid of the organization to join
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @Post('/me/joinOrganization/{organizationUuid}')
+    @OperationId('joinOrganization')
+    async joinOrganization(
+        @Request() req: express.Request,
+        @Path() organizationUuid: string,
+    ): Promise<ApiSuccessEmpty> {
+        await userService.joinOrg(req.user!, organizationUuid);
+        const sessionUser = await userModel.findSessionUserByUUID(
+            req.user!.userUuid,
+        );
+        await new Promise<void>((resolve, reject) => {
+            req.login(sessionUser, (err) => {
+                if (err) {
+                    reject(err);
+                }
+                resolve();
+            });
+        });
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 }

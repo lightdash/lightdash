@@ -25,6 +25,8 @@ export type Organisation = {
     needsProject?: boolean;
 };
 
+export type CreateOrganization = Pick<Organisation, 'name'>;
+
 export type UpdateOrganization = Partial<
     Omit<Organisation, 'organizationUuid' | 'needsProject'>
 >;
