@@ -105,10 +105,6 @@ export const convertApiToCsv = (
     const csvBody = rows.map((row) =>
         sortedFieldIds.map((id) => {
             const rowData = row[id];
-            if (onlyRaw) {
-                return rowData.value.raw;
-            }
-
             const item = itemMap[id];
             const itemIsField = isField(item);
 
@@ -117,6 +113,10 @@ export const convertApiToCsv = (
             }
             if (itemIsField && item.type === DimensionType.DATE) {
                 return moment(rowData.value.raw).format('YYYY-MM-DD');
+            }
+
+            if (onlyRaw) {
+                return rowData.value.raw;
             }
 
             return rowData.value.formatted;
