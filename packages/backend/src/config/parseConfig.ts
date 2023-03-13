@@ -52,6 +52,7 @@ export type LightdashConfig = {
     maxPayloadSize: string;
     query: {
         maxLimit: number;
+        csvCellsLimit: number;
     };
     s3?: S3Config;
     headlessBrowser?: HeadlessBrowserConfig;
@@ -284,6 +285,10 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_QUERY_MAX_LIMIT',
                 ) || 5000,
+            csvCellsLimit:
+                getIntegerFromEnvironmentVariable(
+                    'LIGHTDASH_CSV_CELLS_LIMIT',
+                ) || 100000,
         },
         s3: {
             region: process.env.S3_REGION,
