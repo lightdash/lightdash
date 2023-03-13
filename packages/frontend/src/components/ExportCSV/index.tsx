@@ -144,13 +144,13 @@ const ExportCSV: FC<ExportCSVProps> = memo(
                             />
                         </InputWrapper>
                     )}
-                </Wrapper>
 
-                {(limit === Limit.ALL || limit === Limit.CUSTOM) && (
-                    <LimitWarning>
-                        Results are limited to 100,000 cells for each file
-                    </LimitWarning>
-                )}
+                    {(limit === Limit.ALL || limit === Limit.CUSTOM) && (
+                        <LimitWarning>
+                            Results are limited to 100,000 cells for each file
+                        </LimitWarning>
+                    )}
+                </Wrapper>
 
                 {isDialogBody && renderDialogActions ? (
                     <DialogFooter
