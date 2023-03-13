@@ -1,5 +1,5 @@
 import { Card, Colors } from '@blueprintjs/core';
-import { LightdashMode } from '@lightdash/common';
+import { getEmailDomain, LightdashMode } from '@lightdash/common';
 import { Avatar, Box, Text } from '@mantine/core';
 import { IconChevronRight } from '@tabler/icons-react';
 import React, { FC, useEffect } from 'react';
@@ -84,7 +84,7 @@ export const JoinOrganizationPage: FC = () => {
                     <Title>Join a workspace</Title>
                     <Subtitle>
                         The workspaces below are open to anyone with a{' '}
-                        <b>@{(user.data?.email || '').split('@')[1]}</b> domain.
+                        <b>@{getEmailDomain(user.data?.email || '')}</b> domain.
                         Select a workspace to join, or create a new one!
                     </Subtitle>
                     {allowedOrgs?.map((org) => (

@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     ActivateUser,
     AuthorizationError,
@@ -9,6 +10,7 @@ import {
     EmailStatusExpiring,
     ExpiredError,
     ForbiddenError,
+    getEmailDomain,
     InviteLink,
     isOpenIdUser,
     isUserWithOrg,
@@ -374,12 +376,23 @@ export class UserService {
             jobTitle,
             isTrackingAnonymized,
             isMarketingOptedIn,
+            enableEmailDomainAccess,
         }: CompleteUserArgs,
     ): Promise<LightdashUser> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
         if (organizationName) {
+            if (
+                user.ability.cannot(
+                    'update',
+                    subject('Organization', {
+                        organizationUuid: user.organizationUuid,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
             await this.organizationModel.update(user.organizationUuid, {
                 name: organizationName,
             });
@@ -395,6 +408,27 @@ export class UserService {
                     organizationName,
                 },
             });
+            if (enableEmailDomainAccess && user.email) {
+                if (
+                    user.ability.cannot(
+                        'update',
+                        subject('OrganizationMemberProfile', {
+                            organizationUuid: user.organizationUuid,
+                        }),
+                    )
+                ) {
+                    throw new ForbiddenError();
+                }
+
+                await this.organizationAllowedEmailDomainsModel.upsertAllowedEmailDomains(
+                    {
+                        organizationUuid: user.organizationUuid,
+                        emailDomains: [getEmailDomain(user.email)],
+                        role: OrganizationMemberRole.VIEWER,
+                        projectUuids: [],
+                    },
+                );
+            }
         }
         const completeUser = await this.userModel.updateUser(
             user.userUuid,
@@ -745,7 +779,7 @@ export class UserService {
         );
         if (emailStatus.isVerified) {
             return this.organizationModel.getAllowedOrgsForDomain(
-                emailStatus.email.split('@')[1].toLowerCase(),
+                getEmailDomain(emailStatus.email),
             );
         }
         return [];
@@ -761,7 +795,6 @@ export class UserService {
         if (!emailStatus.isVerified) {
             throw new ForbiddenError('User has not verified their email');
         }
-        const userEmailDomain = emailStatus.email.split('@')[1];
         const allowedEmailDomains =
             await this.organizationAllowedEmailDomainsModel.getAllowedEmailDomains(
                 orgUuid,
@@ -769,7 +802,7 @@ export class UserService {
         if (
             !allowedEmailDomains.emailDomains.some(
                 (domain) =>
-                    domain.toLowerCase() === userEmailDomain.toLowerCase(),
+                    domain.toLowerCase() === getEmailDomain(emailStatus.email),
             )
         ) {
             throw new ForbiddenError(
