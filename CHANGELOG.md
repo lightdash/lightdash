@@ -1,3 +1,16 @@
+# [0.458.0](https://github.com/lightdash/lightdash/compare/0.457.2...0.458.0) (2023-03-13)
+
+
+### Bug Fixes
+
+* typo in email scheduled delivery tooltip ([#4753](https://github.com/lightdash/lightdash/issues/4753)) ([4e0f6fa](https://github.com/lightdash/lightdash/commit/4e0f6fa64e8d110ea32884da1e95fe751342f7f8))
+
+
+### Features
+
+* organisation settings allowed email domains panel ([#4752](https://github.com/lightdash/lightdash/issues/4752)) ([2efd07f](https://github.com/lightdash/lightdash/commit/2efd07fa43f11c08751f41bae16bd95c3815c0dc))
+* redirect space deletion ([#4747](https://github.com/lightdash/lightdash/issues/4747)) ([b08b4d3](https://github.com/lightdash/lightdash/commit/b08b4d3df493edb75a0557aca281ceefa2d83383))
+
 ## [0.457.2](https://github.com/lightdash/lightdash/compare/0.457.1...0.457.2) (2023-03-10)
 
 
