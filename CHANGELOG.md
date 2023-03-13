@@ -1,3 +1,10 @@
+## [0.459.1](https://github.com/lightdash/lightdash/compare/0.459.0...0.459.1) (2023-03-13)
+
+
+### Bug Fixes
+
+* keep order on csv column export ([#4757](https://github.com/lightdash/lightdash/issues/4757)) ([fd31df4](https://github.com/lightdash/lightdash/commit/fd31df4e6ec547337a4c271af9a16bc330687ec8))
+
 # [0.459.0](https://github.com/lightdash/lightdash/compare/0.458.0...0.459.0) (2023-03-13)
 
 
