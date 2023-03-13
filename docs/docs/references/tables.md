@@ -31,7 +31,7 @@ You can read more about [adding Tables to Lightdash here](/guides/adding-tables-
 
 You can customize your Tables in your dbt model's YAML file. Here's an example of the properties used in defining a Table:
 
-```
+```yaml
 version: 2
 
 models:
@@ -69,9 +69,22 @@ table you're expecting. So you need to do `dbt run` to update the table from the
 This will re-sync your dbt project in Lightdash so that any changes you made
 to your dbt models is shown in Lightdash (e.g. adding a new table).
 
-
 ### Order fields by
 
+By default, the fields in your sidebar for any table will appear alphabetically. Sometimes, you might not want your fields to appear alphabetically, but instead, in the same order as they are in your model's dbt .yml file. You can achieve this by setting the `order_fields_by` parameter in your table's meta tag to `label`, like this:
+
+```yaml
+version: 2
+
+models:
+  - name: my_table
+    meta:
+      label: "My Custom Table Name"
+      order_fields_by: "label"
+      joins:
+        - join: my_other_table
+          sql_on: ${my_table.column_a} = ${my_other_table.column_a}
+```
 Notes on the order logic:
 - Fields order defaults to "label"
 - Since metrics can be declared in multiple places we forced the following order: **dbt metrics** > **metrics in model
