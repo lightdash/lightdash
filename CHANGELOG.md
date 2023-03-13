@@ -1,3 +1,10 @@
+# [0.462.0](https://github.com/lightdash/lightdash/compare/0.461.0...0.462.0) (2023-03-13)
+
+
+### Features
+
+* update settings sidebar ([#4776](https://github.com/lightdash/lightdash/issues/4776)) ([5c37349](https://github.com/lightdash/lightdash/commit/5c37349fc3ddc5340719ea1507a4ace23b06b412))
+
 # [0.461.0](https://github.com/lightdash/lightdash/compare/0.460.1...0.461.0) (2023-03-13)
 
 
