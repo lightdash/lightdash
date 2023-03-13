@@ -87,7 +87,7 @@ export const getNotificationPageData = async (
         imageUrl = await unfurlService.unfurlImage(
             minimalUrl,
             pageType,
-            `slack-notification-image-${nanoid()}`,
+            `slack-image-notification-${nanoid()}`,
             userUuid,
             3, // up to 3 retries
         );
