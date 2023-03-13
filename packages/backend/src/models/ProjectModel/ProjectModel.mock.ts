@@ -77,6 +77,7 @@ export const lightdashConfigMock: LightdashConfig = {
     maxPayloadSize: '5mb',
     query: {
         maxLimit: 5000,
+        csvCellsLimit: 100000,
     },
 };
 

@@ -561,9 +561,8 @@ export class ProjectService {
                 'Query must have at least one dimension or metric',
             );
 
-        const maxRows = Math.floor(
-            lightdashConfig.query.csvCellsLimit / numberColumns,
-        );
+        const cellsLimit = lightdashConfig.query?.csvCellsLimit || 100000;
+        const maxRows = Math.floor(cellsLimit / numberColumns);
         const csvRowLimit =
             csvLimit === null ? maxRows : Math.min(csvLimit, maxRows);
 
