@@ -1,3 +1,10 @@
+## [0.459.2](https://github.com/lightdash/lightdash/compare/0.459.1...0.459.2) (2023-03-13)
+
+
+### Bug Fixes
+
+* slack notification image prefix ([#4767](https://github.com/lightdash/lightdash/issues/4767)) ([1bd3af9](https://github.com/lightdash/lightdash/commit/1bd3af9bfd74bab315e59b2e0f290d4512445b76))
+
 ## [0.459.1](https://github.com/lightdash/lightdash/compare/0.459.0...0.459.1) (2023-03-13)
 
 
