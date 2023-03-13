@@ -313,6 +313,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
             csvLimit: resultsData?.rows.length,
             onlyRaw: false,
             showTableNames: true,
+            columnOrder: [],
         });
         return csvResponse.url;
     };
