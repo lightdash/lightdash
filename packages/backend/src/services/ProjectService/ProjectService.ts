@@ -543,7 +543,6 @@ export class ProjectService {
         metricQuery: MetricQuery,
         csvLimit: number | null | undefined,
     ): MetricQuery {
-        const MAX_CELLS = 100000;
         if (csvLimit === undefined) {
             if (metricQuery.limit > lightdashConfig.query?.maxLimit) {
                 throw new ParameterError(
@@ -562,7 +561,8 @@ export class ProjectService {
                 'Query must have at least one dimension or metric',
             );
 
-        const maxRows = Math.floor(MAX_CELLS / numberColumns);
+        const cellsLimit = lightdashConfig.query?.csvCellsLimit || 100000;
+        const maxRows = Math.floor(cellsLimit / numberColumns);
         const csvRowLimit =
             csvLimit === null ? maxRows : Math.min(csvLimit, maxRows);
 
