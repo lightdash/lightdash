@@ -1,3 +1,15 @@
+# [0.461.0](https://github.com/lightdash/lightdash/compare/0.460.1...0.461.0) (2023-03-13)
+
+
+### Bug Fixes
+
+* **csv-export:** fix csv date export format ([#4771](https://github.com/lightdash/lightdash/issues/4771)) ([abf91da](https://github.com/lightdash/lightdash/commit/abf91dada850b757dd6cdaea1a49257359372c56))
+
+
+### Features
+
+* updating csv notification email layout ([#4764](https://github.com/lightdash/lightdash/issues/4764)) ([a9f2229](https://github.com/lightdash/lightdash/commit/a9f2229755c57a6eae559fcc6ecad3e394083a9f))
+
 ## [0.460.1](https://github.com/lightdash/lightdash/compare/0.460.0...0.460.1) (2023-03-13)
 
 
