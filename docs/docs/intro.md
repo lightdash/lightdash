@@ -60,6 +60,7 @@ _Not sure which one to pick? 👀 Check out our [tutorial recommendations here](
 
 - [Exploring your content](/guides/exploring-your-content.mdx)
 - [Spaces](/guides/spaces.mdx)
+- [Pinning](/guides/pinning.mdx)
 
 ## 👪 Users
 

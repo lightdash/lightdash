@@ -194,7 +194,7 @@ module.exports = {
         {
             type: 'category',
             label: '🔎 Finding + organizing things',
-            items: ['guides/exploring-your-content', 'guides/spaces'],
+            items: ['guides/exploring-your-content', 'guides/spaces', 'guides/pinning'],
         },
         {
             type: 'category',

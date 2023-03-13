@@ -31,7 +31,7 @@ You can read more about [adding Tables to Lightdash here](/guides/adding-tables-
 
 You can customize your Tables in your dbt model's YAML file. Here's an example of the properties used in defining a Table:
 
-```
+```yaml
 version: 2
 
 models:
@@ -69,12 +69,37 @@ table you're expecting. So you need to do `dbt run` to update the table from the
 This will re-sync your dbt project in Lightdash so that any changes you made
 to your dbt models is shown in Lightdash (e.g. adding a new table).
 
-
 ### Order fields by
 
-Notes on the order logic:
-- Fields order defaults to "label"
-- Since metrics can be declared in multiple places we forced the following order: **dbt metrics** > **metrics in model
-metadata** > **metrics in dimension metadata**
-- Group labels inherit the index of the first dimension that uses it
+By default, the fields in your sidebar for any table will appear alphabetically (`order_fields_by: "label"`). Sometimes, you might not want your fields to appear alphabetically, but instead, in the same order as they are in your model's dbt .yml file. You can achieve this by setting the `order_fields_by` parameter in your table's meta tag to `yml`, like this:
 
+```yaml
+version: 2
+
+models:
+  - name: my_table
+    meta:
+      order_fields_by: "yml"
+    columns:
+      - name: user_id
+      - name: product_id
+      - name: account_id
+```
+
+So, in the example above, the fields in the sidebar for "My Table" would appear in the order:
+
+- user_id
+- product_id
+- account_id
+
+Instead of being listed alphabetically.
+
+Here are some other things worth mentioning about the `order_fields_by` parameter:
+
+- By default, `order_fields_by` is set to `label`, which means that your fields will appear in the table listed alphabetically.
+- Since metrics can be declared in multiple places within your .yml (as a dbt metric, in the model `meta` tag, under a dimension's `meta`), we force the following order on metrics if you set `order_fields_by` to `yml`:
+
+  - dbt metrics appear first
+  - then, metrics defined in the model's `meta`
+  - then, metrics defined in the dimensions' `meta`
+- Group labels inherit the index of the first dimension that use them.
