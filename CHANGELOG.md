@@ -1,3 +1,10 @@
+# [0.460.0](https://github.com/lightdash/lightdash/compare/0.459.2...0.460.0) (2023-03-13)
+
+
+### Features
+
+* add new env cells limit ([#4761](https://github.com/lightdash/lightdash/issues/4761)) ([eaac65b](https://github.com/lightdash/lightdash/commit/eaac65bb0c426c43a6096b4bdea1b65bf782facc))
+
 ## [0.459.2](https://github.com/lightdash/lightdash/compare/0.459.1...0.459.2) (2023-03-13)
 
 
