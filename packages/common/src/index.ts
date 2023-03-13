@@ -575,6 +575,7 @@ export type HealthState = {
         maxLimit: number;
     };
     hasSlack: boolean;
+    hasHeadlessBrowser: boolean;
 };
 
 export enum DBFieldTypes {
