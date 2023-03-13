@@ -1,11 +1,10 @@
-import { Menu, NonIdealState } from '@blueprintjs/core';
+import { Menu } from '@blueprintjs/core';
 import {
     IconDatabase,
     IconKey,
     IconLock,
     IconPalette,
     IconPlug,
-    IconUser,
     IconUserCircle,
     IconUserPlus,
 } from '@tabler/icons-react';
@@ -34,9 +33,7 @@ import { useOrganisation } from '../hooks/organisation/useOrganisation';
 import { useApp } from '../providers/AppProvider';
 import { TrackPage } from '../providers/TrackingProvider';
 import { PageName } from '../types/Events';
-import { PasswordRecoveryForm } from './PasswordRecoveryForm';
 import ProjectSettings from './ProjectSettings';
-import { Subtitle } from './ProjectSettings.styles';
 import {
     CardContainer,
     ContentWrapper,
@@ -117,12 +114,6 @@ const Settings: FC = () => {
                                 icon={<IconLock size={17} />}
                             />
                         )}
-
-                        {/*<RouterMenuItem*/}
-                        {/*  text="Social logins"*/}
-                        {/*  exact*/}
-                        {/*  to={`${basePath}/socialLogins`}*/}
-                        {/*/>*/}
 
                         <RouterMenuItem
                             text="Personal access tokens"
