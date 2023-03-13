@@ -92,6 +92,7 @@ const VisualizationCard: FC<{ projectUuid?: string }> = memo(
             csvLimit: number | null,
             onlyRaw: boolean,
             showTableNames: boolean,
+            columnOrder: string[],
             customLabels?: Record<string, string>,
         ) => {
             if (
@@ -106,6 +107,7 @@ const VisualizationCard: FC<{ projectUuid?: string }> = memo(
                     csvLimit,
                     onlyRaw,
                     showTableNames,
+                    columnOrder,
                     customLabels,
                 });
                 return csvResponse.url;

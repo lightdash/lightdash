@@ -10,6 +10,7 @@ export const downloadCsv = async ({
     csvLimit,
     onlyRaw,
     showTableNames,
+    columnOrder,
     customLabels,
 }: {
     projectUuid: string;
@@ -18,6 +19,7 @@ export const downloadCsv = async ({
     csvLimit?: number | null; //giving null returns all results (no limit)
     onlyRaw: boolean;
     showTableNames: boolean;
+    columnOrder: string[];
     customLabels?: Record<string, string>;
 }) => {
     const timezoneFixQuery = convertDateFilters(query);
@@ -30,6 +32,7 @@ export const downloadCsv = async ({
             onlyRaw,
             showTableNames,
             customLabels,
+            columnOrder,
         }),
     });
 };

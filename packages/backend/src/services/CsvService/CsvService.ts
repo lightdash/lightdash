@@ -82,46 +82,45 @@ export const convertApiToCsv = (
     onlyRaw: boolean,
     itemMap: Record<string, Field | TableCalculation>,
     showTableNames: boolean,
+    columnOrder: string[],
     customLabels: Record<string, string> = {},
 ): Promise<string> => {
     // Ignore fields from results that are not selected in metrics or dimensions
 
-    const csvHeader = Object.keys(rows[0])
+    const sortedFieldIds = Object.keys(rows[0])
         .filter((id) => fieldIds.includes(id))
-        .map((id) => {
-            if (customLabels[id]) {
-                return customLabels[id];
-            }
-            if (itemMap[id]) {
-                return showTableNames
-                    ? getItemLabel(itemMap[id])
-                    : getItemLabelWithoutTableName(itemMap[id]);
-            }
-            return id;
-        });
+        .sort((a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b));
+
+    const csvHeader = sortedFieldIds.map((id) => {
+        if (customLabels[id]) {
+            return customLabels[id];
+        }
+        if (itemMap[id]) {
+            return showTableNames
+                ? getItemLabel(itemMap[id])
+                : getItemLabelWithoutTableName(itemMap[id]);
+        }
+        return id;
+    });
     const csvBody = rows.map((row) =>
-        Object.keys(row)
-            .filter((id) => fieldIds.includes(id))
-            .map((id) => {
-                const rowData = row[id];
-                if (onlyRaw) {
-                    return rowData.value.raw;
-                }
+        sortedFieldIds.map((id) => {
+            const rowData = row[id];
+            if (onlyRaw) {
+                return rowData.value.raw;
+            }
 
-                const item = itemMap[id];
-                const itemIsField = isField(item);
+            const item = itemMap[id];
+            const itemIsField = isField(item);
 
-                if (itemIsField && item.type === DimensionType.TIMESTAMP) {
-                    return moment(rowData.value.raw).format(
-                        'YYYY-MM-DD HH:mm:ss',
-                    );
-                }
-                if (itemIsField && item.type === DimensionType.DATE) {
-                    return moment(rowData.value.raw).format('YYYY-MM-DD');
-                }
+            if (itemIsField && item.type === DimensionType.TIMESTAMP) {
+                return moment(rowData.value.raw).format('YYYY-MM-DD HH:mm:ss');
+            }
+            if (itemIsField && item.type === DimensionType.DATE) {
+                return moment(rowData.value.raw).format('YYYY-MM-DD');
+            }
 
-                return rowData.value.formatted;
-            }),
+            return rowData.value.formatted;
+        }),
     );
 
     return new Promise((resolve, reject) => {
@@ -183,6 +182,7 @@ export class CsvService {
         itemMap: Record<string, Field | TableCalculation>,
         showTableNames: boolean,
         customLabels: Record<string, string> | undefined,
+        columnOrder: string[],
     ): Promise<string> {
         // Ignore fields from results that are not selected in metrics or dimensions
         const selectedFieldIds = [
@@ -203,6 +203,7 @@ export class CsvService {
                         onlyRaw,
                         itemMap,
                         showTableNames,
+                        columnOrder,
                         customLabels,
                     },
                 }),
@@ -214,6 +215,7 @@ export class CsvService {
             onlyRaw,
             itemMap,
             showTableNames,
+            columnOrder,
             customLabels,
         );
     }
@@ -277,6 +279,7 @@ export class CsvService {
             itemMap,
             isTableChartConfig(config) ? config.showTableNames ?? false : true,
             getCustomLabelsFromTableConfig(config),
+            chart.tableConfig.columnOrder,
         );
 
         const fileId = `csv-${nanoid()}.csv`;

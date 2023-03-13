@@ -11,6 +11,7 @@ function formatRowsWorker() {
         workerData.onlyRaw,
         workerData.itemMap,
         workerData.showTableNames,
+        workerData.columnOrder,
         workerData.customLabels,
     ).then((csv) => {
         parentPort.postMessage(csv);

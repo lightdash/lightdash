@@ -12,6 +12,7 @@ import {
 import AddColumnButton from '../../AddColumnButton';
 import CollapsableCard from '../../common/CollapsableCard';
 import ExportCSV from '../../ExportCSV';
+import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import LimitButton from '../../LimitButton';
 import SortButton from '../../SortButton';
 import { ExplorerResults } from './ExplorerResults';
@@ -44,6 +45,11 @@ const ResultsCard: FC = memo(() => {
     const metricQuery = useExplorerContext(
         (context) => context.state.unsavedChartVersion.metricQuery,
     );
+
+    const columnOrder = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.tableConfig.columnOrder,
+    );
+
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const getCsvLink = async (csvLimit: number | null, onlyRaw: boolean) => {
@@ -53,6 +59,7 @@ const ResultsCard: FC = memo(() => {
             query: metricQuery,
             csvLimit,
             onlyRaw,
+            columnOrder,
             showTableNames: true,
         });
         return csvResponse.url;

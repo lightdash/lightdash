@@ -227,7 +227,13 @@ projectRouter.post(
     async (req, res, next) => {
         try {
             const { body } = req;
-            const { csvLimit, onlyRaw, showTableNames, customLabels } = body;
+            const {
+                csvLimit,
+                onlyRaw,
+                showTableNames,
+                customLabels,
+                columnOrder,
+            } = body;
             const metricQuery: MetricQuery = {
                 dimensions: body.dimensions,
                 metrics: body.metrics,
@@ -266,6 +272,7 @@ projectRouter.post(
                         itemMap,
                         showTableNames,
                         customLabels,
+                        columnOrder,
                     ),
             );
 

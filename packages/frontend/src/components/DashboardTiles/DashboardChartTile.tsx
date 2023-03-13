@@ -89,6 +89,7 @@ const ExportResultAsCSVModal: FC<ExportResultAsCSVModalProps> = ({
             query: savedChart.metricQuery,
             csvLimit: limit,
             onlyRaw: onlyRaw,
+            columnOrder: savedChart.tableConfig.columnOrder,
             showTableNames: isTableChartConfig(savedChart.chartConfig.config)
                 ? savedChart.chartConfig.config.showTableNames ?? false
                 : true,

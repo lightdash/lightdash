@@ -199,6 +199,7 @@ interface ChartDownloadMenuProps {
         limit: number | null,
         onlyRaw: boolean,
         showTableNames: boolean,
+        columnOrder: string[],
         customLabels?: Record<string, string>,
     ) => Promise<string>;
 }
@@ -208,7 +209,12 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
         const {
             chartRef,
             chartType,
-            tableConfig: { showTableNames, columnProperties, rows },
+            tableConfig: {
+                showTableNames,
+                columnProperties,
+                rows,
+                columnOrder,
+            },
             resultsData,
         } = useVisualizationContext();
         const eChartsOptions = useEcharts();
@@ -234,6 +240,7 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                                 limit,
                                 onlyRaw,
                                 showTableNames,
+                                columnOrder,
                                 getCustomLabelsFromColumnProperties(
                                     columnProperties,
                                 ),
