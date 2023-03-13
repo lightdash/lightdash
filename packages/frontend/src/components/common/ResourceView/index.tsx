@@ -30,9 +30,10 @@ import ResourceViewList, {
 
 type TabType = {
     id: string;
-    name: string;
+    name?: string;
     icon?: JSX.Element;
     sort?: (a: ResourceViewItem, b: ResourceViewItem) => number;
+    filter?: (item: ResourceViewItem) => boolean;
 };
 
 interface ResourceHeaderProps {
@@ -93,6 +94,10 @@ const ResourceView: React.FC<ResourceViewProps> = ({
             sortedItems = items.sort(activeTab.sort);
         }
 
+        if (activeTab && activeTab.filter) {
+            sortedItems = sortedItems.filter(activeTab.filter);
+        }
+
         return maxItems ? sortedItems.slice(0, maxItems) : sortedItems;
     }, [items, activeTabId, maxItems, tabs]);
 
@@ -109,64 +114,93 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                   defaultSort: listProps.defaultSort,
               };
 
+    const hasTabs = tabs && tabs.length > 0 && items.length > 1;
+    const hasHeader = headerProps && (headerProps.title || headerProps.action);
+
+    if (hasTabs && headerProps.title) {
+        throw new Error(
+            'Cannot have both tabs and a header title. Please use one or the other.',
+        );
+    }
+
     return (
         <>
             <Paper withBorder sx={{ overflow: 'hidden' }}>
-                {tabs && tabs?.length > 0 && items.length > 1 ? (
-                    <Tabs
-                        styles={{
-                            tab: {
-                                borderRadius: 0,
-                                height: 50,
-                                padding: '0 20px',
-                            },
-                            tabsList: {
-                                borderBottom: `1px solid ${theme.colors.gray[3]}`,
-                            },
-                        }}
-                        value={activeTabId}
-                        onTabChange={(t: string) => setActiveTabId(t)}
-                    >
-                        <Tabs.List>
-                            {tabs.map((tab) => (
-                                <Tabs.Tab
-                                    key={tab.id}
-                                    icon={tab.icon}
-                                    value={tab.id}
-                                >
-                                    <Text color="gray.7" fz={15} fw={500}>
-                                        {tab.name}
-                                    </Text>
-                                </Tabs.Tab>
-                            ))}
-                        </Tabs.List>
-                    </Tabs>
-                ) : null}
-
-                {headerProps?.title || headerProps?.action ? (
+                {hasTabs || hasHeader ? (
                     <>
-                        <Group align="center" h={50} px="md" spacing="xs">
-                            {headerProps?.title ? (
-                                <Title order={5} fw={600}>
-                                    {headerProps.title}
-                                </Title>
-                            ) : null}
-
-                            {headerProps?.description ? (
-                                <Tooltip
-                                    withArrow
-                                    label={headerProps.description || ''}
-                                    disabled={!headerProps.description}
-                                    position="right"
+                        <Group>
+                            {hasTabs ? (
+                                <Tabs
+                                    styles={{
+                                        tab: {
+                                            borderRadius: 0,
+                                            height: 50,
+                                            padding: '0 20px',
+                                        },
+                                        tabsList: {
+                                            borderBottom: 'none',
+                                        },
+                                    }}
+                                    sx={{ flexGrow: 1 }}
+                                    value={activeTabId}
+                                    onTabChange={(t: string) =>
+                                        setActiveTabId(t)
+                                    }
                                 >
-                                    <IconInfoCircle
-                                        color={theme.colors.gray[6]}
-                                        size={18}
-                                    />
-                                </Tooltip>
+                                    <Tabs.List>
+                                        {tabs.map((tab) => (
+                                            <Tabs.Tab
+                                                key={tab.id}
+                                                icon={tab.icon}
+                                                value={tab.id}
+                                            >
+                                                {tab.name ? (
+                                                    <Text
+                                                        color="gray.7"
+                                                        fz={15}
+                                                        fw={500}
+                                                    >
+                                                        {tab.name}
+                                                    </Text>
+                                                ) : null}
+                                            </Tabs.Tab>
+                                        ))}
+                                    </Tabs.List>
+                                </Tabs>
                             ) : null}
 
-                            <Box ml="auto">{headerProps.action}</Box>
+                            {hasHeader ? (
+                                <Group
+                                    align="center"
+                                    h={50}
+                                    px="md"
+                                    spacing="xs"
+                                >
+                                    {headerProps?.title ? (
+                                        <Title order={5} fw={600}>
+                                            {headerProps.title}
+                                        </Title>
+                                    ) : null}
+
+                                    {headerProps?.description ? (
+                                        <Tooltip
+                                            withArrow
+                                            label={
+                                                headerProps.description || ''
+                                            }
+                                            disabled={!headerProps.description}
+                                            position="right"
+                                        >
+                                            <IconInfoCircle
+                                                color={theme.colors.gray[6]}
+                                                size={18}
+                                            />
+                                        </Tooltip>
+                                    ) : null}
+
+                                    <Box ml="auto">{headerProps.action}</Box>
+                                </Group>
+                            ) : null}
                         </Group>
 
                         <Divider color="gray.3" />

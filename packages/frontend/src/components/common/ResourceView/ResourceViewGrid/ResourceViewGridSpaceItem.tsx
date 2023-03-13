@@ -22,7 +22,7 @@ import { FC, useMemo } from 'react';
 import ResourceViewActionMenu, {
     ResourceViewActionMenuCommonProps,
 } from '../ResourceActionMenu';
-import ResourceIcon from '../ResourceIcon';
+import { ResourceIcon } from '../ResourceIcon';
 import { ResourceViewSpaceItem } from '../resourceTypeUtils';
 
 interface ResourceViewGridSpaceItemProps

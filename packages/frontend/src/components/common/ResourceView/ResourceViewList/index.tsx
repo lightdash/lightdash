@@ -5,6 +5,7 @@ import React, { FC, useMemo, useState } from 'react';
 import { Link, useHistory, useParams } from 'react-router-dom';
 import { ResourceViewCommonProps } from '..';
 import { useSpaces } from '../../../../hooks/useSpaces';
+import { ResourceIcon } from '../ResourceIcon';
 import {
     isResourceViewItemChart,
     isResourceViewItemDashboard,
@@ -14,7 +15,6 @@ import {
 import { getResourceTypeName, getResourceUrl } from '../resourceUtils';
 import { ResourceViewItemActionState } from './../ResourceActionHandlers';
 import ResourceActionMenu from './../ResourceActionMenu';
-import ResourceIcon from './../ResourceIcon';
 import ResourceLastEdited from './../ResourceLastEdited';
 
 export enum SortDirection {
