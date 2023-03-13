@@ -5,6 +5,7 @@ import {
     ApiOrganizationMemberProfile,
     ApiOrganizationMemberProfiles,
     ApiSuccessEmpty,
+    CreateOrganization,
     OrganizationMemberProfileUpdate,
     UpdateAllowedEmailDomains,
     UpdateOrganization,
@@ -18,11 +19,13 @@ import {
     OperationId,
     Patch,
     Path,
+    Put,
     Request,
     Response,
     Route,
 } from 'tsoa';
 import { promisify } from 'util';
+import { userModel } from '../models/models';
 import { organizationService, userService } from '../services/services';
 import {
     allowApiKeyAuthentication,
@@ -47,6 +50,37 @@ export class OrganizationController extends Controller {
         return {
             status: 'ok',
             results: await organizationService.get(req.user!),
+        };
+    }
+
+    /**
+     * Create and join a new organization
+     * @param req express request
+     * @param body the new organization settings
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Put()
+    @OperationId('createOrganization')
+    async createOrganization(
+        @Request() req: express.Request,
+        @Body() body: CreateOrganization,
+    ): Promise<ApiSuccessEmpty> {
+        await organizationService.createAndJoinOrg(req.user!, body);
+        const sessionUser = await userModel.findSessionUserByUUID(
+            req.user!.userUuid,
+        );
+        await new Promise<void>((resolve, reject) => {
+            req.login(sessionUser, (err) => {
+                if (err) {
+                    reject(err);
+                }
+                resolve();
+            });
+        });
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 

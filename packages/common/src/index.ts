@@ -66,7 +66,7 @@ import { SchedulerAndTargets } from './types/scheduler';
 import { SlackChannel } from './types/slack';
 import { Space } from './types/space';
 import { TableBase } from './types/table';
-import { LightdashUser } from './types/user';
+import { LightdashUser, UserAllowedOrganization } from './types/user';
 import { formatItemValue } from './utils/formatting';
 import { getItemId, getItemLabelWithoutTableName } from './utils/item';
 
@@ -483,9 +483,10 @@ type ApiResults =
     | SchedulerAndTargets[]
     | FieldValueSearchResult
     | ApiDownloadCsv
-    | EmailStatusExpiring
     | AllowedEmailDomains
-    | UpdateAllowedEmailDomains;
+    | UpdateAllowedEmailDomains
+    | UserAllowedOrganization[]
+    | EmailStatusExpiring;
 
 export type ApiResponse = {
     status: 'ok';
@@ -574,6 +575,7 @@ export type HealthState = {
         maxLimit: number;
     };
     hasSlack: boolean;
+    hasHeadlessBrowser: boolean;
 };
 
 export enum DBFieldTypes {

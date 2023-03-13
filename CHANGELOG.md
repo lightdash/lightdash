@@ -1,3 +1,30 @@
+# [0.459.0](https://github.com/lightdash/lightdash/compare/0.458.0...0.459.0) (2023-03-13)
+
+
+### Bug Fixes
+
+* add GitHub token on release workflow ([#4765](https://github.com/lightdash/lightdash/issues/4765)) ([da71c34](https://github.com/lightdash/lightdash/commit/da71c34bcc1e1a5ff5dd2e2647e2c5b9ca161a15))
+* maintain loading state on table export ([#4683](https://github.com/lightdash/lightdash/issues/4683)) ([ad6f0bd](https://github.com/lightdash/lightdash/commit/ad6f0bdcd0ac05d220410e14ef2e67925f7a80ed))
+
+
+### Features
+
+* disable scheduler image headless browser and docs ([#4743](https://github.com/lightdash/lightdash/issues/4743)) ([d3e9e03](https://github.com/lightdash/lightdash/commit/d3e9e03fc616e532e36f33782f55120de735c960))
+* users join existing org ([#4749](https://github.com/lightdash/lightdash/issues/4749)) ([1f8279c](https://github.com/lightdash/lightdash/commit/1f8279cd68ac0214e5ce297f7c4d974e717b8c7b))
+
+# [0.458.0](https://github.com/lightdash/lightdash/compare/0.457.2...0.458.0) (2023-03-13)
+
+
+### Bug Fixes
+
+* typo in email scheduled delivery tooltip ([#4753](https://github.com/lightdash/lightdash/issues/4753)) ([4e0f6fa](https://github.com/lightdash/lightdash/commit/4e0f6fa64e8d110ea32884da1e95fe751342f7f8))
+
+
+### Features
+
+* organisation settings allowed email domains panel ([#4752](https://github.com/lightdash/lightdash/issues/4752)) ([2efd07f](https://github.com/lightdash/lightdash/commit/2efd07fa43f11c08751f41bae16bd95c3815c0dc))
+* redirect space deletion ([#4747](https://github.com/lightdash/lightdash/issues/4747)) ([b08b4d3](https://github.com/lightdash/lightdash/commit/b08b4d3df493edb75a0557aca281ceefa2d83383))
+
 ## [0.457.2](https://github.com/lightdash/lightdash/compare/0.457.1...0.457.2) (2023-03-10)
 
 

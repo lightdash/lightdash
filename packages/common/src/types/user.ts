@@ -1,5 +1,6 @@
 import { AbilityBuilder } from '@casl/ability';
 import { MemberAbility } from '../authorization/types';
+import { EmailStatusExpiring } from './email';
 import { OrganizationMemberRole } from './organizationMemberProfile';
 
 export interface LightdashUser {
@@ -22,10 +23,10 @@ export type LightdashUserWithOrg = Required<LightdashUser>;
 export const isUserWithOrg = (
     user: LightdashUser,
 ): user is LightdashUserWithOrg =>
-    user.organizationUuid !== undefined &&
-    user.organizationName !== undefined &&
-    user.organizationCreatedAt !== undefined &&
-    user.role !== undefined;
+    typeof user.organizationUuid === 'string' &&
+    typeof user.organizationName === 'string' &&
+    user.organizationCreatedAt instanceof Date &&
+    typeof user.role === 'string';
 
 export interface LightdashUserWithAbilityRules extends LightdashUser {
     abilityRules: AbilityBuilder<MemberAbility>['rules'];
@@ -70,3 +71,14 @@ export const isOpenIdUser = (user: any): user is OpenIdUser =>
     typeof user.openId.issuer === 'string' &&
     typeof user.openId.email === 'string' &&
     typeof user.openId.issuerType === 'string';
+
+export type UserAllowedOrganization = {
+    organizationUuid: string;
+    name: string;
+    membersCount: number;
+};
+
+export type ApiUserAllowedOrganizationsResponse = {
+    status: 'ok';
+    results: UserAllowedOrganization[];
+};

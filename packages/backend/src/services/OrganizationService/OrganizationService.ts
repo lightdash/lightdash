@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     AllowedEmailDomains,
+    CreateOrganization,
     ForbiddenError,
     isUserWithOrg,
     LightdashMode,
@@ -314,6 +315,7 @@ export class OrganizationService {
         if (organizationUuid === undefined) {
             throw new NotExistsError('Organization not found');
         }
+
         if (
             user.ability.cannot(
                 'update',
@@ -326,5 +328,50 @@ export class OrganizationService {
         return this.organizationAllowedEmailDomainsModel.upsertAllowedEmailDomains(
             { ...data, organizationUuid },
         );
+    }
+
+    async createAndJoinOrg(
+        user: SessionUser,
+        data: CreateOrganization,
+    ): Promise<void> {
+        if (
+            !lightdashConfig.allowMultiOrgs &&
+            (await this.userModel.hasUsers())
+        ) {
+            throw new ForbiddenError(
+                'Cannot register user in a new organization. Ask an existing admin for an invite link.',
+            );
+        }
+        if (isUserWithOrg(user)) {
+            throw new ForbiddenError('User already has an organization');
+        }
+        const org = await this.organizationModel.create(data);
+        analytics.track({
+            event: 'organization.created',
+            userId: user.userUuid,
+            properties: {
+                type:
+                    lightdashConfig.mode === LightdashMode.CLOUD_BETA
+                        ? 'cloud'
+                        : 'self-hosted',
+                organizationId: org.organizationUuid,
+                organizationName: org.name,
+            },
+        });
+        await this.userModel.joinOrg(
+            user.userUuid,
+            org.organizationUuid,
+            OrganizationMemberRole.ADMIN,
+            [],
+        );
+        await analytics.track({
+            userId: user.userUuid,
+            event: 'user.joined_organization',
+            properties: {
+                organizationId: org.organizationUuid,
+                role: OrganizationMemberRole.ADMIN,
+                projectIds: [],
+            },
+        });
     }
 }

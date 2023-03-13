@@ -20,14 +20,3 @@ export type OrganizationTable = Knex.CompositeTableType<
 >;
 
 export const OrganizationTableName = 'organizations';
-
-// DB Errors: Unexpected response (no rows returned)
-export const createOrganization = async (
-    db: Knex,
-    organizationIn: DbOrganizationIn,
-): Promise<DbOrganization> => {
-    const org = await db<DbOrganization>('organizations')
-        .insert<DbOrganizationIn>(organizationIn)
-        .returning('*');
-    return org[0];
-};

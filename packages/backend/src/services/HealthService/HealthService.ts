@@ -89,6 +89,8 @@ export class HealthService {
                 },
             },
             hasEmailClient: !!this.lightdashConfig.smtp,
+            hasHeadlessBrowser:
+                this.lightdashConfig.headlessBrowser?.host !== undefined,
         };
     }
 }

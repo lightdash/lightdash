@@ -2,6 +2,7 @@ import {
     ActivateUser,
     CreateUserArgs,
     CreateUserWithRole,
+    ForbiddenError,
     getUserAbilityBuilder,
     isOpenIdUser,
     LightdashMode,
@@ -14,6 +15,7 @@ import {
     ParameterError,
     PersonalAccessToken,
     ProjectMemberProfile,
+    ProjectMemberRole,
     SessionUser,
     UpdateUserArgs,
 } from '@lightdash/common';
@@ -27,10 +29,7 @@ import {
 } from '../database/entities/emails';
 import { OpenIdIdentitiesTableName } from '../database/entities/openIdIdentities';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
-import {
-    createOrganization,
-    OrganizationTableName,
-} from '../database/entities/organizations';
+import { OrganizationTableName } from '../database/entities/organizations';
 import {
     DbPasswordLoginIn,
     PasswordLoginTableName,
@@ -465,37 +464,6 @@ export class UserModel {
         return this.getUserDetailsByUuid(user.user_uuid);
     }
 
-    async createNewUserWithOrg(
-        createUser: CreateUserArgs | OpenIdUser,
-    ): Promise<LightdashUser> {
-        const user = await this.database.transaction(async (trx) => {
-            const duplicatedEmails = await trx(EmailTableName).where(
-                'email',
-                isOpenIdUser(createUser)
-                    ? createUser.openId.email
-                    : createUser.email,
-            );
-            if (duplicatedEmails.length > 0) {
-                throw new ParameterError('Email already in use');
-            }
-
-            const newOrg = await createOrganization(trx, {
-                organization_name: '',
-            });
-            const newUser = await UserModel.createUserTransaction(trx, {
-                ...createUser,
-                isActive: true,
-            });
-            await trx(OrganizationMembershipsTableName).insert({
-                organization_id: newOrg.organization_id,
-                user_id: newUser.user_id,
-                role: OrganizationMemberRole.ADMIN,
-            });
-            return newUser;
-        });
-        return this.getUserDetailsByUuid(user.user_uuid);
-    }
-
     async findSessionUserByUUID(userUuid: string): Promise<SessionUser> {
         const [user] = await userDetailsQueryBuilder(this.database)
             .where('user_uuid', userUuid)
@@ -627,5 +595,62 @@ export class UserModel {
                     await bcrypt.genSalt(),
                 ),
             });
+    }
+
+    async joinOrg(
+        userUuid: string,
+        organizationUuid: string,
+        role: OrganizationMemberRole,
+        projectUuids: string[],
+    ): Promise<LightdashUser> {
+        const [org] = await this.database(OrganizationTableName)
+            .where('organization_uuid', organizationUuid)
+            .select('organization_id');
+        if (!org) {
+            throw new NotExistsError('Cannot find organization');
+        }
+
+        const [user] = await this.database(UserTableName)
+            .where('user_uuid', userUuid)
+            .select('user_id');
+        if (!user) {
+            throw new NotExistsError('Cannot find user');
+        }
+
+        await this.database.transaction(async (trx) => {
+            const [existingUserMemberships] = await trx(
+                OrganizationMembershipsTableName,
+            )
+                .where('user_id', user.user_id)
+                .select('organization_id');
+            if (existingUserMemberships) {
+                throw new ForbiddenError('User already has an organization');
+            }
+
+            await trx(OrganizationMembershipsTableName).insert({
+                organization_id: org.organization_id,
+                user_id: user.user_id,
+                role,
+            });
+
+            const projectMemberships = Array.from(new Set(projectUuids)).map(
+                async (projectUuid) => {
+                    const [project] = await this.database('projects')
+                        .select('project_id')
+                        .where('project_uuid', projectUuid);
+
+                    if (project) {
+                        await this.database('project_memberships').insert({
+                            project_id: project.project_id,
+                            role: ProjectMemberRole.VIEWER,
+                            user_id: user.user_id,
+                        });
+                    }
+                },
+            );
+
+            await Promise.all(projectMemberships);
+        });
+        return this.getUserDetailsByUuid(userUuid);
     }
 }

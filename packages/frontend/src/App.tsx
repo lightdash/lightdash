@@ -23,6 +23,7 @@ import CreateProjectSettings from './pages/CreateProjectSettings';
 import Dashboard from './pages/Dashboard';
 import Explorer from './pages/Explorer';
 import Home from './pages/Home';
+import { JoinOrganizationPage } from './pages/JoinOrganization';
 import Login from './pages/Login';
 import MinimalDashboard from './pages/MinimalDashboard';
 import MinimalSavedExplorer from './pages/MinimalSavedExplorer';
@@ -171,6 +172,16 @@ const App = () => (
                                                                 }
                                                             >
                                                                 <VerifyEmailPage />
+                                                            </TrackPage>
+                                                        </Route>
+
+                                                        <Route path="/join-organization">
+                                                            <TrackPage
+                                                                name={
+                                                                    PageName.JOIN_ORGANIZATION
+                                                                }
+                                                            >
+                                                                <JoinOrganizationPage />
                                                             </TrackPage>
                                                         </Route>
 

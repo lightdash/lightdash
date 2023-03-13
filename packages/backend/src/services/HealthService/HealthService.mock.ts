@@ -32,6 +32,10 @@ export const BaseResponse = {
     rudder: undefined,
     sentry: undefined,
     hasSlack: false,
+    hasHeadlessBrowser: false,
+    fullstory: undefined,
+    query: undefined,
+    staticIp: undefined,
 };
 
 export const Config = {

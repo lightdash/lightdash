@@ -39,6 +39,7 @@ export enum PageName {
     SHARE = 'share',
     USER_ACTIVITY = 'user_activity',
     VERIFY_EMAIL = 'verify_email',
+    JOIN_ORGANIZATION = 'join_organization',
 }
 
 export enum CategoryName {
