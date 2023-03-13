@@ -47,7 +47,7 @@ export const PageHeader = styled.div`
 
 export const PageBreadcrumbsWrapper = styled.div`
     .bp4-breadcrumb {
-        font-size: 22px;
+        font-size: 18px;
         font-weight: 500;
     }
     .home-breadcrumb {
