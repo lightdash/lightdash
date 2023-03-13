@@ -319,7 +319,7 @@ export class OrganizationService {
         if (
             user.ability.cannot(
                 'update',
-                subject('OrganizationMemberProfile', { organizationUuid }),
+                subject('Organization', { organizationUuid }),
             )
         ) {
             throw new ForbiddenError();

@@ -409,17 +409,6 @@ export class UserService {
                 },
             });
             if (enableEmailDomainAccess && user.email) {
-                if (
-                    user.ability.cannot(
-                        'update',
-                        subject('OrganizationMemberProfile', {
-                            organizationUuid: user.organizationUuid,
-                        }),
-                    )
-                ) {
-                    throw new ForbiddenError();
-                }
-
                 await this.organizationAllowedEmailDomainsModel.upsertAllowedEmailDomains(
                     {
                         organizationUuid: user.organizationUuid,
