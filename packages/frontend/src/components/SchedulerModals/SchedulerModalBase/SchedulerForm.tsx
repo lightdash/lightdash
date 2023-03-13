@@ -76,7 +76,7 @@ const SlackErrorContent: FC<{ slackState: SlackStates }> = ({
                 <p>Slack integration needs to be reinstalled</p>
                 <p>
                     To create a slack scheduled delivery, you need to
-                    <a href="/generalSettings/slack">
+                    <a href="/generalSettings/integrations/slack">
                         {' '}
                         reinstall the Slack integration{' '}
                     </a>

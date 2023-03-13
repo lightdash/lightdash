@@ -64,7 +64,7 @@ const SchedulerModalError: FC<{
                         canManageSlackIntegration ? (
                             <AnchorButton
                                 intent="primary"
-                                href={`/generalSettings/slack`}
+                                href={`/generalSettings/integrations/slack`}
                             >
                                 Configure Slack
                             </AnchorButton>

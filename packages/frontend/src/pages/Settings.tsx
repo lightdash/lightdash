@@ -1,4 +1,13 @@
-import { Menu, NonIdealState } from '@blueprintjs/core';
+import { Menu } from '@blueprintjs/core';
+import {
+    IconDatabase,
+    IconKey,
+    IconLock,
+    IconPalette,
+    IconPlug,
+    IconUserCircle,
+    IconUserPlus,
+} from '@tabler/icons-react';
 import React, { FC } from 'react';
 import { Helmet } from 'react-helmet';
 import { Redirect, Route, Switch } from 'react-router-dom';
@@ -24,9 +33,7 @@ import { useOrganisation } from '../hooks/organisation/useOrganisation';
 import { useApp } from '../providers/AppProvider';
 import { TrackPage } from '../providers/TrackingProvider';
 import { PageName } from '../types/Events';
-import { PasswordRecoveryForm } from './PasswordRecoveryForm';
 import ProjectSettings from './ProjectSettings';
-import { Subtitle } from './ProjectSettings.styles';
 import {
     CardContainer,
     ContentWrapper,
@@ -85,24 +92,26 @@ const Settings: FC = () => {
             </Helmet>
             <Sidebar title="Settings">
                 <MenuWrapper>
-                    <MenuHeader>User settings</MenuHeader>
+                    <MenuHeader>Your settings</MenuHeader>
 
                     <Menu>
-                        <RouterMenuItem text="Profile" exact to={basePath} />
+                        <RouterMenuItem
+                            text="Profile"
+                            exact
+                            to={basePath}
+                            icon={<IconUserCircle size={17} />}
+                        />
 
                         {allowPasswordAuthentication && (
                             <RouterMenuItem
-                                text="Password"
+                                text={
+                                    hasSocialLogin
+                                        ? 'Password & Social Logins'
+                                        : 'Password'
+                                }
                                 exact
                                 to={`${basePath}/password`}
-                            />
-                        )}
-
-                        {hasSocialLogin && (
-                            <RouterMenuItem
-                                text="Social logins"
-                                exact
-                                to={`${basePath}/socialLogins`}
+                                icon={<IconLock size={17} />}
                             />
                         )}
 
@@ -110,6 +119,7 @@ const Settings: FC = () => {
                             text="Personal access tokens"
                             exact
                             to={`${basePath}/personalAccessTokens`}
+                            icon={<IconKey size={17} />}
                         />
                     </Menu>
                 </MenuWrapper>
@@ -120,9 +130,10 @@ const Settings: FC = () => {
                     <Menu>
                         {user.ability.can('manage', 'Organization') && (
                             <RouterMenuItem
-                                text="Organization"
+                                text="General"
                                 exact
                                 to={`${basePath}/organization`}
+                                icon={<IconUserCircle size={17} />}
                             />
                         )}
 
@@ -133,6 +144,7 @@ const Settings: FC = () => {
                             <RouterMenuItem
                                 text="User management"
                                 to={`${basePath}/userManagement`}
+                                icon={<IconUserPlus size={17} />}
                             />
                         )}
 
@@ -140,8 +152,9 @@ const Settings: FC = () => {
                             !organization.needsProject &&
                             user.ability.can('view', 'Project') && (
                                 <RouterMenuItem
-                                    text="Project management"
+                                    text="Projects"
                                     to={`${basePath}/projectManagement`}
+                                    icon={<IconDatabase size={17} />}
                                 />
                             )}
 
@@ -149,22 +162,19 @@ const Settings: FC = () => {
                             text="Appearance"
                             exact
                             to={`${basePath}/appearance`}
+                            icon={<IconPalette size={17} />}
                         />
+                        {health.hasSlack &&
+                            user.ability.can('manage', 'Organization') && (
+                                <RouterMenuItem
+                                    text="Integrations"
+                                    exact
+                                    to={`${basePath}/integrations/slack`}
+                                    icon={<IconPlug size={17} />}
+                                />
+                            )}
                     </Menu>
                 </MenuWrapper>
-
-                {health.hasSlack && user.ability.can('manage', 'Organization') && (
-                    <MenuWrapper>
-                        <MenuHeader>Integrations</MenuHeader>
-                        <Menu>
-                            <RouterMenuItem
-                                text="Slack"
-                                exact
-                                to={`${basePath}/slack`}
-                            />
-                        </Menu>
-                    </MenuWrapper>
-                )}
             </Sidebar>
 
             <Switch>
@@ -175,17 +185,12 @@ const Settings: FC = () => {
                                 <Title>Password settings</Title>
                                 <PasswordPanel />
                             </CardContainer>
-                        </Content>
-                    </Route>
-                )}
-
-                {hasSocialLogin && (
-                    <Route exact path={`/generalSettings/socialLogins`}>
-                        <Content>
-                            <CardContainer>
-                                <Title>Social logins</Title>
-                                <SocialLoginsPanel />
-                            </CardContainer>
+                            {hasSocialLogin && (
+                                <CardContainer>
+                                    <Title>Social logins</Title>
+                                    <SocialLoginsPanel />
+                                </CardContainer>
+                            )}
                         </Content>
                     </Route>
                 )}
@@ -194,7 +199,7 @@ const Settings: FC = () => {
                     <Route exact path={`/generalSettings/organization`}>
                         <Content>
                             <CardContainer>
-                                <Title>Organization settings</Title>
+                                <Title>General</Title>
                                 <OrganisationPanel />
                             </CardContainer>
                             <CardContainer>
@@ -275,7 +280,7 @@ const Settings: FC = () => {
                     </Content>
                 </Route>
                 {health.hasSlack && user.ability.can('manage', 'Organization') && (
-                    <Route exact path={`/generalSettings/slack`}>
+                    <Route exact path={`/generalSettings/integrations/slack`}>
                         <Content>
                             <CardContainer>
                                 <SlackSettingsPanel />
