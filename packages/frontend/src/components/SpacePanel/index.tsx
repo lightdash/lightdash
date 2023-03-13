@@ -5,7 +5,7 @@ import { LightdashMode, Space } from '@lightdash/common';
 import { Stack } from '@mantine/core';
 import { IconChartAreaLine, IconLayoutDashboard } from '@tabler/icons-react';
 import React, { useCallback, useState } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
+import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useDashboards } from '../../hooks/dashboard/useDashboards';
 import { useSpacePinningMutation } from '../../hooks/pinning/useSpaceMutation';
 import { useSavedCharts } from '../../hooks/useSpaces';
@@ -74,6 +74,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
         (spaceUuid: string) => pinSpace(spaceUuid),
         [pinSpace],
     );
+    const location = useLocation();
 
     return (
         <Stack spacing="xl" w={900}>
@@ -146,7 +147,15 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                         confirmButtonLabel="Delete"
                         confirmButtonIntent={Intent.DANGER}
                         icon="folder-close"
-                        onClose={() => setDeleteSpace(false)}
+                        onSubmitForm={() => {
+                            if (location.pathname.includes(space.uuid)) {
+                                //Redirect to home if we are on the space we are deleting
+                                history.push(`/projects/${projectUuid}/home`);
+                            }
+                        }}
+                        onClose={() => {
+                            setDeleteSpace(false);
+                        }}
                     />
                 )}
             </PageHeader>
