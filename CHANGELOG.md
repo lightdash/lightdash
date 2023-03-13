@@ -1,3 +1,10 @@
+## [0.460.1](https://github.com/lightdash/lightdash/compare/0.460.0...0.460.1) (2023-03-13)
+
+
+### Bug Fixes
+
+* csv export modal styles ([#4762](https://github.com/lightdash/lightdash/issues/4762)) ([f67efdc](https://github.com/lightdash/lightdash/commit/f67efdc3a73cfb0d276fafa59389a1c2f6448648))
+
 # [0.460.0](https://github.com/lightdash/lightdash/compare/0.459.2...0.460.0) (2023-03-13)
 
 
