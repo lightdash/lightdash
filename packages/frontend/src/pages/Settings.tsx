@@ -178,7 +178,7 @@ const Settings: FC = () => {
                                 <RouterMenuItem
                                     text="Integrations"
                                     exact
-                                    to={`${basePath}/slack`}
+                                    to={`${basePath}/integrations/slack`}
                                     icon={<IconPlug size={17} />}
                                 />
                             )}
@@ -289,7 +289,7 @@ const Settings: FC = () => {
                     </Content>
                 </Route>
                 {health.hasSlack && user.ability.can('manage', 'Organization') && (
-                    <Route exact path={`/generalSettings/slack`}>
+                    <Route exact path={`/generalSettings/integrations/slack`}>
                         <Content>
                             <CardContainer>
                                 <SlackSettingsPanel />
