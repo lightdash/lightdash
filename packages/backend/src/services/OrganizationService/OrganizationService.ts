@@ -325,9 +325,22 @@ export class OrganizationService {
             throw new ForbiddenError();
         }
 
-        return this.organizationAllowedEmailDomainsModel.upsertAllowedEmailDomains(
-            { ...data, organizationUuid },
-        );
+        const allowedEmailDomains =
+            await this.organizationAllowedEmailDomainsModel.upsertAllowedEmailDomains(
+                { ...data, organizationUuid },
+            );
+        analytics.track({
+            event: 'organization_allowed_email_domains.updated',
+            userId: user.userUuid,
+            properties: {
+                organizationId: allowedEmailDomains.organizationUuid,
+                emailDomainsCount: allowedEmailDomains.emailDomains.length,
+                role: allowedEmailDomains.role,
+                projectIds: allowedEmailDomains.projectUuids,
+            },
+        });
+
+        return allowedEmailDomains;
     }
 
     async createAndJoinOrg(
