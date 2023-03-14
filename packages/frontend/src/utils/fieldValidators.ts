@@ -68,8 +68,9 @@ export const isValidOrganizationDomain: FieldValidator<string[]> =
             }).format(invalidDomains);
 
             return `
-                ${readableDomainList} ${invalidDomains.length === 1 ? 'is' : 'are'
-                } not allowed as organization email
+                ${readableDomainList} ${
+                invalidDomains.length === 1 ? 'is' : 'are'
+            } not allowed as organization email
             `;
         }
     };
