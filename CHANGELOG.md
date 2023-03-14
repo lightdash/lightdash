@@ -1,3 +1,16 @@
+# [0.463.0](https://github.com/lightdash/lightdash/compare/0.462.0...0.463.0) (2023-03-14)
+
+
+### Bug Fixes
+
+* fix backend empty columnorder request ([#4780](https://github.com/lightdash/lightdash/issues/4780)) ([e7aaaea](https://github.com/lightdash/lightdash/commit/e7aaaea738b3d75a23a510e24edbfc1bb8288ee2))
+
+
+### Features
+
+* add scheduled deliveries link to emails ([#4777](https://github.com/lightdash/lightdash/issues/4777)) ([159683f](https://github.com/lightdash/lightdash/commit/159683fd7507534b017039e4c25cd33746bed3de))
+* set allow email domains on org creation ([#4772](https://github.com/lightdash/lightdash/issues/4772)) ([b8c0ff3](https://github.com/lightdash/lightdash/commit/b8c0ff39ef0334735ed9ec6d7fc2edd02adce3de))
+
 # [0.462.0](https://github.com/lightdash/lightdash/compare/0.461.0...0.462.0) (2023-03-13)
 
 
