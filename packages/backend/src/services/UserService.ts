@@ -112,6 +112,27 @@ export class UserService {
             organizationAllowedEmailDomainsModel;
     }
 
+    private async tryVerifyUserEmail(
+        user: LightdashUser,
+        email: string,
+    ): Promise<void> {
+        const updatedEmails = await this.emailModel.verifyUserEmailIfExists(
+            user.userUuid,
+            email,
+        );
+        if (updatedEmails.length > 0) {
+            analytics.track({
+                userId: user.userUuid,
+                event: 'user.verified',
+                properties: {
+                    email,
+                    location: user.isSetupComplete ? 'settings' : 'onboarding',
+                    isTrackingAnonymized: user.isTrackingAnonymized,
+                },
+            });
+        }
+    }
+
     async activateUserFromInvite(
         inviteCode: string,
         activateUser: ActivateUser | OpenIdUser,
@@ -304,10 +325,7 @@ export class UserService {
             await this.openIdIdentityModel.updateIdentityByOpenId(
                 openIdUser.openId,
             );
-            await this.emailModel.verifyUserEmailIfExists(
-                loginUser.userUuid,
-                openIdUser.openId.email,
-            );
+            await this.tryVerifyUserEmail(loginUser, openIdUser.openId.email);
             identifyUser(loginUser);
             analytics.track({
                 userId: loginUser.userUuid,
@@ -328,10 +346,7 @@ export class UserService {
                 email: openIdUser.openId.email,
                 issuerType: openIdUser.openId.issuerType,
             });
-            await this.emailModel.verifyUserEmailIfExists(
-                sessionUser.userUuid,
-                openIdUser.openId.email,
-            );
+            await this.tryVerifyUserEmail(sessionUser, openIdUser.openId.email);
             analytics.track({
                 userId: sessionUser.userUuid,
                 event: 'user.identity_linked',
@@ -347,10 +362,7 @@ export class UserService {
             openIdUser,
             inviteCode,
         );
-        await this.emailModel.verifyUserEmailIfExists(
-            createdUser.userUuid,
-            openIdUser.openId.email,
-        );
+        await this.tryVerifyUserEmail(createdUser, openIdUser.openId.email);
         return createdUser;
     }
 
@@ -722,10 +734,7 @@ export class UserService {
                     !this.isOtpMaxAttempts(emailStatus.otp.numberOfAttempts) &&
                     !this.isOtpExpired(emailStatus.otp.createdAt)
                 ) {
-                    await this.emailModel.verifyUserEmailIfExists(
-                        user.userUuid,
-                        emailStatus.email,
-                    );
+                    await this.tryVerifyUserEmail(user, emailStatus.email);
                     await this.emailModel.deleteEmailOtp(
                         user.userUuid,
                         emailStatus.email,

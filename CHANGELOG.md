@@ -1,3 +1,24 @@
+## [0.463.3](https://github.com/lightdash/lightdash/compare/0.463.2...0.463.3) (2023-03-14)
+
+
+### Bug Fixes
+
+* remove promisify on delete org ([#4795](https://github.com/lightdash/lightdash/issues/4795)) ([4b107ac](https://github.com/lightdash/lightdash/commit/4b107aca61467fded18b4feb4f99a86260686cda))
+
+## [0.463.2](https://github.com/lightdash/lightdash/compare/0.463.1...0.463.2) (2023-03-14)
+
+
+### Bug Fixes
+
+* catch errors in passport deserialize ([#4792](https://github.com/lightdash/lightdash/issues/4792)) ([691e712](https://github.com/lightdash/lightdash/commit/691e7128f27aaa0d163fcf0c43e23e6fe243e430))
+
+## [0.463.1](https://github.com/lightdash/lightdash/compare/0.463.0...0.463.1) (2023-03-14)
+
+
+### Bug Fixes
+
+* capture space permission exception ([#4788](https://github.com/lightdash/lightdash/issues/4788)) ([7bfbd64](https://github.com/lightdash/lightdash/commit/7bfbd64117be29f7b79f64c11610b51d525bbbac))
+
 # [0.463.0](https://github.com/lightdash/lightdash/compare/0.462.0...0.463.0) (2023-03-14)
 
 

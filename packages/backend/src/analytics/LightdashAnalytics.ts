@@ -105,6 +105,15 @@ type UpdateUserEvent = BaseTrack & {
     properties: LightdashUser & { jobTitle?: string };
 };
 
+type VerifiedUserEvent = BaseTrack & {
+    event: 'user.verified';
+    properties: {
+        isTrackingAnonymized: boolean;
+        email?: string;
+        location: 'onboarding' | 'settings';
+    };
+};
+
 type UserJoinOrganizationEvent = BaseTrack & {
     event: 'user.joined_organization';
     properties: {
@@ -137,6 +146,16 @@ type TrackOrganizationEvent = BaseTrack & {
         organizationId: string;
         organizationName: string;
         defaultColourPaletteUpdated?: boolean;
+    };
+};
+
+type OrganisationAllowedEmailDomainUpdatedEvent = BaseTrack & {
+    event: 'organization_allowed_email_domains.updated';
+    properties: {
+        organizationId: string;
+        emailDomainsCount: number;
+        role: OrganizationMemberRole;
+        projectIds: string[];
     };
 };
 
@@ -533,6 +552,7 @@ type Track =
     | CreateUserEvent
     | UpdateUserEvent
     | DeleteUserEvent
+    | VerifiedUserEvent
     | UserJoinOrganizationEvent
     | QueryExecutionEvent
     | TrackSavedChart
@@ -547,6 +567,7 @@ type Track =
     | CreateDashboardOrVersionEvent
     | ProjectTablesConfigurationEvent
     | TrackOrganizationEvent
+    | OrganisationAllowedEmailDomainUpdatedEvent
     | LoginEvent
     | IdentityLinkedEvent
     | SqlExecutedEvent
@@ -616,6 +637,20 @@ export class LightdashAnalytics extends Analytics {
                           first_name: payload.properties.firstName,
                           last_name: payload.properties.lastName,
                       },
+            });
+            return;
+        }
+        if (payload.event === 'user.verified') {
+            super.track({
+                ...payload,
+                event: `${LightdashAnalytics.lightdashContext.app.name}.${payload.event}`,
+                context: { ...LightdashAnalytics.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
+                properties: {
+                    ...payload.properties,
+                    email: payload.properties.isTrackingAnonymized
+                        ? undefined
+                        : payload.properties.email,
+                },
             });
             return;
         }

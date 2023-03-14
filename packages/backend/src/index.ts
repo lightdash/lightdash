@@ -280,9 +280,13 @@ passport.serializeUser((user, done) => {
 // Before each request handler we read `sess.passport.user` from the session store
 passport.deserializeUser(async (id: string, done) => {
     // Convert to a full user profile
-    const user = await userModel.findSessionUserByUUID(id);
-    // Store that user on the request (`req`) object
-    done(null, user);
+    try {
+        const user = await userModel.findSessionUserByUUID(id);
+        // Store that user on the request (`req`) object
+        done(null, user);
+    } catch (e) {
+        done(e);
+    }
 });
 
 export const slackService = new SlackService({
