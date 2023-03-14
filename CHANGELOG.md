@@ -1,3 +1,10 @@
+## [0.463.3](https://github.com/lightdash/lightdash/compare/0.463.2...0.463.3) (2023-03-14)
+
+
+### Bug Fixes
+
+* remove promisify on delete org ([#4795](https://github.com/lightdash/lightdash/issues/4795)) ([4b107ac](https://github.com/lightdash/lightdash/commit/4b107aca61467fded18b4feb4f99a86260686cda))
+
 ## [0.463.2](https://github.com/lightdash/lightdash/compare/0.463.1...0.463.2) (2023-03-14)
 
 
