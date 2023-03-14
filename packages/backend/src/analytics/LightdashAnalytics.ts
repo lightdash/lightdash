@@ -140,6 +140,16 @@ type TrackOrganizationEvent = BaseTrack & {
     };
 };
 
+type OrganisationAllowedEmailDomainUpdatedEvent = BaseTrack & {
+    event: 'organization_allowed_email_domains.updated';
+    properties: {
+        organizationId: string;
+        emailDomainsCount: number;
+        role: OrganizationMemberRole;
+        projectIds: string[];
+    };
+};
+
 type TrackUserDeletedEvent = BaseTrack & {
     event: 'user.deleted';
     properties: {
@@ -547,6 +557,7 @@ type Track =
     | CreateDashboardOrVersionEvent
     | ProjectTablesConfigurationEvent
     | TrackOrganizationEvent
+    | OrganisationAllowedEmailDomainUpdatedEvent
     | LoginEvent
     | IdentityLinkedEvent
     | SqlExecutedEvent
