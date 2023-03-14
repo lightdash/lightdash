@@ -164,7 +164,7 @@ const SchedulerOptions: FC<
 
             {(limit === Limit.ALL || limit === Limit.CUSTOM) && (
                 <i>
-                    Results are limited to $
+                    Results are limited to{' '}
                     {Number(
                         health.data?.query.csvCellsLimit || 100000,
                     ).toLocaleString()}{' '}

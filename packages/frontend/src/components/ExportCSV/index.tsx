@@ -149,7 +149,7 @@ const ExportCSV: FC<ExportCSVProps> = memo(
 
                     {(limit === Limit.ALL || limit === Limit.CUSTOM) && (
                         <LimitWarning>
-                            Results are limited to $
+                            Results are limited to{' '}
                             {Number(
                                 health.data?.query.csvCellsLimit || 100000,
                             ).toLocaleString()}{' '}
