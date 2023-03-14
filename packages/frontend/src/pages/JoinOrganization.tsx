@@ -1,5 +1,5 @@
 import { Card, Colors } from '@blueprintjs/core';
-import { getEmailDomain, LightdashMode } from '@lightdash/common';
+import { getEmailDomain } from '@lightdash/common';
 import { Avatar, Box, Text } from '@mantine/core';
 import { IconChevronRight } from '@tabler/icons-react';
 import React, { FC, useEffect } from 'react';
@@ -39,14 +39,13 @@ export const JoinOrganizationPage: FC = () => {
     } = useJoinOrganizationMutation();
 
     useEffect(() => {
-        const isPR = health.data?.mode === LightdashMode.PR;
         const isAllowedToJoinOrgs = allowedOrgs && allowedOrgs.length > 0;
         const userHasOrg = user.data && !!user.data.organizationUuid;
         if (
             !isCreatingOrg &&
             !isLoadingAllowedOrgs &&
             !userHasOrg &&
-            (isPR || !isAllowedToJoinOrgs)
+            !isAllowedToJoinOrgs
         ) {
             createOrg({ name: '' });
         }
