@@ -575,6 +575,7 @@ export type HealthState = {
     staticIp: string;
     query: {
         maxLimit: number;
+        csvCellsLimit: number;
     };
     hasSlack: boolean;
     hasHeadlessBrowser: boolean;

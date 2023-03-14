@@ -111,6 +111,7 @@ const SchedulerOptions: FC<
     }, [methods]);
     const [customLimit, setCustomLimit] = useState<number>(defaultCustomLimit);
     const [limit, setLimit] = useState<string>(defaultLimit);
+    const health = useHealth();
 
     useEffect(() => {
         if (limit === Limit.CUSTOM) {
@@ -162,7 +163,13 @@ const SchedulerOptions: FC<
             )}
 
             {(limit === Limit.ALL || limit === Limit.CUSTOM) && (
-                <i>Results are limited to 100,000 cells for each file</i>
+                <i>
+                    Results are limited to $
+                    {Number(
+                        health.data?.query.csvCellsLimit || 100000,
+                    ).toLocaleString()}{' '}
+                    cells for each file
+                </i>
             )}
         </Form>
     );

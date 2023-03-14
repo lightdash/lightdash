@@ -14,6 +14,7 @@ import { Classes } from '@blueprintjs/popover2';
 import { ResultRow } from '@lightdash/common';
 import { FC, Fragment, memo, useState } from 'react';
 import { useMutation } from 'react-query';
+import useHealth from '../../hooks/health/useHealth';
 import useToaster from '../../hooks/toaster/useToaster';
 import { AppToaster } from '../AppToaster';
 import { InputWrapper, LimitWarning, Title } from './ExportCSV.styles';
@@ -54,6 +55,7 @@ const ExportCSV: FC<ExportCSVProps> = memo(
         const [limit, setLimit] = useState<string>(Limit.TABLE);
         const [customLimit, setCustomLimit] = useState<number>(1);
         const [format, setFormat] = useState<string>(Values.FORMATTED);
+        const health = useHealth();
 
         const { isLoading: isExporting, mutateAsync: exportCsvMutation } =
             useMutation(
@@ -147,7 +149,11 @@ const ExportCSV: FC<ExportCSVProps> = memo(
 
                     {(limit === Limit.ALL || limit === Limit.CUSTOM) && (
                         <LimitWarning>
-                            Results are limited to 100,000 cells for each file
+                            Results are limited to $
+                            {Number(
+                                health.data?.query.csvCellsLimit || 100000,
+                            ).toLocaleString()}{' '}
+                            cells for each file
                         </LimitWarning>
                     )}
                 </Wrapper>
