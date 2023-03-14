@@ -272,7 +272,7 @@ projectRouter.post(
                         itemMap,
                         showTableNames,
                         customLabels,
-                        columnOrder,
+                        columnOrder || [],
                     ),
             );
 
