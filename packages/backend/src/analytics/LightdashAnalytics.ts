@@ -105,6 +105,15 @@ type UpdateUserEvent = BaseTrack & {
     properties: LightdashUser & { jobTitle?: string };
 };
 
+type VerifiedUserEvent = BaseTrack & {
+    event: 'user.verified';
+    properties: {
+        isTrackingAnonymized: boolean;
+        email?: string;
+        location: 'onboarding' | 'settings';
+    };
+};
+
 type UserJoinOrganizationEvent = BaseTrack & {
     event: 'user.joined_organization';
     properties: {
@@ -533,6 +542,7 @@ type Track =
     | CreateUserEvent
     | UpdateUserEvent
     | DeleteUserEvent
+    | VerifiedUserEvent
     | UserJoinOrganizationEvent
     | QueryExecutionEvent
     | TrackSavedChart
@@ -616,6 +626,20 @@ export class LightdashAnalytics extends Analytics {
                           first_name: payload.properties.firstName,
                           last_name: payload.properties.lastName,
                       },
+            });
+            return;
+        }
+        if (payload.event === 'user.verified') {
+            super.track({
+                ...payload,
+                event: `${LightdashAnalytics.lightdashContext.app.name}.${payload.event}`,
+                context: { ...LightdashAnalytics.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
+                properties: {
+                    ...payload.properties,
+                    email: payload.properties.isTrackingAnonymized
+                        ? undefined
+                        : payload.properties.email,
+                },
             });
             return;
         }
