@@ -675,7 +675,11 @@ export class UserService {
     async sendOneTimePasscodeToPrimaryEmail(
         user: Pick<SessionUser, 'userUuid'>,
     ): Promise<EmailStatusExpiring> {
-        const passcode = randomInt(999999).toString().padStart(6, '0');
+        const passcode =
+            lightdashConfig.mode === LightdashMode.PR ||
+            lightdashConfig.mode === LightdashMode.DEV
+                ? '000000'
+                : randomInt(999999).toString().padStart(6, '0');
         const emailStatus = await this.emailModel.createPrimaryEmailOtp({
             passcode,
             userUuid: user.userUuid,
