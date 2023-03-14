@@ -24,7 +24,6 @@ import {
     Response,
     Route,
 } from 'tsoa';
-import { promisify } from 'util';
 import { userModel } from '../models/models';
 import { organizationService, userService } from '../services/services';
 import {
@@ -117,7 +116,14 @@ export class OrganizationController extends Controller {
         @Path() organizationUuid: string,
     ): Promise<ApiSuccessEmpty> {
         await organizationService.delete(organizationUuid, req.user!);
-        await promisify(req.session.destroy)();
+        await new Promise<void>((resolve, reject) => {
+            req.session.destroy((err) => {
+                if (err) {
+                    reject(err);
+                }
+                resolve();
+            });
+        });
         this.setStatus(200);
         return {
             status: 'ok',
