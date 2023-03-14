@@ -6,7 +6,6 @@ export const LandingHeaderWrapper = styled.div`
     display: flex;
     align-items: center;
     padding-top: 60px;
-    margin-bottom: 35px;
 `;
 
 export const WelcomeText = styled.div`

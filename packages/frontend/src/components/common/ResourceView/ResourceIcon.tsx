@@ -143,4 +143,46 @@ const ResourceIcon: FC<ResourceIconProps> = ({ item }) => {
     }
 };
 
-export default ResourceIcon;
+interface ResourceTypeIconProps {
+    type: ResourceViewItemType;
+}
+
+const COMMON_ICON_PROPS = {
+    size: 20,
+    fillOpacity: 0.1,
+};
+
+const ResourceTypeIcon: FC<ResourceTypeIconProps> = ({ type }) => {
+    const theme = useMantineTheme();
+
+    switch (type) {
+        case ResourceViewItemType.DASHBOARD:
+            return (
+                <IconLayoutDashboard
+                    {...COMMON_ICON_PROPS}
+                    fill={theme.colors.green[8]}
+                    color={theme.colors.green[8]}
+                />
+            );
+        case ResourceViewItemType.SPACE:
+            return (
+                <IconFolder
+                    {...COMMON_ICON_PROPS}
+                    fill={theme.colors.violet[8]}
+                    color={theme.colors.violet[8]}
+                />
+            );
+        case ResourceViewItemType.CHART:
+            return (
+                <IconChartBar
+                    {...COMMON_ICON_PROPS}
+                    fill={theme.colors.blue[8]}
+                    color={theme.colors.blue[8]}
+                />
+            );
+        default:
+            return assertUnreachable(type, 'Resource type not supported');
+    }
+};
+
+export { ResourceIcon, ResourceTypeIcon };

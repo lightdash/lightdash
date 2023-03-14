@@ -5,6 +5,7 @@ import React, { FC, useMemo, useState } from 'react';
 import { Link, useHistory, useParams } from 'react-router-dom';
 import { ResourceViewCommonProps } from '..';
 import { useSpaces } from '../../../../hooks/useSpaces';
+import { ResourceIcon } from '../ResourceIcon';
 import {
     isResourceViewItemChart,
     isResourceViewItemDashboard,
@@ -14,7 +15,6 @@ import {
 import { getResourceTypeName, getResourceUrl } from '../resourceUtils';
 import { ResourceViewItemActionState } from './../ResourceActionHandlers';
 import ResourceActionMenu from './../ResourceActionMenu';
-import ResourceIcon from './../ResourceIcon';
 import ResourceLastEdited from './../ResourceLastEdited';
 
 export enum SortDirection {
@@ -182,8 +182,8 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                     style: {
                         width:
                             columnVisibility.get('space') === false
-                                ? '75%'
-                                : '50%',
+                                ? '80%'
+                                : '65%',
                     },
                 },
             },
@@ -234,7 +234,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                         width:
                             columnVisibility.get('space') === false
                                 ? undefined
-                                : '25%',
+                                : '15%',
                     },
                 },
             },
@@ -260,7 +260,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                     );
                 },
                 meta: {
-                    style: { width: '25%' },
+                    style: { width: '20%' },
                 },
             },
             {

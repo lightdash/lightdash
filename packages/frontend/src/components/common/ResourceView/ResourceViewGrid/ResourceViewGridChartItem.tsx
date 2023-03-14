@@ -13,7 +13,7 @@ import { FC } from 'react';
 import ResourceViewActionMenu, {
     ResourceViewActionMenuCommonProps,
 } from '../ResourceActionMenu';
-import ResourceIcon from '../ResourceIcon';
+import { ResourceIcon } from '../ResourceIcon';
 import { ResourceViewChartItem } from '../resourceTypeUtils';
 
 interface ResourceViewGridChartItemProps

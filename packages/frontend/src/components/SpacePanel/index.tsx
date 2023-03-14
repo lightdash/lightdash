@@ -14,6 +14,7 @@ import { Can } from '../common/Authorization';
 import DashboardCreateModal from '../common/modal/DashboardCreateModal';
 import { PageBreadcrumbsWrapper, PageHeader } from '../common/Page/Page.styles';
 import ResourceView from '../common/ResourceView';
+import { ResourceTypeIcon } from '../common/ResourceView/ResourceIcon';
 import {
     ResourceViewItemType,
     wrapResourceView,
@@ -165,8 +166,35 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                 listProps={{
                     defaultColumnVisibility: { space: false },
                 }}
+                tabs={[
+                    {
+                        id: 'all-items',
+                        name: 'All items',
+                    },
+                    {
+                        id: 'dashboards',
+                        icon: (
+                            <ResourceTypeIcon
+                                type={ResourceViewItemType.DASHBOARD}
+                            />
+                        ),
+                        name: 'Dashboards',
+                        filter: (item) =>
+                            item.type === ResourceViewItemType.DASHBOARD,
+                    },
+                    {
+                        id: 'charts',
+                        icon: (
+                            <ResourceTypeIcon
+                                type={ResourceViewItemType.CHART}
+                            />
+                        ),
+                        name: 'Charts',
+                        filter: (item) =>
+                            item.type === ResourceViewItemType.CHART,
+                    },
+                ]}
                 headerProps={{
-                    title: 'All items',
                     action: !isDemo && (
                         <Popover2
                             captureDismiss
