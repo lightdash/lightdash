@@ -327,9 +327,7 @@ export class OrganizationService {
             throw new ForbiddenError();
         }
 
-        if (
-            data.emailDomains.some(domain => isEmailProviderDomain(domain))
-        ) {
+        if (data.emailDomains.some((domain) => isEmailProviderDomain(domain))) {
             throw new ParameterError();
         }
 
