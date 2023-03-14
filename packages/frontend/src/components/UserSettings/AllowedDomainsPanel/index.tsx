@@ -7,7 +7,7 @@ import {
     useUpdateAllowedEmailDomains,
 } from '../../../hooks/organisation/useAllowedDomains';
 import { useProjects } from '../../../hooks/useProjects';
-import { isValidEmailDomain } from '../../../utils/fieldValidators';
+import { isValidEmailDomain, isValidOrganizationDomain } from '../../../utils/fieldValidators';
 import Form from '../../ReactHookForm/Form';
 import MultiSelect from '../../ReactHookForm/MultiSelect';
 import Select2 from '../../ReactHookForm/Select2';
@@ -116,6 +116,8 @@ const AllowedDomainsPanel: FC = () => {
                         validate: {
                             isValidEmailDomain:
                                 isValidEmailDomain('Email domains'),
+                            isValidOrganizationDomain:
+                                isValidOrganizationDomain('Email domains'),
                         },
                     }}
                 />
