@@ -2,6 +2,7 @@ import { Colors, Intent, Overlay } from '@blueprintjs/core';
 import {
     CompleteUserArgs,
     getEmailDomain,
+    isEmailProviderDomain,
     LightdashMode,
 } from '@lightdash/common';
 import React, { FC } from 'react';
@@ -58,6 +59,8 @@ const UserCompletionModal: FC = () => {
     if (!user.data || user.data.isSetupComplete) {
         return null;
     }
+
+    const isValidOrganizationDomain = !isEmailProviderDomain(getEmailDomain(user.data?.email || ""))
     return (
         <Overlay
             isOpen={!isSuccess}
@@ -95,7 +98,7 @@ const UserCompletionModal: FC = () => {
                             required: 'Required field',
                         }}
                     />
-                    {user.data.organizationName === '' && (
+                    {user.data.organizationName === '' && isValidOrganizationDomain && (
                         <Checkbox
                             name="enableEmailDomainAccess"
                             disabled={isLoading}
