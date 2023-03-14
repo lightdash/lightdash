@@ -183,6 +183,7 @@ export default class EmailClient {
         frequency: string,
         imageUrl: string,
         url: string,
+        schedulerUrl: string,
     ) {
         return this.sendEmail({
             to: recipient,
@@ -196,6 +197,7 @@ export default class EmailClient {
                 frequency,
                 url,
                 host: this.lightdashConfig.siteUrl,
+                schedulerUrl,
             },
             text: title,
         });
@@ -210,6 +212,7 @@ export default class EmailClient {
         frequency: string,
         attachment: AttachmentUrl,
         url: string,
+        schedulerUrl: string,
     ) {
         const csvUrl = attachment.path;
         return this.sendEmail({
@@ -224,6 +227,7 @@ export default class EmailClient {
                 url,
                 csvUrl,
                 host: this.lightdashConfig.siteUrl,
+                schedulerUrl,
             },
             text: title,
         });
@@ -238,6 +242,7 @@ export default class EmailClient {
         frequency: string,
         attachments: AttachmentUrl[],
         url: string,
+        schedulerUrl: string,
     ) {
         const csvUrls = `
             ${attachments
@@ -294,6 +299,7 @@ export default class EmailClient {
                 csvUrls,
                 url,
                 host: this.lightdashConfig.siteUrl,
+                schedulerUrl,
             },
             text: title,
         });

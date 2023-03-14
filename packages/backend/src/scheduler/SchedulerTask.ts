@@ -355,6 +355,7 @@ export const sendEmailNotification = async (
         // Backwards compatibility for old scheduled deliveries
         const { url, details, pageType, imageUrl, csvUrl, csvUrls } =
             notification.page ?? (await getNotificationPageData(scheduler));
+        const schedulerUrl = `${url}?scheduler_uuid=${schedulerUuid}`;
 
         if (format === 'image') {
             if (imageUrl === undefined) {
@@ -369,6 +370,7 @@ export const sendEmailNotification = async (
                 getHumanReadableCronExpression(scheduler.cron),
                 imageUrl,
                 url,
+                schedulerUrl,
             );
         } else if (savedChartUuid) {
             if (csvUrl === undefined) {
@@ -383,6 +385,7 @@ export const sendEmailNotification = async (
                 getHumanReadableCronExpression(scheduler.cron),
                 csvUrl,
                 url,
+                schedulerUrl,
             );
         } else if (dashboardUuid) {
             if (csvUrls === undefined) {
@@ -397,6 +400,7 @@ export const sendEmailNotification = async (
                 getHumanReadableCronExpression(scheduler.cron),
                 csvUrls,
                 url,
+                schedulerUrl,
             );
         } else {
             throw new Error('Not implemented');
