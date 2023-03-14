@@ -3,6 +3,7 @@ import {
     AllowedEmailDomains,
     CreateOrganization,
     ForbiddenError,
+    isEmailProviderDomain,
     isUserWithOrg,
     LightdashMode,
     NotExistsError,
@@ -12,6 +13,7 @@ import {
     OrganizationMemberProfileUpdate,
     OrganizationMemberRole,
     OrganizationProject,
+    ParameterError,
     SessionUser,
     UpdateOrganization,
 } from '@lightdash/common';
@@ -323,6 +325,12 @@ export class OrganizationService {
             )
         ) {
             throw new ForbiddenError();
+        }
+
+        if (
+            data.emailDomains.some(domain => isEmailProviderDomain(domain))
+        ) {
+            throw new ParameterError();
         }
 
         return this.organizationAllowedEmailDomainsModel.upsertAllowedEmailDomains(
