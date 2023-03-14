@@ -13,9 +13,11 @@ import {
     isUserWithOrg,
     SchedulerAndTargets,
     SessionUser,
+    Space,
     UpdateDashboard,
     UpdateMultipleDashboards,
 } from '@lightdash/common';
+import * as Sentry from '@sentry/node';
 import cronstrue from 'cronstrue';
 import { analytics } from '../../analytics/client';
 import { CreateDashboardOrVersionEvent } from '../../analytics/LightdashAnalytics';
@@ -83,12 +85,17 @@ export class DashboardService {
         spaceUuid: string,
         userUuid: string,
     ): Promise<boolean> {
+        let space: Space;
+
         try {
-            const space = await this.spaceModel.getFullSpace(spaceUuid);
-            return hasSpaceAccess(space, userUuid);
+            space = await this.spaceModel.getFullSpace(spaceUuid);
         } catch (e) {
+            Sentry.captureException(e);
+            console.error(e);
             return false;
         }
+
+        return hasSpaceAccess(space, userUuid);
     }
 
     static getCreateEventProperties(
