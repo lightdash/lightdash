@@ -1,3 +1,10 @@
+## [0.463.2](https://github.com/lightdash/lightdash/compare/0.463.1...0.463.2) (2023-03-14)
+
+
+### Bug Fixes
+
+* catch errors in passport deserialize ([#4792](https://github.com/lightdash/lightdash/issues/4792)) ([691e712](https://github.com/lightdash/lightdash/commit/691e7128f27aaa0d163fcf0c43e23e6fe243e430))
+
 ## [0.463.1](https://github.com/lightdash/lightdash/compare/0.463.0...0.463.1) (2023-03-14)
 
 
