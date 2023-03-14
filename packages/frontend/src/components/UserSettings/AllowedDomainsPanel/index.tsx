@@ -7,7 +7,10 @@ import {
     useUpdateAllowedEmailDomains,
 } from '../../../hooks/organisation/useAllowedDomains';
 import { useProjects } from '../../../hooks/useProjects';
-import { isValidEmailDomain, isValidOrganizationDomain } from '../../../utils/fieldValidators';
+import {
+    isValidEmailDomain,
+    isValidOrganizationDomain,
+} from '../../../utils/fieldValidators';
 import Form from '../../ReactHookForm/Form';
 import MultiSelect from '../../ReactHookForm/MultiSelect';
 import Select2 from '../../ReactHookForm/Select2';

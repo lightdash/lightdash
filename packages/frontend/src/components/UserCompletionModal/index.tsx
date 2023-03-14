@@ -60,7 +60,9 @@ const UserCompletionModal: FC = () => {
         return null;
     }
 
-    const isValidOrganizationDomain = !isEmailProviderDomain(getEmailDomain(user.data?.email || ""))
+    const isValidOrganizationDomain = !isEmailProviderDomain(
+        getEmailDomain(user.data?.email || ''),
+    );
     return (
         <Overlay
             isOpen={!isSuccess}
@@ -98,19 +100,20 @@ const UserCompletionModal: FC = () => {
                             required: 'Required field',
                         }}
                     />
-                    {user.data.organizationName === '' && isValidOrganizationDomain && (
-                        <Checkbox
-                            name="enableEmailDomainAccess"
-                            disabled={isLoading}
-                            defaultValue
-                            checkboxProps={{
-                                label: `Allow users with @${getEmailDomain(
-                                    user.data?.email || '',
-                                )} to join the organization as a viewer`,
-                                style: { color: Colors.GRAY1, margin: 0 },
-                            }}
-                        />
-                    )}
+                    {user.data.organizationName === '' &&
+                        isValidOrganizationDomain && (
+                            <Checkbox
+                                name="enableEmailDomainAccess"
+                                disabled={isLoading}
+                                defaultValue
+                                checkboxProps={{
+                                    label: `Allow users with @${getEmailDomain(
+                                        user.data?.email || '',
+                                    )} to join the organization as a viewer`,
+                                    style: { color: Colors.GRAY1, margin: 0 },
+                                }}
+                            />
+                        )}
                     <Checkbox
                         name="isMarketingOptedIn"
                         disabled={isLoading}
