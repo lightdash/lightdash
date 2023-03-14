@@ -1,7 +1,11 @@
+import { subject } from '@casl/ability';
 import {
     assertUnreachable,
     AuthorizationError,
+    ForbiddenError,
     LightdashPage,
+    NotificationPayloadBase,
+    SessionUser,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import fetch from 'node-fetch';
@@ -384,5 +388,55 @@ export class UnfurlService {
         }
 
         return imageUrl;
+    }
+
+    async exportDashboard(
+        dashboardUuid: string,
+        user: SessionUser,
+    ): Promise<NotificationPayloadBase['page']> {
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        const {
+            url,
+            minimalUrl,
+            pageType,
+            details,
+            organizationUuid,
+            projectUuid,
+        } = {
+            url: `${this.lightdashConfig.siteUrl}/projects/${dashboard.projectUuid}/dashboards/${dashboardUuid}/view`,
+            minimalUrl: `${this.lightdashConfig.siteUrl}/minimal/projects/${dashboard.projectUuid}/dashboards/${dashboardUuid}`,
+            details: {
+                name: dashboard.name,
+                description: dashboard.description,
+            },
+            pageType: LightdashPage.DASHBOARD,
+            organizationUuid: dashboard.organizationUuid,
+            projectUuid: dashboard.projectUuid,
+        };
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Dashboard', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const imageUrl = await this.unfurlImage(
+            minimalUrl,
+            pageType,
+            `${details.name.toLowerCase().replace(' ', '-')}`,
+            user.userUuid,
+            3, // up to 3 retries
+        );
+        if (imageUrl === undefined) {
+            throw new Error('Unable to unfurl image');
+        }
+        return {
+            url,
+            pageType,
+            details,
+            organizationUuid,
+            imageUrl,
+        };
     }
 }

@@ -62,7 +62,10 @@ import {
     ProjectType,
     WarehouseCredentials,
 } from './types/projects';
-import { SchedulerAndTargets } from './types/scheduler';
+import {
+    NotificationPayloadBase,
+    SchedulerAndTargets,
+} from './types/scheduler';
 import { SlackChannel } from './types/slack';
 import { Space } from './types/space';
 import { TableBase } from './types/table';
@@ -488,7 +491,8 @@ type ApiResults =
     | AllowedEmailDomains
     | UpdateAllowedEmailDomains
     | UserAllowedOrganization[]
-    | EmailStatusExpiring;
+    | EmailStatusExpiring
+    | NotificationPayloadBase['page'];
 
 export type ApiResponse = {
     status: 'ok';

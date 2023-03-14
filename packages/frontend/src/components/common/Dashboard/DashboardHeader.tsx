@@ -44,6 +44,7 @@ type DashboardHeaderProps = {
     onDelete: () => void;
     onDuplicate: () => void;
     onMoveToSpace: (spaceUuid: string) => void;
+    onExport: () => void;
 };
 
 const DashboardHeader = ({
@@ -64,6 +65,7 @@ const DashboardHeader = ({
     onDelete,
     onDuplicate,
     onMoveToSpace,
+    onExport,
 }: DashboardHeaderProps) => {
     const { search } = useLocation();
     const { projectUuid, dashboardUuid } = useParams<{
@@ -264,6 +266,11 @@ const DashboardHeader = ({
                                     onClick={() => {
                                         toggleSchedulerDeliveriesModel(true);
                                     }}
+                                />
+                                <MenuItem2
+                                    icon={'export'}
+                                    text={'Export dashboard'}
+                                    onClick={onExport}
                                 />
                                 <Divider />
 

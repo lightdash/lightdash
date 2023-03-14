@@ -4,6 +4,7 @@ import {
     Dashboard,
     DashboardAvailableFilters,
     DashboardTile,
+    NotificationPayloadBase,
     UpdateDashboard,
     UpdateDashboardDetails,
 } from '@lightdash/common';
@@ -11,6 +12,7 @@ import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { UseQueryOptions } from 'react-query/types/react/types';
 import { useHistory, useParams } from 'react-router-dom';
 import { lightdashApi } from '../../api';
+import dashboard from '../../pages/Dashboard';
 import useToaster from '../toaster/useToaster';
 import useQueryError from '../useQueryError';
 
@@ -61,6 +63,13 @@ export const postDashboardsAvailableFilters = async (
         body: JSON.stringify(savedQueryUuids),
     });
 
+export const exportDashboard = async (id: string) =>
+    lightdashApi<NotificationPayloadBase['page']>({
+        url: `/dashboards/${id}/export`,
+        method: 'PATCH',
+        body: undefined,
+    });
+
 export const useDashboardsAvailableFilters = (savedQueryUuids: string[]) =>
     useQuery<DashboardAvailableFilters, ApiError>(
         ['dashboards', 'availableFilters', ...savedQueryUuids],
@@ -81,6 +90,28 @@ export const useDashboardQuery = (
         onError: (result) => setErrorResponse(result),
         ...useQueryOptions,
     });
+};
+
+export const useExportDashboard = () => {
+    const { showToastSuccess, showToastError } = useToaster();
+    return useMutation<NotificationPayloadBase['page'], ApiError, Dashboard>(
+        (data) => exportDashboard(data.uuid),
+        {
+            mutationKey: ['export_dashboard'],
+            onSuccess: async (data) => {
+                if (data.imageUrl) window.open(data.imageUrl, '_blank');
+                showToastSuccess({
+                    title: `Success! ${data.details.name} was exported.`,
+                });
+            },
+            onError: (error, data) => {
+                showToastError({
+                    title: `Failed to export ${data.name}`,
+                    subtitle: error.error.message,
+                });
+            },
+        },
+    );
 };
 
 export const useUpdateDashboard = (

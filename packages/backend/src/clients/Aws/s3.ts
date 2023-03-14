@@ -81,7 +81,7 @@ export class S3Service {
     }
 
     async uploadImage(image: Buffer, imageId: string): Promise<string> {
-        return this.uploadFile(imageId, image);
+        return this.uploadFile(`${imageId}.png`, image);
     }
 
     async uploadCsv(csv: string, csvName: string): Promise<string> {
