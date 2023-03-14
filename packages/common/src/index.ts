@@ -117,6 +117,7 @@ export * from './types/warehouse';
 export * from './utils/api';
 export { default as assertUnreachable } from './utils/assertUnreachable';
 export * from './utils/conditionalFormatting';
+export * from './utils/email';
 export * from './utils/filters';
 export * from './utils/formatting';
 export * from './utils/github';
@@ -362,6 +363,7 @@ export type CompleteUserArgs = {
     jobTitle: string;
     isMarketingOptedIn: boolean;
     isTrackingAnonymized: boolean;
+    enableEmailDomainAccess: boolean;
 };
 
 export type UpdateUserArgs = {
