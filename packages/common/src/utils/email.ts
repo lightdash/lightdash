@@ -6,10 +6,6 @@ export const getEmailDomain = (email: string): string => {
     return domain.toLowerCase();
 };
 
-export const isEmailProviderDomain = (domain: string): boolean => {
-    return EMAIL_PROVIDER_LIST.includes(domain);
-}
-
 const EMAIL_PROVIDER_LIST = [
     "gmail.com",
     "yahoo.com",
@@ -59,3 +55,7 @@ const EMAIL_PROVIDER_LIST = [
     "sky.com",
     "blueyonder.co.uk",
 ];
+
+export const isEmailProviderDomain = (domain: string): boolean => (
+    EMAIL_PROVIDER_LIST.includes(domain)
+);
