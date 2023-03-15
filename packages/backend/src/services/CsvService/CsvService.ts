@@ -3,6 +3,8 @@ import {
     ApiSqlQueryResults,
     DimensionType,
     Field,
+    formatItemValue,
+    formatRows,
     friendlyName,
     getCustomLabelsFromTableConfig,
     getItemLabel,
@@ -17,7 +19,9 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import { stringify } from 'csv-stringify';
+import * as fsSync from 'fs';
 import * as fs from 'fs/promises';
+
 import moment from 'moment';
 import { nanoid } from 'nanoid';
 import { Worker } from 'worker_threads';
@@ -59,7 +63,6 @@ export const convertSqlToCsv = (
             return Object.values(row)[fieldIndex];
         }),
     );
-
     return new Promise((resolve, reject) => {
         stringify(
             [csvHeader, ...csvBody],
@@ -175,6 +178,168 @@ export class CsvService {
         this.dashboardModel = dashboardModel;
     }
 
+    static async convertRowsToCsv(
+        rows: Record<string, any>[],
+        onlyRaw: boolean,
+        metricQuery: MetricQuery,
+        itemMap: Record<string, Field | TableCalculation>,
+        showTableNames: boolean,
+        customLabels: Record<string, string> = {},
+        columnOrder: string[] = [],
+    ): Promise<string> {
+        // Ignore fields from results that are not selected in metrics or dimensions
+        const selectedFieldIds = [
+            ...metricQuery.metrics,
+            ...metricQuery.dimensions,
+            ...metricQuery.tableCalculations.map((tc: any) => tc.name),
+        ];
+        Logger.debug(
+            `convertRowsToCsv with ${rows.length} rows and ${selectedFieldIds.length} columns`,
+        );
+
+        const fileId = `csv-${nanoid()}.csv`;
+        Logger.debug('file id', fileId);
+        const writeStream = fsSync.createWriteStream(`/tmp/${fileId}`);
+
+        // const formattedRows = formatRows(rows, itemMap);
+
+        const sortedFieldIds = Object.keys(rows[0])
+            .filter((id) => selectedFieldIds.includes(id))
+            .sort((a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b));
+
+        const csvHeader = sortedFieldIds.map((id) => {
+            if (customLabels[id]) {
+                return customLabels[id];
+            }
+            if (itemMap[id]) {
+                return showTableNames
+                    ? getItemLabel(itemMap[id])
+                    : getItemLabelWithoutTableName(itemMap[id]);
+            }
+            return id;
+        });
+
+        /*
+        const csvBody = formattedRows.map((row) =>
+            sortedFieldIds.map((id) => {
+                const rowData = row[id];
+                const item = itemMap[id];
+                const itemIsField = isField(item);
+
+                if (itemIsField && item.type === DimensionType.TIMESTAMP) {
+                    return moment(rowData.value.raw).format('YYYY-MM-DD HH:mm:ss');
+                }
+                if (itemIsField && item.type === DimensionType.DATE) {
+                    return moment(rowData.value.raw).format('YYYY-MM-DD');
+                }
+
+                if (onlyRaw) {
+                    return rowData.value.raw;
+                }
+
+                return rowData.value.formatted;
+            }),
+        ); */
+        const stringifier = stringify({
+            delimiter: ',',
+        });
+        stringifier.on('readable', () => {
+            let row;
+            do {
+                row = stringifier.read();
+                if (row) writeStream.write(row);
+            } while (row);
+        });
+
+        return new Promise((resolve, reject) => {
+            stringifier.on('error', (err) => {
+                reject(new Error(err.message));
+            });
+            stringifier.on('finish', () => {
+                writeStream.close();
+                resolve(fileId);
+            });
+
+            stringifier.write(csvHeader);
+
+            rows.forEach(async (row, index) => {
+                const formattedRow = sortedFieldIds.map((id) => {
+                    const data = row[id];
+                    const item = itemMap[id];
+
+                    const itemIsField = isField(item);
+                    if (itemIsField && item.type === DimensionType.TIMESTAMP) {
+                        return moment(data).format('YYYY-MM-DD HH:mm:ss');
+                    }
+                    if (itemIsField && item.type === DimensionType.DATE) {
+                        return moment(data).format('YYYY-MM-DD');
+                    }
+                    if (onlyRaw) return data;
+                    return formatItemValue(item, data);
+                });
+
+                /*  if (index % 1000 === 0)
+                        await new Promise(r => setTimeout(r, 100))
+*/
+                stringifier.write(formattedRow);
+                /* Object.keys(row).reduce((acc, columnName) => {
+                        const col = row[columnName];
+            
+                        const item = itemMap[columnName];
+                        return {
+                            ...acc,
+                            [columnName]: {
+                                value: {
+                                    raw: col,
+                                    formatted: formatItemValue(item, col),
+                                },
+                            },
+                        };
+                    }, {}), */
+
+                // formatRows(rows, itemMap);
+            });
+
+            //  stringifier.write(rows);
+
+            stringifier.end();
+        });
+
+        /*
+        const csvContentPromise: Promise<string> = new Promise((resolve, reject) => {
+            stringify(
+                [csvHeader, ...csvBody],
+                {
+                    delimiter: ',',
+                },
+                (err, output) => {
+                    if (err) {
+                        reject(new Error(err.message));
+                    }
+                    resolve(output);
+                },
+            ).pipe(writeStream);
+        });
+
+        const csvContent = await csvContentPromise; */
+
+        // Can't store file in S3, storing locally
+        //  await fs.writeFile(`/tmp/${fileId}`, csvContent, 'utf-8');
+
+        // return fileId
+
+        /*
+        return convertApiToCsv(
+            selectedFieldIds,
+            formattedRows,
+            onlyRaw,
+            itemMap,
+            showTableNames,
+            columnOrder,
+            customLabels,
+        ); */
+    }
+
     static async convertApiResultsToCsv(
         results: ApiQueryResults,
         onlyRaw: boolean,
@@ -253,13 +418,14 @@ export class CsvService {
         const exploreId = chart.tableName;
         const onlyRaw = options?.formatted === false;
 
-        const results: ApiQueryResults = await this.projectService.runQuery(
-            user,
-            metricQuery,
-            chart.projectUuid,
-            exploreId,
-            getSchedulerCsvLimit(options),
-        );
+        const results: ApiQueryResults =
+            await this.projectService.runQueryAndFormatRows(
+                user,
+                metricQuery,
+                chart.projectUuid,
+                exploreId,
+                getSchedulerCsvLimit(options),
+            );
 
         const explore = await this.projectService.getExplore(
             user,

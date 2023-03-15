@@ -572,13 +572,69 @@ export class ProjectService {
         };
     }
 
-    async runQuery(
+    async runQueryAndFormatRows(
         user: SessionUser,
         metricQuery: MetricQuery,
         projectUuid: string,
         exploreName: string,
         csvLimit: number | null | undefined,
     ): Promise<ApiQueryResults> {
+        const rows = await this.runQuery(
+            user,
+            metricQuery,
+            projectUuid,
+            exploreName,
+            csvLimit,
+        );
+
+        const { warehouseConnection } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        const explore = await this.getExplore(user, projectUuid, exploreName);
+
+        const itemMap = getItemMap(
+            explore,
+            metricQuery.additionalMetrics,
+            metricQuery.tableCalculations,
+        );
+
+        // If there are more than 500 rows, we need to format them in a background job
+        const formattedRows =
+            rows.length > 500
+                ? await wrapSentryTransaction<ResultRow[]>(
+                      'formatted rows',
+                      {
+                          rows: rows.length,
+                          warehouse: warehouseConnection?.type,
+                      },
+                      async () =>
+                          runWorkerThread<ResultRow[]>(
+                              new Worker(
+                                  './dist/services/ProjectService/formatRows.js',
+                                  {
+                                      workerData: {
+                                          rows,
+                                          itemMap,
+                                      },
+                                  },
+                              ),
+                          ),
+                  )
+                : formatRows(rows, itemMap);
+
+        return {
+            rows: formattedRows,
+            metricQuery,
+        };
+    }
+
+    async runQuery(
+        user: SessionUser,
+        metricQuery: MetricQuery,
+        projectUuid: string,
+        exploreName: string,
+        csvLimit: number | null | undefined,
+    ): Promise<Record<string, any>[]> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
@@ -634,46 +690,11 @@ export class ProjectService {
                 ).length,
             },
         });
-        const explore = await this.getExplore(user, projectUuid, exploreName);
 
         const warehouseClient = await this._getWarehouseClient(projectUuid);
         Logger.debug(`Run query against warehouse`);
         const { rows } = await warehouseClient.runQuery(query);
-
-        const itemMap = getItemMap(
-            explore,
-            metricQuery.additionalMetrics,
-            metricQuery.tableCalculations,
-        );
-
-        // If there are more than 500 rows, we need to format them in a background job
-        const formattedRows =
-            rows.length > 500
-                ? await wrapSentryTransaction<ResultRow[]>(
-                      'formatted rows',
-                      {
-                          rows: rows.length,
-                          warehouse: warehouseConnection?.type,
-                      },
-                      async () =>
-                          runWorkerThread<ResultRow[]>(
-                              new Worker(
-                                  './dist/services/ProjectService/formatRows.js',
-                                  {
-                                      workerData: {
-                                          rows,
-                                          itemMap,
-                                      },
-                                  },
-                              ),
-                          ),
-                  )
-                : formatRows(rows, itemMap);
-
-        return {
-            rows: formattedRows,
-            metricQuery,
-        };
+        return rows;
     }
 
     async runSqlQuery(

@@ -13,7 +13,9 @@ import {
     TablesConfiguration,
 } from '@lightdash/common';
 import express from 'express';
+import * as fsSync from 'fs';
 import * as fs from 'fs/promises';
+
 import { nanoid } from 'nanoid';
 import path from 'path';
 import { lightdashConfig } from '../config/lightdashConfig';
@@ -22,6 +24,7 @@ import {
     isAuthenticated,
     unauthorisedInDemo,
 } from '../controllers/authentication';
+import Logger from '../logger';
 import { CsvService } from '../services/CsvService/CsvService';
 import {
     dashboardService,
@@ -32,6 +35,8 @@ import {
     spaceService,
 } from '../services/services';
 import { wrapSentryTransaction } from '../utils';
+
+const { Readable } = require('stream');
 
 export const projectRouter = express.Router({ mergeParams: true });
 
@@ -203,13 +208,14 @@ projectRouter.post(
                 tableCalculations: body.tableCalculations,
                 additionalMetrics: body.additionalMetrics,
             };
-            const results: ApiQueryResults = await projectService.runQuery(
-                req.user!,
-                metricQuery,
-                req.params.projectUuid,
-                req.params.exploreId,
-                csvLimit,
-            );
+            const results: ApiQueryResults =
+                await projectService.runQueryAndFormatRows(
+                    req.user!,
+                    metricQuery,
+                    req.params.projectUuid,
+                    req.params.exploreId,
+                    csvLimit,
+                );
             res.json({
                 status: 'ok',
                 results,
@@ -219,6 +225,29 @@ projectRouter.post(
         }
     },
 );
+
+const formatMemoryUsage = (data: any) =>
+    `${Math.round((data / 1024 / 1024) * 100) / 100} MB`;
+
+const logMemoryUsage = () => {
+    const memoryData = process.memoryUsage();
+
+    const memoryUsage = {
+        rss: `${formatMemoryUsage(
+            memoryData.rss,
+        )} -> Resident Set Size - total memory allocated for the process execution`,
+        heapTotal: `${formatMemoryUsage(
+            memoryData.heapTotal,
+        )} -> total size of the allocated heap`,
+        heapUsed: `${formatMemoryUsage(
+            memoryData.heapUsed,
+        )} -> actual memory used during the execution`,
+        external: `${formatMemoryUsage(
+            memoryData.external,
+        )} -> V8 external memory`,
+    };
+    Logger.debug(memoryUsage);
+};
 
 projectRouter.post(
     '/explores/:exploreId/downloadCsv',
@@ -243,12 +272,23 @@ projectRouter.post(
                 tableCalculations: body.tableCalculations,
                 additionalMetrics: body.additionalMetrics,
             };
-            const results: ApiQueryResults = await projectService.runQuery(
+            const initialHeap = process.memoryUsage().heapUsed;
+            logMemoryUsage();
+            Logger.debug(
+                'downloadCsv initial memory before runquery: ',
+                formatMemoryUsage(initialHeap),
+            );
+
+            const rows = await projectService.runQuery(
                 req.user!,
                 metricQuery,
                 req.params.projectUuid,
                 req.params.exploreId,
                 csvLimit,
+            );
+            Logger.debug(
+                'downloadCsv after runquery: ',
+                formatMemoryUsage(process.memoryUsage().heapUsed - initialHeap),
             );
 
             const explore = await projectService.getExplore(
@@ -261,30 +301,44 @@ projectRouter.post(
                 metricQuery.additionalMetrics,
                 metricQuery.tableCalculations,
             );
-            const csvContent = await wrapSentryTransaction<string>(
-                'convert API results to CSV',
-                {},
-                async () =>
-                    CsvService.convertApiResultsToCsv(
-                        results,
-                        onlyRaw,
-                        metricQuery,
-                        itemMap,
-                        showTableNames,
-                        customLabels,
-                        columnOrder || [],
-                    ),
+
+            Logger.debug(
+                'downloadCsv before convertapiresults: ',
+                formatMemoryUsage(process.memoryUsage().heapUsed - initialHeap),
             );
 
-            const fileId = `csv-${nanoid()}.csv`;
+            Logger.debug(
+                'results Size ',
+                rows.length,
+                formatMemoryUsage(Buffer.from(JSON.stringify(rows)).byteLength),
+            );
+            const fileId = await CsvService.convertRowsToCsv(
+                rows,
+                onlyRaw,
+                metricQuery,
+                itemMap,
+                showTableNames,
+                customLabels,
+                columnOrder || [],
+            );
+            Logger.debug(
+                'downloadCsv after convertapiresults: ',
+                formatMemoryUsage(process.memoryUsage().heapUsed - initialHeap),
+            );
 
             let fileUrl;
             try {
+                const csvContent = fsSync.createReadStream(`/tmp/${fileId}`);
                 fileUrl = await s3Service.uploadCsv(csvContent, fileId);
             } catch (e) {
-                await fs.writeFile(`/tmp/${fileId}`, csvContent, 'utf-8');
                 fileUrl = `${lightdashConfig.siteUrl}/api/v1/projects/${req.params.projectUuid}/csv/${fileId}`;
             }
+            Logger.debug(
+                'downloadCsv after saving file: ',
+                formatMemoryUsage(process.memoryUsage().heapUsed - initialHeap),
+            );
+
+            logMemoryUsage();
 
             res.json({
                 status: 'ok',
