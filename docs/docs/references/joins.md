@@ -53,7 +53,7 @@ models:
 
 If you need to join a table multiple times, you can use an `alias` to distinguish between the different tables. A 
 common use case is joining a user table multiple times to another table depending on the type of user. For example 
-this `messages` model has bother a sender and a recipient:
+this `messages` model has both a sender and a recipient:
 
 ```yaml
 models:
