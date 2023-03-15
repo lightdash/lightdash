@@ -303,7 +303,7 @@ describe('Create projects', () => {
         cy.findAllByTestId('settings-menu').click();
         cy.findByRole('menuitem', { name: 'Organization settings' }).click();
 
-        cy.findByText('Project management').click();
+        cy.findByText('Projects').click();
         cy.findByText('Create new').click();
         cy.contains('button', 'PostgreSQL').click();
 
