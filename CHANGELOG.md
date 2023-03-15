@@ -1,3 +1,10 @@
+# [0.465.0](https://github.com/lightdash/lightdash/compare/0.464.0...0.465.0) (2023-03-15)
+
+
+### Features
+
+* dashboards can be exported ([#4800](https://github.com/lightdash/lightdash/issues/4800)) ([31189c5](https://github.com/lightdash/lightdash/commit/31189c59691da628eea8ec9b3c8a2d12064fe1e9))
+
 # [0.464.0](https://github.com/lightdash/lightdash/compare/0.463.3...0.464.0) (2023-03-15)
 
 
