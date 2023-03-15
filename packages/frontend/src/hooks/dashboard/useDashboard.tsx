@@ -1,9 +1,11 @@
+import { Intent } from '@blueprintjs/core';
 import {
     ApiError,
     CreateDashboard,
     Dashboard,
     DashboardAvailableFilters,
     DashboardTile,
+    NotificationPayloadBase,
     UpdateDashboard,
     UpdateDashboardDetails,
 } from '@lightdash/common';
@@ -61,6 +63,13 @@ export const postDashboardsAvailableFilters = async (
         body: JSON.stringify(savedQueryUuids),
     });
 
+export const exportDashboard = async (id: string) =>
+    lightdashApi<string>({
+        url: `/dashboards/${id}/export`,
+        method: 'POST',
+        body: undefined,
+    });
+
 export const useDashboardsAvailableFilters = (savedQueryUuids: string[]) =>
     useQuery<DashboardAvailableFilters, ApiError>(
         ['dashboards', 'availableFilters', ...savedQueryUuids],
@@ -81,6 +90,38 @@ export const useDashboardQuery = (
         onError: (result) => setErrorResponse(result),
         ...useQueryOptions,
     });
+};
+
+export const useExportDashboard = () => {
+    const { showToastSuccess, showToastError, showToast } = useToaster();
+    return useMutation<string, ApiError, Dashboard>(
+        (data) => exportDashboard(data.uuid),
+        {
+            mutationKey: ['export_dashboard'],
+            onMutate: (data) => {
+                showToast({
+                    key: 'dashboard_export_toast',
+                    intent: Intent.PRIMARY,
+                    title: `${data.name} is being exported. This might take a few seconds.`,
+                    timeout: 0,
+                });
+            },
+            onSuccess: async (url, data) => {
+                if (url) window.open(url, '_blank');
+                showToastSuccess({
+                    key: 'dashboard_export_toast',
+                    title: `Success! ${data.name} was exported.`,
+                });
+            },
+            onError: (error, data) => {
+                showToastError({
+                    key: 'dashboard_export_toast',
+                    title: `Failed to export ${data.name}`,
+                    subtitle: error.error.message,
+                });
+            },
+        },
+    );
 };
 
 export const useUpdateDashboard = (

@@ -8,6 +8,7 @@ import {
     analyticsService,
     dashboardService,
     projectService,
+    unfurlService,
 } from '../services/services';
 
 export const dashboardRouter = express.Router({ mergeParams: true });
@@ -158,6 +159,27 @@ dashboardRouter.post(
                     req.user!,
                     req.body,
                 );
+
+            res.json({
+                status: 'ok',
+                results,
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
+
+dashboardRouter.post(
+    '/:dashboardUuid/export',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            const results = await unfurlService.exportDashboard(
+                req.params.dashboardUuid,
+                req.user!,
+            );
 
             res.json({
                 status: 'ok',
