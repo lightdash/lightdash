@@ -1,3 +1,4 @@
+import { Intent } from '@blueprintjs/core';
 import {
     ApiError,
     CreateDashboard,
@@ -12,7 +13,6 @@ import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { UseQueryOptions } from 'react-query/types/react/types';
 import { useHistory, useParams } from 'react-router-dom';
 import { lightdashApi } from '../../api';
-import dashboard from '../../pages/Dashboard';
 import useToaster from '../toaster/useToaster';
 import useQueryError from '../useQueryError';
 
@@ -101,7 +101,8 @@ export const useExportDashboard = () => {
             onMutate: (data) => {
                 showToast({
                     key: 'dashboard_export_toast',
-                    title: `${data.name} is being exported.`,
+                    intent: Intent.PRIMARY,
+                    title: `${data.name} is being exported. This might take a few seconds.`,
                     timeout: 0,
                 });
             },
