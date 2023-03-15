@@ -72,17 +72,22 @@ export const getSpace = async (
             `${PinnedListTableName}.pinned_list_uuid`,
             `${PinnedSpaceTableName}.pinned_list_uuid`,
         )
-        .innerJoin(
+        .leftJoin(
             SpaceShareTableName,
             `${SpaceShareTableName}.space_id`,
             `${SpaceTableName}.space_id`,
         )
-        .innerJoin(
+        .leftJoin(
             'users',
             `${SpaceShareTableName}.user_id`,
             `${UserTableName}.user_id`,
         )
-        .where(`${UserTableName}.user_uuid`, userUuid)
+        .where((q) => {
+            q.where(`${UserTableName}.user_uuid`, userUuid).orWhere(
+                `${SpaceTableName}.is_private`,
+                false,
+            );
+        })
         .where(`${ProjectTableName}.project_uuid`, projectUuid)
         .select<(DbSpace & Pick<DbPinnedList, 'pinned_list_uuid'>)[]>([
             'spaces.space_id',
