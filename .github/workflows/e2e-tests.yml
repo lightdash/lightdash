@@ -19,7 +19,7 @@ jobs:
       - name: Get deployment url
         id: deployment_url
         env:
-          DEPLOYMENT_URL: 'https://lightdash-pr-${{steps.regex.outputs.first_match}}.onrender.com'
+          DEPLOYMENT_URL: ${{github.event.deployment.environment_url}}
         run:
           echo "::set-output name=url::$DEPLOYMENT_URL"
       - name: Checkout
