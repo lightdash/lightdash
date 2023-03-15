@@ -195,74 +195,77 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                     },
                 ]}
                 headerProps={{
-                    action: !isDemo && (
-                        <Popover2
-                            captureDismiss
-                            position={PopoverPosition.BOTTOM_RIGHT}
-                            content={
-                                <Menu>
-                                    {userCanManageDashboards && (
-                                        <MenuItem2
-                                            icon={
-                                                <IconLayoutDashboard
-                                                    size={20}
+                    action: !isDemo &&
+                        (userCanManageDashboards || userCanManageCharts) && (
+                            <Popover2
+                                captureDismiss
+                                position={PopoverPosition.BOTTOM_RIGHT}
+                                content={
+                                    <Menu>
+                                        {userCanManageDashboards && (
+                                            <MenuItem2
+                                                icon={
+                                                    <IconLayoutDashboard
+                                                        size={20}
+                                                    />
+                                                }
+                                                text={`Add dashboard`}
+                                            >
+                                                <AddResourceToSpaceMenu
+                                                    resourceType={
+                                                        AddToSpaceResources.DASHBOARD
+                                                    }
+                                                    onAdd={() =>
+                                                        setAddToSpace(
+                                                            AddToSpaceResources.DASHBOARD,
+                                                        )
+                                                    }
+                                                    onCreate={() =>
+                                                        setIsCreateDashboardOpen(
+                                                            true,
+                                                        )
+                                                    }
+                                                    hasSavedResources={
+                                                        !!dashboards.length
+                                                    }
                                                 />
-                                            }
-                                            text={`Add dashboard`}
-                                        >
-                                            <AddResourceToSpaceMenu
-                                                resourceType={
-                                                    AddToSpaceResources.DASHBOARD
+                                            </MenuItem2>
+                                        )}
+                                        {userCanManageCharts && (
+                                            <MenuItem2
+                                                icon={
+                                                    <IconChartAreaLine
+                                                        size={20}
+                                                    />
                                                 }
-                                                onAdd={() =>
-                                                    setAddToSpace(
-                                                        AddToSpaceResources.DASHBOARD,
-                                                    )
-                                                }
-                                                onCreate={() =>
-                                                    setIsCreateDashboardOpen(
-                                                        true,
-                                                    )
-                                                }
-                                                hasSavedResources={
-                                                    !!dashboards.length
-                                                }
-                                            />
-                                        </MenuItem2>
-                                    )}
-                                    {userCanManageCharts && (
-                                        <MenuItem2
-                                            icon={
-                                                <IconChartAreaLine size={20} />
-                                            }
-                                            text={`Add chart`}
-                                        >
-                                            <AddResourceToSpaceMenu
-                                                resourceType={
-                                                    AddToSpaceResources.CHART
-                                                }
-                                                onAdd={() =>
-                                                    setAddToSpace(
-                                                        AddToSpaceResources.CHART,
-                                                    )
-                                                }
-                                                onCreate={() =>
-                                                    setCreateToSpace(
-                                                        AddToSpaceResources.CHART,
-                                                    )
-                                                }
-                                                hasSavedResources={
-                                                    !!savedCharts.length
-                                                }
-                                            />
-                                        </MenuItem2>
-                                    )}
-                                </Menu>
-                            }
-                        >
-                            <Button icon="plus" intent="primary" />
-                        </Popover2>
-                    ),
+                                                text={`Add chart`}
+                                            >
+                                                <AddResourceToSpaceMenu
+                                                    resourceType={
+                                                        AddToSpaceResources.CHART
+                                                    }
+                                                    onAdd={() =>
+                                                        setAddToSpace(
+                                                            AddToSpaceResources.CHART,
+                                                        )
+                                                    }
+                                                    onCreate={() =>
+                                                        setCreateToSpace(
+                                                            AddToSpaceResources.CHART,
+                                                        )
+                                                    }
+                                                    hasSavedResources={
+                                                        !!savedCharts.length
+                                                    }
+                                                />
+                                            </MenuItem2>
+                                        )}
+                                    </Menu>
+                                }
+                            >
+                                <Button icon="plus" intent="primary" />
+                            </Popover2>
+                        ),
                 }}
                 emptyStateProps={{
                     icon: <IconLayoutDashboard size={30} />,
