@@ -12,6 +12,7 @@ import {
     ForbiddenError,
     getEmailDomain,
     InviteLink,
+    isEmailProviderDomain,
     isOpenIdUser,
     isUserWithOrg,
     LightdashMode,
@@ -421,10 +422,18 @@ export class UserService {
                 },
             });
             if (enableEmailDomainAccess && user.email) {
+                const emailDomain = getEmailDomain(user.email);
+
+                if (isEmailProviderDomain(emailDomain)) {
+                    throw new ParameterError(
+                        `${emailDomain} is not valid to enable domain organization access`,
+                    );
+                }
+
                 await this.organizationAllowedEmailDomainsModel.upsertAllowedEmailDomains(
                     {
                         organizationUuid: user.organizationUuid,
-                        emailDomains: [getEmailDomain(user.email)],
+                        emailDomains: [emailDomain],
                         role: OrganizationMemberRole.VIEWER,
                         projectUuids: [],
                     },
