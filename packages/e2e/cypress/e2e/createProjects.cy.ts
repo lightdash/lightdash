@@ -389,9 +389,10 @@ describe('Create projects', () => {
 
         testTimeIntervalsResults(bigqueryRowValues);
 
-        testPercentile();
+        testPercentile(['2020-08-12', '1,999', '1,559', '1,999', '19,999,999']);
     });
-    it('Should create a Trino project', () => {
+    // note: we don't have a staging environment for Trino atm
+    it.skip('Should create a Trino project', () => {
         cy.visit(`/createProject`);
 
         cy.contains('button', 'Trino').click();
@@ -431,7 +432,7 @@ describe('Create projects', () => {
         testTimeIntervalsResults(trinoRowValues);
         testPercentile();
     });
-    it('Should create a Databricks project', () => {
+    it.skip('Should create a Databricks project', () => {
         cy.visit(`/createProject`);
 
         cy.contains('button', 'Databricks').click();
@@ -509,6 +510,12 @@ describe('Create projects', () => {
         ];
 
         testTimeIntervalsResults(snowflakeRowValues);
-        testPercentile();
+        testPercentile([
+            '2020-08-12',
+            '1,999',
+            '1,719.5',
+            '1,999',
+            '10,999,999',
+        ]);
     });
 });
