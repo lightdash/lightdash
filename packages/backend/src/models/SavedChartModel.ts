@@ -27,7 +27,7 @@ import {
     SavedChartsTableName,
 } from '../database/entities/savedCharts';
 import {
-    getSpace,
+    getFirstAccessibleSpace,
     getSpaceId,
     SpaceTableName,
 } from '../database/entities/spaces';
@@ -227,7 +227,13 @@ export class SavedChartModel {
             async (trx) => {
                 const spaceId = spaceUuid
                     ? await getSpaceId(trx, spaceUuid)
-                    : (await getSpace(trx, projectUuid, userUuid)).space_id;
+                    : (
+                          await getFirstAccessibleSpace(
+                              trx,
+                              projectUuid,
+                              userUuid,
+                          )
+                      ).space_id;
                 const [newSavedChart] = await trx('saved_queries')
                     .insert({ name, space_id: spaceId, description })
                     .returning('*');

@@ -50,7 +50,7 @@ export type SpaceShareTable = Knex.CompositeTableType<
 
 export const SpaceShareTableName = 'space_share';
 
-export const getSpace = async (
+export const getFirstAccessibleSpace = async (
     db: Knex,
     projectUuid: string,
     userUuid: string,
@@ -113,7 +113,11 @@ export const getSpaceWithQueries = async (
     projectUuid: string,
     userUuid: string,
 ): Promise<Space> => {
-    const space = await getSpace(database, projectUuid, userUuid);
+    const space = await getFirstAccessibleSpace(
+        database,
+        projectUuid,
+        userUuid,
+    );
     const savedQueries = await database('saved_queries')
         .leftJoin(
             'saved_queries_versions',

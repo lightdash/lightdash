@@ -23,7 +23,7 @@ import { analytics } from '../../analytics/client';
 import { CreateDashboardOrVersionEvent } from '../../analytics/LightdashAnalytics';
 import { schedulerClient, slackClient } from '../../clients/clients';
 import database from '../../database/database';
-import { getSpace } from '../../database/entities/spaces';
+import { getFirstAccessibleSpace } from '../../database/entities/spaces';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
@@ -197,7 +197,11 @@ export class DashboardService {
         dashboard: CreateDashboard,
     ): Promise<Dashboard> {
         const getFirstSpace = async () => {
-            const space = await getSpace(database, projectUuid, user.userUuid);
+            const space = await getFirstAccessibleSpace(
+                database,
+                projectUuid,
+                user.userUuid,
+            );
             return {
                 organizationUuid: space.organization_uuid,
                 uuid: space.space_uuid,
@@ -414,7 +418,11 @@ export class DashboardService {
         projectUuid: string,
         dashboards: UpdateMultipleDashboards[],
     ): Promise<Dashboard[]> {
-        const space = await getSpace(database, projectUuid, user.userUuid);
+        const space = await getFirstAccessibleSpace(
+            database,
+            projectUuid,
+            user.userUuid,
+        );
 
         if (
             user.ability.cannot(
