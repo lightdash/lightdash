@@ -5,7 +5,6 @@ import {
     MetricType,
     WarehouseConnectionError,
     WarehouseQueryError,
-    WeekDay,
 } from '@lightdash/common';
 import {
     BasicAuth,
@@ -15,8 +14,8 @@ import {
     QueryResult,
     Trino,
 } from 'trino-client';
-import { WarehouseCatalog, WarehouseClient } from '../types';
-import { getDefaultMetricSql } from '../utils/sql';
+import { WarehouseCatalog } from '../types';
+import WarehouseBaseClient from './WarehouseBaseClient';
 
 export enum TrinoTypes {
     BOOLEAN = 'boolean',
@@ -138,26 +137,17 @@ const resultHandler = (schema: { [key: string]: any }[], data: any[][]) => {
     });
 };
 
-export class TrinoWarehouseClient implements WarehouseClient {
-    credentials: CreateTrinoCredentials;
-
+export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredentials> {
     connectionOptions: ConnectionOptions;
 
-    startOfWeek: WeekDay | null | undefined;
-
     constructor(credentials: CreateTrinoCredentials) {
-        this.credentials = credentials;
-        this.startOfWeek = credentials.startOfWeek;
+        super(credentials);
         this.connectionOptions = {
             auth: new BasicAuth(credentials.user, credentials.password),
             catalog: credentials.dbname,
             schema: credentials.schema,
             server: `${credentials.http_scheme}://${credentials.host}:${credentials.port}`,
         };
-    }
-
-    getStartOfWeek() {
-        return this.startOfWeek;
     }
 
     private async getSession() {
@@ -221,10 +211,6 @@ export class TrinoWarehouseClient implements WarehouseClient {
         }
     }
 
-    async test(): Promise<void> {
-        await this.runQuery(`SELECT 1`);
-    }
-
     async getCatalog(requests: TableInfo[]): Promise<WarehouseCatalog> {
         const { session, close } = await this.getSession();
         let results: string[][][];
@@ -272,7 +258,7 @@ export class TrinoWarehouseClient implements WarehouseClient {
             case MetricType.MEDIAN:
                 return `APPROX_PERCENTILE(${sql},0.5)`;
             default:
-                return getDefaultMetricSql(sql, metric.type);
+                return super.getMetricSql(sql, metric);
         }
     }
 }
