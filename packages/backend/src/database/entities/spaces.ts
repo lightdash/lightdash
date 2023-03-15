@@ -15,6 +15,7 @@ import {
 } from './pinnedList';
 import { ProjectTableName } from './projects';
 import { SavedChartsTableName } from './savedCharts';
+import { UserTableName } from './users';
 
 export type DbSpace = {
     space_id: number;
@@ -49,11 +50,12 @@ export type SpaceShareTable = Knex.CompositeTableType<
 
 export const SpaceShareTableName = 'space_share';
 
-export const getSpace = async (
+export const getFirstAccessibleSpace = async (
     db: Knex,
     projectUuid: string,
+    userUuid: string,
 ): Promise<DbSpace & Pick<DbPinnedList, 'pinned_list_uuid'>> => {
-    const results = await db('spaces')
+    const space = await db('spaces')
         .innerJoin('projects', 'projects.project_id', 'spaces.project_id')
         .innerJoin(
             'organizations',
@@ -70,6 +72,22 @@ export const getSpace = async (
             `${PinnedListTableName}.pinned_list_uuid`,
             `${PinnedSpaceTableName}.pinned_list_uuid`,
         )
+        .leftJoin(
+            SpaceShareTableName,
+            `${SpaceShareTableName}.space_id`,
+            `${SpaceTableName}.space_id`,
+        )
+        .leftJoin(
+            'users',
+            `${SpaceShareTableName}.user_id`,
+            `${UserTableName}.user_id`,
+        )
+        .where((q) => {
+            q.where(`${UserTableName}.user_uuid`, userUuid).orWhere(
+                `${SpaceTableName}.is_private`,
+                false,
+            );
+        })
         .where(`${ProjectTableName}.project_uuid`, projectUuid)
         .select<(DbSpace & Pick<DbPinnedList, 'pinned_list_uuid'>)[]>([
             'spaces.space_id',
@@ -80,20 +98,26 @@ export const getSpace = async (
             'organizations.organization_uuid',
             `${PinnedListTableName}.pinned_list_uuid`,
         ])
-        .limit(1);
-    const [space] = results;
+        .first();
+
     if (space === undefined) {
         throw new NotFoundError(
             `No space found for project with id: ${projectUuid}`,
         );
     }
+
     return space;
 };
 
 export const getSpaceWithQueries = async (
     projectUuid: string,
+    userUuid: string,
 ): Promise<Space> => {
-    const space = await getSpace(database, projectUuid);
+    const space = await getFirstAccessibleSpace(
+        database,
+        projectUuid,
+        userUuid,
+    );
     const savedQueries = await database('saved_queries')
         .leftJoin(
             'saved_queries_versions',

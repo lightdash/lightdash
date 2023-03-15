@@ -363,10 +363,14 @@ export class SavedChartService {
         ) {
             throw new ForbiddenError();
         }
-        const newSavedChart = await this.savedChartModel.create(projectUuid, {
-            ...savedChart,
-            updatedByUser: user,
-        });
+        const newSavedChart = await this.savedChartModel.create(
+            projectUuid,
+            user.userUuid,
+            {
+                ...savedChart,
+                updatedByUser: user,
+            },
+        );
         analytics.track({
             event: 'saved_chart.created',
             userId: user.userUuid,
@@ -392,6 +396,7 @@ export class SavedChartService {
         };
         const newSavedChart = await this.savedChartModel.create(
             projectUuid,
+            user.userUuid,
             duplicatedChart,
         );
         const newSavedChartProperties =

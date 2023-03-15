@@ -37,6 +37,7 @@ export async function seed(knex: Knex): Promise<void> {
 
     const { queries, uuid: spaceUuid } = await getSpaceWithQueries(
         SEED_PROJECT.project_uuid,
+        SEED_ORG_1_ADMIN.user_uuid,
     );
 
     const loomTile: DashboardLoomTile = {

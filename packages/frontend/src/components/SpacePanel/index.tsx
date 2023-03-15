@@ -284,6 +284,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
 
             <DashboardCreateModal
                 projectUuid={projectUuid}
+                spaceUuid={space.uuid}
                 isOpen={isCreateDashboardOpen}
                 onClose={() => setIsCreateDashboardOpen(false)}
                 onConfirm={(dashboard) => {
