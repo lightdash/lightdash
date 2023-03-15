@@ -1,3 +1,10 @@
+## [0.465.1](https://github.com/lightdash/lightdash/compare/0.465.0...0.465.1) (2023-03-15)
+
+
+### Bug Fixes
+
+* space permission on dashboard create ([#4817](https://github.com/lightdash/lightdash/issues/4817)) ([26eeab4](https://github.com/lightdash/lightdash/commit/26eeab490a96a079367e11270fa66336a7f8f713))
+
 # [0.465.0](https://github.com/lightdash/lightdash/compare/0.464.0...0.465.0) (2023-03-15)
 
 
