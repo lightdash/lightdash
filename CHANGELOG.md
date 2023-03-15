@@ -1,3 +1,15 @@
+# [0.464.0](https://github.com/lightdash/lightdash/compare/0.463.3...0.464.0) (2023-03-15)
+
+
+### Bug Fixes
+
+* sorting spaces alphabetically in browse menu ([#4807](https://github.com/lightdash/lightdash/issues/4807)) ([780ecf7](https://github.com/lightdash/lightdash/commit/780ecf77e4cc0142f9ed592967f4dcbaac476aad))
+
+
+### Features
+
+* update max csv cells ([#4791](https://github.com/lightdash/lightdash/issues/4791)) ([59a3cb9](https://github.com/lightdash/lightdash/commit/59a3cb95b71613424543b7255514355e32c91b3a))
+
 ## [0.463.3](https://github.com/lightdash/lightdash/compare/0.463.2...0.463.3) (2023-03-14)
 
 
