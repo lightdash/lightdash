@@ -312,7 +312,7 @@ describe('Create projects', () => {
         cy.contains('a', 'Create project manually');
     });
 
-    it.only('Should create a Postgres project', () => {
+    it('Should create a Postgres project', () => {
         cy.visit(`/createProject`);
 
         cy.contains('button', 'PostgreSQL').click();
@@ -431,7 +431,7 @@ describe('Create projects', () => {
         testTimeIntervalsResults(trinoRowValues);
         testPercentile();
     });
-    it.skip('Should create a Databricks project', () => {
+    it('Should create a Databricks project', () => {
         cy.visit(`/createProject`);
 
         cy.contains('button', 'Databricks').click();
