@@ -197,7 +197,7 @@ export class DashboardService {
         dashboard: CreateDashboard,
     ): Promise<Dashboard> {
         const getFirstSpace = async () => {
-            const space = await getSpace(database, projectUuid);
+            const space = await getSpace(database, projectUuid, user.userUuid);
             return {
                 organizationUuid: space.organization_uuid,
                 uuid: space.space_uuid,
@@ -414,7 +414,7 @@ export class DashboardService {
         projectUuid: string,
         dashboards: UpdateMultipleDashboards[],
     ): Promise<Dashboard[]> {
-        const space = await getSpace(database, projectUuid);
+        const space = await getSpace(database, projectUuid, user.userUuid);
 
         if (
             user.ability.cannot(

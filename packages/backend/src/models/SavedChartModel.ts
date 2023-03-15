@@ -210,6 +210,7 @@ export class SavedChartModel {
 
     async create(
         projectUuid: string,
+        userUuid: string,
         {
             name,
             description,
@@ -226,7 +227,7 @@ export class SavedChartModel {
             async (trx) => {
                 const spaceId = spaceUuid
                     ? await getSpaceId(trx, spaceUuid)
-                    : (await getSpace(trx, projectUuid)).space_id;
+                    : (await getSpace(trx, projectUuid, userUuid)).space_id;
                 const [newSavedChart] = await trx('saved_queries')
                     .insert({ name, space_id: spaceId, description })
                     .returning('*');
