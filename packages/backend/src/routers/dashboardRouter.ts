@@ -170,7 +170,7 @@ dashboardRouter.post(
     },
 );
 
-dashboardRouter.patch(
+dashboardRouter.post(
     '/:dashboardUuid/export',
     allowApiKeyAuthentication,
     isAuthenticated,

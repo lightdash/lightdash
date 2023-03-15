@@ -491,8 +491,7 @@ type ApiResults =
     | AllowedEmailDomains
     | UpdateAllowedEmailDomains
     | UserAllowedOrganization[]
-    | EmailStatusExpiring
-    | NotificationPayloadBase['page'];
+    | EmailStatusExpiring;
 
 export type ApiResponse = {
     status: 'ok';

@@ -64,9 +64,9 @@ export const postDashboardsAvailableFilters = async (
     });
 
 export const exportDashboard = async (id: string) =>
-    lightdashApi<NotificationPayloadBase['page']>({
+    lightdashApi<string>({
         url: `/dashboards/${id}/export`,
-        method: 'PATCH',
+        method: 'POST',
         body: undefined,
     });
 
@@ -93,19 +93,28 @@ export const useDashboardQuery = (
 };
 
 export const useExportDashboard = () => {
-    const { showToastSuccess, showToastError } = useToaster();
-    return useMutation<NotificationPayloadBase['page'], ApiError, Dashboard>(
+    const { showToastSuccess, showToastError, showToast } = useToaster();
+    return useMutation<string, ApiError, Dashboard>(
         (data) => exportDashboard(data.uuid),
         {
             mutationKey: ['export_dashboard'],
-            onSuccess: async (data) => {
-                if (data.imageUrl) window.open(data.imageUrl, '_blank');
+            onMutate: (data) => {
+                showToast({
+                    key: 'dashboard_export_toast',
+                    title: `${data.name} is being exported.`,
+                    timeout: 0,
+                });
+            },
+            onSuccess: async (url, data) => {
+                if (url) window.open(url, '_blank');
                 showToastSuccess({
-                    title: `Success! ${data.details.name} was exported.`,
+                    key: 'dashboard_export_toast',
+                    title: `Success! ${data.name} was exported.`,
                 });
             },
             onError: (error, data) => {
                 showToastError({
+                    key: 'dashboard_export_toast',
                     title: `Failed to export ${data.name}`,
                     subtitle: error.error.message,
                 });

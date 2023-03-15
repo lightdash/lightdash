@@ -4,10 +4,11 @@ import {
     AuthorizationError,
     ForbiddenError,
     LightdashPage,
-    NotificationPayloadBase,
     SessionUser,
+    snakeCaseName,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
+import { nanoid as useNanoid } from 'nanoid';
 import fetch from 'node-fetch';
 import puppeteer from 'puppeteer';
 import { S3Service } from '../../clients/Aws/s3';
@@ -393,25 +394,14 @@ export class UnfurlService {
     async exportDashboard(
         dashboardUuid: string,
         user: SessionUser,
-    ): Promise<NotificationPayloadBase['page']> {
+    ): Promise<string> {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
-        const {
-            url,
-            minimalUrl,
-            pageType,
-            details,
-            organizationUuid,
-            projectUuid,
-        } = {
-            url: `${this.lightdashConfig.siteUrl}/projects/${dashboard.projectUuid}/dashboards/${dashboardUuid}/view`,
-            minimalUrl: `${this.lightdashConfig.siteUrl}/minimal/projects/${dashboard.projectUuid}/dashboards/${dashboardUuid}`,
-            details: {
-                name: dashboard.name,
-                description: dashboard.description,
-            },
-            pageType: LightdashPage.DASHBOARD,
+        const { organizationUuid, projectUuid, name, minimalUrl, pageType } = {
             organizationUuid: dashboard.organizationUuid,
             projectUuid: dashboard.projectUuid,
+            name: dashboard.name,
+            minimalUrl: `${this.lightdashConfig.siteUrl}/minimal/projects/${dashboard.projectUuid}/dashboards/${dashboardUuid}`,
+            pageType: LightdashPage.DASHBOARD,
         };
         if (
             user.ability.cannot(
@@ -424,19 +414,13 @@ export class UnfurlService {
         const imageUrl = await this.unfurlImage(
             minimalUrl,
             pageType,
-            `${details.name.toLowerCase().replace(' ', '-')}`,
+            `${snakeCaseName(name)}_${useNanoid()}`,
             user.userUuid,
             3, // up to 3 retries
         );
         if (imageUrl === undefined) {
             throw new Error('Unable to unfurl image');
         }
-        return {
-            url,
-            pageType,
-            details,
-            organizationUuid,
-            imageUrl,
-        };
+        return imageUrl;
     }
 }
