@@ -1,4 +1,3 @@
-import { LightdashMode } from '@lightdash/common';
 import React, { ComponentProps, FC, useEffect } from 'react';
 import { Redirect, Route } from 'react-router-dom';
 import { useEmailStatus } from '../hooks/useEmailVerification';
@@ -48,7 +47,6 @@ const PrivateRoute: FC<ComponentProps<typeof Route>> = ({
                 }
 
                 if (
-                    health.data?.mode !== LightdashMode.PR &&
                     !emailStatus.data?.isVerified &&
                     isEmailServerConfigured &&
                     !data?.isSetupComplete

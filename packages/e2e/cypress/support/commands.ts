@@ -41,6 +41,7 @@ declare global {
             registerNewUser(): Chainable<Element>;
             invite(email, role): Chainable<string>;
             registerWithCode(email, inviteCode): Chainable<Element>;
+            verifyEmail(): Chainable<Element>;
             addProjectPermission(email, role, projectUuid): Chainable<Element>;
             loginWithPermissions(
                 orgRole,
@@ -131,6 +132,18 @@ Cypress.Commands.add(
     },
 );
 
+Cypress.Commands.add('verifyEmail', () => {
+    cy.request({
+        url: `api/v1/user/me/email/status?passcode=000000`,
+        headers: { 'Content-type': 'application/json' },
+        method: 'GET',
+        body: undefined,
+    }).then((resp) => {
+        cy.log(JSON.stringify(resp.body));
+        expect(resp.status).to.eq(200);
+    });
+});
+
 Cypress.Commands.add('invite', (email: string, role: string) => {
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // in 1 day
 
@@ -195,7 +208,7 @@ Cypress.Commands.add(
             });
 
             cy.registerWithCode(email, inviteCode);
-
+            cy.verifyEmail();
             cy.wrap(email);
         });
     },
