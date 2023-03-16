@@ -131,68 +131,74 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                         isResourceViewItemDashboard(item);
 
                     return (
-                        <Tooltip
-                            withArrow
-                            disabled={
-                                canBelongToSpace ? !item.data.description : true
-                            }
-                            label={
-                                canBelongToSpace
-                                    ? item.data.description
-                                    : undefined
-                            }
-                            position="top-start"
-                        >
-                            <Anchor
-                                component={Link}
-                                sx={{
+                        <Anchor
+                            component={Link}
+                            sx={{
+                                color: 'unset',
+                                ':hover': {
                                     color: 'unset',
-                                    ':hover': {
-                                        color: 'unset',
-                                        textDecoration: 'none',
-                                    },
-                                }}
-                                to={getResourceUrl(projectUuid, item)}
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                <Group noWrap>
-                                    <ResourceIcon item={item} />
+                                    textDecoration: 'none',
+                                },
+                            }}
+                            to={getResourceUrl(projectUuid, item)}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <Group noWrap>
+                                <ResourceIcon item={item} />
 
-                                    <Stack spacing={2}>
+                                <Stack spacing={2}>
+                                    <Tooltip
+                                        withArrow
+                                        disabled={
+                                            canBelongToSpace
+                                                ? !item.data.description
+                                                : true
+                                        }
+                                        label={
+                                            canBelongToSpace
+                                                ? item.data.description
+                                                : undefined
+                                        }
+                                        position="top-start"
+                                    >
                                         <Text fw={600} lineClamp={1}>
                                             {item.data.name}
                                         </Text>
+                                    </Tooltip>
 
-                                        {canBelongToSpace && (
-                                            <Text fz={12} color="gray.6">
-                                                {getResourceTypeName(item)} •{' '}
-                                                <Tooltip
-                                                    withArrow
-                                                    position="top"
-                                                    disabled={
-                                                        !item.data.views ||
-                                                        !item.data.firstViewedAt
-                                                    }
-                                                    label={
-                                                        item.data.firstViewedAt
-                                                            ? `Views since ${moment(
-                                                                  item.data
-                                                                      .firstViewedAt,
-                                                              ).format(
-                                                                  'YYYY-MM-DD HH:mm:ss',
-                                                              )}`
-                                                            : undefined
-                                                    }
-                                                >
+                                    {canBelongToSpace && (
+                                        <Text fz={12} color="gray.6">
+                                            {getResourceTypeName(item)} •{' '}
+                                            <Tooltip
+                                                withArrow
+                                                position="top-start"
+                                                disabled={
+                                                    !item.data.views ||
+                                                    !item.data.firstViewedAt
+                                                }
+                                                label={
+                                                    item.data.firstViewedAt
+                                                        ? `${
+                                                              item.data.views
+                                                          } views since ${moment(
+                                                              item.data
+                                                                  .firstViewedAt,
+                                                          ).format(
+                                                              'MMM D, YYYY h:mm A',
+                                                          )}`
+                                                        : undefined
+                                                }
+                                            >
+                                                <span>
                                                     {item.data.views || '0'}{' '}
                                                     views
-                                                </Tooltip>
-                                            </Text>
-                                        )}
-                                    </Stack>
-                                </Group>
-                            </Anchor>
-                        </Tooltip>
+                                                </span>
+                                            </Tooltip>
+                                        </Text>
+                                    )}
+                                </Stack>
+                            </Group>
+                        </Anchor>
                     );
                 },
                 enableSorting,
