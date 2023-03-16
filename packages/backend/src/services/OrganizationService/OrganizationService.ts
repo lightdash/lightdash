@@ -349,7 +349,8 @@ export class OrganizationService {
     ): Promise<void> {
         if (
             !lightdashConfig.allowMultiOrgs &&
-            (await this.userModel.hasUsers())
+            (await this.userModel.hasUsers()) &&
+            (await this.organizationModel.hasOrgs())
         ) {
             throw new ForbiddenError(
                 'Cannot register user in a new organization. Ask an existing admin for an invite link.',
