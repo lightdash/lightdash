@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import database from '../database';
+import { AnalyticsChartViewsTableName } from './analytics';
 import {
     DbPinnedList,
     PinnedChartTableName,
@@ -152,6 +153,7 @@ export const getSpaceWithQueries = async (
                 chart_config: ChartConfig['config'];
                 chart_type: ChartType;
                 views: string;
+                first_viewed_at: string | null;
             }[]
         >([
             `saved_queries.saved_query_uuid`,
@@ -166,7 +168,10 @@ export const getSpaceWithQueries = async (
             `${PinnedListTableName}.pinned_list_uuid`,
 
             database.raw(
-                `(SELECT COUNT('analytics_chart_views.chart_uuid') FROM analytics_chart_views WHERE saved_queries.saved_query_uuid = analytics_chart_views.chart_uuid) as views`,
+                `(SELECT COUNT('${AnalyticsChartViewsTableName}.chart_uuid') FROM ${AnalyticsChartViewsTableName} WHERE saved_queries.saved_query_uuid = ${AnalyticsChartViewsTableName}.chart_uuid) as views`,
+            ),
+            database.raw(
+                `(SELECT ${AnalyticsChartViewsTableName}.timestamp FROM ${AnalyticsChartViewsTableName} WHERE saved_queries.saved_query_uuid = ${AnalyticsChartViewsTableName}.chart_uuid ORDER BY ${AnalyticsChartViewsTableName}.timestamp ASC LIMIT 1) as first_viewed_at`,
             ),
         ])
         .orderBy([
@@ -204,6 +209,9 @@ export const getSpaceWithQueries = async (
                 savedQuery.chart_config,
             ),
             views: parseInt(savedQuery.views, 10) || 0,
+            firstViewedAt: savedQuery.first_viewed_at
+                ? new Date(savedQuery.first_viewed_at).toJSON()
+                : null,
         })),
         projectUuid,
         dashboards: [],

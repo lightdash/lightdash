@@ -13,6 +13,7 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { getProjectRoleOrInheritedFromOrganization } from '../controllers/authenticationRoles';
+import { AnalyticsChartViewsTableName } from '../database/entities/analytics';
 import {
     DashboardsTableName,
     DashboardVersionsTableName,
@@ -304,6 +305,7 @@ export class SpaceModel {
                     first_name: string;
                     last_name: string;
                     views: string;
+                    first_viewed_at: string | null;
                     chart_config: ChartConfig['config'];
                     chart_type: ChartType;
                     pinned_list_uuid: string;
@@ -317,7 +319,10 @@ export class SpaceModel {
                 `users.first_name`,
                 `users.last_name`,
                 this.database.raw(
-                    `(SELECT COUNT('analytics_chart_views.chart_uuid') FROM analytics_chart_views WHERE analytics_chart_views.chart_uuid = saved_queries.saved_query_uuid) as views`,
+                    `(SELECT COUNT('${AnalyticsChartViewsTableName}.chart_uuid') FROM ${AnalyticsChartViewsTableName} WHERE ${AnalyticsChartViewsTableName}.chart_uuid = saved_queries.saved_query_uuid) as views`,
+                ),
+                this.database.raw(
+                    `(SELECT ${AnalyticsChartViewsTableName}.timestamp FROM ${AnalyticsChartViewsTableName} WHERE ${AnalyticsChartViewsTableName}.chart_uuid = saved_queries.saved_query_uuid ORDER BY ${AnalyticsChartViewsTableName}.timestamp ASC LIMIT 1) as first_viewed_at`,
                 ),
                 `saved_queries_versions.chart_config`,
                 `saved_queries_versions.chart_type`,
@@ -347,6 +352,9 @@ export class SpaceModel {
             },
             spaceUuid,
             views: parseInt(savedQuery.views, 10),
+            firstViewedAt: savedQuery.first_viewed_at
+                ? new Date(savedQuery.first_viewed_at).toJSON()
+                : null,
             chartType: getChartType(
                 savedQuery.chart_type,
                 savedQuery.chart_config,

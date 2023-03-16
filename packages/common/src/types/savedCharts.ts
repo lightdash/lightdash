@@ -213,6 +213,7 @@ export type SavedChart = {
     spaceUuid: string;
     spaceName: string;
     views: number;
+    firstViewedAt: string | null;
     pinnedListUuid: string | null;
 };
 
@@ -226,6 +227,7 @@ export type CreateSavedChart = Omit<
     | 'spaceName'
     | 'pinnedListUuid'
     | 'views'
+    | 'firstViewedAt'
 > & { spaceUuid?: string };
 
 export type CreateSavedChartVersion = Omit<
@@ -239,6 +241,7 @@ export type CreateSavedChartVersion = Omit<
     | 'spaceName'
     | 'pinnedListUuid'
     | 'views'
+    | 'firstViewedAt'
 >;
 
 export type UpdateSavedChart = Partial<
@@ -259,6 +262,7 @@ export type SpaceQuery = Pick<
     | 'description'
     | 'spaceUuid'
     | 'views'
+    | 'firstViewedAt'
     | 'pinnedListUuid'
 > & { chartType: ChartKind | undefined };
 
