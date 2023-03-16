@@ -1,3 +1,10 @@
+# [0.466.0](https://github.com/lightdash/lightdash/compare/0.465.2...0.466.0) (2023-03-16)
+
+
+### Features
+
+* Add common email domains validation on organization sharing ([#4801](https://github.com/lightdash/lightdash/issues/4801)) ([d3195bb](https://github.com/lightdash/lightdash/commit/d3195bbee27a6014932cbbcd8c13378802d8d45b))
+
 ## [0.465.2](https://github.com/lightdash/lightdash/compare/0.465.1...0.465.2) (2023-03-16)
 
 
