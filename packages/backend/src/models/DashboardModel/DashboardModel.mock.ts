@@ -175,7 +175,7 @@ export const dashboardWithVersionEntry: GetDashboardQuery = {
     last_name: 'lastName',
     pinned_list_uuid: 'pinnedUuid',
     views: '1',
-    first_viewed_at: '2023-03-15 19:18:50.386388',
+    first_viewed_at: '1970-01-01T00:00:00.001Z',
 };
 
 export const dashboardTileEntry: DashboardTileTable['base'] = {
