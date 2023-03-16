@@ -19,8 +19,7 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import { stringify } from 'csv-stringify';
-import * as fsSync from 'fs';
-import * as fs from 'fs/promises';
+import * as fs from 'fs';
 
 import moment from 'moment';
 import { nanoid } from 'nanoid';
@@ -135,7 +134,7 @@ export class CsvService {
         );
 
         const fileId = `csv-${nanoid()}.csv`;
-        const writeStream = fsSync.createWriteStream(`/tmp/${fileId}`);
+        const writeStream = fs.createWriteStream(`/tmp/${fileId}`);
 
         const sortedFieldIds = Object.keys(rows[0])
             .filter((id) => selectedFieldIds.includes(id))
@@ -263,7 +262,7 @@ export class CsvService {
         );
 
         try {
-            const csvContent = fsSync.createReadStream(`/tmp/${fileId}`);
+            const csvContent = fs.createReadStream(`/tmp/${fileId}`);
             const s3Url = await this.s3Service.uploadCsv(csvContent, fileId);
             return { filename: `${chart.name}`, path: s3Url };
         } catch (e) {
