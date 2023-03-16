@@ -1,3 +1,10 @@
+## [0.465.2](https://github.com/lightdash/lightdash/compare/0.465.1...0.465.2) (2023-03-16)
+
+
+### Bug Fixes
+
+* **frontend:** disable add button for viewer on space page ([#4816](https://github.com/lightdash/lightdash/issues/4816)) ([8a230f9](https://github.com/lightdash/lightdash/commit/8a230f99d9f13aa735d50817c1d10b95c2bd3738))
+
 ## [0.465.1](https://github.com/lightdash/lightdash/compare/0.465.0...0.465.1) (2023-03-15)
 
 
