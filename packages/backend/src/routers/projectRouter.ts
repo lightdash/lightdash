@@ -226,29 +226,6 @@ projectRouter.post(
     },
 );
 
-const formatMemoryUsage = (data: any) =>
-    `${Math.round((data / 1024 / 1024) * 100) / 100} MB`;
-
-const logMemoryUsage = () => {
-    const memoryData = process.memoryUsage();
-
-    const memoryUsage = {
-        rss: `${formatMemoryUsage(
-            memoryData.rss,
-        )} -> Resident Set Size - total memory allocated for the process execution`,
-        heapTotal: `${formatMemoryUsage(
-            memoryData.heapTotal,
-        )} -> total size of the allocated heap`,
-        heapUsed: `${formatMemoryUsage(
-            memoryData.heapUsed,
-        )} -> actual memory used during the execution`,
-        external: `${formatMemoryUsage(
-            memoryData.external,
-        )} -> V8 external memory`,
-    };
-    Logger.debug(memoryUsage);
-};
-
 projectRouter.post(
     '/explores/:exploreId/downloadCsv',
     allowApiKeyAuthentication,
@@ -272,13 +249,6 @@ projectRouter.post(
                 tableCalculations: body.tableCalculations,
                 additionalMetrics: body.additionalMetrics,
             };
-            const initialHeap = process.memoryUsage().heapUsed;
-            logMemoryUsage();
-            const startTime = Date.now();
-            console.debug(
-                'downloadCsv initial memory before runquery: ',
-                formatMemoryUsage(initialHeap),
-            );
 
             const rows = await projectService.runQuery(
                 req.user!,
@@ -286,10 +256,6 @@ projectRouter.post(
                 req.params.projectUuid,
                 req.params.exploreId,
                 csvLimit,
-            );
-            console.debug(
-                'downloadCsv after runquery: ',
-                formatMemoryUsage(process.memoryUsage().heapUsed - initialHeap),
             );
 
             const explore = await projectService.getExplore(
@@ -303,16 +269,6 @@ projectRouter.post(
                 metricQuery.tableCalculations,
             );
 
-            console.debug(
-                'downloadCsv before convertapiresults: ',
-                formatMemoryUsage(process.memoryUsage().heapUsed - initialHeap),
-            );
-
-            console.debug(
-                'results Size ',
-                rows.length,
-                formatMemoryUsage(Buffer.from(JSON.stringify(rows)).byteLength),
-            );
             const fileId = await CsvService.convertRowsToCsv(
                 rows,
                 onlyRaw,
@@ -322,11 +278,6 @@ projectRouter.post(
                 customLabels,
                 columnOrder || [],
             );
-            console.debug(
-                'downloadCsv after convertapiresults: ',
-                formatMemoryUsage(process.memoryUsage().heapUsed - initialHeap),
-            );
-            console.debug('downloadCsv took ', Date.now() - startTime, 'ms');
 
             let fileUrl;
             try {
@@ -335,12 +286,6 @@ projectRouter.post(
             } catch (e) {
                 fileUrl = `${lightdashConfig.siteUrl}/api/v1/projects/${req.params.projectUuid}/csv/${fileId}`;
             }
-            console.debug(
-                'downloadCsv after saving file: ',
-                formatMemoryUsage(process.memoryUsage().heapUsed - initialHeap),
-            );
-
-            logMemoryUsage();
 
             res.json({
                 status: 'ok',
