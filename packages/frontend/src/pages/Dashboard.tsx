@@ -403,6 +403,7 @@ const Dashboard = () => {
                 dashboardSpaceName={dashboard.spaceName}
                 dashboardSpaceUuid={dashboard.spaceUuid}
                 dashboardViews={dashboard.views}
+                dashboardFirstViewedAt={dashboard.firstViewedAt}
                 isEditMode={isEditMode}
                 isSaving={isSaving}
                 hasDashboardChanged={

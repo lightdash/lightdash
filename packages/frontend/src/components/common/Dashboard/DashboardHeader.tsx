@@ -34,6 +34,7 @@ type DashboardHeaderProps = {
     dashboardSpaceUuid?: string;
     dashboardUpdatedAt: Date;
     dashboardViews: number;
+    dashboardFirstViewedAt: string | null;
     dashboardUpdatedByUser?: UpdatedByUser;
     hasDashboardChanged: boolean;
     isEditMode: boolean;
@@ -54,6 +55,7 @@ const DashboardHeader = ({
     dashboardSpaceName,
     dashboardSpaceUuid,
     dashboardViews,
+    dashboardFirstViewedAt,
     dashboardUpdatedAt,
     dashboardUpdatedByUser,
     hasDashboardChanged,
@@ -139,7 +141,10 @@ const DashboardHeader = ({
 
                     <SeparatorDot icon="dot" size={6} />
 
-                    <ViewInfo views={dashboardViews} />
+                    <ViewInfo
+                        views={dashboardViews}
+                        firstViewedAt={dashboardFirstViewedAt}
+                    />
 
                     {dashboardSpaceName && (
                         <>
