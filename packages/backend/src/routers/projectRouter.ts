@@ -274,7 +274,8 @@ projectRouter.post(
             };
             const initialHeap = process.memoryUsage().heapUsed;
             logMemoryUsage();
-            Logger.debug(
+            const startTime = Date.now();
+            console.debug(
                 'downloadCsv initial memory before runquery: ',
                 formatMemoryUsage(initialHeap),
             );
@@ -286,7 +287,7 @@ projectRouter.post(
                 req.params.exploreId,
                 csvLimit,
             );
-            Logger.debug(
+            console.debug(
                 'downloadCsv after runquery: ',
                 formatMemoryUsage(process.memoryUsage().heapUsed - initialHeap),
             );
@@ -302,12 +303,12 @@ projectRouter.post(
                 metricQuery.tableCalculations,
             );
 
-            Logger.debug(
+            console.debug(
                 'downloadCsv before convertapiresults: ',
                 formatMemoryUsage(process.memoryUsage().heapUsed - initialHeap),
             );
 
-            Logger.debug(
+            console.debug(
                 'results Size ',
                 rows.length,
                 formatMemoryUsage(Buffer.from(JSON.stringify(rows)).byteLength),
@@ -321,10 +322,11 @@ projectRouter.post(
                 customLabels,
                 columnOrder || [],
             );
-            Logger.debug(
+            console.debug(
                 'downloadCsv after convertapiresults: ',
                 formatMemoryUsage(process.memoryUsage().heapUsed - initialHeap),
             );
+            console.debug('downloadCsv took ', Date.now() - startTime, 'ms');
 
             let fileUrl;
             try {
@@ -333,7 +335,7 @@ projectRouter.post(
             } catch (e) {
                 fileUrl = `${lightdashConfig.siteUrl}/api/v1/projects/${req.params.projectUuid}/csv/${fileId}`;
             }
-            Logger.debug(
+            console.debug(
                 'downloadCsv after saving file: ',
                 formatMemoryUsage(process.memoryUsage().heapUsed - initialHeap),
             );
