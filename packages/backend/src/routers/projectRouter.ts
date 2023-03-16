@@ -13,8 +13,8 @@ import {
     TablesConfiguration,
 } from '@lightdash/common';
 import express from 'express';
-import * as fsSync from 'fs';
-import * as fs from 'fs/promises';
+import * as fs from 'fs';
+import * as fsPromise from 'fs/promises';
 
 import { nanoid } from 'nanoid';
 import path from 'path';
@@ -281,7 +281,7 @@ projectRouter.post(
 
             let fileUrl;
             try {
-                const csvContent = fsSync.createReadStream(`/tmp/${fileId}`);
+                const csvContent = fs.createReadStream(`/tmp/${fileId}`);
                 fileUrl = await s3Service.uploadCsv(csvContent, fileId);
             } catch (e) {
                 fileUrl = `${lightdashConfig.siteUrl}/api/v1/projects/${req.params.projectUuid}/csv/${fileId}`;
@@ -692,7 +692,11 @@ projectRouter.post(
                 fileUrl = await s3Service.uploadCsv(csvContent, fileId);
             } catch (e) {
                 // Can't store file in S3, storing locally
-                await fs.writeFile(`/tmp/${fileId}`, csvContent, 'utf-8');
+                await fsPromise.writeFile(
+                    `/tmp/${fileId}`,
+                    csvContent,
+                    'utf-8',
+                );
                 fileUrl = `${lightdashConfig.siteUrl}/api/v1/projects/${req.params.projectUuid}/csv/${fileId}`;
             }
 

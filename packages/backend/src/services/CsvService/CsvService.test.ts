@@ -1,6 +1,4 @@
-import { LightdashInstallType, LightdashMode } from '@lightdash/common';
 import * as fs from 'fs';
-import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
 import { dashboardModel, savedChartModel } from '../../models/models';
 import { projectService, s3Service } from '../services';
 import { CsvService } from './CsvService';
@@ -34,7 +32,6 @@ describe('Csv service', () => {
             {},
             [],
         );
-        expect(fileId).not.toBeNull();
 
         const csvContent = fs.readFileSync(`/tmp/${fileId}`, 'utf-8');
 
@@ -59,7 +56,6 @@ $4.00,value_4,2020-03-16
             {},
             [],
         );
-        expect(fileId).not.toBeNull();
 
         const csvContent = fs.readFileSync(`/tmp/${fileId}`, 'utf-8');
 
