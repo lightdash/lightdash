@@ -28,6 +28,6 @@ jobs:
     - name: Build warehouses
       run: yarn warehouses-build
 
-    - name: Test backend
-      run: yarn test
+    - name: Run unit tests
+      run: yarn backend-build && yarn test
 
