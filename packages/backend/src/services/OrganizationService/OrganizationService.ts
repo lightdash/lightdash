@@ -12,8 +12,10 @@ import {
     OrganizationMemberProfileUpdate,
     OrganizationMemberRole,
     OrganizationProject,
+    ParameterError,
     SessionUser,
     UpdateOrganization,
+    validateOrganizationEmailDomains,
 } from '@lightdash/common';
 import { UpdateAllowedEmailDomains } from '@lightdash/common/src/types/organization';
 import { analytics } from '../../analytics/client';
@@ -323,6 +325,12 @@ export class OrganizationService {
             )
         ) {
             throw new ForbiddenError();
+        }
+
+        const error = validateOrganizationEmailDomains(data.emailDomains);
+
+        if (error) {
+            throw new ParameterError(error);
         }
 
         const allowedEmailDomains =

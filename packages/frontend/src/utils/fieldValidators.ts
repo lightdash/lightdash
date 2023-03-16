@@ -1,4 +1,8 @@
-import { validateEmail, validateGithubToken } from '@lightdash/common';
+import {
+    validateEmail,
+    validateGithubToken,
+    validateOrganizationEmailDomains,
+} from '@lightdash/common';
 
 type FieldValidator<T> = (
     fieldName: string,
@@ -36,14 +40,24 @@ export const isValidEmail: FieldValidator<string> = (fieldName) => (value) =>
 
 export const isValidEmailDomain: FieldValidator<string[]> =
     (fieldName) => (value) => {
-        if (value) {
-            const hasInvalidValue = value.some((item: string) =>
-                item.match(/@/),
-            );
-            return hasInvalidValue
-                ? `${fieldName} should not contain @, eg: (gmail.com)`
-                : undefined;
+        if (!Array.isArray(value) || !value?.length) {
+            return undefined;
         }
+
+        const hasInvalidValue = value.some((item: string) => item.match(/@/));
+
+        if (hasInvalidValue) {
+            return `${fieldName} should not contain @, eg: (gmail.com)`;
+        }
+    };
+
+export const isValidOrganizationDomain: FieldValidator<string[]> =
+    (_) => (value) => {
+        if (!Array.isArray(value) || !value?.length) {
+            return undefined;
+        }
+
+        return validateOrganizationEmailDomains(value);
     };
 
 export const isOnlyNumbers: FieldValidator<string> = (fieldName) => (value) =>

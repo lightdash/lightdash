@@ -26,6 +26,7 @@ import {
     SessionUser,
     UpdateUserArgs,
     UserAllowedOrganization,
+    validateOrganizationEmailDomains,
 } from '@lightdash/common';
 import { randomInt } from 'crypto';
 import { nanoid } from 'nanoid';
@@ -421,10 +422,16 @@ export class UserService {
                 },
             });
             if (enableEmailDomainAccess && user.email) {
+                const emailDomain = getEmailDomain(user.email);
+
+                const error = validateOrganizationEmailDomains([emailDomain]);
+                if (error) {
+                    throw new ParameterError(error);
+                }
                 await this.organizationAllowedEmailDomainsModel.upsertAllowedEmailDomains(
                     {
                         organizationUuid: user.organizationUuid,
-                        emailDomains: [getEmailDomain(user.email)],
+                        emailDomains: [emailDomain],
                         role: OrganizationMemberRole.VIEWER,
                         projectUuids: [],
                     },

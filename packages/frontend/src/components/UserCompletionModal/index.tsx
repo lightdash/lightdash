@@ -3,6 +3,7 @@ import {
     CompleteUserArgs,
     getEmailDomain,
     LightdashMode,
+    validateOrganizationEmailDomains,
 } from '@lightdash/common';
 import React, { FC } from 'react';
 import { useForm } from 'react-hook-form';
@@ -58,6 +59,10 @@ const UserCompletionModal: FC = () => {
     if (!user.data || user.data.isSetupComplete) {
         return null;
     }
+
+    const isValidOrganizationDomain = !validateOrganizationEmailDomains([
+        getEmailDomain(user.data?.email || ''),
+    ]);
     return (
         <Overlay
             isOpen={!isSuccess}
@@ -95,19 +100,20 @@ const UserCompletionModal: FC = () => {
                             required: 'Required field',
                         }}
                     />
-                    {user.data.organizationName === '' && (
-                        <Checkbox
-                            name="enableEmailDomainAccess"
-                            disabled={isLoading}
-                            defaultValue
-                            checkboxProps={{
-                                label: `Allow users with @${getEmailDomain(
-                                    user.data?.email || '',
-                                )} to join the organization as a viewer`,
-                                style: { color: Colors.GRAY1, margin: 0 },
-                            }}
-                        />
-                    )}
+                    {user.data.organizationName === '' &&
+                        isValidOrganizationDomain && (
+                            <Checkbox
+                                name="enableEmailDomainAccess"
+                                disabled={isLoading}
+                                defaultValue
+                                checkboxProps={{
+                                    label: `Allow users with @${getEmailDomain(
+                                        user.data?.email || '',
+                                    )} to join the organization as a viewer`,
+                                    style: { color: Colors.GRAY1, margin: 0 },
+                                }}
+                            />
+                        )}
                     <Checkbox
                         name="isMarketingOptedIn"
                         disabled={isLoading}
