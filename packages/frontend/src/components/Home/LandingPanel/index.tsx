@@ -1,11 +1,7 @@
+import { Group, Stack, Text, Title } from '@mantine/core';
+import { IconTable } from '@tabler/icons-react';
 import { FC } from 'react';
-import {
-    Intro,
-    LandingHeaderWrapper,
-    StyledLinkButton,
-    Title,
-    WelcomeText,
-} from './LandingPanel.styles';
+import PrimaryLinkButton from '../../common/PrimaryLinkButton';
 
 interface Props {
     userName: string | undefined;
@@ -14,28 +10,24 @@ interface Props {
 
 const LandingPanel: FC<Props> = ({ userName, projectUuid }) => {
     return (
-        <LandingHeaderWrapper>
-            <WelcomeText>
-                <Title>
+        <Group position="apart" my="xl" pt="xl">
+            <Stack justify="flex-start" spacing="xs">
+                <Title order={3}>
                     {`Welcome${userName ? ', ' + userName : ' to Lightdash'}!`}{' '}
                     ⚡️
                 </Title>
-
-                <Intro>
+                <Text color="gray.7">
                     Run a query to ask a business question or browse your data
                     below:
-                </Intro>
-            </WelcomeText>
-
-            <StyledLinkButton
-                large
+                </Text>
+            </Stack>
+            <PrimaryLinkButton
                 href={`/projects/${projectUuid}/tables`}
-                intent="primary"
-                icon="series-search"
+                leftIcon={<IconTable size={18} />}
             >
                 Run a query
-            </StyledLinkButton>
-        </LandingHeaderWrapper>
+            </PrimaryLinkButton>
+        </Group>
     );
 };
 
