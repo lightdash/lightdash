@@ -9,6 +9,7 @@ import {
     PageBreadcrumbsWrapper,
     PageHeader,
 } from '../components/common/Page/Page.styles';
+import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import SpaceBrowser from '../components/Explorer/SpaceBrowser';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useApp } from '../providers/AppProvider';
@@ -29,6 +30,13 @@ const Spaces: FC = () => {
     ) {
         return <ForbiddenPanel />;
     }
+    // test purposes only! will remove before merging
+    const breadCrumbsItems = [
+        {
+            title: 'Home',
+            href: '#home',
+        },
+    ];
 
     return (
         <Page>
@@ -39,6 +47,10 @@ const Spaces: FC = () => {
             <Stack spacing="xl" w={900}>
                 <PageHeader>
                     <PageBreadcrumbsWrapper>
+                        {/*test purposes only! will remove before merging*/}
+                        <PageBreadcrumbs items={breadCrumbsItems}>
+                            All spaces
+                        </PageBreadcrumbs>
                         <Breadcrumbs2
                             items={[
                                 {
