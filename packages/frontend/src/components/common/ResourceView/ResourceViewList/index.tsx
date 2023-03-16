@@ -13,7 +13,11 @@ import {
     isResourceViewSpaceItem,
     ResourceViewItem,
 } from '../resourceTypeUtils';
-import { getResourceTypeName, getResourceUrl } from '../resourceUtils';
+import {
+    getResourceTypeName,
+    getResourceUrl,
+    getResourceViewsSinceWhenDescription,
+} from '../resourceUtils';
 import { ResourceViewItemActionState } from './../ResourceActionHandlers';
 import ResourceActionMenu from './../ResourceActionMenu';
 import ResourceLastEdited from './../ResourceLastEdited';
@@ -176,18 +180,9 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                                     !item.data.views ||
                                                     !item.data.firstViewedAt
                                                 }
-                                                label={
-                                                    item.data.firstViewedAt
-                                                        ? `${
-                                                              item.data.views
-                                                          } views since ${moment(
-                                                              item.data
-                                                                  .firstViewedAt,
-                                                          ).format(
-                                                              'MMM D, YYYY h:mm A',
-                                                          )}`
-                                                        : undefined
-                                                }
+                                                label={getResourceViewsSinceWhenDescription(
+                                                    item,
+                                                )}
                                             >
                                                 <span>
                                                     {item.data.views || '0'}{' '}
