@@ -1,8 +1,8 @@
-import * as fs from 'fs';
+import * as fs from 'fs/promises';
 import { dashboardModel, savedChartModel } from '../../models/models';
 import { projectService, s3Service } from '../services';
 import { CsvService } from './CsvService';
-import { itemMap, metricQuery, rows } from './CsvService.mock';
+import { itemMap, metricQuery } from './CsvService.mock';
 
 jest.mock('../../models/models', () => ({
     savedChartModel: {},
@@ -23,8 +23,13 @@ describe('Csv service', () => {
     });
 
     it('Should convert rows to CSV with format', async () => {
+        const rows = [...Array(5).keys()].map((i) => ({
+            column_number: i,
+            column_string: `value_${i}`,
+            column_date: '2020-03-16T11:32:55.000Z',
+        }));
         const fileId = await CsvService.convertRowsToCsv(
-            [...rows],
+            rows,
             false,
             metricQuery,
             itemMap,
@@ -33,7 +38,9 @@ describe('Csv service', () => {
             [],
         );
 
-        const csvContent = fs.readFileSync(`/tmp/${fileId}`, 'utf-8');
+        const csvContent = await fs.readFile(`/tmp/${fileId}`, {
+            encoding: 'utf-8',
+        });
 
         expect(csvContent).toEqual(
             `column number,column string,column date
@@ -47,8 +54,13 @@ $4.00,value_4,2020-03-16
     });
 
     it('Should convert rows to RAW CSV with table names', async () => {
+        const rows = [...Array(5).keys()].map((i) => ({
+            column_number: i,
+            column_string: `value_${i}`,
+            column_date: '2020-03-16T11:32:55.000Z',
+        }));
         const fileId = await CsvService.convertRowsToCsv(
-            [...rows],
+            rows,
             true,
             metricQuery,
             itemMap,
@@ -57,7 +69,9 @@ $4.00,value_4,2020-03-16
             [],
         );
 
-        const csvContent = fs.readFileSync(`/tmp/${fileId}`, 'utf-8');
+        const csvContent = await fs.readFile(`/tmp/${fileId}`, {
+            encoding: 'utf-8',
+        });
 
         expect(csvContent).toEqual(
             `table column number,column string,table column date

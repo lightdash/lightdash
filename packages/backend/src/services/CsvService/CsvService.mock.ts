@@ -7,12 +7,6 @@ import {
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
 
-export const rows = [...Array(5).keys()].map((i) => ({
-    column_number: i,
-    column_string: `value_${i}`,
-    column_date: '2020-03-16T11:32:55.000Z',
-}));
-
 export const metricQuery: MetricQuery = {
     dimensions: ['column_number', 'column_date'],
 
