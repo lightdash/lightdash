@@ -13,7 +13,10 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { getProjectRoleOrInheritedFromOrganization } from '../controllers/authenticationRoles';
-import { AnalyticsChartViewsTableName } from '../database/entities/analytics';
+import {
+    AnalyticsChartViewsTableName,
+    AnalyticsDashboardViewsTableName,
+} from '../database/entities/analytics';
 import {
     DashboardsTableName,
     DashboardVersionsTableName,
@@ -141,7 +144,12 @@ export class SpaceModel {
                 `${PinnedListTableName}.pinned_list_uuid`,
                 `${PinnedDashboardTableName}.pinned_list_uuid`,
             )
-            .select<(GetDashboardDetailsQuery & { views: string })[]>([
+            .select<
+                (GetDashboardDetailsQuery & {
+                    views: string;
+                    first_viewed_at: string | null;
+                })[]
+            >([
                 `${DashboardsTableName}.dashboard_uuid`,
                 `${DashboardsTableName}.name`,
                 `${DashboardsTableName}.description`,
@@ -153,7 +161,10 @@ export class SpaceModel {
                 `${OrganizationTableName}.organization_uuid`,
                 `${SpaceTableName}.space_uuid`,
                 this.database.raw(
-                    `(SELECT COUNT('analytics_dashboard_views.dashboard_uuid') FROM analytics_dashboard_views where analytics_dashboard_views.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid) as views`,
+                    `(SELECT COUNT('${AnalyticsDashboardViewsTableName}.dashboard_uuid') FROM ${AnalyticsDashboardViewsTableName} where ${AnalyticsDashboardViewsTableName}.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid) as views`,
+                ),
+                this.database.raw(
+                    `(SELECT ${AnalyticsDashboardViewsTableName}.timestamp FROM ${AnalyticsDashboardViewsTableName} where ${AnalyticsDashboardViewsTableName}.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid ORDER BY ${AnalyticsDashboardViewsTableName}.timestamp ASC LIMIT 1) as first_viewed_at`,
                 ),
                 `${PinnedListTableName}.pinned_list_uuid`,
             ])
@@ -181,6 +192,7 @@ export class SpaceModel {
                 last_name,
                 organization_uuid,
                 views,
+                first_viewed_at,
                 pinned_list_uuid,
             }) => ({
                 organizationUuid: organization_uuid,
@@ -196,6 +208,9 @@ export class SpaceModel {
                 },
                 spaceUuid,
                 views: parseInt(views, 10),
+                firstViewedAt: first_viewed_at
+                    ? new Date(first_viewed_at).toJSON()
+                    : null,
                 pinnedListUuid: pinned_list_uuid,
             }),
         );

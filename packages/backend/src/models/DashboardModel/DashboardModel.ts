@@ -15,6 +15,7 @@ import {
     UpdateMultipleDashboards,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { AnalyticsDashboardViewsTableName } from '../../database/entities/analytics';
 import {
     DashboardsTableName,
     DashboardTable,
@@ -58,6 +59,7 @@ export type GetDashboardQuery = Pick<
     Pick<OrganizationTable['base'], 'organization_uuid'> &
     Pick<PinnedListTable['base'], 'pinned_list_uuid'> & {
         views: string;
+        first_viewed_at: string | null;
     };
 
 export type GetDashboardDetailsQuery = Pick<
@@ -269,7 +271,10 @@ export class DashboardModel {
                         `${SpaceTableName}.space_uuid`,
                         `${PinnedListTableName}.pinned_list_uuid`,
                         this.database.raw(
-                            `(SELECT COUNT('analytics_dashboard_views.dashboard_uuid') FROM analytics_dashboard_views where analytics_dashboard_views.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid) as views`,
+                            `(SELECT COUNT('${AnalyticsDashboardViewsTableName}.dashboard_uuid') FROM ${AnalyticsDashboardViewsTableName} where ${AnalyticsDashboardViewsTableName}.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid) as views`,
+                        ),
+                        this.database.raw(
+                            `(SELECT ${AnalyticsDashboardViewsTableName}.timestamp FROM ${AnalyticsDashboardViewsTableName} where ${AnalyticsDashboardViewsTableName}.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid ORDER BY ${AnalyticsDashboardViewsTableName}.timestamp ASC LIMIT 1) as first_viewed_at`,
                         ),
                     ])
                     .orderBy([
@@ -325,6 +330,7 @@ export class DashboardModel {
                 space_uuid,
                 pinned_list_uuid,
                 views,
+                first_viewed_at,
             }) => ({
                 organizationUuid: organization_uuid,
                 name,
@@ -340,6 +346,9 @@ export class DashboardModel {
                 spaceUuid: space_uuid,
                 pinnedListUuid: pinned_list_uuid,
                 views: parseInt(views, 10) || 0,
+                firstViewedAt: first_viewed_at
+                    ? new Date(first_viewed_at).toJSON()
+                    : null,
             }),
         );
     }
@@ -402,7 +411,11 @@ export class DashboardModel {
                 `${SpaceTableName}.name as spaceName`,
                 `${PinnedListTableName}.pinned_list_uuid`,
                 this.database.raw(
-                    `(SELECT COUNT('analytics_dashboard_views.dashboard_uuid') FROM analytics_dashboard_views where analytics_dashboard_views.dashboard_uuid = ?) as views`,
+                    `(SELECT COUNT('${AnalyticsDashboardViewsTableName}.dashboard_uuid') FROM ${AnalyticsDashboardViewsTableName} where ${AnalyticsDashboardViewsTableName}.dashboard_uuid = ?) as views`,
+                    dashboardUuid,
+                ),
+                this.database.raw(
+                    `(SELECT ${AnalyticsDashboardViewsTableName}.timestamp FROM ${AnalyticsDashboardViewsTableName} where ${AnalyticsDashboardViewsTableName}.dashboard_uuid = ? ORDER BY ${AnalyticsDashboardViewsTableName}.timestamp ASC LIMIT 1) as first_viewed_at`,
                     dashboardUuid,
                 ),
             ])
@@ -434,6 +447,7 @@ export class DashboardModel {
                     hide_title: boolean | null;
                     title: string | null;
                     views: string;
+                    first_viewed_at: string | null;
                 }[]
             >(
                 `${DashboardTilesTableName}.x_offset`,
@@ -589,6 +603,9 @@ export class DashboardModel {
             spaceUuid: dashboard.space_uuid,
             spaceName: dashboard.spaceName,
             views: parseInt(dashboard.views, 10) || 0,
+            firstViewedAt: dashboard.first_viewed_at
+                ? new Date(dashboard.first_viewed_at).toJSON()
+                : null,
             updatedByUser: {
                 userUuid: dashboard.user_uuid,
                 firstName: dashboard.first_name,

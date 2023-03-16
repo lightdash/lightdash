@@ -90,6 +90,7 @@ export const dashboard: Dashboard = {
     spaceName: 'space name',
     pinnedListUuid: null,
     views: 1,
+    firstViewedAt: new Date(1).toJSON(),
 };
 
 export const dashboardsDetails: DashboardBasicDetails[] = [
@@ -103,6 +104,7 @@ export const dashboardsDetails: DashboardBasicDetails[] = [
         spaceUuid: 'spaceUuid',
         pinnedListUuid: null,
         views: 1,
+        firstViewedAt: new Date(1).toJSON(),
     },
 ];
 
