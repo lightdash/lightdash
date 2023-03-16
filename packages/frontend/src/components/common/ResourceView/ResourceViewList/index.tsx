@@ -1,6 +1,7 @@
 import { Anchor, Box, Group, Stack, Table, Text, Tooltip } from '@mantine/core';
 import { createStyles } from '@mantine/styles';
 import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
+import moment from 'moment';
 import React, { FC, useMemo, useState } from 'react';
 import { Link, useHistory, useParams } from 'react-router-dom';
 import { ResourceViewCommonProps } from '..';
@@ -165,7 +166,27 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                         {canBelongToSpace && (
                                             <Text fz={12} color="gray.6">
                                                 {getResourceTypeName(item)} •{' '}
-                                                {item.data.views || '0'} views
+                                                <Tooltip
+                                                    withArrow
+                                                    position="top"
+                                                    disabled={
+                                                        !item.data.views ||
+                                                        !item.data.firstViewedAt
+                                                    }
+                                                    label={
+                                                        item.data.firstViewedAt
+                                                            ? `Views since ${moment(
+                                                                  item.data
+                                                                      .firstViewedAt,
+                                                              ).format(
+                                                                  'YYYY-MM-DD HH:mm:ss',
+                                                              )}`
+                                                            : undefined
+                                                    }
+                                                >
+                                                    {item.data.views || '0'}{' '}
+                                                    views
+                                                </Tooltip>
                                             </Text>
                                         )}
                                     </Stack>
