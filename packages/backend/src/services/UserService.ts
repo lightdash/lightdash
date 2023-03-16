@@ -12,7 +12,6 @@ import {
     ForbiddenError,
     getEmailDomain,
     InviteLink,
-    isEmailProviderDomain,
     isOpenIdUser,
     isUserWithOrg,
     LightdashMode,
@@ -27,6 +26,7 @@ import {
     SessionUser,
     UpdateUserArgs,
     UserAllowedOrganization,
+    validateOrganizationEmailDomains,
 } from '@lightdash/common';
 import { randomInt } from 'crypto';
 import { nanoid } from 'nanoid';
@@ -424,12 +424,10 @@ export class UserService {
             if (enableEmailDomainAccess && user.email) {
                 const emailDomain = getEmailDomain(user.email);
 
-                if (isEmailProviderDomain(emailDomain)) {
-                    throw new ParameterError(
-                        `${emailDomain} is not valid to enable domain organization access`,
-                    );
+                const error = validateOrganizationEmailDomains([emailDomain]);
+                if (error) {
+                    throw new ParameterError(error);
                 }
-
                 await this.organizationAllowedEmailDomainsModel.upsertAllowedEmailDomains(
                     {
                         organizationUuid: user.organizationUuid,

@@ -2,8 +2,8 @@ import { Colors, Intent, Overlay } from '@blueprintjs/core';
 import {
     CompleteUserArgs,
     getEmailDomain,
-    isEmailProviderDomain,
     LightdashMode,
+    validateOrganizationEmailDomains,
 } from '@lightdash/common';
 import React, { FC } from 'react';
 import { useForm } from 'react-hook-form';
@@ -60,9 +60,9 @@ const UserCompletionModal: FC = () => {
         return null;
     }
 
-    const isValidOrganizationDomain = !isEmailProviderDomain(
+    const isValidOrganizationDomain = !validateOrganizationEmailDomains([
         getEmailDomain(user.data?.email || ''),
-    );
+    ]);
     return (
         <Overlay
             isOpen={!isSuccess}

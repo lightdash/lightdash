@@ -56,5 +56,24 @@ const EMAIL_PROVIDER_LIST = [
     'blueyonder.co.uk',
 ];
 
-export const isEmailProviderDomain = (domain: string): boolean =>
+const isEmailProviderDomain = (domain: string): boolean =>
     EMAIL_PROVIDER_LIST.includes(domain);
+
+export const validateOrganizationEmailDomains = (domains: string[]) => {
+    const invalidDomains = domains.filter((domain) =>
+        isEmailProviderDomain(domain),
+    );
+
+    if (!invalidDomains.length) {
+        return undefined;
+    }
+
+    const readableDomainList = new Intl.ListFormat('en-US', {
+        style: 'long',
+        type: 'conjunction',
+    }).format(invalidDomains);
+
+    return `${readableDomainList} ${
+        invalidDomains.length === 1 ? 'is' : 'are'
+    } not allowed as organization email`;
+};

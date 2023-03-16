@@ -1,7 +1,7 @@
 import {
-    isEmailProviderDomain,
     validateEmail,
     validateGithubToken,
+    validateOrganizationEmailDomains,
 } from '@lightdash/common';
 
 type FieldValidator<T> = (
@@ -57,22 +57,7 @@ export const isValidOrganizationDomain: FieldValidator<string[]> =
             return undefined;
         }
 
-        const invalidDomains = value.filter((domain) =>
-            isEmailProviderDomain(domain),
-        );
-
-        if (!!invalidDomains.length) {
-            const readableDomainList = new Intl.ListFormat('en-US', {
-                style: 'long',
-                type: 'conjunction',
-            }).format(invalidDomains);
-
-            return `
-                ${readableDomainList} ${
-                invalidDomains.length === 1 ? 'is' : 'are'
-            } not allowed as organization email
-            `;
-        }
+        return validateOrganizationEmailDomains(value);
     };
 
 export const isOnlyNumbers: FieldValidator<string> = (fieldName) => (value) =>
