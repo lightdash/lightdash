@@ -1,3 +1,10 @@
+# [0.467.0](https://github.com/lightdash/lightdash/compare/0.466.1...0.467.0) (2023-03-17)
+
+
+### Features
+
+* migrate onboarding panel to Mantine ([#4828](https://github.com/lightdash/lightdash/issues/4828)) ([9b872d0](https://github.com/lightdash/lightdash/commit/9b872d033a64b8385d2743a888a11a960cac24e3))
+
 ## [0.466.1](https://github.com/lightdash/lightdash/compare/0.466.0...0.466.1) (2023-03-17)
 
 
