@@ -52,28 +52,28 @@ const Home: FC = () => {
     return (
         <Page>
             <Stack spacing="xl" w={900}>
-                {/*{!onboarding.data.ranQuery ? (*/}
-                <OnboardingPanel
-                    projectUuid={project.data.projectUuid}
-                    userName={user.data?.firstName}
-                />
-                {/*// ) : (*/}
-                <>
-                    <LandingPanel
+                {!onboarding.data.ranQuery ? (
+                    <OnboardingPanel
+                        projectUuid={project.data.projectUuid}
                         userName={user.data?.firstName}
-                        projectUuid={project.data.projectUuid}
                     />
-                    <PinnedItemsPanel
-                        projectUuid={project.data.projectUuid}
-                        organizationUuid={project.data.organizationUuid}
-                    />
-                    <SpaceBrowser projectUuid={project.data.projectUuid} />
+                ) : (
+                    <>
+                        <LandingPanel
+                            userName={user.data?.firstName}
+                            projectUuid={project.data.projectUuid}
+                        />
+                        <PinnedItemsPanel
+                            projectUuid={project.data.projectUuid}
+                            organizationUuid={project.data.organizationUuid}
+                        />
+                        <SpaceBrowser projectUuid={project.data.projectUuid} />
 
-                    <RecentlyUpdatedPanel
-                        projectUuid={project.data.projectUuid}
-                    />
-                </>
-                {/*)}*/}
+                        <RecentlyUpdatedPanel
+                            projectUuid={project.data.projectUuid}
+                        />
+                    </>
+                )}
             </Stack>
         </Page>
     );
