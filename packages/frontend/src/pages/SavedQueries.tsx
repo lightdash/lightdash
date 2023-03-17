@@ -1,5 +1,4 @@
 import { Button } from '@blueprintjs/core';
-import { Breadcrumbs2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import { LightdashMode } from '@lightdash/common';
 import { Stack } from '@mantine/core';
@@ -8,10 +7,8 @@ import { FC } from 'react';
 import { Helmet } from 'react-helmet';
 import { useHistory, useParams } from 'react-router-dom';
 import Page from '../components/common/Page/Page';
-import {
-    PageBreadcrumbsWrapper,
-    PageHeader,
-} from '../components/common/Page/Page.styles';
+import { PageHeader } from '../components/common/Page/Page.styles';
+import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ResourceView from '../components/common/ResourceView';
 import {
     ResourceViewItemType,
@@ -56,23 +53,12 @@ const SavedQueries: FC = () => {
 
             <Stack spacing="xl" w={900}>
                 <PageHeader>
-                    <PageBreadcrumbsWrapper>
-                        <Breadcrumbs2
-                            items={[
-                                {
-                                    href: '/home',
-                                    text: 'Home',
-                                    className: 'home-breadcrumb',
-                                    onClick: (e) => {
-                                        history.push('/home');
-                                    },
-                                },
-                                {
-                                    text: 'All saved charts',
-                                },
-                            ]}
-                        />
-                    </PageBreadcrumbsWrapper>
+                    <PageBreadcrumbs
+                        items={[{ href: '/home', title: 'Home' }]}
+                        mt="xs"
+                    >
+                        All saved charts
+                    </PageBreadcrumbs>
 
                     {savedQueries.length > 0 &&
                     !isDemo &&
