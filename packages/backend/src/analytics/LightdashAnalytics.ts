@@ -547,6 +547,25 @@ export type SchedulerNotificationJobEvent = BaseTrack & {
     };
 };
 
+export type DownloadCsv = BaseTrack & {
+    event:
+        | 'download_results.started'
+        | 'download_results.completed'
+        | 'download_results.error';
+    anonymousId: string;
+    properties: {
+        jobId: string;
+        userId: string;
+        organizationId: string;
+        projectId: string;
+        tableId: string;
+        fileType: 'csv';
+        values: 'raw' | 'formatted';
+        limit: 'results' | 'all' | 'custom';
+        context: 'results' | 'chart' | 'scheduled delivery';
+    };
+};
+
 type Track =
     | TrackSimpleEvent
     | CreateUserEvent
