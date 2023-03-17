@@ -283,6 +283,8 @@ projectRouter.post(
             try {
                 const csvContent = fs.createReadStream(`/tmp/${fileId}`);
                 fileUrl = await s3Service.uploadCsv(csvContent, fileId);
+
+                await fsPromise.unlink(`/tmp/${fileId}`);
             } catch (e) {
                 fileUrl = `${lightdashConfig.siteUrl}/api/v1/projects/${req.params.projectUuid}/csv/${fileId}`;
             }
