@@ -13,7 +13,9 @@ import {
     TablesConfiguration,
 } from '@lightdash/common';
 import express from 'express';
-import * as fs from 'fs/promises';
+import * as fs from 'fs';
+import * as fsPromise from 'fs/promises';
+
 import { nanoid } from 'nanoid';
 import path from 'path';
 import { lightdashConfig } from '../config/lightdashConfig';
@@ -22,6 +24,7 @@ import {
     isAuthenticated,
     unauthorisedInDemo,
 } from '../controllers/authentication';
+import Logger from '../logger';
 import { CsvService } from '../services/CsvService/CsvService';
 import {
     dashboardService,
@@ -32,6 +35,8 @@ import {
     spaceService,
 } from '../services/services';
 import { wrapSentryTransaction } from '../utils';
+
+const { Readable } = require('stream');
 
 export const projectRouter = express.Router({ mergeParams: true });
 
@@ -203,13 +208,14 @@ projectRouter.post(
                 tableCalculations: body.tableCalculations,
                 additionalMetrics: body.additionalMetrics,
             };
-            const results: ApiQueryResults = await projectService.runQuery(
-                req.user!,
-                metricQuery,
-                req.params.projectUuid,
-                req.params.exploreId,
-                csvLimit,
-            );
+            const results: ApiQueryResults =
+                await projectService.runQueryAndFormatRows(
+                    req.user!,
+                    metricQuery,
+                    req.params.projectUuid,
+                    req.params.exploreId,
+                    csvLimit,
+                );
             res.json({
                 status: 'ok',
                 results,
@@ -243,7 +249,8 @@ projectRouter.post(
                 tableCalculations: body.tableCalculations,
                 additionalMetrics: body.additionalMetrics,
             };
-            const results: ApiQueryResults = await projectService.runQuery(
+
+            const rows = await projectService.runQuery(
                 req.user!,
                 metricQuery,
                 req.params.projectUuid,
@@ -261,28 +268,24 @@ projectRouter.post(
                 metricQuery.additionalMetrics,
                 metricQuery.tableCalculations,
             );
-            const csvContent = await wrapSentryTransaction<string>(
-                'convert API results to CSV',
-                {},
-                async () =>
-                    CsvService.convertApiResultsToCsv(
-                        results,
-                        onlyRaw,
-                        metricQuery,
-                        itemMap,
-                        showTableNames,
-                        customLabels,
-                        columnOrder || [],
-                    ),
-            );
 
-            const fileId = `csv-${nanoid()}.csv`;
+            const fileId = await CsvService.convertRowsToCsv(
+                rows,
+                onlyRaw,
+                metricQuery,
+                itemMap,
+                showTableNames,
+                customLabels,
+                columnOrder || [],
+            );
 
             let fileUrl;
             try {
+                const csvContent = fs.createReadStream(`/tmp/${fileId}`);
                 fileUrl = await s3Service.uploadCsv(csvContent, fileId);
+
+                await fsPromise.unlink(`/tmp/${fileId}`);
             } catch (e) {
-                await fs.writeFile(`/tmp/${fileId}`, csvContent, 'utf-8');
                 fileUrl = `${lightdashConfig.siteUrl}/api/v1/projects/${req.params.projectUuid}/csv/${fileId}`;
             }
 
@@ -691,7 +694,11 @@ projectRouter.post(
                 fileUrl = await s3Service.uploadCsv(csvContent, fileId);
             } catch (e) {
                 // Can't store file in S3, storing locally
-                await fs.writeFile(`/tmp/${fileId}`, csvContent, 'utf-8');
+                await fsPromise.writeFile(
+                    `/tmp/${fileId}`,
+                    csvContent,
+                    'utf-8',
+                );
                 fileUrl = `${lightdashConfig.siteUrl}/api/v1/projects/${req.params.projectUuid}/csv/${fileId}`;
             }
 

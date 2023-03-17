@@ -3,6 +3,8 @@ import {
     ApiSqlQueryResults,
     DimensionType,
     Field,
+    formatItemValue,
+    formatRows,
     friendlyName,
     getCustomLabelsFromTableConfig,
     getItemLabel,
@@ -17,7 +19,9 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import { stringify } from 'csv-stringify';
-import * as fs from 'fs/promises';
+import * as fs from 'fs';
+import * as fsPromise from 'fs/promises';
+
 import moment from 'moment';
 import { nanoid } from 'nanoid';
 import { Worker } from 'worker_threads';
@@ -59,70 +63,6 @@ export const convertSqlToCsv = (
             return Object.values(row)[fieldIndex];
         }),
     );
-
-    return new Promise((resolve, reject) => {
-        stringify(
-            [csvHeader, ...csvBody],
-            {
-                delimiter: ',',
-            },
-            (err, output) => {
-                if (err) {
-                    reject(new Error(err.message));
-                }
-                resolve(output);
-            },
-        );
-    });
-};
-
-export const convertApiToCsv = (
-    fieldIds: string[],
-    rows: { [col: string]: any }[],
-    onlyRaw: boolean,
-    itemMap: Record<string, Field | TableCalculation>,
-    showTableNames: boolean,
-    columnOrder: string[],
-    customLabels: Record<string, string> = {},
-): Promise<string> => {
-    // Ignore fields from results that are not selected in metrics or dimensions
-
-    const sortedFieldIds = Object.keys(rows[0])
-        .filter((id) => fieldIds.includes(id))
-        .sort((a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b));
-
-    const csvHeader = sortedFieldIds.map((id) => {
-        if (customLabels[id]) {
-            return customLabels[id];
-        }
-        if (itemMap[id]) {
-            return showTableNames
-                ? getItemLabel(itemMap[id])
-                : getItemLabelWithoutTableName(itemMap[id]);
-        }
-        return id;
-    });
-    const csvBody = rows.map((row) =>
-        sortedFieldIds.map((id) => {
-            const rowData = row[id];
-            const item = itemMap[id];
-            const itemIsField = isField(item);
-
-            if (itemIsField && item.type === DimensionType.TIMESTAMP) {
-                return moment(rowData.value.raw).format('YYYY-MM-DD HH:mm:ss');
-            }
-            if (itemIsField && item.type === DimensionType.DATE) {
-                return moment(rowData.value.raw).format('YYYY-MM-DD');
-            }
-
-            if (onlyRaw) {
-                return rowData.value.raw;
-            }
-
-            return rowData.value.formatted;
-        }),
-    );
-
     return new Promise((resolve, reject) => {
         stringify(
             [csvHeader, ...csvBody],
@@ -175,14 +115,14 @@ export class CsvService {
         this.dashboardModel = dashboardModel;
     }
 
-    static async convertApiResultsToCsv(
-        results: ApiQueryResults,
+    static async convertRowsToCsv(
+        rows: Record<string, any>[],
         onlyRaw: boolean,
         metricQuery: MetricQuery,
         itemMap: Record<string, Field | TableCalculation>,
         showTableNames: boolean,
-        customLabels: Record<string, string> | undefined,
-        columnOrder: string[],
+        customLabels: Record<string, string> = {},
+        columnOrder: string[] = [],
     ): Promise<string> {
         // Ignore fields from results that are not selected in metrics or dimensions
         const selectedFieldIds = [
@@ -190,34 +130,74 @@ export class CsvService {
             ...metricQuery.dimensions,
             ...metricQuery.tableCalculations.map((tc: any) => tc.name),
         ];
+        Logger.debug(
+            `convertRowsToCsv with ${rows.length} rows and ${selectedFieldIds.length} columns`,
+        );
 
-        if (results.rows.length > 500) {
-            Logger.debug(
-                `Using worker to format csv with ${results.rows.length} lines`,
-            );
-            return runWorkerThread<string>(
-                new Worker('./dist/services/CsvService/convertApiToCsv.js', {
+        const fileId = `csv-${nanoid()}.csv`;
+        const writeStream = fs.createWriteStream(`/tmp/${fileId}`);
+
+        const sortedFieldIds = Object.keys(rows[0])
+            .filter((id) => selectedFieldIds.includes(id))
+            .sort((a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b));
+
+        const csvHeader = sortedFieldIds.map((id) => {
+            if (customLabels[id]) {
+                return customLabels[id];
+            }
+            if (itemMap[id]) {
+                return showTableNames
+                    ? getItemLabel(itemMap[id])
+                    : getItemLabelWithoutTableName(itemMap[id]);
+            }
+            return id;
+        });
+
+        const stringifier = stringify({
+            delimiter: ',',
+        });
+        stringifier.on('readable', () => {
+            let row;
+            do {
+                row = stringifier.read();
+                if (row) writeStream.write(row);
+            } while (row);
+        });
+
+        const writePromise = new Promise<string>((resolve, reject) => {
+            stringifier.on('error', (err) => {
+                reject(new Error(err.message));
+            });
+            stringifier.on('finish', () => {
+                writeStream.close();
+                resolve(fileId);
+            });
+        });
+
+        stringifier.write(csvHeader);
+
+        // Increasing CHUNK_SIZE increases memory usage, but increases speed of CSV generation
+        const CHUNK_SIZE = 50000;
+        while (rows.length > 0) {
+            const chunk = rows.splice(0, CHUNK_SIZE);
+            // eslint-disable-next-line no-await-in-loop
+            const formattedRows = await runWorkerThread<string[]>(
+                new Worker('./dist/services/CsvService/convertRowsToCsv.js', {
                     workerData: {
-                        fieldIds: selectedFieldIds,
-                        rows: results.rows,
+                        sortedFieldIds,
+                        rows: chunk,
                         onlyRaw,
                         itemMap,
-                        showTableNames,
-                        columnOrder,
-                        customLabels,
                     },
                 }),
             );
+            formattedRows.forEach((row) => {
+                stringifier.write(row);
+            });
         }
-        return convertApiToCsv(
-            selectedFieldIds,
-            results.rows,
-            onlyRaw,
-            itemMap,
-            showTableNames,
-            columnOrder,
-            customLabels,
-        );
+        stringifier.end();
+
+        return writePromise;
     }
 
     static async convertSqlQueryResultsToCsv(
@@ -253,7 +233,7 @@ export class CsvService {
         const exploreId = chart.tableName;
         const onlyRaw = options?.formatted === false;
 
-        const results: ApiQueryResults = await this.projectService.runQuery(
+        const rows = await this.projectService.runQuery(
             user,
             metricQuery,
             chart.projectUuid,
@@ -272,8 +252,8 @@ export class CsvService {
             metricQuery.tableCalculations,
         );
 
-        const csvContent = await CsvService.convertApiResultsToCsv(
-            results,
+        const fileId = await CsvService.convertRowsToCsv(
+            rows,
             onlyRaw,
             metricQuery,
             itemMap,
@@ -282,14 +262,15 @@ export class CsvService {
             chart.tableConfig.columnOrder,
         );
 
-        const fileId = `csv-${nanoid()}.csv`;
-
         try {
+            const csvContent = fs.createReadStream(`/tmp/${fileId}`);
             const s3Url = await this.s3Service.uploadCsv(csvContent, fileId);
+
+            await fsPromise.unlink(`/tmp/${fileId}`);
+
             return { filename: `${chart.name}`, path: s3Url };
         } catch (e) {
             // Can't store file in S3, storing locally
-            await fs.writeFile(`/tmp/${fileId}`, csvContent, 'utf-8');
             const localUrl = `${lightdashConfig.siteUrl}/api/v1/projects/${chart.projectUuid}/csv/${fileId}`;
             return { filename: `${chart.name}`, path: localUrl };
         }
