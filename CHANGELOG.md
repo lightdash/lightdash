@@ -1,3 +1,10 @@
+## [0.466.1](https://github.com/lightdash/lightdash/compare/0.466.0...0.466.1) (2023-03-17)
+
+
+### Bug Fixes
+
+* create and join on multiorg ([#4834](https://github.com/lightdash/lightdash/issues/4834)) ([494363e](https://github.com/lightdash/lightdash/commit/494363e76a56e52bfa93897fa9d6b66e82dc9a87))
+
 # [0.466.0](https://github.com/lightdash/lightdash/compare/0.465.2...0.466.0) (2023-03-16)
 
 
