@@ -1,11 +1,11 @@
 import { Loader, LoaderProps, Stack, Title } from '@mantine/core';
 import React, { FC } from 'react';
 
-export interface NonIdealStateProps extends LoaderProps {
+export interface LoadingStateProps extends LoaderProps {
     title: string;
 }
 
-const NonIdealState: FC<NonIdealStateProps> = ({ title, ...rest }) => {
+const LoadingState: FC<LoadingStateProps> = ({ title, ...rest }) => {
     return (
         <Stack my="xl" align="center">
             <Loader size="xl" color="gray" mt="xl" {...rest} />
@@ -16,4 +16,4 @@ const NonIdealState: FC<NonIdealStateProps> = ({ title, ...rest }) => {
     );
 };
 
-export default NonIdealState;
+export default LoadingState;

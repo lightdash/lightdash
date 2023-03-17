@@ -1,4 +1,4 @@
-import { Button, Spinner } from '@blueprintjs/core';
+import { Button, NonIdealState, Spinner } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import { LightdashMode } from '@lightdash/common';
@@ -8,7 +8,6 @@ import { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Redirect, useHistory, useParams } from 'react-router-dom';
 import DashboardCreateModal from '../components/common/modal/DashboardCreateModal';
-import NonIdealState from '../components/common/NonIdealState';
 import Page from '../components/common/Page/Page';
 import { PageHeader } from '../components/common/Page/Page.styles';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
@@ -28,9 +27,7 @@ export const DEFAULT_DASHBOARD_NAME = 'Untitled dashboard';
 const SavedDashboards = () => {
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { data: dashboards = [] } = useDashboards(projectUuid);
-    // testing purposes
-    const isLoading = true;
+    const { isLoading, data: dashboards = [] } = useDashboards(projectUuid);
     const [isCreateDashboardOpen, setIsCreateDashboardOpen] =
         useState<boolean>(false);
 
@@ -56,11 +53,9 @@ const SavedDashboards = () => {
 
     if (isLoading || isLoadingSpaces) {
         return (
-            // testing purposes
-            // <div style={{ marginTop: '20px' }}>
-            //     <NonIdealState title="Loading dashboards" icon={<Spinner />} />
-            // </div>
-            <NonIdealState title="Loading dashboards" />
+            <div style={{ marginTop: '20px' }}>
+                <NonIdealState title="Loading dashboards" icon={<Spinner />} />
+            </div>
         );
     }
 
