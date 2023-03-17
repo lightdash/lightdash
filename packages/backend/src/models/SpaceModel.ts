@@ -147,7 +147,7 @@ export class SpaceModel {
             .select<
                 (GetDashboardDetailsQuery & {
                     views: string;
-                    first_viewed_at: string | null;
+                    first_viewed_at: Date | null;
                 })[]
             >([
                 `${DashboardsTableName}.dashboard_uuid`,
@@ -208,9 +208,7 @@ export class SpaceModel {
                 },
                 spaceUuid,
                 views: parseInt(views, 10),
-                firstViewedAt: first_viewed_at
-                    ? new Date(first_viewed_at).toJSON()
-                    : null,
+                firstViewedAt: first_viewed_at,
                 pinnedListUuid: pinned_list_uuid,
             }),
         );
@@ -320,7 +318,7 @@ export class SpaceModel {
                     first_name: string;
                     last_name: string;
                     views: string;
-                    first_viewed_at: string | null;
+                    first_viewed_at: Date | null;
                     chart_config: ChartConfig['config'];
                     chart_type: ChartType;
                     pinned_list_uuid: string;
@@ -367,9 +365,7 @@ export class SpaceModel {
             },
             spaceUuid,
             views: parseInt(savedQuery.views, 10),
-            firstViewedAt: savedQuery.first_viewed_at
-                ? new Date(savedQuery.first_viewed_at).toJSON()
-                : null,
+            firstViewedAt: savedQuery.first_viewed_at,
             chartType: getChartType(
                 savedQuery.chart_type,
                 savedQuery.chart_config,

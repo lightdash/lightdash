@@ -59,7 +59,7 @@ export type GetDashboardQuery = Pick<
     Pick<OrganizationTable['base'], 'organization_uuid'> &
     Pick<PinnedListTable['base'], 'pinned_list_uuid'> & {
         views: string;
-        first_viewed_at: string | null;
+        first_viewed_at: Date | null;
     };
 
 export type GetDashboardDetailsQuery = Pick<
@@ -346,9 +346,7 @@ export class DashboardModel {
                 spaceUuid: space_uuid,
                 pinnedListUuid: pinned_list_uuid,
                 views: parseInt(views, 10) || 0,
-                firstViewedAt: first_viewed_at
-                    ? new Date(first_viewed_at).toJSON()
-                    : null,
+                firstViewedAt: first_viewed_at,
             }),
         );
     }
@@ -447,7 +445,7 @@ export class DashboardModel {
                     hide_title: boolean | null;
                     title: string | null;
                     views: string;
-                    first_viewed_at: string | null;
+                    first_viewed_at: Date | null;
                 }[]
             >(
                 `${DashboardTilesTableName}.x_offset`,
@@ -603,9 +601,7 @@ export class DashboardModel {
             spaceUuid: dashboard.space_uuid,
             spaceName: dashboard.spaceName,
             views: parseInt(dashboard.views, 10) || 0,
-            firstViewedAt: dashboard.first_viewed_at
-                ? new Date(dashboard.first_viewed_at).toJSON()
-                : null,
+            firstViewedAt: dashboard.first_viewed_at,
             updatedByUser: {
                 userUuid: dashboard.user_uuid,
                 firstName: dashboard.first_name,

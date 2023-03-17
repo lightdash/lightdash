@@ -95,7 +95,7 @@ export type Dashboard = {
     spaceUuid: string;
     spaceName: string;
     views: number;
-    firstViewedAt: string | null;
+    firstViewedAt: Date | string | null;
     pinnedListUuid: string | null;
 };
 

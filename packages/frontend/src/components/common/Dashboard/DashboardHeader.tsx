@@ -34,7 +34,7 @@ type DashboardHeaderProps = {
     dashboardSpaceUuid?: string;
     dashboardUpdatedAt: Date;
     dashboardViews: number;
-    dashboardFirstViewedAt: string | null;
+    dashboardFirstViewedAt: Date | string | null;
     dashboardUpdatedByUser?: UpdatedByUser;
     hasDashboardChanged: boolean;
     isEditMode: boolean;

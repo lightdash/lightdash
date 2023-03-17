@@ -153,7 +153,7 @@ export const getSpaceWithQueries = async (
                 chart_config: ChartConfig['config'];
                 chart_type: ChartType;
                 views: string;
-                first_viewed_at: string | null;
+                first_viewed_at: Date | null;
             }[]
         >([
             `saved_queries.saved_query_uuid`,
@@ -209,9 +209,7 @@ export const getSpaceWithQueries = async (
                 savedQuery.chart_config,
             ),
             views: parseInt(savedQuery.views, 10) || 0,
-            firstViewedAt: savedQuery.first_viewed_at
-                ? new Date(savedQuery.first_viewed_at).toJSON()
-                : null,
+            firstViewedAt: savedQuery.first_viewed_at,
         })),
         projectUuid,
         dashboards: [],

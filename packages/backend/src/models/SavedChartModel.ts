@@ -359,7 +359,7 @@ export class SavedChartModel {
                     space_uuid: string;
                     spaceName: string;
                     views: string;
-                    first_viewed_at: string | null;
+                    first_viewed_at: Date | null;
                 })[]
             >([
                 `${ProjectTableName}.project_uuid`,
@@ -512,9 +512,7 @@ export class SavedChartModel {
             spaceName: savedQuery.spaceName,
             pinnedListUuid: savedQuery.pinned_list_uuid,
             views: parseInt(savedQuery.views, 10) || 0,
-            firstViewedAt: savedQuery.first_viewed_at
-                ? new Date(savedQuery.first_viewed_at).toJSON()
-                : null,
+            firstViewedAt: savedQuery.first_viewed_at,
         };
     }
 }

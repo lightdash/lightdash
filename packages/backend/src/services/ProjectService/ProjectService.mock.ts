@@ -253,7 +253,7 @@ export const spacesWithSavedCharts: Space[] = [
                 pinnedListUuid: null,
                 chartType: ChartKind.AREA,
                 views: 1,
-                firstViewedAt: new Date().toJSON(),
+                firstViewedAt: new Date(),
             },
         ],
         projectUuid,
