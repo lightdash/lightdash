@@ -1,3 +1,32 @@
+# [0.469.0](https://github.com/lightdash/lightdash/compare/0.468.0...0.469.0) (2023-03-17)
+
+
+### Features
+
+* updating breadcrumbs on content pages ([#4843](https://github.com/lightdash/lightdash/issues/4843)) ([17821db](https://github.com/lightdash/lightdash/commit/17821dbbcfd658c1ebdcb8a3c744030d997449ab))
+
+# [0.468.0](https://github.com/lightdash/lightdash/compare/0.467.0...0.468.0) (2023-03-17)
+
+
+### Features
+
+* Mantine breadcrumbs component ([#4837](https://github.com/lightdash/lightdash/issues/4837)) ([89cc8c5](https://github.com/lightdash/lightdash/commit/89cc8c5787ca82609e27020e78d95b49e0744af4))
+* migrate landing panel to Mantine ([#4833](https://github.com/lightdash/lightdash/issues/4833)) ([ca6a2a5](https://github.com/lightdash/lightdash/commit/ca6a2a5a7123cae782cd591acda7d8b8c975392b))
+
+# [0.467.0](https://github.com/lightdash/lightdash/compare/0.466.1...0.467.0) (2023-03-17)
+
+
+### Features
+
+* migrate onboarding panel to Mantine ([#4828](https://github.com/lightdash/lightdash/issues/4828)) ([9b872d0](https://github.com/lightdash/lightdash/commit/9b872d033a64b8385d2743a888a11a960cac24e3))
+
+## [0.466.1](https://github.com/lightdash/lightdash/compare/0.466.0...0.466.1) (2023-03-17)
+
+
+### Bug Fixes
+
+* create and join on multiorg ([#4834](https://github.com/lightdash/lightdash/issues/4834)) ([494363e](https://github.com/lightdash/lightdash/commit/494363e76a56e52bfa93897fa9d6b66e82dc9a87))
+
 # [0.466.0](https://github.com/lightdash/lightdash/compare/0.465.2...0.466.0) (2023-03-16)
 
 
