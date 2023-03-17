@@ -1,3 +1,10 @@
+# [0.469.0](https://github.com/lightdash/lightdash/compare/0.468.0...0.469.0) (2023-03-17)
+
+
+### Features
+
+* updating breadcrumbs on content pages ([#4843](https://github.com/lightdash/lightdash/issues/4843)) ([17821db](https://github.com/lightdash/lightdash/commit/17821dbbcfd658c1ebdcb8a3c744030d997449ab))
+
 # [0.468.0](https://github.com/lightdash/lightdash/compare/0.467.0...0.468.0) (2023-03-17)
 
 
