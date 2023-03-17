@@ -1,14 +1,10 @@
-import { Breadcrumbs2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import { Stack } from '@mantine/core';
 import { FC } from 'react';
 import { Helmet } from 'react-helmet';
-import { useHistory, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import Page from '../components/common/Page/Page';
-import {
-    PageBreadcrumbsWrapper,
-    PageHeader,
-} from '../components/common/Page/Page.styles';
+import { PageHeader } from '../components/common/Page/Page.styles';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import SpaceBrowser from '../components/Explorer/SpaceBrowser';
 import ForbiddenPanel from '../components/ForbiddenPanel';
@@ -17,7 +13,6 @@ import { useApp } from '../providers/AppProvider';
 const Spaces: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { user } = useApp();
-    const history = useHistory();
 
     if (
         user.data?.ability?.cannot(
@@ -39,23 +34,13 @@ const Spaces: FC = () => {
 
             <Stack spacing="xl" w={900}>
                 <PageHeader>
-                    <PageBreadcrumbsWrapper>
-                        <Breadcrumbs2
-                            items={[
-                                {
-                                    href: '/home',
-                                    text: 'Home',
-                                    className: 'home-breadcrumb',
-                                    onClick: () => history.push('/home'),
-                                },
-                                {
-                                    text: 'All spaces',
-                                },
-                            ]}
-                        />
-                    </PageBreadcrumbsWrapper>
+                    <PageBreadcrumbs
+                        items={[{ href: '/home', title: 'Home' }]}
+                        mt="xs"
+                    >
+                        All Spaces
+                    </PageBreadcrumbs>
                 </PageHeader>
-
                 <SpaceBrowser projectUuid={projectUuid} />
             </Stack>
         </Page>
