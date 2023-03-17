@@ -18,6 +18,7 @@ import * as fsPromise from 'fs/promises';
 
 import { nanoid } from 'nanoid';
 import path from 'path';
+import { analytics } from '../analytics/client';
 import { lightdashConfig } from '../config/lightdashConfig';
 import {
     allowApiKeyAuthentication,
@@ -673,6 +674,27 @@ projectRouter.post(
     isAuthenticated,
     async (req, res, next) => {
         try {
+            const jobId = nanoid();
+
+            const analyticsProperties = {
+                jobId,
+                userId: req.user?.userUuid,
+                organizationId: req.user?.organizationUuid,
+                projectId: req.params.projectUuid,
+                tableId: 'sql_runner',
+                fileType: 'csv',
+                values: 'raw',
+                context: 'sql runner',
+                storage: s3Service.isEnabled() ? 's3' : 'local',
+            };
+            analytics.track({
+                event: 'download_results.started',
+                userId: req.user?.userUuid,
+                properties: {
+                    ...analyticsProperties,
+                },
+            });
+
             const results: ApiSqlQueryResults =
                 await projectService.runSqlQuery(
                     req.user!,
@@ -685,7 +707,7 @@ projectRouter.post(
                 req.body.customLabels,
             );
 
-            const fileId = `csv-${nanoid()}.csv`;
+            const fileId = `csv-${jobId}.csv`;
 
             let fileUrl;
             try {

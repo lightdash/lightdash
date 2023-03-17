@@ -555,14 +555,18 @@ export type DownloadCsv = BaseTrack & {
     anonymousId: string;
     properties: {
         jobId: string;
-        userId: string;
-        organizationId: string;
+        userId?: string;
+        organizationId?: string;
         projectId: string;
         tableId: string;
         fileType: 'csv';
         values: 'raw' | 'formatted';
-        limit: 'results' | 'all' | 'custom';
-        context: 'results' | 'chart' | 'scheduled delivery';
+        limit?: 'results' | 'all' | 'custom';
+        context: 'results' | 'chart' | 'scheduled delivery' | 'sql runner';
+        storage: 'local' | 's3';
+        numRows?: number;
+        numColumns?: number;
+        error?: string;
     };
 };
 
@@ -610,7 +614,8 @@ type Track =
     | SchedulerDeleteEvent
     | SchedulerJobEvent
     | SchedulerNotificationJobEvent
-    | PinnedListUpdated;
+    | PinnedListUpdated
+    | DownloadCsv;
 
 export class LightdashAnalytics extends Analytics {
     static lightdashContext = {
