@@ -9,6 +9,7 @@ import {
     PageBreadcrumbsWrapper,
     PageHeader,
 } from '../components/common/Page/Page.styles';
+import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import SpaceBrowser from '../components/Explorer/SpaceBrowser';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useApp } from '../providers/AppProvider';
