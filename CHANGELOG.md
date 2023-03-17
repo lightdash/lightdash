@@ -1,3 +1,10 @@
+# [0.471.0](https://github.com/lightdash/lightdash/compare/0.470.0...0.471.0) (2023-03-17)
+
+
+### Features
+
+* Mantine LoadingState component ([#4845](https://github.com/lightdash/lightdash/issues/4845)) ([2fa3da7](https://github.com/lightdash/lightdash/commit/2fa3da7182704e7f748cc95f2153efdf7e303aae))
+
 # [0.470.0](https://github.com/lightdash/lightdash/compare/0.469.0...0.470.0) (2023-03-17)
 
 
