@@ -1,3 +1,11 @@
+# [0.468.0](https://github.com/lightdash/lightdash/compare/0.467.0...0.468.0) (2023-03-17)
+
+
+### Features
+
+* Mantine breadcrumbs component ([#4837](https://github.com/lightdash/lightdash/issues/4837)) ([89cc8c5](https://github.com/lightdash/lightdash/commit/89cc8c5787ca82609e27020e78d95b49e0744af4))
+* migrate landing panel to Mantine ([#4833](https://github.com/lightdash/lightdash/issues/4833)) ([ca6a2a5](https://github.com/lightdash/lightdash/commit/ca6a2a5a7123cae782cd591acda7d8b8c975392b))
+
 # [0.467.0](https://github.com/lightdash/lightdash/compare/0.466.1...0.467.0) (2023-03-17)
 
 
