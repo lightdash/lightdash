@@ -31,6 +31,7 @@ const onboardingSteps = [
 
 const OnboardingPanel: FC<Props> = ({ projectUuid, userName }) => {
     return (
+        // FIXME: mt and pt should be merged into a bigger spacing value
         <Stack justify="flex-start" spacing="xs" mt="xl" pt="xl">
             <Title order={3}>
                 {`Welcome${userName ? ', ' + userName : ' to Lightdash'}! 👋`}
