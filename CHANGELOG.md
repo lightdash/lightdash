@@ -1,3 +1,11 @@
+# [0.470.0](https://github.com/lightdash/lightdash/compare/0.469.0...0.470.0) (2023-03-17)
+
+
+### Features
+
+* csv performance tweaks ([#4818](https://github.com/lightdash/lightdash/issues/4818)) ([545500a](https://github.com/lightdash/lightdash/commit/545500a6512016336d851ec218e6f374bdb0bbbe))
+* views but since when ([#4830](https://github.com/lightdash/lightdash/issues/4830)) ([ea32542](https://github.com/lightdash/lightdash/commit/ea32542b64dad95eef923e00285f7479e4d098a5))
+
 # [0.469.0](https://github.com/lightdash/lightdash/compare/0.468.0...0.469.0) (2023-03-17)
 
 
