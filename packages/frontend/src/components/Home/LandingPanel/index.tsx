@@ -1,7 +1,7 @@
 import { Group, Stack, Text, Title } from '@mantine/core';
 import { IconTable } from '@tabler/icons-react';
 import { FC } from 'react';
-import PrimaryLinkButton from '../../common/PrimaryLinkButton';
+import MantineLinkButton from '../../common/MantineLinkButton';
 
 interface Props {
     userName: string | undefined;
@@ -21,12 +21,9 @@ const LandingPanel: FC<Props> = ({ userName, projectUuid }) => {
                     below:
                 </Text>
             </Stack>
-            <PrimaryLinkButton
-                href={`/projects/${projectUuid}/tables`}
-                leftIcon={<IconTable size={18} />}
-            >
+            <MantineLinkButton href={`/projects/${projectUuid}/tables`}>
                 Run a query
-            </PrimaryLinkButton>
+            </MantineLinkButton>
         </Group>
     );
 };
