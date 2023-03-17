@@ -17,25 +17,23 @@ const PageBreadcrumbs: FC<PageBreadcrumbsProps> = ({
     ...rest
 }) => {
     return (
-        <>
-            <Breadcrumbs separator={separator ? separator : '/'} mt="xs">
-                {items.map((item, index) => (
-                    <Anchor
-                        href={item.href}
-                        key={index}
-                        color="gray.7"
-                        underline={false}
-                    >
-                        <Text fw={500} fz="lg" color="gray.7">
-                            {item.title}
-                        </Text>
-                    </Anchor>
-                ))}
-                <Text fw={500} fz="lg">
-                    {children}
-                </Text>
-            </Breadcrumbs>
-        </>
+        <Breadcrumbs separator={separator ? separator : '/'} mt="xs" {...rest}>
+            {items.map((item, index) => (
+                <Anchor
+                    href={item.href}
+                    key={index}
+                    color="gray.7"
+                    underline={false}
+                >
+                    <Text fw={500} fz="lg" color="gray.7">
+                        {item.title}
+                    </Text>
+                </Anchor>
+            ))}
+            <Text fw={500} fz="lg">
+                {children}
+            </Text>
+        </Breadcrumbs>
     );
 };
 
