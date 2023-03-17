@@ -3,7 +3,7 @@ import React, { FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import { EventData, useTracking } from '../../providers/TrackingProvider';
 
-export interface PrimaryLinkButtonProps extends ButtonProps {
+export interface MantineLinkButtonProps extends ButtonProps {
     href: string;
     trackingEvent?: EventData;
     target?: React.HTMLAttributeAnchorTarget;
@@ -11,7 +11,7 @@ export interface PrimaryLinkButtonProps extends ButtonProps {
     onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
-const PrimaryLinkButton: FC<PrimaryLinkButtonProps> = ({
+const MantineLinkButton: FC<MantineLinkButtonProps> = ({
     href,
     target,
     trackingEvent,
@@ -47,4 +47,4 @@ const PrimaryLinkButton: FC<PrimaryLinkButtonProps> = ({
     );
 };
 
-export default PrimaryLinkButton;
+export default MantineLinkButton;

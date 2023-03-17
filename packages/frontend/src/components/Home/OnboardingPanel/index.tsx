@@ -4,7 +4,7 @@ import Step1 from '../../../svgs/onboarding1.svg';
 import Step2 from '../../../svgs/onboarding2.svg';
 import Step3 from '../../../svgs/onboarding3.svg';
 import { EventName } from '../../../types/Events';
-import PrimaryLinkButton from '../../common/PrimaryLinkButton';
+import MantineLinkButton from '../../common/MantineLinkButton';
 
 interface Props {
     projectUuid: string;
@@ -54,7 +54,7 @@ const OnboardingPanel: FC<Props> = ({ projectUuid, userName }) => {
                             </Text>
                         </Card>
                     ))}
-                    <PrimaryLinkButton
+                    <MantineLinkButton
                         href={`/projects/${projectUuid}/tables`}
                         trackingEvent={{
                             name: EventName.ONBOARDING_STEP_CLICKED,
@@ -65,7 +65,7 @@ const OnboardingPanel: FC<Props> = ({ projectUuid, userName }) => {
                         my="xl"
                     >
                         Run your first query!
-                    </PrimaryLinkButton>
+                    </MantineLinkButton>
                 </Group>
             </Paper>
         </Stack>
