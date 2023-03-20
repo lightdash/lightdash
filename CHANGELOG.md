@@ -1,3 +1,10 @@
+# [0.473.0](https://github.com/lightdash/lightdash/compare/0.472.0...0.473.0) (2023-03-20)
+
+
+### Features
+
+* `All Dashboards` page migrated to Mantine ([#4850](https://github.com/lightdash/lightdash/issues/4850)) ([a741cdb](https://github.com/lightdash/lightdash/commit/a741cdb886f21223be50217cb374b9112f5920b0))
+
 # [0.472.0](https://github.com/lightdash/lightdash/compare/0.471.0...0.472.0) (2023-03-20)
 
 
