@@ -1,3 +1,10 @@
+# [0.474.0](https://github.com/lightdash/lightdash/compare/0.473.0...0.474.0) (2023-03-20)
+
+
+### Features
+
+* download results analytics ([#4839](https://github.com/lightdash/lightdash/issues/4839)) ([4f89687](https://github.com/lightdash/lightdash/commit/4f8968790864559d1c134dc5287cc434ac8f5c9e))
+
 # [0.473.0](https://github.com/lightdash/lightdash/compare/0.472.0...0.473.0) (2023-03-20)
 
 
