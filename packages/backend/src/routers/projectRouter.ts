@@ -783,6 +783,8 @@ projectRouter.post(
                 userId: req.user?.userUuid!,
                 properties: {
                     ...analyticsProperties,
+                    numRows: results.rows.length,
+                    numColumns: Object.keys(results.fields).length,
                 },
             });
 
