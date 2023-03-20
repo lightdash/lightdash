@@ -1,3 +1,10 @@
+# [0.472.0](https://github.com/lightdash/lightdash/compare/0.471.0...0.472.0) (2023-03-20)
+
+
+### Features
+
+* All Charts page components migrated to Mantine ([#4852](https://github.com/lightdash/lightdash/issues/4852)) ([9e4913a](https://github.com/lightdash/lightdash/commit/9e4913a8ea3f979520cb14762a239bf4e2a284a5))
+
 # [0.471.0](https://github.com/lightdash/lightdash/compare/0.470.0...0.471.0) (2023-03-17)
 
 
