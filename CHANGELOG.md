@@ -1,3 +1,87 @@
+# [0.471.0](https://github.com/lightdash/lightdash/compare/0.470.0...0.471.0) (2023-03-17)
+
+
+### Features
+
+* Mantine LoadingState component ([#4845](https://github.com/lightdash/lightdash/issues/4845)) ([2fa3da7](https://github.com/lightdash/lightdash/commit/2fa3da7182704e7f748cc95f2153efdf7e303aae))
+
+# [0.470.0](https://github.com/lightdash/lightdash/compare/0.469.0...0.470.0) (2023-03-17)
+
+
+### Features
+
+* csv performance tweaks ([#4818](https://github.com/lightdash/lightdash/issues/4818)) ([545500a](https://github.com/lightdash/lightdash/commit/545500a6512016336d851ec218e6f374bdb0bbbe))
+* views but since when ([#4830](https://github.com/lightdash/lightdash/issues/4830)) ([ea32542](https://github.com/lightdash/lightdash/commit/ea32542b64dad95eef923e00285f7479e4d098a5))
+
+# [0.469.0](https://github.com/lightdash/lightdash/compare/0.468.0...0.469.0) (2023-03-17)
+
+
+### Features
+
+* updating breadcrumbs on content pages ([#4843](https://github.com/lightdash/lightdash/issues/4843)) ([17821db](https://github.com/lightdash/lightdash/commit/17821dbbcfd658c1ebdcb8a3c744030d997449ab))
+
+# [0.468.0](https://github.com/lightdash/lightdash/compare/0.467.0...0.468.0) (2023-03-17)
+
+
+### Features
+
+* Mantine breadcrumbs component ([#4837](https://github.com/lightdash/lightdash/issues/4837)) ([89cc8c5](https://github.com/lightdash/lightdash/commit/89cc8c5787ca82609e27020e78d95b49e0744af4))
+* migrate landing panel to Mantine ([#4833](https://github.com/lightdash/lightdash/issues/4833)) ([ca6a2a5](https://github.com/lightdash/lightdash/commit/ca6a2a5a7123cae782cd591acda7d8b8c975392b))
+
+# [0.467.0](https://github.com/lightdash/lightdash/compare/0.466.1...0.467.0) (2023-03-17)
+
+
+### Features
+
+* migrate onboarding panel to Mantine ([#4828](https://github.com/lightdash/lightdash/issues/4828)) ([9b872d0](https://github.com/lightdash/lightdash/commit/9b872d033a64b8385d2743a888a11a960cac24e3))
+
+## [0.466.1](https://github.com/lightdash/lightdash/compare/0.466.0...0.466.1) (2023-03-17)
+
+
+### Bug Fixes
+
+* create and join on multiorg ([#4834](https://github.com/lightdash/lightdash/issues/4834)) ([494363e](https://github.com/lightdash/lightdash/commit/494363e76a56e52bfa93897fa9d6b66e82dc9a87))
+
+# [0.466.0](https://github.com/lightdash/lightdash/compare/0.465.2...0.466.0) (2023-03-16)
+
+
+### Features
+
+* Add common email domains validation on organization sharing ([#4801](https://github.com/lightdash/lightdash/issues/4801)) ([d3195bb](https://github.com/lightdash/lightdash/commit/d3195bbee27a6014932cbbcd8c13378802d8d45b))
+
+## [0.465.2](https://github.com/lightdash/lightdash/compare/0.465.1...0.465.2) (2023-03-16)
+
+
+### Bug Fixes
+
+* **frontend:** disable add button for viewer on space page ([#4816](https://github.com/lightdash/lightdash/issues/4816)) ([8a230f9](https://github.com/lightdash/lightdash/commit/8a230f99d9f13aa735d50817c1d10b95c2bd3738))
+
+## [0.465.1](https://github.com/lightdash/lightdash/compare/0.465.0...0.465.1) (2023-03-15)
+
+
+### Bug Fixes
+
+* space permission on dashboard create ([#4817](https://github.com/lightdash/lightdash/issues/4817)) ([26eeab4](https://github.com/lightdash/lightdash/commit/26eeab490a96a079367e11270fa66336a7f8f713))
+
+# [0.465.0](https://github.com/lightdash/lightdash/compare/0.464.0...0.465.0) (2023-03-15)
+
+
+### Features
+
+* dashboards can be exported ([#4800](https://github.com/lightdash/lightdash/issues/4800)) ([31189c5](https://github.com/lightdash/lightdash/commit/31189c59691da628eea8ec9b3c8a2d12064fe1e9))
+
+# [0.464.0](https://github.com/lightdash/lightdash/compare/0.463.3...0.464.0) (2023-03-15)
+
+
+### Bug Fixes
+
+* sorting spaces alphabetically in browse menu ([#4807](https://github.com/lightdash/lightdash/issues/4807)) ([780ecf7](https://github.com/lightdash/lightdash/commit/780ecf77e4cc0142f9ed592967f4dcbaac476aad))
+
+
+### Features
+
+* update max csv cells ([#4791](https://github.com/lightdash/lightdash/issues/4791)) ([59a3cb9](https://github.com/lightdash/lightdash/commit/59a3cb95b71613424543b7255514355e32c91b3a))
+
 ## [0.463.3](https://github.com/lightdash/lightdash/compare/0.463.2...0.463.3) (2023-03-14)
 
 

@@ -976,6 +976,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "fredmny",
+      "name": "Fred",
+      "avatar_url": "https://avatars.githubusercontent.com/u/27257093?v=4",
+      "profile": "https://github.com/fredmny",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "contributorsPerLine": 7,

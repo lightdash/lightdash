@@ -14,6 +14,10 @@ import {
 import { Knex } from 'knex';
 import { getProjectRoleOrInheritedFromOrganization } from '../controllers/authenticationRoles';
 import {
+    AnalyticsChartViewsTableName,
+    AnalyticsDashboardViewsTableName,
+} from '../database/entities/analytics';
+import {
     DashboardsTableName,
     DashboardVersionsTableName,
 } from '../database/entities/dashboards';
@@ -140,7 +144,12 @@ export class SpaceModel {
                 `${PinnedListTableName}.pinned_list_uuid`,
                 `${PinnedDashboardTableName}.pinned_list_uuid`,
             )
-            .select<(GetDashboardDetailsQuery & { views: string })[]>([
+            .select<
+                (GetDashboardDetailsQuery & {
+                    views: string;
+                    first_viewed_at: Date | null;
+                })[]
+            >([
                 `${DashboardsTableName}.dashboard_uuid`,
                 `${DashboardsTableName}.name`,
                 `${DashboardsTableName}.description`,
@@ -152,7 +161,10 @@ export class SpaceModel {
                 `${OrganizationTableName}.organization_uuid`,
                 `${SpaceTableName}.space_uuid`,
                 this.database.raw(
-                    `(SELECT COUNT('analytics_dashboard_views.dashboard_uuid') FROM analytics_dashboard_views where analytics_dashboard_views.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid) as views`,
+                    `(SELECT COUNT('${AnalyticsDashboardViewsTableName}.dashboard_uuid') FROM ${AnalyticsDashboardViewsTableName} where ${AnalyticsDashboardViewsTableName}.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid) as views`,
+                ),
+                this.database.raw(
+                    `(SELECT ${AnalyticsDashboardViewsTableName}.timestamp FROM ${AnalyticsDashboardViewsTableName} where ${AnalyticsDashboardViewsTableName}.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid ORDER BY ${AnalyticsDashboardViewsTableName}.timestamp ASC LIMIT 1) as first_viewed_at`,
                 ),
                 `${PinnedListTableName}.pinned_list_uuid`,
             ])
@@ -180,6 +192,7 @@ export class SpaceModel {
                 last_name,
                 organization_uuid,
                 views,
+                first_viewed_at,
                 pinned_list_uuid,
             }) => ({
                 organizationUuid: organization_uuid,
@@ -195,6 +208,7 @@ export class SpaceModel {
                 },
                 spaceUuid,
                 views: parseInt(views, 10),
+                firstViewedAt: first_viewed_at,
                 pinnedListUuid: pinned_list_uuid,
             }),
         );
@@ -304,6 +318,7 @@ export class SpaceModel {
                     first_name: string;
                     last_name: string;
                     views: string;
+                    first_viewed_at: Date | null;
                     chart_config: ChartConfig['config'];
                     chart_type: ChartType;
                     pinned_list_uuid: string;
@@ -317,7 +332,10 @@ export class SpaceModel {
                 `users.first_name`,
                 `users.last_name`,
                 this.database.raw(
-                    `(SELECT COUNT('analytics_chart_views.chart_uuid') FROM analytics_chart_views WHERE analytics_chart_views.chart_uuid = saved_queries.saved_query_uuid) as views`,
+                    `(SELECT COUNT('${AnalyticsChartViewsTableName}.chart_uuid') FROM ${AnalyticsChartViewsTableName} WHERE ${AnalyticsChartViewsTableName}.chart_uuid = saved_queries.saved_query_uuid) as views`,
+                ),
+                this.database.raw(
+                    `(SELECT ${AnalyticsChartViewsTableName}.timestamp FROM ${AnalyticsChartViewsTableName} WHERE ${AnalyticsChartViewsTableName}.chart_uuid = saved_queries.saved_query_uuid ORDER BY ${AnalyticsChartViewsTableName}.timestamp ASC LIMIT 1) as first_viewed_at`,
                 ),
                 `saved_queries_versions.chart_config`,
                 `saved_queries_versions.chart_type`,
@@ -347,6 +365,7 @@ export class SpaceModel {
             },
             spaceUuid,
             views: parseInt(savedQuery.views, 10),
+            firstViewedAt: savedQuery.first_viewed_at,
             chartType: getChartType(
                 savedQuery.chart_type,
                 savedQuery.chart_config,

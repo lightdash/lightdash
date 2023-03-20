@@ -20,6 +20,7 @@ import {
 } from '@lightdash/common';
 import { stringify } from 'csv-stringify';
 import * as fs from 'fs';
+import * as fsPromise from 'fs/promises';
 
 import moment from 'moment';
 import { nanoid } from 'nanoid';
@@ -264,6 +265,9 @@ export class CsvService {
         try {
             const csvContent = fs.createReadStream(`/tmp/${fileId}`);
             const s3Url = await this.s3Service.uploadCsv(csvContent, fileId);
+
+            await fsPromise.unlink(`/tmp/${fileId}`);
+
             return { filename: `${chart.name}`, path: s3Url };
         } catch (e) {
             // Can't store file in S3, storing locally

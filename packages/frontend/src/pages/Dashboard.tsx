@@ -31,6 +31,7 @@ import {
     appendNewTilesToBottom,
     useDeleteMutation,
     useDuplicateDashboardMutation,
+    useExportDashboard,
     useMoveDashboardMutation,
     useUpdateDashboard,
 } from '../hooks/dashboard/useDashboard';
@@ -162,6 +163,7 @@ const Dashboard = () => {
         showRedirectButton: true,
     });
     const { mutateAsync: deleteDashboard } = useDeleteMutation();
+    const { mutate: exportDashboard } = useExportDashboard();
 
     const layouts = useMemo(
         () => ({
@@ -303,6 +305,11 @@ const Dashboard = () => {
         });
     };
 
+    const handleExportDashboard = () => {
+        if (!dashboard) return;
+        exportDashboard(dashboard);
+    };
+
     const [isSaveWarningModalOpen, setIsSaveWarningModalOpen] =
         useState<boolean>(false);
     const [blockedNavigationLocation, setBlockedNavigationLocation] =
@@ -396,6 +403,7 @@ const Dashboard = () => {
                 dashboardSpaceName={dashboard.spaceName}
                 dashboardSpaceUuid={dashboard.spaceUuid}
                 dashboardViews={dashboard.views}
+                dashboardFirstViewedAt={dashboard.firstViewedAt}
                 isEditMode={isEditMode}
                 isSaving={isSaving}
                 hasDashboardChanged={
@@ -422,6 +430,7 @@ const Dashboard = () => {
                 onMoveToSpace={handleMoveDashboardToSpace}
                 onDuplicate={handleDuplicateDashboard}
                 onDelete={handleDeleteDashboard}
+                onExport={handleExportDashboard}
             />
             <Page isContentFullWidth>
                 {dashboardChartTiles.length > 0 && (

@@ -1,9 +1,16 @@
+import AccessDomains from './assets/access-allowed-email-domains.jpg';
+import AddingDomains from './assets/add-allowed-email-domains.jpg';
+import UpdateDomains from './assets/update-allowed-email-domains.jpg';
+import JoinWorkspace from './assets/join-workspace-prompt.png';
+
 # Roles and permissions
 
-* Everybody in your organization will join as an `Organization Member` by default unless specified.
+## Roles in your Lightdash instance
+
+* Everybody in your organization will join as an `Organization Member` unless specified. For example, if I invite someone to a project as an editor, they will become an organization member with `editor` access to that project. If I invite someone to the **_organization_** as a `viewer`, then they will be an `organization viewer` (instead of an `organization member`).
 * All organization members can create their own projects and will be the Project Admin for that project.
 
-## Project Roles
+### Project Roles
 
 Project Admins can invite users to their project and assign the following roles. Note that projects may also be 
 accessible by users with organization roles.
@@ -12,26 +19,26 @@ accessible by users with organization roles.
 |:----------------------------------------|:-------------:|:--------------:|:--------------:|
 | View charts and dashboards              |       ✅       |       ✅        |       ✅        |
 | Run metric queries                      |       ✅       |       ✅        |       ✅        |
-| Create/edit charts and dashboards       |       ✅       |       ✅        |       ❌        |    
+| Create/edit charts and dashboards       |       ✅       |       ✅        |       ❌        |
 | Use the SQL runner                      |       ✅       |       ✅        |       ❌        |
 | Manage project access and permissions   |       ✅       |       ❌        |       ❌        |
 | Delete project                          |       ✅       |       ❌        |       ❌        |
 
-## Organization Roles
+### Organization Roles
 
 Organization Admins can assign roles to organization members, which gives access to all projects in the organization.
 
 | Action                                     | Organization Admin | Organization Editor | Organization Viewer | Organization Member |
 |:-------------------------------------------|:------------------:|:-------------------:|:-------------------:|:-------------------:|
 | Create Personal access tokens              |         ✅          |          ✅          |          ✅          |          ✅          |
-| Create new projects                        |         ✅          |          ✅          |          ✅          |          ✅          |   
+| Create new projects                        |         ✅          |          ✅          |          ✅          |          ✅          |
 | View **all** projects                      |         ✅          |          ✅          |          ✅          |          ❌          |
 | Edit **all** projects                      |         ✅          |          ✅          |          ❌          |          ❌          |
 | Admin for **all** projects                 |         ✅          |          ❌          |          ❌          |          ❌          |
 | Invite users to organization               |         ✅          |          ❌          |          ❌          |          ❌          |
 | Manage organization access and permissions |         ✅          |          ❌          |          ❌          |          ❌          |
 
-## Space Roles
+### Space Roles
 
 Space permissions are inherited from a user's project permissions. For example, if I'm a project viewer, I will get `viewer` access to a Space.
 
@@ -42,3 +49,30 @@ Space permissions are inherited from a user's project permissions. For example, 
 | Remove users from a Restricted Space they have access to |      ✅       |       ✅      |       ❌      |
 | Add/Remove content from the Space                        |      ✅       |       ✅      |       ❌      |
 | Edit the Space details (name, description, etc.)         |      ✅       |       ✅      |       ❌      |
+
+## Allowed email domains to join organization automatically
+
+Organization admins can add allowed email domains to their organization settings so that anyone with those email domains can automatically join their organization (without explicitly inviting them).
+
+To update your organization's allowed email domains setting, just go to the `general` organization settings.
+
+<img src={AccessDomains} width="924" height="530" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+In the `allowed email domains` panel, enter the email domains you want to be able to automatically join your organization (e.g. here, we've added `lightdash.com`). Generic email domains like `google.com` or `hotmail.com` are not accepted.
+
+You can then select the access that you want these users to have, by default. The organization admin can always update a user's permissions after they've joined the organization!
+
+<img src={AddingDomains} width="793" height="315" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+You have the option to select:
+
+- **Organization Viewer**: users that join as an organization viewer will automatically have `viewer` access to all projects in the organization. If a new project is added to the organization after they join, they will also get access to this new project as a viewer, by default. 
+- **Organization Member**: Users that join as an organization member will only have `viewer` access to the projects that you select. 
+
+Once you've selected the default roles for your allowed email domains, make sure to click `update` to save your changes. 
+
+<img src={UpdateDomains} width="798" height="339" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+Now, when a user tries to join Lightdash, they will be prompted to join your workspace if they have one of your allowed email domains. 
+
+<img src={JoinWorkspace} width="431" height="381" style={{display: "block", margin: "0 auto 20px auto"}}/>

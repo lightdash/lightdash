@@ -1,4 +1,5 @@
 import { assertUnreachable, ChartKind } from '@lightdash/common';
+import moment from 'moment';
 import { ResourceViewItem, ResourceViewItemType } from './resourceTypeUtils';
 
 export const getResourceTypeName = (item: ResourceViewItem) => {
@@ -62,4 +63,21 @@ export const getResourceName = (type: ResourceViewItemType) => {
         default:
             return assertUnreachable(type, 'Resource type not supported');
     }
+};
+
+export const getResourceViewsSinceWhenDescription = (
+    item: ResourceViewItem,
+) => {
+    if (
+        item.type !== ResourceViewItemType.CHART &&
+        item.type !== ResourceViewItemType.DASHBOARD
+    ) {
+        throw new Error('Only supported for charts and dashboards');
+    }
+
+    return item.data.firstViewedAt
+        ? `${item.data.views} views since ${moment(
+              item.data.firstViewedAt,
+          ).format('MMM D, YYYY h:mm A')}`
+        : undefined;
 };

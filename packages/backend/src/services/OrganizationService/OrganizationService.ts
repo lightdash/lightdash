@@ -12,8 +12,10 @@ import {
     OrganizationMemberProfileUpdate,
     OrganizationMemberRole,
     OrganizationProject,
+    ParameterError,
     SessionUser,
     UpdateOrganization,
+    validateOrganizationEmailDomains,
 } from '@lightdash/common';
 import { UpdateAllowedEmailDomains } from '@lightdash/common/src/types/organization';
 import { analytics } from '../../analytics/client';
@@ -325,6 +327,12 @@ export class OrganizationService {
             throw new ForbiddenError();
         }
 
+        const error = validateOrganizationEmailDomains(data.emailDomains);
+
+        if (error) {
+            throw new ParameterError(error);
+        }
+
         const allowedEmailDomains =
             await this.organizationAllowedEmailDomainsModel.upsertAllowedEmailDomains(
                 { ...data, organizationUuid },
@@ -349,7 +357,8 @@ export class OrganizationService {
     ): Promise<void> {
         if (
             !lightdashConfig.allowMultiOrgs &&
-            (await this.userModel.hasUsers())
+            (await this.userModel.hasUsers()) &&
+            (await this.organizationModel.hasOrgs())
         ) {
             throw new ForbiddenError(
                 'Cannot register user in a new organization. Ask an existing admin for an invite link.',

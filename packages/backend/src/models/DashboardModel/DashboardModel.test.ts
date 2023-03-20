@@ -81,6 +81,7 @@ describe('DashboardModel', () => {
                 queryMatcher(DashboardsTableName, [
                     expectedDashboard.uuid,
                     expectedDashboard.uuid,
+                    expectedDashboard.uuid,
                     1,
                 ]),
             )
@@ -120,6 +121,7 @@ describe('DashboardModel', () => {
         tracker.on
             .select(
                 queryMatcher(DashboardsTableName, [
+                    expectedDashboard.uuid,
                     expectedDashboard.uuid,
                     expectedDashboard.uuid,
                     1,
@@ -269,6 +271,7 @@ describe('DashboardModel', () => {
                 queryMatcher(DashboardsTableName, [
                     dashboardUuid,
                     dashboardUuid,
+                    dashboardUuid,
                     1,
                 ]),
             )
@@ -301,6 +304,7 @@ describe('DashboardModel', () => {
         tracker.on
             .select(
                 queryMatcher(DashboardsTableName, [
+                    dashboardUuid,
                     dashboardUuid,
                     dashboardUuid,
                     1,

@@ -1,5 +1,5 @@
 import { Button, NonIdealState, Spinner } from '@blueprintjs/core';
-import { Breadcrumbs2, Tooltip2 } from '@blueprintjs/popover2';
+import { Tooltip2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import { LightdashMode } from '@lightdash/common';
 import { Stack } from '@mantine/core';
@@ -9,10 +9,8 @@ import { Helmet } from 'react-helmet';
 import { Redirect, useHistory, useParams } from 'react-router-dom';
 import DashboardCreateModal from '../components/common/modal/DashboardCreateModal';
 import Page from '../components/common/Page/Page';
-import {
-    PageBreadcrumbsWrapper,
-    PageHeader,
-} from '../components/common/Page/Page.styles';
+import { PageHeader } from '../components/common/Page/Page.styles';
+import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ResourceView from '../components/common/ResourceView';
 import {
     ResourceViewItemType,
@@ -82,23 +80,12 @@ const SavedDashboards = () => {
 
             <Stack spacing="xl" w={900}>
                 <PageHeader>
-                    <PageBreadcrumbsWrapper>
-                        <Breadcrumbs2
-                            items={[
-                                {
-                                    href: '/home',
-                                    text: 'Home',
-                                    className: 'home-breadcrumb',
-                                    onClick: (e) => {
-                                        history.push('/home');
-                                    },
-                                },
-                                {
-                                    text: 'All dashboards',
-                                },
-                            ]}
-                        />
-                    </PageBreadcrumbsWrapper>
+                    <PageBreadcrumbs
+                        items={[{ href: '/home', title: 'Home' }]}
+                        mt="xs"
+                    >
+                        All dashboards
+                    </PageBreadcrumbs>
 
                     {dashboards.length > 0 &&
                         userCanManageDashboards &&

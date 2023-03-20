@@ -62,7 +62,10 @@ import {
     ProjectType,
     WarehouseCredentials,
 } from './types/projects';
-import { SchedulerAndTargets } from './types/scheduler';
+import {
+    NotificationPayloadBase,
+    SchedulerAndTargets,
+} from './types/scheduler';
 import { SlackChannel } from './types/slack';
 import { Space } from './types/space';
 import { TableBase } from './types/table';
@@ -511,6 +514,7 @@ export enum LightdashMode {
     DEMO = 'demo',
     PR = 'pr',
     CLOUD_BETA = 'cloud_beta',
+    DEV = 'development',
 }
 
 export const isLightdashMode = (x: string): x is LightdashMode =>

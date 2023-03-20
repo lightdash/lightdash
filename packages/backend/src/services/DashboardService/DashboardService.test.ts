@@ -34,7 +34,7 @@ jest.mock('../../database/database', () => ({}));
 jest.mock('../../clients/clients', () => ({}));
 
 jest.mock('../../database/entities/spaces', () => ({
-    getSpace: jest.fn(async () => space),
+    getFirstAccessibleSpace: jest.fn(async () => space),
 }));
 
 jest.mock('../../models/models', () => ({

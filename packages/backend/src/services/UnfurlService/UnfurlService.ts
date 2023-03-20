@@ -1,9 +1,14 @@
+import { subject } from '@casl/ability';
 import {
     assertUnreachable,
     AuthorizationError,
+    ForbiddenError,
     LightdashPage,
+    SessionUser,
+    snakeCaseName,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
+import { nanoid as useNanoid } from 'nanoid';
 import fetch from 'node-fetch';
 import puppeteer from 'puppeteer';
 import { S3Service } from '../../clients/Aws/s3';
@@ -383,6 +388,39 @@ export class UnfurlService {
             }
         }
 
+        return imageUrl;
+    }
+
+    async exportDashboard(
+        dashboardUuid: string,
+        user: SessionUser,
+    ): Promise<string> {
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        const { organizationUuid, projectUuid, name, minimalUrl, pageType } = {
+            organizationUuid: dashboard.organizationUuid,
+            projectUuid: dashboard.projectUuid,
+            name: dashboard.name,
+            minimalUrl: `${this.lightdashConfig.siteUrl}/minimal/projects/${dashboard.projectUuid}/dashboards/${dashboardUuid}`,
+            pageType: LightdashPage.DASHBOARD,
+        };
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Dashboard', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const imageUrl = await this.unfurlImage(
+            minimalUrl,
+            pageType,
+            `${snakeCaseName(name)}_${useNanoid()}`,
+            user.userUuid,
+            3, // up to 3 retries
+        );
+        if (imageUrl === undefined) {
+            throw new Error('Unable to unfurl image');
+        }
         return imageUrl;
     }
 }

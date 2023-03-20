@@ -16,11 +16,13 @@ import {} from '../ShareSpaceModal/ShareSpaceModal.style';
 
 interface DashboardCreateModalProps extends DialogProps {
     projectUuid: string;
+    spaceUuid?: string;
     onConfirm?: (dashboard: Dashboard) => void;
 }
 
 const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
     projectUuid,
+    spaceUuid,
     onConfirm,
     onClose,
     ...modalProps
@@ -46,6 +48,7 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
             tiles: [],
             name,
             description,
+            spaceUuid,
         });
 
         onConfirm?.(dashboard);

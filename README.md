@@ -65,21 +65,15 @@ Play with our [demo app](https://demo.lightdash.com)!
 
 ### 1-click deploy
 
-Deploy Lightdash with 1-click (free options available
+Deploy Lightdash with 1-click on [Render](https://render.com) for free.
 
 <div>
 
 <a href="https://render.com/deploy?repo=https://github.com/lightdash/lightdash-deploy-render">
   <img src="https://render.com/images/deploy-to-render-button.svg" alt="Deploy to Render">
 </a>
-<a href="https://heroku.com/deploy?template=https://github.com/lightdash/lightdash-deploy-heroku">
-  <img src="https://www.herokucdn.com/deploy/button.svg" alt="Deploy to heroku" width="200">
-</a>
-</div>
 
-Deploy your own hosted Lightdash instance with Heroku (free account available). Check
-the [documentation page](https://docs.lightdash.com/get-started/setup-lightdash/install-lightdash#deploy-to-heroku) for
-more details.
+</div>
 
 ### Run locally
 
@@ -318,6 +312,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center" valign="top" width="14.28%"><a href="http://leonkozlowski.com"><img src="https://avatars.githubusercontent.com/u/24438337?v=4?s=100" width="100px;" alt="Leon Kozlowski"/><br /><sub><b>Leon Kozlowski</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=leonkozlowski" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/nathancoleman"><img src="https://avatars.githubusercontent.com/u/3476400?v=4?s=100" width="100px;" alt="Nathan Coleman"/><br /><sub><b>Nathan Coleman</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=nathancoleman" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="http://jnfrati.tk"><img src="https://avatars.githubusercontent.com/u/23369263?v=4?s=100" width="100px;" alt="Nicolas Frati"/><br /><sub><b>Nicolas Frati</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=jnfrati" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/fredmny"><img src="https://avatars.githubusercontent.com/u/27257093?v=4?s=100" width="100px;" alt="Fred"/><br /><sub><b>Fred</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=fredmny" title="Documentation">📖</a></td>
     </tr>
   </tbody>
 </table>

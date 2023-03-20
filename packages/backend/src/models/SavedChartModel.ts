@@ -12,6 +12,7 @@ import {
     UpdateSavedChart,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { AnalyticsChartViewsTableName } from '../database/entities/analytics';
 import { OrganizationTableName } from '../database/entities/organizations';
 import {
     PinnedChartTableName,
@@ -27,7 +28,7 @@ import {
     SavedChartsTableName,
 } from '../database/entities/savedCharts';
 import {
-    getSpace,
+    getFirstAccessibleSpace,
     getSpaceId,
     SpaceTableName,
 } from '../database/entities/spaces';
@@ -52,7 +53,6 @@ type DbSavedChartDetails = {
     first_name: string;
     last_name: string;
     pinned_list_uuid: string;
-    views: string;
 };
 
 const createSavedChartVersionField = async (
@@ -210,6 +210,7 @@ export class SavedChartModel {
 
     async create(
         projectUuid: string,
+        userUuid: string,
         {
             name,
             description,
@@ -226,7 +227,13 @@ export class SavedChartModel {
             async (trx) => {
                 const spaceId = spaceUuid
                     ? await getSpaceId(trx, spaceUuid)
-                    : (await getSpace(trx, projectUuid)).space_id;
+                    : (
+                          await getFirstAccessibleSpace(
+                              trx,
+                              projectUuid,
+                              userUuid,
+                          )
+                      ).space_id;
                 const [newSavedChart] = await trx('saved_queries')
                     .insert({ name, space_id: spaceId, description })
                     .returning('*');
@@ -351,6 +358,8 @@ export class SavedChartModel {
                 (DbSavedChartDetails & {
                     space_uuid: string;
                     spaceName: string;
+                    views: string;
+                    first_viewed_at: Date | null;
                 })[]
             >([
                 `${ProjectTableName}.project_uuid`,
@@ -374,7 +383,11 @@ export class SavedChartModel {
                 `${SpaceTableName}.name as spaceName`,
                 `${PinnedListTableName}.pinned_list_uuid`,
                 this.database.raw(
-                    `(SELECT COUNT('analytics_chart_views.chart_uuid') FROM analytics_chart_views WHERE analytics_chart_views.chart_uuid = ?) as views`,
+                    `(SELECT COUNT('${AnalyticsChartViewsTableName}.chart_uuid') FROM ${AnalyticsChartViewsTableName} WHERE ${AnalyticsChartViewsTableName}.chart_uuid = ?) as views`,
+                    savedChartUuid,
+                ),
+                this.database.raw(
+                    `(SELECT ${AnalyticsChartViewsTableName}.timestamp FROM ${AnalyticsChartViewsTableName} WHERE ${AnalyticsChartViewsTableName}.chart_uuid = ? ORDER BY ${AnalyticsChartViewsTableName}.timestamp ASC LIMIT 1) as first_viewed_at`,
                     savedChartUuid,
                 ),
             ])
@@ -499,6 +512,7 @@ export class SavedChartModel {
             spaceName: savedQuery.spaceName,
             pinnedListUuid: savedQuery.pinned_list_uuid,
             views: parseInt(savedQuery.views, 10) || 0,
+            firstViewedAt: savedQuery.first_viewed_at,
         };
     }
 }

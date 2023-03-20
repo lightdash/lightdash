@@ -205,7 +205,10 @@ const SavedChartsHeader: FC = () => {
 
                                 <SeparatorDot icon="dot" size={6} />
 
-                                <ViewInfo views={savedChart.views} />
+                                <ViewInfo
+                                    views={savedChart.views}
+                                    firstViewedAt={savedChart.firstViewedAt}
+                                />
 
                                 {space && (
                                     <>

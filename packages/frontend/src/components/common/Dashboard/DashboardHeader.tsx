@@ -34,6 +34,7 @@ type DashboardHeaderProps = {
     dashboardSpaceUuid?: string;
     dashboardUpdatedAt: Date;
     dashboardViews: number;
+    dashboardFirstViewedAt: Date | string | null;
     dashboardUpdatedByUser?: UpdatedByUser;
     hasDashboardChanged: boolean;
     isEditMode: boolean;
@@ -44,6 +45,7 @@ type DashboardHeaderProps = {
     onDelete: () => void;
     onDuplicate: () => void;
     onMoveToSpace: (spaceUuid: string) => void;
+    onExport: () => void;
 };
 
 const DashboardHeader = ({
@@ -53,6 +55,7 @@ const DashboardHeader = ({
     dashboardSpaceName,
     dashboardSpaceUuid,
     dashboardViews,
+    dashboardFirstViewedAt,
     dashboardUpdatedAt,
     dashboardUpdatedByUser,
     hasDashboardChanged,
@@ -64,6 +67,7 @@ const DashboardHeader = ({
     onDelete,
     onDuplicate,
     onMoveToSpace,
+    onExport,
 }: DashboardHeaderProps) => {
     const { search } = useLocation();
     const { projectUuid, dashboardUuid } = useParams<{
@@ -137,7 +141,10 @@ const DashboardHeader = ({
 
                     <SeparatorDot icon="dot" size={6} />
 
-                    <ViewInfo views={dashboardViews} />
+                    <ViewInfo
+                        views={dashboardViews}
+                        firstViewedAt={dashboardFirstViewedAt}
+                    />
 
                     {dashboardSpaceName && (
                         <>
@@ -264,6 +271,11 @@ const DashboardHeader = ({
                                     onClick={() => {
                                         toggleSchedulerDeliveriesModel(true);
                                     }}
+                                />
+                                <MenuItem2
+                                    icon={'export'}
+                                    text={'Export dashboard'}
+                                    onClick={onExport}
                                 />
                                 <Divider />
 
