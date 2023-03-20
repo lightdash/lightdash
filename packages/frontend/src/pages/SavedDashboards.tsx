@@ -1,15 +1,12 @@
-import { Button, NonIdealState, Spinner } from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import { LightdashMode } from '@lightdash/common';
-import { Stack } from '@mantine/core';
-import { IconLayoutDashboard } from '@tabler/icons-react';
+import { Button, Center, Group, Stack, Tooltip } from '@mantine/core';
+import { IconLayoutDashboard, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Redirect, useHistory, useParams } from 'react-router-dom';
+import LoadingState from '../components/common/LoadingState';
 import DashboardCreateModal from '../components/common/modal/DashboardCreateModal';
-import Page from '../components/common/Page/Page';
-import { PageHeader } from '../components/common/Page/Page.styles';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ResourceView from '../components/common/ResourceView';
 import {
@@ -52,11 +49,7 @@ const SavedDashboards = () => {
     );
 
     if (isLoading || isLoadingSpaces) {
-        return (
-            <div style={{ marginTop: '20px' }}>
-                <NonIdealState title="Loading dashboards" icon={<Spinner />} />
-            </div>
-        );
+        return <LoadingState title="Loading dashboards" />;
     }
 
     if (hasCreatedDashboard && newDashboard) {
@@ -73,13 +66,13 @@ const SavedDashboards = () => {
     };
 
     return (
-        <Page>
+        <Center my="md">
             <Helmet>
                 <title>Dashboards - Lightdash</title>
             </Helmet>
 
             <Stack spacing="xl" w={900}>
-                <PageHeader>
+                <Group position="apart" mt="xs">
                     <PageBreadcrumbs
                         items={[{ href: '/home', title: 'Home' }]}
                         mt="xs"
@@ -90,26 +83,16 @@ const SavedDashboards = () => {
                     {dashboards.length > 0 &&
                         userCanManageDashboards &&
                         !isDemo && (
-                            <Tooltip2
-                                content={
-                                    hasNoSpaces
-                                        ? 'First you must create a space for this dashboard'
-                                        : undefined
-                                }
-                                interactionKind="hover"
+                            <Button
+                                leftIcon={<IconPlus size={18} />}
+                                loading={isCreatingDashboard}
+                                onClick={handleCreateDashboard}
+                                disabled={hasNoSpaces}
                             >
-                                <Button
-                                    icon="plus"
-                                    loading={isCreatingDashboard}
-                                    onClick={handleCreateDashboard}
-                                    disabled={hasNoSpaces}
-                                    intent="primary"
-                                >
-                                    Create dashboard
-                                </Button>
-                            </Tooltip2>
+                                Create dashboard
+                            </Button>
                         )}
-                </PageHeader>
+                </Group>
 
                 <DashboardCreateModal
                     projectUuid={projectUuid}
@@ -136,30 +119,39 @@ const SavedDashboards = () => {
                         icon: <IconLayoutDashboard size={30} />,
                         title: 'No dashboards added yet',
                         action:
-                            userCanManageDashboards && !isDemo ? (
-                                <Tooltip2
-                                    content={
-                                        hasNoSpaces
-                                            ? 'First you must create a space for this dashboard'
-                                            : undefined
-                                    }
-                                    interactionKind="hover"
+                            userCanManageDashboards &&
+                            !isDemo &&
+                            hasNoSpaces ? (
+                                <Tooltip
+                                    withArrow
+                                    arrowRadius={2}
+                                    label="First you must create a space for this dashboard"
                                 >
-                                    <Button
-                                        icon="plus"
-                                        loading={isCreatingDashboard}
-                                        onClick={handleCreateDashboard}
-                                        disabled={hasNoSpaces}
-                                        intent="primary"
-                                    >
-                                        Create dashboard
-                                    </Button>
-                                </Tooltip2>
+                                    <div>
+                                        <Button
+                                            leftIcon={<IconPlus size={18} />}
+                                            loading={isCreatingDashboard}
+                                            onClick={handleCreateDashboard}
+                                            disabled={hasNoSpaces}
+                                        >
+                                            Create dashboard
+                                        </Button>
+                                    </div>
+                                </Tooltip>
+                            ) : userCanManageDashboards && !isDemo ? (
+                                <Button
+                                    leftIcon={<IconPlus size={18} />}
+                                    loading={isCreatingDashboard}
+                                    onClick={handleCreateDashboard}
+                                    disabled={hasNoSpaces}
+                                >
+                                    Create dashboard
+                                </Button>
                             ) : undefined,
                     }}
                 />
             </Stack>
-        </Page>
+        </Center>
     );
 };
 
