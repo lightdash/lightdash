@@ -1,6 +1,7 @@
 import { Anchor, Box, Group, Stack, Table, Text, Tooltip } from '@mantine/core';
 import { createStyles } from '@mantine/styles';
 import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
+import moment from 'moment';
 import React, { FC, useMemo, useState } from 'react';
 import { Link, useHistory, useParams } from 'react-router-dom';
 import { ResourceViewCommonProps } from '..';
@@ -12,7 +13,11 @@ import {
     isResourceViewSpaceItem,
     ResourceViewItem,
 } from '../resourceTypeUtils';
-import { getResourceTypeName, getResourceUrl } from '../resourceUtils';
+import {
+    getResourceTypeName,
+    getResourceUrl,
+    getResourceViewsSinceWhenDescription,
+} from '../resourceUtils';
 import { ResourceViewItemActionState } from './../ResourceActionHandlers';
 import ResourceActionMenu from './../ResourceActionMenu';
 import ResourceLastEdited from './../ResourceLastEdited';
@@ -130,48 +135,65 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                         isResourceViewItemDashboard(item);
 
                     return (
-                        <Tooltip
-                            withArrow
-                            disabled={
-                                canBelongToSpace ? !item.data.description : true
-                            }
-                            label={
-                                canBelongToSpace
-                                    ? item.data.description
-                                    : undefined
-                            }
-                            position="top-start"
-                        >
-                            <Anchor
-                                component={Link}
-                                sx={{
+                        <Anchor
+                            component={Link}
+                            sx={{
+                                color: 'unset',
+                                ':hover': {
                                     color: 'unset',
-                                    ':hover': {
-                                        color: 'unset',
-                                        textDecoration: 'none',
-                                    },
-                                }}
-                                to={getResourceUrl(projectUuid, item)}
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                <Group noWrap>
-                                    <ResourceIcon item={item} />
+                                    textDecoration: 'none',
+                                },
+                            }}
+                            to={getResourceUrl(projectUuid, item)}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <Group noWrap>
+                                <ResourceIcon item={item} />
 
-                                    <Stack spacing={2}>
+                                <Stack spacing={2}>
+                                    <Tooltip
+                                        withArrow
+                                        disabled={
+                                            canBelongToSpace
+                                                ? !item.data.description
+                                                : true
+                                        }
+                                        label={
+                                            canBelongToSpace
+                                                ? item.data.description
+                                                : undefined
+                                        }
+                                        position="top-start"
+                                    >
                                         <Text fw={600} lineClamp={1}>
                                             {item.data.name}
                                         </Text>
+                                    </Tooltip>
 
-                                        {canBelongToSpace && (
-                                            <Text fz={12} color="gray.6">
-                                                {getResourceTypeName(item)} •{' '}
-                                                {item.data.views || '0'} views
-                                            </Text>
-                                        )}
-                                    </Stack>
-                                </Group>
-                            </Anchor>
-                        </Tooltip>
+                                    {canBelongToSpace && (
+                                        <Text fz={12} color="gray.6">
+                                            {getResourceTypeName(item)} •{' '}
+                                            <Tooltip
+                                                withArrow
+                                                position="top-start"
+                                                disabled={
+                                                    !item.data.views ||
+                                                    !item.data.firstViewedAt
+                                                }
+                                                label={getResourceViewsSinceWhenDescription(
+                                                    item,
+                                                )}
+                                            >
+                                                <span>
+                                                    {item.data.views || '0'}{' '}
+                                                    views
+                                                </span>
+                                            </Tooltip>
+                                        </Text>
+                                    )}
+                                </Stack>
+                            </Group>
+                        </Anchor>
                     );
                 },
                 enableSorting,

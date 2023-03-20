@@ -1994,6 +1994,10 @@
                     "views": {
                         "type": "number"
                     },
+                    "firstViewedAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "updatedByUser": {
                         "$ref": "#/components/schemas/UpdatedByUser"
                     },
@@ -2162,6 +2166,10 @@
                     },
                     "views": {
                         "type": "number"
+                    },
+                    "firstViewedAt": {
+                        "type": "string",
+                        "nullable": true
                     }
                 },
                 "required": [

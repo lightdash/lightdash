@@ -95,6 +95,7 @@ export type Dashboard = {
     spaceUuid: string;
     spaceName: string;
     views: number;
+    firstViewedAt: Date | string | null;
     pinnedListUuid: string | null;
 };
 
@@ -109,6 +110,7 @@ export type DashboardBasicDetails = Pick<
     | 'organizationUuid'
     | 'spaceUuid'
     | 'views'
+    | 'firstViewedAt'
     | 'pinnedListUuid'
 >;
 

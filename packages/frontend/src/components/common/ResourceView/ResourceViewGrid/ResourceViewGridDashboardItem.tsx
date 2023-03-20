@@ -1,6 +1,5 @@
 import {
     Box,
-    Divider,
     Flex,
     Group,
     Paper,
@@ -16,6 +15,7 @@ import ResourceViewActionMenu, {
 } from '../ResourceActionMenu';
 import { ResourceIcon } from '../ResourceIcon';
 import { ResourceViewDashboardItem } from '../resourceTypeUtils';
+import { getResourceViewsSinceWhenDescription } from '../resourceUtils';
 
 interface ResourceViewGridDashboardItemProps
     extends Pick<ResourceViewActionMenuCommonProps, 'onAction'> {
@@ -80,13 +80,20 @@ const ResourceViewGridDashboardItem: FC<ResourceViewGridDashboardItemProps> = ({
                     justify="space-between"
                     align="center"
                 >
-                    <Flex align="center" gap={4}>
-                        <IconEye color={theme.colors.gray[6]} size={14} />
+                    <Tooltip
+                        withArrow
+                        position="bottom-start"
+                        disabled={!item.data.views || !item.data.firstViewedAt}
+                        label={getResourceViewsSinceWhenDescription(item)}
+                    >
+                        <Flex align="center" gap={4}>
+                            <IconEye color={theme.colors.gray[6]} size={14} />
 
-                        <Text size={14} color="gray.6" fz="xs">
-                            {item.data.views} views
-                        </Text>
-                    </Flex>
+                            <Text size={14} color="gray.6" fz="xs">
+                                {item.data.views} views
+                            </Text>
+                        </Flex>
+                    </Tooltip>
 
                     <Box
                         sx={{
