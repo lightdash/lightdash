@@ -175,6 +175,7 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                                     h={50}
                                     px="md"
                                     spacing="xs"
+                                    w="100%"
                                 >
                                     {headerProps?.title ? (
                                         <Title order={5} fw={600}>
