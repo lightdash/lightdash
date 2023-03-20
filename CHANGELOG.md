@@ -1,3 +1,10 @@
+# [0.475.0](https://github.com/lightdash/lightdash/compare/0.474.0...0.475.0) (2023-03-20)
+
+
+### Features
+
+* `All Spaces` page components migrated to Mantine ([#4857](https://github.com/lightdash/lightdash/issues/4857)) ([9cffd76](https://github.com/lightdash/lightdash/commit/9cffd76faf6bedff2f4313b58b61a4b4125887ee))
+
 # [0.474.0](https://github.com/lightdash/lightdash/compare/0.473.0...0.474.0) (2023-03-20)
 
 
