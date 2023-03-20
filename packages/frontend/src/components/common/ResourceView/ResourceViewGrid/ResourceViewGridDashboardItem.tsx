@@ -40,24 +40,31 @@ const ResourceViewGridDashboardItem: FC<ResourceViewGridDashboardItemProps> = ({
             bg={hovered ? theme.fn.rgba(theme.colors.gray[0], 0.5) : undefined}
             h="100%"
         >
-            <Group
-                p="md"
-                align="center"
-                spacing="md"
-                noWrap
-                sx={{
-                    flexGrow: 1,
-                    borderBottomWidth: 1,
-                    borderBottomStyle: 'solid',
-                    borderBottomColor: theme.colors.gray[3],
-                }}
+            <Tooltip
+                label={item.data.description}
+                withArrow
+                position="top"
+                disabled={!item.data.description}
             >
-                <ResourceIcon item={item} />
+                <Group
+                    p="md"
+                    align="center"
+                    spacing="md"
+                    noWrap
+                    sx={{
+                        flexGrow: 1,
+                        borderBottomWidth: 1,
+                        borderBottomStyle: 'solid',
+                        borderBottomColor: theme.colors.gray[3],
+                    }}
+                >
+                    <ResourceIcon item={item} />
 
-                <Text lineClamp={2} fz="sm" fw={600}>
-                    {item.data.name}
-                </Text>
-            </Group>
+                    <Text lineClamp={2} fz="sm" fw={600}>
+                        {item.data.name}
+                    </Text>
+                </Group>
+            </Tooltip>
 
             <Flex pl="md" pr="xs" h={32} justify="space-between" align="center">
                 <Tooltip
