@@ -547,23 +547,42 @@ export type SchedulerNotificationJobEvent = BaseTrack & {
     };
 };
 
+export const parseAnalyticsLimit = (
+    limit: 'table' | 'all' | number | null | undefined,
+) => {
+    switch (limit) {
+        case 'all':
+        case null:
+            return 'all';
+        case 'table':
+        case undefined:
+            return 'results';
+        default:
+            return 'custom';
+    }
+};
 export type DownloadCsv = BaseTrack & {
     event:
         | 'download_results.started'
         | 'download_results.completed'
         | 'download_results.error';
-    anonymousId: string;
+    userId: string;
     properties: {
         jobId: string;
-        userId?: string;
         organizationId?: string;
         projectId: string;
-        tableId: string;
+        tableId?: string;
         fileType: 'csv';
-        values: 'raw' | 'formatted';
+        values?: 'raw' | 'formatted';
         limit?: 'results' | 'all' | 'custom';
-        context: 'results' | 'chart' | 'scheduled delivery' | 'sql runner';
+        context?:
+            | 'results'
+            | 'chart'
+            | 'scheduled delivery chart'
+            | 'scheduled delivery dashboard'
+            | 'sql runner';
         storage: 'local' | 's3';
+        numCharts?: number;
         numRows?: number;
         numColumns?: number;
         error?: string;

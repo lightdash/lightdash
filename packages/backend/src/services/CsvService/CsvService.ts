@@ -25,6 +25,11 @@ import * as fsPromise from 'fs/promises';
 import moment from 'moment';
 import { nanoid } from 'nanoid';
 import { Worker } from 'worker_threads';
+import { analytics } from '../../analytics/client';
+import {
+    DownloadCsv,
+    parseAnalyticsLimit,
+} from '../../analytics/LightdashAnalytics';
 import { S3Service } from '../../clients/Aws/s3';
 import { AttachmentUrl } from '../../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../../config/lightdashConfig';
@@ -224,6 +229,7 @@ export class CsvService {
         user: SessionUser,
         chartUuid: string,
         options: SchedulerCsvOptions | undefined,
+        jobId?: string,
     ): Promise<AttachmentUrl> {
         const chart = await this.savedChartModel.get(chartUuid);
         const {
@@ -233,6 +239,32 @@ export class CsvService {
         const exploreId = chart.tableName;
         const onlyRaw = options?.formatted === false;
 
+        const analyticProperties: DownloadCsv['properties'] | undefined = jobId
+            ? {
+                  jobId,
+                  userId: user.userUuid,
+                  organizationId: user.organizationUuid,
+                  projectId: chart.projectUuid,
+                  fileType: 'csv',
+                  values: onlyRaw ? 'raw' : 'formatted',
+                  limit: parseAnalyticsLimit(options?.limit),
+                  storage: this.s3Service.isEnabled() ? 's3' : 'local',
+                  context: 'scheduled delivery chart',
+                  numColumns:
+                      metricQuery.dimensions.length +
+                      metricQuery.metrics.length +
+                      metricQuery.tableCalculations.length,
+              }
+            : undefined;
+
+        if (analyticProperties) {
+            analytics.track({
+                event: 'download_results.started',
+                userId: user.userUuid,
+                properties: analyticProperties,
+            });
+        }
+
         const rows = await this.projectService.runQuery(
             user,
             metricQuery,
@@ -240,6 +272,7 @@ export class CsvService {
             exploreId,
             getSchedulerCsvLimit(options),
         );
+        const numberRows = rows.length;
 
         const explore = await this.projectService.getExplore(
             user,
@@ -261,6 +294,14 @@ export class CsvService {
             getCustomLabelsFromTableConfig(config),
             chart.tableConfig.columnOrder,
         );
+
+        if (analyticProperties) {
+            analytics.track({
+                event: 'download_results.completed',
+                userId: user.userUuid,
+                properties: { ...analyticProperties, numRows: numberRows },
+            });
+        }
 
         try {
             const csvContent = fs.createReadStream(`/tmp/${fileId}`);
