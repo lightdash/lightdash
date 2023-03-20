@@ -283,23 +283,3 @@ models:
 ```
 
 To see which format types are available for dimensions, [check the reference docs here.](https://docs.lightdash.com/references/dimensions#:~:text=number%20of%20digits-,format,-No). Check out [this doc](https://docs.lightdash.com/references/dimensions#dimension-configuration) to see all of the other properties you can customize for dimensions.
-
-### To add units to your metrics, you just need to add `format` to their properties
-
-You can add a `format` to your metrics this:
-
-```yaml
-version: 2
-models:
-- name: sales
-  columns:
-    - name: revenue
-      meta:
-        metrics:
-          total_revenue:
-            type: sum
-            format: 'gbp'
-```
-
-To see which format types are available for metrics, [check the reference docs here.](https://docs.lightdash.com/references/metrics#:~:text=number%20of%20digits-,format,-No)
-Check out [this doc](https://docs.lightdash.com/references/metrics#metric-configuration) to see all of the other properties you can customize for metrics.
