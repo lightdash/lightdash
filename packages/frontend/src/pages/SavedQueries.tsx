@@ -1,13 +1,11 @@
-import { Button } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { LightdashMode } from '@lightdash/common';
-import { Stack } from '@mantine/core';
-import { IconChartBar } from '@tabler/icons-react';
+import { Button, Center, Group, Stack } from '@mantine/core';
+import { IconChartBar, IconPlus } from '@tabler/icons-react';
 import { FC } from 'react';
 import { Helmet } from 'react-helmet';
 import { useHistory, useParams } from 'react-router-dom';
-import Page from '../components/common/Page/Page';
-import { PageHeader } from '../components/common/Page/Page.styles';
+import LoadingState from '../components/common/LoadingState';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ResourceView from '../components/common/ResourceView';
 import {
@@ -15,7 +13,6 @@ import {
     wrapResourceView,
 } from '../components/common/ResourceView/resourceTypeUtils';
 import { SortDirection } from '../components/common/ResourceView/ResourceViewList';
-import { LoadingChart } from '../components/SimpleChart';
 import { useSavedCharts } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
 
@@ -38,7 +35,7 @@ const SavedQueries: FC = () => {
     );
 
     if (isLoading && !cannotView) {
-        return <LoadingChart />;
+        return <LoadingState title="Loading charts" />;
     }
 
     const handleCreateChart = () => {
@@ -46,13 +43,13 @@ const SavedQueries: FC = () => {
     };
 
     return (
-        <Page>
+        <Center my="md">
             <Helmet>
                 <title>Saved charts - Lightdash</title>
             </Helmet>
 
             <Stack spacing="xl" w={900}>
-                <PageHeader>
+                <Group position="apart" mt="xs">
                     <PageBreadcrumbs
                         items={[{ href: '/home', title: 'Home' }]}
                         mt="xs"
@@ -64,14 +61,13 @@ const SavedQueries: FC = () => {
                     !isDemo &&
                     userCanManageCharts ? (
                         <Button
-                            icon="plus"
-                            intent="primary"
+                            leftIcon={<IconPlus size={18} />}
                             onClick={handleCreateChart}
                         >
                             Create chart
                         </Button>
                     ) : undefined}
-                </PageHeader>
+                </Group>
 
                 <ResourceView
                     items={wrapResourceView(
@@ -86,18 +82,14 @@ const SavedQueries: FC = () => {
                         title: 'No charts added yet',
                         action:
                             !isDemo && userCanManageCharts ? (
-                                <Button
-                                    icon="plus"
-                                    intent="primary"
-                                    onClick={handleCreateChart}
-                                >
+                                <Button onClick={handleCreateChart}>
                                     Create chart
                                 </Button>
                             ) : undefined,
                     }}
                 />
             </Stack>
-        </Page>
+        </Center>
     );
 };
 
