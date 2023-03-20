@@ -31,28 +31,23 @@ const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
     const theme = useMantineTheme();
 
     return (
-        <Tooltip
-            opened={opened || hovered}
-            label={item.data.description}
-            withArrow
-            position="top"
-            styles={{
-                tooltip: { backgroundColor: theme.colors.dark[6] },
-                arrow: { backgroundColor: theme.colors.dark[6] },
-            }}
+        <Paper
+            ref={ref}
+            component={Flex}
+            direction="column"
+            p={0}
+            withBorder
+            bg={hovered ? theme.fn.rgba(theme.colors.gray[0], 0.5) : undefined}
+            h="100%"
         >
-            <Paper
-                ref={ref}
-                component={Flex}
-                direction="column"
-                p={0}
-                withBorder
-                bg={
-                    hovered
-                        ? theme.fn.rgba(theme.colors.gray[0], 0.5)
-                        : undefined
-                }
-                h="100%"
+            <Tooltip
+                label={item.data.description}
+                withArrow
+                position="top"
+                styles={{
+                    tooltip: { backgroundColor: theme.colors.dark[6] },
+                    arrow: { backgroundColor: theme.colors.dark[6] },
+                }}
             >
                 <Group
                     p="md"
@@ -72,53 +67,47 @@ const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
                         {item.data.name}
                     </Text>
                 </Group>
+            </Tooltip>
 
-                <Flex
-                    pl="md"
-                    pr="xs"
-                    h={32}
-                    justify="space-between"
-                    align="center"
+            <Flex pl="md" pr="xs" h={32} justify="space-between" align="center">
+                <Tooltip
+                    withArrow
+                    position="bottom-start"
+                    disabled={!item.data.views || !item.data.firstViewedAt}
+                    label={getResourceViewsSinceWhenDescription(item)}
                 >
-                    <Tooltip
-                        withArrow
-                        position="bottom-start"
-                        disabled={!item.data.views || !item.data.firstViewedAt}
-                        label={getResourceViewsSinceWhenDescription(item)}
-                    >
-                        <Flex align="center" gap={4}>
-                            <IconEye color={theme.colors.gray[6]} size={14} />
+                    <Flex align="center" gap={4}>
+                        <IconEye color={theme.colors.gray[6]} size={14} />
 
-                            <Text size={14} color="gray.6" fz="xs">
-                                {item.data.views} views
-                            </Text>
-                        </Flex>
-                    </Tooltip>
+                        <Text size={14} color="gray.6" fz="xs">
+                            {item.data.views} views
+                        </Text>
+                    </Flex>
+                </Tooltip>
 
-                    <Box
-                        sx={{
-                            flexGrow: 0,
-                            flexShrink: 0,
-                            transition: 'opacity 0.2s',
-                            opacity: hovered || opened ? 1 : 0,
-                        }}
-                        component="div"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                        }}
-                    >
-                        <ResourceViewActionMenu
-                            item={item}
-                            isOpen={opened}
-                            onOpen={handlers.open}
-                            onClose={handlers.close}
-                            onAction={onAction}
-                        />
-                    </Box>
-                </Flex>
-            </Paper>
-        </Tooltip>
+                <Box
+                    sx={{
+                        flexGrow: 0,
+                        flexShrink: 0,
+                        transition: 'opacity 0.2s',
+                        opacity: hovered || opened ? 1 : 0,
+                    }}
+                    component="div"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                    }}
+                >
+                    <ResourceViewActionMenu
+                        item={item}
+                        isOpen={opened}
+                        onOpen={handlers.open}
+                        onClose={handlers.close}
+                        onAction={onAction}
+                    />
+                </Box>
+            </Flex>
+        </Paper>
     );
 };
 
