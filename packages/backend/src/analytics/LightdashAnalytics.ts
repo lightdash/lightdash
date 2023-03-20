@@ -547,6 +547,48 @@ export type SchedulerNotificationJobEvent = BaseTrack & {
     };
 };
 
+export const parseAnalyticsLimit = (
+    limit: 'table' | 'all' | number | null | undefined,
+) => {
+    switch (limit) {
+        case 'all':
+        case null:
+            return 'all';
+        case 'table':
+        case undefined:
+            return 'results';
+        default:
+            return 'custom';
+    }
+};
+export type DownloadCsv = BaseTrack & {
+    event:
+        | 'download_results.started'
+        | 'download_results.completed'
+        | 'download_results.error';
+    userId: string;
+    properties: {
+        jobId: string;
+        organizationId?: string;
+        projectId: string;
+        tableId?: string;
+        fileType: 'csv';
+        values?: 'raw' | 'formatted';
+        limit?: 'results' | 'all' | 'custom';
+        context?:
+            | 'results'
+            | 'chart'
+            | 'scheduled delivery chart'
+            | 'scheduled delivery dashboard'
+            | 'sql runner';
+        storage: 'local' | 's3';
+        numCharts?: number;
+        numRows?: number;
+        numColumns?: number;
+        error?: string;
+    };
+};
+
 type Track =
     | TrackSimpleEvent
     | CreateUserEvent
@@ -591,7 +633,8 @@ type Track =
     | SchedulerDeleteEvent
     | SchedulerJobEvent
     | SchedulerNotificationJobEvent
-    | PinnedListUpdated;
+    | PinnedListUpdated
+    | DownloadCsv;
 
 export class LightdashAnalytics extends Analytics {
     static lightdashContext = {

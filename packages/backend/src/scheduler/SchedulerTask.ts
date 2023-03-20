@@ -14,7 +14,11 @@ import cronstrue from 'cronstrue';
 import { Job } from 'graphile-worker';
 import { nanoid } from 'nanoid';
 import { analytics } from '../analytics/client';
-import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
+import {
+    DownloadCsv,
+    LightdashAnalytics,
+    parseAnalyticsLimit,
+} from '../analytics/LightdashAnalytics';
 import { emailClient, schedulerClient, slackClient } from '../clients/clients';
 import {
     getChartAndDashboardBlocks,
@@ -25,6 +29,7 @@ import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logger';
 import {
     csvService,
+    s3Service,
     schedulerService,
     unfurlService,
     userService,
@@ -45,6 +50,7 @@ const getChartOrDashboard = async (
             },
             pageType: LightdashPage.CHART,
             organizationUuid: chart.organizationUuid,
+            projectUuid: chart.projectUuid,
         };
     }
 
@@ -61,6 +67,7 @@ const getChartOrDashboard = async (
             },
             pageType: LightdashPage.DASHBOARD,
             organizationUuid: dashboard.organizationUuid,
+            projectUuid: dashboard.projectUuid,
         };
     }
 
@@ -69,6 +76,7 @@ const getChartOrDashboard = async (
 
 export const getNotificationPageData = async (
     scheduler: Scheduler,
+    jobId: string,
 ): Promise<NotificationPayloadBase['page']> => {
     const {
         createdBy: userUuid,
@@ -81,8 +89,14 @@ export const getNotificationPageData = async (
     let imageUrl;
     let csvUrl;
     let csvUrls;
-    const { url, minimalUrl, pageType, details, organizationUuid } =
-        await getChartOrDashboard(savedChartUuid, dashboardUuid);
+    const {
+        url,
+        minimalUrl,
+        pageType,
+        details,
+        organizationUuid,
+        projectUuid,
+    } = await getChartOrDashboard(savedChartUuid, dashboardUuid);
     if (format === 'image') {
         imageUrl = await unfurlService.unfurlImage(
             minimalUrl,
@@ -98,20 +112,65 @@ export const getNotificationPageData = async (
         const user = await userService.getSessionByUserUuid(userUuid);
         const csvOptions = isSchedulerCsvOptions(options) ? options : undefined;
 
-        if (savedChartUuid) {
-            csvUrl = await csvService.getCsvForChart(
-                user,
-                savedChartUuid,
-                csvOptions,
-            );
-        } else if (dashboardUuid) {
-            csvUrls = await csvService.getCsvsForDashboard(
-                user,
-                dashboardUuid,
-                csvOptions,
-            );
-        } else {
-            throw new Error('Not implemented');
+        const baseAnalyticsProperties: DownloadCsv['properties'] = {
+            jobId,
+            userId: userUuid,
+            organizationId: user.organizationUuid,
+            projectId: projectUuid,
+            fileType: 'csv',
+            values: csvOptions?.formatted ? 'formatted' : 'raw',
+            limit: parseAnalyticsLimit(csvOptions?.limit),
+            storage: s3Service.isEnabled() ? 's3' : 'local',
+        };
+
+        try {
+            if (savedChartUuid) {
+                csvUrl = await csvService.getCsvForChart(
+                    user,
+                    savedChartUuid,
+                    csvOptions,
+                    jobId,
+                );
+            } else if (dashboardUuid) {
+                analytics.track({
+                    event: 'download_results.started',
+                    userId: userUuid,
+                    properties: {
+                        ...baseAnalyticsProperties,
+                        context: 'scheduled delivery dashboard',
+                    },
+                });
+
+                csvUrls = await csvService.getCsvsForDashboard(
+                    user,
+                    dashboardUuid,
+                    csvOptions,
+                );
+
+                analytics.track({
+                    event: 'download_results.completed',
+                    userId: userUuid,
+                    properties: {
+                        ...baseAnalyticsProperties,
+                        context: 'scheduled delivery dashboard',
+                        numCharts: csvUrls.length,
+                    },
+                });
+            } else {
+                throw new Error('Not implemented');
+            }
+        } catch (e) {
+            Logger.error(`Unable to download CSV on scheduled task: ${e}`);
+
+            analytics.track({
+                event: 'download_results.error',
+                userId: userUuid,
+                properties: {
+                    ...baseAnalyticsProperties,
+                    error: `${e}`,
+                },
+            });
+            throw e; // cascade error
         }
     }
 
@@ -194,7 +253,9 @@ export const sendSlackNotification = async (
             imageUrl,
             csvUrl,
             csvUrls,
-        } = notification.page ?? (await getNotificationPageData(scheduler));
+        } =
+            notification.page ??
+            (await getNotificationPageData(scheduler, jobId));
 
         const getBlocksArgs = {
             title: name,
@@ -354,7 +415,8 @@ export const sendEmailNotification = async (
 
         // Backwards compatibility for old scheduled deliveries
         const { url, details, pageType, imageUrl, csvUrl, csvUrls } =
-            notification.page ?? (await getNotificationPageData(scheduler));
+            notification.page ??
+            (await getNotificationPageData(scheduler, jobId));
         const schedulerUrl = `${url}?scheduler_uuid=${schedulerUuid}`;
 
         if (format === 'image') {
@@ -485,7 +547,7 @@ export const handleScheduledDelivery = async (
             await schedulerService.schedulerModel.getSchedulerAndTargets(
                 schedulerUuid,
             );
-        const page = await getNotificationPageData(scheduler);
+        const page = await getNotificationPageData(scheduler, jobId);
         const scheduledJobs =
             await schedulerClient.generateJobsForSchedulerTargets(
                 scheduledTime,
