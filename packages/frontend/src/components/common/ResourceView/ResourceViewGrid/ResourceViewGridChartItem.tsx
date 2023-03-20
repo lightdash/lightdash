@@ -40,15 +40,7 @@ const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
             bg={hovered ? theme.fn.rgba(theme.colors.gray[0], 0.5) : undefined}
             h="100%"
         >
-            <Tooltip
-                label={item.data.description}
-                withArrow
-                position="top"
-                styles={{
-                    tooltip: { backgroundColor: theme.colors.dark[6] },
-                    arrow: { backgroundColor: theme.colors.dark[6] },
-                }}
-            >
+            <Tooltip label={item.data.description} withArrow position="top">
                 <Group
                     p="md"
                     align="center"
