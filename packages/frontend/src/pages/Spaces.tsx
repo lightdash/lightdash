@@ -1,49 +1,125 @@
+import { AnchorButton } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
-import { Stack } from '@mantine/core';
-import { FC } from 'react';
+import { LightdashMode } from '@lightdash/common';
+import { Button, Center, Group, Stack } from '@mantine/core';
+import { IconFolders, IconPlus } from '@tabler/icons-react';
+import { FC, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { useParams } from 'react-router-dom';
-import Page from '../components/common/Page/Page';
-import { PageHeader } from '../components/common/Page/Page.styles';
+import LoadingState from '../components/common/LoadingState';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
-import SpaceBrowser from '../components/Explorer/SpaceBrowser';
+import ResourceView, {
+    ResourceViewType,
+} from '../components/common/ResourceView';
+import {
+    ResourceViewItemType,
+    wrapResourceView,
+} from '../components/common/ResourceView/resourceTypeUtils';
+import SpaceActionModal, {
+    ActionType,
+} from '../components/common/SpaceActionModal';
 import ForbiddenPanel from '../components/ForbiddenPanel';
+import { useSpaces } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
 
 const Spaces: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { user } = useApp();
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
+    const { data: spaces = [], isLoading } = useSpaces(projectUuid);
 
-    if (
-        user.data?.ability?.cannot(
-            'view',
-            subject('Space', {
-                organizationUuid: user.data?.organizationUuid,
-                projectUuid,
-            }),
-        )
-    ) {
+    const { user, health } = useApp();
+
+    const hasSpaces = spaces.length > 0;
+    const isDemo = health.data?.mode === LightdashMode.DEMO;
+    const userCannotViewSpace = user.data?.ability?.cannot(
+        'view',
+        subject('Space', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
+    const userCanManageSpace = user.data?.ability?.can(
+        'create',
+        subject('Space', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
+
+    const handleCreateSpace = () => {
+        setIsCreateModalOpen(true);
+    };
+
+    if (userCannotViewSpace) {
         return <ForbiddenPanel />;
     }
 
+    if (isLoading && !userCannotViewSpace) {
+        return <LoadingState title="Loading spaces" />;
+    }
+
     return (
-        <Page>
+        <Center my="md">
             <Helmet>
                 <title>Spaces - Lightdash</title>
             </Helmet>
 
             <Stack spacing="xl" w={900}>
-                <PageHeader>
+                <Group position="apart" mt="xs">
                     <PageBreadcrumbs
                         items={[{ href: '/home', title: 'Home' }]}
                         mt="xs"
                     >
                         All Spaces
                     </PageBreadcrumbs>
-                </PageHeader>
-                <SpaceBrowser projectUuid={projectUuid} />
+                    {!isDemo && userCanManageSpace && hasSpaces && (
+                        <Button
+                            leftIcon={<IconPlus size={18} />}
+                            onClick={handleCreateSpace}
+                        >
+                            Create space
+                        </Button>
+                    )}
+                </Group>
+                <ResourceView
+                    view={ResourceViewType.GRID}
+                    items={wrapResourceView(spaces, ResourceViewItemType.SPACE)}
+                    headerProps={{
+                        title: 'Spaces',
+
+                        action:
+                            spaces.length === 0 ? (
+                                <AnchorButton
+                                    text="Learn"
+                                    minimal
+                                    target="_blank"
+                                    href="https://docs.lightdash.com/guides/spaces/"
+                                />
+                            ) : null,
+                    }}
+                    emptyStateProps={{
+                        icon: <IconFolders size={30} />,
+                        title: 'No spaces added yet',
+                        action:
+                            !isDemo && userCanManageSpace ? (
+                                <Button onClick={handleCreateSpace}>
+                                    Create space
+                                </Button>
+                            ) : undefined,
+                    }}
+                />
             </Stack>
-        </Page>
+            {isCreateModalOpen && (
+                <SpaceActionModal
+                    projectUuid={projectUuid}
+                    actionType={ActionType.CREATE}
+                    title="Create new space"
+                    confirmButtonLabel="Create"
+                    icon="folder-close"
+                    onClose={() => setIsCreateModalOpen(false)}
+                />
+            )}
+        </Center>
     );
 };
 
