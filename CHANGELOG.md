@@ -1,3 +1,10 @@
+# [0.476.0](https://github.com/lightdash/lightdash/compare/0.475.1...0.476.0) (2023-03-20)
+
+
+### Features
+
+* resource view grid item description tooltip ([#4854](https://github.com/lightdash/lightdash/issues/4854)) ([35b2d5c](https://github.com/lightdash/lightdash/commit/35b2d5c4c06ef1171dfa2361f2275e8df340c27a))
+
 ## [0.475.1](https://github.com/lightdash/lightdash/compare/0.475.0...0.475.1) (2023-03-20)
 
 
