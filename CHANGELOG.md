@@ -1,3 +1,10 @@
+## [0.475.1](https://github.com/lightdash/lightdash/compare/0.475.0...0.475.1) (2023-03-20)
+
+
+### Bug Fixes
+
+* resource view header actions position ([#4855](https://github.com/lightdash/lightdash/issues/4855)) ([a233bdf](https://github.com/lightdash/lightdash/commit/a233bdf8bc4c9f913a30c0e267804b4e27e2bedc))
+
 # [0.475.0](https://github.com/lightdash/lightdash/compare/0.474.0...0.475.0) (2023-03-20)
 
 
