@@ -127,3 +127,31 @@ export const useSavedChartResults = (
         refetchOnMount: false,
     });
 };
+
+export const getSavedChartResults = async ({
+    projectUuid,
+    chartUuid,
+}: {
+    projectUuid: string;
+    chartUuid: string;
+}) => {
+    return lightdashApi<ApiQueryResults>({
+        url: `/projects/${projectUuid}/runChartQuery`,
+        method: 'POST',
+        body: JSON.stringify({ chartUuid }),
+    });
+};
+
+export const useChartResults = (projectUuid: string, chartUuid: string) => {
+    const queryKey = ['savedChartResults', chartUuid, projectUuid];
+    return useQuery<ApiQueryResults, ApiError>({
+        queryKey,
+        queryFn: () =>
+            getSavedChartResults({
+                projectUuid,
+                chartUuid,
+            }),
+        retry: false,
+        refetchOnMount: false,
+    });
+};

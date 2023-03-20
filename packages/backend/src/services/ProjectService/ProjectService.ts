@@ -830,6 +830,33 @@ export class ProjectService {
         return rows.map((row) => row[getItemId(distinctMetric)]);
     }
 
+    async runChartQuery(
+        user: SessionUser,
+        chartUuid: string,
+    ): Promise<ApiQueryResults> {
+        const chart = await this.savedChartModel.get(chartUuid);
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('SavedQuery', {
+                    organizationUuid: chart.organizationUuid,
+                    projectUuid: chart.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        return this.runQueryAndFormatRows(
+            user,
+            chart.metricQuery,
+            chart.projectUuid,
+            chart.tableName,
+            undefined,
+        );
+    }
+
     async refreshAllTables(
         user: Pick<SessionUser, 'userUuid'>,
         projectUuid: string,

@@ -227,6 +227,26 @@ projectRouter.post(
 );
 
 projectRouter.post(
+    '/runChartQuery',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            const results: ApiQueryResults = await projectService.runChartQuery(
+                req.user!,
+                req.body.chartUuid,
+            );
+            res.json({
+                status: 'ok',
+                results,
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
+
+projectRouter.post(
     '/explores/:exploreId/downloadCsv',
     allowApiKeyAuthentication,
     isAuthenticated,
