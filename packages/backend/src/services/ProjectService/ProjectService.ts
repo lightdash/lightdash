@@ -572,6 +572,37 @@ export class ProjectService {
         };
     }
 
+    async runUnderlyingDataQuery(
+        user: SessionUser,
+        metricQuery: MetricQuery,
+        projectUuid: string,
+        exploreName: string,
+        csvLimit: number | null | undefined,
+    ): Promise<ApiQueryResults> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        return this.runQueryAndFormatRows(
+            user,
+            metricQuery,
+            projectUuid,
+            exploreName,
+            csvLimit,
+        );
+    }
+
     async runQueryAndFormatRows(
         user: SessionUser,
         metricQuery: MetricQuery,

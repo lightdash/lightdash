@@ -83,6 +83,23 @@ export const useQueryResults = () => {
     );
 };
 
+export const getUnderlyingDataResults = async ({
+    projectUuid,
+    tableId,
+    query,
+}: {
+    projectUuid: string;
+    tableId: string;
+    query: MetricQuery;
+}) => {
+    const timezoneFixQuery = convertDateFilters(query);
+    return lightdashApi<ApiQueryResults>({
+        url: `/projects/${projectUuid}/explores/${tableId}/runUnderlyingDataQuery`,
+        method: 'POST',
+        body: JSON.stringify(timezoneFixQuery),
+    });
+};
+
 export const useUnderlyingDataResults = (
     tableId: string,
     query: MetricQuery,
@@ -96,7 +113,7 @@ export const useUnderlyingDataResults = (
     return useQuery<ApiQueryResults, ApiError>({
         queryKey,
         queryFn: () =>
-            getQueryResults({
+            getUnderlyingDataResults({
                 projectUuid,
                 tableId,
                 query,
