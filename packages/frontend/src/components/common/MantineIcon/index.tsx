@@ -16,7 +16,7 @@ interface MantineIconProps extends TablerIconsProps {
 
 const MantineIcon: FC<MantineIconProps> = ({
     icon: TablerIcon,
-    size,
+    size = 'lg',
     stroke,
     color,
     fill,
