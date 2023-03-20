@@ -86,16 +86,6 @@ const Spaces: FC = () => {
                     items={wrapResourceView(spaces, ResourceViewItemType.SPACE)}
                     headerProps={{
                         title: 'Spaces',
-
-                        action:
-                            spaces.length === 0 ? (
-                                <AnchorButton
-                                    text="Learn"
-                                    minimal
-                                    target="_blank"
-                                    href="https://docs.lightdash.com/guides/spaces/"
-                                />
-                            ) : null,
                     }}
                     emptyStateProps={{
                         icon: <IconFolders size={30} />,
