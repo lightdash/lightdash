@@ -19,6 +19,7 @@ export const BigNumber = styled.span<BigNumberProps>`
     color: ${Colors.DARK_GRAY4};
     text-align: center;
     font-weight: 500;
+    transition: font-size 0.1s ease-in-out;
     font-size: ${({ $fontSize }) => ($fontSize ? `${$fontSize}px` : '32px')};
     ${({ $interactive }) => ($interactive ? 'cursor: pointer;' : '')}
 `;
@@ -31,5 +32,6 @@ export const BigNumberLabel = styled.span<BigNumberLabelProps>`
     color: ${Colors.GRAY3};
     text-align: center;
     font-weight: 500;
+    transition: font-size 0.1s ease-in-out;
     font-size: ${({ $fontSize }) => ($fontSize ? `${$fontSize}px` : '16px')};
 `;
