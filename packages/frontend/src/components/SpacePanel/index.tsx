@@ -1,32 +1,25 @@
-import { Button, Intent, Menu, PopoverPosition } from '@blueprintjs/core';
-import { Breadcrumbs2, MenuItem2, Popover2 } from '@blueprintjs/popover2';
+import { Button, Menu, PopoverPosition } from '@blueprintjs/core';
+import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import { LightdashMode, Space } from '@lightdash/common';
-import { Stack } from '@mantine/core';
 import { IconChartAreaLine, IconLayoutDashboard } from '@tabler/icons-react';
-import React, { useCallback, useState } from 'react';
-import { useHistory, useLocation, useParams } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useHistory, useParams } from 'react-router-dom';
 import { useDashboards } from '../../hooks/dashboard/useDashboards';
-import { useSpacePinningMutation } from '../../hooks/pinning/useSpaceMutation';
 import { useSavedCharts } from '../../hooks/useSpaces';
 import { useApp } from '../../providers/AppProvider';
-import { Can } from '../common/Authorization';
 import DashboardCreateModal from '../common/modal/DashboardCreateModal';
-import { PageBreadcrumbsWrapper, PageHeader } from '../common/Page/Page.styles';
 import ResourceView from '../common/ResourceView';
 import { ResourceTypeIcon } from '../common/ResourceView/ResourceIcon';
 import {
     ResourceViewItemType,
     wrapResourceView,
 } from '../common/ResourceView/resourceTypeUtils';
-import ShareSpaceModal from '../common/ShareSpaceModal';
-import SpaceActionModal, { ActionType } from '../common/SpaceActionModal';
 import AddResourceToSpaceMenu from '../Explorer/SpaceBrowser/AddResourceToSpaceMenu';
 import AddResourceToSpaceModal, {
     AddToSpaceResources,
 } from '../Explorer/SpaceBrowser/AddResourceToSpaceModal';
 import CreateResourceToSpace from '../Explorer/SpaceBrowser/CreateResourceToSpace';
-import { SpaceBrowserMenu } from '../Explorer/SpaceBrowser/SpaceBrowserMenu';
 
 interface Props {
     space: Space;
@@ -35,20 +28,18 @@ interface Props {
 export const SpacePanel: React.FC<Props> = ({ space }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { user, health } = useApp();
+    const { data: dashboards = [] } = useDashboards(projectUuid);
+    const { data: savedCharts = [] } = useSavedCharts(projectUuid);
+
     const isDemo = health.data?.mode === LightdashMode.DEMO;
     const history = useHistory();
     const dashboardsInSpace = space.dashboards;
     const chartsInSpace = space.queries;
-    const { data: dashboards = [] } = useDashboards(projectUuid);
-    const { data: savedCharts = [] } = useSavedCharts(projectUuid);
 
-    const [updateSpace, setUpdateSpace] = useState<boolean>(false);
-    const [deleteSpace, setDeleteSpace] = useState<boolean>(false);
     const [isCreateDashboardOpen, setIsCreateDashboardOpen] =
         useState<boolean>(false);
     const [addToSpace, setAddToSpace] = useState<AddToSpaceResources>();
     const [createToSpace, setCreateToSpace] = useState<AddToSpaceResources>();
-    const { mutate: pinSpace } = useSpacePinningMutation(projectUuid);
 
     const userCanManageDashboards = user.data?.ability?.can(
         'manage',
@@ -71,96 +62,8 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
         ...wrapResourceView(chartsInSpace, ResourceViewItemType.CHART),
     ];
 
-    const handlePinToggleSpace = useCallback(
-        (spaceUuid: string) => pinSpace(spaceUuid),
-        [pinSpace],
-    );
-    const location = useLocation();
-
     return (
-        <Stack spacing="xl" w={900}>
-            <PageHeader>
-                <PageBreadcrumbsWrapper>
-                    <Breadcrumbs2
-                        items={[
-                            {
-                                text: 'All spaces',
-                                className: 'home-breadcrumb',
-                                onClick: () =>
-                                    history.push(
-                                        `/projects/${projectUuid}/spaces`,
-                                    ),
-                            },
-                            { text: space.name },
-                        ]}
-                    />
-                </PageBreadcrumbsWrapper>
-
-                <div>
-                    <Can
-                        I="manage"
-                        this={subject('Space', {
-                            organizationUuid: user.data?.organizationUuid,
-                            projectUuid,
-                        })}
-                    >
-                        <ShareSpaceModal
-                            space={space}
-                            projectUuid={projectUuid}
-                        />
-                    </Can>
-
-                    <SpaceBrowserMenu
-                        onRename={() => setUpdateSpace(true)}
-                        onDelete={() => setDeleteSpace(true)}
-                        onTogglePin={() => handlePinToggleSpace(space.uuid)}
-                        isPinned={!!space.pinnedListUuid}
-                    >
-                        <Can
-                            I="manage"
-                            this={subject('Space', {
-                                organizationUuid: user.data?.organizationUuid,
-                                projectUuid,
-                            })}
-                        >
-                            <Button icon="more" />
-                        </Can>
-                    </SpaceBrowserMenu>
-                </div>
-                {updateSpace && (
-                    <SpaceActionModal
-                        projectUuid={projectUuid}
-                        spaceUuid={space.uuid}
-                        actionType={ActionType.UPDATE}
-                        title="Update space"
-                        confirmButtonLabel="Update"
-                        icon="folder-close"
-                        onClose={() => setUpdateSpace(false)}
-                    />
-                )}
-
-                {deleteSpace && (
-                    <SpaceActionModal
-                        projectUuid={projectUuid}
-                        spaceUuid={space.uuid}
-                        actionType={ActionType.DELETE}
-                        title="Delete space"
-                        confirmButtonLabel="Delete"
-                        confirmButtonIntent={Intent.DANGER}
-                        icon="folder-close"
-                        onSubmitForm={() => {
-                            if (location.pathname.includes(space.uuid)) {
-                                //Redirect to home if we are on the space we are deleting
-                                history.push(`/projects/${projectUuid}/home`);
-                            }
-                        }}
-                        onClose={() => {
-                            setDeleteSpace(false);
-                        }}
-                    />
-                )}
-            </PageHeader>
-
+        <>
             <ResourceView
                 items={allItems}
                 listProps={{
@@ -298,7 +201,7 @@ export const SpacePanel: React.FC<Props> = ({ space }) => {
                     setIsCreateDashboardOpen(false);
                 }}
             />
-        </Stack>
+        </>
     );
 };
 
