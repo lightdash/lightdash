@@ -1,3 +1,10 @@
+# [0.479.0](https://github.com/lightdash/lightdash/compare/0.478.0...0.479.0) (2023-03-21)
+
+
+### Features
+
+* space page migrated to Mantine ([#4887](https://github.com/lightdash/lightdash/issues/4887)) ([33783e5](https://github.com/lightdash/lightdash/commit/33783e522dfb36d7793f139c471554529a8caa08))
+
 # [0.478.0](https://github.com/lightdash/lightdash/compare/0.477.1...0.478.0) (2023-03-21)
 
 
