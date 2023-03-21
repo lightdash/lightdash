@@ -27,7 +27,7 @@ import {
     useContextSelector,
 } from 'use-context-selector';
 import useDefaultSortField from '../hooks/useDefaultSortField';
-import { useQueryResults } from '../hooks/useQueryResults';
+import { useQueryResults, useViewChartResults } from '../hooks/useQueryResults';
 
 export enum ExplorerSection {
     FILTERS = 'FILTERS',
@@ -780,7 +780,14 @@ export const ExplorerProvider: FC<{
     isEditMode?: boolean;
     initialState?: ExplorerReduceState;
     savedChart?: SavedChart;
-}> = ({ isEditMode = false, initialState, savedChart, children }) => {
+    queryResults: ReturnType<typeof useQueryResults>;
+}> = ({
+    isEditMode = false,
+    initialState,
+    savedChart,
+    children,
+    queryResults,
+}) => {
     const [reducerState, dispatch] = useReducer(
         reducer,
         initialState || defaultState,
@@ -1052,7 +1059,6 @@ export const ExplorerProvider: FC<{
             savedChart,
         ],
     );
-    const queryResults = useQueryResults();
 
     // Fetch query results after state update
     const { mutateAsync: mutateAsyncQuery, reset: resetQueryResults } =
