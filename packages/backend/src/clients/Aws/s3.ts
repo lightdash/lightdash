@@ -51,6 +51,7 @@ export class S3Service {
     private async uploadFile(
         fileId: string,
         file: PutObjectCommandInput['Body'],
+        contentType: string,
         urlOptions?: { expiresIn: number },
     ): Promise<string> {
         if (!this.lightdashConfig.s3?.bucket || this.s3 === undefined) {
@@ -59,8 +60,8 @@ export class S3Service {
             );
         }
         const putCommand = new PutObjectCommand({
+            ContentType: contentType,
             Body: file,
-            ACL: 'public-read',
             Bucket: this.lightdashConfig.s3.bucket,
             Key: fileId,
         });
@@ -82,14 +83,14 @@ export class S3Service {
     }
 
     async uploadImage(image: Buffer, imageId: string): Promise<string> {
-        return this.uploadFile(`${imageId}.png`, image);
+        return this.uploadFile(`${imageId}.png`, image, 'image/png');
     }
 
     async uploadCsv(
         csv: string | ReadStream,
         csvName: string,
     ): Promise<string> {
-        return this.uploadFile(csvName, csv);
+        return this.uploadFile(csvName, csv, 'text/csv');
     }
 
     isEnabled(): boolean {
