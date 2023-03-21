@@ -77,32 +77,28 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
 
     return validData ? (
         <BigNumberContainer ref={containerRef} {...wrapperProps}>
-            {rect?.width ? (
-                <>
-                    {minimal || isSqlRunner ? (
-                        <BigNumber $fontSize={valueFontSize}>
-                            {bigNumber}
-                        </BigNumber>
-                    ) : (
-                        <BigNumberContextMenu
-                            renderTarget={({ ref, onClick }) => (
-                                <BigNumber
-                                    $interactive
-                                    ref={ref}
-                                    onClick={onClick}
-                                    $fontSize={valueFontSize}
-                                >
-                                    {bigNumber}
-                                </BigNumber>
-                            )}
-                        />
-                    )}
+            <>
+                {minimal || isSqlRunner ? (
+                    <BigNumber $fontSize={valueFontSize}>{bigNumber}</BigNumber>
+                ) : (
+                    <BigNumberContextMenu
+                        renderTarget={({ ref, onClick }) => (
+                            <BigNumber
+                                $interactive
+                                ref={ref}
+                                onClick={onClick}
+                                $fontSize={valueFontSize}
+                            >
+                                {bigNumber}
+                            </BigNumber>
+                        )}
+                    />
+                )}
 
-                    <BigNumberLabel $fontSize={labelFontSize}>
-                        {bigNumberLabel || defaultLabel}
-                    </BigNumberLabel>
-                </>
-            ) : null}
+                <BigNumberLabel $fontSize={labelFontSize}>
+                    {bigNumberLabel || defaultLabel}
+                </BigNumberLabel>
+            </>
         </BigNumberContainer>
     ) : (
         <EmptyChart />
