@@ -1,4 +1,4 @@
-import { useResizeObserver } from '@mantine/hooks';
+import { mergeRefs, useElementSize, useResizeObserver } from '@mantine/hooks';
 import clamp from 'lodash-es/clamp';
 import React, { FC, useMemo } from 'react';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
@@ -44,11 +44,12 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
         bigNumberConfig: { bigNumber, bigNumberLabel, defaultLabel },
         isSqlRunner,
     } = useVisualizationContext();
-    const [containerRef, rect] = useResizeObserver();
+    const { ref: elementSizeRef, ...elementSize } = useElementSize();
+    const [resizeObserverRef, observerElementSize] = useResizeObserver();
 
     const { valueFontSize, labelFontSize } = useMemo(() => {
         const boundWidth = clamp(
-            rect?.width ?? 0,
+            observerElementSize?.width || elementSize?.width || 0,
             BOX_MIN_WIDTH,
             BOX_MAX_WIDTH,
         );
@@ -69,36 +70,37 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             valueFontSize: valueSize,
             labelFontSize: labelSize,
         };
-    }, [rect?.width]);
+    }, [elementSize, observerElementSize]);
 
     const validData = bigNumber && resultsData?.rows.length;
 
     if (isLoading) return <LoadingChart />;
 
     return validData ? (
-        <BigNumberContainer ref={containerRef} {...wrapperProps}>
-            <>
-                {minimal || isSqlRunner ? (
-                    <BigNumber $fontSize={valueFontSize}>{bigNumber}</BigNumber>
-                ) : (
-                    <BigNumberContextMenu
-                        renderTarget={({ ref, onClick }) => (
-                            <BigNumber
-                                $interactive
-                                ref={ref}
-                                onClick={onClick}
-                                $fontSize={valueFontSize}
-                            >
-                                {bigNumber}
-                            </BigNumber>
-                        )}
-                    />
-                )}
+        <BigNumberContainer
+            ref={mergeRefs(elementSizeRef, resizeObserverRef)}
+            {...wrapperProps}
+        >
+            {minimal || isSqlRunner ? (
+                <BigNumber $fontSize={valueFontSize}>{bigNumber}</BigNumber>
+            ) : (
+                <BigNumberContextMenu
+                    renderTarget={({ ref, onClick }) => (
+                        <BigNumber
+                            $interactive
+                            ref={ref}
+                            onClick={onClick}
+                            $fontSize={valueFontSize}
+                        >
+                            {bigNumber}
+                        </BigNumber>
+                    )}
+                />
+            )}
 
-                <BigNumberLabel $fontSize={labelFontSize}>
-                    {bigNumberLabel || defaultLabel}
-                </BigNumberLabel>
-            </>
+            <BigNumberLabel $fontSize={labelFontSize}>
+                {bigNumberLabel || defaultLabel}
+            </BigNumberLabel>
         </BigNumberContainer>
     ) : (
         <EmptyChart />
