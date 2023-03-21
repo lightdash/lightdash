@@ -21,7 +21,7 @@ import {
     ExplorerSection,
 } from '../providers/ExplorerProvider';
 
-const SavedExplorer = () => {
+const EditModeExplorer = () => {
     const { savedQueryUuid } = useParams<{
         savedQueryUuid: string;
         projectUuid: string;
@@ -102,12 +102,10 @@ const SavedExplorer = () => {
                                             : sidebarWidth + 5,
                                     }}
                                 >
-                                    {isEditMode && (
-                                        <Resizer
-                                            onMouseDown={startResizing}
-                                            $isResizing={isResizing}
-                                        />
-                                    )}
+                                    <Resizer
+                                        onMouseDown={startResizing}
+                                        $isResizing={isResizing}
+                                    />
                                 </WidthHack>
                             </>
                         )}
@@ -122,4 +120,4 @@ const SavedExplorer = () => {
     );
 };
 
-export default SavedExplorer;
+export default EditModeExplorer;

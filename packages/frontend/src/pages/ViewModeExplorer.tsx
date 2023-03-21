@@ -26,23 +26,15 @@ const ViewModeExplorer = () => {
         savedQueryUuid: string;
         projectUuid: string;
     }>();
-    const isEditMode = false;
     const { data } = useSavedQuery({
         id: savedQueryUuid,
     });
-    const { sidebarRef, sidebarWidth, isResizing, startResizing } =
-        useSidebarResize({
-            defaultWidth: 400,
-            minWidth: 300,
-            maxWidth: 600,
-        });
-
     const queryResults = useViewChartResults();
 
     return (
         <ExplorerProvider
             queryResults={queryResults}
-            isEditMode={isEditMode}
+            isEditMode={false}
             initialState={
                 data
                     ? {
@@ -66,55 +58,7 @@ const ViewModeExplorer = () => {
             <SavedChartsHeader />
 
             <PageWrapper>
-                <StickySidebar $pageHasHeader>
-                    <Transition in={isEditMode} timeout={500}>
-                        {(state) => (
-                            <>
-                                <Drawer
-                                    elevation={1}
-                                    $state={state}
-                                    style={{
-                                        width: sidebarWidth,
-                                        left: [
-                                            'exiting',
-                                            'exited',
-                                            'unmounted',
-                                        ].includes(state)
-                                            ? -sidebarWidth
-                                            : 0,
-                                    }}
-                                >
-                                    <CardContent>
-                                        <ExplorePanel />
-                                    </CardContent>
-                                </Drawer>
-
-                                <WidthHack
-                                    ref={sidebarRef}
-                                    $state={state}
-                                    style={{
-                                        width: [
-                                            'exiting',
-                                            'exited',
-                                            'unmounted',
-                                        ].includes(state)
-                                            ? 0
-                                            : sidebarWidth + 5,
-                                    }}
-                                >
-                                    {isEditMode && (
-                                        <Resizer
-                                            onMouseDown={startResizing}
-                                            $isResizing={isResizing}
-                                        />
-                                    )}
-                                </WidthHack>
-                            </>
-                        )}
-                    </Transition>
-                </StickySidebar>
-
-                <PageContentContainer hasDraggableSidebar>
+                <PageContentContainer>
                     <Explorer />
                 </PageContentContainer>
             </PageWrapper>
