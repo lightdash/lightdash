@@ -128,7 +128,7 @@ export class ProjectService {
             );
         // Check cache for existing client
         const existingClient = this.warehouseClients[projectUuid] as
-            | (typeof this.warehouseClients)[string]
+            | typeof this.warehouseClients[string]
             | undefined;
         if (
             existingClient &&
