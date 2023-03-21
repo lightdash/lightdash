@@ -1,23 +1,42 @@
-import { Intent, NonIdealState } from '@blueprintjs/core';
+import {
+    Intent,
+    Menu,
+    NonIdealState,
+    PopoverPosition,
+} from '@blueprintjs/core';
+import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
+import { LightdashMode } from '@lightdash/common';
 import { ActionIcon, Center, Group, Stack } from '@mantine/core';
-import { IconDots } from '@tabler/icons-react';
+import {
+    IconChartAreaLine,
+    IconDots,
+    IconLayoutDashboard,
+    IconPlus,
+} from '@tabler/icons-react';
 import React, { FC, useCallback, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { Can } from '../components/common/Authorization';
 import ErrorState from '../components/common/ErrorState';
 import LoadingState from '../components/common/LoadingState';
+import DashboardCreateModal from '../components/common/modal/DashboardCreateModal';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ShareSpaceModal from '../components/common/ShareSpaceModal';
 import SpaceActionModal, {
     ActionType,
 } from '../components/common/SpaceActionModal';
+import AddResourceToSpaceMenu from '../components/Explorer/SpaceBrowser/AddResourceToSpaceMenu';
+import AddResourceToSpaceModal, {
+    AddToSpaceResources,
+} from '../components/Explorer/SpaceBrowser/AddResourceToSpaceModal';
+import CreateResourceToSpace from '../components/Explorer/SpaceBrowser/CreateResourceToSpace';
 import { SpaceBrowserMenu } from '../components/Explorer/SpaceBrowser/SpaceBrowserMenu';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import SpacePanel from '../components/SpacePanel';
+import { useDashboards } from '../hooks/dashboard/useDashboards';
 import { useSpacePinningMutation } from '../hooks/pinning/useSpaceMutation';
-import { useSpace } from '../hooks/useSpaces';
+import { useSavedCharts, useSpace } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
 
 const Space: FC = () => {
@@ -27,17 +46,40 @@ const Space: FC = () => {
     }>();
     const { data: space, isLoading, error } = useSpace(projectUuid, spaceUuid);
     const { mutate: pinSpace } = useSpacePinningMutation(projectUuid);
-    const { user } = useApp();
+    const { user, health } = useApp();
+    const isDemo = health.data?.mode === LightdashMode.DEMO;
+    const { data: dashboards = [] } = useDashboards(projectUuid);
+    const { data: savedCharts = [] } = useSavedCharts(projectUuid);
 
     const history = useHistory();
     const location = useLocation();
 
     const [updateSpace, setUpdateSpace] = useState<boolean>(false);
     const [deleteSpace, setDeleteSpace] = useState<boolean>(false);
+    const [createToSpace, setCreateToSpace] = useState<AddToSpaceResources>();
+    const [addToSpace, setAddToSpace] = useState<AddToSpaceResources>();
+    const [isCreateDashboardOpen, setIsCreateDashboardOpen] =
+        useState<boolean>(false);
 
     const handlePinToggleSpace = useCallback(
         (spaceId: string) => pinSpace(spaceId),
         [pinSpace],
+    );
+
+    const userCanManageDashboards = user.data?.ability?.can(
+        'manage',
+        subject('Dashboard', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
+
+    const userCanManageCharts = user.data?.ability?.can(
+        'manage',
+        subject('SavedChart', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
     );
 
     if (user.data?.ability?.cannot('view', 'SavedChart')) {
@@ -80,42 +122,93 @@ const Space: FC = () => {
 
     const renderUpdateSpaceModal = () => {
         return (
-            updateSpace && (
-                <SpaceActionModal
-                    projectUuid={projectUuid}
-                    spaceUuid={space?.uuid}
-                    actionType={ActionType.UPDATE}
-                    title="Update space"
-                    confirmButtonLabel="Update"
-                    icon="folder-close"
-                    onClose={() => setUpdateSpace(false)}
-                />
-            )
+            <SpaceActionModal
+                projectUuid={projectUuid}
+                spaceUuid={space?.uuid}
+                actionType={ActionType.UPDATE}
+                title="Update space"
+                confirmButtonLabel="Update"
+                icon="folder-close"
+                onClose={() => setUpdateSpace(false)}
+            />
         );
     };
 
     const renderDeleteSpaceModal = () => {
         return (
-            deleteSpace && (
-                <SpaceActionModal
-                    projectUuid={projectUuid}
-                    spaceUuid={space?.uuid}
-                    actionType={ActionType.DELETE}
-                    title="Delete space"
-                    confirmButtonLabel="Delete"
-                    confirmButtonIntent={Intent.DANGER}
-                    icon="folder-close"
-                    onSubmitForm={() => {
-                        if (location.pathname.includes(space?.uuid)) {
-                            //Redirect to home if we are on the space we are deleting
-                            history.push(`/projects/${projectUuid}/home`);
-                        }
-                    }}
-                    onClose={() => {
-                        setDeleteSpace(false);
-                    }}
-                />
-            )
+            <SpaceActionModal
+                projectUuid={projectUuid}
+                spaceUuid={space?.uuid}
+                actionType={ActionType.DELETE}
+                title="Delete space"
+                confirmButtonLabel="Delete"
+                confirmButtonIntent={Intent.DANGER}
+                icon="folder-close"
+                onSubmitForm={() => {
+                    if (location.pathname.includes(space?.uuid)) {
+                        //Redirect to home if we are on the space we are deleting
+                        history.push(`/projects/${projectUuid}/home`);
+                    }
+                }}
+                onClose={() => {
+                    setDeleteSpace(false);
+                }}
+            />
+        );
+    };
+
+    const renderAddItemMenu = () => {
+        return (
+            <Popover2
+                captureDismiss
+                position={PopoverPosition.BOTTOM_RIGHT}
+                content={
+                    <Menu>
+                        {userCanManageDashboards && (
+                            <MenuItem2
+                                icon={<IconLayoutDashboard size={20} />}
+                                text={`Add dashboard`}
+                            >
+                                <AddResourceToSpaceMenu
+                                    resourceType={AddToSpaceResources.DASHBOARD}
+                                    onAdd={() =>
+                                        setAddToSpace(
+                                            AddToSpaceResources.DASHBOARD,
+                                        )
+                                    }
+                                    onCreate={() =>
+                                        setIsCreateDashboardOpen(true)
+                                    }
+                                    hasSavedResources={!!dashboards.length}
+                                />
+                            </MenuItem2>
+                        )}
+                        {userCanManageCharts && (
+                            <MenuItem2
+                                icon={<IconChartAreaLine size={20} />}
+                                text={`Add chart`}
+                            >
+                                <AddResourceToSpaceMenu
+                                    resourceType={AddToSpaceResources.CHART}
+                                    onAdd={() =>
+                                        setAddToSpace(AddToSpaceResources.CHART)
+                                    }
+                                    onCreate={() =>
+                                        setCreateToSpace(
+                                            AddToSpaceResources.CHART,
+                                        )
+                                    }
+                                    hasSavedResources={!!savedCharts.length}
+                                />
+                            </MenuItem2>
+                        )}
+                    </Menu>
+                }
+            >
+                <ActionIcon size={36} color="blue" variant="filled">
+                    <IconPlus size={20} />
+                </ActionIcon>
+            </Popover2>
         );
     };
 
@@ -145,13 +238,42 @@ const Space: FC = () => {
                                 projectUuid,
                             })}
                         >
+                            {!isDemo &&
+                                (userCanManageDashboards ||
+                                    userCanManageCharts) &&
+                                renderAddItemMenu()}
                             <ShareSpaceModal
                                 space={space!}
                                 projectUuid={projectUuid}
                             />
                             {renderSpaceBrowserMenu()}
-                            {renderUpdateSpaceModal()}
-                            {renderDeleteSpaceModal()}
+                            {updateSpace && renderUpdateSpaceModal()}
+                            {deleteSpace && renderDeleteSpaceModal()}
+                            {createToSpace && (
+                                <CreateResourceToSpace
+                                    resourceType={createToSpace}
+                                />
+                            )}
+                            {addToSpace && (
+                                <AddResourceToSpaceModal
+                                    isOpen
+                                    resourceType={addToSpace}
+                                    onClose={() => setAddToSpace(undefined)}
+                                />
+                            )}
+                            <DashboardCreateModal
+                                projectUuid={projectUuid}
+                                spaceUuid={space.uuid}
+                                isOpen={isCreateDashboardOpen}
+                                onClose={() => setIsCreateDashboardOpen(false)}
+                                onConfirm={(dashboard) => {
+                                    history.push(
+                                        `/projects/${projectUuid}/dashboards/${dashboard.uuid}/edit`,
+                                    );
+
+                                    setIsCreateDashboardOpen(false);
+                                }}
+                            />
                         </Can>
                     </Group>
                 </Group>
