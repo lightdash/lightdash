@@ -1,3 +1,10 @@
+## [0.477.1](https://github.com/lightdash/lightdash/compare/0.477.0...0.477.1) (2023-03-21)
+
+
+### Bug Fixes
+
+* setting initial element size width ([#4877](https://github.com/lightdash/lightdash/issues/4877)) ([10c1d99](https://github.com/lightdash/lightdash/commit/10c1d9934eb7b90f01ffce3b2997adc04b7d23eb))
+
 # [0.477.0](https://github.com/lightdash/lightdash/compare/0.476.2...0.477.0) (2023-03-21)
 
 
