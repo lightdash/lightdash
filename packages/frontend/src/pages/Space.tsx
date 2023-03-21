@@ -78,7 +78,7 @@ const Space: FC = () => {
         );
     };
 
-    const renderUpdateSpaceModel = () => {
+    const renderUpdateSpaceModal = () => {
         return (
             updateSpace && (
                 <SpaceActionModal
@@ -150,7 +150,7 @@ const Space: FC = () => {
                                 projectUuid={projectUuid}
                             />
                             {renderSpaceBrowserMenu()}
-                            {renderUpdateSpaceModel()}
+                            {renderUpdateSpaceModal()}
                             {renderDeleteSpaceModal()}
                         </Can>
                     </Group>
