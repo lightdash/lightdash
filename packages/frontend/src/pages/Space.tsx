@@ -63,101 +63,94 @@ const Space: FC = () => {
         );
     }
 
-    const renderSpaceBrowserMenu = () => {
-        return (
-            <SpaceBrowserMenu
-                onRename={() => setUpdateSpace(true)}
-                onDelete={() => setDeleteSpace(true)}
-                onTogglePin={() => handlePinToggleSpace(space?.uuid)}
-                isPinned={!!space?.pinnedListUuid}
-            >
-                <ActionIcon variant="default" size={36}>
-                    <IconDots size={20} />
-                </ActionIcon>
-            </SpaceBrowserMenu>
-        );
-    };
-
-    const renderUpdateSpaceModal = () => {
-        return (
-            updateSpace && (
-                <SpaceActionModal
-                    projectUuid={projectUuid}
-                    spaceUuid={space?.uuid}
-                    actionType={ActionType.UPDATE}
-                    title="Update space"
-                    confirmButtonLabel="Update"
-                    icon="folder-close"
-                    onClose={() => setUpdateSpace(false)}
-                />
-            )
-        );
-    };
-
-    const renderDeleteSpaceModal = () => {
-        return (
-            deleteSpace && (
-                <SpaceActionModal
-                    projectUuid={projectUuid}
-                    spaceUuid={space?.uuid}
-                    actionType={ActionType.DELETE}
-                    title="Delete space"
-                    confirmButtonLabel="Delete"
-                    confirmButtonIntent={Intent.DANGER}
-                    icon="folder-close"
-                    onSubmitForm={() => {
-                        if (location.pathname.includes(space?.uuid)) {
-                            //Redirect to home if we are on the space we are deleting
-                            history.push(`/projects/${projectUuid}/home`);
-                        }
-                    }}
-                    onClose={() => {
-                        setDeleteSpace(false);
-                    }}
-                />
-            )
-        );
-    };
-
     return (
-        <Center my="md">
+        <>
             <Helmet>
                 <title>{space?.name} - Lightdash</title>
             </Helmet>
-            <Stack spacing="xl" w={900}>
-                <Group position="apart" mt="xs">
-                    <PageBreadcrumbs
-                        items={[
-                            {
-                                href: `/projects/${projectUuid}/spaces`,
-                                title: 'Spaces',
-                            },
-                        ]}
-                        mt="xs"
-                    >
-                        {space.name}
-                    </PageBreadcrumbs>
-                    <Group spacing="xs">
-                        <Can
-                            I="manage"
-                            this={subject('Space', {
-                                organizationUuid: user.data?.organizationUuid,
-                                projectUuid,
-                            })}
+            <Center my="md">
+                <Stack spacing="xl" w={900}>
+                    <Group position="apart" mt="xs">
+                        <PageBreadcrumbs
+                            items={[
+                                {
+                                    href: `/projects/${projectUuid}/spaces`,
+                                    title: 'Spaces',
+                                },
+                            ]}
+                            mt="xs"
                         >
-                            <ShareSpaceModal
-                                space={space!}
-                                projectUuid={projectUuid}
-                            />
-                            {renderSpaceBrowserMenu()}
-                            {renderUpdateSpaceModal()}
-                            {renderDeleteSpaceModal()}
-                        </Can>
+                            {space.name}
+                        </PageBreadcrumbs>
+                        <Group spacing="xs">
+                            <Can
+                                I="manage"
+                                this={subject('Space', {
+                                    organizationUuid:
+                                        user.data?.organizationUuid,
+                                    projectUuid,
+                                })}
+                            >
+                                <ShareSpaceModal
+                                    space={space!}
+                                    projectUuid={projectUuid}
+                                />
+                                <SpaceBrowserMenu
+                                    onRename={() => setUpdateSpace(true)}
+                                    onDelete={() => setDeleteSpace(true)}
+                                    onTogglePin={() =>
+                                        handlePinToggleSpace(space?.uuid)
+                                    }
+                                    isPinned={!!space?.pinnedListUuid}
+                                >
+                                    <ActionIcon variant="default" size={36}>
+                                        <IconDots size={20} />
+                                    </ActionIcon>
+                                </SpaceBrowserMenu>
+                                {updateSpace && (
+                                    <SpaceActionModal
+                                        projectUuid={projectUuid}
+                                        spaceUuid={space?.uuid}
+                                        actionType={ActionType.UPDATE}
+                                        title="Update space"
+                                        confirmButtonLabel="Update"
+                                        icon="folder-close"
+                                        onClose={() => setUpdateSpace(false)}
+                                    />
+                                )}
+                                {deleteSpace && (
+                                    <SpaceActionModal
+                                        projectUuid={projectUuid}
+                                        spaceUuid={space?.uuid}
+                                        actionType={ActionType.DELETE}
+                                        title="Delete space"
+                                        confirmButtonLabel="Delete"
+                                        confirmButtonIntent={Intent.DANGER}
+                                        icon="folder-close"
+                                        onSubmitForm={() => {
+                                            if (
+                                                location.pathname.includes(
+                                                    space?.uuid,
+                                                )
+                                            ) {
+                                                //Redirect to home if we are on the space we are deleting
+                                                history.push(
+                                                    `/projects/${projectUuid}/home`,
+                                                );
+                                            }
+                                        }}
+                                        onClose={() => {
+                                            setDeleteSpace(false);
+                                        }}
+                                    />
+                                )}
+                            </Can>
+                        </Group>
                     </Group>
-                </Group>
-                <SpacePanel space={space} />
-            </Stack>
-        </Center>
+                    <SpacePanel space={space} />
+                </Stack>
+            </Center>
+        </>
     );
 };
 
