@@ -1,23 +1,48 @@
-import { Intent, NonIdealState } from '@blueprintjs/core';
+import {
+    Button,
+    Intent,
+    Menu,
+    NonIdealState,
+    PopoverPosition,
+} from '@blueprintjs/core';
+import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
+import { LightdashMode } from '@lightdash/common';
 import { ActionIcon, Center, Group, Stack } from '@mantine/core';
-import { IconDots } from '@tabler/icons-react';
+import {
+    IconChartAreaLine,
+    IconDots,
+    IconLayoutDashboard,
+    IconPlus,
+} from '@tabler/icons-react';
 import React, { FC, useCallback, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { Can } from '../components/common/Authorization';
 import ErrorState from '../components/common/ErrorState';
 import LoadingState from '../components/common/LoadingState';
+import DashboardCreateModal from '../components/common/modal/DashboardCreateModal';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
+import ResourceView from '../components/common/ResourceView';
+import { ResourceTypeIcon } from '../components/common/ResourceView/ResourceIcon';
+import {
+    ResourceViewItemType,
+    wrapResourceView,
+} from '../components/common/ResourceView/resourceTypeUtils';
 import ShareSpaceModal from '../components/common/ShareSpaceModal';
 import SpaceActionModal, {
     ActionType,
 } from '../components/common/SpaceActionModal';
+import AddResourceToSpaceMenu from '../components/Explorer/SpaceBrowser/AddResourceToSpaceMenu';
+import AddResourceToSpaceModal, {
+    AddToSpaceResources,
+} from '../components/Explorer/SpaceBrowser/AddResourceToSpaceModal';
+import CreateResourceToSpace from '../components/Explorer/SpaceBrowser/CreateResourceToSpace';
 import { SpaceBrowserMenu } from '../components/Explorer/SpaceBrowser/SpaceBrowserMenu';
 import ForbiddenPanel from '../components/ForbiddenPanel';
-import SpacePanel from '../components/SpacePanel';
+import { useDashboards } from '../hooks/dashboard/useDashboards';
 import { useSpacePinningMutation } from '../hooks/pinning/useSpaceMutation';
-import { useSpace } from '../hooks/useSpaces';
+import { useSavedCharts, useSpace } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
 
 const Space: FC = () => {
@@ -26,14 +51,39 @@ const Space: FC = () => {
         spaceUuid: string;
     }>();
     const { data: space, isLoading, error } = useSpace(projectUuid, spaceUuid);
+    const { data: dashboards = [], isLoading: dashboardsLoading } =
+        useDashboards(projectUuid);
+    const { data: savedCharts = [], isLoading: chartsLoading } =
+        useSavedCharts(projectUuid);
     const { mutate: pinSpace } = useSpacePinningMutation(projectUuid);
-    const { user } = useApp();
+    const { user, health } = useApp();
 
+    const isDemo = health.data?.mode === LightdashMode.DEMO;
     const history = useHistory();
     const location = useLocation();
 
     const [updateSpace, setUpdateSpace] = useState<boolean>(false);
     const [deleteSpace, setDeleteSpace] = useState<boolean>(false);
+    const [isCreateDashboardOpen, setIsCreateDashboardOpen] =
+        useState<boolean>(false);
+    const [addToSpace, setAddToSpace] = useState<AddToSpaceResources>();
+    const [createToSpace, setCreateToSpace] = useState<AddToSpaceResources>();
+
+    const userCanManageDashboards = user.data?.ability?.can(
+        'manage',
+        subject('Dashboard', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
+
+    const userCanManageCharts = user.data?.ability?.can(
+        'manage',
+        subject('SavedChart', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
 
     const handlePinToggleSpace = useCallback(
         (spaceId: string) => pinSpace(spaceId),
@@ -44,8 +94,8 @@ const Space: FC = () => {
         return <ForbiddenPanel />;
     }
 
-    if (isLoading) {
-        return <LoadingState title="Loading items" />;
+    if (isLoading || chartsLoading || dashboardsLoading) {
+        return <LoadingState title="Loading space" />;
     }
 
     if (error) {
@@ -62,6 +112,13 @@ const Space: FC = () => {
             </div>
         );
     }
+
+    const dashboardsInSpace = space!.dashboards;
+    const chartsInSpace = space!.queries;
+    const allItems = [
+        ...wrapResourceView(dashboardsInSpace, ResourceViewItemType.DASHBOARD),
+        ...wrapResourceView(chartsInSpace, ResourceViewItemType.CHART),
+    ];
 
     return (
         <>
@@ -91,6 +148,86 @@ const Space: FC = () => {
                                     projectUuid,
                                 })}
                             >
+                                {!isDemo &&
+                                    (userCanManageDashboards ||
+                                        userCanManageCharts) && (
+                                        <Popover2
+                                            captureDismiss
+                                            position={
+                                                PopoverPosition.BOTTOM_RIGHT
+                                            }
+                                            content={
+                                                <Menu>
+                                                    {userCanManageDashboards && (
+                                                        <MenuItem2
+                                                            icon={
+                                                                <IconLayoutDashboard
+                                                                    size={20}
+                                                                />
+                                                            }
+                                                            text={`Add dashboard`}
+                                                        >
+                                                            <AddResourceToSpaceMenu
+                                                                resourceType={
+                                                                    AddToSpaceResources.DASHBOARD
+                                                                }
+                                                                onAdd={() =>
+                                                                    setAddToSpace(
+                                                                        AddToSpaceResources.DASHBOARD,
+                                                                    )
+                                                                }
+                                                                onCreate={() =>
+                                                                    setIsCreateDashboardOpen(
+                                                                        true,
+                                                                    )
+                                                                }
+                                                                hasSavedResources={
+                                                                    !!dashboards.length
+                                                                }
+                                                            />
+                                                        </MenuItem2>
+                                                    )}
+                                                    {userCanManageCharts && (
+                                                        <MenuItem2
+                                                            icon={
+                                                                <IconChartAreaLine
+                                                                    size={20}
+                                                                />
+                                                            }
+                                                            text={`Add chart`}
+                                                        >
+                                                            <AddResourceToSpaceMenu
+                                                                resourceType={
+                                                                    AddToSpaceResources.CHART
+                                                                }
+                                                                onAdd={() =>
+                                                                    setAddToSpace(
+                                                                        AddToSpaceResources.CHART,
+                                                                    )
+                                                                }
+                                                                onCreate={() =>
+                                                                    setCreateToSpace(
+                                                                        AddToSpaceResources.CHART,
+                                                                    )
+                                                                }
+                                                                hasSavedResources={
+                                                                    !!savedCharts.length
+                                                                }
+                                                            />
+                                                        </MenuItem2>
+                                                    )}
+                                                </Menu>
+                                            }
+                                        >
+                                            <ActionIcon
+                                                size={36}
+                                                color="blue"
+                                                variant="filled"
+                                            >
+                                                <IconPlus size={20} />
+                                            </ActionIcon>
+                                        </Popover2>
+                                    )}
                                 <ShareSpaceModal
                                     space={space!}
                                     projectUuid={projectUuid}
@@ -147,7 +284,71 @@ const Space: FC = () => {
                             </Can>
                         </Group>
                     </Group>
-                    <SpacePanel space={space} />
+                    <ResourceView
+                        items={allItems}
+                        listProps={{
+                            defaultColumnVisibility: { space: false },
+                        }}
+                        tabs={[
+                            {
+                                id: 'all-items',
+                                name: 'All items',
+                            },
+                            {
+                                id: 'dashboards',
+                                icon: (
+                                    <ResourceTypeIcon
+                                        type={ResourceViewItemType.DASHBOARD}
+                                    />
+                                ),
+                                name: 'Dashboards',
+                                filter: (item) =>
+                                    item.type ===
+                                    ResourceViewItemType.DASHBOARD,
+                            },
+                            {
+                                id: 'charts',
+                                icon: (
+                                    <ResourceTypeIcon
+                                        type={ResourceViewItemType.CHART}
+                                    />
+                                ),
+                                name: 'Charts',
+                                filter: (item) =>
+                                    item.type === ResourceViewItemType.CHART,
+                            },
+                        ]}
+                        emptyStateProps={{
+                            icon: <IconLayoutDashboard size={30} />,
+                            title: 'No items added yet',
+                        }}
+                    />
+
+                    {addToSpace && (
+                        <AddResourceToSpaceModal
+                            isOpen
+                            resourceType={addToSpace}
+                            onClose={() => setAddToSpace(undefined)}
+                        />
+                    )}
+
+                    {createToSpace && (
+                        <CreateResourceToSpace resourceType={createToSpace} />
+                    )}
+
+                    <DashboardCreateModal
+                        projectUuid={projectUuid}
+                        spaceUuid={space.uuid}
+                        isOpen={isCreateDashboardOpen}
+                        onClose={() => setIsCreateDashboardOpen(false)}
+                        onConfirm={(dashboard) => {
+                            history.push(
+                                `/projects/${projectUuid}/dashboards/${dashboard.uuid}/edit`,
+                            );
+
+                            setIsCreateDashboardOpen(false);
+                        }}
+                    />
                 </Stack>
             </Center>
         </>
