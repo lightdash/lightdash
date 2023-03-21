@@ -1,3 +1,10 @@
+## [0.476.1](https://github.com/lightdash/lightdash/compare/0.476.0...0.476.1) (2023-03-21)
+
+
+### Bug Fixes
+
+* s3 permissions and mimetypes ([#4870](https://github.com/lightdash/lightdash/issues/4870)) ([baa785d](https://github.com/lightdash/lightdash/commit/baa785d9514534a29699141b5e688837a20de995))
+
 # [0.476.0](https://github.com/lightdash/lightdash/compare/0.475.1...0.476.0) (2023-03-20)
 
 
