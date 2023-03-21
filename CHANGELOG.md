@@ -1,3 +1,10 @@
+## [0.476.2](https://github.com/lightdash/lightdash/compare/0.476.1...0.476.2) (2023-03-21)
+
+
+### Bug Fixes
+
+* bignumber not rendering ([#4872](https://github.com/lightdash/lightdash/issues/4872)) ([438e12c](https://github.com/lightdash/lightdash/commit/438e12c5fa59887f7210dc85c276caf4ccba0da4))
+
 ## [0.476.1](https://github.com/lightdash/lightdash/compare/0.476.0...0.476.1) (2023-03-21)
 
 
