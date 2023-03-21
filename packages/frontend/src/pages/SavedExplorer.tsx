@@ -22,6 +22,7 @@ import {
     ExplorerProvider,
     ExplorerSection,
 } from '../providers/ExplorerProvider';
+import { MinimalExplorer } from './MinimalSavedExplorer';
 
 const SavedExplorer = () => {
     const { savedQueryUuid, mode } = useParams<{
@@ -49,6 +50,32 @@ const SavedExplorer = () => {
     }
     if (error) {
         return <ErrorState error={error.error} />;
+    }
+
+    if (!isEditMode) {
+        return (
+            <ExplorerProvider
+                initialState={
+                    data
+                        ? {
+                              shouldFetchResults: true,
+                              expandedSections: [ExplorerSection.VISUALIZATION],
+                              unsavedChartVersion: {
+                                  tableName: data.tableName,
+                                  chartConfig: data.chartConfig,
+                                  metricQuery: data.metricQuery,
+                                  tableConfig: data.tableConfig,
+                                  pivotConfig: data.pivotConfig,
+                              },
+                          }
+                        : undefined
+                }
+                savedChart={data}
+            >
+                <SavedChartsHeader />
+                <MinimalExplorer />
+            </ExplorerProvider>
+        );
     }
 
     return (

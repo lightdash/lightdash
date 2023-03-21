@@ -273,7 +273,6 @@ const App = () => (
                                                                                             <SavedExplorer />
                                                                                         </TrackPage>
                                                                                     </Route>
-
                                                                                     <Route path="/projects/:projectUuid/saved">
                                                                                         <NavBar />
                                                                                         <TrackPage
