@@ -4,6 +4,7 @@ import {
     LightdashUser,
     SEED_ORG_1_ADMIN_EMAIL,
     SEED_ORG_1_ADMIN_PASSWORD,
+    validateEmail,
 } from '@lightdash/common';
 import {
     Anchor,
@@ -53,14 +54,14 @@ const Login: FC = () => {
             password: '',
         },
         validate: {
-            email: isNotEmpty('Required field'),
-            password: isNotEmpty('Required field'),
+            email: (value) =>
+                validateEmail(value) ? null : 'Your email address is not valid',
         },
     });
 
     const { identify } = useTracking();
 
-    const { isIdle, isLoading, mutate } = useMutation<
+    const { isIdle, isLoading, mutate, isSuccess } = useMutation<
         LightdashUser,
         ApiError,
         LoginParams
@@ -129,12 +130,12 @@ const Login: FC = () => {
             name="login"
             onSubmit={form.onSubmit((values: LoginParams) => mutate(values))}
         >
-            <Stack spacing="md">
+            <Stack spacing="lg">
                 <TextInput
                     label="Email address"
                     name="email"
                     placeholder="Your email address"
-                    withAsterisk
+                    required
                     {...form.getInputProps('email')}
                     disabled={isLoading}
                 />
@@ -142,13 +143,13 @@ const Login: FC = () => {
                     label="Password"
                     name="password"
                     placeholder="Your password"
-                    withAsterisk
+                    required
                     {...form.getInputProps('password')}
                     disabled={isLoading}
                 />
                 <Button
                     type="submit"
-                    loading={isLoading}
+                    loading={isLoading || isSuccess}
                     data-cy="signin-button"
                 >
                     Sign in
@@ -181,14 +182,13 @@ const Login: FC = () => {
             <Helmet>
                 <title>Login - Lightdash</title>
             </Helmet>
-            <Stack w={400} px="lg" mt="xl">
+            <Stack w={400} mt="xl" pt="lg">
                 <Image
                     src={LightdashLogo}
                     alt="lightdash logo"
                     width={130}
                     mx="auto"
-                    mt="xl"
-                    mb="md"
+                    my="lg"
                 />
                 <Card p="xl" radius="xs" withBorder shadow="xs">
                     <Title order={3} ta="center" mb="md">
