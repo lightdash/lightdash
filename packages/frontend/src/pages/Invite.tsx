@@ -206,7 +206,7 @@ const Invite: FC = () => {
                     <>
                         <Card p="xl" radius="xs" withBorder shadow="xs">
                             <Title order={3} ta="center" mb="md">
-                                Sign in
+                                Sign up
                             </Title>
                             {logins}
                         </Card>
