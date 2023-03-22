@@ -5,7 +5,16 @@ import {
     SEED_ORG_1_ADMIN_EMAIL,
     SEED_ORG_1_ADMIN_PASSWORD,
 } from '@lightdash/common';
-import { Anchor, Button, PasswordInput, Stack, TextInput } from '@mantine/core';
+import {
+    Anchor,
+    Button,
+    Card,
+    Image,
+    PasswordInput,
+    Stack,
+    TextInput,
+    Title,
+} from '@mantine/core';
 import { isNotEmpty, useForm } from '@mantine/form';
 import React, { FC, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
@@ -23,15 +32,7 @@ import useToaster from '../hooks/toaster/useToaster';
 import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
 import LightdashLogo from '../svgs/lightdash-black.svg';
-import {
-    CardWrapper,
-    Divider,
-    DividerWrapper,
-    FormWrapper,
-    Logo,
-    LogoWrapper,
-    Title,
-} from './SignUp.styles';
+import { Divider, DividerWrapper } from './SignUp.styles';
 
 type LoginParams = { email: string; password: string };
 
@@ -122,7 +123,6 @@ const Login: FC = () => {
             {health.data?.auth.oneLogin.enabled && <OneLoginLoginButton />}
         </>
     );
-    console.log(form.values);
 
     const passwordLogin = allowPasswordAuthentication && (
         <form
@@ -177,15 +177,22 @@ const Login: FC = () => {
             <Helmet>
                 <title>Login - Lightdash</title>
             </Helmet>
-            <FormWrapper>
-                <LogoWrapper>
-                    <Logo src={LightdashLogo} alt="lightdash logo" />
-                </LogoWrapper>
-                <CardWrapper elevation={2}>
-                    <Title>Sign in</Title>
+            <Stack w={400} px="lg" mt="xl">
+                <Image
+                    src={LightdashLogo}
+                    alt="lightdash logo"
+                    width={130}
+                    mx="auto"
+                    mt="xl"
+                    mb="md"
+                />
+                <Card p="xl" radius="xs" withBorder shadow="xs">
+                    <Title order={3} ta="center" mb="md">
+                        Sign in
+                    </Title>
                     {logins}
-                </CardWrapper>
-            </FormWrapper>
+                </Card>
+            </Stack>
         </Page>
     );
 };
