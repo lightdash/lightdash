@@ -146,7 +146,11 @@ const Login: FC = () => {
                     {...form.getInputProps('password')}
                     disabled={isLoading}
                 />
-                <Button type="submit" loading={isLoading}>
+                <Button
+                    type="submit"
+                    loading={isLoading}
+                    data-cy="signin-button"
+                >
                     Sign in
                 </Button>
                 {health.data?.hasEmailClient && (

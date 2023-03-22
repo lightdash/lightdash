@@ -24,7 +24,7 @@ describe('Login', () => {
         cy.visit('/login');
         cy.findByPlaceholderText('Your email address').type('test-email');
         cy.findByPlaceholderText('Your password').type('test-password');
-        cy.get('form').findByText('Sign in').click();
+        cy.get('[data-cy="signin-button"]').click();
         cy.findByText('Email and password not recognized').should('be.visible');
     });
     it('Should display error message when one field is empty', () => {
