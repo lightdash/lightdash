@@ -20,7 +20,7 @@ import {
     LogoWrapper,
     Subtitle,
     Title,
-} from './SignUp.styles';
+} from './Invite.styles';
 
 export const JoinOrganizationPage: FC = () => {
     const { health, user } = useApp();

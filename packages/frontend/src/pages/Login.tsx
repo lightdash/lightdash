@@ -33,7 +33,23 @@ import useToaster from '../hooks/toaster/useToaster';
 import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
 import LightdashLogo from '../svgs/lightdash-black.svg';
+<<<<<<< HEAD
 import { Divider, DividerWrapper } from './SignUp.styles';
+=======
+import {
+    AnchorLinkWrapper,
+    CardWrapper,
+    Divider,
+    DividerWrapper,
+    FormWrapper,
+    InputField,
+    Logo,
+    LogoWrapper,
+    PasswordInputField,
+    SubmitButton,
+    Title,
+} from './Invite.styles';
+>>>>>>> 1e384c51 (fix: code clean up and updating e2e tests)
 
 type LoginParams = { email: string; password: string };
 

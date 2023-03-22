@@ -26,7 +26,7 @@ import {
     Logo,
     LogoWrapper,
     Title,
-} from './SignUp.styles';
+} from './Invite.styles';
 
 const registerQuery = async (data: CreateUserArgs) =>
     lightdashApi<LightdashUser>({

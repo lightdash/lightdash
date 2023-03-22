@@ -25,13 +25,13 @@ describe('Settings - Invites', () => {
             });
         cy.get('[data-cy="welcome-user"]').should('be.visible');
         cy.contains('Join your team').click();
-        cy.findByLabelText('First name *').type('Mary');
-        cy.findByLabelText('Last name *').type('Green');
-        cy.findByLabelText('Email address *')
+        cy.findByPlaceholderText('Your first name').type('Mary');
+        cy.findByPlaceholderText('Your last name').type('Green');
+        cy.get('[data-cy="email-address-input"]')
             .should('be.disabled')
             .should('have.value', 'demo+marygreen@lightdash.com');
-        cy.findByLabelText('Password *').type('PasswordMary1');
-        cy.contains('Sign up').click();
+        cy.findByPlaceholderText('Your password').type('PasswordMary1');
+        cy.get('form').contains('Sign up').click();
         cy.findByLabelText('One-time password *').type('000000');
         cy.contains('Submit').click();
         cy.contains('Continue').click();

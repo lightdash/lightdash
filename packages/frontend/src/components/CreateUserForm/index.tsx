@@ -15,12 +15,14 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
         initialValues: {
             firstName: '',
             lastName: '',
-            email: '',
+            email: readOnlyEmail || '',
             password: '',
         },
         validate: {
             email: (value) =>
-                isValidEmail(value) ? 'Your email address is not valid' : null,
+                readOnlyEmail || isValidEmail(value)
+                    ? null
+                    : 'Your email address is not valid',
         },
     });
 
@@ -52,6 +54,7 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
                     required
                     {...form.getInputProps('email')}
                     disabled={isLoading || !!readOnlyEmail}
+                    data-cy="email-address-input"
                 />
                 <PasswordInput
                     label="Password"
