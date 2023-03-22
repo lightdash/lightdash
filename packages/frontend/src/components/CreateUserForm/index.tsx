@@ -64,7 +64,11 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
                     {...form.getInputProps('password')}
                     disabled={isLoading}
                 />
-                <Button type="submit" loading={isLoading}>
+                <Button
+                    type="submit"
+                    loading={isLoading}
+                    data-cy="signup-button"
+                >
                     Sign up
                 </Button>
             </Stack>

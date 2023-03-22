@@ -31,7 +31,7 @@ describe('Settings - Invites', () => {
             .should('be.disabled')
             .should('have.value', 'demo+marygreen@lightdash.com');
         cy.findByPlaceholderText('Your password').type('PasswordMary1');
-        cy.get('form').contains('Sign up').click();
+        cy.get('[data-cy="signup-button"]').click();
         cy.findByLabelText('One-time password *').type('000000');
         cy.contains('Submit').click();
         cy.contains('Continue').click();
