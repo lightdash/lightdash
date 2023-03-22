@@ -1,6 +1,8 @@
 import { Menu, Position } from '@blueprintjs/core';
 import { MenuItem2, Popover2, Popover2Props } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
+import { Can } from '../common/Authorization';
+
 import { ResultRow } from '@lightdash/common';
 import { FC, useCallback, useMemo } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
@@ -10,7 +12,6 @@ import { useExplore } from '../../hooks/useExplore';
 import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
-import { Can } from '../common/Authorization';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
 import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';

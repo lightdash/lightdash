@@ -1,4 +1,5 @@
 import { Menu } from '@blueprintjs/core';
+import { subject } from '@casl/ability';
 import {
     IconDatabase,
     IconKey,
@@ -11,6 +12,7 @@ import {
 import React, { FC } from 'react';
 import { Helmet } from 'react-helmet';
 import { Redirect, Route, Switch } from 'react-router-dom';
+import { Can } from '../components/common/Authorization';
 import ErrorState from '../components/common/ErrorState';
 import Content from '../components/common/Page/Content';
 import { PageWithSidebar } from '../components/common/Page/Page.styles';
@@ -124,57 +126,64 @@ const Settings: FC = () => {
                     </Menu>
                 </MenuWrapper>
 
-                <MenuWrapper>
-                    <MenuHeader>Organization settings</MenuHeader>
+                <Can
+                    I="create"
+                    this={subject('Project', {
+                        organizationUuid: organization.organizationUuid,
+                    })}
+                >
+                    <MenuWrapper>
+                        <MenuHeader>Organization settings</MenuHeader>
 
-                    <Menu>
-                        {user.ability.can('manage', 'Organization') && (
-                            <RouterMenuItem
-                                text="General"
-                                exact
-                                to={`${basePath}/organization`}
-                                icon={<IconUserCircle size={17} />}
-                            />
-                        )}
-
-                        {user.ability.can(
-                            'view',
-                            'OrganizationMemberProfile',
-                        ) && (
-                            <RouterMenuItem
-                                text="User management"
-                                to={`${basePath}/userManagement`}
-                                icon={<IconUserPlus size={17} />}
-                            />
-                        )}
-
-                        {organization &&
-                            !organization.needsProject &&
-                            user.ability.can('view', 'Project') && (
+                        <Menu>
+                            {user.ability.can('manage', 'Organization') && (
                                 <RouterMenuItem
-                                    text="Projects"
-                                    to={`${basePath}/projectManagement`}
-                                    icon={<IconDatabase size={17} />}
-                                />
-                            )}
-
-                        <RouterMenuItem
-                            text="Appearance"
-                            exact
-                            to={`${basePath}/appearance`}
-                            icon={<IconPalette size={17} />}
-                        />
-                        {health.hasSlack &&
-                            user.ability.can('manage', 'Organization') && (
-                                <RouterMenuItem
-                                    text="Integrations"
+                                    text="General"
                                     exact
-                                    to={`${basePath}/integrations/slack`}
-                                    icon={<IconPlug size={17} />}
+                                    to={`${basePath}/organization`}
+                                    icon={<IconUserCircle size={17} />}
                                 />
                             )}
-                    </Menu>
-                </MenuWrapper>
+
+                            {user.ability.can(
+                                'view',
+                                'OrganizationMemberProfile',
+                            ) && (
+                                <RouterMenuItem
+                                    text="User management"
+                                    to={`${basePath}/userManagement`}
+                                    icon={<IconUserPlus size={17} />}
+                                />
+                            )}
+
+                            {organization &&
+                                !organization.needsProject &&
+                                user.ability.can('view', 'Project') && (
+                                    <RouterMenuItem
+                                        text="Projects"
+                                        to={`${basePath}/projectManagement`}
+                                        icon={<IconDatabase size={17} />}
+                                    />
+                                )}
+
+                            <RouterMenuItem
+                                text="Appearance"
+                                exact
+                                to={`${basePath}/appearance`}
+                                icon={<IconPalette size={17} />}
+                            />
+                            {health.hasSlack &&
+                                user.ability.can('manage', 'Organization') && (
+                                    <RouterMenuItem
+                                        text="Integrations"
+                                        exact
+                                        to={`${basePath}/integrations/slack`}
+                                        icon={<IconPlug size={17} />}
+                                    />
+                                )}
+                        </Menu>
+                    </MenuWrapper>
+                </Can>
             </Sidebar>
 
             <Switch>
