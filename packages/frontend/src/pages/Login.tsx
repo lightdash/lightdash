@@ -6,7 +6,7 @@ import {
     SEED_ORG_1_ADMIN_PASSWORD,
 } from '@lightdash/common';
 import { Anchor, Button, PasswordInput, Stack, TextInput } from '@mantine/core';
-import { useForm } from '@mantine/form';
+import { isNotEmpty, useForm } from '@mantine/form';
 import React, { FC, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { useMutation } from 'react-query';
@@ -50,6 +50,10 @@ const Login: FC = () => {
         initialValues: {
             email: '',
             password: '',
+        },
+        validate: {
+            email: isNotEmpty('Required field'),
+            password: isNotEmpty('Required field'),
         },
     });
 
@@ -142,11 +146,7 @@ const Login: FC = () => {
                     {...form.getInputProps('password')}
                     disabled={isLoading}
                 />
-                <Button
-                    type="submit"
-                    disabled={!form.values.email || !form.values.password}
-                    loading={isLoading}
-                >
+                <Button type="submit" loading={isLoading}>
                     Sign in
                 </Button>
                 {health.data?.hasEmailClient && (
