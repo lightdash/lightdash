@@ -1,21 +1,17 @@
+import { Card } from '@blueprintjs/core';
 import { Helmet } from 'react-helmet';
 import { useParams } from 'react-router-dom';
-import { Transition } from 'react-transition-group';
 import {
     CardContent,
-    Drawer,
     PageContentContainer,
     PageWrapper,
-    Resizer,
     StickySidebar,
-    WidthHack,
 } from '../components/common/Page/Page.styles';
 import Explorer from '../components/Explorer';
 import ExplorePanel from '../components/Explorer/ExplorePanel';
 import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
 import { useQueryResults } from '../hooks/useQueryResults';
 import { useSavedQuery } from '../hooks/useSavedQuery';
-import useSidebarResize from '../hooks/useSidebarResize';
 import {
     ExplorerProvider,
     ExplorerSection,
@@ -30,12 +26,6 @@ const EditModeExplorer = () => {
     const { data } = useSavedQuery({
         id: savedQueryUuid,
     });
-    const { sidebarRef, sidebarWidth, isResizing, startResizing } =
-        useSidebarResize({
-            defaultWidth: 400,
-            minWidth: 300,
-            maxWidth: 600,
-        });
 
     const queryResults = useQueryResults();
 
@@ -67,49 +57,11 @@ const EditModeExplorer = () => {
 
             <PageWrapper>
                 <StickySidebar $pageHasHeader>
-                    <Transition in={isEditMode} timeout={500}>
-                        {(state) => (
-                            <>
-                                <Drawer
-                                    elevation={1}
-                                    $state={state}
-                                    style={{
-                                        width: sidebarWidth,
-                                        left: [
-                                            'exiting',
-                                            'exited',
-                                            'unmounted',
-                                        ].includes(state)
-                                            ? -sidebarWidth
-                                            : 0,
-                                    }}
-                                >
-                                    <CardContent>
-                                        <ExplorePanel />
-                                    </CardContent>
-                                </Drawer>
-
-                                <WidthHack
-                                    ref={sidebarRef}
-                                    $state={state}
-                                    style={{
-                                        width: [
-                                            'exiting',
-                                            'exited',
-                                            'unmounted',
-                                        ].includes(state)
-                                            ? 0
-                                            : sidebarWidth + 5,
-                                    }}
-                                >
-                                    <Resizer
-                                        onMouseDown={startResizing}
-                                        $isResizing={isResizing}
-                                    />
-                                </WidthHack>
-                            </>
-                        )}
-                    </Transition>
+                    <Card elevation={1}>
+                        <CardContent>
+                            <ExplorePanel />
+                        </CardContent>
+                    </Card>
                 </StickySidebar>
 
                 <PageContentContainer hasDraggableSidebar>
