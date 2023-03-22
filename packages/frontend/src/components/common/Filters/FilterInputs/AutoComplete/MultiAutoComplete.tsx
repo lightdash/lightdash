@@ -12,7 +12,11 @@ import {
 import { Hightlighed } from '../../../../NavBar/GlobalSearch/globalSearch.styles';
 import HighlightedText from '../../../HighlightedText';
 import { useFiltersContext } from '../../FiltersProvider';
-import { isMatch, toggleValueFromArray } from './autoCompleteUtils';
+import {
+    isMatch,
+    toggleMultipleValuesFromArray,
+    toggleValueFromArray,
+} from './autoCompleteUtils';
 
 type Props = {
     field: FilterableItem;
@@ -64,6 +68,13 @@ const MultiAutoComplete: FC<Props> = ({
     const handleItemSelect = useCallback(
         (value: string) => {
             onChange(toggleValueFromArray(values, value));
+        },
+        [onChange, values],
+    );
+
+    const handleOnPaste = useCallback(
+        (value: string[]) => {
+            onChange(toggleMultipleValuesFromArray(values, value));
         },
         [onChange, values],
     );
@@ -196,6 +207,7 @@ const MultiAutoComplete: FC<Props> = ({
                 />
             )}
             createNewItemFromQuery={(name: string) => name}
+            onItemsPaste={handleOnPaste}
         />
     );
 };
