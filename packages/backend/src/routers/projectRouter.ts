@@ -204,7 +204,6 @@ projectRouter.post(
     async (req, res, next) => {
         try {
             const { body } = req;
-            const { csvLimit } = body;
             const metricQuery: MetricQuery = {
                 dimensions: body.dimensions,
                 metrics: body.metrics,
@@ -220,7 +219,7 @@ projectRouter.post(
                     metricQuery,
                     req.params.projectUuid,
                     req.params.exploreId,
-                    csvLimit,
+                    undefined, // csvLimit
                 );
             res.json({
                 status: 'ok',
