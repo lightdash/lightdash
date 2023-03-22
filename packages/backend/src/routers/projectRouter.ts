@@ -1,9 +1,11 @@
+import { subject } from '@casl/ability';
 import {
     ApiCompiledQueryResults,
     ApiExploreResults,
     ApiExploresResults,
     ApiQueryResults,
     ApiSqlQueryResults,
+    ForbiddenError,
     getItemMap,
     getRequestMethod,
     LightdashRequestMethodHeader,
@@ -284,6 +286,17 @@ projectRouter.post(
         };
 
         try {
+            const { organizationUuid } = req.user!;
+            const { projectUuid } = req.params;
+            if (
+                req.user!.ability.cannot(
+                    'manage',
+                    subject('ExportCsv', { organizationUuid, projectUuid }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+
             const { body } = req;
             const {
                 csvLimit,

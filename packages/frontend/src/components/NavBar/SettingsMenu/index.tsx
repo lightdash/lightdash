@@ -26,15 +26,14 @@ const SettingsMenu: FC = () => {
         }),
     );
 
-    const userCanViewCurrentProject = user.ability.can(
-        'view',
+    const userCanCreateProject = user.ability.can(
+        'create',
         subject('Project', {
             organizationUuid: user.organizationUuid,
-            projectUuid: activeProjectUuid,
         }),
     );
 
-    if (!userCanViewOrganization && !userCanViewCurrentProject) {
+    if (!userCanViewOrganization && !userCanCreateProject) {
         return null;
     }
 
@@ -44,7 +43,7 @@ const SettingsMenu: FC = () => {
             position={PopoverPosition.BOTTOM_RIGHT}
             content={
                 <Menu>
-                    {activeProjectUuid && userCanViewCurrentProject && (
+                    {activeProjectUuid && userCanCreateProject && (
                         <LinkMenuItem
                             text="Project settings"
                             icon={<IconDatabase size={17} />}

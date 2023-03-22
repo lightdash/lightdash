@@ -20,11 +20,6 @@ export const organizationMemberAbilities: Record<
         can('view', 'OrganizationMemberProfile', {
             organizationUuid: member.organizationUuid,
         });
-        can('create', 'Project', {
-            organizationUuid: member.organizationUuid,
-        });
-        can('create', 'Job');
-        can('view', 'Job', { userUuid: member.userUuid });
     },
     viewer(member, { can }) {
         organizationMemberAbilities.member(member, { can });
@@ -45,25 +40,24 @@ export const organizationMemberAbilities: Record<
         });
     },
     interactive_viewer(member, { can }) {
-        organizationMemberAbilities.member(member, { can });
-        can('view', 'Dashboard', {
+        organizationMemberAbilities.viewer(member, { can });
+        can('create', 'Project', {
             organizationUuid: member.organizationUuid,
         });
-        can('view', 'Space', {
+        can('create', 'Job');
+        can('view', 'Job', { userUuid: member.userUuid });
+        can('view', 'UnderlyingData', {
             organizationUuid: member.organizationUuid,
         });
-        can('view', 'SavedChart', {
+        can('manage', 'ExportCsv', {
             organizationUuid: member.organizationUuid,
         });
-        can('view', 'Project', {
-            organizationUuid: member.organizationUuid,
-        });
-        can('view', 'Organization', {
+        can('manage', 'Explore', {
             organizationUuid: member.organizationUuid,
         });
     },
     editor(member, { can }) {
-        organizationMemberAbilities.viewer(member, { can });
+        organizationMemberAbilities.interactive_viewer(member, { can });
         can('manage', 'Dashboard', {
             organizationUuid: member.organizationUuid,
         });
