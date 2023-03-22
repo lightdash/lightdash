@@ -33,7 +33,7 @@ const Register: FC = () => {
     const allowPasswordAuthentication =
         !health.data?.auth.disablePasswordAuthentication;
     const { identify } = useTracking();
-    const { isLoading, mutate } = useMutation<
+    const { isLoading, mutate, isSuccess } = useMutation<
         LightdashUser,
         ApiError,
         CreateUserArgs
@@ -70,7 +70,7 @@ const Register: FC = () => {
     );
     const passwordLogin = allowPasswordAuthentication && (
         <CreateUserForm
-            isLoading={isLoading}
+            isLoading={isLoading || isSuccess}
             onSubmit={(data: CreateUserArgs) => {
                 mutate(data);
             }}

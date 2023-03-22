@@ -100,7 +100,7 @@ const Invite: FC = () => {
     const { search } = useLocation();
     const { identify } = useTracking();
     const [isLinkFromEmail, setIsLinkFromEmail] = useState<boolean>(false);
-    const { isLoading, mutate } = useMutation<
+    const { isLoading, mutate, isSuccess } = useMutation<
         LightdashUser,
         ApiError,
         CreateOrganizationUser
@@ -157,7 +157,7 @@ const Invite: FC = () => {
     );
     const passwordLogin = allowPasswordAuthentication && (
         <CreateUserForm
-            isLoading={isLoading}
+            isLoading={isLoading || isSuccess}
             readOnlyEmail={inviteLinkQuery.data?.email}
             onSubmit={(data: CreateUserArgs) => {
                 mutate({
