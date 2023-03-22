@@ -4,7 +4,7 @@ import styled from 'styled-components';
 import LightdashVisualization from '../components/LightdashVisualization';
 import VisualizationProvider from '../components/LightdashVisualization/VisualizationProvider';
 import { useExplore } from '../hooks/useExplore';
-import { useQueryResults, useViewChartResults } from '../hooks/useQueryResults';
+import { useQueryResults } from '../hooks/useQueryResults';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import {
     ExplorerProvider,
