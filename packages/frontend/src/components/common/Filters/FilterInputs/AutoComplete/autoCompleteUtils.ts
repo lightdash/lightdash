@@ -24,3 +24,27 @@ export const toggleValueFromArray = <T extends string>(
         return [...values, value];
     }
 };
+
+export const toggleMultipleValuesFromArray = <T extends string>(
+    values: T[],
+    newValues: T[],
+): T[] => {
+    const normalizedValues = [
+        ...values.map(normalize),
+        ...newValues.map(normalize),
+    ];
+
+    const res = normalizedValues.reduce((acc, value, i) => {
+        const valueExists = normalizedValues.find(
+            (n, j) => i !== j && isMatch(n, value),
+        );
+
+        if (valueExists) {
+            return acc;
+        }
+
+        return [...acc, value] as T[];
+    }, [] as T[]);
+
+    return res;
+};
