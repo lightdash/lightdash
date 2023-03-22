@@ -77,8 +77,18 @@ export class SearchService {
             return itemSpace && hasSpaceAccess(itemSpace, user.userUuid);
         };
 
+        const hasExploreAccess = user.ability.can(
+            'manage',
+            subject('Explore', {
+                organizationUuid,
+                projectUuid,
+            }),
+        );
+
         const filteredResults = {
             ...results,
+            tables: hasExploreAccess ? results.tables : [],
+            fields: hasExploreAccess ? results.fields : [],
             dashboards: results.dashboards.filter(filterItem),
             savedCharts: results.savedCharts.filter(filterItem),
             spaces: results.spaces.filter(filterItem),

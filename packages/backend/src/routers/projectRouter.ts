@@ -791,6 +791,18 @@ projectRouter.post(
             storage: s3Service.isEnabled() ? 's3' : 'local',
         };
         try {
+            const { organizationUuid } = req.user!;
+            const { projectUuid } = req.params;
+
+            if (
+                req.user!.ability.cannot(
+                    'manage',
+                    subject('ExportCsv', { organizationUuid, projectUuid }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+
             analytics.track({
                 event: 'download_results.started',
                 userId: req.user?.userUuid!,
