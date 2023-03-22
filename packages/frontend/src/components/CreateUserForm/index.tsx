@@ -1,4 +1,4 @@
-import { CreateUserArgs } from '@lightdash/common';
+import { CreateUserArgs, validateEmail } from '@lightdash/common';
 import { Button, Flex, PasswordInput, Stack, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import React, { FC } from 'react';
@@ -20,7 +20,7 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
         },
         validate: {
             email: (value) =>
-                readOnlyEmail || isValidEmail(value)
+                readOnlyEmail || validateEmail(value)
                     ? null
                     : 'Your email address is not valid',
         },
