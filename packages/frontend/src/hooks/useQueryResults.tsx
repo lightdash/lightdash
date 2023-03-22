@@ -11,17 +11,19 @@ import { lightdashApi } from '../api';
 import { convertDateFilters } from '../utils/dateFilter';
 import useQueryError from './useQueryError';
 
+type QueryResultsProps = {
+    projectUuid: string;
+    tableId: string;
+    query: MetricQuery;
+    csvLimit?: number | null; //giving null returns all results (no limit)
+};
+
 export const getQueryResults = async ({
     projectUuid,
     tableId,
     query,
     csvLimit,
-}: {
-    projectUuid: string;
-    tableId: string;
-    query: MetricQuery;
-    csvLimit?: number | null; //giving null returns all results (no limit)
-}) => {
+}: QueryResultsProps) => {
     const timezoneFixQuery = convertDateFilters(query);
     return lightdashApi<ApiQueryResults>({
         url: `/projects/${projectUuid}/explores/${tableId}/runQuery`,
@@ -30,9 +32,26 @@ export const getQueryResults = async ({
     });
 };
 
-export const useQueryResults = () => {
+export const getViewChartResults = async ({
+    projectUuid,
+    tableId,
+    query,
+    csvLimit,
+}: QueryResultsProps) => {
+    const timezoneFixQuery = convertDateFilters(query);
+    return lightdashApi<ApiQueryResults>({
+        url: `/projects/${projectUuid}/explores/${tableId}/runViewChartQuery`,
+        method: 'POST',
+        body: JSON.stringify({ ...timezoneFixQuery, csvLimit }),
+    });
+};
+
+export const useQueryResults = (props?: { isViewOnly?: boolean }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const setErrorResponse = useQueryError();
+
+    const fetchQuery =
+        props?.isViewOnly === true ? getViewChartResults : getQueryResults;
     const mutation = useMutation<
         ApiQueryResults,
         ApiError,
@@ -41,7 +60,7 @@ export const useQueryResults = () => {
             tableId: string;
             query: MetricQuery;
         }
-    >(getQueryResults, {
+    >(fetchQuery, {
         mutationKey: ['queryResults'],
         onError: useCallback(
             (result) => setErrorResponse(result),
@@ -143,76 +162,4 @@ export const useSavedChartResults = (
         retry: false,
         refetchOnMount: false,
     });
-};
-
-export const getViewChartResults = async ({
-    projectUuid,
-    tableId,
-    query,
-    csvLimit,
-}: {
-    projectUuid: string;
-    tableId: string;
-    query: MetricQuery;
-    csvLimit?: number | null; //giving null returns all results (no limit)
-}) => {
-    const timezoneFixQuery = convertDateFilters(query);
-    return lightdashApi<ApiQueryResults>({
-        url: `/projects/${projectUuid}/explores/${tableId}/runViewChartQuery`,
-        method: 'POST',
-        body: JSON.stringify({ ...timezoneFixQuery, csvLimit }),
-    });
-};
-
-export const useViewChartResults = (): ReturnType<typeof useQueryResults> => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
-    const setErrorResponse = useQueryError();
-    const mutation = useMutation<
-        ApiQueryResults,
-        ApiError,
-        {
-            projectUuid: string;
-            tableId: string;
-            query: MetricQuery;
-        }
-    >(getViewChartResults, {
-        mutationKey: ['queryResults'],
-        onError: useCallback(
-            (result) => setErrorResponse(result),
-            [setErrorResponse],
-        ),
-    });
-    const { mutateAsync } = mutation;
-
-    const mutateAsyncOverride = useCallback(
-        (tableName: string, metricQuery: MetricQuery) => {
-            const fields = new Set([
-                ...metricQuery.dimensions,
-                ...metricQuery.metrics,
-                ...metricQuery.tableCalculations.map(({ name }) => name),
-            ]);
-            const isValidQuery = fields.size > 0;
-            if (!!tableName && isValidQuery) {
-                return mutateAsync({
-                    projectUuid,
-                    tableId: tableName,
-                    query: metricQuery,
-                });
-            } else {
-                console.warn(
-                    `Can't make SQL request, invalid state`,
-                    tableName,
-                    isValidQuery,
-                    metricQuery,
-                );
-                return Promise.reject();
-            }
-        },
-        [mutateAsync, projectUuid],
-    );
-
-    return useMemo(
-        () => ({ ...mutation, mutateAsync: mutateAsyncOverride }),
-        [mutation, mutateAsyncOverride],
-    );
 };

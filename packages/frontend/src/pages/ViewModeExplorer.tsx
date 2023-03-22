@@ -1,21 +1,13 @@
 import { Helmet } from 'react-helmet';
 import { useParams } from 'react-router-dom';
-import { Transition } from 'react-transition-group';
 import {
-    CardContent,
-    Drawer,
     PageContentContainer,
     PageWrapper,
-    Resizer,
-    StickySidebar,
-    WidthHack,
 } from '../components/common/Page/Page.styles';
 import Explorer from '../components/Explorer';
-import ExplorePanel from '../components/Explorer/ExplorePanel';
 import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
-import { useViewChartResults } from '../hooks/useQueryResults';
+import { useQueryResults, useViewChartResults } from '../hooks/useQueryResults';
 import { useSavedQuery } from '../hooks/useSavedQuery';
-import useSidebarResize from '../hooks/useSidebarResize';
 import {
     ExplorerProvider,
     ExplorerSection,
@@ -26,11 +18,10 @@ const ViewModeExplorer = () => {
         savedQueryUuid: string;
         projectUuid: string;
     }>();
+    const queryResults = useQueryResults({ isViewOnly: true });
     const { data } = useSavedQuery({
         id: savedQueryUuid,
     });
-    const queryResults = useViewChartResults();
-
     return (
         <ExplorerProvider
             queryResults={queryResults}

@@ -27,7 +27,11 @@ import {
     useContextSelector,
 } from 'use-context-selector';
 import useDefaultSortField from '../hooks/useDefaultSortField';
-import { useQueryResults, useViewChartResults } from '../hooks/useQueryResults';
+import {
+    useQueryResults,
+    useQueryResultsMutation,
+    useViewChartResults,
+} from '../hooks/useQueryResults';
 
 export enum ExplorerSection {
     FILTERS = 'FILTERS',
@@ -163,7 +167,7 @@ export interface ExplorerState extends ExplorerReduceState {
 
 export interface ExplorerContext {
     state: ExplorerState;
-    queryResults: ReturnType<typeof useQueryResults>;
+    queryResults: ReturnType<typeof useQueryResultsMutation>;
     hasUnfetchedChanges: boolean;
     actions: {
         clear: () => void;
@@ -780,7 +784,7 @@ export const ExplorerProvider: FC<{
     isEditMode?: boolean;
     initialState?: ExplorerReduceState;
     savedChart?: SavedChart;
-    queryResults: ReturnType<typeof useQueryResults>;
+    queryResults: ReturnType<typeof useQueryResultsMutation>;
 }> = ({
     isEditMode = false,
     initialState,

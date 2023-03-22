@@ -48,9 +48,11 @@ const ExplorerPage = memo(() => {
             minWidth: 300,
             maxWidth: 600,
         });
-    const queryResults = useQueryResults();
 
     const { user } = useApp();
+
+    const queryResults = useQueryResults();
+
     if (user.data?.ability?.cannot('view', 'Project')) {
         return <ForbiddenPanel />;
     }
