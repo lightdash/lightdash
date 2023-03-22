@@ -44,6 +44,24 @@ export const organizationMemberAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
     },
+    interactive_viewer(member, { can }) {
+        organizationMemberAbilities.member(member, { can });
+        can('view', 'Dashboard', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('view', 'Space', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('view', 'SavedChart', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('view', 'Project', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('view', 'Organization', {
+            organizationUuid: member.organizationUuid,
+        });
+    },
     editor(member, { can }) {
         organizationMemberAbilities.viewer(member, { can });
         can('manage', 'Dashboard', {

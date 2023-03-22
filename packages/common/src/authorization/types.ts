@@ -26,6 +26,9 @@ type Subject =
     | 'Job'
     | 'SqlRunner'
     | 'Analytics'
+    | 'Explore'
+    | 'UnderlyingData'
+    | 'ExportCsv'
     | 'all';
 
 type PossibleAbilities = [

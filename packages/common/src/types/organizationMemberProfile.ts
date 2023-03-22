@@ -1,6 +1,7 @@
 export enum OrganizationMemberRole {
     MEMBER = 'member',
     VIEWER = 'viewer',
+    INTERACTIVE_VIEWER = 'interactive_viewer',
     EDITOR = 'editor',
     ADMIN = 'admin',
 }

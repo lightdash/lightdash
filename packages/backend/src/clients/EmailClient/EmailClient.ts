@@ -148,6 +148,7 @@ export default class EmailClient {
         let roleAction = 'view';
         switch (projectMember.role) {
             case ProjectMemberRole.VIEWER:
+            case ProjectMemberRole.INTERACTIVE_VIEWER:
                 roleAction = 'view';
                 break;
             case ProjectMemberRole.EDITOR:
