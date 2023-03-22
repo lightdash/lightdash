@@ -16,7 +16,7 @@ describe('Login', () => {
         cy.findByPlaceholderText('Your password').type(
             SEED_ORG_1_ADMIN_PASSWORD.password,
         );
-        cy.get('form').findByText('Sign in').click();
+        cy.get('[data-cy="signin-button"]').click();
         cy.url().should('include', '/home');
     });
     it('Should display error message when credentials are invalid', () => {
@@ -31,7 +31,7 @@ describe('Login', () => {
         cy.logout();
         cy.visit('/login');
         cy.findByPlaceholderText('Your email address').type('test-email');
-        cy.get('form').findByText('Sign in').click();
+        cy.get('[data-cy="signin-button"]').click();
         cy.findByText('Required field').should('be.visible');
     });
 });
