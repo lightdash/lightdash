@@ -1,4 +1,5 @@
 import { ApiError, CreateUserArgs, LightdashUser } from '@lightdash/common';
+import { Anchor, Card, Image, Stack, Text, Title } from '@mantine/core';
 import React, { FC } from 'react';
 import { Helmet } from 'react-helmet';
 import { useMutation } from 'react-query';
@@ -16,17 +17,7 @@ import useToaster from '../hooks/toaster/useToaster';
 import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
 import LightdashLogo from '../svgs/lightdash-black.svg';
-import {
-    CardWrapper,
-    Divider,
-    DividerWrapper,
-    FooterCta,
-    FormFooterCopy,
-    FormWrapper,
-    Logo,
-    LogoWrapper,
-    Title,
-} from './Invite.styles';
+import { Divider, DividerWrapper } from './Invite.styles';
 
 const registerQuery = async (data: CreateUserArgs) =>
     lightdashApi<LightdashUser>({
@@ -103,33 +94,39 @@ const Register: FC = () => {
             <Helmet>
                 <title>Register - Lightdash</title>
             </Helmet>
-            <FormWrapper>
-                <LogoWrapper>
-                    <Logo src={LightdashLogo} alt="lightdash logo" />
-                </LogoWrapper>
-                <CardWrapper elevation={2}>
-                    <Title>Create your account</Title>
+            <Stack w={400} mt="xl" pt="lg">
+                <Image
+                    src={LightdashLogo}
+                    alt="lightdash logo"
+                    width={130}
+                    mx="auto"
+                    my="lg"
+                />
+                <Card p="xl" radius="xs" withBorder shadow="xs">
+                    <Title order={3} ta="center" mb="md">
+                        Sign in
+                    </Title>
                     {logins}
-                </CardWrapper>
-                <FormFooterCopy>
+                </Card>
+                <Text color="gray.6" ta="center">
                     By creating an account, you agree to
                     <br />
                     our{' '}
-                    <FooterCta
+                    <Anchor
                         href="https://www.lightdash.com/privacy-policy"
                         target="_blank"
                     >
                         Privacy Policy
-                    </FooterCta>{' '}
+                    </Anchor>{' '}
                     and our{' '}
-                    <FooterCta
+                    <Anchor
                         href="https://www.lightdash.com/terms-of-service"
                         target="_blank"
                     >
                         Terms of Service.
-                    </FooterCta>
-                </FormFooterCopy>
-            </FormWrapper>
+                    </Anchor>
+                </Text>
+            </Stack>
         </Page>
     );
 };

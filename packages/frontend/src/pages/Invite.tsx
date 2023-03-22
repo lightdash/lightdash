@@ -1,10 +1,10 @@
-import { Intent } from '@blueprintjs/core';
 import {
     ApiError,
     CreateOrganizationUser,
     CreateUserArgs,
     LightdashUser,
 } from '@lightdash/common';
+import { Anchor, Button, Card, Image, Stack, Text, Title } from '@mantine/core';
 import React, { FC, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { useMutation } from 'react-query';
@@ -24,20 +24,7 @@ import { useInviteLink } from '../hooks/useInviteLink';
 import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
 import LightdashLogo from '../svgs/lightdash-black.svg';
-import {
-    BoldSubtitle,
-    CardWrapper,
-    Divider,
-    DividerWrapper,
-    FooterCta,
-    FormFooterCopy,
-    FormWrapper,
-    Logo,
-    LogoWrapper,
-    SubmitButton,
-    Subtitle,
-    Title,
-} from './Invite.styles';
+import { Divider, DividerWrapper } from './Invite.styles';
 
 interface WelcomeCardProps {
     email: string | undefined;
@@ -49,41 +36,53 @@ const WelcomeCard: FC<WelcomeCardProps> = ({ email, setReadyToJoin }) => {
 
     return (
         <>
-            <CardWrapper elevation={2} data-cy="welcome-user">
-                <Title>You’ve been invited!</Title>
-                {email && <BoldSubtitle>{email}</BoldSubtitle>}
-                <Subtitle>
-                    {`Your teammates ${
-                        org?.name ? `at ${org.name}` : ''
-                    } are using Lightdash to discover
+            <Card
+                p="xl"
+                radius="xs"
+                withBorder
+                shadow="xs"
+                data-cy="welcome-user"
+            >
+                <Stack spacing="md" align="center">
+                    <Title order={3}>You’ve been invited!</Title>
+                    {email && (
+                        <Text fw="600" size="md">
+                            {email}
+                        </Text>
+                    )}
+                    <Text color="gray.6" ta="center">
+                        {`Your teammates ${
+                            org?.name ? `at ${org.name}` : ''
+                        } are using Lightdash to discover
                     and share data insights. Click on the link below within the
                     next 72 hours to join your team and start exploring your
                     data!`}
-                </Subtitle>
-                <SubmitButton
-                    intent={Intent.PRIMARY}
-                    onClick={() => setReadyToJoin(true)}
-                    text="Join your team"
-                />
-            </CardWrapper>
-            <FormFooterCopy>
+                    </Text>
+                    <Button onClick={() => setReadyToJoin(true)}>
+                        Join your team
+                    </Button>
+                </Stack>
+            </Card>
+            <Text color="gray.6" ta="center">
                 {`Not ${email ? email : 'for you'}?`}
                 <br />
                 Ignore this invite link and contact your workspace admin.
-            </FormFooterCopy>
+            </Text>
         </>
     );
 };
 
 const ErrorCard: FC<{ title: string }> = ({ title }) => {
     return (
-        <CardWrapper elevation={2}>
-            <Title>{title}</Title>
-            <Subtitle>
-                Please check with the person who shared it with you to see if
-                there’s a new link available.
-            </Subtitle>
-        </CardWrapper>
+        <Card p="xl" radius="xs" withBorder shadow="xs" data-cy="welcome-user">
+            <Stack spacing="md" align="center">
+                <Title order={3}>{title}</Title>
+                <Text color="gray.7" ta="center">
+                    Please check with the person who shared it with you to see
+                    if there’s a new link available.
+                </Text>
+            </Stack>
+        </Card>
     );
 };
 
@@ -187,10 +186,14 @@ const Invite: FC = () => {
             <Helmet>
                 <title>Register - Lightdash</title>
             </Helmet>
-            <FormWrapper>
-                <LogoWrapper>
-                    <Logo src={LightdashLogo} alt="lightdash logo" />
-                </LogoWrapper>
+            <Stack w={400} mt="xl" pt="lg">
+                <Image
+                    src={LightdashLogo}
+                    alt="lightdash logo"
+                    width={130}
+                    mx="auto"
+                    my="lg"
+                />
                 {inviteLinkQuery.error ? (
                     <ErrorCard
                         title={
@@ -201,28 +204,30 @@ const Invite: FC = () => {
                     />
                 ) : isLinkFromEmail ? (
                     <>
-                        <CardWrapper elevation={2}>
-                            <Title>Create your account</Title>
+                        <Card p="xl" radius="xs" withBorder shadow="xs">
+                            <Title order={3} ta="center" mb="md">
+                                Sign in
+                            </Title>
                             {logins}
-                        </CardWrapper>
-                        <FormFooterCopy>
+                        </Card>
+                        <Text color="gray.6" ta="center">
                             By creating an account, you agree to
                             <br />
                             our{' '}
-                            <FooterCta
+                            <Anchor
                                 href="https://www.lightdash.com/privacy-policy"
                                 target="_blank"
                             >
                                 Privacy Policy
-                            </FooterCta>{' '}
+                            </Anchor>{' '}
                             and our{' '}
-                            <FooterCta
+                            <Anchor
                                 href="https://www.lightdash.com/terms-of-service"
                                 target="_blank"
                             >
                                 Terms of Service.
-                            </FooterCta>
-                        </FormFooterCopy>
+                            </Anchor>
+                        </Text>
                     </>
                 ) : (
                     <WelcomeCard
@@ -230,7 +235,7 @@ const Invite: FC = () => {
                         setReadyToJoin={setIsLinkFromEmail}
                     />
                 )}
-            </FormWrapper>
+            </Stack>
         </Page>
     );
 };
