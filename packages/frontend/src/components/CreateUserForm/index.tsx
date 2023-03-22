@@ -1,15 +1,8 @@
-import { Intent } from '@blueprintjs/core';
 import { CreateUserArgs } from '@lightdash/common';
+import { Button, Flex, PasswordInput, Stack, TextInput } from '@mantine/core';
+import { useForm } from '@mantine/form';
 import React, { FC } from 'react';
-import { useForm } from 'react-hook-form';
 import { isValidEmail } from '../../utils/fieldValidators';
-import Form from '../ReactHookForm/Form';
-import {
-    InputField,
-    InputsGroup,
-    PasswordInputField,
-    SubmitButton,
-} from './CreateUserForm.styles';
 
 type Props = {
     isLoading: boolean;
@@ -18,63 +11,61 @@ type Props = {
 };
 
 const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
-    const methods = useForm<CreateUserArgs>({
-        mode: 'onSubmit',
-        defaultValues: {
-            email: readOnlyEmail,
+    const form = useForm<CreateUserArgs>({
+        initialValues: {
+            firstName: '',
+            lastName: '',
+            email: '',
+            password: '',
+        },
+        validate: {
+            email: (value) =>
+                isValidEmail(value) ? 'Your email address is not valid' : null,
         },
     });
 
     return (
-        <Form name="register" methods={methods} onSubmit={onSubmit}>
-            <InputsGroup>
-                <InputField
-                    label="First name"
-                    name="firstName"
-                    placeholder="Your first name"
-                    disabled={isLoading}
-                    rules={{
-                        required: 'Required field',
-                    }}
+        <form name="register" onSubmit={form.onSubmit(onSubmit)}>
+            <Stack spacing="md">
+                <Flex direction="row" gap="xs">
+                    <TextInput
+                        label="First name"
+                        name="firstName"
+                        placeholder="Your first name"
+                        disabled={isLoading}
+                        required
+                        {...form.getInputProps('firstName')}
+                    />
+                    <TextInput
+                        label="Last name"
+                        name="lastName"
+                        placeholder="Your last name"
+                        disabled={isLoading}
+                        required
+                        {...form.getInputProps('lastName')}
+                    />
+                </Flex>
+                <TextInput
+                    label="Email address"
+                    name="email"
+                    placeholder="Your email address"
+                    required
+                    {...form.getInputProps('email')}
+                    disabled={isLoading || !!readOnlyEmail}
                 />
-                <InputField
-                    label="Last name"
-                    name="lastName"
-                    placeholder="Your last name"
+                <PasswordInput
+                    label="Password"
+                    name="password"
+                    placeholder="Your password"
+                    required
+                    {...form.getInputProps('password')}
                     disabled={isLoading}
-                    rules={{
-                        required: 'Required field',
-                    }}
                 />
-            </InputsGroup>
-            <InputField
-                label="Email address"
-                name="email"
-                placeholder="Your email address"
-                disabled={isLoading || !!readOnlyEmail}
-                rules={{
-                    required: 'Required field',
-                    validate: {
-                        isValidEmail: isValidEmail('Email'),
-                    },
-                }}
-            />
-            <PasswordInputField
-                label="Password"
-                name="password"
-                placeholder="Your password"
-                disabled={isLoading}
-                rules={{
-                    required: 'Required field',
-                }}
-            />
-            <SubmitButton
-                type="submit"
-                intent={Intent.PRIMARY}
-                text="Sign up"
-                loading={isLoading}
-            />
-        </Form>
+                <Button type="submit" loading={isLoading}>
+                    Sign up
+                </Button>
+            </Stack>
+        </form>
     );
 };
 

@@ -37,7 +37,7 @@ import {
     SubmitButton,
     Subtitle,
     Title,
-} from './SignUp.styles';
+} from './Invite.styles';
 
 interface WelcomeCardProps {
     email: string | undefined;
@@ -94,7 +94,7 @@ const createUserQuery = async (data: CreateOrganizationUser) =>
         body: JSON.stringify(data),
     });
 
-const Signup: FC = () => {
+const Invite: FC = () => {
     const { inviteCode } = useParams<{ inviteCode: string }>();
     const { health } = useApp();
     const { showToastError } = useToaster();
@@ -235,4 +235,4 @@ const Signup: FC = () => {
     );
 };
 
-export default Signup;
+export default Invite;
