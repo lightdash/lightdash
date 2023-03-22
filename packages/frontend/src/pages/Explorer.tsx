@@ -16,6 +16,7 @@ import {
     useExplorerRoute,
     useExplorerUrlState,
 } from '../hooks/useExplorerRoute';
+import { useQueryResults } from '../hooks/useQueryResults';
 import useSidebarResize from '../hooks/useSidebarResize';
 import { useApp } from '../providers/AppProvider';
 import {
@@ -47,12 +48,19 @@ const ExplorerPage = memo(() => {
             minWidth: 300,
             maxWidth: 600,
         });
+    const queryResults = useQueryResults();
+
     const { user } = useApp();
     if (user.data?.ability?.cannot('view', 'Project')) {
         return <ForbiddenPanel />;
     }
+
     return (
-        <ExplorerProvider isEditMode={true} initialState={explorerUrlState}>
+        <ExplorerProvider
+            isEditMode={true}
+            initialState={explorerUrlState}
+            queryResults={queryResults}
+        >
             <PageWrapper>
                 <StickySidebar
                     ref={sidebarRef}
