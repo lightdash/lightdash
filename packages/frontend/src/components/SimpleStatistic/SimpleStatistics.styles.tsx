@@ -1,13 +1,28 @@
 import { Colors } from '@blueprintjs/core';
 import styled from 'styled-components';
 
-export const BigNumberContainer = styled.div`
+interface BigNumberContainerProps {
+    $paddingBottom?: number;
+}
+
+export const BigNumberContainer = styled.div<BigNumberContainerProps>`
     height: 100%;
     width: 100%;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
+
+    padding-bottom: ${({ $paddingBottom }) =>
+        $paddingBottom ? `${$paddingBottom}px` : '0px'};
+`;
+
+export const BigNumberHalf = styled.div<{ place: 'flex-start' | 'flex-end' }>`
+    flex: 1 0 auto;
+    height: 50%;
+    display: flex;
+    flex-direction: column;
+    justify-content: ${({ place }) => place};
 `;
 
 interface BigNumberProps extends React.HTMLAttributes<HTMLDivElement> {

@@ -1,17 +1,20 @@
 import { mergeRefs, useElementSize, useResizeObserver } from '@mantine/hooks';
 import clamp from 'lodash-es/clamp';
 import React, { FC, useMemo } from 'react';
+import { TILE_HEADER_HEIGHT } from '../DashboardTiles/TileBase/TileBase.styles';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { EmptyChart, LoadingChart } from '../SimpleChart';
 import { BigNumberContextMenu } from './BigNumberContextMenu';
 import {
     BigNumber,
     BigNumberContainer,
+    BigNumberHalf,
     BigNumberLabel,
 } from './SimpleStatistics.styles';
 
 interface SimpleStatisticsProps extends React.HTMLAttributes<HTMLDivElement> {
     minimal?: boolean;
+    isDashboard?: boolean;
 }
 
 const BOX_MIN_WIDTH = 150;
@@ -36,6 +39,7 @@ const calculateFontSize = (
 
 const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     minimal = false,
+    isDashboard = false,
     ...wrapperProps
 }) => {
     const {
@@ -78,29 +82,34 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
 
     return validData ? (
         <BigNumberContainer
+            $paddingBottom={isDashboard ? TILE_HEADER_HEIGHT : 0}
             ref={mergeRefs(elementSizeRef, resizeObserverRef)}
             {...wrapperProps}
         >
-            {minimal || isSqlRunner ? (
-                <BigNumber $fontSize={valueFontSize}>{bigNumber}</BigNumber>
-            ) : (
-                <BigNumberContextMenu
-                    renderTarget={({ ref, onClick }) => (
-                        <BigNumber
-                            $interactive
-                            ref={ref}
-                            onClick={onClick}
-                            $fontSize={valueFontSize}
-                        >
-                            {bigNumber}
-                        </BigNumber>
-                    )}
-                />
-            )}
+            <BigNumberHalf place="flex-end">
+                {minimal || isSqlRunner ? (
+                    <BigNumber $fontSize={valueFontSize}>{bigNumber}</BigNumber>
+                ) : (
+                    <BigNumberContextMenu
+                        renderTarget={({ ref, onClick }) => (
+                            <BigNumber
+                                $interactive
+                                ref={ref}
+                                onClick={onClick}
+                                $fontSize={valueFontSize}
+                            >
+                                {bigNumber}
+                            </BigNumber>
+                        )}
+                    />
+                )}
+            </BigNumberHalf>
 
-            <BigNumberLabel $fontSize={labelFontSize}>
-                {bigNumberLabel || defaultLabel}
-            </BigNumberLabel>
+            <BigNumberHalf place="flex-start">
+                <BigNumberLabel $fontSize={labelFontSize}>
+                    {bigNumberLabel || defaultLabel}
+                </BigNumberLabel>
+            </BigNumberHalf>
         </BigNumberContainer>
     ) : (
         <EmptyChart />

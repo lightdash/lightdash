@@ -23,13 +23,14 @@ export const TileBaseWrapper = styled.div<HeaderContainerProps>`
             : ''}
 `;
 
+export const TILE_HEADER_HEIGHT = 24;
+
 export const HeaderContainer = styled.div<HeaderContainerProps>`
     display: flex;
     flex-direction: row;
     align-items: flex-start;
     gap: 8px;
-    margin-bottom: 12px;
-    height: 24px;
+    height: ${TILE_HEADER_HEIGHT}px;
 
     ${(props) =>
         props.$isEditMode
