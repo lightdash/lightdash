@@ -1,4 +1,3 @@
-import { Intent } from '@blueprintjs/core';
 import {
     ApiError,
     LightdashMode,
@@ -6,13 +5,13 @@ import {
     SEED_ORG_1_ADMIN_EMAIL,
     SEED_ORG_1_ADMIN_PASSWORD,
 } from '@lightdash/common';
+import { Anchor, Button, PasswordInput, Stack, TextInput } from '@mantine/core';
+import { useForm } from '@mantine/form';
 import React, { FC, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
-import { useForm } from 'react-hook-form';
 import { useMutation } from 'react-query';
 import { Redirect, useLocation } from 'react-router-dom';
 import { lightdashApi } from '../api';
-import AnchorLink from '../components/common/AnchorLink/index';
 import {
     GoogleLoginButton,
     OktaLoginButton,
@@ -20,22 +19,17 @@ import {
 } from '../components/common/GoogleLoginButton';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
-import Form from '../components/ReactHookForm/Form';
 import useToaster from '../hooks/toaster/useToaster';
 import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
 import LightdashLogo from '../svgs/lightdash-black.svg';
 import {
-    AnchorLinkWrapper,
     CardWrapper,
     Divider,
     DividerWrapper,
     FormWrapper,
-    InputField,
     Logo,
     LogoWrapper,
-    PasswordInputField,
-    SubmitButton,
     Title,
 } from './SignUp.styles';
 
@@ -52,9 +46,13 @@ const Login: FC = () => {
     const location = useLocation<{ from?: Location } | undefined>();
     const { health } = useApp();
     const { showToastError } = useToaster();
-    const methods = useForm<LoginParams>({
-        mode: 'onSubmit',
+    const form = useForm<LoginParams>({
+        initialValues: {
+            email: '',
+            password: '',
+        },
     });
+
     const { identify } = useTracking();
 
     const { isIdle, isLoading, mutate } = useMutation<
@@ -70,6 +68,7 @@ const Login: FC = () => {
                 : '/';
         },
         onError: (error) => {
+            form.reset();
             showToastError({
                 title: `Failed to login`,
                 subtitle: error.error.message,
@@ -89,10 +88,6 @@ const Login: FC = () => {
             });
         }
     }, [isDemo, mutate, isIdle]);
-
-    const handleLogin = (data: LoginParams) => {
-        mutate(data);
-    };
 
     if (health.isLoading || isDemo) {
         return <PageSpinner />;
@@ -123,41 +118,44 @@ const Login: FC = () => {
             {health.data?.auth.oneLogin.enabled && <OneLoginLoginButton />}
         </>
     );
+    console.log(form.values);
+
     const passwordLogin = allowPasswordAuthentication && (
-        <Form name="login" methods={methods} onSubmit={handleLogin}>
-            <InputField
-                label="Email address"
-                name="email"
-                placeholder="Your email address"
-                disabled={isLoading}
-                rules={{
-                    required: 'Required field',
-                }}
-            />
-            <PasswordInputField
-                label="Password"
-                name="password"
-                placeholder="Your password"
-                disabled={isLoading}
-                rules={{
-                    required: 'Required field',
-                }}
-            />
-            <SubmitButton
-                type="submit"
-                intent={Intent.PRIMARY}
-                text="Sign in"
-                loading={isLoading}
-                data-cy="login-button"
-            />
-            {health.data?.hasEmailClient && (
-                <AnchorLinkWrapper>
-                    <AnchorLink href="/recover-password">
-                        Forgot your password ?
-                    </AnchorLink>
-                </AnchorLinkWrapper>
-            )}
-        </Form>
+        <form
+            name="login"
+            onSubmit={form.onSubmit((values: LoginParams) => mutate(values))}
+        >
+            <Stack spacing="md">
+                <TextInput
+                    label="Email address"
+                    name="email"
+                    placeholder="Your email address"
+                    withAsterisk
+                    {...form.getInputProps('email')}
+                    disabled={isLoading}
+                />
+                <PasswordInput
+                    label="Password"
+                    name="password"
+                    placeholder="Your password"
+                    withAsterisk
+                    {...form.getInputProps('password')}
+                    disabled={isLoading}
+                />
+                <Button
+                    type="submit"
+                    disabled={!form.values.email || !form.values.password}
+                    loading={isLoading}
+                >
+                    Sign in
+                </Button>
+                {health.data?.hasEmailClient && (
+                    <Anchor href="/recover-password" mx="auto">
+                        Forgot your password?
+                    </Anchor>
+                )}
+            </Stack>
+        </form>
     );
 
     const logins = (
