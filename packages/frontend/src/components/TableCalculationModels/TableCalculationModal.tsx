@@ -103,6 +103,7 @@ const TableCalculationModal: FC<Props> = ({
         fetchResults();
         track({ name: EventName.RUN_QUERY_BUTTON_CLICKED });
     }, [fetchResults, track]);
+
     return (
         <TableCalculationDialog
             isOpen={isOpen}
