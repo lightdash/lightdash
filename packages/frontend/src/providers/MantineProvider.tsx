@@ -76,6 +76,9 @@ const themeOverride: MantineThemeOverride = {
             outlineOffset: '2px',
             '-moz-outline-radius': '6px',
         },
+        label: {
+            marginBottom: '5px',
+        },
     }),
 };
 
