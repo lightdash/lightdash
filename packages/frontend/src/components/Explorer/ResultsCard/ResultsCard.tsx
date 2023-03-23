@@ -1,15 +1,18 @@
 import { Button, PopoverPosition } from '@blueprintjs/core';
 import { Classes, Popover2 } from '@blueprintjs/popover2';
+import { subject } from '@casl/ability';
 import { getResultValues } from '@lightdash/common';
 import { FC, memo, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { downloadCsv } from '../../../hooks/useDownloadCsv';
 import { getQueryResults } from '../../../hooks/useQueryResults';
+import { useApp } from '../../../providers/AppProvider';
 import {
     ExplorerSection,
     useExplorerContext,
 } from '../../../providers/ExplorerProvider';
 import AddColumnButton from '../../AddColumnButton';
+import { Can } from '../../common/Authorization';
 import CollapsableCard from '../../common/CollapsableCard';
 import ExportCSV from '../../ExportCSV';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
@@ -73,6 +76,7 @@ const ResultsCard: FC = memo(() => {
         () => toggleExpandedSection(ExplorerSection.RESULTS),
         [toggleExpandedSection],
     );
+    const { user } = useApp();
     return (
         <CollapsableCard
             title="Results"
@@ -99,23 +103,33 @@ const ResultsCard: FC = memo(() => {
                 tableName && (
                     <>
                         {isEditMode && <AddColumnButton />}
-                        <Popover2
-                            lazy
-                            position={PopoverPosition.BOTTOM_LEFT}
-                            popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
-                            content={
-                                <ExportCSV
-                                    rows={rows}
-                                    getCsvLink={getCsvLink}
-                                />
-                            }
+                        <Can
+                            I="manage"
+                            this={subject('ExportCsv', {
+                                organizationUuid: user.data?.organizationUuid,
+                                projectUuid: projectUuid,
+                            })}
                         >
-                            <Button
-                                text="Export CSV"
-                                rightIcon="caret-down"
-                                minimal
-                            />
-                        </Popover2>
+                            <Popover2
+                                lazy
+                                position={PopoverPosition.BOTTOM_LEFT}
+                                popoverClassName={
+                                    Classes.POPOVER2_CONTENT_SIZING
+                                }
+                                content={
+                                    <ExportCSV
+                                        rows={rows}
+                                        getCsvLink={getCsvLink}
+                                    />
+                                }
+                            >
+                                <Button
+                                    text="Export CSV"
+                                    rightIcon="caret-down"
+                                    minimal
+                                />
+                            </Popover2>
+                        </Can>
                     </>
                 )
             }
