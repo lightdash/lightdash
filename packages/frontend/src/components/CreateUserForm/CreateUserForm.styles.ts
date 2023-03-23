@@ -9,7 +9,7 @@ const inputFieldStyles = css`
     margin-bottom: 20px;
 
     input {
-        height: 36px;
+        height: 40px;
     }
 `;
 
