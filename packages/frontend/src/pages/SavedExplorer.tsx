@@ -16,6 +16,7 @@ import {
 import Explorer from '../components/Explorer';
 import ExplorePanel from '../components/Explorer/ExplorePanel';
 import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
+import { useQueryResults } from '../hooks/useQueryResults';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import useSidebarResize from '../hooks/useSidebarResize';
 import {
@@ -39,6 +40,7 @@ const SavedExplorer = () => {
             minWidth: 300,
             maxWidth: 600,
         });
+    const queryResults = useQueryResults({ isViewOnly: !isEditMode });
 
     if (isLoading) {
         return (
@@ -53,6 +55,7 @@ const SavedExplorer = () => {
 
     return (
         <ExplorerProvider
+            queryResults={queryResults}
             isEditMode={isEditMode}
             initialState={
                 data
