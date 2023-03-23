@@ -47,6 +47,7 @@ declare global {
                 orgRole,
                 projectPermissions,
             ): Chainable<Element>;
+            loginWithEmail: (email) => Chainable<Element>;
             getApiToken(): Chainable<string>;
         }
     }
@@ -214,6 +215,24 @@ Cypress.Commands.add(
     },
 );
 
+Cypress.Commands.add('loginWithEmail', (email: string) => {
+    cy.session(
+        email,
+        () => {
+            cy.request({
+                url: 'api/v1/login',
+                method: 'POST',
+                body: {
+                    email,
+                    password: 'test',
+                },
+            })
+                .its('status')
+                .should('eq', 200);
+        },
+        {},
+    );
+});
 Cypress.Commands.add('getApiToken', () => {
     cy.request({
         url: `api/v1/user/me/personal-access-tokens`,

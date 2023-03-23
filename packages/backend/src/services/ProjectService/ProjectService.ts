@@ -587,7 +587,7 @@ export class ProjectService {
 
         if (
             user.ability.cannot(
-                'manage',
+                'view',
                 subject('UnderlyingData', { organizationUuid, projectUuid }),
             )
         ) {
