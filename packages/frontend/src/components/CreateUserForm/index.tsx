@@ -65,11 +65,6 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
                     {...form.getInputProps('email')}
                     disabled={isLoading || !!readOnlyEmail}
                     data-cy="email-address-input"
-                    styles={{
-                        label: {
-                            marginBottom: '5px',
-                        },
-                    }}
                 />
                 <PasswordInput
                     label="Password"
@@ -78,11 +73,6 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
                     required
                     {...form.getInputProps('password')}
                     disabled={isLoading}
-                    styles={{
-                        label: {
-                            marginBottom: '5px',
-                        },
-                    }}
                 />
                 <Button
                     type="submit"
