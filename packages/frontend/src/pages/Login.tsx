@@ -126,10 +126,7 @@ const Login: FC = () => {
     );
 
     const passwordLogin = allowPasswordAuthentication && (
-        <form
-            name="login"
-            onSubmit={form.onSubmit((values: LoginParams) => mutate(values))}
-        >
+        <form name="login" onSubmit={form.onSubmit((values) => mutate(values))}>
             <Stack spacing="lg">
                 <TextInput
                     label="Email address"
@@ -137,7 +134,7 @@ const Login: FC = () => {
                     placeholder="Your email address"
                     required
                     {...form.getInputProps('email')}
-                    disabled={isLoading}
+                    disabled={isLoading || isSuccess}
                     styles={{
                         label: {
                             marginBottom: '5px',
@@ -150,7 +147,7 @@ const Login: FC = () => {
                     placeholder="Your password"
                     required
                     {...form.getInputProps('password')}
-                    disabled={isLoading}
+                    disabled={isLoading || isSuccess}
                     styles={{
                         label: {
                             marginBottom: '5px',
