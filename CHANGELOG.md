@@ -1,3 +1,10 @@
+# [0.483.0](https://github.com/lightdash/lightdash/compare/0.482.0...0.483.0) (2023-03-23)
+
+
+### Features
+
+* migrate `login` form to Mantine ([#4893](https://github.com/lightdash/lightdash/issues/4893)) ([5c17f4c](https://github.com/lightdash/lightdash/commit/5c17f4c8f8be2bcc2fc9c0ea47d762f30dae3cea))
+
 # [0.482.0](https://github.com/lightdash/lightdash/compare/0.481.0...0.482.0) (2023-03-23)
 
 
