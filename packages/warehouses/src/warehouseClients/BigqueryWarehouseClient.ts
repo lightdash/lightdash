@@ -15,12 +15,8 @@ import {
     WarehouseConnectionError,
     WarehouseQueryError,
 } from '@lightdash/common';
-import {
-    WarehouseCatalog,
-    WarehouseClient,
-    WarehouseTableSchema,
-} from '../types';
-import { getDefaultMetricSql } from '../utils/sql';
+import { WarehouseCatalog, WarehouseTableSchema } from '../types';
+import WarehouseBaseClient from './WarehouseBaseClient';
 
 export enum BigqueryFieldType {
     STRING = 'STRING',
@@ -113,14 +109,12 @@ const parseRows = (rows: Record<string, any>[]) =>
         ),
     );
 
-export class BigqueryWarehouseClient implements WarehouseClient {
+export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryCredentials> {
     client: BigQuery;
 
-    credentials: CreateBigqueryCredentials;
-
     constructor(credentials: CreateBigqueryCredentials) {
+        super(credentials);
         try {
-            this.credentials = credentials;
             this.client = new BigQuery({
                 projectId: credentials.project,
                 location: credentials.location,
@@ -132,10 +126,6 @@ export class BigqueryWarehouseClient implements WarehouseClient {
                 `Failed connection to ${credentials.project} in ${credentials.location}. ${e.message}`,
             );
         }
-    }
-
-    getStartOfWeek() {
-        return this.credentials.startOfWeek;
     }
 
     async runQuery(query: string) {
@@ -174,10 +164,6 @@ export class BigqueryWarehouseClient implements WarehouseClient {
         } catch (e) {
             throw new WarehouseQueryError(e.message);
         }
-    }
-
-    async test(): Promise<void> {
-        await this.runQuery('SELECT 1');
     }
 
     static async getTableMetadata(
@@ -269,7 +255,7 @@ export class BigqueryWarehouseClient implements WarehouseClient {
             case MetricType.MEDIAN:
                 return `APPROX_QUANTILES(${sql}, 100)[OFFSET(50)]`;
             default:
-                return getDefaultMetricSql(sql, metric.type);
+                return super.getMetricSql(sql, metric);
         }
     }
 }

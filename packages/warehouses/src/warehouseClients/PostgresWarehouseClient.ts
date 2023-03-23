@@ -1,19 +1,15 @@
 import {
-    CompileError,
     CreatePostgresCredentials,
+    CreateWarehouseCredentials,
     DimensionType,
     Metric,
     MetricType,
-    SupportedDbtAdapter,
     WarehouseConnectionError,
     WarehouseQueryError,
-    WeekDay,
 } from '@lightdash/common';
-import assertUnreachable from '@lightdash/common/dist/utils/assertUnreachable';
 import * as pg from 'pg';
 import { PoolConfig } from 'pg';
-import { WarehouseClient } from '../types';
-import { getDefaultMetricSql } from '../utils/sql';
+import WarehouseBaseClient from './WarehouseBaseClient';
 
 export enum PostgresTypes {
     INTEGER = 'integer',
@@ -125,23 +121,19 @@ const convertDataTypeIdToDimensionType = (
     }
 };
 
-export class PostgresClient {
+export class PostgresClient<
+    T extends CreateWarehouseCredentials,
+> extends WarehouseBaseClient<T> {
     pool: pg.Pool;
 
-    startOfWeek: WeekDay | null | undefined;
-
-    constructor(config: PoolConfig, startOfWeek: WeekDay | null | undefined) {
-        this.startOfWeek = startOfWeek;
+    constructor(credentials: T, config: PoolConfig) {
+        super(credentials);
         try {
             const pool = new pg.Pool(config);
             this.pool = pool;
         } catch (e) {
             throw new WarehouseConnectionError(e.message);
         }
-    }
-
-    getStartOfWeek() {
-        return this.startOfWeek;
     }
 
     async runQuery(sql: string) {
@@ -160,10 +152,6 @@ export class PostgresClient {
         } catch (e) {
             throw new WarehouseQueryError(e.message);
         }
-    }
-
-    async test(): Promise<void> {
-        await this.runQuery('SELECT 1');
     }
 
     async getCatalog(
@@ -260,32 +248,21 @@ export class PostgresClient {
             case MetricType.MEDIAN:
                 return `PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ${sql})`;
             default:
-                return getDefaultMetricSql(sql, metric.type);
+                return super.getMetricSql(sql, metric);
         }
     }
 }
 
-export class PostgresWarehouseClient
-    extends PostgresClient
-    implements WarehouseClient
-{
-    credentials: CreatePostgresCredentials;
-
+export class PostgresWarehouseClient extends PostgresClient<CreatePostgresCredentials> {
     constructor(credentials: CreatePostgresCredentials) {
-        super(
-            {
-                connectionString: `postgres://${encodeURIComponent(
-                    credentials.user,
-                )}:${encodeURIComponent(
-                    credentials.password,
-                )}@${encodeURIComponent(credentials.host)}:${
-                    credentials.port
-                }/${encodeURIComponent(credentials.dbname)}?sslmode=${
-                    credentials.sslmode || 'prefer'
-                }`,
-            },
-            credentials.startOfWeek,
-        );
-        this.credentials = credentials;
+        super(credentials, {
+            connectionString: `postgres://${encodeURIComponent(
+                credentials.user,
+            )}:${encodeURIComponent(credentials.password)}@${encodeURIComponent(
+                credentials.host,
+            )}:${credentials.port}/${encodeURIComponent(
+                credentials.dbname,
+            )}?sslmode=${credentials.sslmode || 'prefer'}`,
+        });
     }
 }

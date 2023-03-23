@@ -1,7 +1,5 @@
 import {
     CreateSnowflakeCredentials,
-    CreateWarehouseCredentials,
-    deepEqual,
     DimensionType,
     isWeekDay,
     Metric,
@@ -9,13 +7,12 @@ import {
     ParseError,
     WarehouseConnectionError,
     WarehouseQueryError,
-    WeekDay,
 } from '@lightdash/common';
 import * as crypto from 'crypto';
 import { Connection, ConnectionOptions, createConnection } from 'snowflake-sdk';
 import * as Util from 'util';
-import { WarehouseCatalog, WarehouseClient } from '../types';
-import { getDefaultMetricSql } from '../utils/sql';
+import { WarehouseCatalog } from '../types';
+import WarehouseBaseClient from './WarehouseBaseClient';
 
 export enum SnowflakeTypes {
     NUMBER = 'NUMBER',
@@ -111,16 +108,11 @@ const parseRows = (rows: Record<string, any>[]) =>
         ),
     );
 
-export class SnowflakeWarehouseClient implements WarehouseClient {
-    credentials: CreateSnowflakeCredentials;
-
+export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflakeCredentials> {
     connectionOptions: ConnectionOptions;
 
-    startOfWeek: WeekDay | null | undefined;
-
     constructor(credentials: CreateSnowflakeCredentials) {
-        this.credentials = credentials;
-        this.startOfWeek = credentials.startOfWeek;
+        super(credentials);
         let decodedPrivateKey: string | Buffer | undefined =
             credentials.privateKey;
         if (credentials.privateKey && credentials.privateKeyPass) {
@@ -153,10 +145,6 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
                 ? { accessUrl: credentials.accessUrl }
                 : {}),
         } as ConnectionOptions; // force type because accessUrl property is not recognised
-    }
-
-    getStartOfWeek() {
-        return this.startOfWeek;
     }
 
     async runQuery(sqlText: string) {
@@ -230,10 +218,6 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
                 },
             });
         });
-    }
-
-    async test(): Promise<void> {
-        await this.runQuery('SELECT 1');
     }
 
     private async runTableCatalogQuery(
@@ -335,7 +319,7 @@ export class SnowflakeWarehouseClient implements WarehouseClient {
             case MetricType.MEDIAN:
                 return `PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ${sql})`;
             default:
-                return getDefaultMetricSql(sql, metric.type);
+                return super.getMetricSql(sql, metric);
         }
     }
 }
