@@ -37,6 +37,11 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
                         disabled={isLoading}
                         required
                         {...form.getInputProps('firstName')}
+                        styles={{
+                            label: {
+                                marginBottom: '5px',
+                            },
+                        }}
                     />
                     <TextInput
                         label="Last name"
@@ -45,6 +50,11 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
                         disabled={isLoading}
                         required
                         {...form.getInputProps('lastName')}
+                        styles={{
+                            label: {
+                                marginBottom: '5px',
+                            },
+                        }}
                     />
                 </Flex>
                 <TextInput
@@ -55,6 +65,11 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
                     {...form.getInputProps('email')}
                     disabled={isLoading || !!readOnlyEmail}
                     data-cy="email-address-input"
+                    styles={{
+                        label: {
+                            marginBottom: '5px',
+                        },
+                    }}
                 />
                 <PasswordInput
                     label="Password"
@@ -63,6 +78,11 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
                     required
                     {...form.getInputProps('password')}
                     disabled={isLoading}
+                    styles={{
+                        label: {
+                            marginBottom: '5px',
+                        },
+                    }}
                 />
                 <Button
                     type="submit"
