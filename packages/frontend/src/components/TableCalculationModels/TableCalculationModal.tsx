@@ -4,7 +4,7 @@ import {
     snakeCaseName,
     TableCalculation,
 } from '@lightdash/common';
-import React, { FC } from 'react';
+import React, { FC, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { useToggle } from 'react-use';
 import useToaster from '../../hooks/toaster/useToaster';
@@ -20,6 +20,9 @@ import {
     TableCalculationDialog,
     TableCalculationSqlInputWrapper,
 } from './TableCalculationModal.styles';
+
+import { useTracking } from '../../providers/TrackingProvider';
+import { EventName } from '../../types/Events';
 
 const SQL_PLACEHOLDER =
     // eslint-disable-next-line no-template-curly-in-string
@@ -91,6 +94,15 @@ const TableCalculationModal: FC<Props> = ({
         },
     });
 
+    const fetchResults = useExplorerContext(
+        (context) => context.actions.fetchResults,
+    );
+    const { track } = useTracking();
+
+    const fetchResultsData = useCallback(() => {
+        fetchResults();
+        track({ name: EventName.RUN_QUERY_BUTTON_CLICKED });
+    }, [fetchResults, track]);
     return (
         <TableCalculationDialog
             isOpen={isOpen}
@@ -212,6 +224,7 @@ const TableCalculationModal: FC<Props> = ({
                             intent={Intent.PRIMARY}
                             text="Save"
                             loading={isDisabled}
+                            onClick={() => fetchResultsData()}
                         />
                     </DialogButtons>
                 </div>
