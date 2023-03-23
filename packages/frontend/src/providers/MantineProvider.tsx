@@ -37,6 +37,28 @@ const themeOverride: MantineThemeOverride = {
 
     lineHeight: 1.2858142857,
 
+    components: {
+        TextInput: {
+            styles: (theme, _params) => ({
+                label: {
+                    // FIXME: this is a hack to fix label position. remove after Blueprint migration is complete
+                    // FIXME: size is hardcoded. remove once we add more sizes to the theme
+                    marginBottom: theme.spacing.xs / 2,
+                },
+            }),
+        },
+
+        PasswordInput: {
+            styles: (theme, _params) => ({
+                label: {
+                    // FIXME: this is a hack to fix label position. remove after Blueprint migration is complete
+                    // FIXME: size is hardcoded. remove once we add more sizes to the theme
+                    marginBottom: theme.spacing.xs / 2,
+                },
+            }),
+        },
+    },
+
     globalStyles: () => ({
         body: {
             textTransform: 'none',
