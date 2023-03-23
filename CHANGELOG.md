@@ -1,3 +1,10 @@
+# [0.480.0](https://github.com/lightdash/lightdash/compare/0.479.0...0.480.0) (2023-03-23)
+
+
+### Features
+
+* run dashboard tile query ([#4891](https://github.com/lightdash/lightdash/issues/4891)) ([f6cffb4](https://github.com/lightdash/lightdash/commit/f6cffb4e6e13309d2c9aeaecb14359087f9cbc2d))
+
 # [0.479.0](https://github.com/lightdash/lightdash/compare/0.478.0...0.479.0) (2023-03-21)
 
 
