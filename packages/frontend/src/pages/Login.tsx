@@ -135,11 +135,6 @@ const Login: FC = () => {
                     required
                     {...form.getInputProps('email')}
                     disabled={isLoading || isSuccess}
-                    styles={{
-                        label: {
-                            marginBottom: '5px',
-                        },
-                    }}
                 />
                 <PasswordInput
                     label="Password"
@@ -148,11 +143,6 @@ const Login: FC = () => {
                     required
                     {...form.getInputProps('password')}
                     disabled={isLoading || isSuccess}
-                    styles={{
-                        label: {
-                            marginBottom: '5px',
-                        },
-                    }}
                 />
                 <Button
                     type="submit"
