@@ -74,11 +74,6 @@ export const VerifyEmailForm: FC<{ isLoading?: boolean }> = ({ isLoading }) => {
                         placeholder="XXXXXX"
                         required
                         disabled={data?.otp?.isMaxAttempts}
-                        styles={{
-                            label: {
-                                marginBottom: '5px',
-                            },
-                        }}
                         {...form.getInputProps('code')}
                     />
                     <Countdown
