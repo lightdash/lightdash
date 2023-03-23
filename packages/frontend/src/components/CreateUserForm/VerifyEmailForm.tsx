@@ -1,33 +1,38 @@
-import { Intent, Spinner } from '@blueprintjs/core';
-import { EmailStatusExpiring } from '@lightdash/common';
+import {
+    Anchor,
+    Button,
+    PasswordInput,
+    Stack,
+    Text,
+    Title,
+    UnstyledButton,
+} from '@mantine/core';
+import { useForm } from '@mantine/form';
 import React, { FC, useEffect } from 'react';
 import Countdown, { zeroPad } from 'react-countdown';
-import { UseFormReturn } from 'react-hook-form';
-import { AnchorLinkWrapper, Subtitle, Title } from '../../pages/SignUp.styles';
-import Form from '../ReactHookForm/Form';
-import PasswordInput from '../ReactHookForm/PasswordInput';
-import { FormWrapper, LinkButton, SubmitButton } from './CreateUserForm.styles';
+import {
+    useEmailStatus,
+    useOneTimePassword,
+    useVerifyEmail,
+} from '../../hooks/useEmailVerification';
+import { useApp } from '../../providers/AppProvider';
+import LoadingState from '../common/LoadingState';
 
-export const VerifyEmailForm: FC<{
-    email: string | undefined;
-    methods: UseFormReturn<{ code: string }>;
-    data: EmailStatusExpiring | undefined;
-    expirationTime: Date | string | undefined;
-    onSubmit: (data: { code: string }) => void;
-    onResend: () => void;
-    isLoading: boolean;
-    verificationLoading: boolean;
-}> = ({
-    email,
-    methods,
-    data,
-    expirationTime,
-    onSubmit,
-    onResend,
-    isLoading,
-    verificationLoading,
-}) => {
-    const { setError, clearErrors } = methods;
+export const VerifyEmailForm: FC<{ isLoading?: boolean }> = ({ isLoading }) => {
+    const { health, user } = useApp();
+    const { mutate: verifyCode, isLoading: verificationLoading } =
+        useVerifyEmail();
+    const { data, isLoading: statusLoading } = useEmailStatus();
+    const { mutate: sendVerificationEmail, isLoading: emailLoading } =
+        useOneTimePassword();
+    const form = useForm<{ code: string }>({
+        initialValues: {
+            code: '',
+        },
+    });
+    const expirationTime = data?.otp?.expiresAt || new Date();
+    const loadingState =
+        statusLoading || emailLoading || health.isLoading || isLoading;
 
     useEffect(() => {
         if (data?.otp && data?.otp.numberOfAttempts > 0) {
@@ -39,66 +44,79 @@ export const VerifyEmailForm: FC<{
                       remainingAttempts > 1 ? 's' : ''
                   } left.`
                 : "Hmm that code doesn't match the one we sent you. You've already had 5 attempts, please resend a verification email and try again.";
-            setError('code', { type: 'custom', message });
+            form.setFieldError('code', message);
         } else {
-            clearErrors('code');
+            form.clearFieldError('code');
         }
-    }, [data, clearErrors, setError]);
+    }, [data, form.setFieldError, form.clearFieldError]);
 
-    if (isLoading) {
-        return (
-            <div style={{ margin: '50px' }}>
-                <Spinner />
-            </div>
-        );
+    if (loadingState) {
+        return <LoadingState title="" />;
     }
 
     return (
-        <FormWrapper>
-            <Title>Check your inbox!</Title>
-            <Subtitle>
-                Verify your e-mail address by entering the code we've just sent
-                to <b>{email}</b>
-            </Subtitle>
-            <Form name="verify-email" onSubmit={onSubmit} methods={methods}>
-                <PasswordInput
-                    label="One-time password"
-                    name="code"
-                    placeholder="XXXXXX"
-                    rules={{
-                        required: 'Required field',
-                    }}
-                    disabled={data?.otp?.isMaxAttempts}
-                />
-                <Countdown
-                    key={expirationTime?.toString()}
-                    date={expirationTime}
-                    renderer={({ minutes, seconds, completed }) => {
-                        if (completed || data?.otp?.isMaxAttempts) {
-                            return <></>;
-                        }
-                        return (
-                            <>
-                                <Subtitle>
-                                    Your one-time password expires in{' '}
-                                    <b>
-                                        {zeroPad(minutes)}:{zeroPad(seconds)}
-                                    </b>
-                                </Subtitle>
-                                <SubmitButton
-                                    type="submit"
-                                    intent={Intent.PRIMARY}
-                                    text="Submit"
-                                    loading={verificationLoading}
-                                />
-                            </>
-                        );
-                    }}
-                />
-                <AnchorLinkWrapper>
-                    <LinkButton onClick={onResend}>Resend email</LinkButton>
-                </AnchorLinkWrapper>
-            </Form>
-        </FormWrapper>
+        <Stack align="center" spacing="md">
+            <Title order={3}>Check your inbox!</Title>
+            <Text color="gray.6" ta="center">
+                Verify your email address by entering the code we've just sent
+                to <b>{user?.data?.email || 'your email'}</b>
+            </Text>
+            <Stack spacing="md" w={290}>
+                <form
+                    name="verifyEmail"
+                    onSubmit={form.onSubmit((values: { code: string }) =>
+                        verifyCode(values.code),
+                    )}
+                >
+                    <PasswordInput
+                        label="One-time password"
+                        name="code"
+                        placeholder="XXXXXX"
+                        required
+                        disabled={data?.otp?.isMaxAttempts}
+                        styles={{
+                            label: {
+                                marginBottom: '5px',
+                            },
+                        }}
+                        {...form.getInputProps('code')}
+                    />
+                    <Countdown
+                        key={expirationTime?.toString()}
+                        date={expirationTime}
+                        renderer={({ minutes, seconds, completed }) => {
+                            if (completed || data?.otp?.isMaxAttempts) {
+                                return <></>;
+                            }
+                            return (
+                                <Stack spacing="md" mt="md">
+                                    <Text color="gray.6" ta="center">
+                                        Your one-time password expires in{' '}
+                                        <b>
+                                            {zeroPad(minutes)}:
+                                            {zeroPad(seconds)}
+                                        </b>
+                                    </Text>
+                                    <Button
+                                        loading={verificationLoading}
+                                        type="submit"
+                                    >
+                                        Submit
+                                    </Button>
+                                </Stack>
+                            );
+                        }}
+                    />
+                </form>
+            </Stack>
+            <UnstyledButton
+                onClick={() => {
+                    form.reset();
+                    sendVerificationEmail();
+                }}
+            >
+                <Anchor size="sm">Resend email</Anchor>
+            </UnstyledButton>
+        </Stack>
     );
 };
