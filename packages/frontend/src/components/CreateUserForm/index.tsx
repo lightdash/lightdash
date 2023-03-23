@@ -2,7 +2,6 @@ import { CreateUserArgs, validateEmail } from '@lightdash/common';
 import { Button, Flex, PasswordInput, Stack, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import React, { FC } from 'react';
-import { isValidEmail } from '../../utils/fieldValidators';
 
 type Props = {
     isLoading: boolean;
@@ -37,11 +36,6 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
                         disabled={isLoading}
                         required
                         {...form.getInputProps('firstName')}
-                        styles={{
-                            label: {
-                                marginBottom: '5px',
-                            },
-                        }}
                     />
                     <TextInput
                         label="Last name"
@@ -50,11 +44,6 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
                         disabled={isLoading}
                         required
                         {...form.getInputProps('lastName')}
-                        styles={{
-                            label: {
-                                marginBottom: '5px',
-                            },
-                        }}
                     />
                 </Flex>
                 <TextInput
