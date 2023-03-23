@@ -104,17 +104,3 @@ export const BoldSubtitle = styled.p`
     color: ${Colors.DARK_GRAY1};
     margin-bottom: 15px;
 `;
-
-export const EmailVerifiedModal = styled(Dialog)`
-    width: fit-content;
-    height: fit-content;
-`;
-
-export const EmailVerifiedWrapper = styled.div`
-    width: 400px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    margin: 30px 0;
-`;
