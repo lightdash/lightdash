@@ -14,7 +14,7 @@ import HighlightedText from '../../../HighlightedText';
 import { useFiltersContext } from '../../FiltersProvider';
 import {
     isMatch,
-    toggleMultipleValuesFromArray,
+    mergeUniqueValues,
     toggleValueFromArray,
 } from './autoCompleteUtils';
 
@@ -74,7 +74,7 @@ const MultiAutoComplete: FC<Props> = ({
 
     const handleOnPaste = useCallback(
         (value: string[]) => {
-            onChange(toggleMultipleValuesFromArray(values, value));
+            onChange(mergeUniqueValues(values, value));
         },
         [onChange, values],
     );

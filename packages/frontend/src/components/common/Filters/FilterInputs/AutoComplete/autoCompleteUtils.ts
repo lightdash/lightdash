@@ -1,3 +1,5 @@
+import { uniq, uniqBy } from 'lodash-es';
+
 type Normalizer<T, Comparable = T> = (a: T) => Comparable;
 
 const includesComparator = <T extends string>(
@@ -25,26 +27,14 @@ export const toggleValueFromArray = <T extends string>(
     }
 };
 
-export const toggleMultipleValuesFromArray = <T extends string>(
-    values: T[],
-    newValues: T[],
-): T[] => {
+export const mergeUniqueValues = (
+    values: string[],
+    newValues: string[],
+): string[] => {
     const normalizedValues = [
         ...values.map(normalize),
         ...newValues.map(normalize),
     ];
 
-    const res = normalizedValues.reduce((acc, value, i) => {
-        const valueExists = normalizedValues.find(
-            (n, j) => i !== j && isMatch(n, value),
-        );
-
-        if (valueExists) {
-            return acc;
-        }
-
-        return [...acc, value] as T[];
-    }, [] as T[]);
-
-    return res;
+    return uniqBy(normalizedValues, normalize);
 };
