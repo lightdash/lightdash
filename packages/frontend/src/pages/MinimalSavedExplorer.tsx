@@ -4,6 +4,7 @@ import styled from 'styled-components';
 import LightdashVisualization from '../components/LightdashVisualization';
 import VisualizationProvider from '../components/LightdashVisualization/VisualizationProvider';
 import { useExplore } from '../hooks/useExplore';
+import { useQueryResults } from '../hooks/useQueryResults';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import {
     ExplorerProvider,
@@ -63,6 +64,7 @@ const MinimalSavedExplorer: FC = () => {
     const { data, isLoading, isError, error } = useSavedQuery({
         id: savedQueryUuid,
     });
+    const queryResults = useQueryResults({ isViewOnly: true });
 
     if (isLoading) {
         return null;
@@ -74,6 +76,7 @@ const MinimalSavedExplorer: FC = () => {
 
     return (
         <ExplorerProvider
+            queryResults={queryResults}
             savedChart={data}
             initialState={
                 data

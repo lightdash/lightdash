@@ -11,22 +11,23 @@ import { lightdashApi } from '../api';
 import { convertDateFilters } from '../utils/dateFilter';
 import useQueryError from './useQueryError';
 
-export const getDashboardTileQueryResults = async ({
-    projectUuid,
-    tableId,
-    query,
-    csvLimit,
-}: {
+type QueryResultsProps = {
     projectUuid: string;
     tableId: string;
     query: MetricQuery;
     csvLimit?: number | null; //giving null returns all results (no limit)
-}) => {
+};
+
+export const getDashboardTileQueryResults = async ({
+    projectUuid,
+    tableId,
+    query,
+}: QueryResultsProps) => {
     const timezoneFixQuery = convertDateFilters(query);
     return lightdashApi<ApiQueryResults>({
         url: `/projects/${projectUuid}/explores/${tableId}/runDashboardTileQuery`,
         method: 'POST',
-        body: JSON.stringify({ ...timezoneFixQuery, csvLimit }),
+        body: JSON.stringify({ ...timezoneFixQuery }),
     });
 };
 
@@ -35,12 +36,7 @@ export const getQueryResults = async ({
     tableId,
     query,
     csvLimit,
-}: {
-    projectUuid: string;
-    tableId: string;
-    query: MetricQuery;
-    csvLimit?: number | null; //giving null returns all results (no limit)
-}) => {
+}: QueryResultsProps) => {
     const timezoneFixQuery = convertDateFilters(query);
     return lightdashApi<ApiQueryResults>({
         url: `/projects/${projectUuid}/explores/${tableId}/runQuery`,
@@ -49,9 +45,26 @@ export const getQueryResults = async ({
     });
 };
 
-export const useQueryResults = () => {
+export const getViewChartResults = async ({
+    projectUuid,
+    tableId,
+    query,
+    csvLimit,
+}: QueryResultsProps) => {
+    const timezoneFixQuery = convertDateFilters(query);
+    return lightdashApi<ApiQueryResults>({
+        url: `/projects/${projectUuid}/explores/${tableId}/runViewChartQuery`,
+        method: 'POST',
+        body: JSON.stringify({ ...timezoneFixQuery, csvLimit }),
+    });
+};
+
+export const useQueryResults = (props?: { isViewOnly?: boolean }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const setErrorResponse = useQueryError();
+
+    const fetchQuery =
+        props?.isViewOnly === true ? getViewChartResults : getQueryResults;
     const mutation = useMutation<
         ApiQueryResults,
         ApiError,
@@ -60,7 +73,7 @@ export const useQueryResults = () => {
             tableId: string;
             query: MetricQuery;
         }
-    >(getQueryResults, {
+    >(fetchQuery, {
         mutationKey: ['queryResults'],
         onError: useCallback(
             (result) => setErrorResponse(result),
