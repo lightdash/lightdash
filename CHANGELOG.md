@@ -1,3 +1,10 @@
+# [0.482.0](https://github.com/lightdash/lightdash/compare/0.481.0...0.482.0) (2023-03-23)
+
+
+### Features
+
+* view chart query ([#4878](https://github.com/lightdash/lightdash/issues/4878)) ([9197c86](https://github.com/lightdash/lightdash/commit/9197c86f4b8eece9513a52c8ea5e4573f2a71a66))
+
 # [0.481.0](https://github.com/lightdash/lightdash/compare/0.480.0...0.481.0) (2023-03-23)
 
 
