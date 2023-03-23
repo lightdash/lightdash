@@ -603,6 +603,68 @@ export class ProjectService {
         );
     }
 
+    async runViewChartQuery(
+        user: SessionUser,
+        metricQuery: MetricQuery,
+        projectUuid: string,
+        exploreName: string,
+        csvLimit: number | null | undefined,
+    ): Promise<ApiQueryResults> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('SavedChart', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        return this.runQueryAndFormatRows(
+            user,
+            metricQuery,
+            projectUuid,
+            exploreName,
+            csvLimit,
+        );
+    }
+
+    async runExploreQuery(
+        user: SessionUser,
+        metricQuery: MetricQuery,
+        projectUuid: string,
+        exploreName: string,
+        csvLimit: number | null | undefined,
+    ): Promise<ApiQueryResults> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Explore', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        return this.runQueryAndFormatRows(
+            user,
+            metricQuery,
+            projectUuid,
+            exploreName,
+            csvLimit,
+        );
+    }
+
     async runQueryAndFormatRows(
         user: SessionUser,
         metricQuery: MetricQuery,
@@ -668,17 +730,6 @@ export class ProjectService {
     ): Promise<Record<string, any>[]> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
-        }
-        const { organizationUuid, warehouseConnection } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
-
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('Explore', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
         }
 
         const metricQueryWithLimit = ProjectService.metricQueryWithLimit(

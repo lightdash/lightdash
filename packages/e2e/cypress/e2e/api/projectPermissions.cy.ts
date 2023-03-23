@@ -557,7 +557,7 @@ describe('Lightdash API tests for member user with interactive_viewer project pe
             expect(resp.body).to.have.property('status', 'ok');
         });
     });
-    it('Should get success response (200) from POST runUnderlyingDataQuery', () => {
+    it('Should get success response (200) from POST runDashboardTileQuery', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
         const endpoint = `/projects/${projectUuid}/explores/customers/runDashboardTileQuery`;
@@ -572,7 +572,20 @@ describe('Lightdash API tests for member user with interactive_viewer project pe
         });
     });
 
-    // TODO add view mode endpoint
+    it('Should get success response (200) from POST runViewChartQuery', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        const endpoint = `/projects/${projectUuid}/explores/customers/runViewChartQuery`;
+        cy.request({
+            url: `${apiUrl}${endpoint}`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            body: runqueryBody,
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body).to.have.property('status', 'ok');
+        });
+    });
 
     it('Should get forbidden (403) from POST sqlQuery', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
@@ -749,7 +762,7 @@ describe('Lightdash API tests for member user with viewer project permissions', 
         });
     });
 
-    it('Should get success response (200) from POST runUnderlyingDataQuery', () => {
+    it('Should get success response (200) from POST runDashboardTileQuery', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
         const endpoint = `/projects/${projectUuid}/explores/customers/runDashboardTileQuery`;
@@ -763,8 +776,20 @@ describe('Lightdash API tests for member user with viewer project permissions', 
             expect(resp.body).to.have.property('status', 'ok');
         });
     });
+    it('Should get success response (200) from POST runViewChartQuery', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
 
-    // TODO add view mode endpoint
+        const endpoint = `/projects/${projectUuid}/explores/customers/runViewChartQuery`;
+        cy.request({
+            url: `${apiUrl}${endpoint}`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            body: runqueryBody,
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body).to.have.property('status', 'ok');
+        });
+    });
 
     it('Should get forbidden (403) from POST sqlQuery', () => {
         const projectUuid = SEED_PROJECT.project_uuid;

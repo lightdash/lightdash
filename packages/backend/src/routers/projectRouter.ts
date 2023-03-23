@@ -216,7 +216,7 @@ projectRouter.post(
                 additionalMetrics: body.additionalMetrics,
             };
             const results: ApiQueryResults =
-                await projectService.runQueryAndFormatRows(
+                await projectService.runViewChartQuery(
                     req.user!,
                     metricQuery,
                     req.params.projectUuid,
@@ -251,7 +251,7 @@ projectRouter.post(
                 additionalMetrics: body.additionalMetrics,
             };
             const results: ApiQueryResults =
-                await projectService.runQueryAndFormatRows(
+                await projectService.runExploreQuery(
                     req.user!,
                     metricQuery,
                     req.params.projectUuid,
@@ -321,7 +321,7 @@ projectRouter.post(
                 additionalMetrics: body.additionalMetrics,
             };
             const results: ApiQueryResults =
-                await projectService.runQueryAndFormatRows(
+                await projectService.runViewChartQuery(
                     req.user!,
                     metricQuery,
                     req.params.projectUuid,
