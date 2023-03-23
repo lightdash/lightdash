@@ -1,3 +1,17 @@
+# [0.481.0](https://github.com/lightdash/lightdash/compare/0.480.0...0.481.0) (2023-03-23)
+
+
+### Features
+
+* increase browser timeout ([#4905](https://github.com/lightdash/lightdash/issues/4905)) ([bad321c](https://github.com/lightdash/lightdash/commit/bad321cd6b817076abca12557567709738033215))
+
+# [0.480.0](https://github.com/lightdash/lightdash/compare/0.479.0...0.480.0) (2023-03-23)
+
+
+### Features
+
+* run dashboard tile query ([#4891](https://github.com/lightdash/lightdash/issues/4891)) ([f6cffb4](https://github.com/lightdash/lightdash/commit/f6cffb4e6e13309d2c9aeaecb14359087f9cbc2d))
+
 # [0.479.0](https://github.com/lightdash/lightdash/compare/0.478.0...0.479.0) (2023-03-21)
 
 

@@ -138,7 +138,7 @@ export class UnfurlService {
             });
             try {
                 await page.goto(url, {
-                    timeout: 60000,
+                    timeout: 150000, // Wait 2.5 mins for the page to load
                     waitUntil: 'networkidle0',
                 });
             } catch (e) {

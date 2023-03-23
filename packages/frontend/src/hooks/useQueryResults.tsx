@@ -11,6 +11,25 @@ import { lightdashApi } from '../api';
 import { convertDateFilters } from '../utils/dateFilter';
 import useQueryError from './useQueryError';
 
+export const getDashboardTileQueryResults = async ({
+    projectUuid,
+    tableId,
+    query,
+    csvLimit,
+}: {
+    projectUuid: string;
+    tableId: string;
+    query: MetricQuery;
+    csvLimit?: number | null; //giving null returns all results (no limit)
+}) => {
+    const timezoneFixQuery = convertDateFilters(query);
+    return lightdashApi<ApiQueryResults>({
+        url: `/projects/${projectUuid}/explores/${tableId}/runDashboardTileQuery`,
+        method: 'POST',
+        body: JSON.stringify({ ...timezoneFixQuery, csvLimit }),
+    });
+};
+
 export const getQueryResults = async ({
     projectUuid,
     tableId,
@@ -135,7 +154,7 @@ export const useSavedChartResults = (
     return useQuery<ApiQueryResults, ApiError>({
         queryKey,
         queryFn: () =>
-            getQueryResults({
+            getDashboardTileQueryResults({
                 projectUuid,
                 tableId: savedChart.tableName,
                 query: savedChart.metricQuery,
