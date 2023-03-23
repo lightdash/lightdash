@@ -1,3 +1,17 @@
+# [0.479.0](https://github.com/lightdash/lightdash/compare/0.478.0...0.479.0) (2023-03-21)
+
+
+### Features
+
+* space page migrated to Mantine ([#4887](https://github.com/lightdash/lightdash/issues/4887)) ([33783e5](https://github.com/lightdash/lightdash/commit/33783e522dfb36d7793f139c471554529a8caa08))
+
+# [0.478.0](https://github.com/lightdash/lightdash/compare/0.477.1...0.478.0) (2023-03-21)
+
+
+### Features
+
+* migrating space page buttons and wrappers to Mantine ([#4876](https://github.com/lightdash/lightdash/issues/4876)) ([a6e6d52](https://github.com/lightdash/lightdash/commit/a6e6d52e25d8e61c2fb5fa1dd441829c8ef0202f))
+
 ## [0.477.1](https://github.com/lightdash/lightdash/compare/0.477.0...0.477.1) (2023-03-21)
 
 

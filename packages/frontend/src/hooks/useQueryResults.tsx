@@ -18,6 +18,19 @@ type QueryResultsProps = {
     csvLimit?: number | null; //giving null returns all results (no limit)
 };
 
+export const getDashboardTileQueryResults = async ({
+    projectUuid,
+    tableId,
+    query,
+}: QueryResultsProps) => {
+    const timezoneFixQuery = convertDateFilters(query);
+    return lightdashApi<ApiQueryResults>({
+        url: `/projects/${projectUuid}/explores/${tableId}/runDashboardTileQuery`,
+        method: 'POST',
+        body: JSON.stringify({ ...timezoneFixQuery }),
+    });
+};
+
 export const getQueryResults = async ({
     projectUuid,
     tableId,
@@ -154,7 +167,7 @@ export const useSavedChartResults = (
     return useQuery<ApiQueryResults, ApiError>({
         queryKey,
         queryFn: () =>
-            getQueryResults({
+            getDashboardTileQueryResults({
                 projectUuid,
                 tableId: savedChart.tableName,
                 query: savedChart.metricQuery,
