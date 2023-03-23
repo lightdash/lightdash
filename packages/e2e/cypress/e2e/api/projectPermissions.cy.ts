@@ -557,7 +557,21 @@ describe('Lightdash API tests for member user with interactive_viewer project pe
             expect(resp.body).to.have.property('status', 'ok');
         });
     });
-    // TODO add dashboard endpoint
+    it('Should get success response (200) from POST runUnderlyingDataQuery', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        const endpoint = `/projects/${projectUuid}/explores/customers/runDashboardTileQuery`;
+        cy.request({
+            url: `${apiUrl}${endpoint}`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            body: runqueryBody,
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body).to.have.property('status', 'ok');
+        });
+    });
+
     // TODO add view mode endpoint
 
     it('Should get forbidden (403) from POST sqlQuery', () => {
@@ -734,7 +748,22 @@ describe('Lightdash API tests for member user with viewer project permissions', 
             expect(resp.status).to.eq(403);
         });
     });
-    // TODO add dashboard endpoint
+
+    it('Should get success response (200) from POST runUnderlyingDataQuery', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        const endpoint = `/projects/${projectUuid}/explores/customers/runDashboardTileQuery`;
+        cy.request({
+            url: `${apiUrl}${endpoint}`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            body: runqueryBody,
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body).to.have.property('status', 'ok');
+        });
+    });
+
     // TODO add view mode endpoint
 
     it('Should get forbidden (403) from POST sqlQuery', () => {
