@@ -86,7 +86,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             ref={mergeRefs(elementSizeRef, resizeObserverRef)}
             {...wrapperProps}
         >
-            <BigNumberHalf place="flex-end">
+            <BigNumberHalf>
                 {minimal || isSqlRunner ? (
                     <BigNumber $fontSize={valueFontSize}>{bigNumber}</BigNumber>
                 ) : (
@@ -105,7 +105,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                 )}
             </BigNumberHalf>
 
-            <BigNumberHalf place="flex-start">
+            <BigNumberHalf>
                 <BigNumberLabel $fontSize={labelFontSize}>
                     {bigNumberLabel || defaultLabel}
                 </BigNumberLabel>

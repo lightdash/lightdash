@@ -17,12 +17,9 @@ export const BigNumberContainer = styled.div<BigNumberContainerProps>`
         $paddingBottom ? `${$paddingBottom}px` : '0px'};
 `;
 
-export const BigNumberHalf = styled.div<{ place: 'flex-start' | 'flex-end' }>`
-    flex: 1 0 auto;
-    height: 50%;
+export const BigNumberHalf = styled.div`
+    flex-shrink: 1;
     display: flex;
-    flex-direction: column;
-    justify-content: ${({ place }) => place};
 `;
 
 interface BigNumberProps extends React.HTMLAttributes<HTMLDivElement> {
