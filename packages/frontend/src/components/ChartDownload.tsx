@@ -7,6 +7,7 @@ import {
     PopoverPosition,
 } from '@blueprintjs/core';
 import { Classes, Popover2 } from '@blueprintjs/popover2';
+import { subject } from '@casl/ability';
 import {
     ChartType,
     getCustomLabelsFromColumnProperties,
@@ -15,6 +16,8 @@ import EChartsReact from 'echarts-for-react';
 import JsPDF from 'jspdf';
 import React, { memo, RefObject, useCallback, useState } from 'react';
 import useEcharts from '../hooks/echarts/useEcharts';
+import { useApp } from '../providers/AppProvider';
+import { Can } from './common/Authorization';
 import ExportCSV from './ExportCSV';
 import { useVisualizationContext } from './LightdashVisualization/VisualizationProvider';
 
@@ -225,33 +228,41 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
             chartType === ChartType.BIG_NUMBER ||
             (chartType === ChartType.CARTESIAN && !eChartsOptions);
 
+        const { user } = useApp();
         return chartType === ChartType.TABLE && getCsvLink ? (
-            <Popover2
-                lazy
-                position={PopoverPosition.BOTTOM_LEFT}
-                popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
-                content={
-                    <ExportCSV
-                        getCsvLink={async (
-                            limit: number | null,
-                            onlyRaw: boolean,
-                        ) =>
-                            getCsvLink(
-                                limit,
-                                onlyRaw,
-                                showTableNames,
-                                columnOrder,
-                                getCustomLabelsFromColumnProperties(
-                                    columnProperties,
-                                ),
-                            )
-                        }
-                        rows={rows}
-                    />
-                }
+            <Can
+                I="manage"
+                this={subject('ExportCsv', {
+                    organizationUuid: user.data?.organizationUuid,
+                })}
             >
-                <Button text="Export CSV" rightIcon="caret-down" minimal />
-            </Popover2>
+                <Popover2
+                    lazy
+                    position={PopoverPosition.BOTTOM_LEFT}
+                    popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
+                    content={
+                        <ExportCSV
+                            getCsvLink={async (
+                                limit: number | null,
+                                onlyRaw: boolean,
+                            ) =>
+                                getCsvLink(
+                                    limit,
+                                    onlyRaw,
+                                    showTableNames,
+                                    columnOrder,
+                                    getCustomLabelsFromColumnProperties(
+                                        columnProperties,
+                                    ),
+                                )
+                            }
+                            rows={rows}
+                        />
+                    }
+                >
+                    <Button text="Export CSV" rightIcon="caret-down" minimal />
+                </Popover2>
+            </Can>
         ) : chartType === ChartType.TABLE && !getCsvLink ? null : (
             <Popover2
                 lazy

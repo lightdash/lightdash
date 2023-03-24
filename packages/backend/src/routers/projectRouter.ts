@@ -1,9 +1,11 @@
+import { subject } from '@casl/ability';
 import {
     ApiCompiledQueryResults,
     ApiExploreResults,
     ApiExploresResults,
     ApiQueryResults,
     ApiSqlQueryResults,
+    ForbiddenError,
     getItemMap,
     getRequestMethod,
     LightdashRequestMethodHeader,
@@ -214,7 +216,7 @@ projectRouter.post(
                 additionalMetrics: body.additionalMetrics,
             };
             const results: ApiQueryResults =
-                await projectService.runQueryAndFormatRows(
+                await projectService.runViewChartQuery(
                     req.user!,
                     metricQuery,
                     req.params.projectUuid,
@@ -249,7 +251,7 @@ projectRouter.post(
                 additionalMetrics: body.additionalMetrics,
             };
             const results: ApiQueryResults =
-                await projectService.runQueryAndFormatRows(
+                await projectService.runExploreQuery(
                     req.user!,
                     metricQuery,
                     req.params.projectUuid,
@@ -319,7 +321,7 @@ projectRouter.post(
                 additionalMetrics: body.additionalMetrics,
             };
             const results: ApiQueryResults =
-                await projectService.runQueryAndFormatRows(
+                await projectService.runViewChartQuery(
                     req.user!,
                     metricQuery,
                     req.params.projectUuid,
@@ -353,6 +355,17 @@ projectRouter.post(
         };
 
         try {
+            const { organizationUuid } = req.user!;
+            const { projectUuid } = req.params;
+            if (
+                req.user!.ability.cannot(
+                    'manage',
+                    subject('ExportCsv', { organizationUuid, projectUuid }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+
             const { body } = req;
             const {
                 csvLimit,
@@ -847,6 +860,18 @@ projectRouter.post(
             storage: s3Service.isEnabled() ? 's3' : 'local',
         };
         try {
+            const { organizationUuid } = req.user!;
+            const { projectUuid } = req.params;
+
+            if (
+                req.user!.ability.cannot(
+                    'manage',
+                    subject('ExportCsv', { organizationUuid, projectUuid }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+
             analytics.track({
                 event: 'download_results.started',
                 userId: req.user?.userUuid!,

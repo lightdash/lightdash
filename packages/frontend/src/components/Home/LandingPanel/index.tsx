@@ -1,6 +1,9 @@
+import { subject } from '@casl/ability';
 import { Group, Stack, Text, Title } from '@mantine/core';
 import { IconTable } from '@tabler/icons-react';
 import { FC } from 'react';
+import { useApp } from '../../../providers/AppProvider';
+import { Can } from '../../common/Authorization';
 import MantineLinkButton from '../../common/MantineLinkButton';
 
 interface Props {
@@ -9,6 +12,7 @@ interface Props {
 }
 
 const LandingPanel: FC<Props> = ({ userName, projectUuid }) => {
+    const { user } = useApp();
     return (
         <Group position="apart" my="xl" pt="xl">
             <Stack justify="flex-start" spacing="xs">
@@ -21,9 +25,17 @@ const LandingPanel: FC<Props> = ({ userName, projectUuid }) => {
                     below:
                 </Text>
             </Stack>
-            <MantineLinkButton href={`/projects/${projectUuid}/tables`}>
-                Run a query
-            </MantineLinkButton>
+            <Can
+                I="manage"
+                this={subject('Explore', {
+                    organizationUuid: user.data?.organizationUuid,
+                    projectUuid: projectUuid,
+                })}
+            >
+                <MantineLinkButton href={`/projects/${projectUuid}/tables`}>
+                    Run a query
+                </MantineLinkButton>
+            </Can>
         </Group>
     );
 };

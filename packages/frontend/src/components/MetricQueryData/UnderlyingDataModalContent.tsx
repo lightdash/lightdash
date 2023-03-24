@@ -1,3 +1,5 @@
+import { subject } from '@casl/ability';
+
 import {
     ChartType,
     CreateSavedChartVersion,
@@ -21,6 +23,8 @@ import { downloadCsv } from '../../hooks/useDownloadCsv';
 import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useUnderlyingDataResults } from '../../hooks/useQueryResults';
+import { useApp } from '../../providers/AppProvider';
+import { Can } from '../common/Authorization';
 import ErrorState from '../common/ErrorState';
 import LinkButton from '../common/LinkButton';
 import { TableColumn } from '../common/Table/types';
@@ -45,6 +49,8 @@ const UnderlyingDataModalContent: FC<Props> = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { tableName, metricQuery, underlyingDataConfig } =
         useMetricQueryDataContext();
+
+    const { user } = useApp();
 
     const { data: explore } = useExplore(tableName, { refetchOnMount: false });
 
@@ -315,26 +321,42 @@ const UnderlyingDataModalContent: FC<Props> = () => {
             showTableNames: true,
             columnOrder: [],
         });
-        return csvResponse.url;
+        return csvResponse?.url || '';
     };
 
     return (
         <>
             <HeaderRightContent>
-                <DownloadCsvButton
-                    getCsvLink={getCsvLink}
-                    disabled={
-                        !resultsData?.rows || resultsData?.rows.length <= 0
-                    }
-                />
-                <LinkButton
-                    intent="primary"
-                    href={exploreFromHereUrl}
-                    icon="series-search"
-                    forceRefresh
+                <Can
+                    I="manage"
+                    this={subject('ExportCsv', {
+                        organizationUuid: user.data?.organizationUuid,
+                        projectUuid: projectUuid,
+                    })}
                 >
-                    Explore from here
-                </LinkButton>
+                    <DownloadCsvButton
+                        getCsvLink={getCsvLink}
+                        disabled={
+                            !resultsData?.rows || resultsData?.rows.length <= 0
+                        }
+                    />
+                </Can>
+                <Can
+                    I="manage"
+                    this={subject('Explore', {
+                        organizationUuid: user.data?.organizationUuid,
+                        projectUuid: projectUuid,
+                    })}
+                >
+                    <LinkButton
+                        intent="primary"
+                        href={exploreFromHereUrl}
+                        icon="series-search"
+                        forceRefresh
+                    >
+                        Explore from here
+                    </LinkButton>
+                </Can>
             </HeaderRightContent>
             <UnderlyingDataResultsTable
                 isLoading={isLoading}

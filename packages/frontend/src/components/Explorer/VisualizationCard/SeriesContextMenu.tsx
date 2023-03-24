@@ -4,6 +4,7 @@ import {
     Popover2,
     Popover2TargetProps,
 } from '@blueprintjs/popover2';
+import { subject } from '@casl/ability';
 import { getItemMap } from '@lightdash/common';
 import React, {
     FC,
@@ -22,6 +23,7 @@ import { useApp } from '../../../providers/AppProvider';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
+import { Can } from '../../common/Authorization';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import DrillDownMenuItem from '../../MetricQueryData/DrillDownMenuItem';
 import {
@@ -119,22 +121,30 @@ export const SeriesContextMenu: FC<{
             content={
                 <div onContextMenu={cancelContextMenu}>
                     <Menu>
-                        <MenuItem2
-                            text={`View underlying data`}
-                            icon={'layers'}
-                            onClick={() => {
-                                onViewUnderlyingData();
-                                track({
-                                    name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
-                                    properties: {
-                                        organizationId:
-                                            user?.data?.organizationUuid,
-                                        userId: user?.data?.userUuid,
-                                        projectId: projectUuid,
-                                    },
-                                });
-                            }}
-                        />
+                        <Can
+                            I="view"
+                            this={subject('UnderlyingData', {
+                                organizationUuid: user.data?.organizationUuid,
+                                projectUuid: projectUuid,
+                            })}
+                        >
+                            <MenuItem2
+                                text={`View underlying data`}
+                                icon={'layers'}
+                                onClick={() => {
+                                    onViewUnderlyingData();
+                                    track({
+                                        name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
+                                        properties: {
+                                            organizationId:
+                                                user?.data?.organizationUuid,
+                                            userId: user?.data?.userUuid,
+                                            projectId: projectUuid,
+                                        },
+                                    });
+                                }}
+                            />
+                        </Can>
                         {underlyingData?.value && (
                             <CopyToClipboard
                                 text={underlyingData.value.formatted}
@@ -147,17 +157,25 @@ export const SeriesContextMenu: FC<{
                                 <MenuItem2 text="Copy value" icon="duplicate" />
                             </CopyToClipboard>
                         )}
-
-                        <DrillDownMenuItem
-                            row={underlyingData?.row}
-                            selectedItem={underlyingData?.meta?.item}
-                            pivotReference={underlyingData?.pivotReference}
-                            trackingData={{
-                                organizationId: user?.data?.organizationUuid,
-                                userId: user?.data?.userUuid,
-                                projectId: projectUuid,
-                            }}
-                        />
+                        <Can
+                            I="view"
+                            this={subject('Explore', {
+                                organizationUuid: user.data?.organizationUuid,
+                                projectUuid: projectUuid,
+                            })}
+                        >
+                            <DrillDownMenuItem
+                                row={underlyingData?.row}
+                                selectedItem={underlyingData?.meta?.item}
+                                pivotReference={underlyingData?.pivotReference}
+                                trackingData={{
+                                    organizationId:
+                                        user?.data?.organizationUuid,
+                                    userId: user?.data?.userUuid,
+                                    projectId: projectUuid,
+                                }}
+                            />
+                        </Can>
                     </Menu>
                 </div>
             }

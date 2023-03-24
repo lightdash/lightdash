@@ -1,4 +1,5 @@
 import { Intent, NonIdealState, PopoverPosition } from '@blueprintjs/core';
+import { subject } from '@casl/ability';
 import { Dashboard } from '@lightdash/common';
 import { FC } from 'react';
 import { useParams } from 'react-router-dom';
@@ -6,6 +7,7 @@ import { useSavedCharts } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
+import { Can } from '../../common/Authorization';
 import AddTileButton from '../AddTileButton';
 import {
     ButtonWrapper,
@@ -75,6 +77,8 @@ const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
     const savedCharts = savedChartsRequest.data || [];
     const hasSavedCharts = savedCharts.length > 0;
 
+    const { user } = useApp();
+
     return (
         <TrackSection name={SectionName.EMPTY_RESULTS_TABLE}>
             <div style={{ padding: '50px 0' }}>
@@ -91,7 +95,16 @@ const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
                     }
                     action={
                         !hasSavedCharts ? (
-                            <RunQueryButton projectId={projectUuid} />
+                            <Can
+                                I="manage"
+                                this={subject('Explore', {
+                                    organizationUuid:
+                                        user.data?.organizationUuid,
+                                    projectUuid: projectUuid,
+                                })}
+                            >
+                                <RunQueryButton projectId={projectUuid} />
+                            </Can>
                         ) : undefined
                     }
                 />

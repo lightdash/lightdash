@@ -82,7 +82,7 @@ const UserListItem: FC<{
                                 options={Object.values(ProjectMemberRole).map(
                                     (orgMemberRole) => ({
                                         value: orgMemberRole,
-                                        label: orgMemberRole,
+                                        label: orgMemberRole.replace('_', ' '),
                                     }),
                                 )}
                                 required
@@ -147,6 +147,11 @@ const relevantOrgRolesForProjectRole: Record<
     OrganizationMemberRole[]
 > = {
     [ProjectMemberRole.VIEWER]: [
+        OrganizationMemberRole.INTERACTIVE_VIEWER,
+        OrganizationMemberRole.EDITOR,
+        OrganizationMemberRole.ADMIN,
+    ],
+    [ProjectMemberRole.INTERACTIVE_VIEWER]: [
         OrganizationMemberRole.EDITOR,
         OrganizationMemberRole.ADMIN,
     ],

@@ -80,7 +80,7 @@ const InvitePanel: FC<{
                             options={Object.values(OrganizationMemberRole).map(
                                 (orgMemberRole) => ({
                                     value: orgMemberRole,
-                                    label: orgMemberRole,
+                                    label: orgMemberRole.replace('_', ' '),
                                 }),
                             )}
                             rules={{

@@ -33,7 +33,7 @@
             "type": "string"
         },
         "updatedByUser": {
-            "$ref": "../Schemas/UpdatedByUser.json"
+            "$ref": "./UpdatedByUser.json"
         },
         "pinnedListUuid": {
             "type": "string"
