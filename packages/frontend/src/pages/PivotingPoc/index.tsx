@@ -120,7 +120,7 @@ const RenderTable: FC<{ data: PivotData }> = ({ data }) => {
 
 const PivotingPOC = () => {
     return (
-        <Stack spacing="lg">
+        <Stack spacing="lg" p="xl">
             <Stack spacing="sm">
                 <Title order={3}>Pivot 1</Title>
                 <RenderTable data={pivot1} />
