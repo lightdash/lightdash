@@ -4,6 +4,7 @@ import { projectMemberAbilities } from './projectMemberAbility';
 import {
     PROJECT_ADMIN,
     PROJECT_EDITOR,
+    PROJECT_INTERACTIVE_VIEWER,
     PROJECT_VIEWER,
 } from './projectMemberAbility.mock';
 import { MemberAbility } from './types';
@@ -124,6 +125,11 @@ describe('Project member permissions', () => {
                 ability.can('manage', subject('Project', { projectUuid })),
             ).toEqual(false);
         });
+        it('can download CSV', () => {
+            expect(
+                ability.can('manage', subject('ExportCsv', { projectUuid })),
+            ).toEqual(true);
+        });
     });
 
     describe('when user is a viewer', () => {
@@ -187,6 +193,100 @@ describe('Project member permissions', () => {
             expect(
                 ability.can('manage', subject('SqlRunner', { projectUuid })),
             ).toEqual(false);
+        });
+        it('cannot download CSV', () => {
+            expect(
+                ability.can('manage', subject('ExportCsv', { projectUuid })),
+            ).toEqual(false);
+        });
+        it('cannot Explore', () => {
+            expect(
+                ability.can('manage', subject('Explore', { projectUuid })),
+            ).toEqual(false);
+        });
+        it('cannot view underlying data', () => {
+            expect(
+                ability.can('view', subject('UnderlyingData', { projectUuid })),
+            ).toEqual(false);
+        });
+    });
+
+    describe('when user is a interactive viewer', () => {
+        beforeEach(() => {
+            ability = defineAbilityForProjectMember(PROJECT_INTERACTIVE_VIEWER);
+        });
+
+        it('can view resources', () => {
+            expect(
+                ability.can('view', subject('SavedChart', { projectUuid })),
+            ).toEqual(true);
+            expect(
+                ability.can('view', subject('Dashboard', { projectUuid })),
+            ).toEqual(true);
+            expect(
+                ability.can('view', subject('Space', { projectUuid })),
+            ).toEqual(true);
+            expect(
+                ability.can('view', subject('Project', { projectUuid })),
+            ).toEqual(true);
+        });
+        it('cannot view resources from another project', () => {
+            expect(
+                ability.can(
+                    'view',
+                    subject('SavedChart', { projectUuid: '5678' }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Dashboard', { projectUuid: '5678' }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can('view', subject('Space', { projectUuid: '5678' })),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Project', { projectUuid: '5678' }),
+                ),
+            ).toEqual(false);
+        });
+        it('cannot manage resources', () => {
+            expect(
+                ability.can('manage', subject('SavedChart', { projectUuid })),
+            ).toEqual(false);
+            expect(
+                ability.can('manage', subject('Dashboard', { projectUuid })),
+            ).toEqual(false);
+            expect(
+                ability.can('manage', subject('Space', { projectUuid })),
+            ).toEqual(false);
+            expect(
+                ability.can('manage', subject('Project', { projectUuid })),
+            ).toEqual(false);
+            expect(
+                ability.can('manage', subject('Job', { projectUuid })),
+            ).toEqual(false);
+            expect(
+                ability.can('manage', subject('SqlRunner', { projectUuid })),
+            ).toEqual(false);
+        });
+        it('can download CSV', () => {
+            expect(
+                ability.can('manage', subject('ExportCsv', { projectUuid })),
+            ).toEqual(true);
+        });
+        it('can Explore', () => {
+            expect(
+                ability.can('manage', subject('Explore', { projectUuid })),
+            ).toEqual(true);
+        });
+        it('can view underlying data', () => {
+            expect(
+                ability.can('view', subject('UnderlyingData', { projectUuid })),
+            ).toEqual(true);
         });
     });
 });
