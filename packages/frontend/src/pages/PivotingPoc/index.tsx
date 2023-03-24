@@ -1,12 +1,22 @@
-import { FieldType, PivotData } from '@lightdash/common';
+import { assertUnreachable, FieldType, PivotData } from '@lightdash/common';
 import { createStyles, Divider, Stack, Table, Title } from '@mantine/core';
 import { lastIndexOf } from 'lodash-es';
 import { FC, useMemo } from 'react';
 import { DIMENSIONS_DUMMY_DATA } from './dummy_data/dimensions';
 import { METRICS_DUMMY_DATA } from './dummy_data/metrics';
 
-const range = (end: number) => {
-    return Array.from({ length: end }, (_, i) => i);
+const getFieldColor = (fieldType: FieldType) => {
+    switch (fieldType) {
+        case FieldType.DIMENSION:
+            return 'rgba(255,255,0,0.1)';
+        case FieldType.METRIC:
+            return 'rgba(0,122,255,0.1)';
+        default:
+            return assertUnreachable(
+                fieldType,
+                "Can't get color for field type",
+            );
+    }
 };
 
 const test1: PivotData = {
@@ -52,28 +62,25 @@ const test1: PivotData = {
         ],
     ],
 
-    columnTypes: [
+    indexValueTypes: [
         {
             type: FieldType.DIMENSION,
             fieldId: 'payments_payment_method',
         },
-        { type: 'value' },
-        { type: 'value' },
-        { type: 'value' },
-        { type: 'value' },
-        { type: 'value' },
-        { type: 'value' },
-        { type: 'value' },
-        { type: 'value' },
-        { type: 'value' },
-        { type: 'value' },
+    ],
+
+    indexValues: [
+        ['bank_transfer'],
+        ['coupon'],
+        ['credit_card'],
+        ['gift_card'],
     ],
 
     rows: [
-        ['bank_transfer', 14.86, 7, 9.25, 8, 27.25, 4, 13.71, 7, 19, 7],
-        ['coupon', 20, 4, 24.5, 2, 25.67, 3, 9, 2, 12, 2],
-        ['credit_card', 14.3, 9, 23.73, 10, 20.62, 12, 19, 10, 18.91, 10],
-        ['gift_card', 13.5, 2, 29, 4, 12, 2, 15.5, 2, 25.5, 2],
+        [14.86, 7, 9.25, 8, 27.25, 4, 13.71, 7, 19, 7],
+        [20, 4, 24.5, 2, 25.67, 3, 9, 2, 12, 2],
+        [14.3, 9, 23.73, 10, 20.62, 12, 19, 10, 18.91, 10],
+        [13.5, 2, 29, 4, 12, 2, 15.5, 2, 25.5, 2],
     ],
 
     rowTotals: [],
@@ -88,7 +95,7 @@ const test2: PivotData = {
     ],
     headerValues: [['Average Order Size', 'Unique Orders Count']],
 
-    columnTypes: [
+    indexValueTypes: [
         {
             type: FieldType.DIMENSION,
             fieldId: 'orders_status',
@@ -97,31 +104,52 @@ const test2: PivotData = {
             type: FieldType.DIMENSION,
             fieldId: 'payments_payment_method',
         },
-        { type: 'value' },
-        { type: 'value' },
+    ],
+
+    indexValues: [
+        ['completed', 'bank_transfer'],
+        ['completed', 'coupon'],
+        ['completed', 'credit_card'],
+        ['completed', 'gift_card'],
+        ['placed', 'bank_transfer'],
+        ['placed', 'coupon'],
+        ['placed', 'credit_card'],
+        ['placed', 'gift_card'],
+        ['return_pending', 'bank_transfer'],
+        ['return_pending', 'coupon'],
+        ['return_pending', 'credit_card'],
+        ['return_pending', 'gift_card'],
+        ['returned', 'bank_transfer'],
+        ['returned', 'coupon'],
+        ['returned', 'credit_card'],
+        ['returned', 'gift_card'],
+        ['shipped', 'bank_transfer'],
+        ['shipped', 'coupon'],
+        ['shipped', 'credit_card'],
+        ['shipped', 'gift_card'],
     ],
 
     rows: [
-        ['completed', 'bank_transfer', 14.86, 7],
-        ['completed', 'coupon', 20, 4],
-        ['completed', 'credit_card', 14.3, 9],
-        ['completed', 'gift_card', 13.5, 2],
-        ['placed', 'bank_transfer', 9.25, 8],
-        ['placed', 'coupon', 24.5, 2],
-        ['placed', 'credit_card', 23.73, 10],
-        ['placed', 'gift_card', 29, 4],
-        ['return_pending', 'bank_transfer', 27.25, 4],
-        ['return_pending', 'coupon', 25.67, 3],
-        ['return_pending', 'credit_card', 20.62, 12],
-        ['return_pending', 'gift_card', 12, 2],
-        ['returned', 'bank_transfer', 13.71, 7],
-        ['returned', 'coupon', 9, 2],
-        ['returned', 'credit_card', 19, 10],
-        ['returned', 'gift_card', 15.5, 2],
-        ['shipped', 'bank_transfer', 19, 7],
-        ['shipped', 'coupon', 12, 2],
-        ['shipped', 'credit_card', 18.91, 10],
-        ['shipped', 'gift_card', 25.5, 2],
+        [14.86, 7],
+        [20, 4],
+        [14.3, 9],
+        [13.5, 2],
+        [9.25, 8],
+        [24.5, 2],
+        [23.73, 10],
+        [29, 4],
+        [27.25, 4],
+        [25.67, 3],
+        [20.62, 12],
+        [12, 2],
+        [13.71, 7],
+        [9, 2],
+        [19, 10],
+        [15.5, 2],
+        [19, 7],
+        [12, 2],
+        [18.91, 10],
+        [25.5, 2],
     ],
 
     rowTotals: [],
@@ -129,79 +157,80 @@ const test2: PivotData = {
 };
 
 const RenderTable: FC<{ data: PivotData }> = ({ data }) => {
-    const indexSize =
-        data.columnTypes?.filter((c) => c.type !== 'value').length ?? 0;
-
     return (
         <Table withBorder withColumnBorders highlightOnHover>
             <thead>
-                {data.headerValueTypes.map((headerValueType, i) => {
-                    const headerValues = data.headerValues[i];
+                {data.headerValueTypes.map(
+                    (headerValueType, headerValueTypeIndex) => {
+                        const headerValues =
+                            data.headerValues[headerValueTypeIndex];
 
-                    return (
-                        <tr key={i}>
-                            <>
-                                {indexSize
-                                    ? range(indexSize).map((_, j) => {
-                                          return <th key={j}></th>;
-                                      })
-                                    : null}
+                        return (
+                            <tr key={headerValueTypeIndex}>
+                                <>
+                                    {data.indexValueTypes.map(
+                                        (_indexValueType, indexValueIndex) => {
+                                            return (
+                                                <th key={indexValueIndex}></th>
+                                            );
+                                        },
+                                    )}
 
-                                {headerValues.map((headerValue, j) => {
-                                    return (
-                                        <th
-                                            key={j}
-                                            style={
-                                                headerValueType.type ===
-                                                FieldType.DIMENSION
-                                                    ? {
-                                                          backgroundColor:
-                                                              'rgba(255,255,0,0.1)',
-                                                      }
-                                                    : {
-                                                          backgroundColor:
-                                                              'rgba(0,122,255,0.1)',
-                                                      }
-                                            }
-                                        >
-                                            {headerValue}
-                                        </th>
-                                    );
-                                })}
-                            </>
-                        </tr>
-                    );
-                })}
+                                    {headerValues.map(
+                                        (headerValue, headerValueIndex) => {
+                                            return (
+                                                <th
+                                                    key={headerValueIndex}
+                                                    style={{
+                                                        backgroundColor:
+                                                            getFieldColor(
+                                                                headerValueType.type,
+                                                            ),
+                                                    }}
+                                                >
+                                                    {headerValue}
+                                                </th>
+                                            );
+                                        },
+                                    )}
+                                </>
+                            </tr>
+                        );
+                    },
+                )}
             </thead>
 
             <tbody>
                 {data.rows.map((row, i) => {
                     return (
                         <tr key={i}>
-                            {row.map((value, j) => {
-                                return (
-                                    <td
-                                        key={j}
-                                        style={
-                                            data.columnTypes[j].type ===
-                                            FieldType.DIMENSION
-                                                ? {
-                                                      backgroundColor:
-                                                          'rgba(255,255,0,0.1)',
-                                                  }
-                                                : data.columnTypes[j].type ===
-                                                  FieldType.METRIC
-                                                ? {
-                                                      backgroundColor:
-                                                          'rgba(0,122,255,0.1)',
-                                                  }
-                                                : {}
-                                        }
-                                    >
-                                        {value}
-                                    </td>
-                                );
-                            })}
+                            <>
+                                {data.indexValueTypes.map(
+                                    (indexValueType, indexValueTypeIndex) => {
+                                        return (
+                                            <td
+                                                key={indexValueTypeIndex}
+                                                style={{
+                                                    backgroundColor:
+                                                        getFieldColor(
+                                                            indexValueType.type,
+                                                        ),
+                                                }}
+                                            >
+                                                {
+                                                    data.indexValues[i][
+                                                        indexValueTypeIndex
+                                                    ]
+                                                }
+                                            </td>
+                                        );
+                                    },
+                                )}
+
+                                {row.map((value, j) => {
+                                    return <td key={j}>{value}</td>;
+                                })}
+                            </>
                         </tr>
                     );
                 })}

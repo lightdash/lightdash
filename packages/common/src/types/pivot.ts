@@ -1,4 +1,4 @@
-import { Dimension, FieldType, Metric } from './field';
+import { FieldType } from './field';
 
 type Value = unknown;
 
@@ -11,15 +11,12 @@ type FieldValueType =
           type: FieldType.METRIC;
       };
 
-type ValueType = {
-    type: 'value';
-};
-
 export interface PivotData {
     headerValueTypes: FieldValueType[];
     headerValues: Value[][];
 
-    columnTypes: Array<FieldValueType | ValueType>;
+    indexValueTypes: FieldValueType[];
+    indexValues: Value[][];
 
     rows: Value[][];
 
