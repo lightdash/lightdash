@@ -1,14 +1,14 @@
 import {
     Anchor,
     Button,
-    PasswordInput,
+    PinInput,
     Stack,
     Text,
     Title,
     UnstyledButton,
 } from '@mantine/core';
-import { useForm } from '@mantine/form';
-import React, { FC, useEffect } from 'react';
+import { isNotEmpty, useForm } from '@mantine/form';
+import React, { FC, useEffect, useState } from 'react';
 import Countdown, { zeroPad } from 'react-countdown';
 import {
     useEmailStatus,
@@ -18,7 +18,7 @@ import {
 import { useApp } from '../../providers/AppProvider';
 import LoadingState from '../common/LoadingState';
 
-export const VerifyEmailForm: FC<{ isLoading?: boolean }> = ({ isLoading }) => {
+const VerifyEmailForm: FC<{ isLoading?: boolean }> = ({ isLoading }) => {
     const { health, user } = useApp();
     const { mutate: verifyCode, isLoading: verificationLoading } =
         useVerifyEmail();
@@ -29,7 +29,11 @@ export const VerifyEmailForm: FC<{ isLoading?: boolean }> = ({ isLoading }) => {
         initialValues: {
             code: '',
         },
+        validate: {
+            code: isNotEmpty('This field is required.'),
+        },
     });
+    const errorMessage = form.errors.code;
     const expirationTime = data?.otp?.expiresAt || new Date();
     const loadingState =
         statusLoading || emailLoading || health.isLoading || isLoading;
@@ -55,55 +59,60 @@ export const VerifyEmailForm: FC<{ isLoading?: boolean }> = ({ isLoading }) => {
     }
 
     return (
-        <Stack align="center" spacing="md">
+        // FIXME: use Mantine sizes for width
+        <Stack spacing="md" justify="center" align="center" w={300} mx="auto">
             <Title order={3}>Check your inbox!</Title>
             <Text color="gray.6" ta="center">
                 Verify your email address by entering the code we've just sent
                 to <b>{user?.data?.email || 'your email'}</b>
             </Text>
-            <Stack spacing="md" w={290}>
-                <form
-                    name="verifyEmail"
-                    onSubmit={form.onSubmit((values: { code: string }) =>
-                        verifyCode(values.code),
-                    )}
-                >
-                    <PasswordInput
-                        label="One-time password"
+            <form
+                name="verifyEmail"
+                onSubmit={form.onSubmit((values: { code: string }) =>
+                    verifyCode(values.code),
+                )}
+            >
+                <Stack spacing="xs" justify="center" align="center" mt="md">
+                    <PinInput
+                        aria-label="One-time password"
                         name="code"
-                        placeholder="XXXXXX"
-                        required
+                        length={6}
+                        oneTimeCode
                         disabled={data?.otp?.isMaxAttempts}
                         {...form.getInputProps('code')}
                     />
-                    <Countdown
-                        key={expirationTime?.toString()}
-                        date={expirationTime}
-                        renderer={({ minutes, seconds, completed }) => {
-                            if (completed || data?.otp?.isMaxAttempts) {
-                                return <></>;
-                            }
-                            return (
-                                <Stack spacing="md" mt="md">
-                                    <Text color="gray.6" ta="center">
-                                        Your one-time password expires in{' '}
-                                        <b>
-                                            {zeroPad(minutes)}:
-                                            {zeroPad(seconds)}
-                                        </b>
-                                    </Text>
-                                    <Button
-                                        loading={verificationLoading}
-                                        type="submit"
-                                    >
-                                        Submit
-                                    </Button>
-                                </Stack>
-                            );
-                        }}
-                    />
-                </form>
-            </Stack>
+                    <Text ta="center" color="red.7">
+                        {errorMessage?.toString()}
+                    </Text>
+                </Stack>
+                <Countdown
+                    key={expirationTime?.toString()}
+                    date={expirationTime}
+                    renderer={({ minutes, seconds, completed }) => {
+                        if (completed || data?.otp?.isMaxAttempts) {
+                            return <></>;
+                        }
+                        return (
+                            // FIXME: use Mantine sizes for width
+                            <Stack spacing="xs" mt="md" w={290} align="center">
+                                <Button
+                                    loading={verificationLoading}
+                                    type="submit"
+                                    w={230}
+                                >
+                                    Submit
+                                </Button>
+                                <Text color="gray.6" ta="center">
+                                    Your one-time password expires in{' '}
+                                    <b>
+                                        {zeroPad(minutes)}:{zeroPad(seconds)}
+                                    </b>
+                                </Text>
+                            </Stack>
+                        );
+                    }}
+                />
+            </form>
             <UnstyledButton
                 onClick={() => {
                     form.reset();
@@ -115,3 +124,5 @@ export const VerifyEmailForm: FC<{ isLoading?: boolean }> = ({ isLoading }) => {
         </Stack>
     );
 };
+
+export default VerifyEmailForm;
