@@ -24,6 +24,7 @@ export const TileBaseWrapper = styled.div<HeaderContainerProps>`
 `;
 
 export const TILE_HEADER_HEIGHT = 24;
+export const TILE_HEADER_MARGIN_BOTTOM = 12;
 
 export const HeaderContainer = styled.div<HeaderContainerProps>`
     display: flex;
@@ -31,6 +32,7 @@ export const HeaderContainer = styled.div<HeaderContainerProps>`
     align-items: flex-start;
     gap: 8px;
     height: ${TILE_HEADER_HEIGHT}px;
+    margin-bottom: ${TILE_HEADER_MARGIN_BOTTOM}px;
 
     ${(props) =>
         props.$isEditMode

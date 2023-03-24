@@ -6,15 +6,22 @@ import SimpleTable from '../SimpleTable';
 import { useVisualizationContext } from './VisualizationProvider';
 
 interface LightdashVisualizationProps {
-    isDashboard?: boolean;
     tileUuid?: string;
+    isDashboard?: boolean;
+    isTitleHidden?: boolean;
     className?: string;
     $padding?: number;
     'data-testid'?: string;
 }
 
 const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
-    ({ isDashboard, tileUuid, className, ...props }) => {
+    ({
+        isDashboard = false,
+        isTitleHidden = false,
+        tileUuid,
+        className,
+        ...props
+    }) => {
         const { chartType, minimal } = useVisualizationContext();
 
         switch (chartType) {
@@ -22,7 +29,8 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
                 return (
                     <SimpleStatistic
                         minimal={minimal}
-                        isDashboard={!!isDashboard}
+                        isDashboard={isDashboard}
+                        isTitleHidden={isTitleHidden}
                         className={className}
                         data-testid={props['data-testid']}
                         {...props}
