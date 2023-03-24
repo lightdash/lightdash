@@ -78,7 +78,7 @@ const ExportResultAsCSVModal: FC<ExportResultAsCSVModalProps> = ({
 }) => {
     const { data: resultData, isLoading } = useSavedChartResults(
         projectUuid,
-        savedChart,
+        savedChart.uuid,
     );
 
     if (isLoading || !resultData) return null;
@@ -122,7 +122,10 @@ const ValidDashboardChartTile: FC<{
         series: EChartSeries[],
     ) => void;
 }> = ({ tileUuid, data, project, onSeriesContextMenu }) => {
-    const { data: resultData, isLoading } = useSavedChartResults(project, data);
+    const { data: resultData, isLoading } = useSavedChartResults(
+        project,
+        data.uuid,
+    );
     const { addSuggestions } = useDashboardContext();
     const { data: explore } = useExplore(data.tableName);
 
@@ -169,7 +172,10 @@ const ValidDashboardChartTileMinimal: FC<{
     data: SavedChart;
     project: string;
 }> = ({ tileUuid, data, project }) => {
-    const { data: resultData, isLoading } = useSavedChartResults(project, data);
+    const { data: resultData, isLoading } = useSavedChartResults(
+        project,
+        data.uuid,
+    );
     const { data: explore } = useExplore(data.tableName);
 
     return (

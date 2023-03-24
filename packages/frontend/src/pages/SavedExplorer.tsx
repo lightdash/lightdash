@@ -40,7 +40,10 @@ const SavedExplorer = () => {
             minWidth: 300,
             maxWidth: 600,
         });
-    const queryResults = useQueryResults({ isViewOnly: !isEditMode });
+    const queryResults = useQueryResults({
+        chartUuid: savedQueryUuid,
+        isViewOnly: !isEditMode,
+    });
 
     if (isLoading) {
         return (

@@ -200,40 +200,6 @@ projectRouter.post(
 );
 
 projectRouter.post(
-    '/explores/:exploreId/runDashboardTileQuery',
-    allowApiKeyAuthentication,
-    isAuthenticated,
-    async (req, res, next) => {
-        try {
-            const { body } = req;
-            const metricQuery: MetricQuery = {
-                dimensions: body.dimensions,
-                metrics: body.metrics,
-                filters: body.filters,
-                sorts: body.sorts,
-                limit: body.limit,
-                tableCalculations: body.tableCalculations,
-                additionalMetrics: body.additionalMetrics,
-            };
-            const results: ApiQueryResults =
-                await projectService.runViewChartQuery(
-                    req.user!,
-                    metricQuery,
-                    req.params.projectUuid,
-                    req.params.exploreId,
-                    undefined, // csvLimit
-                );
-            res.json({
-                status: 'ok',
-                results,
-            });
-        } catch (e) {
-            next(e);
-        }
-    },
-);
-
-projectRouter.post(
     '/explores/:exploreId/runQuery',
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -287,41 +253,6 @@ projectRouter.post(
             };
             const results: ApiQueryResults =
                 await projectService.runUnderlyingDataQuery(
-                    req.user!,
-                    metricQuery,
-                    req.params.projectUuid,
-                    req.params.exploreId,
-                    csvLimit,
-                );
-            res.json({
-                status: 'ok',
-                results,
-            });
-        } catch (e) {
-            next(e);
-        }
-    },
-);
-
-projectRouter.post(
-    '/explores/:exploreId/runViewChartQuery',
-    allowApiKeyAuthentication,
-    isAuthenticated,
-    async (req, res, next) => {
-        try {
-            const { body } = req;
-            const { csvLimit } = body;
-            const metricQuery: MetricQuery = {
-                dimensions: body.dimensions,
-                metrics: body.metrics,
-                filters: body.filters,
-                sorts: body.sorts,
-                limit: body.limit,
-                tableCalculations: body.tableCalculations,
-                additionalMetrics: body.additionalMetrics,
-            };
-            const results: ApiQueryResults =
-                await projectService.runViewChartQuery(
                     req.user!,
                     metricQuery,
                     req.params.projectUuid,

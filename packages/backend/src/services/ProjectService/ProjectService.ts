@@ -605,10 +605,8 @@ export class ProjectService {
 
     async runViewChartQuery(
         user: SessionUser,
-        metricQuery: MetricQuery,
+        chartUuid: string,
         projectUuid: string,
-        exploreName: string,
-        csvLimit: number | null | undefined,
     ): Promise<ApiQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -624,13 +622,14 @@ export class ProjectService {
         ) {
             throw new ForbiddenError();
         }
+        const savedChart = await this.savedChartModel.get(chartUuid);
 
         return this.runQueryAndFormatRows(
             user,
-            metricQuery,
+            savedChart.metricQuery,
             projectUuid,
-            exploreName,
-            csvLimit,
+            savedChart.tableName,
+            undefined,
         );
     }
 

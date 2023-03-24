@@ -14,20 +14,22 @@ import useQueryError from './useQueryError';
 type QueryResultsProps = {
     projectUuid: string;
     tableId: string;
-    query: MetricQuery;
+    query?: MetricQuery;
     csvLimit?: number | null; //giving null returns all results (no limit)
+    chartUuid?: string;
 };
 
 export const getDashboardTileQueryResults = async ({
     projectUuid,
-    tableId,
-    query,
-}: QueryResultsProps) => {
-    const timezoneFixQuery = convertDateFilters(query);
+    chartUuid,
+}: {
+    projectUuid: string;
+    chartUuid: string;
+}) => {
     return lightdashApi<ApiQueryResults>({
-        url: `/projects/${projectUuid}/explores/${tableId}/runDashboardTileQuery`,
+        url: `/projects/${projectUuid}/runDashboardTileQuery`,
         method: 'POST',
-        body: JSON.stringify({ ...timezoneFixQuery }),
+        body: JSON.stringify({ chartUuid }),
     });
 };
 
@@ -37,7 +39,7 @@ export const getQueryResults = async ({
     query,
     csvLimit,
 }: QueryResultsProps) => {
-    const timezoneFixQuery = convertDateFilters(query);
+    const timezoneFixQuery = query && convertDateFilters(query);
     return lightdashApi<ApiQueryResults>({
         url: `/projects/${projectUuid}/explores/${tableId}/runQuery`,
         method: 'POST',
@@ -47,39 +49,34 @@ export const getQueryResults = async ({
 
 export const getViewChartResults = async ({
     projectUuid,
-    tableId,
-    query,
-    csvLimit,
+    chartUuid,
 }: QueryResultsProps) => {
-    const timezoneFixQuery = convertDateFilters(query);
     return lightdashApi<ApiQueryResults>({
-        url: `/projects/${projectUuid}/explores/${tableId}/runViewChartQuery`,
+        url: `/projects/${projectUuid}/runViewChartQuery`,
         method: 'POST',
-        body: JSON.stringify({ ...timezoneFixQuery, csvLimit }),
+        body: JSON.stringify({ chartUuid }),
     });
 };
 
-export const useQueryResults = (props?: { isViewOnly?: boolean }) => {
+export const useQueryResults = (props?: {
+    chartUuid?: string;
+    isViewOnly?: boolean;
+}) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const setErrorResponse = useQueryError();
 
     const fetchQuery =
         props?.isViewOnly === true ? getViewChartResults : getQueryResults;
-    const mutation = useMutation<
-        ApiQueryResults,
-        ApiError,
+    const mutation = useMutation<ApiQueryResults, ApiError, QueryResultsProps>(
+        fetchQuery,
         {
-            projectUuid: string;
-            tableId: string;
-            query: MetricQuery;
-        }
-    >(fetchQuery, {
-        mutationKey: ['queryResults'],
-        onError: useCallback(
-            (result) => setErrorResponse(result),
-            [setErrorResponse],
-        ),
-    });
+            mutationKey: ['queryResults'],
+            onError: useCallback(
+                (result) => setErrorResponse(result),
+                [setErrorResponse],
+            ),
+        },
+    );
     const { mutateAsync } = mutation;
 
     const mutateAsyncOverride = useCallback(
@@ -95,6 +92,7 @@ export const useQueryResults = (props?: { isViewOnly?: boolean }) => {
                     projectUuid,
                     tableId: tableName,
                     query: metricQuery,
+                    chartUuid: props?.chartUuid,
                 });
             } else {
                 console.warn(
@@ -156,21 +154,15 @@ export const useUnderlyingDataResults = (
 
 export const useSavedChartResults = (
     projectUuid: string,
-    savedChart: SavedChart,
+    chartUuid: string,
 ) => {
-    const queryKey = [
-        'savedChartResults',
-        savedChart.uuid,
-        JSON.stringify(savedChart),
-        projectUuid,
-    ];
+    const queryKey = ['savedChartResults', chartUuid, projectUuid];
     return useQuery<ApiQueryResults, ApiError>({
         queryKey,
         queryFn: () =>
             getDashboardTileQueryResults({
                 projectUuid,
-                tableId: savedChart.tableName,
-                query: savedChart.metricQuery,
+                chartUuid,
             }),
         retry: false,
         refetchOnMount: false,
