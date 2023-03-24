@@ -3,6 +3,7 @@ import { createStyles, Stack, Table, Title } from '@mantine/core';
 import { FC } from 'react';
 import { pivot1 } from './dummy_data/pivot1';
 import { pivot2 } from './dummy_data/pivot2';
+import { pivot3 } from './dummy_data/pivot3';
 
 const getFieldColor = (fieldType: FieldType) => {
     switch (fieldType) {
@@ -128,6 +129,11 @@ const PivotingPOC = () => {
             <Stack spacing="sm">
                 <Title order={3}>Pivot 2</Title>
                 <RenderTable data={pivot2} />
+            </Stack>
+
+            <Stack spacing="sm">
+                <Title order={3}>Pivot 3 (metrics as rows)</Title>
+                <RenderTable data={pivot3} />
             </Stack>
         </Stack>
     );
