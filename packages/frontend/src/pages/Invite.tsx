@@ -16,8 +16,8 @@ import {
     OneLoginLoginButton,
 } from '../components/common/GoogleLoginButton';
 import Page from '../components/common/Page/Page';
-import CreateUserForm from '../components/CreateUserForm';
 import PageSpinner from '../components/PageSpinner';
+import CreateUserForm from '../components/RegisterForms/CreateUserForm';
 import { useOrganisation } from '../hooks/organisation/useOrganisation';
 import useToaster from '../hooks/toaster/useToaster';
 import { useInviteLink } from '../hooks/useInviteLink';
