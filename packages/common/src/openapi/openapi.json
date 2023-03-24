@@ -61,15 +61,6 @@
         "/projects/{projectUuid}/explores/{tableId}/runQuery": {
             "$ref": "./paths/projectRunQuery.json"
         },
-        "/projects/{projectUuid}/explores/{tableId}/runDashboardTileQuery": {
-            "$ref": "./paths/projectRunQuery.json"
-        },
-        "/projects/{projectUuid}/explores/{tableId}/runViewChartQuery": {
-            "$ref": "./paths/projectRunQuery.json"
-        },
-        "/projects/{projectUuid}/explores/{tableId}/runUnderlyingDataQuery": {
-            "$ref": "./paths/projectRunQuery.json"
-        },
         "/projects/{projectUuid}/catalog": {
             "$ref": "./paths/projectCatalog.json"
         },

@@ -618,282 +618,6 @@
                 }
             }
         },
-        "/projects/{projectUuid}/explores/{tableId}/runDashboardTileQuery": {
-            "post": {
-                "summary": "Run query",
-                "description": "Run a query on project",
-                "tags": ["project"],
-                "operationId": "runQuery",
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "schema": {
-                            "type": "string",
-                            "format": "uuid"
-                        },
-                        "required": true
-                    },
-                    {
-                        "in": "path",
-                        "name": "tableId",
-                        "schema": {
-                            "type": "string"
-                        },
-                        "required": true
-                    }
-                ],
-                "requestBody": {
-                    "description": "query",
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "type": "object",
-                                "properties": {
-                                    "metrics": {
-                                        "type": "array"
-                                    },
-                                    "dimensions": {
-                                        "type": "array"
-                                    },
-                                    "limit": {
-                                        "type": "number"
-                                    },
-                                    "sorts": {
-                                        "type": "array"
-                                    },
-                                    "tableCalculations": {
-                                        "type": "array"
-                                    }
-                                },
-                                "required": ["metrics", "dimensions"]
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Successfully ran query",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "allOf": [
-                                        {
-                                            "$ref": "#/components/schemas/Success"
-                                        },
-                                        {
-                                            "type": "object",
-                                            "properties": {
-                                                "results": {
-                                                    "type": "object",
-                                                    "properties": {
-                                                        "rows": {
-                                                            "type": "array",
-                                                            "items": {
-                                                                "$ref": "#/components/schemas/QueryResult"
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            },
-                                            "required": ["results"]
-                                        }
-                                    ]
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "$ref": "#/components/responses/ErrorResponse"
-                    }
-                }
-            }
-        },
-        "/projects/{projectUuid}/explores/{tableId}/runViewChartQuery": {
-            "post": {
-                "summary": "Run query",
-                "description": "Run a query on project",
-                "tags": ["project"],
-                "operationId": "runQuery",
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "schema": {
-                            "type": "string",
-                            "format": "uuid"
-                        },
-                        "required": true
-                    },
-                    {
-                        "in": "path",
-                        "name": "tableId",
-                        "schema": {
-                            "type": "string"
-                        },
-                        "required": true
-                    }
-                ],
-                "requestBody": {
-                    "description": "query",
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "type": "object",
-                                "properties": {
-                                    "metrics": {
-                                        "type": "array"
-                                    },
-                                    "dimensions": {
-                                        "type": "array"
-                                    },
-                                    "limit": {
-                                        "type": "number"
-                                    },
-                                    "sorts": {
-                                        "type": "array"
-                                    },
-                                    "tableCalculations": {
-                                        "type": "array"
-                                    }
-                                },
-                                "required": ["metrics", "dimensions"]
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Successfully ran query",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "allOf": [
-                                        {
-                                            "$ref": "#/components/schemas/Success"
-                                        },
-                                        {
-                                            "type": "object",
-                                            "properties": {
-                                                "results": {
-                                                    "type": "object",
-                                                    "properties": {
-                                                        "rows": {
-                                                            "type": "array",
-                                                            "items": {
-                                                                "$ref": "#/components/schemas/QueryResult"
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            },
-                                            "required": ["results"]
-                                        }
-                                    ]
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "$ref": "#/components/responses/ErrorResponse"
-                    }
-                }
-            }
-        },
-        "/projects/{projectUuid}/explores/{tableId}/runUnderlyingDataQuery": {
-            "post": {
-                "summary": "Run query",
-                "description": "Run a query on project",
-                "tags": ["project"],
-                "operationId": "runQuery",
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "schema": {
-                            "type": "string",
-                            "format": "uuid"
-                        },
-                        "required": true
-                    },
-                    {
-                        "in": "path",
-                        "name": "tableId",
-                        "schema": {
-                            "type": "string"
-                        },
-                        "required": true
-                    }
-                ],
-                "requestBody": {
-                    "description": "query",
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "type": "object",
-                                "properties": {
-                                    "metrics": {
-                                        "type": "array"
-                                    },
-                                    "dimensions": {
-                                        "type": "array"
-                                    },
-                                    "limit": {
-                                        "type": "number"
-                                    },
-                                    "sorts": {
-                                        "type": "array"
-                                    },
-                                    "tableCalculations": {
-                                        "type": "array"
-                                    }
-                                },
-                                "required": ["metrics", "dimensions"]
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Successfully ran query",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "allOf": [
-                                        {
-                                            "$ref": "#/components/schemas/Success"
-                                        },
-                                        {
-                                            "type": "object",
-                                            "properties": {
-                                                "results": {
-                                                    "type": "object",
-                                                    "properties": {
-                                                        "rows": {
-                                                            "type": "array",
-                                                            "items": {
-                                                                "$ref": "#/components/schemas/QueryResult"
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            },
-                                            "required": ["results"]
-                                        }
-                                    ]
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "$ref": "#/components/responses/ErrorResponse"
-                    }
-                }
-            }
-        },
         "/projects/{projectUuid}/catalog": {
             "get": {
                 "summary": "Get project catalog",
@@ -2267,6 +1991,13 @@
                     "spaceName": {
                         "type": "string"
                     },
+                    "views": {
+                        "type": "number"
+                    },
+                    "firstViewedAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "updatedByUser": {
                         "$ref": "#/components/schemas/UpdatedByUser"
                     },
@@ -2432,6 +2163,13 @@
                     },
                     "pinnedListUuid": {
                         "type": "string"
+                    },
+                    "views": {
+                        "type": "number"
+                    },
+                    "firstViewedAt": {
+                        "type": "string",
+                        "nullable": true
                     }
                 },
                 "required": [
