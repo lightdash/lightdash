@@ -3,7 +3,7 @@ import { EmailStatusExpiring } from '@lightdash/common';
 import React, { FC, useEffect } from 'react';
 import Countdown, { zeroPad } from 'react-countdown';
 import { UseFormReturn } from 'react-hook-form';
-import { AnchorLinkWrapper, Subtitle, Title } from '../../pages/SignUp.styles';
+import { AnchorLinkWrapper, Subtitle, Title } from '../../pages/Invite.styles';
 import Form from '../ReactHookForm/Form';
 import PasswordInput from '../ReactHookForm/PasswordInput';
 import { FormWrapper, LinkButton, SubmitButton } from './CreateUserForm.styles';

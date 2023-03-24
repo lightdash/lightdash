@@ -33,7 +33,7 @@ import useToaster from '../hooks/toaster/useToaster';
 import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
 import LightdashLogo from '../svgs/lightdash-black.svg';
-import { Divider, DividerWrapper } from './SignUp.styles';
+import { Divider, DividerWrapper } from './Invite.styles';
 
 type LoginParams = { email: string; password: string };
 
@@ -179,6 +179,7 @@ const Login: FC = () => {
             <Helmet>
                 <title>Login - Lightdash</title>
             </Helmet>
+            {/* FIXME: use Mantine sizes for width */}
             <Stack w={400} mt="xl" pt="lg">
                 <Image
                     src={LightdashLogo}
