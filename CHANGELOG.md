@@ -1,3 +1,10 @@
+# [0.485.0](https://github.com/lightdash/lightdash/compare/0.484.0...0.485.0) (2023-03-24)
+
+
+### Features
+
+* migrate `register` form to Mantine ([#4902](https://github.com/lightdash/lightdash/issues/4902)) ([2bae82c](https://github.com/lightdash/lightdash/commit/2bae82c3b91ab9034a0eaf512eaeb7e6e7ffdb08))
+
 # [0.484.0](https://github.com/lightdash/lightdash/compare/0.483.0...0.484.0) (2023-03-24)
 
 
