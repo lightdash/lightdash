@@ -1,6 +1,4 @@
-import { Colors } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
-import { ReactComponent as Logo } from '../../svgs/grey-icon-logo.svg';
 import { BigButton } from '../common/BigButton';
 import Input from '../ReactHookForm/Input';
 import PasswordInput from '../ReactHookForm/PasswordInput';
