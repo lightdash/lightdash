@@ -1,3 +1,10 @@
+# [0.484.0](https://github.com/lightdash/lightdash/compare/0.483.0...0.484.0) (2023-03-24)
+
+
+### Features
+
+* new interactive viewer role ([#4901](https://github.com/lightdash/lightdash/issues/4901)) ([d918670](https://github.com/lightdash/lightdash/commit/d9186703f596dd621dabc221a3952cf86075e81c))
+
 # [0.483.0](https://github.com/lightdash/lightdash/compare/0.482.0...0.483.0) (2023-03-23)
 
 
