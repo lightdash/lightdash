@@ -186,6 +186,7 @@ const Invite: FC = () => {
             <Helmet>
                 <title>Register - Lightdash</title>
             </Helmet>
+            {/* FIXME: use Mantine sizes for width */}
             <Stack w={400} mt="xl" pt="lg">
                 <Image
                     src={LightdashLogo}
