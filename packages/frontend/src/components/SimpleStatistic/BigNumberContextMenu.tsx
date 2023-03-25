@@ -1,5 +1,8 @@
 import { Menu, Position } from '@blueprintjs/core';
 import { MenuItem2, Popover2, Popover2Props } from '@blueprintjs/popover2';
+import { subject } from '@casl/ability';
+import { Can } from '../common/Authorization';
+
 import { ResultRow } from '@lightdash/common';
 import { FC, useCallback, useMemo } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
@@ -88,23 +91,38 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
                             <MenuItem2 text="Copy value" icon="duplicate" />
                         </CopyToClipboard>
                     )}
-
-                    <MenuItem2
-                        text="View underlying data"
-                        icon="layers"
-                        onClick={() => {
-                            viewUnderlyingData();
-                        }}
-                    />
-                    <DrillDownMenuItem
-                        row={resultsData?.rows[0]}
-                        selectedItem={selectedItem}
-                        trackingData={{
-                            organizationId: user?.data?.organizationUuid,
-                            userId: user?.data?.userUuid,
-                            projectId: projectUuid,
-                        }}
-                    />
+                    <Can
+                        I="view"
+                        this={subject('UnderlyingData', {
+                            organizationUuid: user.data?.organizationUuid,
+                            projectUuid: projectUuid,
+                        })}
+                    >
+                        <MenuItem2
+                            text="View underlying data"
+                            icon="layers"
+                            onClick={() => {
+                                viewUnderlyingData();
+                            }}
+                        />
+                    </Can>
+                    <Can
+                        I="manage"
+                        this={subject('Explore', {
+                            organizationUuid: user.data?.organizationUuid,
+                            projectUuid: projectUuid,
+                        })}
+                    >
+                        <DrillDownMenuItem
+                            row={resultsData?.rows[0]}
+                            selectedItem={selectedItem}
+                            trackingData={{
+                                organizationId: user?.data?.organizationUuid,
+                                userId: user?.data?.userUuid,
+                                projectId: projectUuid,
+                            }}
+                        />
+                    </Can>
                 </Menu>
             }
         />

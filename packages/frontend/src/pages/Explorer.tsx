@@ -1,6 +1,8 @@
 import { Card } from '@blueprintjs/core';
+import { subject } from '@casl/ability';
 import { memo } from 'react';
 import { Helmet } from 'react-helmet';
+import { useParams } from 'react-router-dom';
 import {
     CardContent,
     PageContentContainer,
@@ -16,6 +18,7 @@ import {
     useExplorerRoute,
     useExplorerUrlState,
 } from '../hooks/useExplorerRoute';
+import { useQueryResults } from '../hooks/useQueryResults';
 import useSidebarResize from '../hooks/useSidebarResize';
 import { useApp } from '../providers/AppProvider';
 import {
@@ -40,6 +43,8 @@ const ExplorerWithUrlParams = memo(() => {
 });
 
 const ExplorerPage = memo(() => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+
     const explorerUrlState = useExplorerUrlState();
     const { sidebarRef, sidebarWidth, isResizing, startResizing } =
         useSidebarResize({
@@ -47,12 +52,35 @@ const ExplorerPage = memo(() => {
             minWidth: 300,
             maxWidth: 600,
         });
+
     const { user } = useApp();
-    if (user.data?.ability?.cannot('view', 'Project')) {
+
+    const queryResults = useQueryResults();
+
+    const cannotViewProject = user.data?.ability?.cannot(
+        'view',
+        subject('Project', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
+    const cannotManageExplore = user.data?.ability?.cannot(
+        'manage',
+        subject('Explore', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
+    if (cannotViewProject || cannotManageExplore) {
         return <ForbiddenPanel />;
     }
+
     return (
-        <ExplorerProvider isEditMode={true} initialState={explorerUrlState}>
+        <ExplorerProvider
+            isEditMode={true}
+            initialState={explorerUrlState}
+            queryResults={queryResults}
+        >
             <PageWrapper>
                 <StickySidebar
                     ref={sidebarRef}

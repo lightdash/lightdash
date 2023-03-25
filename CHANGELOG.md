@@ -1,3 +1,45 @@
+# [0.485.0](https://github.com/lightdash/lightdash/compare/0.484.0...0.485.0) (2023-03-24)
+
+
+### Features
+
+* migrate `register` form to Mantine ([#4902](https://github.com/lightdash/lightdash/issues/4902)) ([2bae82c](https://github.com/lightdash/lightdash/commit/2bae82c3b91ab9034a0eaf512eaeb7e6e7ffdb08))
+
+# [0.484.0](https://github.com/lightdash/lightdash/compare/0.483.0...0.484.0) (2023-03-24)
+
+
+### Features
+
+* new interactive viewer role ([#4901](https://github.com/lightdash/lightdash/issues/4901)) ([d918670](https://github.com/lightdash/lightdash/commit/d9186703f596dd621dabc221a3952cf86075e81c))
+
+# [0.483.0](https://github.com/lightdash/lightdash/compare/0.482.0...0.483.0) (2023-03-23)
+
+
+### Features
+
+* migrate `login` form to Mantine ([#4893](https://github.com/lightdash/lightdash/issues/4893)) ([5c17f4c](https://github.com/lightdash/lightdash/commit/5c17f4c8f8be2bcc2fc9c0ea47d762f30dae3cea))
+
+# [0.482.0](https://github.com/lightdash/lightdash/compare/0.481.0...0.482.0) (2023-03-23)
+
+
+### Features
+
+* view chart query ([#4878](https://github.com/lightdash/lightdash/issues/4878)) ([9197c86](https://github.com/lightdash/lightdash/commit/9197c86f4b8eece9513a52c8ea5e4573f2a71a66))
+
+# [0.481.0](https://github.com/lightdash/lightdash/compare/0.480.0...0.481.0) (2023-03-23)
+
+
+### Features
+
+* increase browser timeout ([#4905](https://github.com/lightdash/lightdash/issues/4905)) ([bad321c](https://github.com/lightdash/lightdash/commit/bad321cd6b817076abca12557567709738033215))
+
+# [0.480.0](https://github.com/lightdash/lightdash/compare/0.479.0...0.480.0) (2023-03-23)
+
+
+### Features
+
+* run dashboard tile query ([#4891](https://github.com/lightdash/lightdash/issues/4891)) ([f6cffb4](https://github.com/lightdash/lightdash/commit/f6cffb4e6e13309d2c9aeaecb14359087f9cbc2d))
+
 # [0.479.0](https://github.com/lightdash/lightdash/compare/0.478.0...0.479.0) (2023-03-21)
 
 

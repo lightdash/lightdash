@@ -1,5 +1,6 @@
 import { Menu, MenuDivider } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
+import { subject } from '@casl/ability';
 import { isDimension, isField, ResultRow } from '@lightdash/common';
 import React, { FC } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
@@ -8,6 +9,7 @@ import useToaster from '../../hooks/toaster/useToaster';
 import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
+import { Can } from '../common/Authorization';
 import { CellContextMenuProps } from '../common/Table/types';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
@@ -42,37 +44,53 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
             </CopyToClipboard>
 
             {item && !isDimension(item) && (
-                <MenuItem2
-                    text="View underlying data"
-                    icon="layers"
-                    onClick={() => {
-                        openUnderlyingDataModel(
-                            value,
-                            meta,
-                            cell.row.original || {},
-                        );
-                        track({
-                            name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
-                            properties: {
-                                organizationId: user?.data?.organizationUuid,
-                                userId: user?.data?.userUuid,
-                                projectId: projectUuid,
-                            },
-                        });
+                <Can
+                    I="view"
+                    this={subject('UnderlyingData', {
+                        organizationUuid: user.data?.organizationUuid,
+                        projectUuid: projectUuid,
+                    })}
+                >
+                    <MenuItem2
+                        text="View underlying data"
+                        icon="layers"
+                        onClick={() => {
+                            openUnderlyingDataModel(
+                                value,
+                                meta,
+                                cell.row.original || {},
+                            );
+                            track({
+                                name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
+                                properties: {
+                                    organizationId:
+                                        user?.data?.organizationUuid,
+                                    userId: user?.data?.userUuid,
+                                    projectId: projectUuid,
+                                },
+                            });
+                        }}
+                    />
+                </Can>
+            )}
+            <Can
+                I="manage"
+                this={subject('Explore', {
+                    organizationUuid: user.data?.organizationUuid,
+                    projectUuid: projectUuid,
+                })}
+            >
+                <DrillDownMenuItem
+                    row={cell.row.original || {}}
+                    pivotReference={meta?.pivotReference}
+                    selectedItem={item}
+                    trackingData={{
+                        organizationId: user?.data?.organizationUuid,
+                        userId: user?.data?.userUuid,
+                        projectId: projectUuid,
                     }}
                 />
-            )}
-
-            <DrillDownMenuItem
-                row={cell.row.original || {}}
-                pivotReference={meta?.pivotReference}
-                selectedItem={item}
-                trackingData={{
-                    organizationId: user?.data?.organizationUuid,
-                    userId: user?.data?.userUuid,
-                    projectId: projectUuid,
-                }}
-            />
+            </Can>
         </Menu>
     );
 };

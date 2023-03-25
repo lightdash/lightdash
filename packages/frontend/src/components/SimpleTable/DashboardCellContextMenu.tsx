@@ -1,4 +1,6 @@
 import { Menu, MenuDivider } from '@blueprintjs/core';
+import { subject } from '@casl/ability';
+
 import { MenuItem2 } from '@blueprintjs/popover2';
 import {
     DashboardFilterRule,
@@ -22,6 +24,7 @@ import { useApp } from '../../providers/AppProvider';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
+import { Can } from '../common/Authorization';
 import { CellContextMenuProps } from '../common/Table/types';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
@@ -108,59 +111,79 @@ const DashboardCellContextMenu: FC<
             </CopyToClipboard>
 
             {item && !isDimension(item) && (
-                <MenuItem2
-                    text="View underlying data"
-                    icon="layers"
-                    onClick={() => {
-                        track({
-                            name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
-                            properties: {
-                                organizationId: user?.data?.organizationUuid,
-                                userId: user?.data?.userUuid,
-                                projectId: projectUuid,
-                            },
-                        });
-                        openUnderlyingDataModel(
-                            value,
-                            meta,
-                            cell.row.original || {},
-                            undefined,
-                            meta?.pivotReference,
-                            dashboardFiltersThatApplyToChart,
-                        );
+                <Can
+                    I="view"
+                    this={subject('UnderlyingData', {
+                        organizationUuid: user.data?.organizationUuid,
+                        projectUuid: projectUuid,
+                    })}
+                >
+                    {' '}
+                    <MenuItem2
+                        text="View underlying data"
+                        icon="layers"
+                        onClick={() => {
+                            track({
+                                name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
+                                properties: {
+                                    organizationId:
+                                        user?.data?.organizationUuid,
+                                    userId: user?.data?.userUuid,
+                                    projectId: projectUuid,
+                                },
+                            });
+                            openUnderlyingDataModel(
+                                value,
+                                meta,
+                                cell.row.original || {},
+                                undefined,
+                                meta?.pivotReference,
+                                dashboardFiltersThatApplyToChart,
+                            );
+                        }}
+                    />
+                </Can>
+            )}
+            <Can
+                I="manage"
+                this={subject('Explore', {
+                    organizationUuid: user.data?.organizationUuid,
+                    projectUuid: projectUuid,
+                })}
+            >
+                <DrillDownMenuItem
+                    row={cell.row.original || {}}
+                    dashboardFilters={dashboardFiltersThatApplyToChart}
+                    pivotReference={meta?.pivotReference}
+                    selectedItem={item}
+                    trackingData={{
+                        organizationId: user?.data?.organizationUuid,
+                        userId: user?.data?.userUuid,
+                        projectId: projectUuid,
                     }}
                 />
-            )}
 
-            <DrillDownMenuItem
-                row={cell.row.original || {}}
-                dashboardFilters={dashboardFiltersThatApplyToChart}
-                pivotReference={meta?.pivotReference}
-                selectedItem={item}
-                trackingData={{
-                    organizationId: user?.data?.organizationUuid,
-                    userId: user?.data?.userUuid,
-                    projectId: projectUuid,
-                }}
-            />
-
-            {filters.length > 0 && (
-                <MenuItem2 icon="filter" text="Filter dashboard to...">
-                    {filters.map((filter) => {
-                        return (
-                            <MenuItem2
-                                key={filter.id}
-                                text={`${friendlyName(
-                                    filter.target.fieldId,
-                                )} is ${filter.values && filter.values[0]}`}
-                                onClick={() => {
-                                    addDimensionDashboardFilter(filter, true);
-                                }}
-                            />
-                        );
-                    })}
-                </MenuItem2>
-            )}
+                {filters.length > 0 && (
+                    <MenuItem2 icon="filter" text="Filter dashboard to...">
+                        {filters.map((filter) => {
+                            return (
+                                <MenuItem2
+                                    key={filter.id}
+                                    text={`${friendlyName(
+                                        filter.target.fieldId,
+                                    )} is ${filter.values && filter.values[0]}`}
+                                    onClick={() => {
+                                        addDimensionDashboardFilter(
+                                            filter,
+                                            true,
+                                        );
+                                    }}
+                                />
+                            );
+                        })}
+                    </MenuItem2>
+                )}
+            </Can>
         </Menu>
     );
 };

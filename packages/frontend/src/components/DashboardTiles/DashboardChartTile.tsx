@@ -5,6 +5,7 @@ import {
     Popover2TargetProps,
     Tooltip2,
 } from '@blueprintjs/popover2';
+import { subject } from '@casl/ability';
 import {
     ChartType,
     DashboardChartTile as IDashboardChartTile,
@@ -61,6 +62,7 @@ import {
     GlobalTileStyles,
 } from './TileBase/TileBase.styles';
 
+import { Can } from '../common/Authorization';
 interface ExportResultAsCSVModalProps {
     projectUuid: string;
     savedChart: SavedChart;
@@ -421,7 +423,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 description={savedQueryWithDashboardFilters?.description}
                 isLoading={isLoading || isLoadingExplore}
                 extraMenuItems={
-                    savedChartUuid !== null && (
+                    savedChartUuid !== null &&
+                    user.data?.ability?.can('manage', 'Explore') && (
                         <>
                             {user.data?.ability?.can(
                                 'manage',
@@ -482,64 +485,85 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                                 />
                                             </CopyToClipboard>
                                         )}
-
-                                        <MenuItem2
-                                            text={`View underlying data`}
-                                            icon={'layers'}
-                                            onClick={(e) => {
-                                                if (
-                                                    viewUnderlyingDataOptions !==
-                                                    undefined
-                                                ) {
-                                                    const {
-                                                        value,
-                                                        meta,
-                                                        row,
-                                                        dimensions,
-                                                        pivotReference,
-                                                    } = viewUnderlyingDataOptions;
-                                                    openUnderlyingDataModel(
-                                                        value,
-                                                        meta,
-                                                        row,
-                                                        dimensions,
-                                                        pivotReference,
-                                                        dashboardFiltersThatApplyToChart,
-                                                    );
-                                                    track({
-                                                        name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
-                                                        properties: {
-                                                            organizationId:
-                                                                user?.data
-                                                                    ?.organizationUuid,
-                                                            userId: user?.data
-                                                                ?.userUuid,
-                                                            projectId:
-                                                                projectUuid,
-                                                        },
-                                                    });
-                                                }
-                                            }}
-                                        />
-                                        <DrillDownMenuItem
-                                            row={viewUnderlyingDataOptions?.row}
-                                            selectedItem={
-                                                viewUnderlyingDataOptions?.meta
-                                                    ?.item
-                                            }
-                                            pivotReference={
-                                                viewUnderlyingDataOptions?.pivotReference
-                                            }
-                                            dashboardFilters={
-                                                dashboardFiltersThatApplyToChart
-                                            }
-                                            trackingData={{
-                                                organizationId:
+                                        <Can
+                                            I="view"
+                                            this={subject('UnderlyingData', {
+                                                organizationUuid:
                                                     user.data?.organizationUuid,
-                                                userId: user.data?.userUuid,
-                                                projectId: projectUuid,
-                                            }}
-                                        />
+                                                projectUuid: projectUuid,
+                                            })}
+                                        >
+                                            <MenuItem2
+                                                text={`View underlying data`}
+                                                icon={'layers'}
+                                                onClick={(e) => {
+                                                    if (
+                                                        viewUnderlyingDataOptions !==
+                                                        undefined
+                                                    ) {
+                                                        const {
+                                                            value,
+                                                            meta,
+                                                            row,
+                                                            dimensions,
+                                                            pivotReference,
+                                                        } = viewUnderlyingDataOptions;
+                                                        openUnderlyingDataModel(
+                                                            value,
+                                                            meta,
+                                                            row,
+                                                            dimensions,
+                                                            pivotReference,
+                                                            dashboardFiltersThatApplyToChart,
+                                                        );
+                                                        track({
+                                                            name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
+                                                            properties: {
+                                                                organizationId:
+                                                                    user?.data
+                                                                        ?.organizationUuid,
+                                                                userId: user
+                                                                    ?.data
+                                                                    ?.userUuid,
+                                                                projectId:
+                                                                    projectUuid,
+                                                            },
+                                                        });
+                                                    }
+                                                }}
+                                            />
+                                        </Can>
+                                        <Can
+                                            I="manage"
+                                            this={subject('Explore', {
+                                                organizationUuid:
+                                                    user.data?.organizationUuid,
+                                                projectUuid: projectUuid,
+                                            })}
+                                        >
+                                            <DrillDownMenuItem
+                                                row={
+                                                    viewUnderlyingDataOptions?.row
+                                                }
+                                                selectedItem={
+                                                    viewUnderlyingDataOptions
+                                                        ?.meta?.item
+                                                }
+                                                pivotReference={
+                                                    viewUnderlyingDataOptions?.pivotReference
+                                                }
+                                                dashboardFilters={
+                                                    dashboardFiltersThatApplyToChart
+                                                }
+                                                trackingData={{
+                                                    organizationId:
+                                                        user.data
+                                                            ?.organizationUuid,
+                                                    userId: user.data?.userUuid,
+                                                    projectId: projectUuid,
+                                                }}
+                                            />
+                                        </Can>
                                         <MenuItem2
                                             icon="filter"
                                             text="Filter dashboard to..."

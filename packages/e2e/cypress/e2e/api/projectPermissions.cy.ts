@@ -14,7 +14,7 @@ const runqueryBody = {
 const sqlQueryBody = { sql: 'select 1' };
 describe('Lightdash API tests for member user with admin project permissions', () => {
     let email;
-    beforeEach(() => {
+    before(() => {
         cy.loginWithPermissions('member', [
             {
                 role: 'admin',
@@ -23,6 +23,9 @@ describe('Lightdash API tests for member user with admin project permissions', (
         ]).then((e) => {
             email = e;
         });
+    });
+    beforeEach(() => {
+        cy.loginWithEmail(email);
     });
     it('Should identify user', () => {
         cy.request(`${apiUrl}/user`).then((resp) => {
@@ -92,6 +95,20 @@ describe('Lightdash API tests for member user with admin project permissions', (
         });
     });
 
+    it('Should get success response (200) from POST runUnderlyingDataQuery', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        const endpoint = `/projects/${projectUuid}/explores/customers/runUnderlyingDataQuery`;
+        cy.request({
+            url: `${apiUrl}${endpoint}`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            body: runqueryBody,
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body).to.have.property('status', 'ok');
+        });
+    });
     it('Should get success response (200) from POST sqlQuery', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
@@ -236,7 +253,8 @@ describe('Lightdash API tests for member user with admin project permissions', (
 
 describe('Lightdash API tests for member user with editor project permissions', () => {
     let email;
-    beforeEach(() => {
+
+    before(() => {
         cy.loginWithPermissions('member', [
             {
                 role: 'editor',
@@ -245,6 +263,9 @@ describe('Lightdash API tests for member user with editor project permissions', 
         ]).then((e) => {
             email = e;
         });
+    });
+    beforeEach(() => {
+        cy.loginWithEmail(email);
     });
     it('Should identify user', () => {
         cy.request(`${apiUrl}/user`).then((resp) => {
@@ -313,7 +334,21 @@ describe('Lightdash API tests for member user with editor project permissions', 
             expect(resp.body).to.have.property('status', 'ok');
         });
     });
+    it('Should get success response (200) from POST downloadCsv', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
 
+        const endpoint = `/projects/${projectUuid}/explores/customers/downloadCsv`;
+        cy.request({
+            url: `${apiUrl}${endpoint}`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            body: runqueryBody,
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+            cy.log(`resp.body ${JSON.stringify(resp.body)}`);
+            expect(resp.body).to.have.property('status', 'ok');
+        });
+    });
     it('Should get success response (200) from POST sqlQuery', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
@@ -456,9 +491,169 @@ describe('Lightdash API tests for member user with editor project permissions', 
     });
 });
 
+describe('Lightdash API tests for member user with interactive_viewer project permissions', () => {
+    let email;
+
+    before(() => {
+        cy.loginWithPermissions('member', [
+            {
+                role: 'interactive_viewer',
+                projectUuid: SEED_PROJECT.project_uuid,
+            },
+        ]).then((e) => {
+            email = e;
+        });
+    });
+    beforeEach(() => {
+        cy.loginWithEmail(email);
+    });
+    it('Should identify user', () => {
+        cy.request(`${apiUrl}/user`).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body.results).to.have.property('email', email);
+            expect(resp.body.results).to.have.property('role', 'member');
+        });
+    });
+
+    it('Should get success response (200) from POST runQuery', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        const endpoint = `/projects/${projectUuid}/explores/customers/runQuery`;
+        cy.request({
+            url: `${apiUrl}${endpoint}`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            body: runqueryBody,
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body).to.have.property('status', 'ok');
+        });
+    });
+    it('Should get success response (200) from POST downloadCsv', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        const endpoint = `/projects/${projectUuid}/explores/customers/downloadCsv`;
+        cy.request({
+            url: `${apiUrl}${endpoint}`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            body: runqueryBody,
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body).to.have.property('status', 'ok');
+        });
+    });
+    it('Should get success response (200) from POST runUnderlyingDataQuery', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        const endpoint = `/projects/${projectUuid}/explores/customers/runUnderlyingDataQuery`;
+        cy.request({
+            url: `${apiUrl}${endpoint}`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            body: runqueryBody,
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body).to.have.property('status', 'ok');
+        });
+    });
+    it('Should get success response (200) from POST runDashboardTileQuery', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        const endpoint = `/projects/${projectUuid}/explores/customers/runDashboardTileQuery`;
+        cy.request({
+            url: `${apiUrl}${endpoint}`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            body: runqueryBody,
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body).to.have.property('status', 'ok');
+        });
+    });
+
+    it('Should get success response (200) from POST runViewChartQuery', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        const endpoint = `/projects/${projectUuid}/explores/customers/runViewChartQuery`;
+        cy.request({
+            url: `${apiUrl}${endpoint}`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            body: runqueryBody,
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body).to.have.property('status', 'ok');
+        });
+    });
+
+    it('Should get forbidden (403) from POST sqlQuery', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        const endpoint = `/projects/${projectUuid}/sqlQuery`;
+        cy.request({
+            url: `${apiUrl}${endpoint}`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            body: sqlQueryBody,
+            failOnStatusCode: false,
+        }).then((resp) => {
+            expect(resp.status).to.eq(403);
+        });
+    });
+
+    it('Should get a forbidden (403) from PATCH project', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        const endpoint = `${apiUrl}/projects/${projectUuid}`;
+
+        // Fetch the existing project first and patching with the same data
+        cy.request(endpoint).then((projectResponse) => {
+            expect(projectResponse.status).to.eq(200);
+
+            cy.request({
+                url: endpoint,
+                headers: { 'Content-type': 'application/json' },
+                method: 'PATCH',
+                body: projectResponse.body.results,
+                failOnStatusCode: false,
+            }).then((resp) => {
+                expect(resp.status).to.eq(403);
+            });
+        });
+    });
+
+    it('Should get a forbidden (403) from PATCH dashboard', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+        cy.request(`${apiUrl}/projects/${projectUuid}/dashboards`).then(
+            (projectResponse) => {
+                expect(projectResponse.status).to.eq(200);
+
+                const dashboardUuid = projectResponse.body.results[0].uuid;
+                const endpoint = `${apiUrl}/dashboards/${dashboardUuid}`;
+
+                cy.request({
+                    url: endpoint,
+                    headers: { 'Content-type': 'application/json' },
+                    method: 'PATCH',
+                    body: {
+                        name: 'test',
+                        tiles: [],
+                        filters: { dimensions: [], metrics: [] },
+                    },
+                    failOnStatusCode: false,
+                }).then((resp) => {
+                    expect(resp.status).to.eq(403);
+                });
+            },
+        );
+    });
+});
+
 describe('Lightdash API tests for member user with viewer project permissions', () => {
     let email;
-    beforeEach(() => {
+
+    before(() => {
         cy.loginWithPermissions('member', [
             {
                 role: 'viewer',
@@ -467,6 +662,9 @@ describe('Lightdash API tests for member user with viewer project permissions', 
         ]).then((e) => {
             email = e;
         });
+    });
+    beforeEach(() => {
+        cy.loginWithEmail(email);
     });
     it('Should identify user', () => {
         cy.request(`${apiUrl}/user`).then((resp) => {
@@ -521,10 +719,67 @@ describe('Lightdash API tests for member user with viewer project permissions', 
         );
     });
 
-    it('Should get success response (200) from POST runQuery', () => {
+    it('Should get forbidden (403) from POST runQuery', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
         const endpoint = `/projects/${projectUuid}/explores/customers/runQuery`;
+        cy.request({
+            url: `${apiUrl}${endpoint}`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            body: runqueryBody,
+            failOnStatusCode: false,
+        }).then((resp) => {
+            expect(resp.status).to.eq(403);
+        });
+    });
+    it('Should get forbidden (403) from POST downloadCsv', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        const endpoint = `/projects/${projectUuid}/explores/customers/downloadCsv`;
+        cy.request({
+            url: `${apiUrl}${endpoint}`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            body: runqueryBody,
+            failOnStatusCode: false,
+        }).then((resp) => {
+            expect(resp.status).to.eq(403);
+        });
+    });
+    it('Should get forbidden (403) from POST runUnderlyingDataQuery', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        const endpoint = `/projects/${projectUuid}/explores/customers/runUnderlyingDataQuery`;
+        cy.request({
+            url: `${apiUrl}${endpoint}`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            body: runqueryBody,
+            failOnStatusCode: false,
+        }).then((resp) => {
+            expect(resp.status).to.eq(403);
+        });
+    });
+
+    it('Should get success response (200) from POST runDashboardTileQuery', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        const endpoint = `/projects/${projectUuid}/explores/customers/runDashboardTileQuery`;
+        cy.request({
+            url: `${apiUrl}${endpoint}`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            body: runqueryBody,
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body).to.have.property('status', 'ok');
+        });
+    });
+    it('Should get success response (200) from POST runViewChartQuery', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        const endpoint = `/projects/${projectUuid}/explores/customers/runViewChartQuery`;
         cy.request({
             url: `${apiUrl}${endpoint}`,
             headers: { 'Content-type': 'application/json' },
@@ -572,7 +827,7 @@ describe('Lightdash API tests for member user with viewer project permissions', 
         });
     });
 
-    it('Should get success response (200) from PATCH dashboard', () => {
+    it('Should get a forbidden (403) from PATCH dashboard', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
         cy.request(`${apiUrl}/projects/${projectUuid}/dashboards`).then(
             (projectResponse) => {
@@ -671,10 +926,14 @@ describe('Lightdash API tests for member user with viewer project permissions', 
 
 describe('Lightdash API tests for member user with NO project permissions', () => {
     let email;
-    beforeEach(() => {
+
+    before(() => {
         cy.loginWithPermissions('member', []).then((e) => {
             email = e;
         });
+    });
+    beforeEach(() => {
+        cy.loginWithEmail(email);
     });
     it('Should identify user', () => {
         cy.request(`${apiUrl}/user`).then((resp) => {

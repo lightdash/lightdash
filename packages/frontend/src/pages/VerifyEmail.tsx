@@ -28,7 +28,7 @@ import {
     FormWrapper,
     Logo,
     LogoWrapper,
-} from './SignUp.styles';
+} from './Invite.styles';
 
 export const VerificationSuccess: FC<{
     isOpen: boolean | undefined;

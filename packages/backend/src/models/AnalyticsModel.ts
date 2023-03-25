@@ -126,7 +126,9 @@ export class AnalyticsModel {
         return {
             numberUsers: usersInProject.length,
             numberViewers: usersInProject.filter(
-                (user) => user.role === OrganizationMemberRole.VIEWER,
+                (user) =>
+                    user.role === OrganizationMemberRole.VIEWER ||
+                    user.role === OrganizationMemberRole.INTERACTIVE_VIEWER,
             ).length,
             numberEditors: usersInProject.filter(
                 (user) => user.role === OrganizationMemberRole.EDITOR,

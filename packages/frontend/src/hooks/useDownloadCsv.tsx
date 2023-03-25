@@ -2,6 +2,7 @@ import { ApiDownloadCsv, MetricQuery } from '@lightdash/common';
 
 import { lightdashApi } from '../api';
 import { convertDateFilters } from '../utils/dateFilter';
+import useToaster from './toaster/useToaster';
 
 export const downloadCsv = async ({
     projectUuid,

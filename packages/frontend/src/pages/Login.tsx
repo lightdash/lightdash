@@ -1,18 +1,27 @@
-import { Intent } from '@blueprintjs/core';
 import {
     ApiError,
     LightdashMode,
     LightdashUser,
     SEED_ORG_1_ADMIN_EMAIL,
     SEED_ORG_1_ADMIN_PASSWORD,
+    validateEmail,
 } from '@lightdash/common';
+import {
+    Anchor,
+    Button,
+    Card,
+    Image,
+    PasswordInput,
+    Stack,
+    TextInput,
+    Title,
+} from '@mantine/core';
+import { isNotEmpty, useForm } from '@mantine/form';
 import React, { FC, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
-import { useForm } from 'react-hook-form';
 import { useMutation } from 'react-query';
 import { Redirect, useLocation } from 'react-router-dom';
 import { lightdashApi } from '../api';
-import AnchorLink from '../components/common/AnchorLink/index';
 import {
     GoogleLoginButton,
     OktaLoginButton,
@@ -20,24 +29,11 @@ import {
 } from '../components/common/GoogleLoginButton';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
-import Form from '../components/ReactHookForm/Form';
 import useToaster from '../hooks/toaster/useToaster';
 import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
 import LightdashLogo from '../svgs/lightdash-black.svg';
-import {
-    AnchorLinkWrapper,
-    CardWrapper,
-    Divider,
-    DividerWrapper,
-    FormWrapper,
-    InputField,
-    Logo,
-    LogoWrapper,
-    PasswordInputField,
-    SubmitButton,
-    Title,
-} from './SignUp.styles';
+import { Divider, DividerWrapper } from './Invite.styles';
 
 type LoginParams = { email: string; password: string };
 
@@ -52,12 +48,20 @@ const Login: FC = () => {
     const location = useLocation<{ from?: Location } | undefined>();
     const { health } = useApp();
     const { showToastError } = useToaster();
-    const methods = useForm<LoginParams>({
-        mode: 'onSubmit',
+    const form = useForm<LoginParams>({
+        initialValues: {
+            email: '',
+            password: '',
+        },
+        validate: {
+            email: (value) =>
+                validateEmail(value) ? null : 'Your email address is not valid',
+        },
     });
+
     const { identify } = useTracking();
 
-    const { isIdle, isLoading, mutate } = useMutation<
+    const { isIdle, isLoading, mutate, isSuccess } = useMutation<
         LightdashUser,
         ApiError,
         LoginParams
@@ -70,6 +74,7 @@ const Login: FC = () => {
                 : '/';
         },
         onError: (error) => {
+            form.reset();
             showToastError({
                 title: `Failed to login`,
                 subtitle: error.error.message,
@@ -89,10 +94,6 @@ const Login: FC = () => {
             });
         }
     }, [isDemo, mutate, isIdle]);
-
-    const handleLogin = (data: LoginParams) => {
-        mutate(data);
-    };
 
     if (health.isLoading || isDemo) {
         return <PageSpinner />;
@@ -123,41 +124,40 @@ const Login: FC = () => {
             {health.data?.auth.oneLogin.enabled && <OneLoginLoginButton />}
         </>
     );
+
     const passwordLogin = allowPasswordAuthentication && (
-        <Form name="login" methods={methods} onSubmit={handleLogin}>
-            <InputField
-                label="Email address"
-                name="email"
-                placeholder="Your email address"
-                disabled={isLoading}
-                rules={{
-                    required: 'Required field',
-                }}
-            />
-            <PasswordInputField
-                label="Password"
-                name="password"
-                placeholder="Your password"
-                disabled={isLoading}
-                rules={{
-                    required: 'Required field',
-                }}
-            />
-            <SubmitButton
-                type="submit"
-                intent={Intent.PRIMARY}
-                text="Sign in"
-                loading={isLoading}
-                data-cy="login-button"
-            />
-            {health.data?.hasEmailClient && (
-                <AnchorLinkWrapper>
-                    <AnchorLink href="/recover-password">
-                        Forgot your password ?
-                    </AnchorLink>
-                </AnchorLinkWrapper>
-            )}
-        </Form>
+        <form name="login" onSubmit={form.onSubmit((values) => mutate(values))}>
+            <Stack spacing="lg">
+                <TextInput
+                    label="Email address"
+                    name="email"
+                    placeholder="Your email address"
+                    required
+                    {...form.getInputProps('email')}
+                    disabled={isLoading || isSuccess}
+                />
+                <PasswordInput
+                    label="Password"
+                    name="password"
+                    placeholder="Your password"
+                    required
+                    {...form.getInputProps('password')}
+                    disabled={isLoading || isSuccess}
+                />
+                <Button
+                    type="submit"
+                    loading={isLoading || isSuccess}
+                    data-cy="signin-button"
+                >
+                    Sign in
+                </Button>
+                {health.data?.hasEmailClient && (
+                    <Anchor href="/recover-password" mx="auto">
+                        Forgot your password?
+                    </Anchor>
+                )}
+            </Stack>
+        </form>
     );
 
     const logins = (
@@ -179,15 +179,22 @@ const Login: FC = () => {
             <Helmet>
                 <title>Login - Lightdash</title>
             </Helmet>
-            <FormWrapper>
-                <LogoWrapper>
-                    <Logo src={LightdashLogo} alt="lightdash logo" />
-                </LogoWrapper>
-                <CardWrapper elevation={2}>
-                    <Title>Sign in</Title>
+            {/* FIXME: use Mantine sizes for width */}
+            <Stack w={400} mt="xl" pt="lg">
+                <Image
+                    src={LightdashLogo}
+                    alt="lightdash logo"
+                    width={130}
+                    mx="auto"
+                    my="lg"
+                />
+                <Card p="xl" radius="xs" withBorder shadow="xs">
+                    <Title order={3} ta="center" mb="md">
+                        Sign in
+                    </Title>
                     {logins}
-                </CardWrapper>
-            </FormWrapper>
+                </Card>
+            </Stack>
         </Page>
     );
 };

@@ -27,8 +27,21 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
         });
     },
-    editor(member, { can }) {
+    interactive_viewer(member, { can }) {
         projectMemberAbilities.viewer(member, { can });
+
+        can('view', 'UnderlyingData', {
+            projectUuid: member.projectUuid,
+        });
+        can('manage', 'ExportCsv', {
+            projectUuid: member.projectUuid,
+        });
+        can('manage', 'Explore', {
+            projectUuid: member.projectUuid,
+        });
+    },
+    editor(member, { can }) {
+        projectMemberAbilities.interactive_viewer(member, { can });
         can('manage', 'Dashboard', {
             projectUuid: member.projectUuid,
         });

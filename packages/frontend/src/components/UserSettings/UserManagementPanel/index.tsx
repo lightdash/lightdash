@@ -125,7 +125,7 @@ const UserListItem: FC<{
                                     OrganizationMemberRole,
                                 ).map((orgMemberRole) => ({
                                     value: orgMemberRole,
-                                    label: orgMemberRole,
+                                    label: orgMemberRole.replace('_', ' '),
                                 }))}
                                 required
                                 onChange={(e) => {

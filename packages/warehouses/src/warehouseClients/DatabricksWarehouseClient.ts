@@ -13,10 +13,9 @@ import {
     ParseError,
     WarehouseConnectionError,
     WarehouseQueryError,
-    WeekDay,
 } from '@lightdash/common';
-import { WarehouseCatalog, WarehouseClient } from '../types';
-import { getDefaultMetricSql } from '../utils/sql';
+import { WarehouseCatalog } from '../types';
+import WarehouseBaseClient from './WarehouseBaseClient';
 
 type SchemaResult = {
     TABLE_CAT: string;
@@ -160,20 +159,15 @@ const mapFieldType = (type: string): DimensionType => {
     }
 };
 
-export class DatabricksWarehouseClient implements WarehouseClient {
-    credentials: CreateDatabricksCredentials;
-
+export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabricksCredentials> {
     schema: string;
 
     catalog?: string;
 
     connectionOptions: ConnectionOptions;
 
-    startOfWeek: WeekDay | null | undefined;
-
     constructor(credentials: CreateDatabricksCredentials) {
-        this.credentials = credentials;
-        this.startOfWeek = credentials.startOfWeek;
+        super(credentials);
         this.schema = credentials.database;
         this.catalog = credentials.catalog;
         this.connectionOptions = {
@@ -183,10 +177,6 @@ export class DatabricksWarehouseClient implements WarehouseClient {
                 ? credentials.httpPath
                 : `/${credentials.httpPath}`,
         };
-    }
-
-    getStartOfWeek() {
-        return this.startOfWeek;
     }
 
     private async getSession() {
@@ -246,10 +236,6 @@ export class DatabricksWarehouseClient implements WarehouseClient {
             if (query) await query.close();
             await close();
         }
-    }
-
-    async test(): Promise<void> {
-        await this.runQuery('SELECT 1');
     }
 
     async getCatalog(
@@ -325,7 +311,7 @@ export class DatabricksWarehouseClient implements WarehouseClient {
             case MetricType.MEDIAN:
                 return `PERCENTILE(${sql}, 0.5)`;
             default:
-                return getDefaultMetricSql(sql, metric.type);
+                return super.getMetricSql(sql, metric);
         }
     }
 }

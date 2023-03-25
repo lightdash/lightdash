@@ -1,5 +1,6 @@
 import { Menu, MenuDivider } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
+import { subject } from '@casl/ability';
 import {
     Field,
     isDimension,
@@ -16,6 +17,7 @@ import { useFilters } from '../../../hooks/useFilters';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
+import { Can } from '../../common/Authorization';
 import { CellContextMenuProps } from '../../common/Table/types';
 import DrillDownMenuItem from '../../MetricQueryData/DrillDownMenuItem';
 import { useMetricQueryDataContext } from '../../MetricQueryData/MetricQueryDataProvider';
@@ -58,52 +60,69 @@ const CellContextMenu: FC<
             </CopyToClipboard>
 
             {item && !isDimension(item) && (
-                <MenuItem2
-                    text="View underlying data"
-                    icon="layers"
-                    onClick={() => {
-                        openUnderlyingDataModel(
-                            value,
-                            meta,
-                            cell.row.original || {},
-                        );
-                        track({
-                            name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
-                            properties: {
-                                organizationId: user?.data?.organizationUuid,
-                                userId: user?.data?.userUuid,
-                                projectId: projectUuid,
-                            },
-                        });
-                    }}
-                />
+                <Can
+                    I="view"
+                    this={subject('UnderlyingData', {
+                        organizationUuid: user.data?.organizationUuid,
+                        projectUuid: projectUuid,
+                    })}
+                >
+                    <MenuItem2
+                        text="View underlying data"
+                        icon="layers"
+                        onClick={() => {
+                            openUnderlyingDataModel(
+                                value,
+                                meta,
+                                cell.row.original || {},
+                            );
+                            track({
+                                name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
+                                properties: {
+                                    organizationId:
+                                        user?.data?.organizationUuid,
+                                    userId: user?.data?.userUuid,
+                                    projectId: projectUuid,
+                                },
+                            });
+                        }}
+                    />
+                </Can>
             )}
+            <Can
+                I="manage"
+                this={subject('Explore', {
+                    organizationUuid: user.data?.organizationUuid,
+                    projectUuid: projectUuid,
+                })}
+            >
+                {isEditMode && isField(item) && isFilterableField(item) && (
+                    <MenuItem2
+                        icon="filter"
+                        text={`Filter by "${value.formatted}"`}
+                        onClick={() => {
+                            track({
+                                name: EventName.ADD_FILTER_CLICKED,
+                            });
+                            addFilter(
+                                item,
+                                value.raw === undefined ? null : value.raw,
+                                true,
+                            );
+                        }}
+                    />
+                )}
 
-            {isEditMode && isField(item) && isFilterableField(item) && (
-                <MenuItem2
-                    icon="filter"
-                    text={`Filter by "${value.formatted}"`}
-                    onClick={() => {
-                        track({
-                            name: EventName.ADD_FILTER_CLICKED,
-                        });
-                        addFilter(
-                            item,
-                            value.raw === undefined ? null : value.raw,
-                            true,
-                        );
+                <DrillDownMenuItem
+                    row={cell.row.original || {}}
+                    selectedItem={item}
+                    trackingData={{
+                        organizationId: user.data?.organizationUuid,
+                        userId: user.data?.userUuid,
+                        projectId: projectUuid,
                     }}
                 />
-            )}
-            <DrillDownMenuItem
-                row={cell.row.original || {}}
-                selectedItem={item}
-                trackingData={{
-                    organizationId: user.data?.organizationUuid,
-                    userId: user.data?.userUuid,
-                    projectId: projectUuid,
-                }}
-            />
+            </Can>
         </Menu>
     );
 };

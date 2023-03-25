@@ -63,7 +63,7 @@ const Spaces: FC = () => {
             <Helmet>
                 <title>Spaces - Lightdash</title>
             </Helmet>
-
+            {/* FIXME: use Mantine sizes for width */}
             <Stack spacing="xl" w={900}>
                 <Group position="apart" mt="xs">
                     <PageBreadcrumbs

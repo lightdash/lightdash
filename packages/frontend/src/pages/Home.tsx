@@ -51,6 +51,7 @@ const Home: FC = () => {
 
     return (
         <Page>
+            {/* FIXME: use Mantine sizes for width */}
             <Stack spacing="xl" w={900}>
                 {!onboarding.data.ranQuery ? (
                     <OnboardingPanel

@@ -111,34 +111,7 @@ app.use(morganMiddleware);
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
-if (process.env.NODE_ENV === 'development') {
-    app.use(
-        OpenApiValidator.middleware({
-            apiSpec: path.join(
-                __dirname,
-                '../../common/src/openapibundle.json',
-            ),
-            // apiSpec,
-            validateRequests: true,
-            ignoreUndocumented: true,
-            validateResponses: {
-                removeAdditional: 'failing',
-                onError: (error, body, req) => {
-                    Logger.warn(
-                        `[${req.method}] ${
-                            req.originalUrl
-                        } Response body fails validation:\n${
-                            error.message
-                        }\n${JSON.stringify(body, null, 4)}`,
-                    );
-                },
-            },
-            validateSecurity: false,
-            validateApiSpec: true,
-            operationHandlers: false,
-        }),
-    );
-}
+
 app.use(
     expressSession({
         secret: lightdashConfig.lightdashSecret,

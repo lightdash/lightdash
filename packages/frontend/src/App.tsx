@@ -23,6 +23,7 @@ import CreateProjectSettings from './pages/CreateProjectSettings';
 import Dashboard from './pages/Dashboard';
 import Explorer from './pages/Explorer';
 import Home from './pages/Home';
+import Invite from './pages/Invite';
 import { JoinOrganizationPage } from './pages/JoinOrganization';
 import Login from './pages/Login';
 import MinimalDashboard from './pages/MinimalDashboard';
@@ -36,7 +37,6 @@ import SavedExplorer from './pages/SavedExplorer';
 import SavedQueries from './pages/SavedQueries';
 import Settings from './pages/Settings';
 import ShareRedirect from './pages/ShareRedirect';
-import Signup from './pages/Signup';
 import Space from './pages/Space';
 import Spaces from './pages/Spaces';
 import SqlRunner from './pages/SqlRunner';
@@ -162,7 +162,7 @@ const App = () => (
                                                                     PageName.SIGNUP
                                                                 }
                                                             >
-                                                                <Signup />
+                                                                <Invite />
                                                             </TrackPage>
                                                         </Route>
                                                         <Route path="/verify-email">
