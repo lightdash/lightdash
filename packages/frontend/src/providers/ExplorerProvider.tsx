@@ -995,6 +995,9 @@ export const ExplorerProvider: FC<{
             dispatch({
                 type: ActionType.ADD_TABLE_CALCULATION,
                 payload: tableCalculation,
+                options: {
+                    shouldFetchResults: true,
+                },
             });
         },
         [unsavedChartVersion],
@@ -1014,6 +1017,9 @@ export const ExplorerProvider: FC<{
             dispatch({
                 type: ActionType.UPDATE_TABLE_CALCULATION,
                 payload: { oldName, tableCalculation },
+                options: {
+                    shouldFetchResults: true,
+                },
             });
         },
         [unsavedChartVersion],
