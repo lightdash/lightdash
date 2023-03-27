@@ -32,7 +32,11 @@ describe('Settings - Invites', () => {
             .should('have.value', 'demo+marygreen@lightdash.com');
         cy.findByPlaceholderText('Your password').type('PasswordMary1');
         cy.get('[data-cy="signup-button"]').click();
-        cy.findByLabelText('One-time password *').type('000000');
+        cy.findByTestId('pin-input')
+            .get('*[class^="mantine-PinInput-input"]')
+            .then((inputs) => {
+                [...inputs].forEach((input) => cy.wrap(input).type('0'));
+            });
         cy.contains('Submit').click();
         cy.contains('Continue').click();
         cy.findByTestId('user-avatar').should('contain', 'MG');
