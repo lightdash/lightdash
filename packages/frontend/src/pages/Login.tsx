@@ -179,8 +179,9 @@ const Login: FC = () => {
             <Helmet>
                 <title>Login - Lightdash</title>
             </Helmet>
+
             {/* FIXME: use Mantine sizes for width */}
-            <Stack w={400} mt="xl" pt="lg">
+            <Stack w={400} mt="4xl">
                 <Image
                     src={LightdashLogo}
                     alt="lightdash logo"
