@@ -349,7 +349,7 @@ describe('Lightdash API tests for member user with editor project permissions', 
             expect(resp.body).to.have.property('status', 'ok');
         });
     });
-    it('Should get success response (403) from POST sqlQuery', () => {
+    it('Should get forbidden (403) from POST sqlQuery', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
         const endpoint = `/projects/${projectUuid}/sqlQuery`;
@@ -358,9 +358,9 @@ describe('Lightdash API tests for member user with editor project permissions', 
             headers: { 'Content-type': 'application/json' },
             method: 'POST',
             body: sqlQueryBody,
+            failOnStatusCode: false,
         }).then((resp) => {
-            expect(resp.status).to.eq(200);
-            expect(resp.body).to.have.property('status', 'ok');
+            expect(resp.status).to.eq(403);
         });
     });
 
