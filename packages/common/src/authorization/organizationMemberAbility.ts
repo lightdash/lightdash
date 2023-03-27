@@ -67,10 +67,13 @@ export const organizationMemberAbilities: Record<
         can('manage', 'SavedChart', {
             organizationUuid: member.organizationUuid,
         });
+        can('manage', 'Job');
+    },
+    developer(member, { can }) {
+        organizationMemberAbilities.editor(member, { can });
         can('manage', 'SqlRunner', {
             organizationUuid: member.organizationUuid,
         });
-        can('manage', 'Job');
     },
     admin(member, { can }) {
         organizationMemberAbilities.editor(member, { can });

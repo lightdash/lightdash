@@ -152,6 +152,7 @@ export default class EmailClient {
                 roleAction = 'view';
                 break;
             case ProjectMemberRole.EDITOR:
+            case ProjectMemberRole.DEVELOPER:
                 roleAction = 'edit';
                 break;
             case ProjectMemberRole.ADMIN:
