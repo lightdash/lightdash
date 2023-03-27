@@ -51,21 +51,19 @@ const themeOverride: MantineThemeOverride = {
 
     components: {
         TextInput: {
-            styles: (_theme, _params) => ({
+            styles: (theme, _params) => ({
                 label: {
                     // FIXME: this is a hack to fix label position. remove after Blueprint migration is complete
-                    // FIXME: size is hardcoded. remove once we add more sizes to the theme
-                    marginBottom: rem(4),
+                    marginBottom: theme.spacing.xxs,
                 },
             }),
         },
 
         PasswordInput: {
-            styles: (_theme, _params) => ({
+            styles: (theme, _params) => ({
                 label: {
                     // FIXME: this is a hack to fix label position. remove after Blueprint migration is complete
-                    // FIXME: size is hardcoded. remove once we add more sizes to the theme
-                    marginBottom: rem(4),
+                    marginBottom: theme.spacing.xxs,
                 },
             }),
         },
