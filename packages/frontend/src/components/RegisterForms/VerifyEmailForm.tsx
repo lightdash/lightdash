@@ -59,7 +59,6 @@ const VerifyEmailForm: FC<{ isLoading?: boolean }> = ({ isLoading }) => {
     }
 
     return (
-        // FIXME: use Mantine sizes for width
         <Stack spacing="md" justify="center" align="center" w={300} mx="auto">
             <Title order={3}>Check your inbox!</Title>
             <Text color="gray.6" ta="center">
@@ -94,12 +93,11 @@ const VerifyEmailForm: FC<{ isLoading?: boolean }> = ({ isLoading }) => {
                             return <></>;
                         }
                         return (
-                            // FIXME: use Mantine sizes for width
-                            <Stack spacing="xs" mt="md" w={290} align="center">
+                            <Stack spacing="xs" mt="md" w={250} align="center">
                                 <Button
+                                    fullWidth
                                     loading={verificationLoading}
                                     type="submit"
-                                    w={230}
                                 >
                                     Submit
                                 </Button>
