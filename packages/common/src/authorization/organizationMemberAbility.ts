@@ -76,7 +76,7 @@ export const organizationMemberAbilities: Record<
         });
     },
     admin(member, { can }) {
-        organizationMemberAbilities.editor(member, { can });
+        organizationMemberAbilities.developer(member, { can });
         can('manage', 'Project', {
             organizationUuid: member.organizationUuid,
         });

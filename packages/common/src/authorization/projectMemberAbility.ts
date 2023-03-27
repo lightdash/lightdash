@@ -62,7 +62,7 @@ export const projectMemberAbilities: Record<
         });
     },
     admin(member, { can }) {
-        projectMemberAbilities.editor(member, { can });
+        projectMemberAbilities.developer(member, { can });
         can('manage', 'Project', {
             projectUuid: member.projectUuid,
         });
