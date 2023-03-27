@@ -78,7 +78,9 @@ const VerifyEmailForm: FC<{ isLoading?: boolean }> = ({ isLoading }) => {
                         name="code"
                         length={6}
                         oneTimeCode
-                        disabled={data?.otp?.isMaxAttempts}
+                        disabled={
+                            data?.otp?.isMaxAttempts || data?.otp?.isExpired
+                        }
                         {...form.getInputProps('code')}
                         data-testid="pin-input"
                     />
