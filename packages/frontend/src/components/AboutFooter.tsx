@@ -140,9 +140,6 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                                     href="https://docs.lightdash.com/"
                                     target="_blank"
                                     variant="default"
-                                    rightIcon={
-                                        <IconShare3 size={18} color="gray" />
-                                    }
                                 >
                                     Docs
                                 </MantineLinkButton>
@@ -150,9 +147,6 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                                     href="https://github.com/lightdash/lightdash"
                                     target="_blank"
                                     variant="default"
-                                    rightIcon={
-                                        <IconShare3 size={18} color="gray" />
-                                    }
                                 >
                                     Github
                                 </MantineLinkButton>
