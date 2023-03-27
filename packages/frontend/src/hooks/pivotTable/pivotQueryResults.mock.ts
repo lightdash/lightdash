@@ -1,0 +1,43 @@
+import { MetricQuery, ResultRow } from '@lightdash/common';
+
+export const METRIC_QUERY: Pick<
+    MetricQuery,
+    'metrics' | 'dimensions' | 'tableCalculations' | 'additionalMetrics'
+> = {
+    metrics: ['views', 'devices'],
+    dimensions: ['page', 'site'],
+    tableCalculations: [],
+};
+
+export const RESULT_ROWS: ResultRow[] = [
+    {
+        page: { value: { raw: '/home', formatted: '/home' } },
+        site: { value: { raw: 'blog', formatted: 'Blog' } },
+        views: { value: { raw: 6, formatted: '6.0' } },
+        devices: { value: { raw: 7, formatted: '7.0' } },
+    },
+    {
+        page: { value: { raw: '/about', formatted: '/about' } },
+        site: { value: { raw: 'blog', formatted: 'Blog' } },
+        views: { value: { raw: 12, formatted: '12.0' } },
+        devices: { value: { raw: 0, formatted: '0.0' } },
+    },
+    {
+        page: { value: { raw: '/first-post', formatted: '/first-post' } },
+        site: { value: { raw: 'blog', formatted: 'Blog' } },
+        views: { value: { raw: 11, formatted: '11.0' } },
+        devices: { value: { raw: 1, formatted: '1.0' } },
+    },
+    {
+        page: { value: { raw: '/home', formatted: '/home' } },
+        site: { value: { raw: 'docs', formatted: 'Docs' } },
+        views: { value: { raw: 2, formatted: '2.0' } },
+        devices: { value: { raw: 10, formatted: '10.0' } },
+    },
+    {
+        page: { value: { raw: '/about', formatted: '/about' } },
+        site: { value: { raw: 'docs', formatted: 'Docs' } },
+        views: { value: { raw: 2, formatted: '2.0' } },
+        devices: { value: { raw: 13, formatted: '13.0' } },
+    },
+];
