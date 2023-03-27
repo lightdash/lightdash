@@ -2,6 +2,7 @@ import { Colors } from '@blueprintjs/core';
 import {
     MantineProvider as MantineProviderBase,
     MantineThemeOverride,
+    rem,
 } from '@mantine/core';
 import { FC } from 'react';
 
@@ -10,11 +11,11 @@ const themeOverride: MantineThemeOverride = {
     white: Colors.WHITE,
 
     spacing: {
-        xs: 8,
-        sm: 12,
-        md: 16,
-        lg: 20,
-        xl: 24,
+        xs: rem(8),
+        sm: rem(12),
+        md: rem(16),
+        lg: rem(20),
+        xl: rem(24),
     },
 
     fontFamily: [
@@ -39,21 +40,21 @@ const themeOverride: MantineThemeOverride = {
 
     components: {
         TextInput: {
-            styles: (theme, _params) => ({
+            styles: (_theme, _params) => ({
                 label: {
                     // FIXME: this is a hack to fix label position. remove after Blueprint migration is complete
                     // FIXME: size is hardcoded. remove once we add more sizes to the theme
-                    marginBottom: theme.spacing.xs / 2,
+                    marginBottom: rem(4),
                 },
             }),
         },
 
         PasswordInput: {
-            styles: (theme, _params) => ({
+            styles: (_theme, _params) => ({
                 label: {
                     // FIXME: this is a hack to fix label position. remove after Blueprint migration is complete
                     // FIXME: size is hardcoded. remove once we add more sizes to the theme
-                    marginBottom: theme.spacing.xs / 2,
+                    marginBottom: rem(4),
                 },
             }),
         },
