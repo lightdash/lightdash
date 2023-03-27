@@ -1,5 +1,5 @@
 import { assertUnreachable, ChartKind } from '@lightdash/common';
-import { Center, Paper, useMantineTheme } from '@mantine/core';
+import { Center, Paper } from '@mantine/core';
 import {
     IconChartArea,
     IconChartAreaLine,
@@ -10,128 +10,78 @@ import {
     IconLayoutDashboard,
     IconSquareNumber1,
     IconTable,
+    TablerIconsProps,
 } from '@tabler/icons-react';
 import { FC } from 'react';
+import MantineIcon from '../MantineIcon';
 import { ResourceViewItem, ResourceViewItemType } from './resourceTypeUtils';
 
 interface ResourceIconProps {
     item: ResourceViewItem;
 }
 
-const IconElements = {
-    IconChartArea,
-    IconChartAreaLine,
-    IconChartBar,
-    IconChartDots,
-    IconChartLine,
-    IconFolder,
-    IconLayoutDashboard,
-    IconSquareNumber1,
-    IconTable,
-} as const;
-
-interface IconBoxProps {
+interface IconBoxProps extends TablerIconsProps {
     color: string;
-    icon: keyof typeof IconElements;
-    iconProps?: Parameters<typeof IconElements[keyof typeof IconElements]>[0];
+    icon: (props: TablerIconsProps) => JSX.Element;
 }
 
-const IconBox: FC<IconBoxProps> = ({ color, icon, iconProps }) => {
-    const Icon = IconElements[icon];
-    return (
-        <Paper
-            component={Center}
-            w={30}
-            h={30}
-            shadow="sm"
-            radius="sm"
-            withBorder
-            sx={{ flexGrow: 0, flexShrink: 0 }}
-        >
-            <Icon
-                color={color}
-                fill={color}
-                fillOpacity={0.1}
-                size={20}
-                {...iconProps}
-            />
-        </Paper>
-    );
-};
+const IconBox: FC<IconBoxProps> = ({
+    color,
+    icon,
+    size = 'xl',
+    ...tablerIconProps
+}) => (
+    <Paper
+        display="flex"
+        component={Center}
+        w={32}
+        h={32}
+        withBorder
+        radius="sm"
+        shadow="sm"
+        sx={{ flexGrow: 0, flexShrink: 0 }}
+    >
+        <MantineIcon
+            icon={icon}
+            color={color}
+            fill={color}
+            fillOpacity={0.1}
+            {...tablerIconProps}
+        />
+    </Paper>
+);
 
 const ResourceIcon: FC<ResourceIconProps> = ({ item }) => {
-    const theme = useMantineTheme();
-
     switch (item.type) {
         case ResourceViewItemType.DASHBOARD:
-            return (
-                <IconBox
-                    icon="IconLayoutDashboard"
-                    color={theme.colors.green[8]}
-                />
-            );
+            return <IconBox icon={IconLayoutDashboard} color="green.8" />;
         case ResourceViewItemType.SPACE:
-            return <IconBox icon="IconFolder" color={theme.colors.violet[8]} />;
+            return <IconBox icon={IconFolder} color="violet.8" />;
         case ResourceViewItemType.CHART:
             switch (item.data.chartType) {
                 case undefined:
                 case ChartKind.VERTICAL_BAR:
-                    return (
-                        <IconBox
-                            icon="IconChartBar"
-                            color={theme.colors.blue[8]}
-                        />
-                    );
+                    return <IconBox icon={IconChartBar} color="blue.8" />;
                 case ChartKind.HORIZONTAL_BAR:
                     return (
                         <IconBox
-                            icon="IconChartBar"
-                            color={theme.colors.blue[8]}
-                            iconProps={{ style: { rotate: '90deg' } }}
+                            icon={IconChartBar}
+                            color="blue.8"
+                            style={{ rotate: '90deg' }}
                         />
                     );
                 case ChartKind.LINE:
-                    return (
-                        <IconBox
-                            icon="IconChartLine"
-                            color={theme.colors.blue[8]}
-                        />
-                    );
+                    return <IconBox icon={IconChartLine} color="blue.8" />;
                 case ChartKind.SCATTER:
-                    return (
-                        <IconBox
-                            icon="IconChartDots"
-                            color={theme.colors.blue[8]}
-                        />
-                    );
+                    return <IconBox icon={IconChartDots} color="blue.8" />;
                 case ChartKind.AREA:
-                    return (
-                        <IconBox
-                            icon="IconChartArea"
-                            color={theme.colors.blue[8]}
-                        />
-                    );
+                    return <IconBox icon={IconChartArea} color="blue.8" />;
                 case ChartKind.MIXED:
-                    return (
-                        <IconBox
-                            icon="IconChartAreaLine"
-                            color={theme.colors.blue[8]}
-                        />
-                    );
+                    return <IconBox icon={IconChartAreaLine} color="blue.8" />;
                 case ChartKind.TABLE:
-                    return (
-                        <IconBox
-                            icon="IconTable"
-                            color={theme.colors.blue[8]}
-                        />
-                    );
+                    return <IconBox icon={IconTable} color="blue.8" />;
                 case ChartKind.BIG_NUMBER:
-                    return (
-                        <IconBox
-                            icon="IconSquareNumber1"
-                            color={theme.colors.blue[8]}
-                        />
-                    );
+                    return <IconBox icon={IconSquareNumber1} color="blue.8" />;
                 default:
                     return assertUnreachable(
                         item.data.chartType,
@@ -148,36 +98,37 @@ interface ResourceTypeIconProps {
 }
 
 const COMMON_ICON_PROPS = {
-    size: 20,
+    size: 'xl',
     fillOpacity: 0.1,
 };
 
 const ResourceTypeIcon: FC<ResourceTypeIconProps> = ({ type }) => {
-    const theme = useMantineTheme();
-
     switch (type) {
         case ResourceViewItemType.DASHBOARD:
             return (
-                <IconLayoutDashboard
+                <MantineIcon
+                    icon={IconLayoutDashboard}
                     {...COMMON_ICON_PROPS}
-                    fill={theme.colors.green[8]}
-                    color={theme.colors.green[8]}
+                    fill="green.8"
+                    color="green.8"
                 />
             );
         case ResourceViewItemType.SPACE:
             return (
-                <IconFolder
+                <MantineIcon
+                    icon={IconFolder}
                     {...COMMON_ICON_PROPS}
-                    fill={theme.colors.violet[8]}
-                    color={theme.colors.violet[8]}
+                    fill="violet.8"
+                    color="violet.8"
                 />
             );
         case ResourceViewItemType.CHART:
             return (
-                <IconChartBar
+                <MantineIcon
+                    icon={IconChartBar}
                     {...COMMON_ICON_PROPS}
-                    fill={theme.colors.blue[8]}
-                    color={theme.colors.blue[8]}
+                    fill="blue.8"
+                    color="blue.8"
                 />
             );
         default:
