@@ -1,3 +1,10 @@
+# [0.487.0](https://github.com/lightdash/lightdash/compare/0.486.0...0.487.0) (2023-03-27)
+
+
+### Features
+
+* `verify email` form and modal migrated to Mantine ([#4916](https://github.com/lightdash/lightdash/issues/4916)) ([6fbae55](https://github.com/lightdash/lightdash/commit/6fbae55680b412f8b1f8927ee591fb688bcd00e3))
+
 # [0.486.0](https://github.com/lightdash/lightdash/compare/0.485.0...0.486.0) (2023-03-27)
 
 
