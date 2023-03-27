@@ -131,7 +131,9 @@ export class AnalyticsModel {
                     user.role === OrganizationMemberRole.INTERACTIVE_VIEWER,
             ).length,
             numberEditors: usersInProject.filter(
-                (user) => user.role === OrganizationMemberRole.EDITOR,
+                (user) =>
+                    user.role === OrganizationMemberRole.EDITOR ||
+                    user.role === OrganizationMemberRole.DEVELOPER,
             ).length,
             numberAdmins: usersInProject.filter(
                 (user) => user.role === OrganizationMemberRole.ADMIN,
