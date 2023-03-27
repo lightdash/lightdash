@@ -57,6 +57,7 @@ export const VerifyEmailPage: FC = () => {
             <Helmet>
                 <title>Verify your email - Lightdash</title>
             </Helmet>
+            FIXME: update hardcoded widths with Mantine widths
             <Stack w={400} mt="4xl">
                 <Image
                     src={LightdashLogo}

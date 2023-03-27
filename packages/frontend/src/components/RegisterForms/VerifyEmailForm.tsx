@@ -59,6 +59,7 @@ const VerifyEmailForm: FC<{ isLoading?: boolean }> = ({ isLoading }) => {
     }
 
     return (
+        // FIXME: update hardcoded widths with Mantine widths
         <Stack spacing="md" justify="center" align="center" w={300} mx="auto">
             <Title order={3}>Check your inbox!</Title>
             <Text color="gray.6" ta="center">
@@ -93,6 +94,7 @@ const VerifyEmailForm: FC<{ isLoading?: boolean }> = ({ isLoading }) => {
                             return <></>;
                         }
                         return (
+                            // FIXME: update hardcoded widths with Mantine widths
                             <Stack spacing="xs" mt="md" w={250} align="center">
                                 <Button
                                     fullWidth
