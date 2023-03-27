@@ -1,3 +1,10 @@
+# [0.486.0](https://github.com/lightdash/lightdash/compare/0.485.0...0.486.0) (2023-03-27)
+
+
+### Features
+
+* run query on table calculation changes ([#4922](https://github.com/lightdash/lightdash/issues/4922)) ([0614860](https://github.com/lightdash/lightdash/commit/0614860d2155361a6c24dd6ad25a17964eb609a2))
+
 # [0.485.0](https://github.com/lightdash/lightdash/compare/0.484.0...0.485.0) (2023-03-24)
 
 
