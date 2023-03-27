@@ -3,6 +3,7 @@ import { OrganizationMemberProfile } from '../types/organizationMemberProfile';
 import { organizationMemberAbilities } from './organizationMemberAbility';
 import {
     ORGANIZATION_ADMIN,
+    ORGANIZATION_DEVELOPER,
     ORGANIZATION_EDITOR,
     ORGANIZATION_INTERACTIVE_VIEWER,
     ORGANIZATION_MEMBER,
@@ -105,6 +106,17 @@ describe('Organization member permissions', () => {
         it('can create invite links', () => {
             expect(ability.can('create', 'InviteLink')).toEqual(false);
         });
+        it('cannot run SQL Queries', () => {
+            expect(ability.can('manage', 'SqlRunner')).toEqual(false);
+        });
+    });
+    describe('when user is an developer', () => {
+        beforeEach(() => {
+            ability = defineAbilityForOrganizationMember(
+                ORGANIZATION_DEVELOPER,
+            );
+        });
+
         it('can run SQL Queries', () => {
             expect(ability.can('manage', 'SqlRunner')).toEqual(true);
         });
