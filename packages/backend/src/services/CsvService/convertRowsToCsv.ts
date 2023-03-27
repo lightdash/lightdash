@@ -7,18 +7,15 @@ import {
 import moment from 'moment';
 import { parentPort, workerData } from 'worker_threads';
 
-/**
- * Workerdata fields:
- * - rows: Record<string, any>[]
- * - onlyRaw: boolean
- * - itemMap: Record<string, Item>
- * - sortedFieldIds: string[]
- * */
-function formatRowsWorker() {
-    const { rows } = workerData;
-    const { itemMap } = workerData;
-    const { sortedFieldIds } = workerData;
-    const { onlyRaw } = workerData;
+type Args = {
+    rows: Record<string, any>[];
+    onlyRaw: boolean;
+    itemMap: Record<string, Item>;
+    sortedFieldIds: string[];
+};
+
+function run() {
+    const { rows, itemMap, sortedFieldIds, onlyRaw }: Args = workerData;
 
     if (parentPort)
         parentPort.postMessage(
@@ -41,4 +38,4 @@ function formatRowsWorker() {
         );
 }
 
-formatRowsWorker();
+run();
