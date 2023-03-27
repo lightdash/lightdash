@@ -11,11 +11,22 @@ const themeOverride: MantineThemeOverride = {
     white: Colors.WHITE,
 
     spacing: {
+        one: rem(1),
+        two: rem(2),
+        xxs: rem(4),
         xs: rem(8),
         sm: rem(12),
         md: rem(16),
         lg: rem(20),
         xl: rem(24),
+        xxl: rem(32),
+        '3xl': rem(40),
+        '4xl': rem(48),
+        '5xl': rem(64),
+        '6xl': rem(80),
+        '7xl': rem(96),
+        '8xl': rem(128),
+        '9xl': rem(160),
     },
 
     fontFamily: [
