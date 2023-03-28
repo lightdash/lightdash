@@ -1,12 +1,9 @@
-import { subject } from '@casl/ability';
 import {
     ApiCompiledQueryResults,
     ApiExploreResults,
     ApiExploresResults,
     ApiQueryResults,
     ApiSqlQueryResults,
-    ForbiddenError,
-    getItemMap,
     getRequestMethod,
     LightdashRequestMethodHeader,
     MetricQuery,
@@ -15,35 +12,21 @@ import {
     TablesConfiguration,
 } from '@lightdash/common';
 import express from 'express';
-import * as fs from 'fs';
-import * as fsPromise from 'fs/promises';
 
-import { nanoid } from 'nanoid';
 import path from 'path';
-import { analytics } from '../analytics/client';
-import {
-    DownloadCsv,
-    LightdashAnalytics,
-    parseAnalyticsLimit,
-} from '../analytics/LightdashAnalytics';
-import { lightdashConfig } from '../config/lightdashConfig';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
 } from '../controllers/authentication';
-import Logger from '../logger';
-import { CsvService } from '../services/CsvService/CsvService';
 import {
     csvService,
     dashboardService,
     projectService,
-    s3Service,
     savedChartsService,
     searchService,
     spaceService,
 } from '../services/services';
-import { wrapSentryTransaction } from '../utils';
 
 const { Readable } = require('stream');
 
