@@ -1,7 +1,9 @@
 import { pivotQueryResults } from './pivotQueryResults';
 import {
+    METRIC_QUERY_0DIM_2METRIC,
     METRIC_QUERY_1DIM_2METRIC,
     METRIC_QUERY_2DIM_2METRIC,
+    RESULT_ROWS_0DIM_2METRIC,
     RESULT_ROWS_1DIM_2METRIC,
     RESULT_ROWS_2DIM_2METRIC,
 } from './pivotQueryResults.mock';
@@ -274,6 +276,38 @@ describe('Should pivot data', () => {
             pivotConfig,
             metricQuery: METRIC_QUERY_2DIM_2METRIC,
             rows: RESULT_ROWS_2DIM_2METRIC,
+        });
+        expect(results).toStrictEqual(expected);
+    });
+    it.skip('with 0 dimensions and 2 metrics as columns', () => {
+        const pivotConfig = {
+            pivotDimensions: [],
+            metricsAsRows: false,
+        };
+        const expected = {
+            headerValueTypes: [{ type: 'metrics' }],
+            headerValues: [
+                [
+                    { raw: 'views', formatted: 'views' },
+                    { raw: 'devices', formatted: 'devices' },
+                ],
+            ],
+            indexValueTypes: [],
+            indexValues: [],
+            dataColumnCount: 2,
+            metrics: {},
+            dimensions: {},
+            dataValues: [
+                [
+                    { raw: 6, formatted: '6.0' },
+                    { raw: 7, formatted: '7.0' },
+                ],
+            ],
+        };
+        const results = pivotQueryResults({
+            pivotConfig,
+            metricQuery: METRIC_QUERY_0DIM_2METRIC,
+            rows: RESULT_ROWS_0DIM_2METRIC,
         });
         expect(results).toStrictEqual(expected);
     });
