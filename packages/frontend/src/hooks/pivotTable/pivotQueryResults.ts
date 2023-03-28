@@ -53,6 +53,9 @@ export const pivotQueryResults = ({
     metricQuery,
     rows,
 }: PivotQueryResultsArgs) => {
+    if (rows.length === 0) {
+        throw new Error('Cannot pivot results with no rows');
+    }
     // Headers (column index)
     const headerDimensions = metricQuery.dimensions.filter((d) =>
         pivotConfig.pivotDimensions.includes(d),

@@ -68,3 +68,19 @@ export const RESULT_ROWS_1DIM_2METRIC: ResultRow[] = [
         devices: { value: { raw: 1, formatted: '1.0' } },
     },
 ];
+
+export const METRIC_QUERY_0DIM_2METRIC: Pick<
+    MetricQuery,
+    'metrics' | 'dimensions' | 'tableCalculations' | 'additionalMetrics'
+> = {
+    metrics: ['views', 'devices'],
+    dimensions: [],
+    tableCalculations: [],
+};
+
+export const RESULT_ROWS_0DIM_2METRIC: ResultRow[] = [
+    {
+        views: { value: { raw: 6, formatted: '6.0' } },
+        devices: { value: { raw: 7, formatted: '7.0' } },
+    },
+];
