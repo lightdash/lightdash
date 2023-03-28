@@ -17,7 +17,7 @@ describe('Should pivot data', () => {
         const expected = {
             headerValueTypes: [
                 { type: 'dimension', field: 'page' },
-                { type: 'metrics' },
+                { type: 'metric' },
             ],
             headerValues: [
                 [
@@ -64,7 +64,7 @@ describe('Should pivot data', () => {
             metricsAsRows: false,
         };
         const expected = {
-            headerValueTypes: [{ type: 'metrics' }],
+            headerValueTypes: [{ type: 'metric' }],
             headerValues: [
                 [
                     { raw: 'views', formatted: 'views' },
@@ -78,8 +78,6 @@ describe('Should pivot data', () => {
                 [{ raw: '/first-post', formatted: '/first-post' }],
             ],
             dataColumnCount: 2,
-            dimensions: {},
-            metrics: {},
             dataValues: [
                 [
                     { raw: 6, formatted: '6.0' },
@@ -116,14 +114,12 @@ describe('Should pivot data', () => {
                     { raw: '/first-post', formatted: '/first-post' },
                 ],
             ],
-            indexValueTypes: [{ type: 'metrics' }],
+            indexValueTypes: [{ type: 'metric' }],
             indexValues: [
                 [{ raw: 'views', formatted: 'views' }],
                 [{ raw: 'devices', formatted: 'devices' }],
             ],
             dataColumnCount: 3,
-            metrics: {},
-            dimensions: {},
             dataValues: [
                 [
                     { raw: 6, formatted: '6.0' },
@@ -152,7 +148,7 @@ describe('Should pivot data', () => {
         const expected = {
             headerValueTypes: [
                 { type: 'dimension', field: 'site' },
-                { type: 'metrics' },
+                { type: 'metric' },
             ],
             headerValues: [
                 [
@@ -175,8 +171,6 @@ describe('Should pivot data', () => {
                 [{ raw: '/first-post', formatted: '/first-post' }],
             ],
             dataColumnCount: 4,
-            metrics: {},
-            dimensions: {},
             dataValues: [
                 [
                     { raw: 6, formatted: '6.0' },
@@ -220,7 +214,7 @@ describe('Should pivot data', () => {
             ],
             indexValueTypes: [
                 { type: 'dimension', field: 'page' },
-                { type: 'metrics' },
+                { type: 'metric' },
             ],
             indexValues: [
                 [
@@ -249,8 +243,6 @@ describe('Should pivot data', () => {
                 ],
             ],
             dataColumnCount: 2,
-            metrics: {},
-            dimensions: {},
             dataValues: [
                 [
                     { raw: 6, formatted: '6.0' },
@@ -285,7 +277,7 @@ describe('Should pivot data', () => {
             metricsAsRows: false,
         };
         const expected = {
-            headerValueTypes: [{ type: 'metrics' }],
+            headerValueTypes: [{ type: 'metric' }],
             headerValues: [
                 [
                     { raw: 'views', formatted: 'views' },
@@ -295,8 +287,6 @@ describe('Should pivot data', () => {
             indexValueTypes: [],
             indexValues: [],
             dataColumnCount: 2,
-            metrics: {},
-            dimensions: {},
             dataValues: [
                 [
                     { raw: 6, formatted: '6.0' },
