@@ -1,3 +1,10 @@
+# [0.488.0](https://github.com/lightdash/lightdash/compare/0.487.0...0.488.0) (2023-03-28)
+
+
+### Features
+
+* about footer migrated to Mantine ([#4926](https://github.com/lightdash/lightdash/issues/4926)) ([e4996b7](https://github.com/lightdash/lightdash/commit/e4996b7050e39d0730bfec8e3f9dfaf6e1d37a7d))
+
 # [0.487.0](https://github.com/lightdash/lightdash/compare/0.486.0...0.487.0) (2023-03-27)
 
 
