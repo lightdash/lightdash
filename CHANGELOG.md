@@ -1,3 +1,10 @@
+# [0.489.0](https://github.com/lightdash/lightdash/compare/0.488.0...0.489.0) (2023-03-28)
+
+
+### Features
+
+* enable copy paste values on is equal to and includes filter ([#4899](https://github.com/lightdash/lightdash/issues/4899)) ([ff1ca33](https://github.com/lightdash/lightdash/commit/ff1ca33e0061ef0f6ee5297427cc06cccf263449))
+
 # [0.488.0](https://github.com/lightdash/lightdash/compare/0.487.0...0.488.0) (2023-03-28)
 
 
