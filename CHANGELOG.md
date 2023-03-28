@@ -1,3 +1,31 @@
+# [0.487.0](https://github.com/lightdash/lightdash/compare/0.486.0...0.487.0) (2023-03-27)
+
+
+### Features
+
+* `verify email` form and modal migrated to Mantine ([#4916](https://github.com/lightdash/lightdash/issues/4916)) ([6fbae55](https://github.com/lightdash/lightdash/commit/6fbae55680b412f8b1f8927ee591fb688bcd00e3))
+
+# [0.486.0](https://github.com/lightdash/lightdash/compare/0.485.0...0.486.0) (2023-03-27)
+
+
+### Features
+
+* run query on table calculation changes ([#4922](https://github.com/lightdash/lightdash/issues/4922)) ([0614860](https://github.com/lightdash/lightdash/commit/0614860d2155361a6c24dd6ad25a17964eb609a2))
+
+# [0.485.0](https://github.com/lightdash/lightdash/compare/0.484.0...0.485.0) (2023-03-24)
+
+
+### Features
+
+* migrate `register` form to Mantine ([#4902](https://github.com/lightdash/lightdash/issues/4902)) ([2bae82c](https://github.com/lightdash/lightdash/commit/2bae82c3b91ab9034a0eaf512eaeb7e6e7ffdb08))
+
+# [0.484.0](https://github.com/lightdash/lightdash/compare/0.483.0...0.484.0) (2023-03-24)
+
+
+### Features
+
+* new interactive viewer role ([#4901](https://github.com/lightdash/lightdash/issues/4901)) ([d918670](https://github.com/lightdash/lightdash/commit/d9186703f596dd621dabc221a3952cf86075e81c))
+
 # [0.483.0](https://github.com/lightdash/lightdash/compare/0.482.0...0.483.0) (2023-03-23)
 
 

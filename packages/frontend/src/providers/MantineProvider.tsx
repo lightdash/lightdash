@@ -2,6 +2,7 @@ import { Colors } from '@blueprintjs/core';
 import {
     MantineProvider as MantineProviderBase,
     MantineThemeOverride,
+    rem,
 } from '@mantine/core';
 import { FC } from 'react';
 
@@ -10,11 +11,22 @@ const themeOverride: MantineThemeOverride = {
     white: Colors.WHITE,
 
     spacing: {
-        xs: 8,
-        sm: 12,
-        md: 16,
-        lg: 20,
-        xl: 24,
+        one: rem(1),
+        two: rem(2),
+        xxs: rem(4),
+        xs: rem(8),
+        sm: rem(12),
+        md: rem(16),
+        lg: rem(20),
+        xl: rem(24),
+        xxl: rem(32),
+        '3xl': rem(40),
+        '4xl': rem(48),
+        '5xl': rem(64),
+        '6xl': rem(80),
+        '7xl': rem(96),
+        '8xl': rem(128),
+        '9xl': rem(160),
     },
 
     fontFamily: [
@@ -42,8 +54,7 @@ const themeOverride: MantineThemeOverride = {
             styles: (theme, _params) => ({
                 label: {
                     // FIXME: this is a hack to fix label position. remove after Blueprint migration is complete
-                    // FIXME: size is hardcoded. remove once we add more sizes to the theme
-                    marginBottom: theme.spacing.xs / 2,
+                    marginBottom: theme.spacing.xxs,
                 },
             }),
         },
@@ -52,8 +63,7 @@ const themeOverride: MantineThemeOverride = {
             styles: (theme, _params) => ({
                 label: {
                     // FIXME: this is a hack to fix label position. remove after Blueprint migration is complete
-                    // FIXME: size is hardcoded. remove once we add more sizes to the theme
-                    marginBottom: theme.spacing.xs / 2,
+                    marginBottom: theme.spacing.xxs,
                 },
             }),
         },

@@ -116,12 +116,19 @@ const ExportResultAsCSVModal: FC<ExportResultAsCSVModalProps> = ({
 const ValidDashboardChartTile: FC<{
     tileUuid: string;
     data: SavedChart;
+    isTitleHidden?: boolean;
     project: string;
     onSeriesContextMenu?: (
         e: EchartSeriesClickEvent,
         series: EChartSeries[],
     ) => void;
-}> = ({ tileUuid, data, project, onSeriesContextMenu }) => {
+}> = ({
+    tileUuid,
+    isTitleHidden = false,
+    data,
+    project,
+    onSeriesContextMenu,
+}) => {
     const { data: resultData, isLoading } = useSavedChartResults(
         project,
         data.uuid,
@@ -161,6 +168,7 @@ const ValidDashboardChartTile: FC<{
             <LightdashVisualization
                 isDashboard
                 tileUuid={tileUuid}
+                isTitleHidden={isTitleHidden}
                 $padding={0}
             />
         </VisualizationProvider>
@@ -169,9 +177,10 @@ const ValidDashboardChartTile: FC<{
 
 const ValidDashboardChartTileMinimal: FC<{
     tileUuid: string;
+    isTitleHidden?: boolean;
     data: SavedChart;
     project: string;
-}> = ({ tileUuid, data, project }) => {
+}> = ({ tileUuid, data, project, isTitleHidden = false }) => {
     const { data: resultData, isLoading } = useSavedChartResults(
         project,
         data.uuid,
@@ -190,8 +199,9 @@ const ValidDashboardChartTileMinimal: FC<{
             columnOrder={data.tableConfig.columnOrder}
         >
             <LightdashVisualization
-                isDashboard
                 tileUuid={tileUuid}
+                isDashboard
+                isTitleHidden={isTitleHidden}
                 $padding={0}
             />
         </VisualizationProvider>
@@ -220,7 +230,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     const {
         tile: {
             uuid: tileUuid,
-            properties: { savedChartUuid },
+            properties: { savedChartUuid, hideTitle },
         },
         isEditMode,
     } = props;
@@ -651,6 +661,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                             tileUuid={tileUuid}
                             data={savedQueryWithDashboardFilters}
                             project={projectUuid}
+                            isTitleHidden={hideTitle}
                             onSeriesContextMenu={onSeriesContextMenu}
                         />
                     </>
@@ -675,7 +686,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
     const {
         tile: {
             uuid: tileUuid,
-            properties: { savedChartUuid },
+            properties: { savedChartUuid, hideTitle },
         },
     } = props;
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -696,6 +707,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
             {data ? (
                 <ValidDashboardChartTileMinimal
                     tileUuid={tileUuid}
+                    isTitleHidden={hideTitle}
                     data={data}
                     project={projectUuid}
                 />
