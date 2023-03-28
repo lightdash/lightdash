@@ -71,9 +71,14 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                         )}
                     </Button>
                     {minimal ? (
-                        <ActionIcon color="gray.7" p="xs" size="lg">
-                            <IconBook size={19} />
-                        </ActionIcon>
+                        <Anchor
+                            href="https://docs.lightdash.com/"
+                            target="_blank"
+                        >
+                            <ActionIcon color="gray.7" p="xs" size="lg">
+                                <IconBook size={19} />
+                            </ActionIcon>
+                        </Anchor>
                     ) : (
                         <MantineLinkButton
                             href="https://docs.lightdash.com/"
