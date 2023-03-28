@@ -18,6 +18,8 @@ import { OrganizationController } from './../controllers/organizationController'
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { RunViewChartQueryController } from './../controllers/runQueryController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { SavedChartController } from './../controllers/savedChartController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { SchedulerController } from './../controllers/schedulerController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { ShareController } from './../controllers/shareController';
@@ -1644,61 +1646,6 @@ export function RegisterRoutes(app: express.Router) {
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.post(
-        '/api/v1/projects/:projectUuid/runViewChartQuery',
-        ...fetchMiddlewares<RequestHandler>(RunViewChartQueryController),
-        ...fetchMiddlewares<RequestHandler>(
-            RunViewChartQueryController.prototype.postViewChart,
-        ),
-
-        function RunViewChartQueryController_postViewChart(
-            request: any,
-            response: any,
-            next: any,
-        ) {
-            const args = {
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        chartUuid: { dataType: 'string', required: true },
-                    },
-                },
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
-            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-
-            let validatedArgs: any[] = [];
-            try {
-                validatedArgs = getValidatedArgs(args, request, response);
-
-                const controller = new RunViewChartQueryController();
-
-                const promise = controller.postViewChart.apply(
-                    controller,
-                    validatedArgs as any,
-                );
-                promiseHandler(controller, promise, response, 200, next);
-            } catch (err) {
-                return next(err);
-            }
-        },
-    );
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    app.post(
         '/api/v1/projects/:projectUuid/runDashboardTileQuery',
         ...fetchMiddlewares<RequestHandler>(RunViewChartQueryController),
         ...fetchMiddlewares<RequestHandler>(
@@ -1860,6 +1807,58 @@ export function RegisterRoutes(app: express.Router) {
                 const controller = new RunViewChartQueryController();
 
                 const promise = controller.postRunQuery.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.get(
+        '/api/v1/projects/:projectUuid/saved/:chartUuid/queryResults',
+        ...fetchMiddlewares<RequestHandler>(SavedChartController),
+        ...fetchMiddlewares<RequestHandler>(
+            SavedChartController.prototype.getChartResults,
+        ),
+
+        function SavedChartController_getChartResults(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                chartUuid: {
+                    in: 'path',
+                    name: 'chartUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const controller = new SavedChartController();
+
+                const promise = controller.getChartResults.apply(
                     controller,
                     validatedArgs as any,
                 );

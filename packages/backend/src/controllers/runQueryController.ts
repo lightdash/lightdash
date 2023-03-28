@@ -1,12 +1,9 @@
 import {
     AdditionalMetric,
-    AndFilterGroup,
     ApiErrorPayload,
     ApiQueryResults,
     FieldId,
-    FilterGroupItem,
     MetricQuery,
-    OrFilterGroup,
     SortField,
     TableCalculation,
 } from '@lightdash/common';
@@ -47,7 +44,7 @@ type MetricQueryResponse = {
     tableCalculations: TableCalculation[]; // calculations to append to results
     additionalMetrics?: AdditionalMetric[]; // existing metric type
 };
-type ApiRunQueryResponse = {
+export type ApiRunQueryResponse = {
     status: 'ok';
     results: {
         metricQuery: MetricQueryResponse; // tsoa doesn't support complex types like MetricQuery
@@ -73,32 +70,6 @@ type RunQueryRequest = {
 @Route('/api/v1/projects/{projectUuid}')
 @Response<ApiErrorPayload>('default', 'Error')
 export class RunViewChartQueryController extends Controller {
-    /**
-     * Run a query for a chart on view mode
-     * @param projectUuid The uuid of the project
-     * @param body chartUuid for the chart to run
-     * @param req express request
-     */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Post('/runViewChartQuery')
-    @OperationId('postRunViewChartQuery')
-    async postViewChart(
-        @Body() body: { chartUuid: string },
-        @Path() projectUuid: string,
-        @Request() req: express.Request,
-    ): Promise<ApiRunQueryResponse> {
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await projectService.runViewChartQuery(
-                req.user!,
-                body.chartUuid,
-                projectUuid,
-            ),
-        };
-    }
-
     /**
      * Run a query for a chart from dashboards
      * @param projectUuid The uuid of the project

@@ -55,9 +55,9 @@ export const getViewChartResults = async ({
     chartUuid,
 }: QueryResultsProps) => {
     return lightdashApi<ApiQueryResults>({
-        url: `/projects/${projectUuid}/runViewChartQuery`,
-        method: 'POST',
-        body: JSON.stringify({ chartUuid }),
+        url: `/projects/${projectUuid}/saved/${chartUuid}/queryResults`,
+        method: 'GET',
+        body: undefined,
     });
 };
 
