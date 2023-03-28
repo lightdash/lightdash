@@ -2,21 +2,18 @@ import { PivotData } from '@lightdash/common';
 import { Stack, Title } from '@mantine/core';
 import { pivotQueryResults } from '../../hooks/pivotTable/pivotQueryResults';
 import {
-    METRIC_QUERY,
-    RESULT_ROWS,
+    METRIC_QUERY_2DIM_2METRIC,
+    RESULT_ROWS_2DIM_2METRIC,
 } from '../../hooks/pivotTable/pivotQueryResults.mock';
 import PivotTable from './PivotTable';
-// import { pivot1 } from './dummyData/pivot1';
-// import { pivot2 } from './dummyData/pivot2';
-// import { pivot3 } from './dummyData/pivot3';
 
 const result1: PivotData = pivotQueryResults({
     pivotConfig: {
         pivotDimensions: ['site'],
         metricsAsRows: false,
     },
-    metricQuery: METRIC_QUERY,
-    rows: RESULT_ROWS,
+    metricQuery: METRIC_QUERY_2DIM_2METRIC,
+    rows: RESULT_ROWS_2DIM_2METRIC,
 });
 
 const result2: PivotData = pivotQueryResults({
@@ -24,8 +21,8 @@ const result2: PivotData = pivotQueryResults({
         pivotDimensions: ['site'],
         metricsAsRows: true,
     },
-    metricQuery: METRIC_QUERY,
-    rows: RESULT_ROWS,
+    metricQuery: METRIC_QUERY_2DIM_2METRIC,
+    rows: RESULT_ROWS_2DIM_2METRIC,
 });
 
 const result3: PivotData = pivotQueryResults({
@@ -33,8 +30,8 @@ const result3: PivotData = pivotQueryResults({
         pivotDimensions: ['site', 'page'],
         metricsAsRows: true,
     },
-    metricQuery: METRIC_QUERY,
-    rows: RESULT_ROWS,
+    metricQuery: METRIC_QUERY_2DIM_2METRIC,
+    rows: RESULT_ROWS_2DIM_2METRIC,
 });
 
 const result4: PivotData = pivotQueryResults({
@@ -42,8 +39,8 @@ const result4: PivotData = pivotQueryResults({
         pivotDimensions: [],
         metricsAsRows: false,
     },
-    metricQuery: METRIC_QUERY,
-    rows: RESULT_ROWS,
+    metricQuery: METRIC_QUERY_2DIM_2METRIC,
+    rows: RESULT_ROWS_2DIM_2METRIC,
 });
 
 const PivotingPOC = () => {
@@ -61,29 +58,13 @@ const PivotingPOC = () => {
 
             <Stack spacing="sm">
                 <Title order={3}>Pivot 3 (only metric rows)</Title>
-                <PivotTable data={result2} />
+                <PivotTable data={result3} />
             </Stack>
 
             <Stack spacing="sm">
                 <Title order={3}>Pivot 4 (only metric cols)</Title>
-                <PivotTable data={result2} />
+                <PivotTable data={result4} />
             </Stack>
-
-            {/* OLD examples */}
-            {/* <Stack spacing="sm">
-                <Title order={3}>Pivot 1</Title>
-                <RenderTable data={pivot1} />
-            </Stack>
-
-            <Stack spacing="sm">
-                <Title order={3}>Pivot 2</Title>
-                <RenderTable data={pivot2} />
-            </Stack>
-
-            <Stack spacing="sm">
-                <Title order={3}>Pivot 3 (metrics as rows)</Title>
-                <RenderTable data={pivot3} />
-            </Stack> */}
         </Stack>
     );
 };
