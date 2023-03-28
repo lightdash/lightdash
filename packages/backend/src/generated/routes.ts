@@ -377,6 +377,182 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    FieldId: {
+        dataType: 'refAlias',
+        type: { dataType: 'string', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    FilterGroupResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        or: {
+                            dataType: 'array',
+                            array: { dataType: 'any' },
+                            required: true,
+                        },
+                        id: { dataType: 'string', required: true },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        and: {
+                            dataType: 'array',
+                            array: { dataType: 'any' },
+                            required: true,
+                        },
+                        id: { dataType: 'string', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    Filters: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                metrics: { ref: 'FilterGroupResponse' },
+                dimensions: { ref: 'FilterGroupResponse' },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SortField: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                descending: { dataType: 'boolean', required: true },
+                fieldId: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    TableCalculation: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                sql: { dataType: 'string', required: true },
+                displayName: { dataType: 'string', required: true },
+                name: { dataType: 'string', required: true },
+                index: { dataType: 'double' },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MetricType: {
+        dataType: 'refEnum',
+        enums: [
+            'percentile',
+            'average',
+            'count',
+            'count_distinct',
+            'sum',
+            'min',
+            'max',
+            'number',
+            'median',
+            'string',
+            'date',
+            'boolean',
+        ],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    Compact: {
+        dataType: 'refEnum',
+        enums: ['thousands', 'millions', 'billions', 'trillions'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CompactOrAlias: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'Compact' },
+                {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['K'] },
+                        { dataType: 'enum', enums: ['thousand'] },
+                        { dataType: 'enum', enums: ['M'] },
+                        { dataType: 'enum', enums: ['million'] },
+                        { dataType: 'enum', enums: ['B'] },
+                        { dataType: 'enum', enums: ['billion'] },
+                        { dataType: 'enum', enums: ['T'] },
+                        { dataType: 'enum', enums: ['trillion'] },
+                    ],
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AdditionalMetric: {
+        dataType: 'refObject',
+        properties: {
+            label: { dataType: 'string' },
+            type: { ref: 'MetricType', required: true },
+            description: { dataType: 'string' },
+            sql: { dataType: 'string', required: true },
+            hidden: { dataType: 'boolean' },
+            round: { dataType: 'double' },
+            compact: { ref: 'CompactOrAlias' },
+            format: { dataType: 'string' },
+            table: { dataType: 'string', required: true },
+            name: { dataType: 'string', required: true },
+            index: { dataType: 'double' },
+        },
+        additionalProperties: false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MetricQueryResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                additionalMetrics: {
+                    dataType: 'array',
+                    array: { dataType: 'refObject', ref: 'AdditionalMetric' },
+                },
+                tableCalculations: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'TableCalculation' },
+                    required: true,
+                },
+                limit: { dataType: 'double', required: true },
+                sorts: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'SortField' },
+                    required: true,
+                },
+                filters: { ref: 'Filters', required: true },
+                metrics: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'FieldId' },
+                    required: true,
+                },
+                dimensions: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'FieldId' },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiRunQueryResponse: {
         dataType: 'refAlias',
         type: {
@@ -390,7 +566,10 @@ const models: TsoaRoute.Models = {
                             array: { dataType: 'any' },
                             required: true,
                         },
-                        metricQuery: { dataType: 'any', required: true },
+                        metricQuery: {
+                            ref: 'MetricQueryResponse',
+                            required: true,
+                        },
                     },
                     required: true,
                 },
@@ -408,28 +587,35 @@ const models: TsoaRoute.Models = {
                 csvLimit: { dataType: 'double' },
                 additionalMetrics: {
                     dataType: 'array',
-                    array: { dataType: 'any' },
+                    array: { dataType: 'refObject', ref: 'AdditionalMetric' },
                 },
                 tableCalculations: {
                     dataType: 'array',
-                    array: { dataType: 'any' },
+                    array: { dataType: 'refAlias', ref: 'TableCalculation' },
                     required: true,
                 },
                 limit: { dataType: 'double', required: true },
                 sorts: {
                     dataType: 'array',
-                    array: { dataType: 'any' },
+                    array: { dataType: 'refAlias', ref: 'SortField' },
                     required: true,
                 },
-                filters: { dataType: 'any', required: true },
+                filters: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        metrics: { dataType: 'any' },
+                        dimensions: { dataType: 'any' },
+                    },
+                    required: true,
+                },
                 metrics: {
                     dataType: 'array',
-                    array: { dataType: 'any' },
+                    array: { dataType: 'refAlias', ref: 'FieldId' },
                     required: true,
                 },
                 dimensions: {
                     dataType: 'array',
-                    array: { dataType: 'any' },
+                    array: { dataType: 'refAlias', ref: 'FieldId' },
                     required: true,
                 },
             },
@@ -1531,6 +1717,7 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        filters: { ref: 'Filters', required: true },
                         chartUuid: { dataType: 'string', required: true },
                     },
                 },

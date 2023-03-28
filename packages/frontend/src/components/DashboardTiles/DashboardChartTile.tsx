@@ -36,7 +36,7 @@ import useToaster from '../../hooks/toaster/useToaster';
 import { downloadCsv } from '../../hooks/useDownloadCsv';
 import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
-import { useSavedChartResults } from '../../hooks/useQueryResults';
+import { useDashboardTileResults } from '../../hooks/useQueryResults';
 import { useSavedQuery } from '../../hooks/useSavedQuery';
 import { useApp } from '../../providers/AppProvider';
 import { useDashboardContext } from '../../providers/DashboardProvider';
@@ -76,9 +76,10 @@ const ExportResultAsCSVModal: FC<ExportResultAsCSVModalProps> = ({
     onClose,
     onConfirm,
 }) => {
-    const { data: resultData, isLoading } = useSavedChartResults(
+    const { data: resultData, isLoading } = useDashboardTileResults(
         projectUuid,
         savedChart.uuid,
+        savedChart.metricQuery.filters,
     );
 
     if (isLoading || !resultData) return null;
@@ -129,9 +130,10 @@ const ValidDashboardChartTile: FC<{
     project,
     onSeriesContextMenu,
 }) => {
-    const { data: resultData, isLoading } = useSavedChartResults(
+    const { data: resultData, isLoading } = useDashboardTileResults(
         project,
         data.uuid,
+        data.metricQuery.filters,
     );
     const { addSuggestions } = useDashboardContext();
     const { data: explore } = useExplore(data.tableName);
@@ -181,7 +183,7 @@ const ValidDashboardChartTileMinimal: FC<{
     data: SavedChart;
     project: string;
 }> = ({ tileUuid, data, project, isTitleHidden = false }) => {
-    const { data: resultData, isLoading } = useSavedChartResults(
+    const { data: resultData, isLoading } = useDashboardTileResults(
         project,
         data.uuid,
     );

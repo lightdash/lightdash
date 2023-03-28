@@ -1,6 +1,7 @@
 import {
     ApiError,
     ApiQueryResults,
+    Filters,
     MetricQuery,
     SavedChart,
 } from '@lightdash/common';
@@ -22,14 +23,16 @@ type QueryResultsProps = {
 export const getDashboardTileQueryResults = async ({
     projectUuid,
     chartUuid,
+    filters,
 }: {
     projectUuid: string;
     chartUuid: string;
+    filters?: Filters;
 }) => {
     return lightdashApi<ApiQueryResults>({
         url: `/projects/${projectUuid}/runDashboardTileQuery`,
         method: 'POST',
-        body: JSON.stringify({ chartUuid }),
+        body: JSON.stringify({ chartUuid, filters }),
     });
 };
 
@@ -152,17 +155,24 @@ export const useUnderlyingDataResults = (
     });
 };
 
-export const useSavedChartResults = (
+export const useDashboardTileResults = (
     projectUuid: string,
     chartUuid: string,
+    filters?: Filters,
 ) => {
-    const queryKey = ['savedChartResults', chartUuid, projectUuid];
+    const queryKey = [
+        'savedChartResults',
+        chartUuid,
+        projectUuid,
+        JSON.stringify(filters),
+    ];
     return useQuery<ApiQueryResults, ApiError>({
         queryKey,
         queryFn: () =>
             getDashboardTileQueryResults({
                 projectUuid,
                 chartUuid,
+                filters,
             }),
         retry: false,
         refetchOnMount: false,

@@ -17,6 +17,7 @@ import {
     fieldId as getFieldId,
     FilterableField,
     FilterOperator,
+    Filters,
     findFieldByIdInExplore,
     ForbiddenError,
     formatRows,
@@ -607,6 +608,7 @@ export class ProjectService {
         user: SessionUser,
         chartUuid: string,
         projectUuid: string,
+        filters?: Filters,
     ): Promise<ApiQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -624,9 +626,12 @@ export class ProjectService {
         }
         const savedChart = await this.savedChartModel.get(chartUuid);
 
+        const metricQuery: MetricQuery = filters
+            ? { ...savedChart.metricQuery, filters }
+            : savedChart.metricQuery;
         return this.runQueryAndFormatRows(
             user,
-            savedChart.metricQuery,
+            metricQuery,
             projectUuid,
             savedChart.tableName,
             undefined,

@@ -1,7 +1,14 @@
 import {
+    AdditionalMetric,
+    AndFilterGroup,
     ApiErrorPayload,
     ApiQueryResults,
+    FieldId,
+    FilterGroupItem,
     MetricQuery,
+    OrFilterGroup,
+    SortField,
+    TableCalculation,
 } from '@lightdash/common';
 import { Body, Post } from '@tsoa/runtime';
 import express from 'express';
@@ -18,23 +25,48 @@ import {
 import { projectService } from '../services/services';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 
+type FilterGroupResponse =
+    | {
+          id: string;
+          or: any[];
+      }
+    | {
+          id: string;
+          and: any[];
+      };
+type Filters = {
+    dimensions?: FilterGroupResponse;
+    metrics?: FilterGroupResponse;
+};
+type MetricQueryResponse = {
+    dimensions: FieldId[]; // Dimensions to group by in the explore
+    metrics: FieldId[]; // Metrics to compute in the explore
+    filters: Filters;
+    sorts: SortField[]; // Sorts for the data
+    limit: number; // Max number of rows to return from query
+    tableCalculations: TableCalculation[]; // calculations to append to results
+    additionalMetrics?: AdditionalMetric[]; // existing metric type
+};
 type ApiRunQueryResponse = {
     status: 'ok';
     results: {
-        metricQuery: any; // tsoa doesn't support complex types like MetricQuery
+        metricQuery: MetricQueryResponse; // tsoa doesn't support complex types like MetricQuery
         rows: any[];
     };
 };
 
 type RunQueryRequest = {
     // tsoa doesn't support complex types like MetricQuery
-    dimensions: any[]; // Dimensions to group by in the explore
-    metrics: any[]; // Metrics to compute in the explore
-    filters: any;
-    sorts: any[]; // Sorts for the data
+    dimensions: FieldId[]; // Dimensions to group by in the explore
+    metrics: FieldId[]; // Metrics to compute in the explore
+    filters: {
+        dimensions?: any;
+        metrics?: any;
+    };
+    sorts: SortField[]; // Sorts for the data
     limit: number; // Max number of rows to return from query
-    tableCalculations: any[]; // calculations to append to results
-    additionalMetrics?: any[]; // existing metric type
+    tableCalculations: TableCalculation[]; // calculations to append to results
+    additionalMetrics?: AdditionalMetric[]; // existing metric type
     csvLimit?: number;
 };
 
@@ -78,7 +110,7 @@ export class RunViewChartQueryController extends Controller {
     @Post('/runDashboardTileQuery')
     @OperationId('postRunDashboardTileQuery')
     async postDashboardTile(
-        @Body() body: { chartUuid: string },
+        @Body() body: { chartUuid: string; filters: Filters },
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiRunQueryResponse> {
@@ -89,6 +121,7 @@ export class RunViewChartQueryController extends Controller {
                 req.user!,
                 body.chartUuid,
                 projectUuid,
+                body.filters,
             ),
         };
     }
