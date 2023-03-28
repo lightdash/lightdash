@@ -28,6 +28,24 @@ const result2: PivotData = pivotQueryResults({
     rows: RESULT_ROWS,
 });
 
+const result3: PivotData = pivotQueryResults({
+    pivotConfig: {
+        pivotDimensions: ['site', 'page'],
+        metricsAsRows: true,
+    },
+    metricQuery: METRIC_QUERY,
+    rows: RESULT_ROWS,
+});
+
+const result4: PivotData = pivotQueryResults({
+    pivotConfig: {
+        pivotDimensions: [],
+        metricsAsRows: false,
+    },
+    metricQuery: METRIC_QUERY,
+    rows: RESULT_ROWS,
+});
+
 const PivotingPOC = () => {
     return (
         <Stack spacing="lg" p="xl">
@@ -38,6 +56,16 @@ const PivotingPOC = () => {
 
             <Stack spacing="sm">
                 <Title order={3}>Pivot 2 (metrics as rows)</Title>
+                <PivotTable data={result2} />
+            </Stack>
+
+            <Stack spacing="sm">
+                <Title order={3}>Pivot 3 (only metric rows)</Title>
+                <PivotTable data={result2} />
+            </Stack>
+
+            <Stack spacing="sm">
+                <Title order={3}>Pivot 4 (only metric cols)</Title>
                 <PivotTable data={result2} />
             </Stack>
 
