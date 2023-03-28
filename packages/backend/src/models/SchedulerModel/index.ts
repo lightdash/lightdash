@@ -13,6 +13,7 @@ import {
     SchedulerSlackTarget,
     UpdateSchedulerAndTargets,
 } from '@lightdash/common';
+import { NotFound } from 'express-openapi-validator/dist/openapi.validator';
 import { Knex } from 'knex';
 import {
     SchedulerDb,
@@ -348,5 +349,18 @@ export class SchedulerModel {
                 .where('scheduler_uuid', schedulerUuid)
                 .andWhere('status', SchedulerJobStatus.SCHEDULED);
         });
+    }
+
+    async getCsvUrl(jobId: string, token: string) {
+        const [job] = await this.database(SchedulerLogTableName)
+            .select()
+            .where(`${SchedulerSlackTargetTableName}.job_id`, jobId)
+            .where('details.token', token)
+            .orderBy('scheduled_time', 'desc')
+            .limit(1);
+
+        if (!job) throw new NotFoundError('Download CSV job not found');
+
+        return job;
     }
 }

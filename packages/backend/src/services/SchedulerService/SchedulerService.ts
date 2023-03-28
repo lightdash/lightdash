@@ -199,4 +199,8 @@ export class SchedulerService {
     async logSchedulerJob(log: SchedulerLog): Promise<void> {
         await this.schedulerModel.logSchedulerJob(log);
     }
+
+    async getCsvUrl(jobId: string, token: string) {
+        return this.schedulerModel.getCsvUrl(jobId, token);
+    }
 }

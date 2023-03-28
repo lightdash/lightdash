@@ -1,13 +1,16 @@
 import {
+    DownloadCsvPayload,
     EmailNotificationPayload,
     isEmailTarget,
     isSchedulerCsvOptions,
     isSlackTarget,
     LightdashPage,
+    MetricQuery,
     NotificationPayloadBase,
     ScheduledDeliveryPayload,
     Scheduler,
     SchedulerJobStatus,
+    SchedulerLog,
     SlackNotificationPayload,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
@@ -362,6 +365,41 @@ export const sendSlackNotification = async (
         });
 
         throw e; // Cascade error to it can be retried by graphile
+    }
+};
+
+export const downloadCsv = async (
+    jobId: string,
+    scheduledTime: Date,
+    payload: DownloadCsvPayload,
+) => {
+    const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> = {
+        task: 'downloadCsv',
+        jobId,
+        scheduledTime,
+    };
+    try {
+        schedulerService.logSchedulerJob({
+            ...baseLog,
+            details: { token: payload.token },
+            status: SchedulerJobStatus.STARTED,
+        });
+
+        // TODO Dwonlaod csv
+        const fileUrl = '';
+
+        schedulerService.logSchedulerJob({
+            ...baseLog,
+            details: { fileUrl, token: payload.token },
+            status: SchedulerJobStatus.COMPLETED,
+        });
+    } catch (e) {
+        schedulerService.logSchedulerJob({
+            ...baseLog,
+            status: SchedulerJobStatus.ERROR,
+            details: { token: payload.token, error: e },
+        });
+        // do not throw error to avoid retrying
     }
 };
 

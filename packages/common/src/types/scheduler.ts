@@ -1,3 +1,5 @@
+import { MetricQuery } from './metricQuery';
+
 export type SchedulerCsvOptions = {
     formatted: boolean;
     limit: 'table' | 'all' | number;
@@ -18,10 +20,11 @@ export type SchedulerLog = {
     task:
         | 'handleScheduledDelivery'
         | 'sendEmailNotification'
-        | 'sendSlackNotification';
-    schedulerUuid: string;
+        | 'sendSlackNotification'
+        | 'downloadCsv';
+    schedulerUuid?: string;
     jobId: string;
-    jobGroup: string;
+    jobGroup?: string;
     scheduledTime: Date;
     status: SchedulerJobStatus;
     target?: string;
@@ -199,4 +202,17 @@ export type SlackNotificationPayload = NotificationPayloadBase & {
 
 export type EmailNotificationPayload = NotificationPayloadBase & {
     schedulerEmailTargetUuid: string;
+};
+
+export type DownloadCsvPayload = {
+    userUuid: string;
+    projectUuid: string;
+    exploreId: string;
+    metricQuery: MetricQuery;
+    onlyRaw: boolean;
+    csvLimit: number | null | undefined;
+    showTableNames: boolean;
+    columnOrder: string[];
+    customLabels: Record<string, string> | undefined;
+    token: string;
 };

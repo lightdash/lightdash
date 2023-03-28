@@ -12,6 +12,7 @@ import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logger';
 import { schedulerService } from '../services/services';
 import {
+    downloadCsv,
     handleScheduledDelivery,
     sendEmailNotification,
     sendSlackNotification,
@@ -123,6 +124,17 @@ export class SchedulerWorker {
                         payload,
                     );
                     await sendEmailNotification(helpers.job.id, payload);
+                },
+                downloadCsv: async (payload: any, helpers: JobHelpers) => {
+                    Logger.info(
+                        `Processing downloadCsv job "${helpers.job.id}"`,
+                        payload,
+                    );
+                    await downloadCsv(
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                    );
                 },
             },
         });

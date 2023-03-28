@@ -66,11 +66,11 @@ export type SchedulerEmailTargetTable = Knex.CompositeTableType<
 
 export type SchedulerLogDb = {
     task: string;
-    scheduler_uuid: string;
+    scheduler_uuid?: string;
     job_id: string;
     created_at: Date;
     scheduled_time: Date;
-    job_group: string;
+    job_group?: string;
     status: string;
     target: string | null;
     target_type: string | null;
