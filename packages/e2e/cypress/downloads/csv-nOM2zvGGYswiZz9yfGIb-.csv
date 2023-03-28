@@ -1,0 +1,26 @@
+Payment id,Order id,Payment method,Amount
+1,1,credit_card,10
+2,2,credit_card,20
+3,3,coupon,1
+4,4,coupon,25
+5,5,bank_transfer,17
+6,6,credit_card,6
+7,7,credit_card,16
+8,8,credit_card,23
+9,9,gift_card,23
+10,9,bank_transfer,0
+11,10,bank_transfer,26
+12,11,credit_card,27
+13,12,credit_card,1
+14,13,credit_card,5
+15,13,bank_transfer,14
+16,14,bank_transfer,3
+17,15,coupon,22
+18,16,credit_card,10
+19,17,bank_transfer,2
+20,18,credit_card,5
+21,18,credit_card,8
+22,19,gift_card,6
+23,20,bank_transfer,15
+24,21,credit_card,12
+25,22,bank_transfer,8
