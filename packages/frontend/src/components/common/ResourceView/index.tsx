@@ -1,7 +1,6 @@
 import { assertUnreachable } from '@lightdash/common';
 import {
     Box,
-    Button,
     Divider,
     Group,
     Paper,
