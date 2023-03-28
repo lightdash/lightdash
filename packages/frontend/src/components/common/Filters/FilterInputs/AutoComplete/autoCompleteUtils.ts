@@ -1,4 +1,4 @@
-import { uniq, uniqBy } from 'lodash-es';
+import uniqBy from 'lodash-es/uniqBy';
 
 type Normalizer<T, Comparable = T> = (a: T) => Comparable;
 
