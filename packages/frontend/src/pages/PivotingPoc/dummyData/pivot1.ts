@@ -1,4 +1,5 @@
 import { FieldType, PivotData } from '@lightdash/common';
+import { dummyRawToFormattedAndRawRows } from './dummyUtils';
 
 const pivot1: PivotData = {
     headerValueTypes: [
@@ -10,7 +11,7 @@ const pivot1: PivotData = {
             type: FieldType.METRIC,
         },
     ],
-    headerValues: [
+    headerValues: dummyRawToFormattedAndRawRows([
         [
             'completed',
             // repeats when pivoted
@@ -36,7 +37,7 @@ const pivot1: PivotData = {
             'Average Order Size',
             'Unique Orders Count',
         ],
-    ],
+    ]),
 
     indexValueTypes: [
         {
@@ -45,19 +46,21 @@ const pivot1: PivotData = {
         },
     ],
 
-    indexValues: [
+    indexValues: dummyRawToFormattedAndRawRows([
         ['bank_transfer'],
         ['coupon'],
         ['credit_card'],
         ['gift_card'],
-    ],
+    ]),
 
-    rows: [
+    dataColumnCount: 10,
+
+    dataValues: dummyRawToFormattedAndRawRows([
         [14.86, 7, 9.25, 8, 27.25, 4, 13.71, 7, 19, 7],
         [20, 4, 24.5, 2, 25.67, 3, 9, 2, 12, 2],
         [14.3, 9, 23.73, 10, 20.62, 12, 19, 10, 18.91, 10],
         [13.5, 2, 29, 4, 12, 2, 15.5, 2, 25.5, 2],
-    ],
+    ]),
 
     rowTotals: [],
     columnTotals: [],

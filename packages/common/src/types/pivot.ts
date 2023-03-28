@@ -1,25 +1,25 @@
 import { FieldType } from './field';
 
-type Value = unknown;
+export type PivotValue = null | {
+    raw: unknown;
+    formatted: string;
+};
 
-type FieldValueType =
-    | {
-          type: FieldType.DIMENSION;
-          fieldId: string;
-      }
-    | {
-          type: FieldType.METRIC;
-      };
+type PivotFieldValueType = {
+    type: FieldType;
+    fieldId?: string;
+};
 
 export interface PivotData {
-    headerValueTypes: FieldValueType[];
-    headerValues: Value[][];
+    headerValueTypes: PivotFieldValueType[];
+    headerValues: PivotValue[][];
 
-    indexValueTypes: FieldValueType[];
-    indexValues: Value[][];
+    indexValueTypes: PivotFieldValueType[];
+    indexValues: PivotValue[][];
 
-    rows: Value[][];
+    dataColumnCount: number;
+    dataValues: PivotValue[][];
 
-    columnTotals?: Value[];
-    rowTotals?: Value[];
+    columnTotals?: PivotValue[];
+    rowTotals?: PivotValue[];
 }

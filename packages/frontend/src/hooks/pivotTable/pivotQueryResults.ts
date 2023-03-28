@@ -1,4 +1,10 @@
-import { MetricQuery, ResultRow } from '@lightdash/common';
+import {
+    FieldType,
+    MetricQuery,
+    PivotData,
+    PivotValue,
+    ResultRow,
+} from '@lightdash/common';
 
 type PivotConfig = {
     pivotDimensions: string[];
@@ -43,16 +49,11 @@ const getByKey = (obj: any, keys: string[]): any => {
     return getByKey(obj[key], rest);
 };
 
-type Value = {
-    raw: unknown;
-    formatted: string;
-};
-
 export const pivotQueryResults = ({
     pivotConfig,
     metricQuery,
     rows,
-}: PivotQueryResultsArgs) => {
+}: PivotQueryResultsArgs): PivotData => {
     if (rows.length === 0) {
         throw new Error('Cannot pivot results with no rows');
     }
@@ -61,8 +62,11 @@ export const pivotQueryResults = ({
         pivotConfig.pivotDimensions.includes(d),
     );
     const headerValueTypes = [
-        ...headerDimensions.map((d) => ({ type: 'dimension', field: d })),
-        ...(pivotConfig.metricsAsRows ? [] : [{ type: 'metrics' }]),
+        ...headerDimensions.map((d) => ({
+            type: FieldType.DIMENSION,
+            field: d,
+        })),
+        ...(pivotConfig.metricsAsRows ? [] : [{ type: FieldType.METRIC }]),
     ];
 
     // Indices (row index)
@@ -70,8 +74,11 @@ export const pivotQueryResults = ({
         (d) => !pivotConfig.pivotDimensions.includes(d),
     );
     const indexValueTypes = [
-        ...indexDimensions.map((d) => ({ type: 'dimension', field: d })),
-        ...(pivotConfig.metricsAsRows ? [{ type: 'metrics' }] : []),
+        ...indexDimensions.map((d) => ({
+            type: FieldType.DIMENSION,
+            field: d,
+        })),
+        ...(pivotConfig.metricsAsRows ? [{ type: FieldType.METRIC }] : []),
     ];
 
     // Metrics
@@ -83,11 +90,9 @@ export const pivotQueryResults = ({
 
     const N_ROWS = rows.length;
 
-    // For each row in the result set, check the header and index dimensions
-    // For every row in the results, compute the index and header values to determine the shape o
-    // For every row in the results, check the index dimensions to compute the length of the new result set
-    const indexValues: Value[][] = [];
-    const headerValuesT: Value[][] = [];
+    // For every row in the results, compute the index and header values to determine the shape of the result set
+    const indexValues: PivotValue[][] = [];
+    const headerValuesT: PivotValue[][] = [];
     let rowIndices = {};
     let columnIndices = {};
     let rowCount = 0;
@@ -140,7 +145,7 @@ export const pivotQueryResults = ({
     const N_DATA_ROWS = rowCount;
     const N_DATA_COLUMNS = columnCount;
     // Compute the data values
-    const dataValues: Value[][] = [...Array(N_DATA_ROWS)].map((e) =>
+    const dataValues: PivotValue[][] = [...Array(N_DATA_ROWS)].map((e) =>
         Array(N_DATA_COLUMNS).fill(null),
     );
 
@@ -165,8 +170,6 @@ export const pivotQueryResults = ({
     }
 
     return {
-        metrics: {},
-        dimensions: {},
         headerValueTypes: headerValueTypes,
         headerValues,
         indexValueTypes: indexValueTypes,
