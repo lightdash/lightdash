@@ -42,8 +42,8 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
             >
                 <Group
                     h={80}
-                    miw={!minimal ? 768 : '100%'}
-                    maw={maxWidth || 768}
+                    miw={!minimal ? 900 : '100%'}
+                    maw={maxWidth || 900}
                     position="apart"
                     align="center"
                     mx="auto"
