@@ -1,3 +1,10 @@
+## [0.489.1](https://github.com/lightdash/lightdash/compare/0.489.0...0.489.1) (2023-03-28)
+
+
+### Bug Fixes
+
+* interactive viewer migration ([#4941](https://github.com/lightdash/lightdash/issues/4941)) ([aa5c104](https://github.com/lightdash/lightdash/commit/aa5c10432d4a538682f69d9754b76f3863981106))
+
 # [0.489.0](https://github.com/lightdash/lightdash/compare/0.488.0...0.489.0) (2023-03-28)
 
 
