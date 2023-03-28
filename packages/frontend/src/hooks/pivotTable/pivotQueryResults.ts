@@ -15,6 +15,9 @@ type PivotQueryResultsArgs = {
 };
 
 const setKeyIfNotExists = (obj: any, keys: string[], value: any): boolean => {
+    if (keys.length === 0) {
+        return false;
+    }
     const [key, ...rest] = keys;
     if (rest.length === 0) {
         if (obj[key] === undefined) {
@@ -30,6 +33,9 @@ const setKeyIfNotExists = (obj: any, keys: string[], value: any): boolean => {
 };
 
 const getByKey = (obj: any, keys: string[]): any => {
+    if (keys.length === 0) {
+        return undefined;
+    }
     const [key, ...rest] = keys;
     if (rest.length === 0) {
         return obj[key];
@@ -74,59 +80,51 @@ export const pivotQueryResults = ({
 
     const N_ROWS = rows.length;
 
+    // For each row in the result set, check the header and index dimensions
+    // For every row in the results, compute the index and header values to determine the shape o
     // For every row in the results, check the index dimensions to compute the length of the new result set
     const indexValues: Value[][] = [];
     const headerValuesT: Value[][] = [];
-    let dimensionRowIndices = {};
-    let dimensionColIndices = {};
+    let rowIndices = {};
+    let columnIndices = {};
     let rowCount = 0;
     let columnCount = 0;
     for (let nRow = 0; nRow < N_ROWS; nRow++) {
         const row = rows[nRow];
 
-        // Compute index and header values in pivot table
-        const indexDimensionValues = indexDimensions.map((d) => row[d].value);
-        const headerDimensionValues = headerDimensions.map((d) => row[d].value);
+        for (let nMetric = 0; nMetric < metrics.length; nMetric++) {
+            const metric = metrics[nMetric];
+            const indexRowValues = [
+                ...indexDimensions.map((d) => row[d].value),
+                ...(pivotConfig.metricsAsRows ? [metric] : []),
+            ];
+            const headerRowValues = [
+                ...headerDimensions.map((d) => row[d].value),
+                ...(pivotConfig.metricsAsRows ? [] : [metric]),
+            ];
 
-        // Write the index values
-        if (
-            setKeyIfNotExists(
-                dimensionRowIndices,
-                indexDimensionValues.map((r) => r.raw),
-                rowCount,
-            )
-        ) {
-            rowCount++;
-            if (!pivotConfig.metricsAsRows) {
-                indexValues.push(indexDimensionValues);
-            } else {
-                for (let nMetric = 0; nMetric < metrics.length; nMetric++) {
-                    indexValues.push([
-                        ...indexDimensionValues,
-                        metrics[nMetric],
-                    ]);
-                }
+            // Write the index values
+            if (
+                setKeyIfNotExists(
+                    rowIndices,
+                    indexRowValues.map((r) => r.raw),
+                    rowCount,
+                )
+            ) {
+                rowCount++;
+                indexValues.push(indexRowValues);
             }
-        }
 
-        // Write the header values
-        if (
-            setKeyIfNotExists(
-                dimensionColIndices,
-                headerDimensionValues.map((r) => r.raw),
-                columnCount,
-            )
-        ) {
-            columnCount++;
-            if (!pivotConfig.metricsAsRows) {
-                for (let nMetric = 0; nMetric < metrics.length; nMetric++) {
-                    headerValuesT.push([
-                        ...headerDimensionValues,
-                        metrics[nMetric],
-                    ]);
-                }
-            } else {
-                headerValuesT.push(headerDimensionValues);
+            // Write the header values
+            if (
+                setKeyIfNotExists(
+                    columnIndices,
+                    headerRowValues.map((r) => r.raw),
+                    columnCount,
+                )
+            ) {
+                columnCount++;
+                headerValuesT.push(headerRowValues);
             }
         }
     }
@@ -135,11 +133,10 @@ export const pivotQueryResults = ({
         headerValuesT.map((row) => row[colIndex]),
     );
 
+    // Compute the size of the data values
+    const N_DATA_ROWS = rowCount;
+    const N_DATA_COLUMNS = columnCount;
     // Compute the data values
-    const N_DATA_ROWS =
-        rowCount * (pivotConfig.metricsAsRows ? metrics.length : 1);
-    const N_DATA_COLUMNS =
-        columnCount * (pivotConfig.metricsAsRows ? 1 : metrics.length);
     const dataValues: Value[][] = [...Array(N_DATA_ROWS)].map((e) =>
         Array(N_DATA_COLUMNS).fill(null),
     );
@@ -147,26 +144,20 @@ export const pivotQueryResults = ({
     // Compute pivoted data
     for (let nRow = 0; nRow < N_ROWS; nRow++) {
         const row = rows[nRow];
-        let dimRowIndex = getByKey(
-            dimensionRowIndices,
-            indexDimensions.map((d) => row[d].value.raw),
-        );
-        let dimColIndex = getByKey(
-            dimensionColIndices,
-            headerDimensions.map((d) => row[d].value.raw),
-        );
         for (let nMetric = 0; nMetric < metrics.length; nMetric++) {
             const metric = metrics[nMetric];
             const value = row[metric.raw].value;
-            if (pivotConfig.metricsAsRows) {
-                dataValues[dimRowIndex * metrics.length + nMetric][
-                    dimColIndex
-                ] = value;
-            } else {
-                dataValues[dimRowIndex][
-                    dimColIndex * metrics.length + nMetric
-                ] = value;
-            }
+            const rowKeys = [
+                ...indexDimensions.map((d) => row[d].value.raw),
+                ...(pivotConfig.metricsAsRows ? [metric.raw] : []),
+            ];
+            const columnKeys = [
+                ...headerDimensions.map((d) => row[d].value.raw),
+                ...(pivotConfig.metricsAsRows ? [] : [metric.raw]),
+            ];
+            const rowIndex = getByKey(rowIndices, rowKeys);
+            const columnIndex = getByKey(columnIndices, columnKeys);
+            dataValues[rowIndex][columnIndex] = value;
         }
     }
 

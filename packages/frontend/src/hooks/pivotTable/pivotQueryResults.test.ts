@@ -1,8 +1,148 @@
 import { pivotQueryResults } from './pivotQueryResults';
-import { METRIC_QUERY, RESULT_ROWS } from './pivotQueryResults.mock';
+import {
+    METRIC_QUERY_1DIM_2METRIC,
+    METRIC_QUERY_2DIM_2METRIC,
+    RESULT_ROWS_1DIM_2METRIC,
+    RESULT_ROWS_2DIM_2METRIC,
+} from './pivotQueryResults.mock';
 
 describe('Should pivot data', () => {
-    it('with metrics as columns and one pivot dimension', () => {
+    it.skip('with 1 dimension, pivoted, metrics as cols (everything on columns)', () => {
+        const pivotConfig = {
+            pivotDimensions: ['page'],
+            metricsAsRows: false,
+        };
+        const expected = {
+            headerValueTypes: [
+                { type: 'dimension', field: 'page' },
+                { type: 'metrics' },
+            ],
+            headerValues: [
+                [
+                    { raw: '/home', formatted: '/home' },
+                    { raw: '/home', formatted: '/home' },
+                    { raw: '/about', formatted: '/about' },
+                    { raw: '/about', formatted: '/about' },
+                    { raw: '/first-post', formatted: '/first-post' },
+                    { raw: '/first-post', formatted: '/first-post' },
+                ],
+                [
+                    { raw: 'views', formatted: 'views' },
+                    { raw: 'devices', formatted: 'devices' },
+                    { raw: 'views', formatted: 'views' },
+                    { raw: 'devices', formatted: 'devices' },
+                    { raw: 'views', formatted: 'views' },
+                    { raw: 'devices', formatted: 'devices' },
+                ],
+            ],
+            indexValueTypes: [],
+            indexValues: [],
+            dataColumns: 6,
+            dataValues: [
+                [
+                    { raw: 6, formatted: '6.0' },
+                    { raw: 7, formatted: '7.0' },
+                    { raw: 12, formatted: '12.0' },
+                    { raw: 0, formatted: '0.0' },
+                    { raw: 11, formatted: '11.0' },
+                    { raw: 1, formatted: '1.0' },
+                ],
+            ],
+        };
+        const result = pivotQueryResults({
+            pivotConfig,
+            metricQuery: METRIC_QUERY_1DIM_2METRIC,
+            rows: RESULT_ROWS_1DIM_2METRIC,
+        });
+        expect(result).toEqual(expected);
+    });
+    it('with 1 dimension, metrics as cols', () => {
+        const pivotConfig = {
+            pivotDimensions: [],
+            metricsAsRows: false,
+        };
+        const expected = {
+            headerValueTypes: [{ type: 'metrics' }],
+            headerValues: [
+                [
+                    { raw: 'views', formatted: 'views' },
+                    { raw: 'devices', formatted: 'devices' },
+                ],
+            ],
+            indexValueTypes: [{ type: 'dimension', field: 'page' }],
+            indexValues: [
+                [{ raw: '/home', formatted: '/home' }],
+                [{ raw: '/about', formatted: '/about' }],
+                [{ raw: '/first-post', formatted: '/first-post' }],
+            ],
+            dataColumnCount: 2,
+            dimensions: {},
+            metrics: {},
+            dataValues: [
+                [
+                    { raw: 6, formatted: '6.0' },
+                    { raw: 7, formatted: '7.0' },
+                ],
+                [
+                    { raw: 12, formatted: '12.0' },
+                    { raw: 0, formatted: '0.0' },
+                ],
+                [
+                    { raw: 11, formatted: '11.0' },
+                    { raw: 1, formatted: '1.0' },
+                ],
+            ],
+        };
+        const result = pivotQueryResults({
+            pivotConfig,
+            metricQuery: METRIC_QUERY_1DIM_2METRIC,
+            rows: RESULT_ROWS_1DIM_2METRIC,
+        });
+        expect(result).toEqual(expected);
+    });
+    it('with 1 dimension, 1 pivoted, metrics as rows', () => {
+        const pivotConfig = {
+            pivotDimensions: ['page'],
+            metricsAsRows: true,
+        };
+        const expected = {
+            headerValueTypes: [{ type: 'dimension', field: 'page' }],
+            headerValues: [
+                [
+                    { raw: '/home', formatted: '/home' },
+                    { raw: '/about', formatted: '/about' },
+                    { raw: '/first-post', formatted: '/first-post' },
+                ],
+            ],
+            indexValueTypes: [{ type: 'metrics' }],
+            indexValues: [
+                [{ raw: 'views', formatted: 'views' }],
+                [{ raw: 'devices', formatted: 'devices' }],
+            ],
+            dataColumnCount: 3,
+            metrics: {},
+            dimensions: {},
+            dataValues: [
+                [
+                    { raw: 6, formatted: '6.0' },
+                    { raw: 12, formatted: '12.0' },
+                    { raw: 11, formatted: '11.0' },
+                ],
+                [
+                    { raw: 7, formatted: '7.0' },
+                    { raw: 0, formatted: '0.0' },
+                    { raw: 1, formatted: '1.0' },
+                ],
+            ],
+        };
+        const result = pivotQueryResults({
+            pivotConfig,
+            metricQuery: METRIC_QUERY_1DIM_2METRIC,
+            rows: RESULT_ROWS_1DIM_2METRIC,
+        });
+        expect(result).toEqual(expected);
+    });
+    it('with 2 dimensions, 1 pivoted, metrics as columns', () => {
         const pivotConfig = {
             pivotDimensions: ['site'],
             metricsAsRows: false,
@@ -58,12 +198,12 @@ describe('Should pivot data', () => {
         };
         const result = pivotQueryResults({
             pivotConfig,
-            metricQuery: METRIC_QUERY,
-            rows: RESULT_ROWS,
+            metricQuery: METRIC_QUERY_2DIM_2METRIC,
+            rows: RESULT_ROWS_2DIM_2METRIC,
         });
         expect(result).toEqual(expected);
     });
-    it('with metrics as rows and one pivot dimension', () => {
+    it('with 2 dimensions, 1 pivoted, metrics as rows', () => {
         const pivotConfig = {
             pivotDimensions: ['site'],
             metricsAsRows: true,
@@ -132,8 +272,8 @@ describe('Should pivot data', () => {
         };
         const results = pivotQueryResults({
             pivotConfig,
-            metricQuery: METRIC_QUERY,
-            rows: RESULT_ROWS,
+            metricQuery: METRIC_QUERY_2DIM_2METRIC,
+            rows: RESULT_ROWS_2DIM_2METRIC,
         });
         expect(results).toStrictEqual(expected);
     });
