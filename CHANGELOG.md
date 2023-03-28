@@ -1,3 +1,10 @@
+# [0.490.0](https://github.com/lightdash/lightdash/compare/0.489.1...0.490.0) (2023-03-28)
+
+
+### Features
+
+* use dbt 1.4.1 on server ([#4874](https://github.com/lightdash/lightdash/issues/4874)) ([8a9affd](https://github.com/lightdash/lightdash/commit/8a9affd1d1b5b6b91f6077c3f7656dc30bffe282))
+
 ## [0.489.1](https://github.com/lightdash/lightdash/compare/0.489.0...0.489.1) (2023-03-28)
 
 
