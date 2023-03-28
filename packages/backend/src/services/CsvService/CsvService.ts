@@ -1,8 +1,10 @@
+import { subject } from '@casl/ability';
 import {
     ApiQueryResults,
     ApiSqlQueryResults,
     DimensionType,
     Field,
+    ForbiddenError,
     formatItemValue,
     formatRows,
     friendlyName,
@@ -18,6 +20,8 @@ import {
     SessionUser,
     TableCalculation,
 } from '@lightdash/common';
+
+import { Session } from '@sentry/types';
 import { stringify } from 'csv-stringify';
 import * as fs from 'fs';
 import * as fsPromise from 'fs/promises';
@@ -339,5 +343,220 @@ export class CsvService {
             ),
         );
         return csvUrls;
+    }
+
+    async downloadSqlCsv({
+        user,
+        projectUuid,
+        sql,
+        customLabels,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        sql: string;
+        customLabels: Record<string, string> | undefined;
+    }) {
+        const jobId = nanoid();
+        const analyticsProperties: DownloadCsv['properties'] = {
+            jobId,
+            userId: user.userUuid,
+            organizationId: user.organizationUuid,
+            projectId: projectUuid,
+            tableId: 'sql_runner',
+            values: 'raw',
+            context: 'sql runner',
+            fileType: 'csv',
+            storage: this.s3Service.isEnabled() ? 's3' : 'local',
+        };
+        try {
+            const { organizationUuid } = user;
+
+            if (
+                user.ability.cannot(
+                    'manage',
+                    subject('ExportCsv', { organizationUuid, projectUuid }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+
+            analytics.track({
+                event: 'download_results.started',
+                userId: user.userUuid,
+                properties: {
+                    ...analyticsProperties,
+                },
+            });
+
+            const results: ApiSqlQueryResults =
+                await this.projectService.runSqlQuery(user!, projectUuid, sql);
+
+            const csvContent = await CsvService.convertSqlQueryResultsToCsv(
+                results,
+                customLabels,
+            );
+
+            const fileId = `csv-${jobId}.csv`;
+
+            let fileUrl;
+            try {
+                fileUrl = await this.s3Service.uploadCsv(csvContent, fileId);
+            } catch (e) {
+                // Can't store file in S3, storing locally
+                await fsPromise.writeFile(
+                    `/tmp/${fileId}`,
+                    csvContent,
+                    'utf-8',
+                );
+                fileUrl = `${lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/csv/${fileId}`;
+            }
+
+            analytics.track({
+                event: 'download_results.completed',
+                userId: user.userUuid,
+                properties: {
+                    ...analyticsProperties,
+                    numRows: results.rows.length,
+                    numColumns: Object.keys(results.fields).length,
+                },
+            });
+
+            return fileUrl;
+        } catch (e) {
+            analytics.track({
+                event: 'download_results.error',
+                userId: user.userUuid,
+                properties: {
+                    ...analyticsProperties,
+                    error: `${e}`,
+                },
+            });
+            throw e;
+        }
+    }
+
+    async downloadCsv({
+        user,
+        projectUuid,
+        exploreId,
+        metricQuery,
+        onlyRaw,
+        csvLimit,
+        showTableNames,
+        customLabels,
+        columnOrder,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        exploreId: string;
+        metricQuery: MetricQuery;
+        onlyRaw: boolean;
+        csvLimit: number | null | undefined;
+        showTableNames: boolean;
+        customLabels: Record<string, string> | undefined;
+        columnOrder: string[];
+    }) {
+        const jobId = nanoid();
+        const { organizationUuid } = user;
+
+        const baseAnalyticsProperties: DownloadCsv['properties'] = {
+            jobId,
+            userId: user.userUuid,
+            organizationId: organizationUuid,
+            projectId: projectUuid,
+            fileType: 'csv',
+            storage: this.s3Service.isEnabled() ? 's3' : 'local',
+        };
+        try {
+            if (
+                user.ability.cannot(
+                    'manage',
+                    subject('ExportCsv', { organizationUuid, projectUuid }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+
+            const numberColumns =
+                metricQuery.dimensions.length +
+                metricQuery.metrics.length +
+                metricQuery.tableCalculations.length;
+            const analyticsProperties: DownloadCsv['properties'] = {
+                ...baseAnalyticsProperties,
+                tableId: exploreId,
+                values: onlyRaw ? 'raw' : 'formatted',
+                context: 'results',
+                limit: parseAnalyticsLimit(csvLimit),
+
+                numColumns: numberColumns,
+            };
+            analytics.track({
+                event: 'download_results.started',
+                userId: user.userUuid!,
+                properties: analyticsProperties,
+            });
+
+            const rows = await this.projectService.runQuery(
+                user!,
+                metricQuery,
+                projectUuid,
+                exploreId,
+                csvLimit,
+            );
+            const numberRows = rows.length;
+
+            const explore = await this.projectService.getExplore(
+                user,
+                projectUuid,
+                exploreId,
+            );
+            const itemMap = getItemMap(
+                explore,
+                metricQuery.additionalMetrics,
+                metricQuery.tableCalculations,
+            );
+
+            const fileId = await CsvService.convertRowsToCsv(
+                rows,
+                onlyRaw,
+                metricQuery,
+                itemMap,
+                showTableNames,
+                customLabels,
+                columnOrder || [],
+            );
+
+            let fileUrl;
+            try {
+                const csvContent = fs.createReadStream(`/tmp/${fileId}`);
+                fileUrl = await this.s3Service.uploadCsv(csvContent, fileId);
+
+                await fsPromise.unlink(`/tmp/${fileId}`);
+            } catch (e) {
+                fileUrl = `${lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/csv/${fileId}`;
+            }
+
+            analytics.track({
+                event: 'download_results.completed',
+                userId: user.userUuid,
+                properties: {
+                    ...analyticsProperties,
+                    numRows: numberRows,
+                },
+            });
+
+            return fileUrl;
+        } catch (e) {
+            analytics.track({
+                event: 'download_results.error',
+                userId: user.userUuid,
+                properties: {
+                    ...baseAnalyticsProperties,
+                    error: `${e}`,
+                },
+            });
+
+            throw e;
+        }
     }
 }
