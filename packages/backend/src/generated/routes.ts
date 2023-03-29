@@ -234,7 +234,14 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     OrganizationMemberRole: {
         dataType: 'refEnum',
-        enums: ['member', 'viewer', 'editor', 'admin'],
+        enums: [
+            'member',
+            'viewer',
+            'interactive_viewer',
+            'editor',
+            'developer',
+            'admin',
+        ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     OrganizationMemberProfile: {

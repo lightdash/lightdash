@@ -149,13 +149,19 @@ const relevantOrgRolesForProjectRole: Record<
     [ProjectMemberRole.VIEWER]: [
         OrganizationMemberRole.INTERACTIVE_VIEWER,
         OrganizationMemberRole.EDITOR,
+        OrganizationMemberRole.DEVELOPER,
         OrganizationMemberRole.ADMIN,
     ],
     [ProjectMemberRole.INTERACTIVE_VIEWER]: [
         OrganizationMemberRole.EDITOR,
+        OrganizationMemberRole.DEVELOPER,
         OrganizationMemberRole.ADMIN,
     ],
-    [ProjectMemberRole.EDITOR]: [OrganizationMemberRole.ADMIN],
+    [ProjectMemberRole.EDITOR]: [
+        OrganizationMemberRole.DEVELOPER,
+        OrganizationMemberRole.ADMIN,
+    ],
+    [ProjectMemberRole.DEVELOPER]: [OrganizationMemberRole.ADMIN],
     [ProjectMemberRole.ADMIN]: [],
 };
 

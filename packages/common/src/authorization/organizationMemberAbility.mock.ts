@@ -25,6 +25,10 @@ export const ORGANIZATION_EDITOR: OrganizationMemberProfile = {
     ...ORGANIZATION_MEMBER,
     role: OrganizationMemberRole.EDITOR,
 };
+export const ORGANIZATION_DEVELOPER: OrganizationMemberProfile = {
+    ...ORGANIZATION_MEMBER,
+    role: OrganizationMemberRole.DEVELOPER,
+};
 
 export const ORGANIZATION_ADMIN: OrganizationMemberProfile = {
     ...ORGANIZATION_MEMBER,

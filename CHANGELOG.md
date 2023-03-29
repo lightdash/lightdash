@@ -1,3 +1,31 @@
+# [0.491.0](https://github.com/lightdash/lightdash/compare/0.490.0...0.491.0) (2023-03-29)
+
+
+### Features
+
+* developer role ([#4918](https://github.com/lightdash/lightdash/issues/4918)) ([1d0d653](https://github.com/lightdash/lightdash/commit/1d0d6530c60b8ab23cffd9d3a4a14066402a336f))
+
+# [0.490.0](https://github.com/lightdash/lightdash/compare/0.489.1...0.490.0) (2023-03-28)
+
+
+### Features
+
+* use dbt 1.4.1 on server ([#4874](https://github.com/lightdash/lightdash/issues/4874)) ([8a9affd](https://github.com/lightdash/lightdash/commit/8a9affd1d1b5b6b91f6077c3f7656dc30bffe282))
+
+## [0.489.1](https://github.com/lightdash/lightdash/compare/0.489.0...0.489.1) (2023-03-28)
+
+
+### Bug Fixes
+
+* interactive viewer migration ([#4941](https://github.com/lightdash/lightdash/issues/4941)) ([aa5c104](https://github.com/lightdash/lightdash/commit/aa5c10432d4a538682f69d9754b76f3863981106))
+
+# [0.489.0](https://github.com/lightdash/lightdash/compare/0.488.0...0.489.0) (2023-03-28)
+
+
+### Features
+
+* enable copy paste values on is equal to and includes filter ([#4899](https://github.com/lightdash/lightdash/issues/4899)) ([ff1ca33](https://github.com/lightdash/lightdash/commit/ff1ca33e0061ef0f6ee5297427cc06cccf263449))
+
 # [0.488.0](https://github.com/lightdash/lightdash/compare/0.487.0...0.488.0) (2023-03-28)
 
 
