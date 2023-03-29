@@ -2913,18 +2913,18 @@
   dependencies:
     defer-to-connect "^1.0.1"
 
-"@tabler/icons-react@^2.1.1":
-  version "2.1.1"
-  resolved "https://registry.yarnpkg.com/@tabler/icons-react/-/icons-react-2.1.1.tgz#6080834deec9ba472535821de1dd97c79cc08c7e"
-  integrity sha512-nFwt6xT1LQQV+sHobeHEI8ccnRYVp55u5CPLUVCUMqx1rg4EvTFus6pRCKRWsJeIulRaL63ASlgke0tRotbCiw==
+"@tabler/icons-react@^2.11.0":
+  version "2.12.0"
+  resolved "https://registry.yarnpkg.com/@tabler/icons-react/-/icons-react-2.12.0.tgz#a1f317de5b4e4c50fde31ddd09a42f40d7a48a0c"
+  integrity sha512-5O26fB0sigZ9UaDnMTPsht8clU6KYyClvTwhLPud0ZjeTnOMzGhe2Yx5qvfhDkCBNQqz+hIV8kBUe7fvNGv1Ng==
   dependencies:
-    "@tabler/icons" "2.1.1"
+    "@tabler/icons" "2.12.0"
     prop-types "^15.7.2"
 
-"@tabler/icons@2.1.1":
-  version "2.1.1"
-  resolved "https://registry.yarnpkg.com/@tabler/icons/-/icons-2.1.1.tgz#412055a3635f629dadf5c2aa11f88784bb517e78"
-  integrity sha512-mg3ggGdTz0KYnombTj3Ur1RsLGMF5j0f+SxLvVBNlt+a4Qb4Ml++7NHWy7pBi6RWpqyroywwkvBeMutnJu9HfQ==
+"@tabler/icons@2.12.0":
+  version "2.12.0"
+  resolved "https://registry.yarnpkg.com/@tabler/icons/-/icons-2.12.0.tgz#cb4300ec52677b30f9f36c351dcb54cb4fc2ee63"
+  integrity sha512-PiYD2zUOewNAtfJKU9tBZfyv3NeFlTlUe5LSGTTplvBcM0iuHrNVnd30+HIcUGJQhi3Uf0Ng9FRi/kPqm/q6ZA==
 
 "@tanstack/match-sorter-utils@^8.1.1":
   version "8.1.1"
