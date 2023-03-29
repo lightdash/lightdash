@@ -1,5 +1,9 @@
 import * as fs from 'fs/promises';
-import { dashboardModel, savedChartModel } from '../../models/models';
+import {
+    dashboardModel,
+    savedChartModel,
+    userModel,
+} from '../../models/models';
 import { projectService, s3Service } from '../services';
 import { CsvService } from './CsvService';
 import { itemMap, metricQuery } from './CsvService.mock';
@@ -16,6 +20,7 @@ jest.mock('../services', () => ({
 
 describe('Csv service', () => {
     const csvService = new CsvService({
+        userModel,
         projectService,
         s3Service,
         savedChartModel,

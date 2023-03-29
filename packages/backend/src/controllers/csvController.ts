@@ -27,7 +27,7 @@ export class CsvController extends Controller {
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('{jobId}')
-    @OperationId('getScheduler')
+    @OperationId('getCsvUrl')
     async get(
         @Body() body: { token: string },
         @Path() jobId: string,

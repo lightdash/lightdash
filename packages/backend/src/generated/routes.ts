@@ -60,7 +60,8 @@ const models: TsoaRoute.Models = {
                 results: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        fileUrl: { dataType: 'string', required: true },
+                        status: { dataType: 'string', required: true },
+                        url: { dataType: 'string', required: true },
                     },
                     required: true,
                 },

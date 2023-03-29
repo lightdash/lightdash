@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    ApiQueryResults,
     ApiSqlQueryResults,
     DimensionType,
     DownloadCsvPayload,
@@ -8,7 +7,6 @@ import {
     Field,
     ForbiddenError,
     formatItemValue,
-    formatRows,
     friendlyName,
     getCustomLabelsFromTableConfig,
     getItemLabel,
@@ -23,7 +21,6 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 
-import { Session } from '@sentry/types';
 import { stringify } from 'csv-stringify';
 import * as fs from 'fs';
 import * as fsPromise from 'fs/promises';
