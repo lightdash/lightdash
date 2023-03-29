@@ -1,5 +1,11 @@
 import { ChartType } from '@lightdash/common';
 import { FC, memo } from 'react';
+import { pivotQueryResults } from '../../hooks/pivotTable/pivotQueryResults';
+import {
+    METRIC_QUERY_2DIM_2METRIC,
+    RESULT_ROWS_2DIM_2METRIC,
+} from '../../hooks/pivotTable/pivotQueryResults.mock';
+import PivotTable from '../../pages/PivotingPOC/PivotTable';
 import SimpleChart from '../SimpleChart';
 import SimpleStatistic from '../SimpleStatistic';
 import SimpleTable from '../SimpleTable';
@@ -22,7 +28,7 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
         className,
         ...props
     }) => {
-        const { chartType, minimal } = useVisualizationContext();
+        const { chartType, minimal, tableConfig } = useVisualizationContext();
 
         switch (chartType) {
             case ChartType.BIG_NUMBER:
@@ -37,18 +43,31 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
                     />
                 );
             case ChartType.TABLE:
-                return (
-                    <SimpleTable
-                        minimal={minimal}
-                        tileUuid={tileUuid}
-                        isDashboard={!!isDashboard}
-                        className={className}
-                        $shouldExpand
-                        $padding={props.$padding}
-                        data-testid={props['data-testid']}
-                        {...props}
-                    />
-                );
+                if (tableConfig.metricsAsRows) {
+                    const data = pivotQueryResults({
+                        pivotConfig: {
+                            pivotDimensions: ['site'],
+                            metricsAsRows: true,
+                        },
+                        metricQuery: METRIC_QUERY_2DIM_2METRIC,
+                        rows: RESULT_ROWS_2DIM_2METRIC,
+                    });
+
+                    return <PivotTable data={data} />;
+                } else {
+                    return (
+                        <SimpleTable
+                            minimal={minimal}
+                            tileUuid={tileUuid}
+                            isDashboard={!!isDashboard}
+                            className={className}
+                            $shouldExpand
+                            $padding={props.$padding}
+                            data-testid={props['data-testid']}
+                            {...props}
+                        />
+                    );
+                }
             case ChartType.CARTESIAN:
                 return (
                     <SimpleChart
