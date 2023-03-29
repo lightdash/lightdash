@@ -29,15 +29,19 @@ type PivotTableProps = TableProps &
         data: PivotData;
     };
 
-const PivotTable: FC<PivotTableProps> = ({ data, ...tableProps }) => {
-    const { classes } = useStyles();
+const PivotTable: FC<PivotTableProps> = ({
+    data,
+    className,
+    ...tableProps
+}) => {
+    const { cx, classes } = useStyles();
 
     return (
         <Table
             withBorder
             withColumnBorders
             highlightOnHover
-            className={classes.table}
+            className={cx(classes.table, className)}
             w="xs"
             {...tableProps}
         >
