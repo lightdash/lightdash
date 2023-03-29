@@ -3,6 +3,7 @@ import { ProjectMemberProfile } from '../types/projectMemberProfile';
 import { projectMemberAbilities } from './projectMemberAbility';
 import {
     PROJECT_ADMIN,
+    PROJECT_DEVELOPER,
     PROJECT_EDITOR,
     PROJECT_INTERACTIVE_VIEWER,
     PROJECT_VIEWER,
@@ -116,9 +117,6 @@ describe('Project member permissions', () => {
             expect(
                 ability.can('manage', subject('Job', { projectUuid })),
             ).toEqual(true);
-            expect(
-                ability.can('manage', subject('SqlRunner', { projectUuid })),
-            ).toEqual(true);
         });
         it('cannot manage projects', () => {
             expect(
@@ -130,8 +128,25 @@ describe('Project member permissions', () => {
                 ability.can('manage', subject('ExportCsv', { projectUuid })),
             ).toEqual(true);
         });
+
+        it('cannot use SQL runner', () => {
+            expect(
+                ability.can('manage', subject('SqlRunner', { projectUuid })),
+            ).toEqual(false);
+        });
     });
 
+    describe('when user is an editor', () => {
+        beforeEach(() => {
+            ability = defineAbilityForProjectMember(PROJECT_DEVELOPER);
+        });
+
+        it('can use SQL runner', () => {
+            expect(
+                ability.can('manage', subject('SqlRunner', { projectUuid })),
+            ).toEqual(true);
+        });
+    });
     describe('when user is a viewer', () => {
         beforeEach(() => {
             ability = defineAbilityForProjectMember(PROJECT_VIEWER);

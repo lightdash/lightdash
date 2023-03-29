@@ -1,12 +1,9 @@
-import { subject } from '@casl/ability';
 import {
     ApiCompiledQueryResults,
     ApiExploreResults,
     ApiExploresResults,
     ApiQueryResults,
     ApiSqlQueryResults,
-    ForbiddenError,
-    getItemMap,
     getRequestMethod,
     LightdashRequestMethodHeader,
     MetricQuery,
@@ -15,34 +12,21 @@ import {
     TablesConfiguration,
 } from '@lightdash/common';
 import express from 'express';
-import * as fs from 'fs';
-import * as fsPromise from 'fs/promises';
 
-import { nanoid } from 'nanoid';
 import path from 'path';
-import { analytics } from '../analytics/client';
-import {
-    DownloadCsv,
-    LightdashAnalytics,
-    parseAnalyticsLimit,
-} from '../analytics/LightdashAnalytics';
-import { lightdashConfig } from '../config/lightdashConfig';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
 } from '../controllers/authentication';
-import Logger from '../logger';
-import { CsvService } from '../services/CsvService/CsvService';
 import {
+    csvService,
     dashboardService,
     projectService,
-    s3Service,
     savedChartsService,
     searchService,
     spaceService,
 } from '../services/services';
-import { wrapSentryTransaction } from '../utils';
 
 const { Readable } = require('stream');
 
@@ -204,37 +188,18 @@ projectRouter.post(
     allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
-        const jobId = nanoid();
-
-        const baseAnalyticsProperties: DownloadCsv['properties'] = {
-            jobId,
-            userId: req.user?.userUuid,
-            organizationId: req.user?.organizationUuid,
-            projectId: req.params.projectUuid,
-            fileType: 'csv',
-            storage: s3Service.isEnabled() ? 's3' : 'local',
-        };
+        const { body } = req;
 
         try {
-            const { organizationUuid } = req.user!;
-            const { projectUuid } = req.params;
-            if (
-                req.user!.ability.cannot(
-                    'manage',
-                    subject('ExportCsv', { organizationUuid, projectUuid }),
-                )
-            ) {
-                throw new ForbiddenError();
-            }
-
-            const { body } = req;
             const {
-                csvLimit,
                 onlyRaw,
+                csvLimit,
                 showTableNames,
                 customLabels,
                 columnOrder,
             } = body;
+            const { projectUuid, exploreId } = req.params;
+
             const metricQuery: MetricQuery = {
                 dimensions: body.dimensions,
                 metrics: body.metrics,
@@ -245,74 +210,17 @@ projectRouter.post(
                 additionalMetrics: body.additionalMetrics,
             };
 
-            const numberColumns =
-                metricQuery.dimensions.length +
-                metricQuery.metrics.length +
-                metricQuery.tableCalculations.length;
-            const analyticsProperties: DownloadCsv['properties'] = {
-                ...baseAnalyticsProperties,
-                tableId: req.params.exploreId,
-                values: onlyRaw ? 'raw' : 'formatted',
-                context: 'results',
-                limit: parseAnalyticsLimit(csvLimit),
-
-                numColumns: numberColumns,
-            };
-            analytics.track({
-                event: 'download_results.started',
-                userId: req.user?.userUuid!,
-                properties: analyticsProperties,
-            });
-
-            const rows = await projectService.runQuery(
-                req.user!,
+            const fileUrl = await csvService.downloadCsv({
+                user: req.user!,
+                projectUuid,
+                exploreId,
                 metricQuery,
-                req.params.projectUuid,
-                req.params.exploreId,
-                csvLimit,
-            );
-            const numberRows = rows.length;
-
-            const explore = await projectService.getExplore(
-                req.user!,
-                req.params.projectUuid,
-                req.params.exploreId,
-            );
-            const itemMap = getItemMap(
-                explore,
-                metricQuery.additionalMetrics,
-                metricQuery.tableCalculations,
-            );
-
-            const fileId = await CsvService.convertRowsToCsv(
-                rows,
                 onlyRaw,
-                metricQuery,
-                itemMap,
+                csvLimit,
                 showTableNames,
                 customLabels,
-                columnOrder || [],
-            );
-
-            let fileUrl;
-            try {
-                const csvContent = fs.createReadStream(`/tmp/${fileId}`);
-                fileUrl = await s3Service.uploadCsv(csvContent, fileId);
-
-                await fsPromise.unlink(`/tmp/${fileId}`);
-            } catch (e) {
-                fileUrl = `${lightdashConfig.siteUrl}/api/v1/projects/${req.params.projectUuid}/csv/${fileId}`;
-            }
-
-            analytics.track({
-                event: 'download_results.completed',
-                userId: req.user?.userUuid!,
-                properties: {
-                    ...analyticsProperties,
-                    numRows: numberRows,
-                },
+                columnOrder,
             });
-
             res.json({
                 status: 'ok',
                 results: {
@@ -320,15 +228,6 @@ projectRouter.post(
                 },
             });
         } catch (e) {
-            analytics.track({
-                event: 'download_results.error',
-                userId: req.user?.userUuid!,
-                properties: {
-                    ...baseAnalyticsProperties,
-                    error: `${e}`,
-                },
-            });
-
             next(e);
         }
     },
@@ -707,77 +606,16 @@ projectRouter.post(
     allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
-        const jobId = nanoid();
-
-        const analyticsProperties: DownloadCsv['properties'] = {
-            jobId,
-            userId: req.user?.userUuid,
-            organizationId: req.user?.organizationUuid,
-            projectId: req.params.projectUuid,
-            tableId: 'sql_runner',
-            values: 'raw',
-            context: 'sql runner',
-            fileType: 'csv',
-            storage: s3Service.isEnabled() ? 's3' : 'local',
-        };
         try {
-            const { organizationUuid } = req.user!;
+            const { customLabels, sql } = req.body;
             const { projectUuid } = req.params;
 
-            if (
-                req.user!.ability.cannot(
-                    'manage',
-                    subject('ExportCsv', { organizationUuid, projectUuid }),
-                )
-            ) {
-                throw new ForbiddenError();
-            }
-
-            analytics.track({
-                event: 'download_results.started',
-                userId: req.user?.userUuid!,
-                properties: {
-                    ...analyticsProperties,
-                },
+            const fileUrl = await csvService.downloadSqlCsv({
+                user: req.user!,
+                projectUuid,
+                sql,
+                customLabels,
             });
-
-            const results: ApiSqlQueryResults =
-                await projectService.runSqlQuery(
-                    req.user!,
-                    req.params.projectUuid,
-                    req.body.sql,
-                );
-
-            const csvContent = await CsvService.convertSqlQueryResultsToCsv(
-                results,
-                req.body.customLabels,
-            );
-
-            const fileId = `csv-${jobId}.csv`;
-
-            let fileUrl;
-            try {
-                fileUrl = await s3Service.uploadCsv(csvContent, fileId);
-            } catch (e) {
-                // Can't store file in S3, storing locally
-                await fsPromise.writeFile(
-                    `/tmp/${fileId}`,
-                    csvContent,
-                    'utf-8',
-                );
-                fileUrl = `${lightdashConfig.siteUrl}/api/v1/projects/${req.params.projectUuid}/csv/${fileId}`;
-            }
-
-            analytics.track({
-                event: 'download_results.completed',
-                userId: req.user?.userUuid!,
-                properties: {
-                    ...analyticsProperties,
-                    numRows: results.rows.length,
-                    numColumns: Object.keys(results.fields).length,
-                },
-            });
-
             res.json({
                 status: 'ok',
                 results: {
@@ -785,15 +623,6 @@ projectRouter.post(
                 },
             });
         } catch (e) {
-            analytics.track({
-                event: 'download_results.error',
-                userId: req.user?.userUuid!,
-                properties: {
-                    ...analyticsProperties,
-                    error: `${e}`,
-                },
-            });
-
             next(e);
         }
     },

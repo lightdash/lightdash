@@ -21,7 +21,10 @@ export const PROJECT_EDITOR: ProjectMemberProfile = {
     ...PROJECT_VIEWER,
     role: ProjectMemberRole.EDITOR,
 };
-
+export const PROJECT_DEVELOPER: ProjectMemberProfile = {
+    ...PROJECT_VIEWER,
+    role: ProjectMemberRole.DEVELOPER,
+};
 export const PROJECT_ADMIN: ProjectMemberProfile = {
     ...PROJECT_VIEWER,
     role: ProjectMemberRole.ADMIN,
