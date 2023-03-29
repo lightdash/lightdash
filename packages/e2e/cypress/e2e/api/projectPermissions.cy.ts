@@ -349,7 +349,7 @@ describe('Lightdash API tests for member user with editor project permissions', 
             expect(resp.body).to.have.property('status', 'ok');
         });
     });
-    it('Should get success response (200) from POST sqlQuery', () => {
+    it('Should get forbidden (403) from POST sqlQuery', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
         const endpoint = `/projects/${projectUuid}/sqlQuery`;
@@ -358,9 +358,9 @@ describe('Lightdash API tests for member user with editor project permissions', 
             headers: { 'Content-type': 'application/json' },
             method: 'POST',
             body: sqlQueryBody,
+            failOnStatusCode: false,
         }).then((resp) => {
-            expect(resp.status).to.eq(200);
-            expect(resp.body).to.have.property('status', 'ok');
+            expect(resp.status).to.eq(403);
         });
     });
 
@@ -491,6 +491,38 @@ describe('Lightdash API tests for member user with editor project permissions', 
     });
 });
 
+describe('Lightdash API tests for member user with developer project permissions', () => {
+    let email;
+
+    before(() => {
+        cy.loginWithPermissions('member', [
+            {
+                role: 'developer',
+                projectUuid: SEED_PROJECT.project_uuid,
+            },
+        ]).then((e) => {
+            email = e;
+        });
+    });
+    beforeEach(() => {
+        cy.loginWithEmail(email);
+    });
+
+    it('Should get success response (200) from POST sqlQuery', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        const endpoint = `/projects/${projectUuid}/sqlQuery`;
+        cy.request({
+            url: `${apiUrl}${endpoint}`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            body: sqlQueryBody,
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body).to.have.property('status', 'ok');
+        });
+    });
+});
 describe('Lightdash API tests for member user with interactive_viewer project permissions', () => {
     let email;
 

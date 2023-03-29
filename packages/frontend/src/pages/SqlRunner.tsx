@@ -6,6 +6,7 @@ import {
     useHotkeys,
 } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
+import { subject } from '@casl/ability';
 import {
     ChartType,
     DbtCloudMetric,
@@ -189,7 +190,15 @@ const SqlRunnerPage = () => {
         [setSql],
     );
 
-    if (user.data?.ability?.cannot('view', 'Project')) {
+    const cannotManageSqlRunner = user.data?.ability?.cannot(
+        'manage',
+        subject('SqlRunner', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
+    const cannotViewProject = user.data?.ability?.cannot('view', 'Project');
+    if (cannotManageSqlRunner || cannotViewProject) {
         return <ForbiddenPanel />;
     }
 
