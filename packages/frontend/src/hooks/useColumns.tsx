@@ -26,14 +26,11 @@ import { useExplore } from './useExplore';
 export const getItemBgColor = (
     item: Field | AdditionalMetric | TableCalculation,
 ): string => {
-    let bgColor: string;
-
     if (isField(item) || isAdditionalMetric(item)) {
-        bgColor = isDimension(item) ? '#d2dbe9' : '#e4dad0';
+        return isDimension(item) ? '#d2dbe9' : '#e4dad0';
     } else {
-        bgColor = '#d2dfd7';
+        return '#d2dfd7';
     }
-    return bgColor;
 };
 
 export const useColumns = (): TableColumn[] => {

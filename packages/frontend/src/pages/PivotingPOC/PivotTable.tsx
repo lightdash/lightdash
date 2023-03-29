@@ -4,10 +4,11 @@ import { FC } from 'react';
 
 const getFieldColor = (fieldType: FieldType) => {
     switch (fieldType) {
+        // TODO: update colours and constantize somewhere else.
         case FieldType.DIMENSION:
-            return 'rgba(0,122,255,0.1)';
+            return '#d2dbe9';
         case FieldType.METRIC:
-            return 'rgba(255,255,0,0.1)';
+            return '#e4dad0';
         default:
             return assertUnreachable(
                 fieldType,

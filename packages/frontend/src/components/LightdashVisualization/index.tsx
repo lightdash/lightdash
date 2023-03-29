@@ -1,4 +1,5 @@
 import { ChartType } from '@lightdash/common';
+import { Box } from '@mantine/core';
 import { FC, memo } from 'react';
 import { pivotQueryResults } from '../../hooks/pivotTable/pivotQueryResults';
 import {
@@ -54,6 +55,7 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
                 );
             case ChartType.TABLE:
                 if (pivotDimensions && tableConfig.metricsAsRows) {
+                    // TODO: move this somewhere else
                     const data = pivotQueryResults({
                         pivotConfig: {
                             pivotDimensions: pivotDimensions,
@@ -63,7 +65,16 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
                         rows: resultsData?.rows || [],
                     });
 
-                    return <PivotTable w="100%" data={data} />;
+                    return (
+                        <Box
+                            w="100%"
+                            h="100%"
+                            p="xs"
+                            sx={{ overflowX: 'scroll' }}
+                        >
+                            <PivotTable w="100%" data={data} />
+                        </Box>
+                    );
                 } else {
                     return (
                         <SimpleTable
