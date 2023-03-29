@@ -77,7 +77,7 @@ export class S3Service {
             Key: fileId,
         });
         return getSignedUrl(this.s3, getCommand, {
-            expiresIn: DEFAULT_EXPIRES_IN,
+            expiresIn: this.lightdashConfig.s3.expirationTime ?? DEFAULT_EXPIRES_IN,
             ...urlOptions,
         });
     }
