@@ -385,9 +385,7 @@ export const downloadCsv = async (
             status: SchedulerJobStatus.STARTED,
         });
 
-        // TODO Dwonlaod csv
-        const fileUrl = '';
-
+        const fileUrl = await csvService.downloadCsv(jobId, payload);
         schedulerService.logSchedulerJob({
             ...baseLog,
             details: { fileUrl, token: payload.token },

@@ -19,6 +19,8 @@ import {
     isAuthenticated,
     unauthorisedInDemo,
 } from '../controllers/authentication';
+import { SchedulerClient } from '../scheduler/SchedulerClient';
+import { CsvService } from '../services/CsvService/CsvService';
 import {
     csvService,
     dashboardService,
@@ -349,21 +351,26 @@ projectRouter.post(
                 additionalMetrics: body.additionalMetrics,
             };
 
-            const fileUrl = await csvService.downloadCsv({
-                user: req.user!,
-                projectUuid,
-                exploreId,
-                metricQuery,
-                onlyRaw,
-                csvLimit,
-                showTableNames,
-                customLabels,
-                columnOrder,
-            });
+            const { jobId, token } = await CsvService.scheduleDownloadCsv(
+                req.user!,
+                {
+                    userUuid: req.user?.userUuid!,
+                    projectUuid,
+                    exploreId,
+                    metricQuery,
+                    onlyRaw,
+                    csvLimit,
+                    showTableNames,
+                    customLabels,
+                    columnOrder,
+                },
+            );
+
             res.json({
                 status: 'ok',
                 results: {
-                    url: fileUrl,
+                    jobId,
+                    token,
                 },
             });
         } catch (e) {

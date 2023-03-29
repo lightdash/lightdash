@@ -3,6 +3,8 @@ import {
     ApiQueryResults,
     ApiSqlQueryResults,
     DimensionType,
+    DownloadCsvPayload,
+    DownloadMetricCsv,
     Field,
     ForbiddenError,
     formatItemValue,
@@ -35,11 +37,13 @@ import {
     parseAnalyticsLimit,
 } from '../../analytics/LightdashAnalytics';
 import { S3Service } from '../../clients/Aws/s3';
+import { schedulerClient } from '../../clients/clients';
 import { AttachmentUrl } from '../../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import Logger from '../../logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
+import { UserModel } from '../../models/UserModel';
 import { runWorkerThread } from '../../utils';
 import { ProjectService } from '../ProjectService/ProjectService';
 
@@ -48,6 +52,7 @@ type CsvServiceDependencies = {
     s3Service: S3Service;
     savedChartModel: SavedChartModel;
     dashboardModel: DashboardModel;
+    userModel: UserModel;
 };
 
 export const convertSqlToCsv = (
@@ -112,12 +117,16 @@ export class CsvService {
 
     dashboardModel: DashboardModel;
 
+    userModel: UserModel;
+
     constructor({
+        userModel,
         projectService,
         s3Service,
         savedChartModel,
         dashboardModel,
     }: CsvServiceDependencies) {
+        this.userModel = userModel;
         this.projectService = projectService;
         this.s3Service = s3Service;
         this.savedChartModel = savedChartModel;
@@ -186,18 +195,24 @@ export class CsvService {
         stringifier.write(csvHeader);
 
         // Increasing CHUNK_SIZE increases memory usage, but increases speed of CSV generation
+        // This method should be running on it's own thread on schedulerWorker
         const CHUNK_SIZE = 50000;
         while (rows.length > 0) {
             const chunk = rows.splice(0, CHUNK_SIZE);
-            // eslint-disable-next-line no-await-in-loop
-            const formattedRows = await runWorkerThread<string[]>(
-                new Worker('./dist/services/CsvService/convertRowsToCsv.js', {
-                    workerData: {
-                        sortedFieldIds,
-                        rows: chunk,
-                        onlyRaw,
-                        itemMap,
-                    },
+            const formattedRows = chunk.map((row) =>
+                sortedFieldIds.map((id: string) => {
+                    const data = row[id];
+                    const item = itemMap[id];
+
+                    const itemIsField = isField(item);
+                    if (itemIsField && item.type === DimensionType.TIMESTAMP) {
+                        return moment(data).format('YYYY-MM-DD HH:mm:ss');
+                    }
+                    if (itemIsField && item.type === DimensionType.DATE) {
+                        return moment(data).format('YYYY-MM-DD');
+                    }
+                    if (onlyRaw) return data;
+                    return formatItemValue(item, data);
                 }),
             );
             formattedRows.forEach((row) => {
@@ -435,48 +450,70 @@ export class CsvService {
         }
     }
 
-    async downloadCsv({
-        user,
-        projectUuid,
-        exploreId,
-        metricQuery,
-        onlyRaw,
-        csvLimit,
-        showTableNames,
-        customLabels,
-        columnOrder,
-    }: {
-        user: SessionUser;
-        projectUuid: string;
-        exploreId: string;
-        metricQuery: MetricQuery;
-        onlyRaw: boolean;
-        csvLimit: number | null | undefined;
-        showTableNames: boolean;
-        customLabels: Record<string, string> | undefined;
-        columnOrder: string[];
-    }) {
-        const jobId = nanoid();
-        const { organizationUuid } = user;
+    static async scheduleDownloadCsv(
+        user: SessionUser,
+        csvOptions: DownloadMetricCsv,
+    ) {
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('ExportCsv', {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid: csvOptions.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const token = nanoid();
+
+        const payload: DownloadCsvPayload = {
+            ...csvOptions,
+            userUuid: user.userUuid,
+            token,
+        };
+        const { jobId } = await schedulerClient.downloadCsvJob(payload);
+
+        return { jobId, token };
+    }
+
+    async downloadCsv(
+        jobId: string,
+        {
+            userUuid,
+            projectUuid,
+            exploreId,
+            metricQuery,
+            onlyRaw,
+            csvLimit,
+            showTableNames,
+            customLabels,
+            columnOrder,
+        }: DownloadMetricCsv,
+    ) {
+        const user = await this.userModel.findSessionUserByUUID(userUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('ExportCsv', {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
 
         const baseAnalyticsProperties: DownloadCsv['properties'] = {
             jobId,
-            userId: user.userUuid,
-            organizationId: organizationUuid,
+            userId: userUuid,
+            organizationId: user.organizationUuid,
             projectId: projectUuid,
             fileType: 'csv',
             storage: this.s3Service.isEnabled() ? 's3' : 'local',
         };
         try {
-            if (
-                user.ability.cannot(
-                    'manage',
-                    subject('ExportCsv', { organizationUuid, projectUuid }),
-                )
-            ) {
-                throw new ForbiddenError();
-            }
-
             const numberColumns =
                 metricQuery.dimensions.length +
                 metricQuery.metrics.length +
@@ -497,7 +534,7 @@ export class CsvService {
             });
 
             const rows = await this.projectService.runQuery(
-                user!,
+                user,
                 metricQuery,
                 projectUuid,
                 exploreId,

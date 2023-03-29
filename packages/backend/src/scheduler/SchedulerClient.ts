@@ -256,7 +256,6 @@ export class SchedulerClient {
 
     async downloadCsvJob(payload: DownloadCsvPayload) {
         const graphileClient = await this.graphileUtils;
-        const token = nanoid();
         const now = new Date();
         const { id: jobId } = await graphileClient.addJob(
             'downloadCsv',
@@ -271,8 +270,9 @@ export class SchedulerClient {
             jobId,
             scheduledTime: now,
             status: SchedulerJobStatus.SCHEDULED,
+            details: { token: payload.token },
         });
 
-        return { jobId, token };
+        return { jobId };
     }
 }

@@ -1,13 +1,14 @@
 import { Button } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
-import { ResultRow } from '@lightdash/common';
+import { ApiScheduledDownloadCsv, ResultRow } from '@lightdash/common';
 import { FC, memo } from 'react';
 import useToaster from '../../hooks/toaster/useToaster';
+import { pollCsvFileUrl } from '../../hooks/useDownloadCsv';
 import { useApp } from '../../providers/AppProvider';
 
 type Props = {
     disabled: boolean;
-    getCsvLink: () => Promise<string>;
+    getCsvLink: () => Promise<ApiScheduledDownloadCsv>;
 };
 
 const DownloadCsvButton: FC<Props> = memo(({ disabled, getCsvLink }) => {
@@ -18,18 +19,27 @@ const DownloadCsvButton: FC<Props> = memo(({ disabled, getCsvLink }) => {
             intent="primary"
             icon="export"
             disabled={disabled}
-            onClick={() =>
+            onClick={() => {
                 getCsvLink()
-                    .then((url) => {
-                        window.open(url, '_blank');
+                    .then((scheduledCsvResponse) => {
+                        pollCsvFileUrl(scheduledCsvResponse)
+                            .then((url) => {
+                                // window.open(url, '_blank');
+                            })
+                            .catch((error) => {
+                                showToastError({
+                                    title: `Unable to download CSV`,
+                                    subtitle: error?.error?.message,
+                                });
+                            });
                     })
                     .catch((error) => {
                         showToastError({
-                            title: `Unable to download CSV`,
+                            title: `Unable to schedule download CSV`,
                             subtitle: error?.error?.message,
                         });
-                    })
-            }
+                    });
+            }}
         >
             Export CSV
         </Button>

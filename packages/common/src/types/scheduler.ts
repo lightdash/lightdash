@@ -216,3 +216,11 @@ export type DownloadCsvPayload = {
     customLabels: Record<string, string> | undefined;
     token: string;
 };
+
+export type ApiCsvUrlResponse = {
+    status: 'ok';
+    results: {
+        url: string;
+        status: string;
+    };
+};

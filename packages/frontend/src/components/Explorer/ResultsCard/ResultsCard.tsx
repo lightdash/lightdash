@@ -65,7 +65,7 @@ const ResultsCard: FC = memo(() => {
             columnOrder,
             showTableNames: true,
         });
-        return csvResponse.url;
+        return csvResponse;
     };
 
     const resultsIsOpen = useMemo(

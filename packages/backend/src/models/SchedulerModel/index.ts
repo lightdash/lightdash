@@ -352,14 +352,24 @@ export class SchedulerModel {
     }
 
     async getCsvUrl(jobId: string, token: string) {
-        const [job] = await this.database(SchedulerLogTableName)
-            .select()
-            .where(`${SchedulerSlackTargetTableName}.job_id`, jobId)
-            .where('details.token', token)
+        const jobs = await this.database(SchedulerLogTableName)
+            .where(`${SchedulerLogTableName}.job_id`, jobId)
             .orderBy('scheduled_time', 'desc')
-            .limit(1);
+            .returning('*');
 
-        if (!job) throw new NotFoundError('Download CSV job not found');
+        // Sometimes scheduled event is added after the job is completed
+        const statusOrder = [
+            SchedulerJobStatus.ERROR,
+            SchedulerJobStatus.COMPLETED,
+            SchedulerJobStatus.STARTED,
+            SchedulerJobStatus.SCHEDULED,
+        ].map((s) => s.toString());
+        const job = jobs.sort(
+            (a, b) =>
+                statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status),
+        )[0];
+        if (!job || job.details?.token !== token)
+            throw new NotFoundError('Download CSV job not found');
 
         return job;
     }

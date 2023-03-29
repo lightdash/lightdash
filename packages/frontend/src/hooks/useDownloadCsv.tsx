@@ -1,4 +1,8 @@
-import { ApiDownloadCsv, MetricQuery } from '@lightdash/common';
+import {
+    ApiDownloadCsv,
+    ApiScheduledDownloadCsv,
+    MetricQuery,
+} from '@lightdash/common';
 
 import { lightdashApi } from '../api';
 import { convertDateFilters } from '../utils/dateFilter';
@@ -24,7 +28,7 @@ export const downloadCsv = async ({
     customLabels?: Record<string, string>;
 }) => {
     const timezoneFixQuery = convertDateFilters(query);
-    return lightdashApi<ApiDownloadCsv>({
+    return lightdashApi<ApiScheduledDownloadCsv>({
         url: `/projects/${projectUuid}/explores/${tableId}/downloadCsv`,
         method: 'POST',
         body: JSON.stringify({
@@ -38,6 +42,45 @@ export const downloadCsv = async ({
     });
 };
 
+export const getCsvFileUrl = async (
+    { jobId, token }: ApiScheduledDownloadCsv,
+    onSuccess: (data: string) => void,
+    onError: (error: Error) => void,
+) => {
+    lightdashApi<ApiDownloadCsv>({
+        url: `/csv/${jobId}`,
+        method: 'POST',
+        body: JSON.stringify({
+            token,
+        }),
+    })
+        .then((data) => {
+            if (data.url) {
+                return onSuccess(data.url);
+            } else {
+                setTimeout(
+                    () => getCsvFileUrl({ jobId, token }, onSuccess, onError),
+                    2000,
+                );
+            }
+        })
+        .catch((error) => {
+            return onError(error);
+        });
+};
+
+export const pollCsvFileUrl = async ({
+    jobId,
+    token,
+}: ApiScheduledDownloadCsv) => {
+    return new Promise<string>((resolve, reject) => {
+        getCsvFileUrl(
+            { jobId, token },
+            (url) => resolve(url),
+            (error) => reject(error),
+        );
+    });
+};
 export const downloadCsvFromSqlRunner = async ({
     projectUuid,
     sql,
