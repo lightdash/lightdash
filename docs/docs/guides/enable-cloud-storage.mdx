@@ -27,11 +27,12 @@ Create a new bucket with the following details:
 - disable `enforce public access` and select `fine-grained`
 - Protection: `none`
 
-Go to setings > Interoperability and create a `Access key for service account`
+Go to settings > Interoperability and create a `Access key for service account`
 
 - Copy the `access key` and `secret`
 
 `S3_ENDPOINT` for google is `https://storage.googleapis.com` 
+`S3_REGION` for google is `auto`
 
 ## Configure cloud storage on AWS
 
@@ -60,7 +61,10 @@ S3_ACCESS_KEY
 S3_SECRET_KEY 
 S3_BUCKET
 S3_ENDPOINT
+S3_EXPIRATION_TIME
 ```
 
 We also support IAM roles. If you don't provide `S3_ACCESS_KEY` and `S3_SECRET_KEY` the S3 library will try to use IAM roles, 
 see this [AWS documentation](https://docs.aws.amazon.com/sdk-for-javascript/v2/developer-guide/setting-credentials-node.html) for more details 
+
+The expiration time is optional and defaults to 259200 (seconds)
