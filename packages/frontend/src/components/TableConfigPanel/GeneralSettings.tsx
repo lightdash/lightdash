@@ -154,7 +154,9 @@ const GeneralSettings: FC = () => {
                     }}
                 />
 
-                {pivotDimensions && pivotDimensions.length > 0 ? (
+                {localStorage.getItem('feat/metrics-as-rows') === 'true' &&
+                pivotDimensions &&
+                pivotDimensions.length > 0 ? (
                     <Checkbox
                         label="Metrics as rows"
                         checked={metricsAsRows}
