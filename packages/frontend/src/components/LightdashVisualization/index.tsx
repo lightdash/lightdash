@@ -2,10 +2,6 @@ import { ChartType } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { FC, memo } from 'react';
 import { pivotQueryResults } from '../../hooks/pivotTable/pivotQueryResults';
-import {
-    METRIC_QUERY_2DIM_2METRIC,
-    RESULT_ROWS_2DIM_2METRIC,
-} from '../../hooks/pivotTable/pivotQueryResults.mock';
 import PivotTable from '../../pages/PivotingPOC/PivotTable';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
 import SimpleChart from '../SimpleChart';
