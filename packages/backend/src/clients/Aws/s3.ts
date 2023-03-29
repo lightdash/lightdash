@@ -13,8 +13,6 @@ type S3ServiceDependencies = {
     lightdashConfig: LightdashConfig;
 };
 
-const DEFAULT_EXPIRES_IN = 259200; // 3 days in seconds
-
 export class S3Service {
     lightdashConfig: LightdashConfig;
 
@@ -77,7 +75,7 @@ export class S3Service {
             Key: fileId,
         });
         return getSignedUrl(this.s3, getCommand, {
-            expiresIn: DEFAULT_EXPIRES_IN,
+            expiresIn: this.lightdashConfig.s3.expirationTime ?? 259200,
             ...urlOptions,
         });
     }
