@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
-import { Card, Group, Text, useMantineTheme } from '@mantine/core';
-import { IconBook, IconInfoCircle, IconPin } from '@tabler/icons-react';
+import { Card, Group, Text } from '@mantine/core';
+import { IconPin } from '@tabler/icons-react';
 import React, { FC, useMemo } from 'react';
 import { useDashboards } from '../../hooks/dashboard/useDashboards';
 import { useSavedCharts, useSpaces } from '../../hooks/useSpaces';
@@ -24,7 +24,6 @@ const PinnedItemsPanel: FC<Props> = ({ projectUuid, organizationUuid }) => {
     const { data: savedCharts = [] } = useSavedCharts(projectUuid);
     const { data: spaces = [] } = useSpaces(projectUuid);
 
-    const theme = useMantineTheme();
     const userCanUpdateProject = user.data?.ability.can(
         'update',
         subject('Project', { organizationUuid, projectUuid }),
@@ -63,9 +62,10 @@ const PinnedItemsPanel: FC<Props> = ({ projectUuid, organizationUuid }) => {
     ) : userCanUpdateProject && pinnedItems.length <= 0 ? (
         // FIXME: update width with Mantine widths
         <Card
-            w={900}
             withBorder
-            style={{ backgroundColor: theme.colors.gray[1] }}
+            sx={(theme) => ({
+                backgroundColor: theme.colors.gray[1],
+            })}
         >
             <Group position="apart">
                 <Group position="center" spacing="xxs" my="xs" ml="xs">
