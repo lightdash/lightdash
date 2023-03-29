@@ -154,13 +154,15 @@ const GeneralSettings: FC = () => {
                     }}
                 />
 
-                <Checkbox
-                    label="Metrics as rows"
-                    checked={metricsAsRows}
-                    onChange={(e) => {
-                        setMetricsAsRows(!metricsAsRows);
-                    }}
-                />
+                {pivotDimensions && pivotDimensions.length > 0 ? (
+                    <Checkbox
+                        label="Metrics as rows"
+                        checked={metricsAsRows}
+                        onChange={(e) => {
+                            setMetricsAsRows(!metricsAsRows);
+                        }}
+                    />
+                ) : null}
             </FormGroup>
 
             <SectionTitle>Columns</SectionTitle>
