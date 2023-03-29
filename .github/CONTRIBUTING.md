@@ -364,11 +364,11 @@ brew services start postgresql@14
 #5 install dbt (https://docs.getdbt.com/dbt-cli/install/homebrew)
 brew install dbt-labs/dbt/dbt-postgres
 
-#6 install packages
-yarn
-
-#7 clone the repo and open it in your IDE
+#6 clone the repo and open it in your IDE
 git clone https://github.com/lightdash/lightdash.git
+
+#7 Update submodules
+git submodule update --init --recursive
 
 #8 create `.env.local` and override any variables you need to change from `.env`
 touch .env.local
@@ -383,8 +383,8 @@ PGDATABASE=postgres
 DBT_DEMO_DIR=/*path*/*to*/lightdash/project/examples/full-jaffle-shop-demo
 LIGHTDASH_CONFIG_FILE=/*path*/*to*/lightdash/lightdash.yml
 
-#9 Update submodules
-git submodule update --init --recursive
+#9 install packages
+yarn
 
 #10 build / migrate / seed
 yarn load:env ./scripts/build.sh
