@@ -1,13 +1,13 @@
 import { assertUnreachable, FieldType, PivotData } from '@lightdash/common';
-import { createStyles, Table } from '@mantine/core';
+import { createStyles, Table, TableProps } from '@mantine/core';
 import { FC } from 'react';
 
 const getFieldColor = (fieldType: FieldType) => {
     switch (fieldType) {
         case FieldType.DIMENSION:
-            return 'rgba(255,255,0,0.1)';
-        case FieldType.METRIC:
             return 'rgba(0,122,255,0.1)';
+        case FieldType.METRIC:
+            return 'rgba(255,255,0,0.1)';
         default:
             return assertUnreachable(
                 fieldType,
@@ -24,7 +24,12 @@ const useStyles = createStyles((_theme) => ({
     },
 }));
 
-const PivotTable: FC<{ data: PivotData }> = ({ data }) => {
+type PivotTableProps = TableProps &
+    React.RefAttributes<HTMLTableElement> & {
+        data: PivotData;
+    };
+
+const PivotTable: FC<PivotTableProps> = ({ data, ...tableProps }) => {
     const { classes } = useStyles();
 
     return (
@@ -34,6 +39,7 @@ const PivotTable: FC<{ data: PivotData }> = ({ data }) => {
             highlightOnHover
             className={classes.table}
             w="xs"
+            {...tableProps}
         >
             <thead>
                 {data.headerValueTypes.map(

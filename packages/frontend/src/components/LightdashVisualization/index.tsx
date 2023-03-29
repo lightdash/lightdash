@@ -6,6 +6,7 @@ import {
     RESULT_ROWS_2DIM_2METRIC,
 } from '../../hooks/pivotTable/pivotQueryResults.mock';
 import PivotTable from '../../pages/PivotingPOC/PivotTable';
+import { useExplorerContext } from '../../providers/ExplorerProvider';
 import SimpleChart from '../SimpleChart';
 import SimpleStatistic from '../SimpleStatistic';
 import SimpleTable from '../SimpleTable';
@@ -28,7 +29,16 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
         className,
         ...props
     }) => {
-        const { chartType, minimal, tableConfig } = useVisualizationContext();
+        const {
+            chartType,
+            minimal,
+            tableConfig,
+            resultsData,
+            pivotDimensions,
+        } = useVisualizationContext();
+        const metricQuery = useExplorerContext(
+            (c) => c.state.unsavedChartVersion.metricQuery,
+        );
 
         switch (chartType) {
             case ChartType.BIG_NUMBER:
@@ -43,17 +53,17 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
                     />
                 );
             case ChartType.TABLE:
-                if (tableConfig.metricsAsRows) {
+                if (pivotDimensions && tableConfig.metricsAsRows) {
                     const data = pivotQueryResults({
                         pivotConfig: {
-                            pivotDimensions: ['site'],
+                            pivotDimensions: pivotDimensions,
                             metricsAsRows: true,
                         },
-                        metricQuery: METRIC_QUERY_2DIM_2METRIC,
-                        rows: RESULT_ROWS_2DIM_2METRIC,
+                        metricQuery: metricQuery,
+                        rows: resultsData?.rows || [],
                     });
 
-                    return <PivotTable data={data} />;
+                    return <PivotTable w="100%" data={data} />;
                 } else {
                     return (
                         <SimpleTable
