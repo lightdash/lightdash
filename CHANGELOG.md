@@ -1,3 +1,10 @@
+# [0.491.0](https://github.com/lightdash/lightdash/compare/0.490.0...0.491.0) (2023-03-29)
+
+
+### Features
+
+* developer role ([#4918](https://github.com/lightdash/lightdash/issues/4918)) ([1d0d653](https://github.com/lightdash/lightdash/commit/1d0d6530c60b8ab23cffd9d3a4a14066402a336f))
+
 # [0.490.0](https://github.com/lightdash/lightdash/compare/0.489.1...0.490.0) (2023-03-28)
 
 
