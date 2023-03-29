@@ -42,6 +42,12 @@ const useTableConfig = (
             : tableChartConfig.hideRowNumbers,
     );
 
+    const [metricsAsRows, setMetricsAsRows] = useState<boolean>(
+        tableChartConfig?.metricsAsRows === undefined
+            ? false
+            : tableChartConfig.metricsAsRows,
+    );
+
     useEffect(() => {
         if (
             tableChartConfig?.showTableNames === undefined &&
@@ -214,6 +220,8 @@ const useTableConfig = (
         setShowTableName,
         hideRowNumbers,
         setHideRowNumbers,
+        metricsAsRows,
+        setMetricsAsRows,
         rows,
         error,
         columns,
