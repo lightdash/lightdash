@@ -297,7 +297,10 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
             secretKey: process.env.S3_SECRET_KEY,
             bucket: process.env.S3_BUCKET,
             endpoint: process.env.S3_ENDPOINT,
-            expirationTime: process.env.S3_EXPIRATION_TIME,
+            expirationTime: parseInt(
+                process.env.S3_EXPIRATION_TIME || '259200', // 3 days in seconds
+                10,
+            ),
         },
         headlessBrowser: {
             port: process.env.HEADLESS_BROWSER_PORT,
