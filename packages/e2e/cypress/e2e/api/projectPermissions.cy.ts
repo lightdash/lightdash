@@ -125,12 +125,10 @@ describe('Lightdash API tests for member user with admin project permissions', (
                 const savedChartUuid =
                     spacesResponse.body.results[0].queries[0].uuid;
 
-                const endpoint = `/projects/${projectUuid}/runViewChartQuery`;
+                const endpoint = `/projects/${projectUuid}/saved/${savedChartUuid}/queryResults`;
                 cy.request({
                     url: `${apiUrl}${endpoint}`,
-                    headers: { 'Content-type': 'application/json' },
-                    method: 'POST',
-                    body: { chartUuid: savedChartUuid },
+                    method: 'GET',
                 }).then((resp) => {
                     expect(resp.status).to.eq(200);
                     expect(resp.body).to.have.property('status', 'ok');
@@ -631,12 +629,10 @@ describe('Lightdash API tests for member user with interactive_viewer project pe
                 const savedChartUuid =
                     spacesResponse.body.results[0].queries[0].uuid;
 
-                const endpoint = `/projects/${projectUuid}/runViewChartQuery`;
+                const endpoint = `/projects/${projectUuid}/saved/${savedChartUuid}/queryResults`;
                 cy.request({
                     url: `${apiUrl}${endpoint}`,
-                    headers: { 'Content-type': 'application/json' },
-                    method: 'POST',
-                    body: { chartUuid: savedChartUuid },
+                    method: 'GET',
                 }).then((resp) => {
                     expect(resp.status).to.eq(200);
                     expect(resp.body).to.have.property('status', 'ok');
@@ -850,12 +846,10 @@ describe('Lightdash API tests for member user with viewer project permissions', 
                 const savedChartUuid =
                     spacesResponse.body.results[0].queries[0].uuid;
 
-                const endpoint = `/projects/${projectUuid}/runViewChartQuery`;
+                const endpoint = `/projects/${projectUuid}/saved/${savedChartUuid}/queryResults`;
                 cy.request({
                     url: `${apiUrl}${endpoint}`,
-                    headers: { 'Content-type': 'application/json' },
-                    method: 'POST',
-                    body: { chartUuid: savedChartUuid },
+                    method: 'GET',
                 }).then((resp) => {
                     expect(resp.status).to.eq(200);
                     expect(resp.body).to.have.property('status', 'ok');

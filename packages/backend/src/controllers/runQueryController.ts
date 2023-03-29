@@ -73,7 +73,8 @@ export class RunViewChartQueryController extends Controller {
     /**
      * Run a query for a chart from dashboards
      * @param projectUuid The uuid of the project
-     * @param body chartUuid for the chart to run
+     * @param chartUuid chartUuid for the chart to run
+     * @param filters dashboard filters
      * @param req express request
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -81,7 +82,7 @@ export class RunViewChartQueryController extends Controller {
     @Post('/runDashboardTileQuery')
     @OperationId('postRunDashboardTileQuery')
     async postDashboardTile(
-        @Body() body: { chartUuid: string; filters: Filters },
+        @Body() body: { chartUuid: string; filters?: Filters },
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiRunQueryResponse> {

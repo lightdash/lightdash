@@ -1664,7 +1664,7 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        filters: { ref: 'Filters', required: true },
+                        filters: { ref: 'Filters' },
                         chartUuid: { dataType: 'string', required: true },
                     },
                 },
