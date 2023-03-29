@@ -130,7 +130,29 @@ export class CsvService {
         this.dashboardModel = dashboardModel;
     }
 
-    static async convertRowsToCsv(
+    static convertRowToCsv(
+        row: Record<string, any>,
+        itemMap: Record<string, Field | TableCalculation>,
+        onlyRaw: boolean,
+        sortedFieldIds: string[],
+    ) {
+        return sortedFieldIds.map((id: string) => {
+            const data = row[id];
+            const item = itemMap[id];
+
+            const itemIsField = isField(item);
+            if (itemIsField && item.type === DimensionType.TIMESTAMP) {
+                return moment(data).format('YYYY-MM-DD HH:mm:ss');
+            }
+            if (itemIsField && item.type === DimensionType.DATE) {
+                return moment(data).format('YYYY-MM-DD');
+            }
+            if (onlyRaw) return data;
+            return formatItemValue(item, data);
+        });
+    }
+
+    static async writeRowsToFile(
         rows: Record<string, any>[],
         onlyRaw: boolean,
         metricQuery: MetricQuery,
@@ -146,7 +168,7 @@ export class CsvService {
             ...metricQuery.tableCalculations.map((tc: any) => tc.name),
         ];
         Logger.debug(
-            `convertRowsToCsv with ${rows.length} rows and ${selectedFieldIds.length} columns`,
+            `writeRowsToFile with ${rows.length} rows and ${selectedFieldIds.length} columns`,
         );
 
         const fileId = `csv-${nanoid()}.csv`;
@@ -197,20 +219,12 @@ export class CsvService {
         while (rows.length > 0) {
             const chunk = rows.splice(0, CHUNK_SIZE);
             const formattedRows = chunk.map((row) =>
-                sortedFieldIds.map((id: string) => {
-                    const data = row[id];
-                    const item = itemMap[id];
-
-                    const itemIsField = isField(item);
-                    if (itemIsField && item.type === DimensionType.TIMESTAMP) {
-                        return moment(data).format('YYYY-MM-DD HH:mm:ss');
-                    }
-                    if (itemIsField && item.type === DimensionType.DATE) {
-                        return moment(data).format('YYYY-MM-DD');
-                    }
-                    if (onlyRaw) return data;
-                    return formatItemValue(item, data);
-                }),
+                CsvService.convertRowToCsv(
+                    row,
+                    itemMap,
+                    onlyRaw,
+                    sortedFieldIds,
+                ),
             );
             formattedRows.forEach((row) => {
                 stringifier.write(row);
@@ -301,7 +315,7 @@ export class CsvService {
             metricQuery.tableCalculations,
         );
 
-        const fileId = await CsvService.convertRowsToCsv(
+        const fileId = await CsvService.writeRowsToFile(
             rows,
             onlyRaw,
             metricQuery,
@@ -550,7 +564,7 @@ export class CsvService {
                 metricQuery.tableCalculations,
             );
 
-            const fileId = await CsvService.convertRowsToCsv(
+            const fileId = await CsvService.writeRowsToFile(
                 rows,
                 onlyRaw,
                 metricQuery,
