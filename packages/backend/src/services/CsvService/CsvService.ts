@@ -476,16 +476,14 @@ export class CsvService {
         ) {
             throw new ForbiddenError();
         }
-        const token = nanoid();
 
         const payload: DownloadCsvPayload = {
             ...csvOptions,
             userUuid: user.userUuid,
-            token,
         };
         const { jobId } = await schedulerClient.downloadCsvJob(payload);
 
-        return { jobId, token };
+        return { jobId };
     }
 
     async downloadCsv(

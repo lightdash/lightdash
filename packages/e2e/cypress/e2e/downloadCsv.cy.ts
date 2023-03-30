@@ -67,9 +67,7 @@ describe('Download CSV on Dashboards', () => {
 
         cy.wait('@apiDownloadCsv').then((interception) => {
             expect(interception?.response?.statusCode).to.eq(200);
-            expect(interception?.response?.body.results).to.have.property(
-                'token',
-            );
+
             expect(interception?.response?.body.results).to.have.property(
                 'jobId',
             );
@@ -107,9 +105,6 @@ describe('Download CSV on Explore', () => {
         cy.wait('@apiDownloadCsv').then((interception) => {
             expect(interception?.response?.statusCode).to.eq(200);
             expect(interception?.response?.body.results).to.have.property(
-                'token',
-            );
-            expect(interception?.response?.body.results).to.have.property(
                 'jobId',
             );
         });
@@ -144,9 +139,7 @@ describe('Download CSV on Explore', () => {
 
         cy.wait('@apiDownloadCsv').then((interception) => {
             expect(interception?.response?.statusCode).to.eq(200);
-            expect(interception?.response?.body.results).to.have.property(
-                'token',
-            );
+
             expect(interception?.response?.body.results).to.have.property(
                 'jobId',
             );

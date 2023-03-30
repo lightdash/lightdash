@@ -214,7 +214,6 @@ export type DownloadCsvPayload = {
     showTableNames: boolean;
     columnOrder: string[];
     customLabels: Record<string, string> | undefined;
-    token: string;
 };
 
 export type ApiCsvUrlResponse = {

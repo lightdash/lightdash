@@ -351,26 +351,22 @@ projectRouter.post(
                 additionalMetrics: body.additionalMetrics,
             };
 
-            const { jobId, token } = await CsvService.scheduleDownloadCsv(
-                req.user!,
-                {
-                    userUuid: req.user?.userUuid!,
-                    projectUuid,
-                    exploreId,
-                    metricQuery,
-                    onlyRaw,
-                    csvLimit,
-                    showTableNames,
-                    customLabels,
-                    columnOrder,
-                },
-            );
+            const { jobId } = await CsvService.scheduleDownloadCsv(req.user!, {
+                userUuid: req.user?.userUuid!,
+                projectUuid,
+                exploreId,
+                metricQuery,
+                onlyRaw,
+                csvLimit,
+                showTableNames,
+                customLabels,
+                columnOrder,
+            });
 
             res.json({
                 status: 'ok',
                 results: {
                     jobId,
-                    token,
                 },
             });
         } catch (e) {
