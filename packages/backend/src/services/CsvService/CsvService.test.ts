@@ -8,9 +8,14 @@ import { projectService, s3Service } from '../services';
 import { CsvService } from './CsvService';
 import { itemMap, metricQuery } from './CsvService.mock';
 
+jest.mock('../../clients/clients', () => ({
+    schedulerClient: {},
+}));
+
 jest.mock('../../models/models', () => ({
     savedChartModel: {},
     dashboardModel: {},
+    userModel: {},
 }));
 
 jest.mock('../services', () => ({
