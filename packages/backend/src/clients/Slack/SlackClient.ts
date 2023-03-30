@@ -1,6 +1,6 @@
-import { App, Block, LogLevel } from '@slack/bolt';
-
 import { SlackChannel } from '@lightdash/common';
+import { App, Block, LogLevel } from '@slack/bolt';
+import { ConversationsListResponse, UsersListResponse } from '@slack/web-api';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logger';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
@@ -11,7 +11,7 @@ type SlackClientDependencies = {
     lightdashConfig: LightdashConfig;
 };
 
-const CACHE_TIME = 1000 * 10 * 60; // 10 minutes
+const CACHE_TIME = 1000 * 60 * 10; // 10 minutes
 const cachedChannels: Record<
     string,
     { lastCached: Date; channels: SlackChannel[] }
@@ -83,17 +83,48 @@ export class SlackClient {
                 organizationUuid,
             );
 
-        const conversations = await this.slackApp.client.conversations.list({
-            token: installation?.token,
-            types: 'public_channel',
-            limit: 500,
-        });
+        let nextCursor: string | undefined;
+        let allChannels: ConversationsListResponse['channels'] = [];
 
-        const users = await this.slackApp.client.users.list({
-            token: installation?.token,
-        });
+        do {
+            Logger.debug(`Fetching slack users with cursor ${nextCursor}`);
 
-        const sortedChannels = (conversations.channels || [])
+            // eslint-disable-next-line no-await-in-loop
+            const conversations: ConversationsListResponse =
+                await this.slackApp.client.conversations.list({
+                    token: installation?.token,
+                    types: 'public_channel',
+                    limit: 500,
+                    cursor: nextCursor,
+                });
+
+            nextCursor = conversations.response_metadata?.next_cursor;
+            allChannels = conversations.channels
+                ? [...allChannels, ...conversations.channels]
+                : allChannels;
+        } while (nextCursor);
+        Logger.debug(`Total slack channels ${allChannels.length}`);
+
+        nextCursor = undefined;
+        let allUsers: UsersListResponse['members'] = [];
+        do {
+            Logger.debug(`Fetching slack users with cursor ${nextCursor}`);
+
+            // eslint-disable-next-line no-await-in-loop
+            const users: UsersListResponse =
+                await this.slackApp.client.users.list({
+                    token: installation?.token,
+                    limit: 500,
+                    cursor: nextCursor,
+                });
+            nextCursor = users.response_metadata?.next_cursor;
+            allUsers = users.members
+                ? [...allUsers, ...users.members]
+                : allUsers;
+        } while (nextCursor);
+        Logger.debug(`Total slack users ${allUsers.length}`);
+
+        const sortedChannels = allChannels
             .reduce<SlackChannel[]>(
                 (acc, { id, name }) =>
                     id && name ? [...acc, { id, name: `#${name}` }] : acc,
@@ -101,7 +132,7 @@ export class SlackClient {
             )
             .sort((a, b) => a.name.localeCompare(b.name));
 
-        const sortedUsers = (users.members || [])
+        const sortedUsers = allUsers
             .reduce<SlackChannel[]>(
                 (acc, { id, name }) =>
                     id && name ? [...acc, { id, name: `@${name}` }] : acc,
