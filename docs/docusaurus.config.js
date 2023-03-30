@@ -25,12 +25,12 @@ module.exports = {
             {
                 redirects: [
                     {
-                        to: '/docs/self-host/self-host-lightdash',
-                        from: ['/docs/getting-started/install-lightdash'],
+                        to: '/self-host/self-host-lightdash',
+                        from: ['/getting-started/install-lightdash'],
                     },
                     {
-                        to: '/docs/self-host/customize-deployment/configure-a-slack-app-for-lightdash',
-                        from: ['/docs/guides/enable-slack-selfhost'],
+                        to: '/self-host/customize-deployment/configure-a-slack-app-for-lightdash',
+                        from: ['/guides/enable-slack-selfhost'],
                     },
                     {
                         to: '/self-host/customize-deployment/enable-headless-browser-for-lightdash',
@@ -41,7 +41,7 @@ module.exports = {
                         from: ['/guides/how-to-deploy-to-kubernetes'],
                     },
                     {
-                        to: '/self-host/upgrade-lightdash',
+                        to: '/self-host/update-lightdash',
                         from: [
                             '/guides/how-to-update-docker-image',
                             '/guides/update-lightdash',
