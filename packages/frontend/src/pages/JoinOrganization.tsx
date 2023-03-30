@@ -2,6 +2,7 @@ import { getEmailDomain } from '@lightdash/common';
 import {
     Anchor,
     Avatar,
+    Box,
     Button,
     Card,
     Group,
@@ -125,30 +126,26 @@ export const JoinOrganizationPage: FC = () => {
                         ))}
                     </Stack>
                 </Card>
-                <Text ta="center" px="xs">
-                    <Anchor
-                        color={disabled ? 'gray.6' : ''}
-                        onClick={() =>
-                            !disabled ? createOrg({ name: '' }) : null
-                        }
-                        sx={(theme) =>
-                            disabled
-                                ? {
-                                      '&:hover': {
-                                          textDecoration: 'none',
-                                          color: theme.colors.gray[6],
-                                      },
-                                  }
-                                : {
-                                      '&:hover': {
-                                          color: theme.colors.blue[6],
-                                      },
-                                  }
-                        }
-                    >
-                        Create a new workspace
-                    </Anchor>
-                </Text>
+                <Anchor
+                    component="button"
+                    onClick={() => createOrg({ name: '' })}
+                    disabled={disabled}
+                    ta="center"
+                    size="sm"
+                    sx={(theme) =>
+                        disabled
+                            ? {
+                                  color: theme.colors.gray[6],
+                                  '&:hover': {
+                                      textDecoration: 'none',
+                                      color: theme.colors.gray[6],
+                                  },
+                              }
+                            : {}
+                    }
+                >
+                    Create a new workspace
+                </Anchor>
             </Stack>
         </Page>
     );
