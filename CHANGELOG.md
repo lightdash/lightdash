@@ -1,3 +1,10 @@
+# [0.496.0](https://github.com/lightdash/lightdash/compare/0.495.1...0.496.0) (2023-03-30)
+
+
+### Features
+
+* updating Join Workspace screen ([#4969](https://github.com/lightdash/lightdash/issues/4969)) ([0956e42](https://github.com/lightdash/lightdash/commit/0956e42658d2ebab2b6bf63a9bb7490a2a5621a2))
+
 ## [0.495.1](https://github.com/lightdash/lightdash/compare/0.495.0...0.495.1) (2023-03-30)
 
 
