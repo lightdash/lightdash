@@ -27,3 +27,17 @@ externalDatabase:
 ```
 
 Optionally you can pass any of the [PostgreSQL Environment Variables](https://www.postgresql.org/docs/current/libpq-envars.html) to the `configMap`
+
+## Required pg extensions for external database
+
+Lightdash requires the following extensions to be installed on the database:
+
+- `uuid-ossp` - used for generating unique IDs
+
+Your version on postgres should also support `json` and `jsonb` objects.
+
+## Migrations
+
+Migrations are ran automatically on starting the Lightdash server or workers. When upgrading Lightdash, migrations 
+will be ran automatically. If migrations fail due to a pg_lock error, check for a table called 
+`knex_migrations_lock` to manually release the lock.
