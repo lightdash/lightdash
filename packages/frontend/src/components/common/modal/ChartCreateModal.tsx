@@ -181,7 +181,6 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                         <Button onClick={handleClose}>Cancel</Button>
 
                         <Button
-                            data-cy="submit-base-modal"
                             intent="primary"
                             text="Save"
                             onClick={handleConfirm}

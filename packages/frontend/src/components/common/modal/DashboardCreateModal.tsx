@@ -92,7 +92,6 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                         <Button onClick={handleClose}>Cancel</Button>
 
                         <Button
-                            data-cy="submit-base-modal"
                             intent={Intent.PRIMARY}
                             text="Create"
                             type="submit"

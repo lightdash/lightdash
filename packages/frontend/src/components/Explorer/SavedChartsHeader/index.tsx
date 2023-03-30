@@ -103,6 +103,7 @@ const SavedChartsHeader: FC = () => {
         window.addEventListener('beforeunload', checkReload);
         return () => window.removeEventListener('beforeunload', checkReload);
     }, [hasUnsavedChanges, isEditMode]);
+
     useEffect(() => {
         history.block((prompt) => {
             if (
@@ -127,6 +128,7 @@ const SavedChartsHeader: FC = () => {
         };
     }, [
         history,
+        dashboardUuid,
         projectUuid,
         savedChart,
         hasUnsavedChanges,
@@ -385,7 +387,8 @@ const SavedChartsHeader: FC = () => {
             {savedChart && isAddToDashboardModalOpen && (
                 <AddTilesToDashboardModal
                     isOpen={isAddToDashboardModalOpen}
-                    savedChart={savedChart}
+                    projectUuid={projectUuid}
+                    savedChartUuid={savedChart.uuid}
                     onClose={() => setIsAddToDashboardModalOpen(false)}
                 />
             )}

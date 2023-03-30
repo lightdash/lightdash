@@ -15,11 +15,15 @@ const getSpaces = async (projectUuid: string) =>
         body: undefined,
     });
 
-export const useSpaces = (projectUuid: string) => {
-    return useQuery<Space[], ApiError>({
-        queryKey: ['spaces', projectUuid],
-        queryFn: () => getSpaces(projectUuid),
-    });
+export const useSpaces = (
+    projectUuid: string,
+    queryOptions?: UseQueryOptions<Space[], ApiError>,
+) => {
+    return useQuery<Space[], ApiError>(
+        ['spaces', projectUuid],
+        () => getSpaces(projectUuid),
+        { ...queryOptions },
+    );
 };
 
 export const useSavedCharts = (projectUuid: string) => {
