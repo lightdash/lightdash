@@ -37,6 +37,7 @@ export const JoinOrganizationPage: FC = () => {
         isLoading: isJoiningOrg,
         isSuccess: hasJoinedOrg,
     } = useJoinOrganizationMutation();
+    const emailDomain = user.data?.email ? getEmailDomain(user.data.email) : '';
 
     useEffect(() => {
         const isAllowedToJoinOrgs = allowedOrgs && allowedOrgs.length > 0;
@@ -90,7 +91,9 @@ export const JoinOrganizationPage: FC = () => {
                         </Title>
                         <Text color="gray.6" ta="center">
                             The workspaces below are open to anyone with a{' '}
-                            <b>@{getEmailDomain(user.data?.email || '')}</b>{' '}
+                            <Text span fw={600}>
+                                @{emailDomain}:
+                            </Text>{' '}
                             domain
                         </Text>
                         {allowedOrgs?.map((org) => (
