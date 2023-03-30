@@ -1,3 +1,10 @@
+# [0.493.0](https://github.com/lightdash/lightdash/compare/0.492.0...0.493.0) (2023-03-30)
+
+
+### Features
+
+* break out s3 image expiration time to env variable ([#4955](https://github.com/lightdash/lightdash/issues/4955)) ([4274e02](https://github.com/lightdash/lightdash/commit/4274e02f0828b4b72b9a688594c317ea3fd61cab))
+
 # [0.492.0](https://github.com/lightdash/lightdash/compare/0.491.0...0.492.0) (2023-03-30)
 
 
