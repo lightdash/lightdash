@@ -864,7 +864,7 @@ describe('Lightdash API tests for member user with viewer project permissions', 
                     url: `${apiUrl}${endpoint}`,
                     headers: { 'Content-type': 'application/json' },
                     method: 'POST',
-                    body: { chartUuid: savedChartUuid },
+                    body: undefined,
                 }).then((resp) => {
                     expect(resp.status).to.eq(200);
                     expect(resp.body).to.have.property('status', 'ok');
