@@ -1,3 +1,10 @@
+# [0.495.0](https://github.com/lightdash/lightdash/compare/0.494.0...0.495.0) (2023-03-30)
+
+
+### Features
+
+* slack pagination ([#4967](https://github.com/lightdash/lightdash/issues/4967)) ([98a48aa](https://github.com/lightdash/lightdash/commit/98a48aa17e0b6afec8581a7551c968d10835e2fe))
+
 # [0.494.0](https://github.com/lightdash/lightdash/compare/0.493.0...0.494.0) (2023-03-30)
 
 
