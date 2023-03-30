@@ -1,3 +1,10 @@
+## [0.495.1](https://github.com/lightdash/lightdash/compare/0.495.0...0.495.1) (2023-03-30)
+
+
+### Bug Fixes
+
+* useEffect bugs for add chart to dashboard modal ([#4960](https://github.com/lightdash/lightdash/issues/4960)) ([857f4cf](https://github.com/lightdash/lightdash/commit/857f4cf592e88a583c0df50d5de5442cd19b678f))
+
 # [0.495.0](https://github.com/lightdash/lightdash/compare/0.494.0...0.495.0) (2023-03-30)
 
 
