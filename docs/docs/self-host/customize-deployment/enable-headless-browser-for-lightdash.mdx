@@ -1,0 +1,46 @@
+---
+sidebar_label: Headless browser
+---
+
+import HeadlessBrowserSchema from './assets/headless-browser-schema.png';
+
+# Add headless browser on self-hosting
+
+We use a chrome headless browser to generate images from your charts and dashboards so we can send them via email or Slack.
+
+Images can be requested on `Slack unfurl` or using our `Scheduler`
+
+If you are running Lightdash on self-hosting, you will also have to run this headless browser on your infrastructure.
+
+## How it works
+
+<img src={HeadlessBrowserSchema} width="800" height="800" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+When Lightdash needs to generate an image, it will open a new socket connection to the headless browser on `ws://HEADLESS_BROWSER_HOST:HEADLESS_BROWSER_PORT`
+
+Then using `puppeteer` we will browse the chart/dashboard on lightdash on `SITE_URL`
+
+We load the chart/dashboard on the browser and then a screenshot when it finishes loading
+
+Then we store that image in S3 (if enabled) or locally and then return the image URL.
+
+If the image was requested by Slack unfurl, we will unfurl the image using the Slack API.
+If the image was requested by Scheduler, we will send the image to the destination(s) (email or Slack)
+
+## Configure headless browser on Lightdash
+
+In order to make this work, there are a few key ENV variables that need to be configured correctly.
+
+- `HEADLESS_BROWSER_HOST` : If you're running docker, this could be `headless-browser`, or `localhost` if you're running it locally (or with network:host)
+- `HEADLESS_BROWSER_PORT` : Optional port for headless browser, defaults to 3001
+- `SITE_URL` : The URL for your Lightdash instance.
+
+:::info
+
+This SITE_URL variable (eg: https://eu1.lightdash.cloud) needs to be accessible from this headless browser service, either by a local connection, or via Internet.
+Otherwise it will not be able to open a page and generate the image.
+
+This means that if you are using docker locally, make sure the headless browser pod can reach the lightdash pod.
+Or follow the [docker documentation](https://docs.docker.com/compose/compose-file/compose-file-v3/#network_mode) to enable `network:host`
+
+:::

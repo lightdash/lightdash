@@ -1,3 +1,7 @@
+---
+sidebar_position: 1
+---
+
 # Self-Host Lightdash
 
 Lightdash is MIT licensed and open source. You can self-host Lightdash on your own infrastructure.
@@ -12,7 +16,7 @@ If you're unsure whether to self-host please read our guide on [Lightdash Cloud 
  - [Helm](https://helm.sh/docs/intro/quickstart/)
  - Docker
 
-## Getting started with a self-hosted Lightdash instance
+## Self-host Lightdash on Kubernetes
 
 The following steps will create a Lightdash instance and a postgres database to store your metadata (note: this is
 separate to your data warehouse with your analytics data).
@@ -65,13 +69,23 @@ service:
   type: NodePort
 ```
 
-### 4. Install Lightdash
+### 4. Install Lightdash with helm
 
 Create a new helm release called `lightdash` using the `lightdash/lightdash` helm chart. In this example we're also 
 using the namespace `-n lightdash`. Finally we apply our minimum configuration from above using `-f values.yaml`.
 
 ```bash
 helm install lightdash lightdash/lightdash -n lightdash -f values.yaml
+```
+
+### 4 (alternative). Install Lightdash with kubectl
+
+If you prefer not to manage your deployment with helm, you can generate the kubernetes manifests and apply them
+using `kubectl`.
+
+```bash
+helm template lightdash lightdash/lightdash -n lightdash -f values.yaml > lightdash.yaml
+kubectl apply -f lightdash.yaml
 ```
 
 Visit your `SITE_URL` to access Lightdash!
@@ -82,13 +96,15 @@ Now you have a working Lightdash instance, you can customise it to your needs. T
 common configuration options, including those we recommend before going to production:
 
 **Recommended for production usage**
-- [Secure Lightdash with HTTPS](./secure-lightdash-with-https.mdx)
-- [Configure Lightdash to use an external database](./configure-lightdash-to-use-an-external-database.mdx)
-- [Configure SMTP for email notifications](./configure-smtp-for-lightdash-email-notifications.mdx)
-- [Configure Lightdash to use external object storage](./configure-lightdash-to-use-external-object-storage.mdx)
+- [Secure Lightdash with HTTPS](./customize-deployment/secure-lightdash-with-https.mdx)
+- [Configure Lightdash to use an external database](./customize-deployment/configure-lightdash-to-use-an-external-database.mdx)
+- [Configure SMTP for email notifications](./customize-deployment/configure-smtp-for-lightdash-email-notifications.mdx)
+- [Configure Lightdash to use external object storage](./customize-deployment/configure-lightdash-to-use-external-object-storage.mdx)
 
 **Optional configuration**
-- [Use SSO login for self-hosted Lightdash](./use-sso-login-for-self-hosted-lightdash.mdx)
-- [Enable scheduler in self-hosted Lightdash](./enable-scheduler-in-self-hosted-lightdash.mdx)
-- [Configure a Slack App for Lightdash](./configure-a-slack-app-for-lightdash.mdx)
+- [Use SSO login for self-hosted Lightdash](./customize-deployment/use-sso-login-for-self-hosted-lightdash.mdx)
+- [Enable scheduler in self-hosted Lightdash](./customize-deployment/enable-scheduler-in-self-hosted-lightdash.mdx)
+- [Configure a Slack App for Lightdash](./customize-deployment/configure-a-slack-app-for-lightdash.mdx)
+- [Configure environment variables for Lightdash](./customize-deployment/environment-variables.mdx)
+- [Enable headless browser for Lightdash](./customize-deployment/enable-headless-browser-for-lightdash.mdx)
 

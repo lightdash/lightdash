@@ -28,6 +28,29 @@ module.exports = {
                         to: '/docs/self-host/self-host-lightdash',
                         from: ['/docs/getting-started/install-lightdash'],
                     },
+                    {
+                        to: '/docs/self-host/customize-deployment/configure-a-slack-app-for-lightdash',
+                        from: ['/docs/guides/enable-slack-selfhost'],
+                    },
+                    {
+                        to: '/self-host/customize-deployment/enable-headless-browser-for-lightdash',
+                        from: ['/guides/enable-headless-browser-selfhost'],
+                    },
+                    {
+                        to: '/self-host/self-host-lightdash',
+                        from: ['/guides/how-to-deploy-to-kubernetes'],
+                    },
+                    {
+                        to: '/self-host/upgrade-lightdash',
+                        from: [
+                            '/guides/how-to-update-docker-image',
+                            '/guides/update-lightdash',
+                        ],
+                    },
+                    {
+                        to: '/self-host/customize-deployment/environment-variables',
+                        from: ['/references/environmentVariables'],
+                    },
                 ],
             },
         ],

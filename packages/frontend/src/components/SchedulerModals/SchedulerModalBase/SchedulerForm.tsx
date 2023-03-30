@@ -62,7 +62,7 @@ const SlackErrorContent: FC<{ slackState: SlackStates }> = ({
                 <p>No Slack integration found</p>
                 <p>
                     To create a slack scheduled delivery, you need to
-                    <a href="https://docs.lightdash.com/guides/enable-slack-selfhost">
+                    <a href="https://docs.lightdash.com/self-host/customize-deployment/configure-a-slack-app-for-lightdash">
                         {' '}
                         setup Slack{' '}
                     </a>
@@ -275,7 +275,7 @@ const SchedulerForm: FC<
                                 content={
                                     <p>
                                         You must enable the
-                                        <a href="https://docs.lightdash.com/guides/enable-headless-browser-selfhost">
+                                        <a href="https://docs.lightdash.com/self-host/customize-deployment/enable-headless-browser-for-lightdash">
                                             {' '}
                                             headless browser{' '}
                                         </a>

@@ -126,7 +126,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                                         now available. Please follow the
                                         instructions in the{' '}
                                         <Anchor
-                                            href="https://docs.lightdash.com/references/update-lightdash/"
+                                            href="https://docs.lightdash.com/self-host/update-lightdash"
                                             target="_blank"
                                             rel="noreferrer"
                                             style={{

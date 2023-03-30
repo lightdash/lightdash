@@ -1,18 +1,21 @@
+---
+sidebar_label: Slack integration
+---
+
 import SlackCreateNewApp from './assets/slack-create-new-app.png';
 import SlackSelectWorkspace from './assets/slack-select-worskpace.png';
 import SlackBasicInformation from './assets/slack-basic-information.png';
 import SlackAppToken from './assets/slack-app-token.png';
 
-
-# Add Slack integration on self-hosting
+# Configure a slack integration for self-hosted Lightdash
 
 In this guide we will show you how you can enable [Share in Slack](https://docs.lightdash.com/guides/sharing-in-slack) on your on self-hosted Lightdash server.
 
-## Create a new Slack APP on your organization
+### Create a new Slack APP on your organization
 
 First we will have to create a Slack APP https://api.slack.com/apps?new_app=1
 
-You can select `From an app manifest` to make it easier. 
+You can select `From an app manifest` to make it easier.
 
 <img src={SlackCreateNewApp} width="500" height="400" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
@@ -46,10 +49,6 @@ Then copy this manifest to allow URL unfurls in your app. **Make sure you update
             "bot": [
                 "links:read",
                 "links:write"
-                "chat:write",
-                "channels:read",
-                "channels:join",
-                "users:read"
             ]
         }
     },
@@ -70,13 +69,13 @@ Then copy this manifest to allow URL unfurls in your app. **Make sure you update
 
 ```
 
-Finally, click on `create` 
+Finally, click on `create`
 
-## Copying credentials 
+### Copying credentials
 
-Now copy the following credentials from your new app. 
+Now copy the following credentials from your new app.
 
-From `Basic Information` 
+From `Basic Information`
 
 <img src={SlackBasicInformation} width="500" height="400" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
@@ -88,20 +87,16 @@ Also create a new App-level token by clicking on `Generate Token and Scopes`
 
 <img src={SlackAppToken} width="500" height="400" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-Copy the token it generates. 
+Copy the token it generates.
 
-## Adding credentials to your local environment
+### Adding credentials to your local environment
 
 Now you need to add the following environment variables to your Lightdash server using the credentials we previously copied
 
-- `SLACK_APP_TOKEN`: App-level token 
+- `SLACK_APP_TOKEN`: App-level token
 - `SLACK_CLIENT_ID`: Client ID (make sure it is between quotes, so it is a string, not a number)
 - `SLACK_CLIENT_SECRET`: Client secret
 - `SLACK_SIGNING_SECRET`: Signing secret
 - `SLACK_STATE_SECRET`: This can be any string
 
 Restart your Lightdash service, now you should be able to use [Share in Slack](https://docs.lightdash.com/guides/sharing-in-slack) on your self-hosted Lightdash.
-
-Also make sure you are running the [headless browser](https://docs.lightdash.com/guides/enable-headless-browser-selfhost) to generate images.
-
-We also recommend you configure [cloud storage](https://docs.lightdash.com/guides/enable-cloud-storage) to store images.
