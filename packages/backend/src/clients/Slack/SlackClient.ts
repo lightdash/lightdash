@@ -89,8 +89,8 @@ export class SlackClient {
         do {
             Logger.debug(`Fetching slack users with cursor ${nextCursor}`);
 
-            // eslint-disable-next-line no-await-in-loop
             const conversations: ConversationsListResponse =
+                // eslint-disable-next-line no-await-in-loop
                 await this.slackApp.client.conversations.list({
                     token: installation?.token,
                     types: 'public_channel',
@@ -110,8 +110,8 @@ export class SlackClient {
         do {
             Logger.debug(`Fetching slack users with cursor ${nextCursor}`);
 
-            // eslint-disable-next-line no-await-in-loop
             const users: UsersListResponse =
+                // eslint-disable-next-line no-await-in-loop
                 await this.slackApp.client.users.list({
                     token: installation?.token,
                     limit: 500,
