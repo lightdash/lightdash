@@ -117,6 +117,27 @@ describe('Lightdash API tests for member user with admin project permissions', (
         );
     });
 
+    it('Should get success response (200) from POST chart results with filters', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        // Fetch a chart from spaces
+        cy.request(`${apiUrl}/projects/${projectUuid}/spaces`).then(
+            (spacesResponse) => {
+                const savedChartUuid =
+                    spacesResponse.body.results[0].queries[0].uuid;
+                const endpoint = `/saved/${savedChartUuid}/results`;
+                cy.request({
+                    url: `${apiUrl}${endpoint}`,
+                    headers: { 'Content-type': 'application/json' },
+                    method: 'POST',
+                    body: { filters: {} },
+                }).then((resp) => {
+                    expect(resp.status).to.eq(200);
+                    expect(resp.body).to.have.property('status', 'ok');
+                });
+            },
+        );
+    });
     it('Should get success response (200) from POST runUnderlyingDataQuery', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
@@ -625,7 +646,29 @@ describe('Lightdash API tests for member user with interactive_viewer project pe
                     url: `${apiUrl}${endpoint}`,
                     headers: { 'Content-type': 'application/json' },
                     method: 'POST',
-                    body: { chartUuid: savedChartUuid },
+                    body: undefined,
+                }).then((resp) => {
+                    expect(resp.status).to.eq(200);
+                    expect(resp.body).to.have.property('status', 'ok');
+                });
+            },
+        );
+    });
+
+    it('Should get success response (200) from POST chart results with filters', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        // Fetch a chart from spaces
+        cy.request(`${apiUrl}/projects/${projectUuid}/spaces`).then(
+            (spacesResponse) => {
+                const savedChartUuid =
+                    spacesResponse.body.results[0].queries[0].uuid;
+                const endpoint = `/saved/${savedChartUuid}/results`;
+                cy.request({
+                    url: `${apiUrl}${endpoint}`,
+                    headers: { 'Content-type': 'application/json' },
+                    method: 'POST',
+                    body: { filters: {} },
                 }).then((resp) => {
                     expect(resp.status).to.eq(200);
                     expect(resp.body).to.have.property('status', 'ok');
@@ -830,6 +873,27 @@ describe('Lightdash API tests for member user with viewer project permissions', 
         );
     });
 
+    it('Should get success response (200) from POST chart results with filters', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        // Fetch a chart from spaces
+        cy.request(`${apiUrl}/projects/${projectUuid}/spaces`).then(
+            (spacesResponse) => {
+                const savedChartUuid =
+                    spacesResponse.body.results[0].queries[0].uuid;
+                const endpoint = `/saved/${savedChartUuid}/results`;
+                cy.request({
+                    url: `${apiUrl}${endpoint}`,
+                    headers: { 'Content-type': 'application/json' },
+                    method: 'POST',
+                    body: { filters: {} },
+                }).then((resp) => {
+                    expect(resp.status).to.eq(200);
+                    expect(resp.body).to.have.property('status', 'ok');
+                });
+            },
+        );
+    });
     it('Should get forbidden (403) from POST sqlQuery', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
