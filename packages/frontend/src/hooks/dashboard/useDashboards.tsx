@@ -3,7 +3,12 @@ import {
     DashboardBasicDetails,
     UpdateMultipleDashboards,
 } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from 'react-query';
+import {
+    useMutation,
+    useQuery,
+    useQueryClient,
+    UseQueryOptions,
+} from 'react-query';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 import useQueryError from '../useQueryError';
@@ -25,14 +30,24 @@ const getDashboardsContainingChart = async (
         body: undefined,
     });
 
-export const useDashboards = (projectUuid: string) => {
+export const useDashboards = (
+    projectUuid: string,
+    useQueryOptions?: UseQueryOptions<DashboardBasicDetails[], ApiError>,
+) => {
     const setErrorResponse = useQueryError();
-    return useQuery<DashboardBasicDetails[], ApiError>({
-        queryKey: ['dashboards', projectUuid],
-        queryFn: () => getDashboards(projectUuid || ''),
-        enabled: projectUuid !== undefined,
-        onError: (result) => setErrorResponse(result),
-    });
+
+    return useQuery<DashboardBasicDetails[], ApiError>(
+        ['dashboards', projectUuid],
+        () => getDashboards(projectUuid || ''),
+        {
+            enabled: projectUuid !== undefined,
+            ...useQueryOptions,
+            onError: (result) => {
+                setErrorResponse(result);
+                useQueryOptions?.onError?.(result);
+            },
+        },
+    );
 };
 
 export const useDashboardsContainingChart = (

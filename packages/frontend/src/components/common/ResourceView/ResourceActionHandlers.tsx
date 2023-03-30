@@ -272,8 +272,9 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
         case ResourceViewItemAction.ADD_TO_DASHBOARD:
             return (
                 <AddTilesToDashboardModal
-                    savedChart={action.item.data}
                     isOpen
+                    projectUuid={projectUuid}
+                    savedChartUuid={action.item.data.uuid}
                     onClose={handleReset}
                 />
             );

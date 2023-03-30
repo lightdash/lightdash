@@ -1,3 +1,38 @@
+## [0.495.1](https://github.com/lightdash/lightdash/compare/0.495.0...0.495.1) (2023-03-30)
+
+
+### Bug Fixes
+
+* useEffect bugs for add chart to dashboard modal ([#4960](https://github.com/lightdash/lightdash/issues/4960)) ([857f4cf](https://github.com/lightdash/lightdash/commit/857f4cf592e88a583c0df50d5de5442cd19b678f))
+
+# [0.495.0](https://github.com/lightdash/lightdash/compare/0.494.0...0.495.0) (2023-03-30)
+
+
+### Features
+
+* slack pagination ([#4967](https://github.com/lightdash/lightdash/issues/4967)) ([98a48aa](https://github.com/lightdash/lightdash/commit/98a48aa17e0b6afec8581a7551c968d10835e2fe))
+
+# [0.494.0](https://github.com/lightdash/lightdash/compare/0.493.0...0.494.0) (2023-03-30)
+
+
+### Features
+
+* pivot table [POC] ([#4914](https://github.com/lightdash/lightdash/issues/4914)) ([0129c18](https://github.com/lightdash/lightdash/commit/0129c18abf2a6dbf7bcb70261a67f62f2dfe1723))
+
+# [0.493.0](https://github.com/lightdash/lightdash/compare/0.492.0...0.493.0) (2023-03-30)
+
+
+### Features
+
+* break out s3 image expiration time to env variable ([#4955](https://github.com/lightdash/lightdash/issues/4955)) ([4274e02](https://github.com/lightdash/lightdash/commit/4274e02f0828b4b72b9a688594c317ea3fd61cab))
+
+# [0.492.0](https://github.com/lightdash/lightdash/compare/0.491.0...0.492.0) (2023-03-30)
+
+
+### Features
+
+* space panel removed and pinned items empty state added ([#4936](https://github.com/lightdash/lightdash/issues/4936)) ([6fe0591](https://github.com/lightdash/lightdash/commit/6fe0591cf4d41bb84402a72ec75db82c9602f2c0))
+
 # [0.491.0](https://github.com/lightdash/lightdash/compare/0.490.0...0.491.0) (2023-03-29)
 
 

@@ -4,7 +4,6 @@ import { useParams } from 'react-router-dom';
 import { useUnmount } from 'react-use';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
-import SpaceBrowser from '../components/Explorer/SpaceBrowser';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import LandingPanel from '../components/Home/LandingPanel';
 import OnboardingPanel from '../components/Home/OnboardingPanel/index';
@@ -68,7 +67,6 @@ const Home: FC = () => {
                             projectUuid={project.data.projectUuid}
                             organizationUuid={project.data.organizationUuid}
                         />
-                        <SpaceBrowser projectUuid={project.data.projectUuid} />
 
                         <RecentlyUpdatedPanel
                             projectUuid={project.data.projectUuid}

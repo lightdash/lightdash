@@ -30,6 +30,7 @@ import MinimalDashboard from './pages/MinimalDashboard';
 import MinimalSavedExplorer from './pages/MinimalSavedExplorer';
 import PasswordRecovery from './pages/PasswordRecovery';
 import PasswordReset from './pages/PasswordReset';
+import PivotingPOC from './pages/PivotingPOC';
 import { Projects } from './pages/Projects';
 import Register from './pages/Register';
 import SavedDashboards from './pages/SavedDashboards';
@@ -98,6 +99,10 @@ const App = () => (
                                                     <MobileView />
                                                 ) : (
                                                     <Switch>
+                                                        <PrivateRoute path="/pivoting">
+                                                            <PivotingPOC />
+                                                        </PrivateRoute>
+
                                                         <PrivateRoute path="/minimal">
                                                             <Switch>
                                                                 <Route path="/minimal/projects/:projectUuid/saved/:savedQueryUuid">

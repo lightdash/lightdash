@@ -125,7 +125,7 @@ export const useExportDashboard = () => {
 };
 
 export const useUpdateDashboard = (
-    id: string,
+    id?: string,
     showRedirectButton: boolean = false,
 ) => {
     const history = useHistory();
@@ -133,7 +133,13 @@ export const useUpdateDashboard = (
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
     return useMutation<Dashboard, ApiError, UpdateDashboard>(
-        (data) => updateDashboard(id, data),
+        (data) => {
+            if (id === undefined) {
+                throw new Error('Dashboard id is undefined');
+            }
+
+            return updateDashboard(id, data);
+        },
         {
             mutationKey: ['dashboard_update'],
             onSuccess: async (_, variables) => {

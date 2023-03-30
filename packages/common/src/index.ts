@@ -104,6 +104,7 @@ export * from './types/organization';
 export * from './types/organizationMemberProfile';
 export * from './types/personalAccessToken';
 export * from './types/pinning';
+export * from './types/pivot';
 export * from './types/projectMemberProfile';
 export * from './types/projects';
 export * from './types/results';

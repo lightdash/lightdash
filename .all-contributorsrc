@@ -985,6 +985,24 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "gictor",
+      "name": "Victor Lindell",
+      "avatar_url": "https://avatars.githubusercontent.com/u/2518420?v=4",
+      "profile": "https://github.com/gictor",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "stellar-ahmed",
+      "name": "stellar-ahmed",
+      "avatar_url": "https://avatars.githubusercontent.com/u/125902091?v=4",
+      "profile": "https://github.com/stellar-ahmed",
+      "contributions": [
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,
