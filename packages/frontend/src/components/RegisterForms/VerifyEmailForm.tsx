@@ -1,12 +1,4 @@
-import {
-    Anchor,
-    Button,
-    PinInput,
-    Stack,
-    Text,
-    Title,
-    UnstyledButton,
-} from '@mantine/core';
+import { Anchor, Button, PinInput, Stack, Text, Title } from '@mantine/core';
 import { isNotEmpty, useForm } from '@mantine/form';
 import React, { FC, useEffect, useState } from 'react';
 import Countdown, { zeroPad } from 'react-countdown';
@@ -116,14 +108,16 @@ const VerifyEmailForm: FC<{ isLoading?: boolean }> = ({ isLoading }) => {
                     }}
                 />
             </form>
-            <UnstyledButton
+            <Anchor
+                size="sm"
+                component="button"
                 onClick={() => {
                     form.reset();
                     sendVerificationEmail();
                 }}
             >
-                <Anchor size="sm">Resend email</Anchor>
-            </UnstyledButton>
+                Resend email
+            </Anchor>
         </Stack>
     );
 };

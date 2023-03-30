@@ -1,11 +1,19 @@
-import { Card, Colors } from '@blueprintjs/core';
 import { getEmailDomain } from '@lightdash/common';
-import { Avatar, Box, Text } from '@mantine/core';
-import { IconChevronRight } from '@tabler/icons-react';
+import {
+    Anchor,
+    Avatar,
+    Box,
+    Button,
+    Card,
+    Group,
+    Image,
+    Stack,
+    Text,
+    Title,
+} from '@mantine/core';
 import React, { FC, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { useHistory } from 'react-router-dom';
-import { BigButton } from '../components/common/BigButton';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import { useOrganisationCreateMutation } from '../hooks/organisation/useOrganisationCreateMutation';
@@ -13,14 +21,6 @@ import useAllowedOrganizations from '../hooks/user/useAllowedOrganizations';
 import { useJoinOrganizationMutation } from '../hooks/user/useJoinOrganizationMutation';
 import { useApp } from '../providers/AppProvider';
 import LightdashLogo from '../svgs/lightdash-black.svg';
-import {
-    CardWrapper,
-    FormWrapper,
-    Logo,
-    LogoWrapper,
-    Subtitle,
-    Title,
-} from './Invite.styles';
 
 export const JoinOrganizationPage: FC = () => {
     const { health, user } = useApp();
@@ -37,6 +37,7 @@ export const JoinOrganizationPage: FC = () => {
         isLoading: isJoiningOrg,
         isSuccess: hasJoinedOrg,
     } = useJoinOrganizationMutation();
+    const emailDomain = user.data?.email ? getEmailDomain(user.data.email) : '';
 
     useEffect(() => {
         const isAllowedToJoinOrgs = allowedOrgs && allowedOrgs.length > 0;
@@ -75,55 +76,80 @@ export const JoinOrganizationPage: FC = () => {
             <Helmet>
                 <title>Join a workspace - Lightdash</title>
             </Helmet>
-            <LogoWrapper>
-                <Logo src={LightdashLogo} alt="lightdash logo" />
-            </LogoWrapper>
-            <FormWrapper>
-                <CardWrapper elevation={2}>
-                    <Title>Join a workspace</Title>
-                    <Subtitle>
-                        The workspaces below are open to anyone with a{' '}
-                        <b>@{getEmailDomain(user.data?.email || '')}</b> domain.
-                        Select a workspace to join, or create a new one!
-                    </Subtitle>
-                    {allowedOrgs?.map((org) => (
-                        <Card
-                            key={org.organizationUuid}
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                marginBottom: 22,
-                                padding: 10,
-                            }}
-                            interactive
-                            elevation={0}
-                            onClick={() => joinOrg(org.organizationUuid)}
-                        >
-                            <Avatar size="md" radius="xl" color={'gray'}>
-                                {org.name[0]?.toUpperCase()}
-                            </Avatar>
-                            <Box style={{ flex: 1, marginLeft: 12 }}>
-                                <Text truncate fw={600}>
-                                    {org.name}
-                                </Text>
-                                <Text fz="xs" c="gray">
-                                    {org.membersCount} members
-                                </Text>
-                            </Box>
-                            <IconChevronRight size={24} color={Colors.GRAY3} />
-                        </Card>
-                    ))}
-                    <BigButton
-                        fill
-                        intent={'primary'}
-                        disabled={disabled}
-                        loading={isCreatingOrg}
-                        onClick={() => createOrg({ name: '' })}
-                    >
-                        Create a new one
-                    </BigButton>
-                </CardWrapper>
-            </FormWrapper>
+            <Stack w={400} mt="4xl">
+                <Image
+                    src={LightdashLogo}
+                    alt="lightdash logo"
+                    width={130}
+                    mx="auto"
+                    my="lg"
+                />
+                <Card p="xl" radius="xs" withBorder shadow="xs">
+                    <Stack justify="center" spacing="md" mb="xs">
+                        <Title order={3} ta="center">
+                            Join a workspace
+                        </Title>
+                        <Text color="gray.6" ta="center">
+                            The workspaces below are open to anyone with a{' '}
+                            <Text span fw={600}>
+                                @{emailDomain}:
+                            </Text>{' '}
+                            domain
+                        </Text>
+                        {allowedOrgs?.map((org) => (
+                            <Card key={org.organizationUuid} withBorder>
+                                <Group position="apart">
+                                    <Group spacing="md">
+                                        <Avatar
+                                            size="md"
+                                            radius="xl"
+                                            color="gray.6"
+                                        >
+                                            {org.name[0]?.toUpperCase()}
+                                        </Avatar>
+                                        <Stack spacing="two">
+                                            <Text truncate fw={600}>
+                                                {org.name}
+                                            </Text>
+                                            <Text fz="xs" c="gray">
+                                                {org.membersCount} members
+                                            </Text>
+                                        </Stack>
+                                    </Group>
+                                    <Button
+                                        onClick={() =>
+                                            joinOrg(org.organizationUuid)
+                                        }
+                                        loading={isJoiningOrg}
+                                    >
+                                        Join
+                                    </Button>
+                                </Group>
+                            </Card>
+                        ))}
+                    </Stack>
+                </Card>
+                <Anchor
+                    component="button"
+                    onClick={() => createOrg({ name: '' })}
+                    disabled={disabled}
+                    ta="center"
+                    size="sm"
+                    sx={(theme) =>
+                        disabled
+                            ? {
+                                  color: theme.colors.gray[6],
+                                  '&:hover': {
+                                      textDecoration: 'none',
+                                      color: theme.colors.gray[6],
+                                  },
+                              }
+                            : {}
+                    }
+                >
+                    Create a new workspace
+                </Anchor>
+            </Stack>
         </Page>
     );
 };
