@@ -7,11 +7,13 @@ import {
     getItemMap,
     isField,
     itemsInMetricQuery,
+    PivotData,
     ResultRow,
     TableChart,
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { TableColumn, TableHeader } from '../../components/common/Table/types';
+import { pivotQueryResults } from '../pivotTable/pivotQueryResults';
 import getDataAndColumns from './getDataAndColumns';
 import getPivotDataAndColumns from './getPivotDataAndColumns';
 
@@ -42,11 +44,7 @@ const useTableConfig = (
             : tableChartConfig.hideRowNumbers,
     );
 
-    const [metricsAsRows, setMetricsAsRows] = useState<boolean>(
-        tableChartConfig?.metricsAsRows === undefined
-            ? false
-            : tableChartConfig.metricsAsRows,
-    );
+    const [metricsAsRows, setMetricsAsRows] = useState<boolean>(false);
 
     useEffect(() => {
         if (
@@ -112,6 +110,27 @@ const useTableConfig = (
         },
         [columnProperties],
     );
+
+    const pivotTableData = useMemo<PivotData | undefined>(() => {
+        if (
+            resultsData?.metricQuery &&
+            resultsData.metricQuery.metrics.length &&
+            resultsData.rows.length &&
+            pivotDimensions?.length &&
+            metricsAsRows
+        ) {
+            // Pivot V2. This will always trigger when the above conditions are met.
+            // The old pivot below will always trigger. So currently we pivot twice when the above conditions are met.
+            return pivotQueryResults({
+                pivotConfig: {
+                    pivotDimensions,
+                    metricsAsRows,
+                },
+                metricQuery: resultsData.metricQuery,
+                rows: resultsData.rows,
+            });
+        }
+    }, [resultsData, pivotDimensions, metricsAsRows]);
 
     const { rows, columns, error } = useMemo<{
         rows: ResultRow[];
@@ -193,6 +212,7 @@ const useTableConfig = (
         [],
     );
 
+    // We don't track metricsAsRows yet in the tableConfig (this is what is saved to the backend + DB)
     const validTableConfig: TableChart = useMemo(
         () => ({
             showColumnCalculation,
@@ -234,6 +254,7 @@ const useTableConfig = (
         isColumnFrozen,
         conditionalFormattings,
         onSetConditionalFormattings: handleSetConditionalFormattings,
+        pivotTableData,
     };
 };
 
