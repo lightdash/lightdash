@@ -250,6 +250,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                 return (
                     <MultipleInputsWrapper>
                         <StyledDateRangeInput
+                            allowSingleDayRange
                             className={disabled ? 'disabled-filter' : ''}
                             disabled={disabled}
                             formatDate={(value: Date) =>
@@ -263,26 +264,25 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                     `YYYY-MM-DD, HH:mm:ss:SSS`,
                                 ).toDate()
                             }
-                            defaultValue={[new Date(), null]}
-                            timePrecision="second"
+                            value={[
+                                rule.values?.[0]
+                                    ? new Date(rule.values?.[0])
+                                    : new Date(),
+                                rule.values?.[1]
+                                    ? new Date(rule.values?.[1])
+                                    : moment(rule.values?.[0] || new Date())
+                                          .add(2, 'hours')
+                                          .milliseconds(0)
+                                          .toDate(),
+                            ]}
+                            timePrecision="millisecond"
                             onChange={(
                                 range: [Date | null, Date | null] | null,
                             ) => {
                                 if (range && (range[0] || range[1])) {
                                     onChange({
                                         ...rule,
-                                        values: [
-                                            moment(range[0])
-                                                .format(
-                                                    `YYYY-MM-DD, HH:mm:ss:SSS`,
-                                                )
-                                                .toString(),
-                                            moment(range[1])
-                                                .format(
-                                                    `YYYY-MM-DD, HH:mm:ss:SSS`,
-                                                )
-                                                .toString(),
-                                        ],
+                                        values: [range[0], range[1]],
                                     });
                                 }
                             }}
@@ -297,7 +297,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                       )
                                     : undefined,
                             }}
-                            closeOnSelection={true}
+                            closeOnSelection={false}
                             shortcuts={false}
                         />
                     </MultipleInputsWrapper>
