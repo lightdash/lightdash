@@ -76,8 +76,7 @@ const ExportResultAsCSVModal: FC<ExportResultAsCSVModalProps> = ({
     onClose,
     onConfirm,
 }) => {
-    const { data: resultData, isLoading } = useDashboardTileResults(
-        projectUuid,
+    const { data: resultData, isLoading } = useChartResults(
         savedChart.uuid,
         savedChart.metricQuery.filters,
     );
@@ -182,10 +181,7 @@ const ValidDashboardChartTileMinimal: FC<{
     data: SavedChart;
     project: string;
 }> = ({ tileUuid, data, project, isTitleHidden = false }) => {
-    const { data: resultData, isLoading } = useDashboardTileResults(
-        project,
-        data.uuid,
-    );
+    const { data: resultData, isLoading } = useChartResults(data.uuid);
     const { data: explore } = useExplore(data.tableName);
 
     return (
