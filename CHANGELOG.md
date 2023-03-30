@@ -1,3 +1,10 @@
+# [0.494.0](https://github.com/lightdash/lightdash/compare/0.493.0...0.494.0) (2023-03-30)
+
+
+### Features
+
+* pivot table [POC] ([#4914](https://github.com/lightdash/lightdash/issues/4914)) ([0129c18](https://github.com/lightdash/lightdash/commit/0129c18abf2a6dbf7bcb70261a67f62f2dfe1723))
+
 # [0.493.0](https://github.com/lightdash/lightdash/compare/0.492.0...0.493.0) (2023-03-30)
 
 
