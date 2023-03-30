@@ -1,12 +1,16 @@
-import { assertUnreachable, FieldType, PivotData } from '@lightdash/common';
+import { PivotData } from '@lightdash/common';
 import { createStyles, Table, TableProps } from '@mantine/core';
 import { FC } from 'react';
 
-const useStyles = createStyles((_theme) => ({
+const useStyles = createStyles((theme) => ({
     table: {
         '& td, & th': {
             whiteSpace: 'nowrap',
         },
+    },
+    header: {
+        fontWeight: 'bold',
+        backgroundColor: theme.colors.gray[0],
     },
 }));
 
@@ -41,21 +45,21 @@ const PivotTable: FC<PivotTableProps> = ({
                             <tr key={headerValueTypeIndex}>
                                 <>
                                     {data.indexValueTypes.map(
-                                        (_indexValueType, indexValueIndex) => {
-                                            return (
-                                                <th key={indexValueIndex}></th>
-                                            );
-                                        },
+                                        (_indexValueType, indexValueIndex) => (
+                                            // empty
+                                            <th key={indexValueIndex} />
+                                        ),
                                     )}
 
                                     {headerValues.map(
-                                        (headerValue, headerValueIndex) => {
-                                            return (
-                                                <th key={headerValueIndex}>
-                                                    {headerValue?.formatted}
-                                                </th>
-                                            );
-                                        },
+                                        (headerValue, headerValueIndex) => (
+                                            <th
+                                                key={headerValueIndex}
+                                                className={classes.header}
+                                            >
+                                                {headerValue?.formatted}
+                                            </th>
+                                        ),
                                     )}
                                 </>
                             </tr>
@@ -65,35 +69,34 @@ const PivotTable: FC<PivotTableProps> = ({
             </thead>
 
             <tbody>
-                {data.dataValues.map((row, i) => {
-                    return (
-                        <tr key={i}>
-                            <>
-                                {data.indexValueTypes.map(
-                                    (_indexValueType, indexValueTypeIndex) => {
-                                        return (
-                                            <td key={indexValueTypeIndex}>
-                                                {
-                                                    data.indexValues[i][
-                                                        indexValueTypeIndex
-                                                    ]?.formatted
-                                                }
-                                            </td>
-                                        );
-                                    },
-                                )}
-
-                                {row.map((value, rowIndex) => {
+                {data.dataValues.map((row, i) => (
+                    <tr key={i}>
+                        <>
+                            {data.indexValueTypes.map(
+                                (_indexValueType, indexValueTypeIndex) => {
                                     return (
-                                        <td key={rowIndex}>
-                                            {value?.formatted}
+                                        <td
+                                            key={indexValueTypeIndex}
+                                            className={classes.header}
+                                        >
+                                            {
+                                                data.indexValues[i][
+                                                    indexValueTypeIndex
+                                                ]?.formatted
+                                            }
                                         </td>
                                     );
-                                })}
-                            </>
-                        </tr>
-                    );
-                })}
+                                },
+                            )}
+
+                            {row.map((value, rowIndex) => {
+                                return (
+                                    <td key={rowIndex}>{value?.formatted}</td>
+                                );
+                            })}
+                        </>
+                    </tr>
+                ))}
             </tbody>
         </Table>
     );
