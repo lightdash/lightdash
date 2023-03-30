@@ -312,7 +312,7 @@ describe('Create projects', () => {
         cy.contains('a', 'Create project manually');
     });
 
-    it('Should create a Postgres project', () => {
+    it.only('Should create a Postgres project', () => {
         cy.visit(`/createProject`);
 
         cy.contains('button', 'PostgreSQL').click();

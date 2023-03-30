@@ -11,10 +11,8 @@ import {
     DashboardChartTile,
     DashboardTileTypes,
     getDefaultChartTileSize,
-    SavedChart,
 } from '@lightdash/common';
-import { FC, useCallback, useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { FC, useCallback, useState } from 'react';
 import { v4 as uuid4 } from 'uuid';
 import {
     appendNewTilesToBottom,
@@ -28,118 +26,158 @@ import {
     useCreateMutation as useSpaceCreateMutation,
     useSpaces,
 } from '../../hooks/useSpaces';
-import { CreateNewText } from './AddTilesToDashboardModal.styles';
 
 interface AddTilesToDashboardModalProps {
     isOpen: boolean;
-    savedChart: SavedChart | any;
+    projectUuid: string;
+    savedChartUuid: string;
     onClose?: () => void;
 }
 
-const useUpdateMutation = (id?: string) => {
-    const hook = useUpdateDashboard(id || '', true);
-    if (id) {
-        return hook;
-    }
-    return { mutate: undefined };
-};
-
 const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
     isOpen,
-    savedChart,
+    projectUuid,
+    savedChartUuid,
     onClose,
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
-    const useCreate = useCreateMutation(projectUuid, true);
-    const { mutate: mutateCreate } = useCreate;
-    const { data: spaces } = useSpaces(projectUuid);
+    const [selectedDashboardUuid, setSelectedDashboardUuid] =
+        useState<string>();
+    const [selectedSpaceUuid, setSpaceUuid] = useState<string>();
 
-    const { data: dashboards, isLoading } = useDashboards(projectUuid);
-    const [selectedDashboard, setSelectedDashboard] = useState<string>();
-    const { data: dashboardData } = useDashboardQuery(selectedDashboard);
-    const { mutate: updateMutation } = useUpdateMutation(selectedDashboard);
-    const [name, setName] = useState<string>('');
-    const [showNewDashboardInput, setShowNewDashboardInput] =
+    const [isCreatingNewDashboard, setIsCreatingNewDashboard] = useState(false);
+    const [newDashboardName, setNewDashboardName] = useState('');
+
+    const [isCreatingNewSpace, setIsCreatingnewSpace] =
         useState<boolean>(false);
-    const { data: completeSavedChart } = useSavedQuery(savedChart.uuid);
-    const [newSpaceName, setNewSpaceName] = useState<string>('');
-    const [spaceUuid, setSpaceUuid] = useState<string | undefined>();
-    const {
-        data: newSpace,
-        mutate: spaceCreateMutation,
-        isSuccess: hasCreateSpace,
-        isLoading: isCreatingSpace,
-        reset,
-    } = useSpaceCreateMutation(projectUuid);
-    const [showNewSpaceInput, setShowNewSpaceInput] = useState<boolean>(false);
+    const [newSpaceName, setNewSpaceName] = useState('');
 
-    const showSpaceInput = showNewSpaceInput || spaces?.length === 0;
-    useEffect(() => {
-        if (spaceUuid === undefined && spaces && spaces.length > 0) {
-            setSpaceUuid(spaces[0].uuid);
-        }
-    }, [spaces, spaceUuid]);
-    useEffect(() => {
-        if (dashboards && !dashboardData && !isLoading) {
-            if (dashboards.length > 0) setSelectedDashboard(dashboards[0].uuid);
-        }
-        // If no dashboards, we always show the ""
-        if (
-            dashboards &&
-            dashboards.length === 0 &&
-            !isLoading &&
-            !showNewDashboardInput
-        ) {
-            setShowNewDashboardInput(true);
-        }
-    }, [dashboards, isLoading, dashboardData, showNewDashboardInput]);
+    const [isLoading, setIsLoading] = useState(false);
 
-    const addChartToDashboard = useCallback(
-        (selectedSpaceUuid: string | undefined) => {
-            mutateCreate({
-                name,
-                spaceUuid: selectedSpaceUuid,
-                tiles: [
-                    {
-                        uuid: uuid4(),
-                        type: DashboardTileTypes.SAVED_CHART,
-
-                        properties: {
-                            savedChartUuid: savedChart.uuid,
-                            title: savedChart.name,
-                        },
-                        ...getDefaultChartTileSize(
-                            savedChart.chartConfig?.type ||
-                                completeSavedChart?.chartConfig.type,
-                        ),
-                    },
-                ],
-            });
-
-            setShowNewDashboardInput(false);
-
-            setShowNewSpaceInput(false);
-            setName('');
-            if (onClose) onClose();
+    const { data: savedChart } = useSavedQuery({ id: savedChartUuid });
+    const { data: dashboards, isLoading: isLoadingDashboards } = useDashboards(
+        projectUuid,
+        {
+            onSuccess: (data) => {
+                if (data.length > 0) {
+                    setSelectedDashboardUuid(data[0].uuid);
+                } else {
+                    setIsCreatingNewDashboard(true);
+                }
+            },
         },
-        [
-            name,
-            savedChart.uuid,
-            completeSavedChart?.chartConfig.type,
-            mutateCreate,
-            savedChart.chartConfig?.type,
-            setShowNewDashboardInput,
-            setShowNewSpaceInput,
-            setName,
-            onClose,
-        ],
     );
-    useEffect(() => {
-        if (hasCreateSpace && newSpace) {
-            addChartToDashboard(newSpace.uuid);
-            reset();
+    const { data: spaces, isLoading: isLoadingSpaces } = useSpaces(
+        projectUuid,
+        {
+            onSuccess: (data) => {
+                if (data.length > 0) {
+                    setSpaceUuid(data[0].uuid);
+                } else {
+                    setIsCreatingnewSpace(true);
+                }
+            },
+        },
+    );
+    const { data: selectedDashboard } = useDashboardQuery(
+        selectedDashboardUuid,
+    );
+
+    const { mutateAsync: createDashboard } = useCreateMutation(
+        projectUuid,
+        true,
+    );
+    const { mutateAsync: updateDashboard } = useUpdateDashboard(
+        selectedDashboardUuid,
+        true,
+    );
+    const { mutateAsync: createSpace } = useSpaceCreateMutation(projectUuid);
+
+    const handleSubmit = useCallback(async () => {
+        if (!savedChart) return;
+
+        setIsLoading(true);
+
+        try {
+            let spaceUuid = selectedSpaceUuid;
+            if (isCreatingNewSpace) {
+                const newSpace = await createSpace({
+                    name: newSpaceName,
+                    isPrivate: false,
+                    access: [],
+                });
+
+                spaceUuid = newSpace.uuid;
+            }
+
+            const newTile: DashboardChartTile = {
+                uuid: uuid4(),
+                type: DashboardTileTypes.SAVED_CHART,
+                properties: {
+                    savedChartUuid: savedChart.uuid,
+                    title: savedChart.name,
+                },
+                ...getDefaultChartTileSize(savedChart.chartConfig?.type),
+            };
+
+            if (isCreatingNewDashboard) {
+                createDashboard({
+                    name: newDashboardName,
+                    spaceUuid: spaceUuid,
+                    tiles: [
+                        {
+                            uuid: uuid4(),
+                            type: DashboardTileTypes.SAVED_CHART,
+
+                            properties: {
+                                savedChartUuid: savedChart.uuid,
+                                title: savedChart.name,
+                            },
+                            ...getDefaultChartTileSize(
+                                savedChart?.chartConfig.type,
+                            ),
+                        },
+                    ],
+                });
+            } else {
+                if (!selectedDashboard) throw new Error('Expected dashboard');
+
+                updateDashboard({
+                    name: selectedDashboard.name,
+                    filters: selectedDashboard.filters,
+                    tiles: appendNewTilesToBottom(selectedDashboard.tiles, [
+                        newTile,
+                    ]),
+                });
+            }
+
+            onClose?.();
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setIsLoading(false);
         }
-    }, [hasCreateSpace, newSpace, addChartToDashboard, reset]);
+    }, [
+        createDashboard,
+        createSpace,
+        updateDashboard,
+        savedChart,
+        selectedDashboard,
+        selectedSpaceUuid,
+        newDashboardName,
+        newSpaceName,
+        isCreatingNewDashboard,
+        isCreatingNewSpace,
+        onClose,
+    ]);
+
+    if (isLoadingDashboards || !dashboards || isLoadingSpaces || !spaces) {
+        return null;
+    }
+
+    const showNewDashboardInput =
+        isCreatingNewDashboard || dashboards.length === 0;
+    const showNewSpaceInput = isCreatingNewSpace || spaces.length === 0;
+
     return (
         <Dialog
             isOpen={isOpen}
@@ -147,172 +185,131 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
             lazy
             title="Add chart to dashboard"
         >
-            <form>
-                <DialogBody>
-                    {!showNewDashboardInput && (
-                        <>
-                            <p>
-                                <b>Select a dashboard</b>
-                            </p>
+            <DialogBody>
+                {!showNewDashboardInput ? (
+                    <>
+                        <FormGroup
+                            label="Select a dashboard"
+                            labelFor="select-dashboard"
+                        >
                             <HTMLSelect
                                 id="select-dashboard"
                                 fill={true}
-                                value={selectedDashboard}
+                                value={selectedDashboardUuid}
                                 onChange={(e) =>
-                                    setSelectedDashboard(e.currentTarget.value)
+                                    setSelectedDashboardUuid(
+                                        e.currentTarget.value,
+                                    )
                                 }
-                                options={
-                                    dashboards
-                                        ? dashboards.map((dashboard) => ({
-                                              value: dashboard.uuid,
-                                              label: dashboard.name,
-                                          }))
-                                        : []
-                                }
+                                options={dashboards.map((d) => ({
+                                    value: d.uuid,
+                                    label: d.name,
+                                }))}
                             />
+                        </FormGroup>
 
-                            <CreateNewText
-                                onClick={() => setShowNewDashboardInput(true)}
-                            >
-                                + Create new dashboard
-                            </CreateNewText>
-                        </>
-                    )}
+                        <Button
+                            minimal
+                            icon="plus"
+                            intent="primary"
+                            onClick={() => setIsCreatingNewDashboard(true)}
+                        >
+                            Create new dashboard
+                        </Button>
+                    </>
+                ) : (
+                    <>
+                        <FormGroup
+                            label="Name new dashboard"
+                            labelFor="chart-name"
+                        >
+                            <InputGroup
+                                id="chart-name"
+                                type="text"
+                                value={newDashboardName}
+                                onChange={(e) =>
+                                    setNewDashboardName(e.target.value)
+                                }
+                                placeholder="eg. KPI dashboard"
+                            />
+                        </FormGroup>
 
-                    {showNewDashboardInput && (
-                        <>
-                            <FormGroup label="Name" labelFor="chart-name">
-                                <InputGroup
-                                    id="chart-name"
-                                    type="text"
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                    placeholder="eg. KPI dashboard"
-                                />
-                            </FormGroup>
-                            {!showSpaceInput && (
-                                <>
-                                    <p>
-                                        <b>Select a space</b>
-                                    </p>
+                        {!isLoadingSpaces && !showNewSpaceInput ? (
+                            <>
+                                <FormGroup
+                                    label="Select a space"
+                                    labelFor="select-dashboard"
+                                >
                                     <HTMLSelect
                                         id="select-dashboard"
                                         fill={true}
-                                        value={spaceUuid}
+                                        value={selectedSpaceUuid}
                                         onChange={(e) =>
                                             setSpaceUuid(e.currentTarget.value)
                                         }
-                                        options={
-                                            spaces
-                                                ? spaces?.map((space) => ({
-                                                      value: space.uuid,
-                                                      label: space.name,
-                                                  }))
-                                                : []
-                                        }
+                                        options={spaces.map((space) => ({
+                                            value: space.uuid,
+                                            label: space.name,
+                                        }))}
                                     />
+                                </FormGroup>
 
-                                    <CreateNewText
-                                        onClick={() =>
-                                            setShowNewSpaceInput(true)
-                                        }
-                                    >
-                                        + Create new space
-                                    </CreateNewText>
-                                </>
-                            )}
-                            {showSpaceInput && (
-                                <>
-                                    <p>
-                                        <b>Space</b>
-                                    </p>
-                                    <InputGroup
-                                        id="chart-space"
-                                        type="text"
-                                        value={newSpaceName}
-                                        onChange={(e) =>
-                                            setNewSpaceName(e.target.value)
-                                        }
-                                        placeholder="eg. KPIs"
-                                    />
-                                </>
-                            )}
-                        </>
-                    )}
-                </DialogBody>
-
-                <DialogFooter
-                    actions={
-                        <>
-                            <Button
-                                onClick={() => {
-                                    if (onClose) onClose();
-                                    setShowNewDashboardInput(false);
-                                }}
+                                <Button
+                                    minimal
+                                    icon="plus"
+                                    intent="primary"
+                                    onClick={() => setIsCreatingnewSpace(true)}
+                                >
+                                    Create new space
+                                </Button>
+                            </>
+                        ) : (
+                            <FormGroup
+                                label="Name new space"
+                                labelFor="chart-space"
                             >
-                                Cancel
-                            </Button>
-
-                            <Button
-                                data-cy="submit-base-modal"
-                                intent="primary"
-                                text={'Add'}
-                                type="submit"
-                                onClick={(e) => {
-                                    if (showNewDashboardInput) {
-                                        if (showSpaceInput) {
-                                            // We create first a space
-                                            // Then we will create the saved chart
-                                            // on isSuccess hook
-                                            spaceCreateMutation({
-                                                name: newSpaceName,
-                                                isPrivate: false,
-                                                access: [],
-                                            });
-                                        } else {
-                                            addChartToDashboard(spaceUuid);
-                                        }
-                                    } else if (
-                                        dashboardData &&
-                                        updateMutation
-                                    ) {
-                                        const newTile: DashboardChartTile = {
-                                            uuid: uuid4(),
-                                            type: DashboardTileTypes.SAVED_CHART,
-                                            properties: {
-                                                savedChartUuid: savedChart.uuid,
-                                                title: savedChart.name,
-                                            },
-                                            ...getDefaultChartTileSize(
-                                                savedChart.chartConfig?.type ||
-                                                    completeSavedChart
-                                                        ?.chartConfig.type,
-                                            ),
-                                        };
-
-                                        updateMutation({
-                                            name: dashboardData.name,
-                                            filters: dashboardData.filters,
-                                            tiles: appendNewTilesToBottom(
-                                                dashboardData.tiles,
-                                                [newTile],
-                                            ),
-                                        });
-                                        setShowNewDashboardInput(false);
-
-                                        setShowNewSpaceInput(false);
-                                        setName('');
-                                        if (onClose) onClose();
+                                <InputGroup
+                                    id="chart-space"
+                                    type="text"
+                                    value={newSpaceName}
+                                    onChange={(e) =>
+                                        setNewSpaceName(e.target.value)
                                     }
+                                    placeholder="eg. KPIs"
+                                />
+                            </FormGroup>
+                        )}
+                    </>
+                )}
+            </DialogBody>
 
-                                    e.preventDefault();
-                                }}
-                                disabled={showNewDashboardInput && name === ''}
-                            />
-                        </>
-                    }
-                />
-            </form>
+            <DialogFooter
+                actions={
+                    <>
+                        <Button
+                            onClick={() => {
+                                if (onClose) onClose();
+                                setIsCreatingNewDashboard(false);
+                            }}
+                        >
+                            Cancel
+                        </Button>
+
+                        <Button
+                            intent="primary"
+                            text="Add"
+                            type="submit"
+                            loading={isLoading}
+                            onClick={handleSubmit}
+                            disabled={
+                                (isCreatingNewDashboard &&
+                                    newDashboardName === '') ||
+                                (isCreatingNewSpace && newSpaceName === '')
+                            }
+                        />
+                    </>
+                }
+            />
         </Dialog>
     );
 };

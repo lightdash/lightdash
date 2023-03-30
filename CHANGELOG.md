@@ -1,3 +1,31 @@
+# [0.497.0](https://github.com/lightdash/lightdash/compare/0.496.0...0.497.0) (2023-03-30)
+
+
+### Features
+
+* show pivot table on metrics as rows ([#4952](https://github.com/lightdash/lightdash/issues/4952)) ([e4ca52f](https://github.com/lightdash/lightdash/commit/e4ca52fdac15eccc669d8fd2c4c790b7af5d44ed))
+
+# [0.496.0](https://github.com/lightdash/lightdash/compare/0.495.1...0.496.0) (2023-03-30)
+
+
+### Features
+
+* updating Join Workspace screen ([#4969](https://github.com/lightdash/lightdash/issues/4969)) ([0956e42](https://github.com/lightdash/lightdash/commit/0956e42658d2ebab2b6bf63a9bb7490a2a5621a2))
+
+## [0.495.1](https://github.com/lightdash/lightdash/compare/0.495.0...0.495.1) (2023-03-30)
+
+
+### Bug Fixes
+
+* useEffect bugs for add chart to dashboard modal ([#4960](https://github.com/lightdash/lightdash/issues/4960)) ([857f4cf](https://github.com/lightdash/lightdash/commit/857f4cf592e88a583c0df50d5de5442cd19b678f))
+
+# [0.495.0](https://github.com/lightdash/lightdash/compare/0.494.0...0.495.0) (2023-03-30)
+
+
+### Features
+
+* slack pagination ([#4967](https://github.com/lightdash/lightdash/issues/4967)) ([98a48aa](https://github.com/lightdash/lightdash/commit/98a48aa17e0b6afec8581a7551c968d10835e2fe))
+
 # [0.494.0](https://github.com/lightdash/lightdash/compare/0.493.0...0.494.0) (2023-03-30)
 
 

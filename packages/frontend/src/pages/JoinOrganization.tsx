@@ -36,6 +36,7 @@ export const JoinOrganizationPage: FC = () => {
         isLoading: isJoiningOrg,
         isSuccess: hasJoinedOrg,
     } = useJoinOrganizationMutation();
+    const emailDomain = user.data?.email ? getEmailDomain(user.data.email) : '';
 
     useEffect(() => {
         const isAllowedToJoinOrgs = allowedOrgs && allowedOrgs.length > 0;
@@ -89,7 +90,9 @@ export const JoinOrganizationPage: FC = () => {
                         </Title>
                         <Text color="gray.6" ta="center">
                             The workspaces below are open to anyone with a{' '}
-                            <b>@{getEmailDomain(user.data?.email || '')}</b>{' '}
+                            <Text span fw={600}>
+                                @{emailDomain}:
+                            </Text>{' '}
                             domain
                         </Text>
                         {allowedOrgs?.map((org) => (
@@ -125,30 +128,26 @@ export const JoinOrganizationPage: FC = () => {
                         ))}
                     </Stack>
                 </Card>
-                <Text ta="center" px="xs">
-                    <Anchor
-                        color={disabled ? 'gray.6' : ''}
-                        onClick={() =>
-                            !disabled ? createOrg({ name: '' }) : null
-                        }
-                        sx={(theme) =>
-                            disabled
-                                ? {
-                                      '&:hover': {
-                                          textDecoration: 'none',
-                                          color: theme.colors.gray[6],
-                                      },
-                                  }
-                                : {
-                                      '&:hover': {
-                                          color: theme.colors.blue[6],
-                                      },
-                                  }
-                        }
-                    >
-                        Create a new workspace
-                    </Anchor>
-                </Text>
+                <Anchor
+                    component="button"
+                    onClick={() => createOrg({ name: '' })}
+                    disabled={disabled}
+                    ta="center"
+                    size="sm"
+                    sx={(theme) =>
+                        disabled
+                            ? {
+                                  color: theme.colors.gray[6],
+                                  '&:hover': {
+                                      textDecoration: 'none',
+                                      color: theme.colors.gray[6],
+                                  },
+                              }
+                            : {}
+                    }
+                >
+                    Create a new workspace
+                </Anchor>
             </Stack>
         </Page>
     );

@@ -66,7 +66,6 @@ const OrganisationDeleteModal: FC<OrganizationDeleteModalProps> = ({
                         <Button onClick={handleClose}>Cancel</Button>
 
                         <Button
-                            data-cy="submit-base-modal"
                             disabled={
                                 confirmOrgName?.toLowerCase() !==
                                 organisation.name.toLowerCase()

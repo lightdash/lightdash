@@ -134,7 +134,6 @@ const SpaceModal: FC<ActionModalProps> = ({
                                             }}
                                         />
                                         <Button
-                                            data-cy="submit-base-modal"
                                             type="submit"
                                             disabled={
                                                 isDisabled ||
@@ -169,7 +168,6 @@ const SpaceModal: FC<ActionModalProps> = ({
                                     modalStep === CreateModalStep.SET_NAME &&
                                     !isShared)) && (
                                 <Button
-                                    data-cy="submit-base-modal"
                                     type="submit"
                                     disabled={
                                         isDisabled || !form.formState.isValid
