@@ -36,7 +36,7 @@ import useToaster from '../../hooks/toaster/useToaster';
 import { downloadCsv } from '../../hooks/useDownloadCsv';
 import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
-import { useDashboardTileResults } from '../../hooks/useQueryResults';
+import { useChartResults } from '../../hooks/useQueryResults';
 import { useSavedQuery } from '../../hooks/useSavedQuery';
 import { useApp } from '../../providers/AppProvider';
 import { useDashboardContext } from '../../providers/DashboardProvider';
@@ -130,8 +130,7 @@ const ValidDashboardChartTile: FC<{
     project,
     onSeriesContextMenu,
 }) => {
-    const { data: resultData, isLoading } = useDashboardTileResults(
-        project,
+    const { data: resultData, isLoading } = useChartResults(
         data.uuid,
         data.metricQuery.filters,
     );

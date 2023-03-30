@@ -607,14 +607,14 @@ export class ProjectService {
     async runViewChartQuery(
         user: SessionUser,
         chartUuid: string,
-        projectUuid: string,
         filters?: Filters,
     ): Promise<ApiQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        const { organizationUuid } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        const savedChart = await this.savedChartModel.get(chartUuid);
+        const { organizationUuid, projectUuid } = savedChart;
 
         if (
             user.ability.cannot(
@@ -624,7 +624,6 @@ export class ProjectService {
         ) {
             throw new ForbiddenError();
         }
-        const savedChart = await this.savedChartModel.get(chartUuid);
 
         const metricQuery: MetricQuery = filters
             ? { ...savedChart.metricQuery, filters }

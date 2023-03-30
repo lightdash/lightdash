@@ -31,7 +31,7 @@ type FilterGroupResponse =
           id: string;
           and: any[];
       };
-type Filters = {
+export type Filters = {
     dimensions?: FilterGroupResponse;
     metrics?: FilterGroupResponse;
 };
@@ -70,34 +70,6 @@ type RunQueryRequest = {
 @Route('/api/v1/projects/{projectUuid}')
 @Response<ApiErrorPayload>('default', 'Error')
 export class RunViewChartQueryController extends Controller {
-    /**
-     * Run a query for a chart from dashboards
-     * @param projectUuid The uuid of the project
-     * @param chartUuid chartUuid for the chart to run
-     * @param filters dashboard filters
-     * @param req express request
-     */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Post('/runDashboardTileQuery')
-    @OperationId('postRunDashboardTileQuery')
-    async postDashboardTile(
-        @Body() body: { chartUuid: string; filters?: Filters },
-        @Path() projectUuid: string,
-        @Request() req: express.Request,
-    ): Promise<ApiRunQueryResponse> {
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await projectService.runViewChartQuery(
-                req.user!,
-                body.chartUuid,
-                projectUuid,
-                body.filters,
-            ),
-        };
-    }
-
     /**
      * Run a query for underlying data results
      * @param projectUuid The uuid of the project

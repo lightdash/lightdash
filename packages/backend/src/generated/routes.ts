@@ -1653,62 +1653,6 @@ export function RegisterRoutes(app: express.Router) {
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.post(
-        '/api/v1/projects/:projectUuid/runDashboardTileQuery',
-        ...fetchMiddlewares<RequestHandler>(RunViewChartQueryController),
-        ...fetchMiddlewares<RequestHandler>(
-            RunViewChartQueryController.prototype.postDashboardTile,
-        ),
-
-        function RunViewChartQueryController_postDashboardTile(
-            request: any,
-            response: any,
-            next: any,
-        ) {
-            const args = {
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        filters: { ref: 'Filters' },
-                        chartUuid: { dataType: 'string', required: true },
-                    },
-                },
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
-            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-
-            let validatedArgs: any[] = [];
-            try {
-                validatedArgs = getValidatedArgs(args, request, response);
-
-                const controller = new RunViewChartQueryController();
-
-                const promise = controller.postDashboardTile.apply(
-                    controller,
-                    validatedArgs as any,
-                );
-                promiseHandler(controller, promise, response, 200, next);
-            } catch (err) {
-                return next(err);
-            }
-        },
-    );
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    app.post(
         '/api/v1/projects/:projectUuid/explores/:exploreId/runUnderlyingDataQuery',
         ...fetchMiddlewares<RequestHandler>(RunViewChartQueryController),
         ...fetchMiddlewares<RequestHandler>(
@@ -1824,28 +1768,29 @@ export function RegisterRoutes(app: express.Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    app.get(
-        '/api/v1/projects/:projectUuid/saved/:chartUuid/queryResults',
+    app.post(
+        '/api/v1/saved/:chartUuid/results',
         ...fetchMiddlewares<RequestHandler>(SavedChartController),
         ...fetchMiddlewares<RequestHandler>(
-            SavedChartController.prototype.getChartResults,
+            SavedChartController.prototype.postDashboardTile,
         ),
 
-        function SavedChartController_getChartResults(
+        function SavedChartController_postDashboardTile(
             request: any,
             response: any,
             next: any,
         ) {
             const args = {
+                body: {
+                    in: 'body',
+                    name: 'body',
+                    required: true,
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: { filters: { ref: 'Filters' } },
+                },
                 chartUuid: {
                     in: 'path',
                     name: 'chartUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
                     required: true,
                     dataType: 'string',
                 },
@@ -1865,7 +1810,7 @@ export function RegisterRoutes(app: express.Router) {
 
                 const controller = new SavedChartController();
 
-                const promise = controller.getChartResults.apply(
+                const promise = controller.postDashboardTile.apply(
                     controller,
                     validatedArgs as any,
                 );
