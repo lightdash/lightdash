@@ -18,15 +18,6 @@ const DbtLocalForm: FC = () => (
                 <b>DBT_PROJECT_DIR</b> with the absolute path to your dbt
                 project.
             </p>
-            Read docs{' '}
-            <a
-                href="https://docs.lightdash.com/get-started/setup-lightdash/install-lightdash#2-install--launch-lightdash"
-                target="_blank"
-                rel="noreferrer"
-            >
-                here
-            </a>{' '}
-            to know more.
         </Callout>
     </>
 );

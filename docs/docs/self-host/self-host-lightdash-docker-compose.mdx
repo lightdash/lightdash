@@ -4,6 +4,11 @@ This guide will give you a minimal Lightdash instance running on your local mach
 the internet, but it will be accessible from your local machine. This is a great way to get started with Lightdash 
 for a proof-of-concept without needing access to kubernetes.
 
+## Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/)
+- [Docker Compose](https://docs.docker.com/compose/install/)
+
 ## 1. Clone the Lightdash repository
 
 Clone the Lightdash code to your local machine. This will create a new directory called `./lightdash` (the Lightdash directory).
@@ -24,8 +29,10 @@ You must set the following two environment variables:
 ```bash
 
 ```bash
-LIGHTDASH_SECRET="not very secret" PGPASSWORD="password" \
-  docker-compose -f docker-compose.yml up --detach --remove-orphans
+export LIGHTDASH_SECRET="not very secret" 
+export PGPASSWORD="password"
+
+docker-compose -f docker-compose.yml up --detach --remove-orphans
 ```
 
 :::info

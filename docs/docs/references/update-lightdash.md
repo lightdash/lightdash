@@ -14,7 +14,7 @@ the latest version of Lightdash:
 docker pull lightdash/lightdash
 ```
 
-Now [restart Lightdash](../get-started/setup-lightdash/install-lightdash.mdx) and you'll be upgraded to the latest version.
+Now restart Lightdash and you'll be upgraded to the latest version.
 
 ## Kubernetes/helm deployments
 
