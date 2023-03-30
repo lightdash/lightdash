@@ -1,3 +1,10 @@
+# [0.492.0](https://github.com/lightdash/lightdash/compare/0.491.0...0.492.0) (2023-03-30)
+
+
+### Features
+
+* space panel removed and pinned items empty state added ([#4936](https://github.com/lightdash/lightdash/issues/4936)) ([6fe0591](https://github.com/lightdash/lightdash/commit/6fe0591cf4d41bb84402a72ec75db82c9602f2c0))
+
 # [0.491.0](https://github.com/lightdash/lightdash/compare/0.490.0...0.491.0) (2023-03-29)
 
 
