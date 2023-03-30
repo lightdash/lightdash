@@ -2,21 +2,6 @@ import { assertUnreachable, FieldType, PivotData } from '@lightdash/common';
 import { createStyles, Table, TableProps } from '@mantine/core';
 import { FC } from 'react';
 
-const getFieldColor = (fieldType: FieldType) => {
-    switch (fieldType) {
-        // TODO: update colours and constantize somewhere else.
-        case FieldType.DIMENSION:
-            return '#d2dbe9';
-        case FieldType.METRIC:
-            return '#e4dad0';
-        default:
-            return assertUnreachable(
-                fieldType,
-                "Can't get color for field type",
-            );
-    }
-};
-
 const useStyles = createStyles((_theme) => ({
     table: {
         '& td, & th': {
@@ -48,7 +33,7 @@ const PivotTable: FC<PivotTableProps> = ({
         >
             <thead>
                 {data.headerValueTypes.map(
-                    (headerValueType, headerValueTypeIndex) => {
+                    (_headerValueType, headerValueTypeIndex) => {
                         const headerValues =
                             data.headerValues[headerValueTypeIndex];
 
@@ -66,15 +51,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                     {headerValues.map(
                                         (headerValue, headerValueIndex) => {
                                             return (
-                                                <th
-                                                    key={headerValueIndex}
-                                                    style={{
-                                                        backgroundColor:
-                                                            getFieldColor(
-                                                                headerValueType.type,
-                                                            ),
-                                                    }}
-                                                >
+                                                <th key={headerValueIndex}>
                                                     {headerValue?.formatted}
                                                 </th>
                                             );
@@ -93,17 +70,9 @@ const PivotTable: FC<PivotTableProps> = ({
                         <tr key={i}>
                             <>
                                 {data.indexValueTypes.map(
-                                    (indexValueType, indexValueTypeIndex) => {
+                                    (_indexValueType, indexValueTypeIndex) => {
                                         return (
-                                            <td
-                                                key={indexValueTypeIndex}
-                                                style={{
-                                                    backgroundColor:
-                                                        getFieldColor(
-                                                            indexValueType.type,
-                                                        ),
-                                                }}
-                                            >
+                                            <td key={indexValueTypeIndex}>
                                                 {
                                                     data.indexValues[i][
                                                         indexValueTypeIndex
