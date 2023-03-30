@@ -110,7 +110,7 @@ const VisualizationCard: FC<{ projectUuid?: string }> = memo(
                     columnOrder,
                     customLabels,
                 });
-                return csvResponse.url;
+                return csvResponse;
             }
             throw new NotFoundError('no metric query defined');
         };

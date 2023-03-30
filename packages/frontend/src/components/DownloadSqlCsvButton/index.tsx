@@ -8,7 +8,7 @@ import { useApp } from '../../providers/AppProvider';
 
 type Props = {
     disabled: boolean;
-    getCsvLink: () => Promise<ApiScheduledDownloadCsv>;
+    getCsvLink: () => Promise<string>;
 };
 
 const DownloadCsvButton: FC<Props> = memo(({ disabled, getCsvLink }) => {
@@ -21,17 +21,8 @@ const DownloadCsvButton: FC<Props> = memo(({ disabled, getCsvLink }) => {
             disabled={disabled}
             onClick={() => {
                 getCsvLink()
-                    .then((scheduledCsvResponse) => {
-                        pollCsvFileUrl(scheduledCsvResponse)
-                            .then((url) => {
-                                window.open(url, '_blank');
-                            })
-                            .catch((error) => {
-                                showToastError({
-                                    title: `Unable to download CSV`,
-                                    subtitle: error?.error?.message,
-                                });
-                            });
+                    .then((url) => {
+                        window.open(url, '_blank');
                     })
                     .catch((error) => {
                         showToastError({

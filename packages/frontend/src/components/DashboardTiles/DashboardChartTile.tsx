@@ -99,7 +99,7 @@ const ExportResultAsCSVModal: FC<ExportResultAsCSVModalProps> = ({
                 savedChart.chartConfig.config,
             ),
         });
-        return csvResponse.url;
+        return csvResponse;
     };
 
     return (

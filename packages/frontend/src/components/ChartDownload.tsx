@@ -9,6 +9,7 @@ import {
 import { Classes, Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import {
+    ApiScheduledDownloadCsv,
     ChartType,
     getCustomLabelsFromColumnProperties,
 } from '@lightdash/common';
@@ -204,7 +205,7 @@ interface ChartDownloadMenuProps {
         showTableNames: boolean,
         columnOrder: string[],
         customLabels?: Record<string, string>,
-    ) => Promise<string>;
+    ) => Promise<ApiScheduledDownloadCsv>;
 }
 
 export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
