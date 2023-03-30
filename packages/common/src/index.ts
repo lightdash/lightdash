@@ -283,7 +283,6 @@ export type ApiSqlQueryResults = {
 
 export type ApiScheduledDownloadCsv = {
     jobId: string;
-    token: string;
 };
 export type ApiDownloadCsv = {
     url: string;

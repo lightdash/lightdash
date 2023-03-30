@@ -834,22 +834,13 @@ export function RegisterRoutes(app: express.Router) {
     //  NOTE: If you do not see routes for all of your controllers in this file, then you might not have informed tsoa of where to look
     //      Please look into the "controllerPathGlobs" config option described in the readme: https://github.com/lukeautry/tsoa
     // ###########################################################################################################
-    app.post(
+    app.get(
         '/api/v1/csv/:jobId',
         ...fetchMiddlewares<RequestHandler>(CsvController),
         ...fetchMiddlewares<RequestHandler>(CsvController.prototype.get),
 
         function CsvController_get(request: any, response: any, next: any) {
             const args = {
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        token: { dataType: 'string', required: true },
-                    },
-                },
                 jobId: {
                     in: 'path',
                     name: 'jobId',

@@ -270,7 +270,7 @@ export class SchedulerClient {
             jobId,
             scheduledTime: now,
             status: SchedulerJobStatus.SCHEDULED,
-            details: { token: payload.token },
+            details: { createdByUserUuid: payload.userUuid },
         });
 
         return { jobId };

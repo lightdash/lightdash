@@ -6,7 +6,6 @@ import {
 
 import { lightdashApi } from '../api';
 import { convertDateFilters } from '../utils/dateFilter';
-import useToaster from './toaster/useToaster';
 
 export const downloadCsv = async ({
     projectUuid,
@@ -43,23 +42,21 @@ export const downloadCsv = async ({
 };
 
 export const getCsvFileUrl = async (
-    { jobId, token }: ApiScheduledDownloadCsv,
+    { jobId }: ApiScheduledDownloadCsv,
     onSuccess: (data: string) => void,
     onError: (error: Error) => void,
 ) => {
     lightdashApi<ApiDownloadCsv>({
         url: `/csv/${jobId}`,
-        method: 'POST',
-        body: JSON.stringify({
-            token,
-        }),
+        method: 'GET',
+        body: undefined,
     })
         .then((data) => {
             if (data.url) {
                 return onSuccess(data.url);
             } else {
                 setTimeout(
-                    () => getCsvFileUrl({ jobId, token }, onSuccess, onError),
+                    () => getCsvFileUrl({ jobId }, onSuccess, onError),
                     2000,
                 );
             }
@@ -69,13 +66,10 @@ export const getCsvFileUrl = async (
         });
 };
 
-export const pollCsvFileUrl = async ({
-    jobId,
-    token,
-}: ApiScheduledDownloadCsv) => {
+export const pollCsvFileUrl = async ({ jobId }: ApiScheduledDownloadCsv) => {
     return new Promise<string>((resolve, reject) => {
         getCsvFileUrl(
-            { jobId, token },
+            { jobId },
             (url) => resolve(url),
             (error) => reject(error),
         );

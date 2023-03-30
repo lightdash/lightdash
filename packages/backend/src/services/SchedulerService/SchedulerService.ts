@@ -200,7 +200,7 @@ export class SchedulerService {
         await this.schedulerModel.logSchedulerJob(log);
     }
 
-    async getCsvUrl(user: SessionUser, jobId: string, token: string) {
+    async getCsvUrl(user: SessionUser, jobId: string) {
         if (
             user.ability.cannot(
                 'manage',
@@ -212,6 +212,6 @@ export class SchedulerService {
             throw new ForbiddenError();
         }
 
-        return this.schedulerModel.getCsvUrl(jobId, token);
+        return this.schedulerModel.getCsvUrl(jobId, user.userUuid);
     }
 }

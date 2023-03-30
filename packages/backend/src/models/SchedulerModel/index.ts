@@ -351,7 +351,7 @@ export class SchedulerModel {
         });
     }
 
-    async getCsvUrl(jobId: string, token: string) {
+    async getCsvUrl(jobId: string, userUuid: string) {
         const jobs = await this.database(SchedulerLogTableName)
             .where(`${SchedulerLogTableName}.job_id`, jobId)
             .orderBy('scheduled_time', 'desc')
@@ -368,7 +368,7 @@ export class SchedulerModel {
             (a, b) =>
                 statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status),
         )[0];
-        if (!job || job.details?.token !== token)
+        if (!job || job.details?.createdByUserUuid !== userUuid)
             throw new NotFoundError('Download CSV job not found');
 
         return job;

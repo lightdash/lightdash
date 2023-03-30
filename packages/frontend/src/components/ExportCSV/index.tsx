@@ -96,6 +96,8 @@ const ExportCSV: FC<ExportCSVProps> = memo(
                                 AppToaster.dismiss('exporting-csv');
                             })
                             .catch((error) => {
+                                AppToaster.dismiss('exporting-csv');
+
                                 showToastError({
                                     title: `Unable to download CSV`,
                                     subtitle: error?.error?.message,
@@ -103,6 +105,8 @@ const ExportCSV: FC<ExportCSVProps> = memo(
                             });
                     },
                     onError: (error: { error: Error }) => {
+                        AppToaster.dismiss('exporting-csv');
+
                         showToastError({
                             title: `Unable to download CSV`,
                             subtitle: error?.error?.message,

@@ -381,21 +381,21 @@ export const downloadCsv = async (
     try {
         schedulerService.logSchedulerJob({
             ...baseLog,
-            details: { token: payload.token },
+            details: { createdByUserUuid: payload.userUuid },
             status: SchedulerJobStatus.STARTED,
         });
 
         const fileUrl = await csvService.downloadCsv(jobId, payload);
         schedulerService.logSchedulerJob({
             ...baseLog,
-            details: { fileUrl, token: payload.token },
+            details: { fileUrl, createdByUserUuid: payload.userUuid },
             status: SchedulerJobStatus.COMPLETED,
         });
     } catch (e) {
         schedulerService.logSchedulerJob({
             ...baseLog,
             status: SchedulerJobStatus.ERROR,
-            details: { token: payload.token, error: e },
+            details: { createdByUserUuid: payload.userUuid, error: e },
         });
         // do not throw error to avoid retrying
     }
