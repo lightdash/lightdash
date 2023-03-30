@@ -29,6 +29,8 @@ const GeneralSettings: FC = () => {
             setShowTableName,
             setShowColumnCalculation,
             setHideRowNumbers,
+            metricsAsRows,
+            setMetricsAsRows,
         },
         setPivotDimensions,
     } = useVisualizationContext();
@@ -151,6 +153,18 @@ const GeneralSettings: FC = () => {
                         setHideRowNumbers(!hideRowNumbers);
                     }}
                 />
+
+                {localStorage.getItem('feat/metrics-as-rows') === 'true' &&
+                pivotDimensions &&
+                pivotDimensions.length > 0 ? (
+                    <Checkbox
+                        label="Metrics as rows"
+                        checked={metricsAsRows}
+                        onChange={(e) => {
+                            setMetricsAsRows(!metricsAsRows);
+                        }}
+                    />
+                ) : null}
             </FormGroup>
 
             <SectionTitle>Columns</SectionTitle>

@@ -1,6 +1,7 @@
 import { NonIdealState } from '@blueprintjs/core';
-import { ConditionalFormattingConfig } from '@lightdash/common';
+import { Box } from '@mantine/core';
 import { FC } from 'react';
+import PivotTable from '../../pages/PivotingPOC/PivotTable';
 import Table from '../common/Table';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { LoadingChart } from '../SimpleChart';
@@ -35,6 +36,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
             showColumnCalculation,
             conditionalFormattings,
             hideRowNumbers,
+            pivotTableData,
         },
         isSqlRunner,
         explore,
@@ -49,6 +51,14 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 description={error}
                 icon="error"
             />
+        );
+    }
+
+    if (pivotTableData) {
+        return (
+            <Box w="100%" h="100%" p="xs" sx={{ overflowX: 'scroll' }}>
+                <PivotTable w="100%" data={pivotTableData} />
+            </Box>
         );
     }
 
