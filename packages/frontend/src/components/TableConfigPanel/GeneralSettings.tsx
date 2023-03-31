@@ -134,7 +134,7 @@ const GeneralSettings: FC = () => {
                 <Checkbox
                     label="Show column total"
                     checked={showColumnCalculation}
-                    onChange={(e) => {
+                    onChange={() => {
                         setShowColumnCalculation(!showColumnCalculation);
                     }}
                 />
@@ -142,7 +142,7 @@ const GeneralSettings: FC = () => {
                 <Checkbox
                     label="Show table names"
                     checked={showTableNames}
-                    onChange={(e) => {
+                    onChange={() => {
                         setShowTableName(!showTableNames);
                     }}
                 />
@@ -150,7 +150,7 @@ const GeneralSettings: FC = () => {
                 <Checkbox
                     label="Show row numbers"
                     checked={!hideRowNumbers}
-                    onChange={(e) => {
+                    onChange={() => {
                         setHideRowNumbers(!hideRowNumbers);
                     }}
                 />
@@ -159,7 +159,7 @@ const GeneralSettings: FC = () => {
                     <Checkbox
                         label="Show metrics as rows"
                         checked={metricsAsRows}
-                        onChange={(e) => {
+                        onChange={() => {
                             setMetricsAsRows(!metricsAsRows);
                         }}
                     />
