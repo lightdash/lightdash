@@ -353,7 +353,8 @@ export class SchedulerModel {
 
     async getCsvUrl(jobId: string, userUuid: string) {
         const jobs = await this.database(SchedulerLogTableName)
-            .where(`${SchedulerLogTableName}.job_id`, jobId)
+            .where(`job_id`, jobId)
+            .andWhere('task', 'downloadCsv')
             .orderBy('scheduled_time', 'desc')
             .returning('*');
 
