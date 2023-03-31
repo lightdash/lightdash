@@ -31,7 +31,7 @@ const SchedulerModalError: FC<{
                         <AnchorButton
                             intent="primary"
                             target="_blank"
-                            href={`https://docs.lightdash.com/guides/enable-slack-selfhost`}
+                            href={`https://docs.lightdash.com/self-host/customize-deployment/configure-a-slack-app-for-lightdash`}
                         >
                             Add Slack integration
                         </AnchorButton>

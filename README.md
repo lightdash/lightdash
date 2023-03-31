@@ -77,9 +77,7 @@ Deploy Lightdash with 1-click on [Render](https://render.com) for free.
 
 ### Run locally
 
-Take advantage of our installation script to easily run Lightdash locally. Check
-the [documentation page](https://docs.lightdash.com/get-started/setup-lightdash/install-lightdash#deploy-locally-with-our-installation-script)
-for more details.
+Take advantage of our installation script to easily run Lightdash locally.
 
 ```bash
 git clone https://github.com/lightdash/lightdash
@@ -89,16 +87,16 @@ cd lightdash
 
 ### Deploy to production
 
-Follow our [kubernetes guide](https://docs.lightdash.com/guides/how-to-deploy-to-kubernetes) to deploy Lightdash to
+Follow our [kubernetes guide](https://docs.lightdash.com/self-host/self-host-lightdash) to deploy Lightdash to
 production using our [community helm charts](https://github.com/lightdash/helm-charts).
 
 ### Sign up to Lightdash Cloud
 
-You can avoid the hassle of hosting and configuring Lightdash yourself by [signing up for Lightdash Cloud Public Beta](https://lightdash.typeform.com/public-beta#source=github) . We'll let you know once we're ready to bring you on board 🙂
+You can avoid the hassle of hosting and configuring Lightdash yourself by [signing up for Lightdash Cloud](https://lightdash.typeform.com/public-beta#source=github) . We'll let you know once we're ready to bring you on board 🙂
 
 ## Getting started
 
-Step 1 - ⚡️ [Install Lightdash](https://docs.lightdash.com/get-started/setup-lightdash/install-lightdash)
+Step 1 - ⚡️ [Self-host Lightdash (optional)](https://docs.lightdash.com/self-host/self-host-lightdash)
 
 Step 2 - 🔌 [Connect a project](https://docs.lightdash.com/get-started/setup-lightdash/connect-project)
 

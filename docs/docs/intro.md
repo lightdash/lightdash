@@ -21,10 +21,7 @@ _Not sure which one to pick? 👀 Check out our [tutorial recommendations here](
 
 ## 👩‍🔧 Installation + operation
 
-- [Install Lightdash](/get-started/setup-lightdash/install-lightdash.mdx)
 - [Connect a project](/get-started/setup-lightdash/connect-project.mdx)
-- [Deploy to Kubernetes](/guides/how-to-deploy-to-kubernetes.md)
-- [Update Lightdash](/references/update-lightdash.md)
 - [Create multiple projects](/guides/how-to-create-multiple-projects.md)
 
 ## 🎮 The Lightdash CLI
@@ -73,6 +70,10 @@ _Not sure which one to pick? 👀 Check out our [tutorial recommendations here](
 ## 🎨 Configuring Lightdash
 
 - [Customizing the appearance of your project](/guides/customizing-the-appearance-of-your-project.md)
+
+## 🧩Self-Hosting Lightdash
+
+- [Self-Host Lightdash](/self-host/self-host-lightdash.mdx)
 
 ## 🎓 Lightdash University: Best Practice
 
