@@ -65,7 +65,8 @@ slackRouter.get(
             }
             const filePath = path.join('/tmp', req.params.imageId);
             if (!fs.existsSync(filePath)) {
-                throw new NotFoundError(`File not found ${req.params.imageId}`);
+                const error = `This file ${req.params.imageId} doesn't exist on this server, this may be happening if you are running multiple containers or because files are not persisted. You can check out our docs to learn more on how to enable cloud storage: https://docs.lightdash.com/guides/enable-cloud-storage`;
+                throw new NotFoundError(error);
             }
             res.sendFile(filePath);
         } catch (error) {

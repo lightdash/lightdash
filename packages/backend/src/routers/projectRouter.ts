@@ -12,6 +12,7 @@ import {
     TablesConfiguration,
 } from '@lightdash/common';
 import express from 'express';
+import fs from 'fs';
 
 import path from 'path';
 import {
@@ -376,11 +377,17 @@ projectRouter.get(
     '/csv/:fileId',
 
     async (req, res, next) => {
-        if (!req.params.fileId.startsWith('csv-')) {
-            throw new NotFoundError(`File not found ${req.params.fileId}`);
-        }
         try {
+            if (!req.params.fileId.startsWith('csv-')) {
+                throw new NotFoundError(
+                    `CSV file not found ${req.params.fileId}`,
+                );
+            }
             const filePath = path.join('/tmp', req.params.fileId);
+            if (!fs.existsSync(filePath)) {
+                const error = `This file ${req.params.fileId} doesn't exist on this server, this may be happening if you are running multiple containers or because files are not persisted. You can check out our docs to learn more on how to enable cloud storage: https://docs.lightdash.com/guides/enable-cloud-storage`;
+                throw new NotFoundError(error);
+            }
             res.sendFile(filePath);
         } catch (error) {
             next(error);
