@@ -119,7 +119,8 @@ const useTableConfig = (
             resultsData?.metricQuery &&
             resultsData.metricQuery.metrics.length &&
             resultsData.rows.length &&
-            pivotDimensions?.length
+            pivotDimensions?.length &&
+            metricsAsRows
         ) {
             // Pivot V2. This will always trigger when the above conditions are met.
             // The old pivot below will always trigger. So currently we pivot twice when the above conditions are met.
