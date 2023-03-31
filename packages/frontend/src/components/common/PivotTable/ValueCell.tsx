@@ -11,7 +11,7 @@ const ValueCell: FC<ValueCellProps> = ({ value }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     // TODO: optimisation - can be one hook on the parent
-    const clipboard = useClipboard({ timeout: 1000 });
+    const clipboard = useClipboard({ timeout: 200 });
 
     const handleCopy = useCallback(() => {
         if (isMenuOpen) {

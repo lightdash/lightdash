@@ -4,7 +4,7 @@ import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
 import React, { FC } from 'react';
 import HeaderCell from './HeaderCell';
 import IndexCell from './IndexCell';
-import { useStyles } from './UseStyles';
+import { useStyles } from './tableStyles';
 import ValueCell from './ValueCell';
 
 type PivotTableProps = TableProps &
