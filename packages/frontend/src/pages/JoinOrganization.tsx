@@ -2,7 +2,6 @@ import { getEmailDomain } from '@lightdash/common';
 import {
     Anchor,
     Avatar,
-    Box,
     Button,
     Card,
     Group,
