@@ -1,4 +1,4 @@
-import { Field, FieldType, TableCalculation } from './field';
+import { FieldType } from './field';
 
 export type PivotValue = null | {
     raw: unknown;
@@ -22,5 +22,4 @@ export interface PivotData {
 
     columnTotals?: PivotValue[];
     rowTotals?: PivotValue[];
-    itemsMap: Record<string, Field | TableCalculation>;
 }
