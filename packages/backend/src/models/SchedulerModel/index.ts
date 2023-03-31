@@ -13,6 +13,7 @@ import {
     SchedulerSlackTarget,
     UpdateSchedulerAndTargets,
 } from '@lightdash/common';
+import { NotFound } from 'express-openapi-validator/dist/openapi.validator';
 import { Knex } from 'knex';
 import {
     SchedulerDb,
@@ -348,5 +349,29 @@ export class SchedulerModel {
                 .where('scheduler_uuid', schedulerUuid)
                 .andWhere('status', SchedulerJobStatus.SCHEDULED);
         });
+    }
+
+    async getCsvUrl(jobId: string, userUuid: string) {
+        const jobs = await this.database(SchedulerLogTableName)
+            .where(`job_id`, jobId)
+            .andWhere('task', 'downloadCsv')
+            .orderBy('scheduled_time', 'desc')
+            .returning('*');
+
+        // Sometimes scheduled event is added after the job is completed
+        const statusOrder = [
+            SchedulerJobStatus.ERROR,
+            SchedulerJobStatus.COMPLETED,
+            SchedulerJobStatus.STARTED,
+            SchedulerJobStatus.SCHEDULED,
+        ].map((s) => s.toString());
+        const job = jobs.sort(
+            (a, b) =>
+                statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status),
+        )[0];
+        if (!job || job.details?.createdByUserUuid !== userUuid)
+            throw new NotFoundError('Download CSV job not found');
+
+        return job;
     }
 }

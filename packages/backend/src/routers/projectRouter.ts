@@ -20,6 +20,8 @@ import {
     isAuthenticated,
     unauthorisedInDemo,
 } from '../controllers/authentication';
+import { SchedulerClient } from '../scheduler/SchedulerClient';
+import { CsvService } from '../services/CsvService/CsvService';
 import {
     csvService,
     dashboardService,
@@ -211,8 +213,8 @@ projectRouter.post(
                 additionalMetrics: body.additionalMetrics,
             };
 
-            const fileUrl = await csvService.downloadCsv({
-                user: req.user!,
+            const { jobId } = await CsvService.scheduleDownloadCsv(req.user!, {
+                userUuid: req.user?.userUuid!,
                 projectUuid,
                 exploreId,
                 metricQuery,
@@ -222,10 +224,11 @@ projectRouter.post(
                 customLabels,
                 columnOrder,
             });
+
             res.json({
                 status: 'ok',
                 results: {
-                    url: fileUrl,
+                    jobId,
                 },
             });
         } catch (e) {

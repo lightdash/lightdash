@@ -11,11 +11,12 @@ import {
     Spinner,
 } from '@blueprintjs/core';
 import { Classes } from '@blueprintjs/popover2';
-import { ResultRow } from '@lightdash/common';
+import { ApiScheduledDownloadCsv, ResultRow } from '@lightdash/common';
 import { FC, Fragment, memo, useState } from 'react';
 import { useMutation } from 'react-query';
 import useHealth from '../../hooks/health/useHealth';
 import useToaster from '../../hooks/toaster/useToaster';
+import { pollCsvFileUrl } from '../../hooks/useDownloadCsv';
 import { AppToaster } from '../AppToaster';
 import { InputWrapper, LimitWarning, Title } from './ExportCSV.styles';
 
@@ -43,7 +44,10 @@ type ExportCsvRenderProps = {
 
 export type ExportCSVProps = {
     rows: ResultRow[] | undefined;
-    getCsvLink: (limit: number | null, onlyRaw: boolean) => Promise<string>;
+    getCsvLink: (
+        limit: number | null,
+        onlyRaw: boolean,
+    ) => Promise<ApiScheduledDownloadCsv>;
     isDialogBody?: boolean;
     renderDialogActions?: (renderProps: ExportCsvRenderProps) => JSX.Element;
 };
@@ -84,17 +88,29 @@ const ExportCSV: FC<ExportCSVProps> = memo(
                             timeout: 0,
                         });
                     },
-                    onSuccess: (url) => {
-                        if (url) window.open(url, '_blank');
+                    onSuccess: (scheduledCsvResponse) => {
+                        pollCsvFileUrl(scheduledCsvResponse)
+                            .then((url) => {
+                                window.open(url, '_blank');
+                                if (url) window.open(url, '_blank');
+                                AppToaster.dismiss('exporting-csv');
+                            })
+                            .catch((error) => {
+                                AppToaster.dismiss('exporting-csv');
+
+                                showToastError({
+                                    title: `Unable to download CSV`,
+                                    subtitle: error?.error?.message,
+                                });
+                            });
                     },
                     onError: (error: { error: Error }) => {
+                        AppToaster.dismiss('exporting-csv');
+
                         showToastError({
                             title: `Unable to download CSV`,
                             subtitle: error?.error?.message,
                         });
-                    },
-                    onSettled: () => {
-                        AppToaster.dismiss('exporting-csv');
                     },
                 },
             );

@@ -321,7 +321,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
             showTableNames: true,
             columnOrder: [],
         });
-        return csvResponse?.url || '';
+        return csvResponse;
     };
 
     return (

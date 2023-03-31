@@ -1,12 +1,21 @@
 import * as fs from 'fs/promises';
-import { dashboardModel, savedChartModel } from '../../models/models';
+import {
+    dashboardModel,
+    savedChartModel,
+    userModel,
+} from '../../models/models';
 import { projectService, s3Service } from '../services';
 import { CsvService } from './CsvService';
 import { itemMap, metricQuery } from './CsvService.mock';
 
+jest.mock('../../clients/clients', () => ({
+    schedulerClient: {},
+}));
+
 jest.mock('../../models/models', () => ({
     savedChartModel: {},
     dashboardModel: {},
+    userModel: {},
 }));
 
 jest.mock('../services', () => ({
@@ -16,6 +25,7 @@ jest.mock('../services', () => ({
 
 describe('Csv service', () => {
     const csvService = new CsvService({
+        userModel,
         projectService,
         s3Service,
         savedChartModel,
@@ -28,7 +38,7 @@ describe('Csv service', () => {
             column_string: `value_${i}`,
             column_date: '2020-03-16T11:32:55.000Z',
         }));
-        const fileId = await CsvService.convertRowsToCsv(
+        const fileId = await CsvService.writeRowsToFile(
             rows,
             false,
             metricQuery,
@@ -59,7 +69,7 @@ $4.00,value_4,2020-03-16
             column_string: `value_${i}`,
             column_date: '2020-03-16T11:32:55.000Z',
         }));
-        const fileId = await CsvService.convertRowsToCsv(
+        const fileId = await CsvService.writeRowsToFile(
             rows,
             true,
             metricQuery,
@@ -82,5 +92,36 @@ $4.00,value_4,2020-03-16
 4,value_4,2020-03-16
 `,
         );
+    });
+
+    it('Should convert rows to csv', async () => {
+        const row = {
+            column_number: 1,
+            column_string: `value_1`,
+            column_date: '2020-03-16T11:32:55.000Z',
+        };
+
+        const csv = CsvService.convertRowToCsv(row, itemMap, false, [
+            'column_number',
+            'column_string',
+            'column_date',
+        ]);
+
+        expect(csv).toEqual(['$1.00', 'value_1', '2020-03-16']);
+    });
+    it('Should convert RAW rows to csv', async () => {
+        const row = {
+            column_number: 1,
+            column_string: `value_1`,
+            column_date: '2020-03-16T11:32:55.000Z',
+        };
+
+        const csv = CsvService.convertRowToCsv(row, itemMap, true, [
+            'column_number',
+            'column_string',
+            'column_date',
+        ]);
+
+        expect(csv).toEqual([1, 'value_1', '2020-03-16']);
     });
 });

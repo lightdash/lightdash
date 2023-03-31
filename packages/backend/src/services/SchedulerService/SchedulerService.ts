@@ -199,4 +199,19 @@ export class SchedulerService {
     async logSchedulerJob(log: SchedulerLog): Promise<void> {
         await this.schedulerModel.logSchedulerJob(log);
     }
+
+    async getCsvUrl(user: SessionUser, jobId: string) {
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('ExportCsv', {
+                    organizationUuid: user.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        return this.schedulerModel.getCsvUrl(jobId, user.userUuid);
+    }
 }

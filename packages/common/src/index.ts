@@ -88,6 +88,7 @@ export * from './types/api/share';
 export * from './types/api/success';
 export * from './types/conditionalFormatting';
 export * from './types/conditionalRule';
+export * from './types/csv';
 export * from './types/dashboard';
 export * from './types/dbt';
 export * from './types/dbtCloud';
@@ -281,6 +282,9 @@ export type ApiSqlQueryResults = {
     rows: { [col: string]: any }[];
 };
 
+export type ApiScheduledDownloadCsv = {
+    jobId: string;
+};
 export type ApiDownloadCsv = {
     url: string;
 };
@@ -492,7 +496,8 @@ type ApiResults =
     | AllowedEmailDomains
     | UpdateAllowedEmailDomains
     | UserAllowedOrganization[]
-    | EmailStatusExpiring;
+    | EmailStatusExpiring
+    | ApiScheduledDownloadCsv;
 
 export type ApiResponse = {
     status: 'ok';

@@ -143,6 +143,7 @@ export const schedulerService = new SchedulerService({
 });
 
 export const csvService = new CsvService({
+    userModel,
     s3Service,
     projectService,
     dashboardModel,

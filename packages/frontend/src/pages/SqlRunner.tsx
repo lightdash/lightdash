@@ -30,6 +30,7 @@ import ShareShortLinkButton from '../components/common/ShareShortLinkButton';
 import SideBarLoadingState from '../components/common/SideBarLoadingState';
 import { Tree } from '../components/common/Tree';
 import DownloadCsvButton from '../components/DownloadCsvButton';
+import DownloadSqlCsvButton from '../components/DownloadSqlCsvButton';
 import { StyledBreadcrumb } from '../components/Explorer/ExploreSideBar/ExploreSideBar.styles';
 import VisualizationConfigPanel from '../components/Explorer/VisualizationCard/VisualizationConfigPanel';
 import VisualizationCardOptions from '../components/Explorer/VisualizationCardOptions';
@@ -324,7 +325,7 @@ const SqlRunnerPage = () => {
                                         chartType={chartType}
                                     />
                                     {chartType === ChartType.TABLE && (
-                                        <DownloadCsvButton
+                                        <DownloadSqlCsvButton
                                             getCsvLink={getCsvLink}
                                             disabled={!sql}
                                         />
