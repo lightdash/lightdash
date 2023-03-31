@@ -37,6 +37,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
             conditionalFormattings,
             hideRowNumbers,
             pivotTableData,
+            getDefaultColumnLabel,
         },
         isSqlRunner,
         explore,
@@ -57,7 +58,11 @@ const SimpleTable: FC<SimpleTableProps> = ({
     if (pivotTableData) {
         return (
             <Box w="100%" h="100%" p="xs" sx={{ overflowX: 'scroll' }}>
-                <PivotTable w="100%" data={pivotTableData} />
+                <PivotTable
+                    w="100%"
+                    data={pivotTableData}
+                    getMetricLabel={getDefaultColumnLabel}
+                />
             </Box>
         );
     }

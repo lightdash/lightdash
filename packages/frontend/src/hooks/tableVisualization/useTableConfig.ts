@@ -78,7 +78,10 @@ const useTableConfig = (
     }, [explore, resultsData]);
 
     const getDefaultColumnLabel = useCallback(
-        (fieldId: string) => {
+        (fieldId: string | null | undefined) => {
+            if (fieldId === null || fieldId === undefined) {
+                return '';
+            }
             const item = itemsMap[fieldId] as
                 | typeof itemsMap[number]
                 | undefined;

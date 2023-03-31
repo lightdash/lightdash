@@ -1,26 +1,19 @@
-import { PivotData } from '@lightdash/common';
-import { createStyles, Table, TableProps } from '@mantine/core';
-import { FC } from 'react';
-
-const useStyles = createStyles((theme) => ({
-    table: {
-        '& td, & th': {
-            whiteSpace: 'nowrap',
-        },
-    },
-    header: {
-        fontWeight: 'bold',
-        backgroundColor: theme.colors.gray[0],
-    },
-}));
+import { FieldType, PivotData } from '@lightdash/common';
+import { Table, TableProps } from '@mantine/core';
+import React, { FC } from 'react';
+import HeaderCell from './HeaderCell';
+import IndexCell from './IndexCell';
+import { useStyles } from './UseStyles';
 
 type PivotTableProps = TableProps &
     React.RefAttributes<HTMLTableElement> & {
         data: PivotData;
+        getMetricLabel?: (fieldId: string | null | undefined) => string;
     };
 
 const PivotTable: FC<PivotTableProps> = ({
     data,
+    getMetricLabel,
     className,
     ...tableProps
 }) => {
@@ -37,7 +30,7 @@ const PivotTable: FC<PivotTableProps> = ({
         >
             <thead>
                 {data.headerValueTypes.map(
-                    (_headerValueType, headerValueTypeIndex) => {
+                    (headerValueType, headerValueTypeIndex) => {
                         const headerValues =
                             data.headerValues[headerValueTypeIndex];
 
@@ -52,14 +45,22 @@ const PivotTable: FC<PivotTableProps> = ({
                                     )}
 
                                     {headerValues.map(
-                                        (headerValue, headerValueIndex) => (
-                                            <th
-                                                key={headerValueIndex}
-                                                className={classes.header}
-                                            >
-                                                {headerValue?.formatted}
-                                            </th>
-                                        ),
+                                        (headerValue, headerValueIndex) => {
+                                            const label =
+                                                headerValueType.type ===
+                                                    FieldType.METRIC &&
+                                                getMetricLabel
+                                                    ? getMetricLabel(
+                                                          headerValue?.formatted,
+                                                      )
+                                                    : headerValue?.formatted;
+                                            return (
+                                                <HeaderCell
+                                                    label={label}
+                                                    key={headerValueIndex}
+                                                />
+                                            );
+                                        },
                                     )}
                                 </>
                             </tr>
@@ -73,7 +74,21 @@ const PivotTable: FC<PivotTableProps> = ({
                     <tr key={i}>
                         <>
                             {data.indexValueTypes.map(
-                                (_indexValueType, indexValueTypeIndex) => {
+                                (indexValueType, indexValueTypeIndex) => {
+                                    const d =
+                                        data.indexValues[i][indexValueTypeIndex]
+                                            ?.formatted;
+                                    const label =
+                                        indexValueType.type ===
+                                            FieldType.METRIC && getMetricLabel
+                                            ? getMetricLabel(d)
+                                            : d;
+                                    return (
+                                        <IndexCell
+                                            key={indexValueTypeIndex}
+                                            label={label}
+                                        />
+                                    );
                                     return (
                                         <td
                                             key={indexValueTypeIndex}
