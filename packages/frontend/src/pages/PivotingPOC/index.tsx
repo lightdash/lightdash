@@ -1,11 +1,11 @@
 import { PivotData } from '@lightdash/common';
 import { Stack, Title } from '@mantine/core';
+import PivotTable from '../../components/common/PivotTable';
 import { pivotQueryResults } from '../../hooks/pivotTable/pivotQueryResults';
 import {
     METRIC_QUERY_2DIM_2METRIC,
     RESULT_ROWS_2DIM_2METRIC,
 } from '../../hooks/pivotTable/pivotQueryResults.mock';
-import PivotTable from './PivotTable';
 
 const result1: PivotData = pivotQueryResults({
     pivotConfig: {

@@ -1,7 +1,7 @@
 import { NonIdealState } from '@blueprintjs/core';
 import { Box } from '@mantine/core';
 import { FC } from 'react';
-import PivotTable from '../../pages/PivotingPOC/PivotTable';
+import PivotTable from '../common/PivotTable';
 import Table from '../common/Table';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { LoadingChart } from '../SimpleChart';
