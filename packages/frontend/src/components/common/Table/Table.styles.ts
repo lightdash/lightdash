@@ -53,12 +53,11 @@ export const Table = styled(HTMLTable)<{ $showFooter: boolean }>`
         inset-block-start: 0; /* "top" */
 
         th:first-child {
-            border-top: none !important;
             border-bottom: none !important;
         }
 
         th {
-            border-top: none !important;
+            border-top: 1px solid #d3d3d3 !important;
             border-bottom: none !important;
         }
     }
@@ -71,14 +70,11 @@ export const Table = styled(HTMLTable)<{ $showFooter: boolean }>`
 
         th:first-child {
             border-top: none !important;
-            border-bottom: none !important;
         }
 
         th {
-            border-top: none !important;
-            border-bottom: none !important;
-            box-shadow: inset 0 1px 0 #dcdcdd, inset 0 -1px 0 #dcdcdd,
-                inset 1px 0 0 0 rgb(17 20 24 / 15%) !important;
+            border-top: 1px solid #d3d3d3 !important;
+            border-bottom: 1px solid #d3d3d3 !important;
         }
     }
 
@@ -88,12 +84,6 @@ export const Table = styled(HTMLTable)<{ $showFooter: boolean }>`
         z-index: 1;
         background-color: white;
         word-break: break-word;
-    }
-    .first-sticky-column {
-        box-shadow: lightgray -1px 0px 0px 0px, lightgray 0px 1px 0px 0px inset !important;
-    }
-    .last-sticky-column {
-        border-right: 2px solid darkgray;
     }
 `;
 
