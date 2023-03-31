@@ -1,5 +1,5 @@
 import { FC } from 'react';
-import { useStyles } from './UseStyles';
+import { useStyles } from './tableStyles';
 
 type IndexCellProps = {
     label: string | undefined;

@@ -1,9 +1,11 @@
 import { FieldType, PivotData } from '@lightdash/common';
 import { Table, TableProps } from '@mantine/core';
+import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
 import React, { FC } from 'react';
 import HeaderCell from './HeaderCell';
 import IndexCell from './IndexCell';
-import { useStyles } from './UseStyles';
+import { useStyles } from './tableStyles';
+import ValueCell from './ValueCell';
 
 type PivotTableProps = TableProps &
     React.RefAttributes<HTMLTableElement> & {
@@ -89,26 +91,12 @@ const PivotTable: FC<PivotTableProps> = ({
                                             label={label}
                                         />
                                     );
-                                    return (
-                                        <td
-                                            key={indexValueTypeIndex}
-                                            className={classes.header}
-                                        >
-                                            {
-                                                data.indexValues[i][
-                                                    indexValueTypeIndex
-                                                ]?.formatted
-                                            }
-                                        </td>
-                                    );
                                 },
                             )}
 
-                            {row.map((value, rowIndex) => {
-                                return (
-                                    <td key={rowIndex}>{value?.formatted}</td>
-                                );
-                            })}
+                            {row.map((value, rowIndex) => (
+                                <ValueCell key={rowIndex} value={value} />
+                            ))}
                         </>
                     </tr>
                 ))}
