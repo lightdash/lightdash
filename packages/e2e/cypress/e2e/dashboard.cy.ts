@@ -26,7 +26,7 @@ describe('Dashboard', () => {
         cy.get('thead th').should('have.length', 6); // Table chart
     });
 
-    it.only('Should use dashboard filters', () => {
+    it('Should use dashboard filters', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
 
         // wiat for the dashboard to load
