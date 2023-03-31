@@ -144,18 +144,25 @@ const DashboardCellContextMenu: FC<
                     />
                 </Can>
             )}
-
-            <DrillDownMenuItem
-                row={cell.row.original || {}}
-                dashboardFilters={dashboardFiltersThatApplyToChart}
-                pivotReference={meta?.pivotReference}
-                selectedItem={item}
-                trackingData={{
-                    organizationId: user?.data?.organizationUuid,
-                    userId: user?.data?.userUuid,
-                    projectId: projectUuid,
-                }}
-            />
+            <Can
+                I="manage"
+                this={subject('Explore', {
+                    organizationUuid: user.data?.organizationUuid,
+                    projectUuid: projectUuid,
+                })}
+            >
+                <DrillDownMenuItem
+                    row={cell.row.original || {}}
+                    dashboardFilters={dashboardFiltersThatApplyToChart}
+                    pivotReference={meta?.pivotReference}
+                    selectedItem={item}
+                    trackingData={{
+                        organizationId: user?.data?.organizationUuid,
+                        userId: user?.data?.userUuid,
+                        projectId: projectUuid,
+                    }}
+                />
+            </Can>
 
             {filters.length > 0 && (
                 <MenuItem2 icon="filter" text="Filter dashboard to...">
