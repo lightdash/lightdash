@@ -1,3 +1,10 @@
+## [0.499.1](https://github.com/lightdash/lightdash/compare/0.499.0...0.499.1) (2023-03-31)
+
+
+### Bug Fixes
+
+* s3 file stream ([#4987](https://github.com/lightdash/lightdash/issues/4987)) ([51b2d82](https://github.com/lightdash/lightdash/commit/51b2d82c97a54d754c3d9dfac1e88068c46e42b1))
+
 # [0.499.0](https://github.com/lightdash/lightdash/compare/0.498.3...0.499.0) (2023-03-31)
 
 
