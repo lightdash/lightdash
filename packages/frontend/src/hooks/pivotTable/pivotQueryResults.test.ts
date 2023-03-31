@@ -1,3 +1,4 @@
+import { FieldType } from '@lightdash/common';
 import { pivotQueryResults } from './pivotQueryResults';
 import {
     METRIC_QUERY_0DIM_2METRIC,
@@ -16,7 +17,7 @@ describe('Should pivot data', () => {
         };
         const expected = {
             headerValueTypes: [
-                { type: 'dimension', field: 'page' },
+                { type: 'dimension', fieldId: 'page' },
                 { type: 'metric' },
             ],
             headerValues: [
@@ -50,6 +51,8 @@ describe('Should pivot data', () => {
                     { raw: 1, formatted: '1.0' },
                 ],
             ],
+            pivotConfig,
+            titleFields: [[], [], []],
         };
         const result = pivotQueryResults({
             pivotConfig,
@@ -71,7 +74,7 @@ describe('Should pivot data', () => {
                     { raw: 'devices', formatted: 'devices' },
                 ],
             ],
-            indexValueTypes: [{ type: 'dimension', field: 'page' }],
+            indexValueTypes: [{ type: 'dimension', fieldId: 'page' }],
             indexValues: [
                 [{ raw: '/home', formatted: '/home' }],
                 [{ raw: '/about', formatted: '/about' }],
@@ -92,6 +95,16 @@ describe('Should pivot data', () => {
                     { raw: 1, formatted: '1.0' },
                 ],
             ],
+            pivotConfig,
+            titleFields: [
+                [
+                    {
+                        type: FieldType.DIMENSION,
+                        fieldId: 'page',
+                        titleDirection: 'index',
+                    },
+                ],
+            ],
         };
         const result = pivotQueryResults({
             pivotConfig,
@@ -106,7 +119,7 @@ describe('Should pivot data', () => {
             metricsAsRows: true,
         };
         const expected = {
-            headerValueTypes: [{ type: 'dimension', field: 'page' }],
+            headerValueTypes: [{ type: 'dimension', fieldId: 'page' }],
             headerValues: [
                 [
                     { raw: '/home', formatted: '/home' },
@@ -132,6 +145,16 @@ describe('Should pivot data', () => {
                     { raw: 1, formatted: '1.0' },
                 ],
             ],
+            pivotConfig,
+            titleFields: [
+                [
+                    {
+                        type: FieldType.DIMENSION,
+                        fieldId: 'page',
+                        titleDirection: 'header',
+                    },
+                ],
+            ],
         };
         const result = pivotQueryResults({
             pivotConfig,
@@ -147,7 +170,7 @@ describe('Should pivot data', () => {
         };
         const expected = {
             headerValueTypes: [
-                { type: 'dimension', field: 'site' },
+                { type: 'dimension', fieldId: 'site' },
                 { type: 'metric' },
             ],
             headerValues: [
@@ -164,7 +187,7 @@ describe('Should pivot data', () => {
                     { raw: 'devices', formatted: 'devices' },
                 ],
             ],
-            indexValueTypes: [{ type: 'dimension', field: 'page' }],
+            indexValueTypes: [{ type: 'dimension', fieldId: 'page' }],
             indexValues: [
                 [{ raw: '/home', formatted: '/home' }],
                 [{ raw: '/about', formatted: '/about' }],
@@ -191,6 +214,23 @@ describe('Should pivot data', () => {
                     null,
                 ],
             ],
+            pivotConfig,
+            titleFields: [
+                [
+                    {
+                        type: FieldType.DIMENSION,
+                        fieldId: 'site',
+                        titleDirection: 'header',
+                    },
+                ],
+                [
+                    {
+                        type: FieldType.DIMENSION,
+                        fieldId: 'page',
+                        titleDirection: 'index',
+                    },
+                ],
+            ],
         };
         const result = pivotQueryResults({
             pivotConfig,
@@ -205,7 +245,7 @@ describe('Should pivot data', () => {
             metricsAsRows: true,
         };
         const expected = {
-            headerValueTypes: [{ type: 'dimension', field: 'site' }],
+            headerValueTypes: [{ type: 'dimension', fieldId: 'site' }],
             headerValues: [
                 [
                     { raw: 'blog', formatted: 'Blog' },
@@ -213,7 +253,7 @@ describe('Should pivot data', () => {
                 ],
             ],
             indexValueTypes: [
-                { type: 'dimension', field: 'page' },
+                { type: 'dimension', fieldId: 'page' },
                 { type: 'metric' },
             ],
             indexValues: [
@@ -263,6 +303,21 @@ describe('Should pivot data', () => {
                 [{ raw: 11, formatted: '11.0' }, null],
                 [{ raw: 1, formatted: '1.0' }, null],
             ],
+            pivotConfig,
+            titleFields: [
+                [
+                    {
+                        type: FieldType.DIMENSION,
+                        fieldId: 'page',
+                        titleDirection: 'index',
+                    },
+                    {
+                        type: FieldType.DIMENSION,
+                        fieldId: 'site',
+                        titleDirection: 'header',
+                    },
+                ],
+            ],
         };
         const results = pivotQueryResults({
             pivotConfig,
@@ -293,6 +348,7 @@ describe('Should pivot data', () => {
                     { raw: 7, formatted: '7.0' },
                 ],
             ],
+            pivotConfig,
         };
         const results = pivotQueryResults({
             pivotConfig,
