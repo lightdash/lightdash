@@ -1,6 +1,6 @@
 import { PivotValue } from '@lightdash/common';
-import { useClipboard } from '@mantine/hooks';
-import { FC } from 'react';
+import { useClipboard, useHotkeys } from '@mantine/hooks';
+import { FC, useCallback, useState } from 'react';
 import ValueCellMenu from './ValueCellMenu';
 
 interface ValueCellProps {
@@ -9,13 +9,24 @@ interface ValueCellProps {
 
 const ValueCell: FC<ValueCellProps> = ({ value }) => {
     const clipboard = useClipboard({ timeout: 500 });
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-    const handleCopy = () => {
-        clipboard.copy(value?.formatted);
-    };
+    const handleCopy = useCallback(() => {
+        if (isMenuOpen) {
+            clipboard.copy(value?.formatted);
+        }
+    }, [clipboard, value, isMenuOpen]);
+
+    useHotkeys([['mod+c', handleCopy]]);
 
     return (
-        <ValueCellMenu value={value} onCopy={handleCopy}>
+        <ValueCellMenu
+            opened={isMenuOpen}
+            onOpen={() => setIsMenuOpen(true)}
+            onClose={() => setIsMenuOpen(false)}
+            value={value}
+            onCopy={handleCopy}
+        >
             <td data-copied={clipboard.copied ? true : false}>
                 {value?.formatted}
             </td>
