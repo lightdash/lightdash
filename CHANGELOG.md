@@ -1,3 +1,11 @@
+# [0.498.0](https://github.com/lightdash/lightdash/compare/0.497.0...0.498.0) (2023-03-31)
+
+
+### Features
+
+* link docs when files are missing  ([#4974](https://github.com/lightdash/lightdash/issues/4974)) ([5232c8b](https://github.com/lightdash/lightdash/commit/5232c8b3bf55661a92b66a91317bca986d50932e))
+* refactor run query with chartuuid ([#4915](https://github.com/lightdash/lightdash/issues/4915)) ([d3955b3](https://github.com/lightdash/lightdash/commit/d3955b33e67dd802b39ab0209115d0538701a1ae))
+
 # [0.497.0](https://github.com/lightdash/lightdash/compare/0.496.0...0.497.0) (2023-03-30)
 
 
