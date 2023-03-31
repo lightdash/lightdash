@@ -5,6 +5,10 @@ export const useStyles = createStyles((theme) => ({
         '& td, & th': {
             whiteSpace: 'nowrap',
         },
+
+        'td[data-expanded="true"]': {
+            backgroundColor: theme.colors.blue[0],
+        },
     },
     header: {
         fontWeight: 'bold',
