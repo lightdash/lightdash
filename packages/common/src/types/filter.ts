@@ -82,7 +82,7 @@ export type DateFilterRule = FilterRule<
 
 export type FilterGroupItem = FilterGroup | FilterRule;
 
-type OrFilterGroup = {
+export type OrFilterGroup = {
     id: string;
     or: Array<FilterGroupItem>;
 };

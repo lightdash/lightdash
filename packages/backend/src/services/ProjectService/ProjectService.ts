@@ -17,6 +17,7 @@ import {
     fieldId as getFieldId,
     FilterableField,
     FilterOperator,
+    Filters,
     findFieldByIdInExplore,
     ForbiddenError,
     formatRows,
@@ -605,16 +606,15 @@ export class ProjectService {
 
     async runViewChartQuery(
         user: SessionUser,
-        metricQuery: MetricQuery,
-        projectUuid: string,
-        exploreName: string,
-        csvLimit: number | null | undefined,
+        chartUuid: string,
+        filters?: Filters,
     ): Promise<ApiQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        const { organizationUuid } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        const savedChart = await this.savedChartModel.get(chartUuid);
+        const { organizationUuid, projectUuid } = savedChart;
 
         if (
             user.ability.cannot(
@@ -625,12 +625,15 @@ export class ProjectService {
             throw new ForbiddenError();
         }
 
+        const metricQuery: MetricQuery = filters
+            ? { ...savedChart.metricQuery, filters }
+            : savedChart.metricQuery;
         return this.runQueryAndFormatRows(
             user,
             metricQuery,
             projectUuid,
-            exploreName,
-            csvLimit,
+            savedChart.tableName,
+            undefined,
         );
     }
 

@@ -64,7 +64,10 @@ const MinimalSavedExplorer: FC = () => {
     const { data, isLoading, isError, error } = useSavedQuery({
         id: savedQueryUuid,
     });
-    const queryResults = useQueryResults({ isViewOnly: true });
+    const queryResults = useQueryResults({
+        chartUuid: savedQueryUuid,
+        isViewOnly: true,
+    });
 
     if (isLoading) {
         return null;

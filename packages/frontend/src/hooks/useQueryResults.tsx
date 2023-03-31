@@ -1,8 +1,8 @@
 import {
     ApiError,
     ApiQueryResults,
+    Filters,
     MetricQuery,
-    SavedChart,
 } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
 import { useMutation, useQuery } from 'react-query';
@@ -14,20 +14,23 @@ import useQueryError from './useQueryError';
 type QueryResultsProps = {
     projectUuid: string;
     tableId: string;
-    query: MetricQuery;
+    query?: MetricQuery;
     csvLimit?: number | null; //giving null returns all results (no limit)
+    chartUuid?: string;
 };
 
-export const getDashboardTileQueryResults = async ({
-    projectUuid,
-    tableId,
-    query,
-}: QueryResultsProps) => {
-    const timezoneFixQuery = convertDateFilters(query);
+// This API call will be used for getting charts in view mode and dashboard tiles
+export const getChartResults = async ({
+    chartUuid,
+    filters,
+}: {
+    chartUuid?: string;
+    filters?: Filters;
+}) => {
     return lightdashApi<ApiQueryResults>({
-        url: `/projects/${projectUuid}/explores/${tableId}/runDashboardTileQuery`,
+        url: `/saved/${chartUuid}/results`,
         method: 'POST',
-        body: JSON.stringify({ ...timezoneFixQuery }),
+        body: JSON.stringify({ filters }),
     });
 };
 
@@ -37,7 +40,7 @@ export const getQueryResults = async ({
     query,
     csvLimit,
 }: QueryResultsProps) => {
-    const timezoneFixQuery = convertDateFilters(query);
+    const timezoneFixQuery = query && convertDateFilters(query);
     return lightdashApi<ApiQueryResults>({
         url: `/projects/${projectUuid}/explores/${tableId}/runQuery`,
         method: 'POST',
@@ -45,41 +48,26 @@ export const getQueryResults = async ({
     });
 };
 
-export const getViewChartResults = async ({
-    projectUuid,
-    tableId,
-    query,
-    csvLimit,
-}: QueryResultsProps) => {
-    const timezoneFixQuery = convertDateFilters(query);
-    return lightdashApi<ApiQueryResults>({
-        url: `/projects/${projectUuid}/explores/${tableId}/runViewChartQuery`,
-        method: 'POST',
-        body: JSON.stringify({ ...timezoneFixQuery, csvLimit }),
-    });
-};
-
-export const useQueryResults = (props?: { isViewOnly?: boolean }) => {
+export const useQueryResults = (props?: {
+    chartUuid?: string;
+    isViewOnly?: boolean;
+}) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const setErrorResponse = useQueryError();
 
     const fetchQuery =
-        props?.isViewOnly === true ? getViewChartResults : getQueryResults;
-    const mutation = useMutation<
-        ApiQueryResults,
-        ApiError,
+        props?.isViewOnly === true ? getChartResults : getQueryResults;
+    const mutation = useMutation<ApiQueryResults, ApiError, QueryResultsProps>(
+        fetchQuery,
         {
-            projectUuid: string;
-            tableId: string;
-            query: MetricQuery;
-        }
-    >(fetchQuery, {
-        mutationKey: ['queryResults'],
-        onError: useCallback(
-            (result) => setErrorResponse(result),
-            [setErrorResponse],
-        ),
-    });
+            mutationKey: ['queryResults'],
+            onError: useCallback(
+                (result) => setErrorResponse(result),
+                [setErrorResponse],
+            ),
+        },
+    );
+
     const { mutateAsync } = mutation;
 
     const mutateAsyncOverride = useCallback(
@@ -91,10 +79,11 @@ export const useQueryResults = (props?: { isViewOnly?: boolean }) => {
             ]);
             const isValidQuery = fields.size > 0;
             if (!!tableName && isValidQuery) {
-                return mutateAsync({
+                mutateAsync({
                     projectUuid,
                     tableId: tableName,
                     query: metricQuery,
+                    chartUuid: props?.chartUuid,
                 });
             } else {
                 console.warn(
@@ -154,23 +143,15 @@ export const useUnderlyingDataResults = (
     });
 };
 
-export const useSavedChartResults = (
-    projectUuid: string,
-    savedChart: SavedChart,
-) => {
-    const queryKey = [
-        'savedChartResults',
-        savedChart.uuid,
-        JSON.stringify(savedChart),
-        projectUuid,
-    ];
+// This hook will be used for getting charts in view mode and dashboard tiles
+export const useChartResults = (chartUuid: string, filters?: Filters) => {
+    const queryKey = ['savedChartResults', chartUuid, JSON.stringify(filters)];
     return useQuery<ApiQueryResults, ApiError>({
         queryKey,
         queryFn: () =>
-            getDashboardTileQueryResults({
-                projectUuid,
-                tableId: savedChart.tableName,
-                query: savedChart.metricQuery,
+            getChartResults({
+                chartUuid,
+                filters,
             }),
         retry: false,
         refetchOnMount: false,

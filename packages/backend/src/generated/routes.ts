@@ -16,6 +16,10 @@ import { DbtCloudIntegrationController } from './../controllers/dbtCloudIntegrat
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { OrganizationController } from './../controllers/organizationController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { RunViewChartQueryController } from './../controllers/runQueryController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { SavedChartController } from './../controllers/savedChartController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { SchedulerController } from './../controllers/schedulerController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { ShareController } from './../controllers/shareController';
@@ -378,6 +382,252 @@ const models: TsoaRoute.Models = {
         dataType: 'refAlias',
         type: {
             ref: 'Omit_AllowedEmailDomains.organizationUuid_',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    FieldId: {
+        dataType: 'refAlias',
+        type: { dataType: 'string', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    FilterGroupResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        or: {
+                            dataType: 'array',
+                            array: { dataType: 'any' },
+                            required: true,
+                        },
+                        id: { dataType: 'string', required: true },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        and: {
+                            dataType: 'array',
+                            array: { dataType: 'any' },
+                            required: true,
+                        },
+                        id: { dataType: 'string', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    Filters: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                metrics: { ref: 'FilterGroupResponse' },
+                dimensions: { ref: 'FilterGroupResponse' },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SortField: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                descending: { dataType: 'boolean', required: true },
+                fieldId: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    TableCalculation: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                sql: { dataType: 'string', required: true },
+                displayName: { dataType: 'string', required: true },
+                name: { dataType: 'string', required: true },
+                index: { dataType: 'double' },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MetricType: {
+        dataType: 'refEnum',
+        enums: [
+            'percentile',
+            'average',
+            'count',
+            'count_distinct',
+            'sum',
+            'min',
+            'max',
+            'number',
+            'median',
+            'string',
+            'date',
+            'boolean',
+        ],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    Compact: {
+        dataType: 'refEnum',
+        enums: ['thousands', 'millions', 'billions', 'trillions'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CompactOrAlias: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'Compact' },
+                {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['K'] },
+                        { dataType: 'enum', enums: ['thousand'] },
+                        { dataType: 'enum', enums: ['M'] },
+                        { dataType: 'enum', enums: ['million'] },
+                        { dataType: 'enum', enums: ['B'] },
+                        { dataType: 'enum', enums: ['billion'] },
+                        { dataType: 'enum', enums: ['T'] },
+                        { dataType: 'enum', enums: ['trillion'] },
+                    ],
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AdditionalMetric: {
+        dataType: 'refObject',
+        properties: {
+            label: { dataType: 'string' },
+            type: { ref: 'MetricType', required: true },
+            description: { dataType: 'string' },
+            sql: { dataType: 'string', required: true },
+            hidden: { dataType: 'boolean' },
+            round: { dataType: 'double' },
+            compact: { ref: 'CompactOrAlias' },
+            format: { dataType: 'string' },
+            table: { dataType: 'string', required: true },
+            name: { dataType: 'string', required: true },
+            index: { dataType: 'double' },
+        },
+        additionalProperties: false,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MetricQueryResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                additionalMetrics: {
+                    dataType: 'array',
+                    array: { dataType: 'refObject', ref: 'AdditionalMetric' },
+                },
+                tableCalculations: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'TableCalculation' },
+                    required: true,
+                },
+                limit: { dataType: 'double', required: true },
+                sorts: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'SortField' },
+                    required: true,
+                },
+                filters: { ref: 'Filters', required: true },
+                metrics: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'FieldId' },
+                    required: true,
+                },
+                dimensions: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'FieldId' },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiRunQueryResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        rows: {
+                            dataType: 'array',
+                            array: { dataType: 'any' },
+                            required: true,
+                        },
+                        metricQuery: {
+                            ref: 'MetricQueryResponse',
+                            required: true,
+                        },
+                    },
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    RunQueryRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                csvLimit: { dataType: 'double' },
+                additionalMetrics: {
+                    dataType: 'array',
+                    array: { dataType: 'refObject', ref: 'AdditionalMetric' },
+                },
+                tableCalculations: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'TableCalculation' },
+                    required: true,
+                },
+                limit: { dataType: 'double', required: true },
+                sorts: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'SortField' },
+                    required: true,
+                },
+                filters: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        metrics: { dataType: 'any' },
+                        dimensions: { dataType: 'any' },
+                    },
+                    required: true,
+                },
+                metrics: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'FieldId' },
+                    required: true,
+                },
+                dimensions: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'FieldId' },
+                    required: true,
+                },
+            },
             validators: {},
         },
     },
@@ -1396,6 +1646,175 @@ export function RegisterRoutes(app: express.Router) {
                         validatedArgs as any,
                     );
                 promiseHandler(controller, promise, response, undefined, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.post(
+        '/api/v1/projects/:projectUuid/explores/:exploreId/runUnderlyingDataQuery',
+        ...fetchMiddlewares<RequestHandler>(RunViewChartQueryController),
+        ...fetchMiddlewares<RequestHandler>(
+            RunViewChartQueryController.prototype.postUnderlyingData,
+        ),
+
+        function RunViewChartQueryController_postUnderlyingData(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                body: {
+                    in: 'body',
+                    name: 'body',
+                    required: true,
+                    ref: 'RunQueryRequest',
+                },
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                exploreId: {
+                    in: 'path',
+                    name: 'exploreId',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const controller = new RunViewChartQueryController();
+
+                const promise = controller.postUnderlyingData.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.post(
+        '/api/v1/projects/:projectUuid/explores/:exploreId/runQuery',
+        ...fetchMiddlewares<RequestHandler>(RunViewChartQueryController),
+        ...fetchMiddlewares<RequestHandler>(
+            RunViewChartQueryController.prototype.postRunQuery,
+        ),
+
+        function RunViewChartQueryController_postRunQuery(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                body: {
+                    in: 'body',
+                    name: 'body',
+                    required: true,
+                    ref: 'RunQueryRequest',
+                },
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                exploreId: {
+                    in: 'path',
+                    name: 'exploreId',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const controller = new RunViewChartQueryController();
+
+                const promise = controller.postRunQuery.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.post(
+        '/api/v1/saved/:chartUuid/results',
+        ...fetchMiddlewares<RequestHandler>(SavedChartController),
+        ...fetchMiddlewares<RequestHandler>(
+            SavedChartController.prototype.postDashboardTile,
+        ),
+
+        function SavedChartController_postDashboardTile(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                body: {
+                    in: 'body',
+                    name: 'body',
+                    required: true,
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: { filters: { ref: 'Filters' } },
+                },
+                chartUuid: {
+                    in: 'path',
+                    name: 'chartUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const controller = new SavedChartController();
+
+                const promise = controller.postDashboardTile.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
             } catch (err) {
                 return next(err);
             }
