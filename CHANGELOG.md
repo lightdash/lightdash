@@ -1,3 +1,10 @@
+## [0.498.1](https://github.com/lightdash/lightdash/compare/0.498.0...0.498.1) (2023-03-31)
+
+
+### Bug Fixes
+
+* revert dashboard filter permission ([#4978](https://github.com/lightdash/lightdash/issues/4978)) ([79fdd68](https://github.com/lightdash/lightdash/commit/79fdd6879178371cb7aed38215174983650c1238))
+
 # [0.498.0](https://github.com/lightdash/lightdash/compare/0.497.0...0.498.0) (2023-03-31)
 
 
