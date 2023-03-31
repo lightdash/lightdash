@@ -1,3 +1,10 @@
+# [0.500.0](https://github.com/lightdash/lightdash/compare/0.499.1...0.500.0) (2023-03-31)
+
+
+### Features
+
+* pivot table interactivity - copying ([#4986](https://github.com/lightdash/lightdash/issues/4986)) ([57df130](https://github.com/lightdash/lightdash/commit/57df130ccd65e26a5fd8805763baef3486395bf2))
+
 ## [0.499.1](https://github.com/lightdash/lightdash/compare/0.499.0...0.499.1) (2023-03-31)
 
 
