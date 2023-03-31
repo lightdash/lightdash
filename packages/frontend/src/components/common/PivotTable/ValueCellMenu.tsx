@@ -1,6 +1,6 @@
 import { PivotValue } from '@lightdash/common';
 import { Menu, MenuProps } from '@mantine/core';
-import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
+import { IconCopy } from '@tabler/icons-react';
 import { FC } from 'react';
 import MantineIcon from '../MantineIcon';
 
@@ -44,6 +44,7 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
                     Copy
                 </Menu.Item>
 
+                {/*
                 <Menu.Item
                     icon={
                         <MantineIcon
@@ -67,6 +68,7 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
                 >
                     Drill into "{value?.formatted}"
                 </Menu.Item>
+                */}
             </Menu.Dropdown>
         </Menu>
     );
