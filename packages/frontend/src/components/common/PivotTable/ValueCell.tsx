@@ -8,8 +8,10 @@ interface ValueCellProps {
 }
 
 const ValueCell: FC<ValueCellProps> = ({ value }) => {
-    const clipboard = useClipboard({ timeout: 500 });
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+    // TODO: optimisation - can be one hook on the parent
+    const clipboard = useClipboard({ timeout: 1000 });
 
     const handleCopy = useCallback(() => {
         if (isMenuOpen) {
