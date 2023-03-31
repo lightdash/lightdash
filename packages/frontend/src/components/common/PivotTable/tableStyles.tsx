@@ -12,6 +12,8 @@ export const useStyles = createStyles((theme) => ({
 
         'td[data-expanded="true"]': {
             backgroundColor: theme.colors.blue[0],
+            borderColor: 'transparent',
+            outline: `1px solid ${theme.colors.blue[5]}`,
         },
 
         'td[data-copied="true"]': {
