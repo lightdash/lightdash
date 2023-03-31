@@ -162,28 +162,25 @@ const DashboardCellContextMenu: FC<
                         projectId: projectUuid,
                     }}
                 />
-
-                {filters.length > 0 && (
-                    <MenuItem2 icon="filter" text="Filter dashboard to...">
-                        {filters.map((filter) => {
-                            return (
-                                <MenuItem2
-                                    key={filter.id}
-                                    text={`${friendlyName(
-                                        filter.target.fieldId,
-                                    )} is ${filter.values && filter.values[0]}`}
-                                    onClick={() => {
-                                        addDimensionDashboardFilter(
-                                            filter,
-                                            true,
-                                        );
-                                    }}
-                                />
-                            );
-                        })}
-                    </MenuItem2>
-                )}
             </Can>
+
+            {filters.length > 0 && (
+                <MenuItem2 icon="filter" text="Filter dashboard to...">
+                    {filters.map((filter) => {
+                        return (
+                            <MenuItem2
+                                key={filter.id}
+                                text={`${friendlyName(
+                                    filter.target.fieldId,
+                                )} is ${filter.values && filter.values[0]}`}
+                                onClick={() => {
+                                    addDimensionDashboardFilter(filter, true);
+                                }}
+                            />
+                        );
+                    })}
+                </MenuItem2>
+            )}
         </Menu>
     );
 };
