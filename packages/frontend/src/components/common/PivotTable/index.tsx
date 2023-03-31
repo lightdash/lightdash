@@ -91,18 +91,6 @@ const PivotTable: FC<PivotTableProps> = ({
                                             label={label}
                                         />
                                     );
-                                    return (
-                                        <td
-                                            key={indexValueTypeIndex}
-                                            className={classes.header}
-                                        >
-                                            {
-                                                data.indexValues[i][
-                                                    indexValueTypeIndex
-                                                ]?.formatted
-                                            }
-                                        </td>
-                                    );
                                 },
                             )}
 
