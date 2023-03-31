@@ -78,7 +78,10 @@ const useTableConfig = (
     }, [explore, resultsData]);
 
     const getDefaultColumnLabel = useCallback(
-        (fieldId: string) => {
+        (fieldId: string | null | undefined) => {
+            if (fieldId === null || fieldId === undefined) {
+                return '';
+            }
             const item = itemsMap[fieldId] as
                 | typeof itemsMap[number]
                 | undefined;
@@ -116,8 +119,7 @@ const useTableConfig = (
             resultsData?.metricQuery &&
             resultsData.metricQuery.metrics.length &&
             resultsData.rows.length &&
-            pivotDimensions?.length &&
-            metricsAsRows
+            pivotDimensions?.length
         ) {
             // Pivot V2. This will always trigger when the above conditions are met.
             // The old pivot below will always trigger. So currently we pivot twice when the above conditions are met.
