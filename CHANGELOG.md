@@ -1,3 +1,10 @@
+## [0.498.3](https://github.com/lightdash/lightdash/compare/0.498.2...0.498.3) (2023-03-31)
+
+
+### Bug Fixes
+
+* metric labels pivot table ([#4981](https://github.com/lightdash/lightdash/issues/4981)) ([1b21af5](https://github.com/lightdash/lightdash/commit/1b21af5effbaa11e0640a563865dfef6e6d201ce))
+
 ## [0.498.2](https://github.com/lightdash/lightdash/compare/0.498.1...0.498.2) (2023-03-31)
 
 
