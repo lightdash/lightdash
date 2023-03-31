@@ -16,6 +16,7 @@ import {
     ExploreError,
     fieldId as getFieldId,
     FilterableField,
+    FilterGroup,
     FilterOperator,
     Filters,
     findFieldByIdInExplore,
@@ -34,6 +35,7 @@ import {
     JobStatusType,
     JobStepType,
     JobType,
+    Metric,
     MetricQuery,
     MetricType,
     MissingWarehouseCredentialsError,
@@ -604,6 +606,36 @@ export class ProjectService {
         );
     }
 
+    private static combineFilters(
+        metricQuery: MetricQuery,
+        filters: Filters,
+    ): MetricQuery {
+        return {
+            ...metricQuery,
+            filters: {
+                dimensions: {
+                    id: 'and-dimensions',
+                    and: [
+                        metricQuery.filters?.dimensions,
+                        filters.dimensions,
+                    ].reduce<FilterGroup[]>((acc, val) => {
+                        if (val) return [...acc, val];
+                        return acc;
+                    }, []),
+                },
+                metrics: {
+                    id: 'and-metrics',
+                    and: [metricQuery.filters?.metrics, filters.metrics].reduce<
+                        FilterGroup[]
+                    >((acc, val) => {
+                        if (val) return [...acc, val];
+                        return acc;
+                    }, []),
+                },
+            },
+        };
+    }
+
     async runViewChartQuery(
         user: SessionUser,
         chartUuid: string,
@@ -626,8 +658,9 @@ export class ProjectService {
         }
 
         const metricQuery: MetricQuery = filters
-            ? { ...savedChart.metricQuery, filters }
+            ? ProjectService.combineFilters(savedChart.metricQuery, filters)
             : savedChart.metricQuery;
+
         return this.runQueryAndFormatRows(
             user,
             metricQuery,

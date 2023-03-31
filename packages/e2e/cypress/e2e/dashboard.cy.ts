@@ -26,6 +26,33 @@ describe('Dashboard', () => {
         cy.get('thead th').should('have.length', 6); // Table chart
     });
 
+    it('Should use dashboard filters', () => {
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
+
+        // wiat for the dashboard to load
+        cy.findByText('Loading dashboards').should('not.exist');
+
+        cy.contains('a', 'Jaffle dashboard').click();
+
+        cy.contains('How much revenue');
+
+        cy.findAllByText('Loading chart').should('have.length', 0); // Finish loading
+
+        cy.contains('bank_transfer').should('have.length', 1);
+
+        // Add filter
+        cy.contains('Add filter').click();
+
+        cy.findByPlaceholderText('Search field...').click();
+        cy.contains('Payments Payment method').click();
+        cy.findByPlaceholderText('Start typing to filter results').type(
+            'credit_card{enter}{esc}',
+        );
+        cy.contains('Apply').click();
+
+        cy.contains('bank_transfer').should('have.length', 0);
+    });
+
     it('Should create dashboard with tiles', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
 
