@@ -21,7 +21,7 @@ export const useStyles = createStyles((theme) => ({
         },
     },
     header: {
-        fontWeight: 'bold',
+        fontWeight: 600,
         backgroundColor: theme.colors.gray[0],
     },
 }));
