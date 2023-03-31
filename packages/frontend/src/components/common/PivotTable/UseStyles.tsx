@@ -9,6 +9,10 @@ export const useStyles = createStyles((theme) => ({
         'td[data-expanded="true"]': {
             backgroundColor: theme.colors.blue[0],
         },
+
+        'td[data-copied="true"]': {
+            backgroundColor: theme.colors.green[0],
+        },
     },
     header: {
         fontWeight: 'bold',

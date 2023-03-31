@@ -1,64 +1,25 @@
 import { PivotValue } from '@lightdash/common';
-import { Menu } from '@mantine/core';
-import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
+import { useClipboard } from '@mantine/hooks';
 import { FC } from 'react';
-import MantineIcon from '../MantineIcon';
+import ValueCellMenu from './ValueCellMenu';
 
 interface ValueCellProps {
     value: PivotValue;
 }
 
 const ValueCell: FC<ValueCellProps> = ({ value }) => {
+    const clipboard = useClipboard({ timeout: 500 });
+
+    const handleCopy = () => {
+        clipboard.copy(value?.formatted);
+    };
+
     return (
-        <Menu
-            withinPortal
-            shadow="md"
-            offset={-1}
-            position="bottom-end"
-            radius="xs"
-        >
-            <Menu.Target>
-                <td>{value?.formatted}</td>
-            </Menu.Target>
-
-            <Menu.Dropdown>
-                <Menu.Item
-                    icon={
-                        <MantineIcon
-                            icon={IconCopy}
-                            size="md"
-                            fillOpacity={0}
-                        />
-                    }
-                >
-                    Copy
-                </Menu.Item>
-
-                <Menu.Item
-                    icon={
-                        <MantineIcon
-                            icon={IconStack}
-                            size="md"
-                            fillOpacity={0}
-                        />
-                    }
-                >
-                    View underlying data
-                </Menu.Item>
-
-                <Menu.Item
-                    icon={
-                        <MantineIcon
-                            icon={IconArrowBarToDown}
-                            size="md"
-                            fillOpacity={0}
-                        />
-                    }
-                >
-                    Drill into "{value?.formatted}"
-                </Menu.Item>
-            </Menu.Dropdown>
-        </Menu>
+        <ValueCellMenu value={value} onCopy={handleCopy}>
+            <td data-copied={clipboard.copied ? true : false}>
+                {value?.formatted}
+            </td>
+        </ValueCellMenu>
     );
 };
 
