@@ -8,7 +8,7 @@ import { useStyles } from './UseStyles';
 type PivotTableProps = TableProps &
     React.RefAttributes<HTMLTableElement> & {
         data: PivotData;
-        getMetricLabel: (fieldId: string | null | undefined) => string;
+        getMetricLabel?: (fieldId: string | null | undefined) => string;
     };
 
 const PivotTable: FC<PivotTableProps> = ({
@@ -30,7 +30,7 @@ const PivotTable: FC<PivotTableProps> = ({
         >
             <thead>
                 {data.headerValueTypes.map(
-                    (_headerValueType, headerValueTypeIndex) => {
+                    (headerValueType, headerValueTypeIndex) => {
                         const headerValues =
                             data.headerValues[headerValueTypeIndex];
 
@@ -47,8 +47,9 @@ const PivotTable: FC<PivotTableProps> = ({
                                     {headerValues.map(
                                         (headerValue, headerValueIndex) => {
                                             const label =
-                                                _headerValueType.type ===
-                                                FieldType.METRIC
+                                                headerValueType.type ===
+                                                    FieldType.METRIC &&
+                                                getMetricLabel
                                                     ? getMetricLabel(
                                                           headerValue?.formatted,
                                                       )
@@ -73,13 +74,13 @@ const PivotTable: FC<PivotTableProps> = ({
                     <tr key={i}>
                         <>
                             {data.indexValueTypes.map(
-                                (_indexValueType, indexValueTypeIndex) => {
+                                (indexValueType, indexValueTypeIndex) => {
                                     const d =
                                         data.indexValues[i][indexValueTypeIndex]
                                             ?.formatted;
                                     const label =
-                                        _indexValueType.type ===
-                                        FieldType.METRIC
+                                        indexValueType.type ===
+                                            FieldType.METRIC && getMetricLabel
                                             ? getMetricLabel(d)
                                             : d;
                                     return (
