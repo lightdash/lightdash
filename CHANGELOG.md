@@ -1,3 +1,10 @@
+## [0.500.2](https://github.com/lightdash/lightdash/compare/0.500.1...0.500.2) (2023-04-01)
+
+
+### Bug Fixes
+
+* fix s3 upload on scheduler too ([#4991](https://github.com/lightdash/lightdash/issues/4991)) ([0b80ae1](https://github.com/lightdash/lightdash/commit/0b80ae13423d9326b856126edcffe5c1833ddda2))
+
 ## [0.500.1](https://github.com/lightdash/lightdash/compare/0.500.0...0.500.1) (2023-04-01)
 
 
