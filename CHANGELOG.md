@@ -1,3 +1,10 @@
+## [0.500.1](https://github.com/lightdash/lightdash/compare/0.500.0...0.500.1) (2023-04-01)
+
+
+### Bug Fixes
+
+* fix downloading csv twice ([#4990](https://github.com/lightdash/lightdash/issues/4990)) ([3a2b698](https://github.com/lightdash/lightdash/commit/3a2b698458281488ef46002910d3087b60da4c55))
+
 # [0.500.0](https://github.com/lightdash/lightdash/compare/0.499.1...0.500.0) (2023-03-31)
 
 
