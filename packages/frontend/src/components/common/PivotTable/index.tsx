@@ -1,6 +1,11 @@
-import { FieldType, PivotData } from '@lightdash/common';
+import {
+    ConditionalFormattingConfig,
+    Field,
+    FieldType,
+    PivotData,
+    TableCalculation,
+} from '@lightdash/common';
 import { Table, TableProps } from '@mantine/core';
-import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
 import React, { FC } from 'react';
 import HeaderCell from './HeaderCell';
 import IndexCell from './IndexCell';
@@ -10,12 +15,16 @@ import ValueCell from './ValueCell';
 type PivotTableProps = TableProps &
     React.RefAttributes<HTMLTableElement> & {
         data: PivotData;
+        conditionalFormattings: ConditionalFormattingConfig[];
         getMetricLabel?: (fieldId: string | null | undefined) => string;
+        getField: (fieldId: string) => Field | TableCalculation;
     };
 
 const PivotTable: FC<PivotTableProps> = ({
     data,
+    conditionalFormattings,
     getMetricLabel,
+    getField,
     className,
     ...tableProps
 }) => {
@@ -95,7 +104,14 @@ const PivotTable: FC<PivotTableProps> = ({
                             )}
 
                             {row.map((value, rowIndex) => (
-                                <ValueCell key={rowIndex} value={value} />
+                                <ValueCell
+                                    key={rowIndex}
+                                    value={value}
+                                    getField={getField}
+                                    conditionalFormattings={
+                                        conditionalFormattings
+                                    }
+                                />
                             ))}
                         </>
                     </tr>
