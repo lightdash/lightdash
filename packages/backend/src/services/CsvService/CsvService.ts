@@ -334,7 +334,9 @@ export class CsvService {
         }
 
         try {
-            const csvContent = fs.createReadStream(`/tmp/${fileId}`);
+            const csvContent = await fsPromise.readFile(`/tmp/${fileId}`, {
+                encoding: 'utf-8',
+            });
             const s3Url = await this.s3Service.uploadCsv(csvContent, fileId);
 
             await fsPromise.unlink(`/tmp/${fileId}`);
