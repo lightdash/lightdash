@@ -5,20 +5,6 @@ export const useStyles = createStyles((theme) => ({
         '& td, & th': {
             whiteSpace: 'nowrap',
         },
-
-        td: {
-            transition: 'background-color 0.2s ease-in-out',
-        },
-
-        'td[data-expanded="true"]': {
-            backgroundColor: theme.colors.blue[0],
-            borderColor: 'transparent',
-            outline: `1px solid ${theme.colors.blue[5]}`,
-        },
-
-        'td[data-copied="true"]': {
-            backgroundColor: theme.colors.blue[1],
-        },
     },
     header: {
         fontWeight: 600,
