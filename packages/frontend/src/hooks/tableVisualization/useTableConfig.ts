@@ -107,6 +107,14 @@ const useTableConfig = (
         (fieldId: string) => columnProperties[fieldId]?.frozen === true,
         [columnProperties],
     );
+
+    const getField = useCallback(
+        (fieldId: string) => {
+            return itemsMap[fieldId];
+        },
+        [itemsMap],
+    );
+
     const getHeader = useCallback(
         (fieldId: string) => {
             return columnProperties[fieldId]?.name;
@@ -253,6 +261,7 @@ const useTableConfig = (
         updateColumnProperty,
         getHeader,
         getDefaultColumnLabel,
+        getField,
         isColumnVisible,
         isColumnFrozen,
         conditionalFormattings,
