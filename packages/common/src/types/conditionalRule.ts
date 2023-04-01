@@ -20,3 +20,9 @@ export type ConditionalRule<O = ConditionalOperator, V = unknown> = {
     operator: O;
     values?: V[];
 };
+
+export type ConditionalRuleLabels = {
+    field: string;
+    operator: string;
+    value?: string;
+};

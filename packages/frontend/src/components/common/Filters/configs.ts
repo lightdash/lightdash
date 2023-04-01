@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     ConditionalRule,
+    ConditionalRuleLabels,
     DimensionType,
     Field,
     FilterableField,
@@ -122,12 +123,6 @@ export const FilterTypeConfig: Record<
     },
 };
 
-type FilterRuleLabels = {
-    field: string;
-    operator: string;
-    value?: string;
-};
-
 export const getValueAsString = (
     filterType: FilterType,
     rule: ConditionalRule,
@@ -208,7 +203,7 @@ export const getValueAsString = (
 export const getConditionalRuleLabel = (
     rule: ConditionalRule,
     item: FilterableItem,
-): FilterRuleLabels => {
+): ConditionalRuleLabels => {
     const filterType = isFilterableItem(item)
         ? getFilterTypeFromItem(item)
         : FilterType.STRING;
