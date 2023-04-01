@@ -91,7 +91,6 @@ const ExportCSV: FC<ExportCSVProps> = memo(
                     onSuccess: (scheduledCsvResponse) => {
                         pollCsvFileUrl(scheduledCsvResponse)
                             .then((url) => {
-                                window.open(url, '_blank');
                                 if (url) window.open(url, '_blank');
                                 AppToaster.dismiss('exporting-csv');
                             })
