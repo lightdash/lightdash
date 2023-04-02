@@ -144,7 +144,8 @@ const useTableConfig = (
             canUseMetricsAsRows &&
             metricsAsRows &&
             resultsData?.metricQuery &&
-            pivotDimensions
+            pivotDimensions &&
+            pivotDimensions?.length
         ) {
             // Pivot V2. This will always trigger when the above conditions are met.
             // The old pivot below will always trigger. So currently we pivot twice when the above conditions are met.
@@ -157,7 +158,7 @@ const useTableConfig = (
                 rows: resultsData.rows,
             });
         }
-    }, [resultsData, pivotDimensions, metricsAsRows]);
+    }, [resultsData, pivotDimensions, canUseMetricsAsRows, metricsAsRows]);
 
     const { rows, columns, error } = useMemo<{
         rows: ResultRow[];
