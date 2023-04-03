@@ -44,7 +44,9 @@ const useTableConfig = (
             : tableChartConfig.hideRowNumbers,
     );
 
-    const [metricsAsRows, setMetricsAsRows] = useState<boolean>(false);
+    const [metricsAsRows, setMetricsAsRows] = useState<boolean>(
+        tableChartConfig?.metricsAsRows || false,
+    );
 
     useEffect(() => {
         if (
@@ -114,13 +116,27 @@ const useTableConfig = (
         [columnProperties],
     );
 
-    const pivotTableData = useMemo<PivotData | undefined>(() => {
+    const canUseMetricsAsRows = useMemo(() => {
         if (
             resultsData?.metricQuery &&
-            resultsData.metricQuery.metrics.length &&
+            resultsData.metricQuery.metrics.length > 0 &&
             resultsData.rows.length &&
-            pivotDimensions?.length &&
-            metricsAsRows
+            pivotDimensions &&
+            pivotDimensions.length > 0
+        ) {
+            return true;
+        }
+        return false;
+    }, [resultsData, pivotDimensions]);
+
+    const pivotTableData = useMemo<PivotData | undefined>(() => {
+        // Note: user can have metricsAsRows enabled but if the configuration isn't allowed, it'll be ignored
+        // In future we should change this to an error
+        if (
+            canUseMetricsAsRows &&
+            metricsAsRows &&
+            resultsData?.metricQuery &&
+            pivotDimensions
         ) {
             // Pivot V2. This will always trigger when the above conditions are met.
             // The old pivot below will always trigger. So currently we pivot twice when the above conditions are met.
@@ -215,7 +231,6 @@ const useTableConfig = (
         [],
     );
 
-    // We don't track metricsAsRows yet in the tableConfig (this is what is saved to the backend + DB)
     const validTableConfig: TableChart = useMemo(
         () => ({
             showColumnCalculation,
@@ -223,6 +238,7 @@ const useTableConfig = (
             columns: columnProperties,
             hideRowNumbers,
             conditionalFormattings,
+            metricsAsRows,
         }),
         [
             showColumnCalculation,
@@ -230,6 +246,7 @@ const useTableConfig = (
             showTableNames,
             columnProperties,
             conditionalFormattings,
+            metricsAsRows,
         ],
     );
 
@@ -258,6 +275,7 @@ const useTableConfig = (
         conditionalFormattings,
         onSetConditionalFormattings: handleSetConditionalFormattings,
         pivotTableData,
+        canUseMetricsAsRows,
     };
 };
 

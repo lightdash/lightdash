@@ -44,6 +44,7 @@ export type TableChart = {
     hideRowNumbers?: boolean;
     columns?: Record<string, ColumnProperties>;
     conditionalFormattings?: ConditionalFormattingConfig[];
+    metricsAsRows?: boolean;
 };
 
 type TableChartConfig = {
