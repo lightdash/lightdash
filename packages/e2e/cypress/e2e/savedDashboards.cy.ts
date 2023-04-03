@@ -54,7 +54,7 @@ describe('Dashboard List', () => {
         // open actions menu
         cy.contains('tr', 'e2e dashboard').find('button').click();
         // click on delete
-        cy.findByRole('menuitem', { name: 'Delete' }).click();
+        cy.findByRole('menuitem', { name: 'Delete dashboard' }).click();
         // click on delete in the popup
         cy.findByRole('button', { name: 'Delete' }).click();
         cy.findByText('Jaffle dashboard'); // still exists
