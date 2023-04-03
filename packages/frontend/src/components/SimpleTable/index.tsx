@@ -65,6 +65,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                     conditionalFormattings={conditionalFormattings}
                     getMetricLabel={getDefaultColumnLabel}
                     getField={getField}
+                    hideRowNumbers={hideRowNumbers}
                 />
             </Box>
         );
