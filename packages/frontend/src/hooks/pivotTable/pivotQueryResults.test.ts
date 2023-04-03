@@ -83,16 +83,16 @@ describe('Should pivot data', () => {
             dataColumnCount: 2,
             dataValues: [
                 [
-                    { raw: 6, formatted: '6.0' },
-                    { raw: 7, formatted: '7.0' },
+                    { raw: 6, formatted: '6.0', fieldId: 'views' },
+                    { raw: 7, formatted: '7.0', fieldId: 'devices' },
                 ],
                 [
-                    { raw: 12, formatted: '12.0' },
-                    { raw: 0, formatted: '0.0' },
+                    { raw: 12, formatted: '12.0', fieldId: 'views' },
+                    { raw: 0, formatted: '0.0', fieldId: 'devices' },
                 ],
                 [
-                    { raw: 11, formatted: '11.0' },
-                    { raw: 1, formatted: '1.0' },
+                    { raw: 11, formatted: '11.0', fieldId: 'views' },
+                    { raw: 1, formatted: '1.0', fieldId: 'devices' },
                 ],
             ],
             pivotConfig,
@@ -135,14 +135,14 @@ describe('Should pivot data', () => {
             dataColumnCount: 3,
             dataValues: [
                 [
-                    { raw: 6, formatted: '6.0' },
-                    { raw: 12, formatted: '12.0' },
-                    { raw: 11, formatted: '11.0' },
+                    { raw: 6, formatted: '6.0', fieldId: 'views' },
+                    { raw: 12, formatted: '12.0', fieldId: 'views' },
+                    { raw: 11, formatted: '11.0', fieldId: 'views' },
                 ],
                 [
-                    { raw: 7, formatted: '7.0' },
-                    { raw: 0, formatted: '0.0' },
-                    { raw: 1, formatted: '1.0' },
+                    { raw: 7, formatted: '7.0', fieldId: 'devices' },
+                    { raw: 0, formatted: '0.0', fieldId: 'devices' },
+                    { raw: 1, formatted: '1.0', fieldId: 'devices' },
                 ],
             ],
             pivotConfig,
@@ -196,20 +196,20 @@ describe('Should pivot data', () => {
             dataColumnCount: 4,
             dataValues: [
                 [
-                    { raw: 6, formatted: '6.0' },
-                    { raw: 7, formatted: '7.0' },
-                    { raw: 2, formatted: '2.0' },
-                    { raw: 10, formatted: '10.0' },
+                    { raw: 6, formatted: '6.0', fieldId: 'views' },
+                    { raw: 7, formatted: '7.0', fieldId: 'devices' },
+                    { raw: 2, formatted: '2.0', fieldId: 'views' },
+                    { raw: 10, formatted: '10.0', fieldId: 'devices' },
                 ],
                 [
-                    { raw: 12, formatted: '12.0' },
-                    { raw: 0, formatted: '0.0' },
-                    { raw: 2, formatted: '2.0' },
-                    { raw: 13, formatted: '13.0' },
+                    { raw: 12, formatted: '12.0', fieldId: 'views' },
+                    { raw: 0, formatted: '0.0', fieldId: 'devices' },
+                    { raw: 2, formatted: '2.0', fieldId: 'views' },
+                    { raw: 13, formatted: '13.0', fieldId: 'devices' },
                 ],
                 [
-                    { raw: 11, formatted: '11.0' },
-                    { raw: 1, formatted: '1.0' },
+                    { raw: 11, formatted: '11.0', fieldId: 'views' },
+                    { raw: 1, formatted: '1.0', fieldId: 'devices' },
                     null,
                     null,
                 ],
@@ -285,23 +285,23 @@ describe('Should pivot data', () => {
             dataColumnCount: 2,
             dataValues: [
                 [
-                    { raw: 6, formatted: '6.0' },
-                    { raw: 2, formatted: '2.0' },
+                    { raw: 6, formatted: '6.0', fieldId: 'views' },
+                    { raw: 2, formatted: '2.0', fieldId: 'views' },
                 ],
                 [
-                    { raw: 7, formatted: '7.0' },
-                    { raw: 10, formatted: '10.0' },
+                    { raw: 7, formatted: '7.0', fieldId: 'devices' },
+                    { raw: 10, formatted: '10.0', fieldId: 'devices' },
                 ],
                 [
-                    { raw: 12, formatted: '12.0' },
-                    { raw: 2, formatted: '2.0' },
+                    { raw: 12, formatted: '12.0', fieldId: 'views' },
+                    { raw: 2, formatted: '2.0', fieldId: 'views' },
                 ],
                 [
-                    { raw: 0, formatted: '0.0' },
-                    { raw: 13, formatted: '13.0' },
+                    { raw: 0, formatted: '0.0', fieldId: 'devices' },
+                    { raw: 13, formatted: '13.0', fieldId: 'devices' },
                 ],
-                [{ raw: 11, formatted: '11.0' }, null],
-                [{ raw: 1, formatted: '1.0' }, null],
+                [{ raw: 11, formatted: '11.0', fieldId: 'views' }, null],
+                [{ raw: 1, formatted: '1.0', fieldId: 'devices' }, null],
             ],
             pivotConfig,
             titleFields: [

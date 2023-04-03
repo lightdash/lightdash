@@ -4,6 +4,7 @@ import {
     PivotConfig,
     PivotData,
     PivotFieldValueType,
+    PivotMetricValue,
     PivotValue,
     ResultRow,
     TitleFieldValue,
@@ -155,7 +156,7 @@ export const pivotQueryResults = ({
     const N_DATA_ROWS = rowCount;
     const N_DATA_COLUMNS = columnCount;
     // Compute the data values
-    const dataValues: PivotValue[][] = [...Array(N_DATA_ROWS)].map((e) =>
+    const dataValues: PivotMetricValue[][] = [...Array(N_DATA_ROWS)].map(() =>
         Array(N_DATA_COLUMNS).fill(null),
     );
 
@@ -175,7 +176,10 @@ export const pivotQueryResults = ({
             ];
             const rowIndex = getByKey(rowIndices, rowKeys);
             const columnIndex = getByKey(columnIndices, columnKeys);
-            dataValues[rowIndex][columnIndex] = value;
+            dataValues[rowIndex][columnIndex] = {
+                ...value,
+                fieldId: metric.raw,
+            };
         }
     }
 

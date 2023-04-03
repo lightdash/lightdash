@@ -1,6 +1,6 @@
 import {
     getConditionalFormattingConfig,
-    isFilterableItem,
+    getConditionalFormattingDescription,
     isNumericItem,
     ResultRow,
 } from '@lightdash/common';
@@ -69,16 +69,11 @@ const TableRow: FC<TableRowProps> = ({
                         conditionalFormattings,
                     );
 
-                const tooltipContent =
-                    field &&
-                    isFilterableItem(field) &&
-                    conditionalFormattingConfig &&
-                    conditionalFormattingConfig?.rules.length > 0
-                        ? conditionalFormattingConfig.rules
-                              .map((r) => getConditionalRuleLabel(r, field))
-                              .map((l) => `${l.operator} ${l.value}`)
-                              .join(' and ')
-                        : undefined;
+                const tooltipContent = getConditionalFormattingDescription(
+                    field,
+                    conditionalFormattingConfig,
+                    getConditionalRuleLabel,
+                );
 
                 return (
                     <BodyCell

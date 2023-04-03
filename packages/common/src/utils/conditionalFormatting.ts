@@ -2,8 +2,17 @@ import {
     ConditionalFormattingConfig,
     ConditionalFormattingRule,
 } from '../types/conditionalFormatting';
-import { ConditionalOperator } from '../types/conditionalRule';
-import { Field, TableCalculation } from '../types/field';
+import {
+    ConditionalOperator,
+    ConditionalRule,
+    ConditionalRuleLabels,
+} from '../types/conditionalRule';
+import {
+    Field,
+    FilterableItem,
+    isFilterableItem,
+    TableCalculation,
+} from '../types/field';
 import assertUnreachable from './assertUnreachable';
 import { getItemId, isNumericItem } from './item';
 
@@ -21,7 +30,7 @@ export const createConditionalFormattingConfig =
     });
 
 export const hasMatchingConditionalRules = (
-    value: number | string | undefined,
+    value: unknown,
     config: ConditionalFormattingConfig | undefined,
 ) => {
     if (!config) return false;
@@ -39,11 +48,11 @@ export const hasMatchingConditionalRules = (
             case ConditionalOperator.NOT_EQUALS:
                 return rule.values.some((v) => parsedValue !== v);
             case ConditionalOperator.LESS_THAN:
-                return parsedValue !== undefined
+                return typeof parsedValue === 'number'
                     ? rule.values.some((v) => parsedValue < v)
                     : false;
             case ConditionalOperator.GREATER_THAN:
-                return parsedValue !== undefined
+                return typeof parsedValue === 'number'
                     ? rule.values.some((v) => parsedValue > v)
                     : false;
             case ConditionalOperator.STARTS_WITH:
@@ -67,7 +76,7 @@ export const hasMatchingConditionalRules = (
 
 export const getConditionalFormattingConfig = (
     field: Field | TableCalculation | undefined,
-    value: number | string | undefined,
+    value: unknown | undefined,
     conditionalFormattings: ConditionalFormattingConfig[] | undefined,
 ) => {
     if (!conditionalFormattings || !field || !isNumericItem(field))
@@ -81,3 +90,21 @@ export const getConditionalFormattingConfig = (
         .reverse()
         .find((c) => hasMatchingConditionalRules(value, c));
 };
+
+export const getConditionalFormattingDescription = (
+    field: Field | TableCalculation | undefined,
+    conditionalFormattingConfig: ConditionalFormattingConfig | undefined,
+    getConditionalRuleLabel: (
+        rule: ConditionalRule,
+        item: FilterableItem,
+    ) => ConditionalRuleLabels,
+) =>
+    field &&
+    isFilterableItem(field) &&
+    conditionalFormattingConfig &&
+    conditionalFormattingConfig?.rules.length > 0
+        ? conditionalFormattingConfig.rules
+              .map((r) => getConditionalRuleLabel(r, field))
+              .map((l) => `${l.operator} ${l.value}`)
+              .join(' and ')
+        : undefined;

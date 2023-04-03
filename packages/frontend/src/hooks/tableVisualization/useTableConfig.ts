@@ -109,6 +109,14 @@ const useTableConfig = (
         (fieldId: string) => columnProperties[fieldId]?.frozen === true,
         [columnProperties],
     );
+
+    const getField = useCallback(
+        (fieldId: string) => {
+            return itemsMap[fieldId];
+        },
+        [itemsMap],
+    );
+
     const getHeader = useCallback(
         (fieldId: string) => {
             return columnProperties[fieldId]?.name;
@@ -149,7 +157,7 @@ const useTableConfig = (
                 rows: resultsData.rows,
             });
         }
-    }, [resultsData, pivotDimensions, metricsAsRows]);
+    }, [resultsData, pivotDimensions, canUseMetricsAsRows, metricsAsRows]);
 
     const { rows, columns, error } = useMemo<{
         rows: ResultRow[];
@@ -208,21 +216,21 @@ const useTableConfig = (
         }
     }, [selectedItemIds, columnProperties]);
 
-    const updateColumnProperty = (
-        field: string,
-        properties: Partial<ColumnProperties>,
-    ) => {
-        const newProperties =
-            field in columnProperties
-                ? { ...columnProperties[field], ...properties }
-                : {
-                      ...properties,
-                  };
-        setColumnProperties({
-            ...columnProperties,
-            [field]: newProperties,
-        });
-    };
+    const updateColumnProperty = useCallback(
+        (field: string, properties: Partial<ColumnProperties>) => {
+            const newProperties =
+                field in columnProperties
+                    ? { ...columnProperties[field], ...properties }
+                    : {
+                          ...properties,
+                      };
+            setColumnProperties({
+                ...columnProperties,
+                [field]: newProperties,
+            });
+        },
+        [columnProperties],
+    );
 
     const handleSetConditionalFormattings = useCallback(
         (configs: ConditionalFormattingConfig[]) => {
@@ -270,6 +278,7 @@ const useTableConfig = (
         updateColumnProperty,
         getHeader,
         getDefaultColumnLabel,
+        getField,
         isColumnVisible,
         isColumnFrozen,
         conditionalFormattings,

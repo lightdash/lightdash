@@ -38,6 +38,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
             hideRowNumbers,
             pivotTableData,
             getDefaultColumnLabel,
+            getField,
         },
         isSqlRunner,
         explore,
@@ -61,7 +62,9 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 <PivotTable
                     w="100%"
                     data={pivotTableData}
+                    conditionalFormattings={conditionalFormattings}
                     getMetricLabel={getDefaultColumnLabel}
+                    getField={getField}
                 />
             </Box>
         );

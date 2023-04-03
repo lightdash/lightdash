@@ -1,17 +1,17 @@
-import { PivotValue } from '@lightdash/common';
+import { PivotMetricValue } from '@lightdash/common';
 import { Menu, MenuProps } from '@mantine/core';
 import { IconCopy } from '@tabler/icons-react';
 import { FC } from 'react';
 import MantineIcon from '../MantineIcon';
 
 type ValueCellMenuProps = {
-    value: PivotValue;
+    value: PivotMetricValue | null;
     onCopy: () => void;
 } & Pick<MenuProps, 'opened' | 'onOpen' | 'onClose'>;
 
 const ValueCellMenu: FC<ValueCellMenuProps> = ({
     children,
-    value,
+    // value,
     opened,
     onOpen,
     onClose,
@@ -24,9 +24,12 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
             onClose={onClose}
             withinPortal
             shadow="md"
-            offset={-1}
             position="bottom-end"
             radius="xs"
+            offset={{
+                mainAxis: 1,
+                crossAxis: 2,
+            }}
         >
             <Menu.Target>{children}</Menu.Target>
 

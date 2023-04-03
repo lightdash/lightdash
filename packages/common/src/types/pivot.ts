@@ -5,10 +5,10 @@ export type PivotConfig = {
     metricsAsRows: boolean;
 };
 
-export type PivotValue = null | {
+export interface PivotValue {
     raw: unknown;
     formatted: string;
-};
+}
 
 export type PivotFieldValueType =
     | { type: FieldType.METRIC; fieldId?: undefined }
@@ -20,19 +20,24 @@ export type TitleFieldValue = null | {
     fieldId: string;
 };
 
+export interface PivotMetricValue extends PivotValue {
+    fieldId: string;
+}
+
 export interface PivotData {
     titleFields: TitleFieldValue[][];
 
     headerValueTypes: PivotFieldValueType[];
-    headerValues: PivotValue[][];
+    headerValues: Array<Array<PivotValue | null>>;
 
     indexValueTypes: PivotFieldValueType[];
-    indexValues: PivotValue[][];
+    indexValues: Array<Array<PivotValue | null>>;
 
     dataColumnCount: number;
-    dataValues: PivotValue[][];
+    dataValues: Array<Array<PivotMetricValue | null>>;
 
-    columnTotals?: PivotValue[];
-    rowTotals?: PivotValue[];
+    columnTotals?: Array<PivotValue | null>;
+    rowTotals?: Array<PivotValue | null>;
+
     pivotConfig: PivotConfig;
 }
