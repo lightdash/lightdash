@@ -1,8 +1,6 @@
 import {
-    fieldId,
     getConditionalFormattingConfig,
     getConditionalFormattingDescription,
-    isField,
     isNumericItem,
     ResultRow,
 } from '@lightdash/common';
@@ -107,8 +105,6 @@ const TableRow: FC<TableRowProps> = ({
                             cell.column.columnDef.cell,
                             cell.getContext(),
                         )}
-
-                        {field && isField(field) && <b> ({fieldId(field)})</b>}
                     </BodyCell>
                 );
             })}
