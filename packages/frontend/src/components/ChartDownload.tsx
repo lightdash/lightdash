@@ -16,6 +16,7 @@ import {
 import EChartsReact from 'echarts-for-react';
 import JsPDF from 'jspdf';
 import React, { memo, RefObject, useCallback, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import useEcharts from '../hooks/echarts/useEcharts';
 import { useApp } from '../providers/AppProvider';
 import { Can } from './common/Authorization';
@@ -210,6 +211,7 @@ interface ChartDownloadMenuProps {
 
 export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
     ({ getCsvLink }) => {
+        const { projectUuid } = useParams<{ projectUuid: string }>();
         const {
             chartRef,
             chartType,
@@ -235,6 +237,7 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                 I="manage"
                 this={subject('ExportCsv', {
                     organizationUuid: user.data?.organizationUuid,
+                    projectUuid,
                 })}
             >
                 <Popover2
