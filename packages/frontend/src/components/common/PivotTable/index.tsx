@@ -52,7 +52,9 @@ const PivotTable: FC<PivotTableProps> = ({
                             <tr key={headerValueTypeIndex}>
                                 <>
                                     {!hideRowNumbers && (
-                                        <th className={classes.rowNumber} />
+                                        <th
+                                            className={classes.rowNumberColumn}
+                                        />
                                     )}
 
                                     {data.indexValueTypes.map(
@@ -101,7 +103,9 @@ const PivotTable: FC<PivotTableProps> = ({
                     <tr key={i}>
                         <>
                             {!hideRowNumbers && (
-                                <td className={classes.rowNumber}>{i + 1}</td>
+                                <td className={classes.rowNumberColumn}>
+                                    {i + 1}
+                                </td>
                             )}
 
                             {data.indexValueTypes.map(
