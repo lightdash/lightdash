@@ -1,3 +1,16 @@
+# [0.504.0](https://github.com/lightdash/lightdash/compare/0.503.0...0.504.0) (2023-04-03)
+
+
+### Bug Fixes
+
+* custom order of pivot metrics + index ([#5000](https://github.com/lightdash/lightdash/issues/5000)) ([a791230](https://github.com/lightdash/lightdash/commit/a79123009827f60f34e36826f2add936bba8f0ab))
+* order header dimensions by pivot array ([#4999](https://github.com/lightdash/lightdash/issues/4999)) ([1235200](https://github.com/lightdash/lightdash/commit/123520055b47eef16a5e498239dd7f2ed53230dc))
+
+
+### Features
+
+* pivot table row numbers ([#5002](https://github.com/lightdash/lightdash/issues/5002)) ([d697834](https://github.com/lightdash/lightdash/commit/d69783441a60553b0987a59d08da565df10fcc3c))
+
 # [0.503.0](https://github.com/lightdash/lightdash/compare/0.502.1...0.503.0) (2023-04-03)
 
 
