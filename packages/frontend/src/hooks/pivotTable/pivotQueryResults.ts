@@ -57,8 +57,8 @@ export const pivotQueryResults = ({
         throw new Error('Cannot pivot results with no rows');
     }
     // Headers (column index)
-    const headerDimensions = metricQuery.dimensions.filter((d) =>
-        pivotConfig.pivotDimensions.includes(d),
+    const headerDimensions = pivotConfig.pivotDimensions.filter(
+        (pivotDimension) => metricQuery.dimensions.includes(pivotDimension),
     );
     const headerDimensionValueTypes = headerDimensions.map<{
         type: FieldType.DIMENSION;
