@@ -58,8 +58,8 @@ export const pivotQueryResults = ({
     }
     const columnOrder = pivotConfig.columnOrder || [];
     // Headers (column index)
-    const headerDimensions = metricQuery.dimensions.filter((d) =>
-        pivotConfig.pivotDimensions.includes(d),
+    const headerDimensions = pivotConfig.pivotDimensions.filter(
+        (pivotDimension) => metricQuery.dimensions.includes(pivotDimension),
     );
     const headerDimensionValueTypes = headerDimensions.map<{
         type: FieldType.DIMENSION;
