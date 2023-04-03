@@ -1,3 +1,10 @@
+# [0.502.0](https://github.com/lightdash/lightdash/compare/0.501.0...0.502.0) (2023-04-03)
+
+
+### Features
+
+* enable metrics as rows pivot table ([#4993](https://github.com/lightdash/lightdash/issues/4993)) ([93860b3](https://github.com/lightdash/lightdash/commit/93860b3f3301317be7e16a16667a3e8abf251d82))
+
 # [0.501.0](https://github.com/lightdash/lightdash/compare/0.500.2...0.501.0) (2023-04-03)
 
 
