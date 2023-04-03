@@ -1,15 +1,13 @@
 import {
     FieldType,
     MetricQuery,
+    PivotConfig,
     PivotData,
+    PivotFieldValueType,
     PivotValue,
     ResultRow,
+    TitleFieldValue,
 } from '@lightdash/common';
-
-type PivotConfig = {
-    pivotDimensions: string[];
-    metricsAsRows: boolean;
-};
 
 type PivotQueryResultsArgs = {
     pivotConfig: PivotConfig;
@@ -61,24 +59,36 @@ export const pivotQueryResults = ({
     const headerDimensions = metricQuery.dimensions.filter((d) =>
         pivotConfig.pivotDimensions.includes(d),
     );
-    const headerValueTypes = [
-        ...headerDimensions.map((d) => ({
-            type: FieldType.DIMENSION,
-            field: d,
-        })),
-        ...(pivotConfig.metricsAsRows ? [] : [{ type: FieldType.METRIC }]),
+    const headerDimensionValueTypes = headerDimensions.map<{
+        type: FieldType.DIMENSION;
+        fieldId: string;
+    }>((d) => ({
+        type: FieldType.DIMENSION,
+        fieldId: d,
+    }));
+    const headerMetricValueTypes: { type: FieldType.METRIC }[] =
+        pivotConfig.metricsAsRows ? [] : [{ type: FieldType.METRIC }];
+    const headerValueTypes: PivotFieldValueType[] = [
+        ...headerDimensionValueTypes,
+        ...headerMetricValueTypes,
     ];
 
     // Indices (row index)
     const indexDimensions = metricQuery.dimensions.filter(
         (d) => !pivotConfig.pivotDimensions.includes(d),
     );
-    const indexValueTypes = [
-        ...indexDimensions.map((d) => ({
-            type: FieldType.DIMENSION,
-            field: d,
-        })),
-        ...(pivotConfig.metricsAsRows ? [{ type: FieldType.METRIC }] : []),
+    const indexDimensionValueTypes = indexDimensions.map<{
+        type: FieldType.DIMENSION;
+        fieldId: string;
+    }>((d) => ({
+        type: FieldType.DIMENSION,
+        fieldId: d,
+    }));
+    const indexMetricValueTypes: { type: FieldType.METRIC }[] =
+        pivotConfig.metricsAsRows ? [{ type: FieldType.METRIC }] : [];
+    const indexValueTypes: PivotFieldValueType[] = [
+        ...indexDimensionValueTypes,
+        ...indexMetricValueTypes,
     ];
 
     // Metrics
@@ -169,6 +179,25 @@ export const pivotQueryResults = ({
         }
     }
 
+    const titleFields: TitleFieldValue[][] = [
+        ...Array(headerValueTypes.length),
+    ].map((e) => Array(indexValueTypes.length).fill(null));
+    headerValueTypes.forEach((headerValueType, headerIndex) => {
+        if (headerValueType.type === FieldType.DIMENSION) {
+            titleFields[headerIndex][indexValueTypes.length - 1] = {
+                ...headerValueType,
+                titleDirection: 'header',
+            };
+        }
+    });
+    indexValueTypes.forEach((indexValueType, indexIndex) => {
+        if (indexValueType.type === FieldType.DIMENSION) {
+            titleFields[headerValueTypes.length - 1][indexIndex] = {
+                ...indexValueType,
+                titleDirection: 'index',
+            };
+        }
+    });
     return {
         headerValueTypes: headerValueTypes,
         headerValues,
@@ -176,5 +205,7 @@ export const pivotQueryResults = ({
         indexValues,
         dataColumnCount: N_DATA_COLUMNS,
         dataValues,
+        pivotConfig,
+        titleFields,
     };
 };

@@ -1,16 +1,28 @@
 import { FieldType } from './field';
 
+export type PivotConfig = {
+    pivotDimensions: string[];
+    metricsAsRows: boolean;
+};
+
 export type PivotValue = null | {
     raw: unknown;
     formatted: string;
 };
 
-type PivotFieldValueType = {
-    type: FieldType;
-    fieldId?: string;
+export type PivotFieldValueType =
+    | { type: FieldType.METRIC; fieldId?: undefined }
+    | { type: FieldType.DIMENSION; fieldId: string };
+
+export type TitleFieldValue = null | {
+    type: FieldType.DIMENSION;
+    titleDirection: 'index' | 'header';
+    fieldId: string;
 };
 
 export interface PivotData {
+    titleFields: TitleFieldValue[][];
+
     headerValueTypes: PivotFieldValueType[];
     headerValues: PivotValue[][];
 
@@ -22,4 +34,5 @@ export interface PivotData {
 
     columnTotals?: PivotValue[];
     rowTotals?: PivotValue[];
+    pivotConfig: PivotConfig;
 }

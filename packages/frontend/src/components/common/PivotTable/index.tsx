@@ -1,16 +1,16 @@
 import { FieldType, PivotData } from '@lightdash/common';
 import { Table, TableProps } from '@mantine/core';
-import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
 import React, { FC } from 'react';
 import HeaderCell from './HeaderCell';
 import IndexCell from './IndexCell';
 import { useStyles } from './tableStyles';
+import TitleCell from './TitleCell';
 import ValueCell from './ValueCell';
 
 type PivotTableProps = TableProps &
     React.RefAttributes<HTMLTableElement> & {
         data: PivotData;
-        getMetricLabel?: (fieldId: string | null | undefined) => string;
+        getMetricLabel: (fieldId: string | null | undefined) => string;
     };
 
 const PivotTable: FC<PivotTableProps> = ({
@@ -40,10 +40,19 @@ const PivotTable: FC<PivotTableProps> = ({
                             <tr key={headerValueTypeIndex}>
                                 <>
                                     {data.indexValueTypes.map(
-                                        (_indexValueType, indexValueIndex) => (
-                                            // empty
-                                            <th key={indexValueIndex} />
-                                        ),
+                                        (_indexValueType, indexValueIndex) => {
+                                            const titleField =
+                                                data.titleFields[
+                                                    headerValueTypeIndex
+                                                ][indexValueIndex];
+                                            return (
+                                                <TitleCell
+                                                    key={indexValueIndex}
+                                                    title={titleField}
+                                                    getLabel={getMetricLabel}
+                                                />
+                                            );
+                                        },
                                     )}
 
                                     {headerValues.map(
