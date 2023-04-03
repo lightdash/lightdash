@@ -6,7 +6,7 @@ import {
     PivotMetricValue,
     TableCalculation,
 } from '@lightdash/common';
-import { Box, Popover, Text, Tooltip } from '@mantine/core';
+import { Box, Text, Tooltip } from '@mantine/core';
 import { mergeRefs, useClipboard, useHotkeys } from '@mantine/hooks';
 import { darken } from 'polished';
 import {
@@ -108,8 +108,7 @@ const ValueCell: FC<ValueCellProps> = ({
                                     {...menuProps}
                                     data-copied={clipboard.copied}
                                     sx={(theme) => ({
-                                        transition:
-                                            'background-color 0.2s ease-in-out',
+                                        transition: 'all 100ms ease-in-out',
 
                                         color: conditionalFormatting.color,
                                         backgroundColor:
@@ -131,6 +130,7 @@ const ValueCell: FC<ValueCellProps> = ({
                                         },
 
                                         '&[data-copied="true"]': {
+                                            color: theme.black,
                                             backgroundColor:
                                                 theme.colors.blue[1],
                                         },
