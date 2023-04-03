@@ -3,6 +3,7 @@ import { FieldType } from './field';
 export type PivotConfig = {
     pivotDimensions: string[];
     metricsAsRows: boolean;
+    columnOrder?: string[];
 };
 
 export interface PivotValue {

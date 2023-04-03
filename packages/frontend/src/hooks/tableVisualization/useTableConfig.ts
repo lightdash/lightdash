@@ -152,12 +152,13 @@ const useTableConfig = (
                 pivotConfig: {
                     pivotDimensions,
                     metricsAsRows,
+                    columnOrder,
                 },
                 metricQuery: resultsData.metricQuery,
                 rows: resultsData.rows,
             });
         }
-    }, [resultsData, pivotDimensions, canUseMetricsAsRows, metricsAsRows]);
+    }, [resultsData, pivotDimensions, canUseMetricsAsRows, metricsAsRows, columnOrder]);
 
     const { rows, columns, error } = useMemo<{
         rows: ResultRow[];
