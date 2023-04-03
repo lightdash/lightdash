@@ -217,21 +217,21 @@ const useTableConfig = (
         }
     }, [selectedItemIds, columnProperties]);
 
-    const updateColumnProperty = (
-        field: string,
-        properties: Partial<ColumnProperties>,
-    ) => {
-        const newProperties =
-            field in columnProperties
-                ? { ...columnProperties[field], ...properties }
-                : {
-                      ...properties,
-                  };
-        setColumnProperties({
-            ...columnProperties,
-            [field]: newProperties,
-        });
-    };
+    const updateColumnProperty = useCallback(
+        (field: string, properties: Partial<ColumnProperties>) => {
+            const newProperties =
+                field in columnProperties
+                    ? { ...columnProperties[field], ...properties }
+                    : {
+                          ...properties,
+                      };
+            setColumnProperties({
+                ...columnProperties,
+                [field]: newProperties,
+            });
+        },
+        [columnProperties],
+    );
 
     const handleSetConditionalFormattings = useCallback(
         (configs: ConditionalFormattingConfig[]) => {
@@ -259,34 +259,59 @@ const useTableConfig = (
         ],
     );
 
-    return {
-        selectedItemIds,
-        columnOrder,
-        validTableConfig,
-        showColumnCalculation,
-        setShowColumnCalculation,
-        showTableNames,
-        setShowTableName,
-        hideRowNumbers,
-        setHideRowNumbers,
-        metricsAsRows,
-        setMetricsAsRows,
-        rows,
-        error,
-        columns,
-        columnProperties,
-        setColumnProperties,
-        updateColumnProperty,
-        getHeader,
-        getDefaultColumnLabel,
-        getField,
-        isColumnVisible,
-        isColumnFrozen,
-        conditionalFormattings,
-        onSetConditionalFormattings: handleSetConditionalFormattings,
-        pivotTableData,
-        canUseMetricsAsRows,
-    };
+    return useMemo(
+        () => ({
+            selectedItemIds,
+            columnOrder,
+            validTableConfig,
+            showColumnCalculation,
+            setShowColumnCalculation,
+            showTableNames,
+            setShowTableName,
+            hideRowNumbers,
+            setHideRowNumbers,
+            metricsAsRows,
+            setMetricsAsRows,
+            rows,
+            error,
+            columns,
+            columnProperties,
+            setColumnProperties,
+            updateColumnProperty,
+            getHeader,
+            getDefaultColumnLabel,
+            getField,
+            isColumnVisible,
+            isColumnFrozen,
+            conditionalFormattings,
+            onSetConditionalFormattings: handleSetConditionalFormattings,
+            pivotTableData,
+            canUseMetricsAsRows,
+        }),
+        [
+            columnOrder,
+            columnProperties,
+            columns,
+            conditionalFormattings,
+            error,
+            getDefaultColumnLabel,
+            getField,
+            getHeader,
+            handleSetConditionalFormattings,
+            hideRowNumbers,
+            isColumnFrozen,
+            isColumnVisible,
+            metricsAsRows,
+            pivotTableData,
+            rows,
+            selectedItemIds,
+            showColumnCalculation,
+            showTableNames,
+            updateColumnProperty,
+            validTableConfig,
+            canUseMetricsAsRows,
+        ],
+    );
 };
 
 export default useTableConfig;
