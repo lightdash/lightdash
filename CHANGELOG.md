@@ -1,3 +1,10 @@
+# [0.503.0](https://github.com/lightdash/lightdash/compare/0.502.1...0.503.0) (2023-04-03)
+
+
+### Features
+
+* pivot table conditional formatting ([#4992](https://github.com/lightdash/lightdash/issues/4992)) ([1d772d2](https://github.com/lightdash/lightdash/commit/1d772d2f18ee96ff72c881cbebd41769594dfb57))
+
 ## [0.502.1](https://github.com/lightdash/lightdash/compare/0.502.0...0.502.1) (2023-04-03)
 
 
