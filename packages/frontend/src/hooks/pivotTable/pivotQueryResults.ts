@@ -56,6 +56,7 @@ export const pivotQueryResults = ({
     if (rows.length === 0) {
         throw new Error('Cannot pivot results with no rows');
     }
+    const columnOrder = pivotConfig.columnOrder || [];
     // Headers (column index)
     const headerDimensions = metricQuery.dimensions.filter((d) =>
         pivotConfig.pivotDimensions.includes(d),
@@ -75,9 +76,10 @@ export const pivotQueryResults = ({
     ];
 
     // Indices (row index)
-    const indexDimensions = metricQuery.dimensions.filter(
-        (d) => !pivotConfig.pivotDimensions.includes(d),
-    );
+    const indexDimensions = metricQuery.dimensions
+        .filter((d) => !pivotConfig.pivotDimensions.includes(d))
+        .slice()
+        .sort((a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b));
     const indexDimensionValueTypes = indexDimensions.map<{
         type: FieldType.DIMENSION;
         fieldId: string;
@@ -97,7 +99,9 @@ export const pivotQueryResults = ({
         ...metricQuery.metrics,
         ...(metricQuery.additionalMetrics || []).map((m) => m.name),
         ...metricQuery.tableCalculations.map((tc) => tc.name),
-    ].map((m) => ({ raw: m, formatted: m }));
+    ]
+        .sort((a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b))
+        .map((m) => ({ raw: m, formatted: m }));
 
     const N_ROWS = rows.length;
 
