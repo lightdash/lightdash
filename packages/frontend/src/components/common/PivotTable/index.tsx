@@ -37,7 +37,6 @@ const PivotTable: FC<PivotTableProps> = ({
         <Table
             withBorder
             withColumnBorders
-            highlightOnHover
             className={cx(classes.table, className)}
             w="xs"
             {...tableProps}
