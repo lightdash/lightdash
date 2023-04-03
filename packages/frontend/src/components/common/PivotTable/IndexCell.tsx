@@ -1,12 +1,22 @@
+import { Box } from '@mantine/core';
 import { FC } from 'react';
-import { useStyles } from './tableStyles';
 
 type IndexCellProps = {
     label: string | undefined;
 };
+
 const IndexCell: FC<IndexCellProps> = ({ label }) => {
-    const { classes } = useStyles();
-    return <td className={classes.header}>{label || '-'}</td>;
+    return (
+        <Box
+            component="td"
+            sx={(theme) => ({
+                fontWeight: 600,
+                backgroundColor: theme.colors.gray[0],
+            })}
+        >
+            {label || '-'}
+        </Box>
+    );
 };
 
 export default IndexCell;
