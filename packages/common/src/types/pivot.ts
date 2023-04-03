@@ -12,10 +12,7 @@ export type PivotValue = null | {
 
 export type PivotFieldValueType =
     | { type: FieldType.METRIC; fieldId?: undefined }
-    | {
-          type: FieldType.DIMENSION;
-          fieldId: string;
-      };
+    | { type: FieldType.DIMENSION; fieldId: string };
 
 export type TitleFieldValue = null | {
     type: FieldType.DIMENSION;
@@ -24,6 +21,8 @@ export type TitleFieldValue = null | {
 };
 
 export interface PivotData {
+    titleFields: TitleFieldValue[][];
+
     headerValueTypes: PivotFieldValueType[];
     headerValues: PivotValue[][];
 
@@ -36,5 +35,4 @@ export interface PivotData {
     columnTotals?: PivotValue[];
     rowTotals?: PivotValue[];
     pivotConfig: PivotConfig;
-    titleFields: TitleFieldValue[][];
 }
