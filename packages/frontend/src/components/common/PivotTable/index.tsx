@@ -17,6 +17,7 @@ type PivotTableProps = TableProps &
     React.RefAttributes<HTMLTableElement> & {
         data: PivotData;
         conditionalFormattings: ConditionalFormattingConfig[];
+        hideRowNumbers: boolean;
         getMetricLabel: (fieldId: string | null | undefined) => string;
         getField: (fieldId: string) => Field | TableCalculation;
     };
@@ -24,6 +25,7 @@ type PivotTableProps = TableProps &
 const PivotTable: FC<PivotTableProps> = ({
     data,
     conditionalFormattings,
+    hideRowNumbers = false,
     getMetricLabel,
     getField,
     className,
@@ -49,6 +51,12 @@ const PivotTable: FC<PivotTableProps> = ({
                         return (
                             <tr key={headerValueTypeIndex}>
                                 <>
+                                    {!hideRowNumbers && (
+                                        <th
+                                            className={classes.rowNumberColumn}
+                                        />
+                                    )}
+
                                     {data.indexValueTypes.map(
                                         (_indexValueType, indexValueIndex) => {
                                             const titleField =
@@ -94,6 +102,12 @@ const PivotTable: FC<PivotTableProps> = ({
                 {data.dataValues.map((row, i) => (
                     <tr key={i}>
                         <>
+                            {!hideRowNumbers && (
+                                <td className={classes.rowNumberColumn}>
+                                    {i + 1}
+                                </td>
+                            )}
+
                             {data.indexValueTypes.map(
                                 (indexValueType, indexValueTypeIndex) => {
                                     const d =

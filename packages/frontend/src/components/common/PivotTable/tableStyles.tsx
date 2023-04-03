@@ -6,8 +6,14 @@ export const useStyles = createStyles((theme) => ({
             whiteSpace: 'nowrap',
         },
     },
+
     header: {
         fontWeight: 600,
         backgroundColor: theme.colors.gray[0],
+    },
+
+    rowNumberColumn: {
+        width: '1%',
+        textAlign: 'right',
     },
 }));
