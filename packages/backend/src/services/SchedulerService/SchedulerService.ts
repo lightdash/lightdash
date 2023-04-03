@@ -201,17 +201,17 @@ export class SchedulerService {
     }
 
     async getCsvUrl(user: SessionUser, jobId: string) {
+        const job = await this.schedulerModel.getCsvUrl(jobId, user.userUuid);
         if (
             user.ability.cannot(
-                'manage',
-                subject('ExportCsv', {
-                    organizationUuid: user.organizationUuid,
+                'view',
+                subject('CsvJobResult', {
+                    createdByUserUuid: job.details?.createdByUserUuid,
                 }),
             )
         ) {
             throw new ForbiddenError();
         }
-
-        return this.schedulerModel.getCsvUrl(jobId, user.userUuid);
+        return job;
     }
 }
