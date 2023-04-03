@@ -1,3 +1,10 @@
+## [0.502.1](https://github.com/lightdash/lightdash/compare/0.502.0...0.502.1) (2023-04-03)
+
+
+### Bug Fixes
+
+* delete action copy updated ([#4995](https://github.com/lightdash/lightdash/issues/4995)) ([90a86e4](https://github.com/lightdash/lightdash/commit/90a86e46004c6c123b6f8d274cb8424db79191a4))
+
 # [0.502.0](https://github.com/lightdash/lightdash/compare/0.501.0...0.502.0) (2023-04-03)
 
 
