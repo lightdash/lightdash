@@ -1,3 +1,10 @@
+# [0.501.0](https://github.com/lightdash/lightdash/compare/0.500.2...0.501.0) (2023-04-03)
+
+
+### Features
+
+* add title cells to new pivot table ([#4988](https://github.com/lightdash/lightdash/issues/4988)) ([1ea477b](https://github.com/lightdash/lightdash/commit/1ea477ba02985946ebe491783f1a90a1f5f0df03))
+
 ## [0.500.2](https://github.com/lightdash/lightdash/compare/0.500.1...0.500.2) (2023-04-01)
 
 
