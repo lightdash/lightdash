@@ -268,7 +268,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                         });
                     }}
                 >
-                    Delete
+                    Delete {item.type}
                 </Menu.Item>
             </Menu.Dropdown>
         </Menu>
