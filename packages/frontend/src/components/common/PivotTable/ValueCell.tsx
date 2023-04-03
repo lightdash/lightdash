@@ -61,12 +61,12 @@ const ValueCell: FC<ValueCellProps> = ({
             getConditionalRuleLabel,
         );
 
+        if (!conditionalFormattingConfig) return undefined;
+
         return {
             tooltipContent,
-            color: conditionalFormattingConfig
-                ? readableColor(conditionalFormattingConfig.color)
-                : undefined,
-            backgroundColor: conditionalFormattingConfig?.color,
+            color: readableColor(conditionalFormattingConfig.color),
+            backgroundColor: conditionalFormattingConfig.color,
         };
     }, [conditionalFormattings, field, value]);
 
@@ -94,8 +94,8 @@ const ValueCell: FC<ValueCellProps> = ({
             <ForwardRef
                 render={(menuProps, menuRef) => (
                     <Tooltip
-                        disabled={!conditionalFormatting.tooltipContent}
-                        label={conditionalFormatting.tooltipContent}
+                        disabled={!conditionalFormatting}
+                        label={conditionalFormatting?.tooltipContent}
                         withinPortal
                         withArrow
                     >
@@ -107,24 +107,23 @@ const ValueCell: FC<ValueCellProps> = ({
                                     {...tooltipProps}
                                     {...menuProps}
                                     data-copied={clipboard.copied}
+                                    data-conditional-formatting={
+                                        !!conditionalFormatting
+                                    }
                                     sx={(theme) => ({
-                                        transition: 'all 100ms ease-in-out',
-
-                                        color: conditionalFormatting.color,
+                                        color: conditionalFormatting?.color,
                                         backgroundColor:
-                                            conditionalFormatting.backgroundColor,
-                                        borderLeftColor:
-                                            conditionalFormatting.backgroundColor,
+                                            conditionalFormatting?.backgroundColor,
 
                                         '&[data-expanded="true"]': {
                                             backgroundColor:
-                                                conditionalFormatting.backgroundColor
+                                                conditionalFormatting?.backgroundColor
                                                     ? darken(0.1)(
                                                           conditionalFormatting.backgroundColor,
                                                       )
                                                     : theme.colors.blue[0],
                                             outline:
-                                                conditionalFormatting.backgroundColor
+                                                conditionalFormatting?.backgroundColor
                                                     ? 'none'
                                                     : `1px solid ${theme.colors.blue[5]}`,
                                         },
