@@ -1,20 +1,36 @@
 import { TitleFieldValue } from '@lightdash/common';
+import { Box } from '@mantine/core';
 import { FC } from 'react';
-import { useStyles } from './tableStyles';
 
 type TitleCellProps = {
     title: TitleFieldValue;
     getLabel: (fieldId: string | null | undefined) => string;
+    level?: number;
 };
-const TitleCell: FC<TitleCellProps> = ({ title, getLabel }) => {
-    const { classes } = useStyles();
-    const textAlign = title?.titleDirection === 'header' ? 'right' : 'left';
+const TitleCell: FC<TitleCellProps> = ({ title, getLabel, level = 1 }) => {
     const label = getLabel(title?.fieldId);
-    // TODO: @irakli - what's the correct place for conditional styling?
+
+    const isEmpty = label === '';
+    const isHeaderTitle = title?.titleDirection === 'header';
+
     return (
-        <th style={{ textAlign }} className={classes.header}>
+        <Box
+            component="th"
+            ta="right"
+            style={{
+                textAlign: isHeaderTitle ? 'right' : undefined,
+            }}
+            sx={(theme) => ({
+                fontWeight: 600,
+                backgroundColor: isEmpty
+                    ? theme.white
+                    : isHeaderTitle
+                    ? theme.colors.gray[level - 1]
+                    : theme.colors.gray[0],
+            })}
+        >
             {label}
-        </th>
+        </Box>
     );
 };
 

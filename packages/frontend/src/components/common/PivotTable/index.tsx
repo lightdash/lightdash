@@ -47,6 +47,9 @@ const PivotTable: FC<PivotTableProps> = ({
                         const headerValues =
                             data.headerValues[headerValueTypeIndex];
 
+                        const headerLevel =
+                            data.headerValueTypes.length - headerValueTypeIndex;
+
                         return (
                             <tr key={headerValueTypeIndex}>
                                 <>
@@ -67,6 +70,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                                     key={indexValueIndex}
                                                     title={titleField}
                                                     getLabel={getMetricLabel}
+                                                    level={headerLevel}
                                                 />
                                             );
                                         },
@@ -85,6 +89,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                             return (
                                                 <HeaderCell
                                                     label={label}
+                                                    level={headerLevel}
                                                     key={headerValueIndex}
                                                 />
                                             );
