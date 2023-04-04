@@ -150,7 +150,10 @@ const VisualizationCard: FC<{ projectUuid?: string }> = memo(
                                 {!isEditMode && chartType === 'table' && (
                                     <ShowTotalsToggle />
                                 )}
-                                <ChartDownloadMenu getCsvLink={getCsvLink} />
+                                <ChartDownloadMenu
+                                    getCsvLink={getCsvLink}
+                                    projectUuid={projectUuid!}
+                                />
                             </>
                         )
                     }

@@ -200,6 +200,7 @@ export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
 };
 
 interface ChartDownloadMenuProps {
+    projectUuid: string;
     getCsvLink?: (
         limit: number | null,
         onlyRaw: boolean,
@@ -210,8 +211,7 @@ interface ChartDownloadMenuProps {
 }
 
 export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
-    ({ getCsvLink }) => {
-        const { projectUuid } = useParams<{ projectUuid: string }>();
+    ({ getCsvLink, projectUuid }) => {
         const {
             chartRef,
             chartType,
