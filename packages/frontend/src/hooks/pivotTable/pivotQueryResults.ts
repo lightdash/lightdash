@@ -97,7 +97,6 @@ export const pivotQueryResults = ({
     // Metrics
     const metrics = [
         ...metricQuery.metrics,
-        ...(metricQuery.additionalMetrics || []).map((m) => m.name),
         ...metricQuery.tableCalculations.map((tc) => tc.name),
     ]
         .sort((a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b))
