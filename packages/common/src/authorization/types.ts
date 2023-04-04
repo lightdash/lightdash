@@ -29,6 +29,7 @@ type Subject =
     | 'Explore'
     | 'UnderlyingData'
     | 'ExportCsv'
+    | 'CsvJobResult'
     | 'all';
 
 type PossibleAbilities = [

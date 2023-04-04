@@ -20,6 +20,9 @@ export const organizationMemberAbilities: Record<
         can('view', 'OrganizationMemberProfile', {
             organizationUuid: member.organizationUuid,
         });
+        can('view', 'CsvJobResult', {
+            createdByUserUuid: member.userUuid,
+        });
     },
     viewer(member, { can }) {
         organizationMemberAbilities.member(member, { can });
