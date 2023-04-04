@@ -26,6 +26,7 @@
     },
     "dependencies": {
         "@aws-sdk/client-s3": "^3.272.0",
+        "@aws-sdk/lib-storage": "^3.306.0",
         "@aws-sdk/s3-request-presigner": "^3.272.0",
         "@casl/ability": "^5.4.3",
         "@lightdash/common": "^0.505.4",
