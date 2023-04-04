@@ -1,3 +1,12 @@
+## [0.505.1](https://github.com/lightdash/lightdash/compare/0.505.0...0.505.1) (2023-04-04)
+
+
+### Bug Fixes
+
+* csv download limit on pivot tables ([#5008](https://github.com/lightdash/lightdash/issues/5008)) ([0649637](https://github.com/lightdash/lightdash/commit/0649637122ff3e0d5b9261ed105b3741d2ba7728))
+* grant permissions to csv result to members ([#5009](https://github.com/lightdash/lightdash/issues/5009)) ([5fe5bd8](https://github.com/lightdash/lightdash/commit/5fe5bd85b6e7afec368987c1b74ed580bd2cbb75))
+* remove duplicate additional metrics from pivotQueryResults.ts ([#5005](https://github.com/lightdash/lightdash/issues/5005)) ([a0fde07](https://github.com/lightdash/lightdash/commit/a0fde07f38a4326faf8f9eafe6facd592d14e4f4))
+
 # [0.505.0](https://github.com/lightdash/lightdash/compare/0.504.1...0.505.0) (2023-04-04)
 
 
