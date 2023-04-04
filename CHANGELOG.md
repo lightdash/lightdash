@@ -1,3 +1,10 @@
+# [0.505.0](https://github.com/lightdash/lightdash/compare/0.504.1...0.505.0) (2023-04-04)
+
+
+### Features
+
+* pivot table style improvements ([#5004](https://github.com/lightdash/lightdash/issues/5004)) ([f032e81](https://github.com/lightdash/lightdash/commit/f032e81d0e0ee9a5577dc11a9074ef52722df9ce))
+
 ## [0.504.1](https://github.com/lightdash/lightdash/compare/0.504.0...0.504.1) (2023-04-04)
 
 
