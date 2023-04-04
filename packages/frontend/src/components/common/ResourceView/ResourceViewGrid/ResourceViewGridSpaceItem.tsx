@@ -172,8 +172,9 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
                             sx={{
                                 flexGrow: 0,
                                 flexShrink: 0,
-                                transition: 'opacity 0.2s',
-                                opacity: hovered || opened ? 1 : 0,
+                                // FIXME: change logic to use position absolute
+                                // transition: 'opacity 0.2s',
+                                // opacity: hovered || opened ? 1 : 0,
                                 display: hovered || opened ? 'block' : 'none',
                             }}
                             component="div"
