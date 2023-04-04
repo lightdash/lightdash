@@ -213,18 +213,15 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
         const {
             chartRef,
             chartType,
-            tableConfig: {
-                showTableNames,
-                columnProperties,
-                rows,
-                columnOrder,
-            },
+            tableConfig: { showTableNames, columnProperties, columnOrder },
             resultsData,
         } = useVisualizationContext();
         const eChartsOptions = useEcharts();
         const [isOpen, setIsOpen] = useState(false);
         const disabled =
-            (chartType === ChartType.TABLE && rows.length <= 0) ||
+            (chartType === ChartType.TABLE &&
+                resultsData?.rows &&
+                resultsData.rows.length <= 0) ||
             !resultsData?.metricQuery ||
             chartType === ChartType.BIG_NUMBER ||
             (chartType === ChartType.CARTESIAN && !eChartsOptions);
@@ -257,7 +254,7 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                                     ),
                                 )
                             }
-                            rows={rows}
+                            rows={resultsData?.rows}
                         />
                     }
                 >
