@@ -330,7 +330,9 @@ const SqlRunnerPage = () => {
                                             disabled={!sql}
                                         />
                                     )}
-                                    <ChartDownloadMenu />
+                                    <ChartDownloadMenu
+                                        projectUuid={projectUuid}
+                                    />
                                 </>
                             )
                         }
