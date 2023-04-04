@@ -1,3 +1,10 @@
+## [0.505.6](https://github.com/lightdash/lightdash/compare/0.505.5...0.505.6) (2023-04-04)
+
+
+### Bug Fixes
+
+* use pipe for csv transform ([#5020](https://github.com/lightdash/lightdash/issues/5020)) ([d4f2515](https://github.com/lightdash/lightdash/commit/d4f2515fbf25f81274255faa83bca4f65e173e07))
+
 ## [0.505.5](https://github.com/lightdash/lightdash/compare/0.505.4...0.505.5) (2023-04-04)
 
 
