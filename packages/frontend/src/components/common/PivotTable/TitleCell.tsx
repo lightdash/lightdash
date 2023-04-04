@@ -2,14 +2,12 @@ import { TitleFieldValue } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { FC } from 'react';
 
-type TitleCellProps = {
+interface TitleCellProps {
     title: TitleFieldValue;
-    getLabel: (fieldId: string | null | undefined) => string;
     level?: number;
-};
-const TitleCell: FC<TitleCellProps> = ({ title, getLabel, level = 1 }) => {
-    const label = getLabel(title?.fieldId);
+}
 
+const TitleCell: FC<TitleCellProps> = ({ children, title, level = 1 }) => {
     const isEmpty = !title?.fieldId;
     const isHeaderTitle = title?.titleDirection === 'header';
 
@@ -29,7 +27,7 @@ const TitleCell: FC<TitleCellProps> = ({ title, getLabel, level = 1 }) => {
                     : theme.colors.gray[0],
             })}
         >
-            {label}
+            {children}
         </Box>
     );
 };

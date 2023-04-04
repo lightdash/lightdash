@@ -63,7 +63,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                     w="100%"
                     data={pivotTableData}
                     conditionalFormattings={conditionalFormattings}
-                    getMetricLabel={getDefaultColumnLabel}
+                    getFieldLabel={getDefaultColumnLabel}
                     getField={getField}
                     hideRowNumbers={hideRowNumbers}
                 />

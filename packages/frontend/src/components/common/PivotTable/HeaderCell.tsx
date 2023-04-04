@@ -1,12 +1,11 @@
 import { Box } from '@mantine/core';
 import { FC } from 'react';
 
-type HeaderCellProps = {
-    label: string | undefined;
+interface HeaderCellProps {
     level?: number;
-};
+}
 
-const HeaderCell: FC<HeaderCellProps> = ({ label, level = 0 }) => {
+const HeaderCell: FC<HeaderCellProps> = ({ children = '-', level = 0 }) => {
     return (
         <Box
             component="th"
@@ -15,7 +14,7 @@ const HeaderCell: FC<HeaderCellProps> = ({ label, level = 0 }) => {
                 backgroundColor: theme.colors.gray[level - 1],
             })}
         >
-            {label || '-'}
+            {children}
         </Box>
     );
 };
