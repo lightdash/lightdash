@@ -27,6 +27,7 @@ import * as fsPromise from 'fs/promises';
 
 import moment from 'moment';
 import { nanoid } from 'nanoid';
+import { pipeline, Readable, Transform, TransformCallback } from 'stream';
 import { Worker } from 'worker_threads';
 import { analytics } from '../../analytics/client';
 import {
@@ -190,47 +191,52 @@ export class CsvService {
             return id;
         });
 
+        // Increasing CHUNK_SIZE increases memory usage, but increases speed of CSV generation
+        const CHUNK_SIZE = 50000;
+        const readStream = Readable.from(rows, {
+            objectMode: true,
+            highWaterMark: CHUNK_SIZE,
+        });
+
         const stringifier = stringify({
             delimiter: ',',
+            header: true,
+            columns: csvHeader,
         });
-        stringifier.on('readable', () => {
-            let row;
-            do {
-                row = stringifier.read();
-                if (row) writeStream.write(row);
-            } while (row);
+
+        const rowTransformer = new Transform({
+            objectMode: true,
+            transform(
+                chunk: any,
+                encoding: BufferEncoding,
+                callback: TransformCallback,
+            ) {
+                callback(
+                    null,
+                    CsvService.convertRowToCsv(
+                        chunk,
+                        itemMap,
+                        onlyRaw,
+                        sortedFieldIds,
+                    ),
+                );
+            },
         });
 
         const writePromise = new Promise<string>((resolve, reject) => {
-            stringifier.on('error', (err) => {
-                reject(new Error(err.message));
-            });
-            stringifier.on('finish', () => {
-                writeStream.close();
-                resolve(fileId);
-            });
-        });
-
-        stringifier.write(csvHeader);
-
-        // Increasing CHUNK_SIZE increases memory usage, but increases speed of CSV generation
-        // This method should be running on it's own thread on schedulerWorker
-        const CHUNK_SIZE = 50000;
-        while (rows.length > 0) {
-            const chunk = rows.splice(0, CHUNK_SIZE);
-            const formattedRows = chunk.map((row) =>
-                CsvService.convertRowToCsv(
-                    row,
-                    itemMap,
-                    onlyRaw,
-                    sortedFieldIds,
-                ),
+            pipeline(
+                readStream,
+                rowTransformer,
+                stringifier,
+                writeStream,
+                async (err) => {
+                    if (err) {
+                        reject(err);
+                    }
+                    resolve(fileId);
+                },
             );
-            formattedRows.forEach((row) => {
-                stringifier.write(row);
-            });
-        }
-        stringifier.end();
+        });
 
         return writePromise;
     }
