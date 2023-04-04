@@ -37,7 +37,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
             conditionalFormattings,
             hideRowNumbers,
             pivotTableData,
-            getDefaultColumnLabel,
+            getFieldLabel,
             getField,
         },
         isSqlRunner,
@@ -63,7 +63,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                     w="100%"
                     data={pivotTableData}
                     conditionalFormattings={conditionalFormattings}
-                    getFieldLabel={getDefaultColumnLabel}
+                    getFieldLabel={getFieldLabel}
                     getField={getField}
                     hideRowNumbers={hideRowNumbers}
                 />

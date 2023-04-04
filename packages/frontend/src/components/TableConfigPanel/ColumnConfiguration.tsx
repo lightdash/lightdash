@@ -14,8 +14,8 @@ export const ColumnConfiguration: React.FC = () => {
         tableConfig: {
             selectedItemIds,
             updateColumnProperty,
-            getHeader,
-            getDefaultColumnLabel,
+            getFieldLabelOverride,
+            getFieldLabelDefault,
             isColumnVisible,
             isColumnFrozen,
         },
@@ -28,8 +28,8 @@ export const ColumnConfiguration: React.FC = () => {
                         <InputGroup
                             fill
                             disabled={!isColumnVisible(fieldId)}
-                            defaultValue={getHeader(fieldId)}
-                            placeholder={getDefaultColumnLabel(fieldId)}
+                            defaultValue={getFieldLabelOverride(fieldId)}
+                            placeholder={getFieldLabelDefault(fieldId)}
                             onBlur={(e) => {
                                 updateColumnProperty(fieldId, {
                                     name: e.currentTarget.value,

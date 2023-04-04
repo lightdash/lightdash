@@ -18,7 +18,7 @@ type PivotTableProps = TableProps &
         data: PivotData;
         conditionalFormattings: ConditionalFormattingConfig[];
         hideRowNumbers: boolean;
-        getFieldLabel: (fieldId: string | null | undefined) => string;
+        getFieldLabel: (fieldId: string) => string | undefined;
         getField: (fieldId: string) => Field | TableCalculation;
     };
 
@@ -72,9 +72,11 @@ const PivotTable: FC<PivotTableProps> = ({
                                                     title={titleField}
                                                     level={headerLevel}
                                                 >
-                                                    {getFieldLabel(
-                                                        titleField?.fieldId,
-                                                    )}
+                                                    {titleField?.fieldId
+                                                        ? getFieldLabel(
+                                                              titleField?.fieldId,
+                                                          )
+                                                        : undefined}
                                                 </TitleCell>
                                             );
                                         },
@@ -88,7 +90,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                             >
                                                 {headerValueType.type ===
                                                     FieldType.METRIC &&
-                                                getFieldLabel
+                                                headerValue?.formatted
                                                     ? getFieldLabel(
                                                           headerValue?.formatted,
                                                       )
@@ -120,7 +122,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                             ?.formatted;
                                     const label =
                                         indexValueType.type ===
-                                            FieldType.METRIC && getFieldLabel
+                                            FieldType.METRIC && d
                                             ? getFieldLabel(d)
                                             : d;
 

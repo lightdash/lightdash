@@ -36,8 +36,7 @@ type Args = {
     resultsData: ApiQueryResults;
     pivotDimensions: string[];
     isColumnVisible: (key: string) => boolean;
-    getHeader: (key: string) => string | undefined;
-    getDefaultColumnLabel: (key: string) => string;
+    getFieldLabel: (key: string) => string | undefined;
 };
 
 const getPivottedColumnCount = (pivotValuesMap: PivotValueMap) =>
@@ -63,8 +62,7 @@ const getPivotDataAndColumns = ({
     resultsData,
     pivotDimensions,
     isColumnVisible,
-    getHeader,
-    getDefaultColumnLabel,
+    getFieldLabel,
 }: Args): {
     rows: ResultRow[];
     columns: Array<TableHeader | TableColumn>;
@@ -110,9 +108,7 @@ const getPivotDataAndColumns = ({
                       (row) => row[itemId],
                       {
                           id: itemId,
-                          header:
-                              getHeader(itemId) ||
-                              getDefaultColumnLabel(itemId),
+                          header: getFieldLabel(itemId) ?? '',
                           cell: (info) =>
                               info.getValue()?.value.formatted || '-',
                           footer: () =>
@@ -133,7 +129,7 @@ const getPivotDataAndColumns = ({
         const pivotKey = pivotDimensions[depth];
         return columnHelper.group({
             id: `dimensions_header_group_${pivotKey}`,
-            header: getHeader(pivotKey) || getDefaultColumnLabel(pivotKey),
+            header: getFieldLabel(pivotKey) ?? '',
             columns: pivotDimensions[depth + 1]
                 ? [getNonPivotedHeaderGroup(depth + 1)]
                 : dimensionHeaders,
@@ -188,9 +184,7 @@ const getPivotDataAndColumns = ({
                                 (row) => row[key],
                                 {
                                     id: key,
-                                    header:
-                                        getHeader(itemId) ||
-                                        getDefaultColumnLabel(itemId),
+                                    header: getFieldLabel(itemId) ?? '',
                                     cell: (info) =>
                                         info.getValue()?.value.formatted || '-',
                                     footer: () =>
