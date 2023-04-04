@@ -1,3 +1,10 @@
+## [0.505.2](https://github.com/lightdash/lightdash/compare/0.505.1...0.505.2) (2023-04-04)
+
+
+### Bug Fixes
+
+* check project abilities for export csv ([#5007](https://github.com/lightdash/lightdash/issues/5007)) ([98910a1](https://github.com/lightdash/lightdash/commit/98910a1ea94f9120b6f8762085f5fced9dbf1473))
+
 ## [0.505.1](https://github.com/lightdash/lightdash/compare/0.505.0...0.505.1) (2023-04-04)
 
 
