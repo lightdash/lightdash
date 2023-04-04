@@ -165,7 +165,11 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                         }
                                         position="top-start"
                                     >
-                                        <Text fw={600} lineClamp={1}>
+                                        <Text
+                                            fw={600}
+                                            lineClamp={1}
+                                            sx={{ overflowWrap: 'anywhere' }}
+                                        >
                                             {item.data.name}
                                         </Text>
                                     </Tooltip>
