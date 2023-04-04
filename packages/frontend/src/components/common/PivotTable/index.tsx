@@ -2,6 +2,7 @@ import {
     ConditionalFormattingConfig,
     Field,
     FieldType,
+    isField,
     PivotData,
     TableCalculation,
 } from '@lightdash/common';
@@ -66,10 +67,30 @@ const PivotTable: FC<PivotTableProps> = ({
                                                     headerValueTypeIndex
                                                 ][indexValueIndex];
 
+                                            const field = titleField?.fieldId
+                                                ? getField(titleField?.fieldId)
+                                                : undefined;
+
+                                            const isEmpty =
+                                                !titleField?.fieldId;
+
+                                            const isHeaderTitle =
+                                                titleField?.titleDirection ===
+                                                'header';
+
                                             return (
                                                 <TitleCell
                                                     key={indexValueIndex}
                                                     title={titleField}
+                                                    isEmpty={isEmpty}
+                                                    isHeaderTitle={
+                                                        isHeaderTitle
+                                                    }
+                                                    description={
+                                                        isField(field)
+                                                            ? field.description
+                                                            : undefined
+                                                    }
                                                     level={headerLevel}
                                                 >
                                                     {titleField?.fieldId

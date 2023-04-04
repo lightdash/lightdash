@@ -1,34 +1,48 @@
 import { TitleFieldValue } from '@lightdash/common';
-import { Box } from '@mantine/core';
+import { Box, Tooltip } from '@mantine/core';
 import { FC } from 'react';
 
 interface TitleCellProps {
     title: TitleFieldValue;
+    description?: string;
     level?: number;
+    isEmpty: boolean;
+    isHeaderTitle: boolean;
 }
 
-const TitleCell: FC<TitleCellProps> = ({ children, title, level = 1 }) => {
-    const isEmpty = !title?.fieldId;
-    const isHeaderTitle = title?.titleDirection === 'header';
-
+const TitleCell: FC<TitleCellProps> = ({
+    children,
+    description,
+    level = 1,
+    isEmpty,
+    isHeaderTitle,
+}) => {
     return (
-        <Box
-            component="th"
-            ta="right"
-            style={{
-                textAlign: isHeaderTitle ? 'right' : undefined,
-            }}
-            sx={(theme) => ({
-                fontWeight: 600,
-                backgroundColor: isEmpty
-                    ? theme.white
-                    : isHeaderTitle
-                    ? theme.colors.gray[level - 1]
-                    : theme.colors.gray[0],
-            })}
+        <Tooltip
+            withArrow
+            withinPortal
+            multiline
+            disabled={!description}
+            label={description}
         >
-            {children}
-        </Box>
+            <Box
+                component="th"
+                ta="right"
+                style={{
+                    textAlign: isHeaderTitle ? 'right' : undefined,
+                }}
+                sx={(theme) => ({
+                    fontWeight: 600,
+                    backgroundColor: isEmpty
+                        ? theme.white
+                        : isHeaderTitle
+                        ? theme.colors.gray[level - 1]
+                        : theme.colors.gray[0],
+                })}
+            >
+                {children}
+            </Box>
+        </Tooltip>
     );
 };
 
