@@ -3,7 +3,6 @@ import { Popover2 } from '@blueprintjs/popover2';
 import React, { useState } from 'react';
 
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
-import ConditionalFormatting from './ConditionalFormatting';
 import ConditionalFormattingList from './ConditionalFormattingList';
 import GeneralSettings from './GeneralSettings';
 import { ConfigWrapper } from './TableConfig.styles';

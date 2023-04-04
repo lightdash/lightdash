@@ -37,7 +37,6 @@ const PivotTable: FC<PivotTableProps> = ({
         <Table
             withBorder
             withColumnBorders
-            highlightOnHover
             className={cx(classes.table, className)}
             w="xs"
             {...tableProps}
@@ -47,6 +46,9 @@ const PivotTable: FC<PivotTableProps> = ({
                     (headerValueType, headerValueTypeIndex) => {
                         const headerValues =
                             data.headerValues[headerValueTypeIndex];
+
+                        const headerLevel =
+                            data.headerValueTypes.length - headerValueTypeIndex;
 
                         return (
                             <tr key={headerValueTypeIndex}>
@@ -68,6 +70,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                                     key={indexValueIndex}
                                                     title={titleField}
                                                     getLabel={getMetricLabel}
+                                                    level={headerLevel}
                                                 />
                                             );
                                         },
@@ -86,6 +89,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                             return (
                                                 <HeaderCell
                                                     label={label}
+                                                    level={headerLevel}
                                                     key={headerValueIndex}
                                                 />
                                             );

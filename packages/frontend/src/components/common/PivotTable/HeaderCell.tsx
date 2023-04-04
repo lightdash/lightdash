@@ -1,12 +1,23 @@
+import { Box } from '@mantine/core';
 import { FC } from 'react';
-import { useStyles } from './tableStyles';
 
 type HeaderCellProps = {
     label: string | undefined;
+    level?: number;
 };
-const HeaderCell: FC<HeaderCellProps> = ({ label }) => {
-    const { classes } = useStyles();
-    return <th className={classes.header}>{label || '-'}</th>;
+
+const HeaderCell: FC<HeaderCellProps> = ({ label, level = 0 }) => {
+    return (
+        <Box
+            component="th"
+            sx={(theme) => ({
+                fontWeight: 600,
+                backgroundColor: theme.colors.gray[level - 1],
+            })}
+        >
+            {label || '-'}
+        </Box>
+    );
 };
 
 export default HeaderCell;
