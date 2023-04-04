@@ -51,6 +51,14 @@ module.exports = {
                         to: '/self-host/customize-deployment/environment-variables',
                         from: ['/references/environmentVariables'],
                     },
+                    {
+                        to: '/self-host/customize-deployment/configure-lightdash-to-use-external-object-storage',
+                        from: ['/guides/enable-cloud-storage'],
+                    },
+                    {
+                        to: '/self-host/self-host-lightdash',
+                        from: ['/self-host'],
+                    },
                 ],
             },
         ],
