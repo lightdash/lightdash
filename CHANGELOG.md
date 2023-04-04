@@ -1,3 +1,10 @@
+## [0.505.3](https://github.com/lightdash/lightdash/compare/0.505.2...0.505.3) (2023-04-04)
+
+
+### Bug Fixes
+
+* single word long space names overflows ([#5016](https://github.com/lightdash/lightdash/issues/5016)) ([7a3a5c0](https://github.com/lightdash/lightdash/commit/7a3a5c0761195f41e9f402375abcf10c91766b60))
+
 ## [0.505.2](https://github.com/lightdash/lightdash/compare/0.505.1...0.505.2) (2023-04-04)
 
 
