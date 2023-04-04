@@ -1,11 +1,10 @@
 import {
     GetObjectCommand,
-    PutObjectCommand,
     PutObjectCommandInput,
     S3,
 } from '@aws-sdk/client-s3';
+import { Upload } from '@aws-sdk/lib-storage';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { ReadStream } from 'fs-extra';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logger';
 
@@ -57,27 +56,34 @@ export class S3Service {
                 "Missing S3 bucket configuration, can't upload image",
             );
         }
-        const putCommand = new PutObjectCommand({
-            ContentType: contentType,
-            Body: file,
-            Bucket: this.lightdashConfig.s3.bucket,
-            Key: fileId,
+        const upload = new Upload({
+            client: this.s3,
+            params: {
+                Bucket: this.lightdashConfig.s3.bucket,
+                Key: fileId,
+                Body: file,
+                ContentType: contentType,
+                ACL: 'private',
+            },
         });
         try {
-            await this.s3.send(putCommand);
+            await upload.done();
+            const url = await getSignedUrl(
+                this.s3,
+                new GetObjectCommand({
+                    Bucket: this.lightdashConfig.s3.bucket,
+                    Key: fileId,
+                }),
+                {
+                    expiresIn: this.lightdashConfig.s3.expirationTime,
+                    ...urlOptions,
+                },
+            );
+            return url;
         } catch (error) {
             Logger.error(`Failed to upload file to s3. ${error}`);
             throw error;
         }
-
-        const getCommand = new GetObjectCommand({
-            Bucket: this.lightdashConfig.s3.bucket,
-            Key: fileId,
-        });
-        return getSignedUrl(this.s3, getCommand, {
-            expiresIn: this.lightdashConfig.s3.expirationTime,
-            ...urlOptions,
-        });
     }
 
     async uploadImage(image: Buffer, imageId: string): Promise<string> {
@@ -85,7 +91,7 @@ export class S3Service {
     }
 
     async uploadCsv(
-        csv: string | ReadStream,
+        csv: PutObjectCommandInput['Body'],
         csvName: string,
     ): Promise<string> {
         return this.uploadFile(csvName, csv, 'text/csv');
