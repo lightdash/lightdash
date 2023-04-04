@@ -1,3 +1,10 @@
+## [0.504.1](https://github.com/lightdash/lightdash/compare/0.504.0...0.504.1) (2023-04-04)
+
+
+### Bug Fixes
+
+* prettier ([#5011](https://github.com/lightdash/lightdash/issues/5011)) ([b99b220](https://github.com/lightdash/lightdash/commit/b99b2200eda80ae98b93a01329de1e0b1b5f096b))
+
 # [0.504.0](https://github.com/lightdash/lightdash/compare/0.503.0...0.504.0) (2023-04-03)
 
 
