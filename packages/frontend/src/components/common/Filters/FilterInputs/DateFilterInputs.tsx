@@ -246,6 +246,63 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                 </MultipleInputsWrapper>
             );
         case FilterOperator.IN_BETWEEN:
+            if (isTimestamp) {
+                return (
+                    <MultipleInputsWrapper>
+                        <StyledDateRangeInput
+                            allowSingleDayRange
+                            className={disabled ? 'disabled-filter' : ''}
+                            disabled={disabled}
+                            formatDate={(value: Date) =>
+                                moment(value)
+                                    .format(`YYYY-MM-DD, HH:mm:ss:SSS`)
+                                    .toString()
+                            }
+                            parseDate={(value) =>
+                                moment(
+                                    value,
+                                    `YYYY-MM-DD, HH:mm:ss:SSS`,
+                                ).toDate()
+                            }
+                            value={[
+                                rule.values?.[0]
+                                    ? new Date(rule.values?.[0])
+                                    : new Date(),
+                                rule.values?.[1]
+                                    ? new Date(rule.values?.[1])
+                                    : moment(rule.values?.[0] || new Date())
+                                          .add(2, 'hours')
+                                          .milliseconds(0)
+                                          .toDate(),
+                            ]}
+                            timePrecision="millisecond"
+                            onChange={(
+                                range: [Date | null, Date | null] | null,
+                            ) => {
+                                if (range && (range[0] || range[1])) {
+                                    onChange({
+                                        ...rule,
+                                        values: [range[0], range[1]],
+                                    });
+                                }
+                            }}
+                            popoverProps={{
+                                placement: 'bottom',
+                                ...popoverProps,
+                            }}
+                            dayPickerProps={{
+                                firstDayOfWeek: isWeekDay(startOfWeek)
+                                    ? convertWeekDayToDayPickerWeekDay(
+                                          startOfWeek,
+                                      )
+                                    : undefined,
+                            }}
+                            closeOnSelection={false}
+                            shortcuts={false}
+                        />
+                    </MultipleInputsWrapper>
+                );
+            }
             return (
                 <MultipleInputsWrapper>
                     <StyledDateRangeInput
