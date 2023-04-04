@@ -1,11 +1,11 @@
-import { PivotMetricValue } from '@lightdash/common';
+import { FieldValue } from '@lightdash/common';
 import { Menu, MenuProps } from '@mantine/core';
 import { IconCopy } from '@tabler/icons-react';
 import { FC } from 'react';
 import MantineIcon from '../MantineIcon';
 
 type ValueCellMenuProps = {
-    value: PivotMetricValue | null;
+    value: FieldValue | null;
     onCopy: () => void;
 } & Pick<MenuProps, 'opened' | 'onOpen' | 'onClose'>;
 

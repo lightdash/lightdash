@@ -1,9 +1,9 @@
 import {
     ConditionalFormattingConfig,
     Field,
+    FieldValue,
     getConditionalFormattingConfig,
     getConditionalFormattingDescription,
-    PivotMetricValue,
     TableCalculation,
 } from '@lightdash/common';
 import { Box, Text, Tooltip } from '@mantine/core';
@@ -22,7 +22,7 @@ import { getConditionalRuleLabel } from '../Filters/configs';
 import ValueCellMenu from './ValueCellMenu';
 
 interface ValueCellProps {
-    value: PivotMetricValue | null;
+    value: FieldValue | null;
     conditionalFormattings: ConditionalFormattingConfig[];
     getField: (fieldId: string) => Field | TableCalculation;
 }

@@ -81,7 +81,6 @@ const PivotTable: FC<PivotTableProps> = ({
                                             return (
                                                 <TitleCell
                                                     key={indexValueIndex}
-                                                    title={titleField}
                                                     isEmpty={isEmpty}
                                                     isHeaderTitle={
                                                         isHeaderTitle
@@ -104,20 +103,33 @@ const PivotTable: FC<PivotTableProps> = ({
                                     )}
 
                                     {headerValues.map(
-                                        (headerValue, headerValueIndex) => (
-                                            <HeaderCell
-                                                key={headerValueIndex}
-                                                level={headerLevel}
-                                            >
-                                                {headerValueType.type ===
-                                                    FieldType.METRIC &&
-                                                headerValue?.formatted
-                                                    ? getFieldLabel(
-                                                          headerValue?.formatted,
-                                                      )
-                                                    : headerValue?.formatted}
-                                            </HeaderCell>
-                                        ),
+                                        (headerValue, headerValueIndex) => {
+                                            const isLabel =
+                                                headerValue.type === 'label';
+                                            const field = getField(
+                                                headerValue.fieldId,
+                                            );
+
+                                            const description =
+                                                isLabel && isField(field)
+                                                    ? field.description
+                                                    : undefined;
+
+                                            return (
+                                                <HeaderCell
+                                                    key={headerValueIndex}
+                                                    level={headerLevel}
+                                                    description={description}
+                                                >
+                                                    {isLabel
+                                                        ? getFieldLabel(
+                                                              headerValue.fieldId,
+                                                          )
+                                                        : headerValue.value
+                                                              .formatted}
+                                                </HeaderCell>
+                                            );
+                                        },
                                     )}
                                 </>
                             </tr>
@@ -136,25 +148,27 @@ const PivotTable: FC<PivotTableProps> = ({
                                 </td>
                             )}
 
-                            {data.indexValueTypes.map(
-                                (indexValueType, indexValueTypeIndex) => {
-                                    const d =
-                                        data.indexValues[i][indexValueTypeIndex]
-                                            ?.formatted;
-                                    const label =
-                                        indexValueType.type ===
-                                            FieldType.METRIC && d
-                                            ? getFieldLabel(d)
-                                            : d;
+                            {data.indexValueTypes.map((_indexValueType, j) => {
+                                const indexValue = data.indexValues[i][j];
+                                const field = getField(indexValue.fieldId);
+                                const isLabel = indexValue.type === 'label';
 
-                                    return (
-                                        <IndexCell
-                                            key={indexValueTypeIndex}
-                                            label={label}
-                                        />
-                                    );
-                                },
-                            )}
+                                const description =
+                                    isLabel && isField(field)
+                                        ? field.description
+                                        : undefined;
+
+                                return (
+                                    <IndexCell
+                                        key={`${i}-${j}`}
+                                        description={description}
+                                    >
+                                        {isLabel
+                                            ? getFieldLabel(indexValue.fieldId)
+                                            : indexValue.value.formatted}
+                                    </IndexCell>
+                                );
+                            })}
 
                             {row.map((value, rowIndex) => (
                                 <ValueCell

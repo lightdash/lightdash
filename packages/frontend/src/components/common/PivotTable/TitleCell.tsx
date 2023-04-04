@@ -1,9 +1,7 @@
-import { TitleFieldValue } from '@lightdash/common';
 import { Box, Tooltip } from '@mantine/core';
 import { FC } from 'react';
 
 interface TitleCellProps {
-    title: TitleFieldValue;
     description?: string;
     level?: number;
     isEmpty: boolean;

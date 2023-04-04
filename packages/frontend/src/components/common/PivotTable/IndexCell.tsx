@@ -1,21 +1,29 @@
-import { Box } from '@mantine/core';
+import { Box, Tooltip } from '@mantine/core';
 import { FC } from 'react';
 
-type IndexCellProps = {
-    label: string | undefined;
-};
+interface IndexCellProps {
+    description?: string;
+}
 
-const IndexCell: FC<IndexCellProps> = ({ label }) => {
+const IndexCell: FC<IndexCellProps> = ({ children = '-', description }) => {
     return (
-        <Box
-            component="td"
-            sx={(theme) => ({
-                fontWeight: 600,
-                backgroundColor: theme.colors.gray[0],
-            })}
+        <Tooltip
+            withArrow
+            withinPortal
+            multiline
+            disabled={!description}
+            label={description}
         >
-            {label || '-'}
-        </Box>
+            <Box
+                component="td"
+                sx={(theme) => ({
+                    fontWeight: 600,
+                    backgroundColor: theme.colors.gray[0],
+                })}
+            >
+                {children}
+            </Box>
+        </Tooltip>
     );
 };
 
