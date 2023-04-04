@@ -152,7 +152,12 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
                         <ResourceIcon item={item} />
 
                         <Stack spacing={4} sx={{ flexGrow: 1, flexShrink: 1 }}>
-                            <Text lineClamp={1} fz="sm" fw={600}>
+                            <Text
+                                lineClamp={1}
+                                fz="sm"
+                                fw={600}
+                                sx={{ overflowWrap: 'anywhere' }}
+                            >
                                 {item.data.name}
                             </Text>
 
