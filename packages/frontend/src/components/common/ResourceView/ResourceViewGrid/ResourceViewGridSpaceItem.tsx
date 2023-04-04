@@ -3,6 +3,7 @@ import {
     Box,
     Flex,
     Group,
+    Overlay,
     Paper,
     Popover,
     Stack,
@@ -167,13 +168,13 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
                                 </Flex>
                             </Group>
                         </Stack>
-
                         <Box
                             sx={{
                                 flexGrow: 0,
                                 flexShrink: 0,
                                 transition: 'opacity 0.2s',
                                 opacity: hovered || opened ? 1 : 0,
+                                display: hovered || opened ? 'block' : 'none',
                             }}
                             component="div"
                             onClick={(e) => {
