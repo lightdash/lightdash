@@ -1,3 +1,10 @@
+## [0.505.4](https://github.com/lightdash/lightdash/compare/0.505.3...0.505.4) (2023-04-04)
+
+
+### Bug Fixes
+
+* timestamp selection for is between filter ([#4954](https://github.com/lightdash/lightdash/issues/4954)) ([b75b27f](https://github.com/lightdash/lightdash/commit/b75b27f1c1098e35def4c8a06f82f63440fd3534))
+
 ## [0.505.3](https://github.com/lightdash/lightdash/compare/0.505.2...0.505.3) (2023-04-04)
 
 
