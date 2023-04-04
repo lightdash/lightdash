@@ -1,13 +1,14 @@
 import {
+    fieldId,
     FieldType,
+    FieldValue,
+    Label,
     MetricQuery,
     PivotConfig,
     PivotData,
     PivotFieldValueType,
-    PivotMetricValue,
-    PivotValue,
     ResultRow,
-    TitleFieldValue,
+    TitleFieldLabel,
 } from '@lightdash/common';
 
 type PivotQueryResultsArgs = {
@@ -95,18 +96,19 @@ export const pivotQueryResults = ({
     ];
 
     // Metrics
-    const metrics = [
+    const metrics: { fieldId: string }[] = [
         ...metricQuery.metrics,
         ...metricQuery.tableCalculations.map((tc) => tc.name),
     ]
         .sort((a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b))
-        .map((m) => ({ raw: m, formatted: m }));
+        .map((id) => ({ fieldId: id }));
 
     const N_ROWS = rows.length;
 
     // For every row in the results, compute the index and header values to determine the shape of the result set
-    const indexValues: PivotValue[][] = [];
-    const headerValuesT: PivotValue[][] = [];
+    const indexValues: Label[][] = [];
+    const headerValuesT: Label[][] = [];
+
     let rowIndices = {};
     let columnIndices = {};
     let rowCount = 0;
@@ -116,20 +118,38 @@ export const pivotQueryResults = ({
 
         for (let nMetric = 0; nMetric < metrics.length; nMetric++) {
             const metric = metrics[nMetric];
-            const indexRowValues = [
-                ...indexDimensions.map((d) => row[d].value),
-                ...(pivotConfig.metricsAsRows ? [metric] : []),
-            ];
-            const headerRowValues = [
-                ...headerDimensions.map((d) => row[d].value),
-                ...(pivotConfig.metricsAsRows ? [] : [metric]),
-            ];
+
+            const indexRowValues: Label[] = indexDimensions
+                .map<Label>((d) => ({
+                    type: 'value',
+                    fieldId: metric.fieldId,
+                    value: row[d].value,
+                }))
+                .concat(
+                    pivotConfig.metricsAsRows
+                        ? [{ type: 'label', fieldId: metric.fieldId }]
+                        : [],
+                );
+
+            const headerRowValues: Label[] = headerDimensions
+                .map<Label>((d) => ({
+                    type: 'value',
+                    fieldId: metric.fieldId,
+                    value: row[d].value,
+                }))
+                .concat(
+                    pivotConfig.metricsAsRows
+                        ? []
+                        : [{ type: 'label', fieldId: metric.fieldId }],
+                );
 
             // Write the index values
             if (
                 setKeyIfNotExists(
                     rowIndices,
-                    indexRowValues.map((r) => r.raw),
+                    indexRowValues.map((l) =>
+                        l.type === 'value' ? String(l.value.raw) : l.fieldId,
+                    ),
                     rowCount,
                 )
             ) {
@@ -141,7 +161,9 @@ export const pivotQueryResults = ({
             if (
                 setKeyIfNotExists(
                     columnIndices,
-                    headerRowValues.map((r) => r.raw),
+                    headerRowValues.map((l) =>
+                        l.type === 'value' ? String(l.value.raw) : l.fieldId,
+                    ),
                     columnCount,
                 )
             ) {
@@ -159,8 +181,8 @@ export const pivotQueryResults = ({
     const N_DATA_ROWS = rowCount;
     const N_DATA_COLUMNS = columnCount;
     // Compute the data values
-    const dataValues: PivotMetricValue[][] = [...Array(N_DATA_ROWS)].map(() =>
-        Array(N_DATA_COLUMNS).fill(null),
+    const dataValues: (FieldValue | null)[][] = [...Array(N_DATA_ROWS)].map(
+        () => Array(N_DATA_COLUMNS).fill(null),
     );
 
     // Compute pivoted data
@@ -168,27 +190,29 @@ export const pivotQueryResults = ({
         const row = rows[nRow];
         for (let nMetric = 0; nMetric < metrics.length; nMetric++) {
             const metric = metrics[nMetric];
-            const value = row[metric.raw].value;
+            const value = row[metric.fieldId].value;
             const rowKeys = [
                 ...indexDimensions.map((d) => row[d].value.raw),
-                ...(pivotConfig.metricsAsRows ? [metric.raw] : []),
+                ...(pivotConfig.metricsAsRows ? [metric.fieldId] : []),
             ];
             const columnKeys = [
                 ...headerDimensions.map((d) => row[d].value.raw),
-                ...(pivotConfig.metricsAsRows ? [] : [metric.raw]),
+                ...(pivotConfig.metricsAsRows ? [] : [metric.fieldId]),
             ];
+
             const rowIndex = getByKey(rowIndices, rowKeys);
             const columnIndex = getByKey(columnIndices, columnKeys);
+
             dataValues[rowIndex][columnIndex] = {
                 ...value,
-                fieldId: metric.raw,
+                fieldId: metric.fieldId,
             };
         }
     }
 
-    const titleFields: TitleFieldValue[][] = [
+    const titleFields: (TitleFieldLabel | null)[][] = [
         ...Array(headerValueTypes.length),
-    ].map((e) => Array(indexValueTypes.length).fill(null));
+    ].map(() => Array(indexValueTypes.length).fill(null));
     headerValueTypes.forEach((headerValueType, headerIndex) => {
         if (headerValueType.type === FieldType.DIMENSION) {
             titleFields[headerIndex][indexValueTypes.length - 1] = {
@@ -205,6 +229,7 @@ export const pivotQueryResults = ({
             };
         }
     });
+
     return {
         headerValueTypes: headerValueTypes,
         headerValues,
