@@ -158,7 +158,13 @@ const useTableConfig = (
                 rows: resultsData.rows,
             });
         }
-    }, [resultsData, pivotDimensions, canUseMetricsAsRows, metricsAsRows, columnOrder]);
+    }, [
+        resultsData,
+        pivotDimensions,
+        canUseMetricsAsRows,
+        metricsAsRows,
+        columnOrder,
+    ]);
 
     const { rows, columns, error } = useMemo<{
         rows: ResultRow[];
