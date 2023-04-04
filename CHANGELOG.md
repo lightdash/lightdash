@@ -1,3 +1,10 @@
+## [0.505.5](https://github.com/lightdash/lightdash/compare/0.505.4...0.505.5) (2023-04-04)
+
+
+### Bug Fixes
+
+* use s3 managed uploads ([#5017](https://github.com/lightdash/lightdash/issues/5017)) ([eb55814](https://github.com/lightdash/lightdash/commit/eb55814b179fc30a24f6e75a83fcd284becf394d))
+
 ## [0.505.4](https://github.com/lightdash/lightdash/compare/0.505.3...0.505.4) (2023-04-04)
 
 
