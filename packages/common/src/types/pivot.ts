@@ -6,39 +6,43 @@ export type PivotConfig = {
     columnOrder?: string[];
 };
 
-export interface PivotValue {
+export type Value = {
     raw: unknown;
     formatted: string;
-}
+};
 
 export type PivotFieldValueType =
     | { type: FieldType.METRIC; fieldId?: undefined }
     | { type: FieldType.DIMENSION; fieldId: string };
 
-export type TitleFieldValue = null | {
+export type TitleFieldLabel = {
+    fieldId: string;
     type: FieldType.DIMENSION;
     titleDirection: 'index' | 'header';
-    fieldId: string;
 };
 
-export interface PivotMetricValue extends PivotValue {
+export interface FieldValue extends Value {
     fieldId: string;
 }
 
+export type Label =
+    | { type: 'label'; fieldId: string; value?: undefined }
+    | { type: 'value'; fieldId: string; value: Value };
+
 export interface PivotData {
-    titleFields: TitleFieldValue[][];
+    titleFields: (TitleFieldLabel | null)[][];
 
     headerValueTypes: PivotFieldValueType[];
-    headerValues: Array<Array<PivotValue | null>>;
+    headerValues: Label[][];
 
     indexValueTypes: PivotFieldValueType[];
-    indexValues: Array<Array<PivotValue | null>>;
+    indexValues: Label[][];
 
     dataColumnCount: number;
-    dataValues: Array<Array<PivotMetricValue | null>>;
+    dataValues: (FieldValue | null)[][];
 
-    columnTotals?: Array<PivotValue | null>;
-    rowTotals?: Array<PivotValue | null>;
+    columnTotals?: Array<FieldValue | null>;
+    rowTotals?: Array<FieldValue | null>;
 
     pivotConfig: PivotConfig;
 }
