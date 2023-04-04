@@ -10,7 +10,7 @@ type TitleCellProps = {
 const TitleCell: FC<TitleCellProps> = ({ title, getLabel, level = 1 }) => {
     const label = getLabel(title?.fieldId);
 
-    const isEmpty = label === '';
+    const isEmpty = !title?.fieldId;
     const isHeaderTitle = title?.titleDirection === 'header';
 
     return (
