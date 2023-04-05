@@ -1,14 +1,13 @@
 import {
-    fieldId,
     FieldType,
-    FieldValue,
-    Label,
     MetricQuery,
     PivotConfig,
     PivotData,
-    PivotFieldValueType,
+    PivotHeaderType,
+    PivotIndexType,
+    PivotTitleValue,
+    PivotValue,
     ResultRow,
-    TitleFieldLabel,
 } from '@lightdash/common';
 
 type PivotQueryResultsArgs = {
@@ -71,7 +70,7 @@ export const pivotQueryResults = ({
     }));
     const headerMetricValueTypes: { type: FieldType.METRIC }[] =
         pivotConfig.metricsAsRows ? [] : [{ type: FieldType.METRIC }];
-    const headerValueTypes: PivotFieldValueType[] = [
+    const headerValueTypes: PivotHeaderType[] = [
         ...headerDimensionValueTypes,
         ...headerMetricValueTypes,
     ];
@@ -90,7 +89,7 @@ export const pivotQueryResults = ({
     }));
     const indexMetricValueTypes: { type: FieldType.METRIC }[] =
         pivotConfig.metricsAsRows ? [{ type: FieldType.METRIC }] : [];
-    const indexValueTypes: PivotFieldValueType[] = [
+    const indexValueTypes: PivotIndexType[] = [
         ...indexDimensionValueTypes,
         ...indexMetricValueTypes,
     ];
@@ -106,8 +105,8 @@ export const pivotQueryResults = ({
     const N_ROWS = rows.length;
 
     // For every row in the results, compute the index and header values to determine the shape of the result set
-    const indexValues: Label[][] = [];
-    const headerValuesT: Label[][] = [];
+    const indexValues: PivotValue[][] = [];
+    const headerValuesT: PivotValue[][] = [];
 
     let rowIndices = {};
     let columnIndices = {};
@@ -119,8 +118,8 @@ export const pivotQueryResults = ({
         for (let nMetric = 0; nMetric < metrics.length; nMetric++) {
             const metric = metrics[nMetric];
 
-            const indexRowValues: Label[] = indexDimensions
-                .map<Label>((d) => ({
+            const indexRowValues: PivotValue[] = indexDimensions
+                .map<PivotValue>((d) => ({
                     type: 'value',
                     fieldId: metric.fieldId,
                     value: row[d].value,
@@ -131,8 +130,8 @@ export const pivotQueryResults = ({
                         : [],
                 );
 
-            const headerRowValues: Label[] = headerDimensions
-                .map<Label>((d) => ({
+            const headerRowValues: PivotValue[] = headerDimensions
+                .map<PivotValue>((d) => ({
                     type: 'value',
                     fieldId: metric.fieldId,
                     value: row[d].value,
@@ -181,7 +180,7 @@ export const pivotQueryResults = ({
     const N_DATA_ROWS = rowCount;
     const N_DATA_COLUMNS = columnCount;
     // Compute the data values
-    const dataValues: (FieldValue | null)[][] = [...Array(N_DATA_ROWS)].map(
+    const dataValues: (PivotValue | null)[][] = [...Array(N_DATA_ROWS)].map(
         () => Array(N_DATA_COLUMNS).fill(null),
     );
 
@@ -204,19 +203,21 @@ export const pivotQueryResults = ({
             const columnIndex = getByKey(columnIndices, columnKeys);
 
             dataValues[rowIndex][columnIndex] = {
-                ...value,
+                type: 'value',
                 fieldId: metric.fieldId,
+                value: value,
             };
         }
     }
 
-    const titleFields: (TitleFieldLabel | null)[][] = [
+    const titleFields: (PivotTitleValue | null)[][] = [
         ...Array(headerValueTypes.length),
     ].map(() => Array(indexValueTypes.length).fill(null));
     headerValueTypes.forEach((headerValueType, headerIndex) => {
         if (headerValueType.type === FieldType.DIMENSION) {
             titleFields[headerIndex][indexValueTypes.length - 1] = {
-                ...headerValueType,
+                fieldId: headerValueType.fieldId,
+                type: 'label',
                 titleDirection: 'header',
             };
         }
@@ -224,7 +225,8 @@ export const pivotQueryResults = ({
     indexValueTypes.forEach((indexValueType, indexIndex) => {
         if (indexValueType.type === FieldType.DIMENSION) {
             titleFields[headerValueTypes.length - 1][indexIndex] = {
-                ...indexValueType,
+                fieldId: indexValueType.fieldId,
+                type: 'label',
                 titleDirection: 'index',
             };
         }
