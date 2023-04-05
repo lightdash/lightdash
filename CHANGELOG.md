@@ -1,3 +1,10 @@
+# [0.506.0](https://github.com/lightdash/lightdash/compare/0.505.7...0.506.0) (2023-04-05)
+
+
+### Features
+
+* new pivot table - rename columns ([#5015](https://github.com/lightdash/lightdash/issues/5015)) ([6a79671](https://github.com/lightdash/lightdash/commit/6a7967105c0b5e76f01ad2aa7f93b178fe76a44c))
+
 ## [0.505.7](https://github.com/lightdash/lightdash/compare/0.505.6...0.505.7) (2023-04-05)
 
 
