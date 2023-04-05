@@ -1,3 +1,10 @@
+## [0.505.7](https://github.com/lightdash/lightdash/compare/0.505.6...0.505.7) (2023-04-05)
+
+
+### Bug Fixes
+
+* space action menu shouldnt shrink the title ([#5013](https://github.com/lightdash/lightdash/issues/5013)) ([d6c58e8](https://github.com/lightdash/lightdash/commit/d6c58e844699d670f708b2e1dc55607f25221058))
+
 ## [0.505.6](https://github.com/lightdash/lightdash/compare/0.505.5...0.505.6) (2023-04-04)
 
 
