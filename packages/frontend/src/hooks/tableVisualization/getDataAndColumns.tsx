@@ -26,7 +26,7 @@ type Args = {
     isColumnVisible: (key: string) => boolean;
     isColumnFrozen: (key: string) => boolean;
     showTableNames: boolean;
-    getHeader: (key: string) => string | undefined;
+    getFieldLabelOverride: (key: string) => string | undefined;
 };
 
 const getDataAndColumns = ({
@@ -36,7 +36,7 @@ const getDataAndColumns = ({
     isColumnVisible,
     isColumnFrozen,
     showTableNames,
-    getHeader,
+    getFieldLabelOverride,
 }: Args): {
     rows: ResultRow[];
     columns: Array<TableHeader | TableColumn>;
@@ -54,7 +54,7 @@ const getDataAndColumns = ({
             if (!isColumnVisible(itemId)) {
                 return acc;
             }
-            const headerOverride = getHeader(itemId);
+            const headerOverride = getFieldLabelOverride(itemId);
 
             const column: TableHeader | TableColumn = columnHelper.accessor(
                 (row) => row[itemId],

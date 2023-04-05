@@ -79,16 +79,17 @@ const useTableConfig = (
         return {};
     }, [explore, resultsData]);
 
-    const getDefaultColumnLabel = useCallback(
+    const getFieldLabelDefault = useCallback(
         (fieldId: string | null | undefined) => {
             if (fieldId === null || fieldId === undefined) {
-                return '';
+                return undefined;
             }
             const item = itemsMap[fieldId] as
                 | typeof itemsMap[number]
                 | undefined;
+
             if (item === undefined) {
-                return '';
+                return undefined;
             }
             if (isField(item) && !showTableNames) {
                 return item.label;
@@ -97,6 +98,22 @@ const useTableConfig = (
             }
         },
         [itemsMap, showTableNames],
+    );
+
+    const getFieldLabelOverride = useCallback(
+        (fieldId: string | null | undefined) => {
+            return fieldId ? columnProperties[fieldId]?.name : undefined;
+        },
+        [columnProperties],
+    );
+
+    const getFieldLabel = useCallback(
+        (fieldId: string | null | undefined) => {
+            return (
+                getFieldLabelOverride(fieldId) || getFieldLabelDefault(fieldId)
+            );
+        },
+        [getFieldLabelOverride, getFieldLabelDefault],
     );
 
     // This is controlled by the state in this component.
@@ -115,13 +132,6 @@ const useTableConfig = (
             return itemsMap[fieldId];
         },
         [itemsMap],
-    );
-
-    const getHeader = useCallback(
-        (fieldId: string) => {
-            return columnProperties[fieldId]?.name;
-        },
-        [columnProperties],
     );
 
     const canUseMetricsAsRows = useMemo(() => {
@@ -184,8 +194,7 @@ const useTableConfig = (
                 resultsData,
                 pivotDimensions,
                 isColumnVisible,
-                getHeader,
-                getDefaultColumnLabel,
+                getFieldLabel,
             });
         } else {
             return getDataAndColumns({
@@ -194,7 +203,7 @@ const useTableConfig = (
                 resultsData,
                 isColumnVisible,
                 showTableNames,
-                getHeader,
+                getFieldLabelOverride,
                 isColumnFrozen,
             });
         }
@@ -205,10 +214,10 @@ const useTableConfig = (
         resultsData,
         pivotDimensions,
         isColumnVisible,
-        getHeader,
-        getDefaultColumnLabel,
         showTableNames,
         isColumnFrozen,
+        getFieldLabel,
+        getFieldLabelOverride,
     ]);
 
     // Remove columProperties from map if the column has been removed from results
@@ -283,8 +292,9 @@ const useTableConfig = (
         columnProperties,
         setColumnProperties,
         updateColumnProperty,
-        getHeader,
-        getDefaultColumnLabel,
+        getFieldLabelOverride,
+        getFieldLabelDefault,
+        getFieldLabel,
         getField,
         isColumnVisible,
         isColumnFrozen,

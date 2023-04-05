@@ -18,7 +18,7 @@ type PivotTableProps = TableProps &
         data: PivotData;
         conditionalFormattings: ConditionalFormattingConfig[];
         hideRowNumbers: boolean;
-        getMetricLabel: (fieldId: string | null | undefined) => string;
+        getFieldLabel: (fieldId: string) => string | undefined;
         getField: (fieldId: string) => Field | TableCalculation;
     };
 
@@ -26,7 +26,7 @@ const PivotTable: FC<PivotTableProps> = ({
     data,
     conditionalFormattings,
     hideRowNumbers = false,
-    getMetricLabel,
+    getFieldLabel,
     getField,
     className,
     ...tableProps
@@ -65,35 +65,38 @@ const PivotTable: FC<PivotTableProps> = ({
                                                 data.titleFields[
                                                     headerValueTypeIndex
                                                 ][indexValueIndex];
+
                                             return (
                                                 <TitleCell
                                                     key={indexValueIndex}
                                                     title={titleField}
-                                                    getLabel={getMetricLabel}
                                                     level={headerLevel}
-                                                />
+                                                >
+                                                    {titleField?.fieldId
+                                                        ? getFieldLabel(
+                                                              titleField?.fieldId,
+                                                          )
+                                                        : undefined}
+                                                </TitleCell>
                                             );
                                         },
                                     )}
 
                                     {headerValues.map(
-                                        (headerValue, headerValueIndex) => {
-                                            const label =
-                                                headerValueType.type ===
+                                        (headerValue, headerValueIndex) => (
+                                            <HeaderCell
+                                                key={headerValueIndex}
+                                                level={headerLevel}
+                                            >
+                                                {headerValueType.type ===
                                                     FieldType.METRIC &&
-                                                getMetricLabel
-                                                    ? getMetricLabel(
+                                                headerValue?.formatted
+                                                    ? getFieldLabel(
                                                           headerValue?.formatted,
                                                       )
-                                                    : headerValue?.formatted;
-                                            return (
-                                                <HeaderCell
-                                                    label={label}
-                                                    level={headerLevel}
-                                                    key={headerValueIndex}
-                                                />
-                                            );
-                                        },
+                                                    : headerValue?.formatted}
+                                            </HeaderCell>
+                                        ),
                                     )}
                                 </>
                             </tr>
@@ -119,9 +122,10 @@ const PivotTable: FC<PivotTableProps> = ({
                                             ?.formatted;
                                     const label =
                                         indexValueType.type ===
-                                            FieldType.METRIC && getMetricLabel
-                                            ? getMetricLabel(d)
+                                            FieldType.METRIC && d
+                                            ? getFieldLabel(d)
                                             : d;
+
                                     return (
                                         <IndexCell
                                             key={indexValueTypeIndex}
