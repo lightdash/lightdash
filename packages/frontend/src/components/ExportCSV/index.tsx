@@ -18,6 +18,7 @@ import useHealth from '../../hooks/health/useHealth';
 import useToaster from '../../hooks/toaster/useToaster';
 import { pollCsvFileUrl } from '../../hooks/useDownloadCsv';
 import { AppToaster } from '../AppToaster';
+import downloadCSV from './downloadCsv';
 import { InputWrapper, LimitWarning, Title } from './ExportCSV.styles';
 
 enum Limit {
@@ -91,7 +92,7 @@ const ExportCSV: FC<ExportCSVProps> = memo(
                     onSuccess: (scheduledCsvResponse) => {
                         pollCsvFileUrl(scheduledCsvResponse)
                             .then((url) => {
-                                if (url) window.open(url, '_blank');
+                                if (url) downloadCSV(url, '_blank');
                                 AppToaster.dismiss('exporting-csv');
                             })
                             .catch((error) => {
