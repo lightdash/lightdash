@@ -2,10 +2,15 @@ import { Box, Tooltip } from '@mantine/core';
 import { FC } from 'react';
 
 interface IndexCellProps {
+    className?: string;
     description?: string;
 }
 
-const IndexCell: FC<IndexCellProps> = ({ children = '-', description }) => {
+const IndexCell: FC<IndexCellProps> = ({
+    children = '-',
+    description,
+    className,
+}) => {
     return (
         <Tooltip
             withArrow
@@ -16,8 +21,8 @@ const IndexCell: FC<IndexCellProps> = ({ children = '-', description }) => {
         >
             <Box
                 component="td"
+                className={className}
                 sx={(theme) => ({
-                    fontWeight: 600,
                     backgroundColor: theme.colors.gray[0],
                 })}
             >

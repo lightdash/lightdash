@@ -1,7 +1,6 @@
 import {
     ConditionalFormattingConfig,
     Field,
-    FieldType,
     isField,
     PivotData,
     TableCalculation,
@@ -81,6 +80,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                             return (
                                                 <TitleCell
                                                     key={indexValueIndex}
+                                                    className={classes.header}
                                                     isEmpty={isEmpty}
                                                     isHeaderTitle={
                                                         isHeaderTitle
@@ -118,6 +118,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                             return (
                                                 <HeaderCell
                                                     key={headerValueIndex}
+                                                    className={classes.header}
                                                     level={headerLevel}
                                                     description={description}
                                                 >
@@ -161,6 +162,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                 return (
                                     <IndexCell
                                         key={`${i}-${j}`}
+                                        className={classes.header}
                                         description={description}
                                     >
                                         {isLabel
@@ -170,10 +172,10 @@ const PivotTable: FC<PivotTableProps> = ({
                                 );
                             })}
 
-                            {row.map((value, rowIndex) => (
+                            {row.map((pivotValue, rowIndex) => (
                                 <ValueCell
                                     key={rowIndex}
-                                    value={value}
+                                    value={pivotValue}
                                     getField={getField}
                                     conditionalFormattings={
                                         conditionalFormattings

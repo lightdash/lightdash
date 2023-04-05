@@ -2,12 +2,14 @@ import { Box, Tooltip } from '@mantine/core';
 import { FC } from 'react';
 
 interface HeaderCellProps {
+    className?: string;
     level?: number;
     description?: string;
 }
 
 const HeaderCell: FC<HeaderCellProps> = ({
     children = '-',
+    className,
     description,
     level = 0,
 }) => {
@@ -21,8 +23,8 @@ const HeaderCell: FC<HeaderCellProps> = ({
         >
             <Box
                 component="th"
+                className={className}
                 sx={(theme) => ({
-                    fontWeight: 600,
                     backgroundColor: theme.colors.gray[level - 1],
                 })}
             >

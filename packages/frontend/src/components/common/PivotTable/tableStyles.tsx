@@ -22,10 +22,19 @@ export const useStyles = createStyles((theme) => ({
                 },
             },
         },
+
+        'thead, tfoot, tbody': {
+            'tr, th': {
+                fontWeight: 100,
+                color: theme.colors.gray[7],
+            },
+        },
     },
 
     rowNumberColumn: {
         width: '1%',
         textAlign: 'right',
     },
+
+    header: {},
 }));

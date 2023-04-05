@@ -1,9 +1,9 @@
 import {
     ConditionalFormattingConfig,
     Field,
-    FieldValue,
     getConditionalFormattingConfig,
     getConditionalFormattingDescription,
+    PivotValue,
     TableCalculation,
 } from '@lightdash/common';
 import { Box, Text, Tooltip } from '@mantine/core';
@@ -22,7 +22,7 @@ import { getConditionalRuleLabel } from '../Filters/configs';
 import ValueCellMenu from './ValueCellMenu';
 
 interface ValueCellProps {
-    value: FieldValue | null;
+    value: PivotValue | null;
     conditionalFormattings: ConditionalFormattingConfig[];
     getField: (fieldId: string) => Field | TableCalculation;
 }
@@ -51,7 +51,7 @@ const ValueCell: FC<ValueCellProps> = ({
     const conditionalFormatting = useMemo(() => {
         const conditionalFormattingConfig = getConditionalFormattingConfig(
             field,
-            value?.raw,
+            value?.value?.raw,
             conditionalFormattings,
         );
 
@@ -77,7 +77,7 @@ const ValueCell: FC<ValueCellProps> = ({
 
     const handleCopy = useCallback(() => {
         if (isMenuOpen) {
-            clipboard.copy(value?.formatted);
+            clipboard.copy(value?.value?.formatted);
         }
     }, [clipboard, value, isMenuOpen]);
 
@@ -135,7 +135,7 @@ const ValueCell: FC<ValueCellProps> = ({
                                         },
                                     })}
                                 >
-                                    <Text>{value?.formatted}</Text>
+                                    <Text>{value?.value?.formatted}</Text>
                                 </Box>
                             )}
                         />

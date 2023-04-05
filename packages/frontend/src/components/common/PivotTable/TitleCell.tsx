@@ -2,6 +2,7 @@ import { Box, Tooltip } from '@mantine/core';
 import { FC } from 'react';
 
 interface TitleCellProps {
+    className?: string;
     description?: string;
     level?: number;
     isEmpty: boolean;
@@ -10,6 +11,7 @@ interface TitleCellProps {
 
 const TitleCell: FC<TitleCellProps> = ({
     children,
+    className,
     description,
     level = 1,
     isEmpty,
@@ -25,12 +27,11 @@ const TitleCell: FC<TitleCellProps> = ({
         >
             <Box
                 component="th"
-                ta="right"
+                className={className}
                 style={{
                     textAlign: isHeaderTitle ? 'right' : undefined,
                 }}
                 sx={(theme) => ({
-                    fontWeight: 600,
                     backgroundColor: isEmpty
                         ? theme.white
                         : isHeaderTitle
