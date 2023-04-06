@@ -35,7 +35,7 @@ const TitleCell: FC<TitleCellProps> = ({
                     backgroundColor: isEmpty
                         ? theme.white
                         : isHeaderTitle
-                        ? theme.colors.gray[level - 1]
+                        ? theme.colors.gray[level]
                         : theme.colors.gray[0],
                 })}
             >

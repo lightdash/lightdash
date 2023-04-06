@@ -17,7 +17,7 @@ export const usePivotTableStyles = createStyles((theme) => ({
                 td: {
                     '&:not([data-expanded="true"]):not([data-conditional-formatting="true"])':
                         {
-                            backgroundColor: theme.colors.gray[1],
+                            backgroundColor: theme.colors.gray[0],
                         },
                 },
             },

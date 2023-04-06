@@ -25,7 +25,7 @@ const HeaderCell: FC<HeaderCellProps> = ({
                 component="th"
                 className={className}
                 sx={(theme) => ({
-                    backgroundColor: theme.colors.gray[level - 1],
+                    backgroundColor: theme.colors.gray[level],
                 })}
             >
                 {children}
