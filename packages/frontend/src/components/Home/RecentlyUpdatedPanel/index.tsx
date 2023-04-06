@@ -1,12 +1,16 @@
-import { AnchorButton, Button } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
-import { LightdashMode } from '@lightdash/common';
-import { IconChartBar, IconEye, IconStar } from '@tabler/icons-react';
+import {
+    DashboardBasicDetails,
+    LightdashMode,
+    SpaceQuery,
+} from '@lightdash/common';
+import { Button } from '@mantine/core';
+import { IconChartBar, IconPlus } from '@tabler/icons-react';
 import { FC, useMemo } from 'react';
 import { useHistory } from 'react-router-dom';
-import { useDashboards } from '../../../hooks/dashboard/useDashboards';
-import { useSavedCharts } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
+import MantineIcon from '../../common/MantineIcon';
+import MantineLinkButton from '../../common/MantineLinkButton';
 import ResourceView from '../../common/ResourceView';
 import {
     isResourceViewSpaceItem,
@@ -15,31 +19,30 @@ import {
 } from '../../common/ResourceView/resourceTypeUtils';
 
 interface Props {
+    data: {
+        dashboards: DashboardBasicDetails[];
+        savedCharts: SpaceQuery[];
+    };
     projectUuid: string;
 }
 
-const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
+const RecentlyUpdatedPanel: FC<Props> = ({ data, projectUuid }) => {
     const history = useHistory();
     const { user, health } = useApp();
-    const { data: dashboards = [], isLoading: isDashboardsLoading } =
-        useDashboards(projectUuid);
-    const { data: savedCharts = [], isLoading: isChartsLoading } =
-        useSavedCharts(projectUuid);
 
     const recentItems = useMemo(() => {
         return [
-            ...wrapResourceView(dashboards, ResourceViewItemType.DASHBOARD),
-            ...wrapResourceView(savedCharts, ResourceViewItemType.CHART),
+            ...wrapResourceView(
+                data.dashboards,
+                ResourceViewItemType.DASHBOARD,
+            ),
+            ...wrapResourceView(data.savedCharts, ResourceViewItemType.CHART),
         ];
-    }, [dashboards, savedCharts]);
+    }, [data]);
 
     const handleCreateChart = () => {
         history.push(`/projects/${projectUuid}/tables`);
     };
-
-    if (isDashboardsLoading || isChartsLoading) {
-        return null;
-    }
 
     const isDemo = health.data?.mode === LightdashMode.DEMO;
 
@@ -97,25 +100,31 @@ const RecentlyUpdatedPanel: FC<Props> = ({ projectUuid }) => {
                     ? {
                           title: 'Charts and Dashboards',
                           action: (
-                              <AnchorButton
-                                  text="Learn"
-                                  minimal
+                              <MantineLinkButton
+                                  color="gray.6"
+                                  compact
+                                  variant="subtle"
                                   target="_blank"
                                   href="https://docs.lightdash.com/get-started/exploring-data/intro"
-                              />
+                              >
+                                  Learn
+                              </MantineLinkButton>
                           ),
                       }
                     : undefined
             }
             emptyStateProps={{
-                icon: <IconChartBar size={30} />,
-                title: 'Feels a little bit empty over here...',
-                description: 'get started by creating some charts',
+                icon: <MantineIcon icon={IconChartBar} size={30} />,
+                title: userCanManageCharts
+                    ? 'Feels a little bit empty over here'
+                    : 'No items added yet',
+                description: userCanManageCharts
+                    ? 'get started by creating some charts'
+                    : undefined,
                 action:
                     !isDemo && userCanManageCharts ? (
                         <Button
-                            icon="plus"
-                            intent="primary"
+                            leftIcon={<MantineIcon icon={IconPlus} size={18} />}
                             onClick={handleCreateChart}
                         >
                             Create chart

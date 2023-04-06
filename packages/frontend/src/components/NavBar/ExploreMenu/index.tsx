@@ -19,6 +19,7 @@ import { FC, memo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { useApp } from '../../../providers/AppProvider';
 import { Can } from '../../common/Authorization';
+import MantineIcon from '../../common/MantineIcon';
 import DashboardCreateModal from '../../common/modal/DashboardCreateModal';
 import SpaceActionModal, { ActionType } from '../../common/SpaceActionModal';
 import {
@@ -60,9 +61,10 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                             <LargeMenuItem
                                 icon={
                                     <LargeMenuItemIconWrapper>
-                                        <IconTable
+                                        <MantineIcon
+                                            icon={IconTable}
                                             size={22}
-                                            color={Colors.WHITE}
+                                            color="gray.0"
                                         />
                                     </LargeMenuItemIconWrapper>
                                 }
@@ -90,9 +92,10 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                 <LargeMenuItem
                                     icon={
                                         <LargeMenuItemIconWrapper>
-                                            <IconTerminal2
+                                            <MantineIcon
+                                                icon={IconTerminal2}
                                                 size={22}
-                                                color={Colors.WHITE}
+                                                color="gray.0"
                                             />
                                         </LargeMenuItemIconWrapper>
                                     }
@@ -122,9 +125,10 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                 <LargeMenuItem
                                     icon={
                                         <LargeMenuItemIconWrapper>
-                                            <IconLayoutDashboard
+                                            <MantineIcon
+                                                icon={IconLayoutDashboard}
                                                 size={22}
-                                                color={Colors.WHITE}
+                                                color="gray.0"
                                             />
                                         </LargeMenuItemIconWrapper>
                                     }
@@ -156,9 +160,10 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                 <LargeMenuItem
                                     icon={
                                         <LargeMenuItemIconWrapper>
-                                            <IconFolder
+                                            <MantineIcon
+                                                icon={IconFolder}
                                                 size={22}
-                                                color={Colors.WHITE}
+                                                color="gray.0"
                                             />
                                         </LargeMenuItemIconWrapper>
                                     }
@@ -186,9 +191,10 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                     <Button
                         minimal
                         icon={
-                            <IconSquareRoundedPlus
+                            <MantineIcon
+                                icon={IconSquareRoundedPlus}
                                 size={20}
-                                color={Colors.GRAY4}
+                                color="gray.5"
                                 style={{ marginRight: '6px' }}
                             />
                         }

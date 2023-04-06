@@ -10,11 +10,13 @@ import OnboardingPanel from '../components/Home/OnboardingPanel/index';
 import RecentlyUpdatedPanel from '../components/Home/RecentlyUpdatedPanel';
 import PageSpinner from '../components/PageSpinner';
 import PinnedItemsPanel from '../components/PinnedItemsPanel';
+import { useDashboards } from '../hooks/dashboard/useDashboards';
 import {
     useOnboardingStatus,
     useProjectSavedChartStatus,
 } from '../hooks/useOnboardingStatus';
 import { useProject } from '../hooks/useProject';
+import { useSavedCharts, useSpaces } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
 
 const Home: FC = () => {
@@ -24,10 +26,22 @@ const Home: FC = () => {
     const project = useProject(selectedProjectUuid);
     const onboarding = useOnboardingStatus();
 
+    const { data: dashboards = [], isLoading: dashboardsLoading } =
+        useDashboards(selectedProjectUuid);
+    const { data: savedCharts = [], isLoading: chartsLoading } =
+        useSavedCharts(selectedProjectUuid);
+    const { data: spaces = [], isLoading: spacesLoading } =
+        useSpaces(selectedProjectUuid);
+
     const { user } = useApp();
 
     const isLoading =
-        onboarding.isLoading || project.isLoading || savedChartStatus.isLoading;
+        onboarding.isLoading ||
+        project.isLoading ||
+        savedChartStatus.isLoading ||
+        dashboardsLoading ||
+        chartsLoading ||
+        spacesLoading;
     const error = onboarding.error || project.error || savedChartStatus.error;
 
     useUnmount(() => onboarding.remove());
@@ -64,11 +78,12 @@ const Home: FC = () => {
                             projectUuid={project.data.projectUuid}
                         />
                         <PinnedItemsPanel
+                            data={{ dashboards, savedCharts, spaces }}
                             projectUuid={project.data.projectUuid}
                             organizationUuid={project.data.organizationUuid}
                         />
-
                         <RecentlyUpdatedPanel
+                            data={{ dashboards, savedCharts }}
                             projectUuid={project.data.projectUuid}
                         />
                     </>

@@ -1,9 +1,8 @@
 import { subject } from '@casl/ability';
+import { DashboardBasicDetails, Space, SpaceQuery } from '@lightdash/common';
 import { Card, Group, Text } from '@mantine/core';
 import { IconPin } from '@tabler/icons-react';
 import React, { FC, useMemo } from 'react';
-import { useDashboards } from '../../hooks/dashboard/useDashboards';
-import { useSavedCharts, useSpaces } from '../../hooks/useSpaces';
 import { useApp } from '../../providers/AppProvider';
 import MantineIcon from '../common/MantineIcon';
 import MantineLinkButton from '../common/MantineLinkButton';
@@ -14,16 +13,21 @@ import {
 } from '../common/ResourceView/resourceTypeUtils';
 
 interface Props {
+    data: {
+        dashboards: DashboardBasicDetails[];
+        savedCharts: SpaceQuery[];
+        spaces: Space[];
+    };
     projectUuid: string;
     organizationUuid: string;
 }
 
-const PinnedItemsPanel: FC<Props> = ({ projectUuid, organizationUuid }) => {
+const PinnedItemsPanel: FC<Props> = ({
+    data,
+    projectUuid,
+    organizationUuid,
+}) => {
     const { user } = useApp();
-    const { data: dashboards = [] } = useDashboards(projectUuid);
-    const { data: savedCharts = [] } = useSavedCharts(projectUuid);
-    const { data: spaces = [] } = useSpaces(projectUuid);
-
     const userCanUpdateProject = user.data?.ability.can(
         'update',
         subject('Project', { organizationUuid, projectUuid }),
@@ -31,13 +35,16 @@ const PinnedItemsPanel: FC<Props> = ({ projectUuid, organizationUuid }) => {
 
     const pinnedItems = useMemo(() => {
         return [
-            ...wrapResourceView(dashboards, ResourceViewItemType.DASHBOARD),
-            ...wrapResourceView(savedCharts, ResourceViewItemType.CHART),
-            ...wrapResourceView(spaces, ResourceViewItemType.SPACE),
+            ...wrapResourceView(
+                data.dashboards,
+                ResourceViewItemType.DASHBOARD,
+            ),
+            ...wrapResourceView(data.savedCharts, ResourceViewItemType.CHART),
+            ...wrapResourceView(data.spaces, ResourceViewItemType.SPACE),
         ].filter((item) => {
             return !!item.data.pinnedListUuid;
         });
-    }, [dashboards, savedCharts, spaces]);
+    }, [data]);
 
     return pinnedItems.length > 0 ? (
         <ResourceView
