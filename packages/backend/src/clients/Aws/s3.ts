@@ -64,6 +64,7 @@ export class S3Service {
                 Body: file,
                 ContentType: contentType,
                 ACL: 'private',
+                ContentDisposition: `attachment; filename="${fileId}"`,
             },
         });
         try {

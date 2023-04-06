@@ -22,7 +22,7 @@ const DownloadCsvButton: FC<Props> = memo(({ disabled, getCsvLink }) => {
             onClick={() => {
                 getCsvLink()
                     .then((url) => {
-                        window.open(url, '_blank');
+                        window.location.href = url;
                     })
                     .catch((error) => {
                         showToastError({
