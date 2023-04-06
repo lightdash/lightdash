@@ -1,3 +1,10 @@
+## [0.506.3](https://github.com/lightdash/lightdash/compare/0.506.2...0.506.3) (2023-04-06)
+
+
+### Bug Fixes
+
+* check stdout on getDbtVersion ([#5033](https://github.com/lightdash/lightdash/issues/5033)) ([d9b22f2](https://github.com/lightdash/lightdash/commit/d9b22f2de0981dd35b94699c5a1d0d20e945f54b))
+
 ## [0.506.2](https://github.com/lightdash/lightdash/compare/0.506.1...0.506.2) (2023-04-06)
 
 
