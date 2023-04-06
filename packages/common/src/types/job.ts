@@ -89,33 +89,32 @@ type CreateJobStep = Pick<JobStep, 'stepType'>;
 // https://docs.getdbt.com/reference/events-logging#structured-logging
 export type DbtLog = {
     code: string;
-    data: unknown;
-    invocation_id: string;
-    level: 'debug' | 'info' | 'warn' | 'error';
-    log_version: number;
-    msg: string;
-    node_info: {
-        materialized: string;
-        node_finished_at: string | null;
-        node_name: string;
-        node_path: string;
-        node_started_at: string;
-        node_status: string;
-        resource_type: string;
-        type: 'node_status';
-        unique_id: string;
+    info: {
+        category: string;
+        code: string;
+        extra: Record<string, unknown>;
+        invocation_id: string;
+        level: 'debug' | 'info' | 'warn' | 'error';
+        log_version: 2;
+        msg: string;
+        name: string;
+        pid: number;
+        thread_name: string;
+        ts: string;
+        type: 'log_line';
     };
-    pid: number;
-    thread_name: string;
-    ts: string;
-    type: 'log_line';
 };
 
 export function isDbtLog(value: unknown): value is DbtLog {
     return (
-        value != null &&
         typeof value === 'object' &&
-        'level' in value &&
-        'msg' in value
+        value != null &&
+        'info' in value &&
+        typeof (value as DbtLog).info === 'object' &&
+        typeof (value as DbtLog).info != null &&
+        'level' in (value as DbtLog).info &&
+        typeof (value as DbtLog).info.level === 'string' &&
+        'msg' in (value as DbtLog).info &&
+        typeof (value as DbtLog).info.msg === 'string'
     );
 }
