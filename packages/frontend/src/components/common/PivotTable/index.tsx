@@ -9,7 +9,7 @@ import { Table, TableProps } from '@mantine/core';
 import React, { FC } from 'react';
 import HeaderCell from './HeaderCell';
 import IndexCell from './IndexCell';
-import { useStyles } from './tableStyles';
+import { usePivotTableCellStyles, usePivotTableStyles } from './tableStyles';
 import TitleCell from './TitleCell';
 import ValueCell from './ValueCell';
 
@@ -31,13 +31,16 @@ const PivotTable: FC<PivotTableProps> = ({
     className,
     ...tableProps
 }) => {
-    const { cx, classes } = useStyles();
+    const { cx: tableCx, classes: tableStyles } = usePivotTableStyles();
+    const { cx: cellCx, classes: cellStyles } = usePivotTableCellStyles({});
 
     return (
         <Table
+            cellSpacing={1}
+            unstyled
             withBorder
             withColumnBorders
-            className={cx(classes.table, className)}
+            className={tableCx(tableStyles.root, className)}
             w="xs"
             {...tableProps}
         >
@@ -55,7 +58,10 @@ const PivotTable: FC<PivotTableProps> = ({
                                 <>
                                     {!hideRowNumbers && (
                                         <th
-                                            className={classes.rowNumberColumn}
+                                            className={cellCx(
+                                                cellStyles.root,
+                                                cellStyles.rowNumber,
+                                            )}
                                         />
                                     )}
 
@@ -80,7 +86,10 @@ const PivotTable: FC<PivotTableProps> = ({
                                             return (
                                                 <TitleCell
                                                     key={indexValueIndex}
-                                                    className={classes.header}
+                                                    className={cellCx(
+                                                        cellStyles.root,
+                                                        cellStyles.header,
+                                                    )}
                                                     isEmpty={isEmpty}
                                                     isHeaderTitle={
                                                         isHeaderTitle
@@ -118,7 +127,10 @@ const PivotTable: FC<PivotTableProps> = ({
                                             return (
                                                 <HeaderCell
                                                     key={headerValueIndex}
-                                                    className={classes.header}
+                                                    className={cellCx(
+                                                        cellStyles.root,
+                                                        cellStyles.header,
+                                                    )}
                                                     level={headerLevel}
                                                     description={description}
                                                 >
@@ -144,7 +156,12 @@ const PivotTable: FC<PivotTableProps> = ({
                     <tr key={i}>
                         <>
                             {!hideRowNumbers && (
-                                <td className={classes.rowNumberColumn}>
+                                <td
+                                    className={cellCx(
+                                        cellStyles.root,
+                                        cellStyles.rowNumber,
+                                    )}
+                                >
                                     {i + 1}
                                 </td>
                             )}
@@ -162,7 +179,10 @@ const PivotTable: FC<PivotTableProps> = ({
                                 return (
                                     <IndexCell
                                         key={`${i}-${j}`}
-                                        className={classes.header}
+                                        className={cellCx(
+                                            cellStyles.root,
+                                            cellStyles.header,
+                                        )}
                                         description={description}
                                     >
                                         {isLabel

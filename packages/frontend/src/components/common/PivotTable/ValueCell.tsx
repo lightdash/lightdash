@@ -19,6 +19,7 @@ import {
 } from 'react';
 import { readableColor } from '../../../utils/colorUtils';
 import { getConditionalRuleLabel } from '../Filters/configs';
+import { usePivotTableCellStyles } from './tableStyles';
 import ValueCellMenu from './ValueCellMenu';
 
 interface ValueCellProps {
@@ -83,6 +84,15 @@ const ValueCell: FC<ValueCellProps> = ({
 
     useHotkeys([['mod+c', handleCopy]]);
 
+    const { cx, classes } = usePivotTableCellStyles({
+        conditionalFormatting: conditionalFormatting
+            ? {
+                  backgroundColor: conditionalFormatting.backgroundColor,
+                  color: conditionalFormatting.color,
+              }
+            : undefined,
+    });
+
     return (
         <ValueCellMenu
             opened={isMenuOpen}
@@ -106,34 +116,19 @@ const ValueCell: FC<ValueCellProps> = ({
                                     ref={mergeRefs(menuRef, tooltipRef)}
                                     {...tooltipProps}
                                     {...menuProps}
+                                    className={cx(
+                                        tooltipProps.className,
+                                        menuProps.className,
+                                        classes.root,
+                                        {
+                                            [classes.conditionalFormatting]:
+                                                conditionalFormatting,
+                                        },
+                                    )}
                                     data-copied={clipboard.copied}
-                                    data-conditional-formatting={
-                                        !!conditionalFormatting
-                                    }
-                                    sx={(theme) => ({
-                                        color: conditionalFormatting?.color,
-                                        backgroundColor:
-                                            conditionalFormatting?.backgroundColor,
-
-                                        '&[data-expanded="true"]': {
-                                            backgroundColor:
-                                                conditionalFormatting?.backgroundColor
-                                                    ? darken(0.1)(
-                                                          conditionalFormatting.backgroundColor,
-                                                      )
-                                                    : theme.colors.blue[0],
-                                            outline:
-                                                conditionalFormatting?.backgroundColor
-                                                    ? 'none'
-                                                    : `1px solid ${theme.colors.blue[5]}`,
-                                        },
-
-                                        '&[data-copied="true"]': {
-                                            color: theme.black,
-                                            backgroundColor:
-                                                theme.colors.blue[1],
-                                        },
-                                    })}
+                                    // data-conditional-formatting={
+                                    //     !!conditionalFormatting
+                                    // }
                                 >
                                     <Text>{value?.value?.formatted}</Text>
                                 </Box>
