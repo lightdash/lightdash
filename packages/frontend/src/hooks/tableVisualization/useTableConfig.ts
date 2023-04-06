@@ -118,6 +118,10 @@ const useTableConfig = (
         [columnProperties],
     );
 
+    const visibleFieldIds = useMemo(() => {
+        return selectedItemIds?.filter((fieldId) => isColumnVisible(fieldId));
+    }, [selectedItemIds, isColumnVisible]);
+
     const getField = useCallback(
         (fieldId: string) => itemsMap[fieldId],
         [itemsMap],
@@ -152,6 +156,7 @@ const useTableConfig = (
                     pivotDimensions,
                     metricsAsRows,
                     columnOrder,
+                    visibleFieldIds,
                 },
                 metricQuery: resultsData.metricQuery,
                 rows: resultsData.rows,
@@ -163,6 +168,7 @@ const useTableConfig = (
         canUseMetricsAsRows,
         metricsAsRows,
         columnOrder,
+        visibleFieldIds,
     ]);
 
     const { rows, columns, error } = useMemo<{
