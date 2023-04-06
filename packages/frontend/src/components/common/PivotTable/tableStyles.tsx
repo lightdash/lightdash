@@ -6,10 +6,21 @@ export const usePivotTableStyles = createStyles((theme) => ({
         backgroundColor: theme.colors.gray[3],
 
         'td, th': {
-            paddingLeft: theme.spacing.xs,
-            paddingRight: theme.spacing.xs,
-            paddingTop: theme.spacing.xxs,
-            paddingBottom: theme.spacing.xxs,
+            paddingLeft: theme.spacing.sm,
+            paddingRight: theme.spacing.sm,
+            paddingTop: theme.spacing.xs,
+            paddingBottom: theme.spacing.xs,
+        },
+
+        tbody: {
+            'tr:hover': {
+                td: {
+                    '&:not([data-expanded="true"]):not([data-conditional-formatting="true"])':
+                        {
+                            backgroundColor: theme.colors.gray[1],
+                        },
+                },
+            },
         },
     },
 }));

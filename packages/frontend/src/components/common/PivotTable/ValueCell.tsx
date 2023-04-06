@@ -8,7 +8,6 @@ import {
 } from '@lightdash/common';
 import { Box, Text, Tooltip } from '@mantine/core';
 import { mergeRefs, useClipboard, useHotkeys } from '@mantine/hooks';
-import { darken } from 'polished';
 import {
     FC,
     ForwardedRef,
@@ -116,6 +115,10 @@ const ValueCell: FC<ValueCellProps> = ({
                                     ref={mergeRefs(menuRef, tooltipRef)}
                                     {...tooltipProps}
                                     {...menuProps}
+                                    data-copied={clipboard.copied}
+                                    data-conditional-formatting={
+                                        !!conditionalFormatting
+                                    }
                                     className={cx(
                                         tooltipProps.className,
                                         menuProps.className,
@@ -125,10 +128,6 @@ const ValueCell: FC<ValueCellProps> = ({
                                                 conditionalFormatting,
                                         },
                                     )}
-                                    data-copied={clipboard.copied}
-                                    // data-conditional-formatting={
-                                    //     !!conditionalFormatting
-                                    // }
                                 >
                                     <Text>{value?.value?.formatted}</Text>
                                 </Box>
