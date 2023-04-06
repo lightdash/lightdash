@@ -18,6 +18,7 @@ import { FC } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import { useSpaces } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
+import MantineIcon from '../MantineIcon';
 import {
     ResourceViewItemAction,
     ResourceViewItemActionState,
@@ -239,7 +240,12 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                 <Menu.Item
                                     component="button"
                                     role="menuitem"
-                                    icon={<IconPlus size={18} />}
+                                    icon={
+                                        <MantineIcon
+                                            icon={IconPlus}
+                                            size={18}
+                                        />
+                                    }
                                     onClick={() => {
                                         onAction({
                                             type: ResourceViewItemAction.CREATE_SPACE,
@@ -260,7 +266,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                     component="button"
                     role="menuitem"
                     color="red"
-                    icon={<IconTrash size={18} />}
+                    icon={<MantineIcon icon={IconTrash} size={18} />}
                     onClick={() => {
                         onAction({
                             type: ResourceViewItemAction.DELETE,

@@ -9,6 +9,7 @@ import { IconChartBar, IconPlus } from '@tabler/icons-react';
 import { FC, useMemo } from 'react';
 import { useHistory } from 'react-router-dom';
 import { useApp } from '../../../providers/AppProvider';
+import MantineIcon from '../../common/MantineIcon';
 import MantineLinkButton from '../../common/MantineLinkButton';
 import ResourceView from '../../common/ResourceView';
 import {
@@ -113,7 +114,7 @@ const RecentlyUpdatedPanel: FC<Props> = ({ data, projectUuid }) => {
                     : undefined
             }
             emptyStateProps={{
-                icon: <IconChartBar size={30} />,
+                icon: <MantineIcon icon={IconChartBar} size={30} />,
                 title: userCanManageCharts
                     ? 'Feels a little bit empty over here'
                     : 'No items added yet',
@@ -123,7 +124,7 @@ const RecentlyUpdatedPanel: FC<Props> = ({ data, projectUuid }) => {
                 action:
                     !isDemo && userCanManageCharts ? (
                         <Button
-                            leftIcon={<IconPlus size={18} />}
+                            leftIcon={<MantineIcon icon={IconPlus} size={18} />}
                             onClick={handleCreateChart}
                         >
                             Create chart
