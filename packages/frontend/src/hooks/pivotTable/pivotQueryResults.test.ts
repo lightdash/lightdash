@@ -70,40 +70,82 @@ describe('Should pivot data', () => {
             headerValueTypes: [{ type: 'metric' }],
             headerValues: [
                 [
-                    { raw: 'views', formatted: 'views' },
-                    { raw: 'devices', formatted: 'devices' },
+                    { type: 'label', fieldId: 'views' },
+                    { type: 'label', fieldId: 'devices' },
                 ],
             ],
             indexValueTypes: [{ type: 'dimension', fieldId: 'page' }],
             indexValues: [
-                [{ raw: '/home', formatted: '/home' }],
-                [{ raw: '/about', formatted: '/about' }],
-                [{ raw: '/first-post', formatted: '/first-post' }],
+                [
+                    {
+                        type: 'value',
+                        fieldId: 'views',
+                        value: { raw: '/home', formatted: '/home' },
+                    },
+                ],
+                [
+                    {
+                        type: 'value',
+                        fieldId: 'views',
+                        value: {
+                            raw: '/about',
+                            formatted: '/about',
+                        },
+                    },
+                ],
+                [
+                    {
+                        type: 'value',
+                        fieldId: 'views',
+                        value: {
+                            raw: '/first-post',
+                            formatted: '/first-post',
+                        },
+                    },
+                ],
             ],
             dataColumnCount: 2,
             dataValues: [
                 [
-                    { raw: 6, formatted: '6.0', fieldId: 'views' },
-                    { raw: 7, formatted: '7.0', fieldId: 'devices' },
+                    {
+                        type: 'value',
+                        fieldId: 'views',
+                        value: { raw: 6, formatted: '6.0' },
+                    },
+                    {
+                        type: 'value',
+                        fieldId: 'devices',
+                        value: { raw: 7, formatted: '7.0' },
+                    },
                 ],
                 [
-                    { raw: 12, formatted: '12.0', fieldId: 'views' },
-                    { raw: 0, formatted: '0.0', fieldId: 'devices' },
+                    {
+                        type: 'value',
+                        fieldId: 'views',
+                        value: { raw: 12, formatted: '12.0' },
+                    },
+                    {
+                        type: 'value',
+                        fieldId: 'devices',
+                        value: { raw: 0, formatted: '0.0' },
+                    },
                 ],
                 [
-                    { raw: 11, formatted: '11.0', fieldId: 'views' },
-                    { raw: 1, formatted: '1.0', fieldId: 'devices' },
+                    {
+                        type: 'value',
+                        fieldId: 'views',
+                        value: { raw: 11, formatted: '11.0' },
+                    },
+                    {
+                        type: 'value',
+                        fieldId: 'devices',
+                        value: { raw: 1, formatted: '1.0' },
+                    },
                 ],
             ],
             pivotConfig,
             titleFields: [
-                [
-                    {
-                        type: FieldType.DIMENSION,
-                        fieldId: 'page',
-                        titleDirection: 'index',
-                    },
-                ],
+                [{ fieldId: 'page', type: 'label', titleDirection: 'index' }],
             ],
         };
         const result = pivotQueryResults({
@@ -122,38 +164,71 @@ describe('Should pivot data', () => {
             headerValueTypes: [{ type: 'dimension', fieldId: 'page' }],
             headerValues: [
                 [
-                    { raw: '/home', formatted: '/home' },
-                    { raw: '/about', formatted: '/about' },
-                    { raw: '/first-post', formatted: '/first-post' },
+                    {
+                        type: 'value',
+                        fieldId: 'views',
+                        value: { raw: '/home', formatted: '/home' },
+                    },
+                    {
+                        type: 'value',
+                        fieldId: 'views',
+                        value: { raw: '/about', formatted: '/about' },
+                    },
+                    {
+                        type: 'value',
+                        fieldId: 'views',
+                        value: { raw: '/first-post', formatted: '/first-post' },
+                    },
                 ],
             ],
             indexValueTypes: [{ type: 'metric' }],
             indexValues: [
-                [{ raw: 'views', formatted: 'views' }],
-                [{ raw: 'devices', formatted: 'devices' }],
+                [{ type: 'label', fieldId: 'views' }],
+                [{ type: 'label', fieldId: 'devices' }],
             ],
             dataColumnCount: 3,
             dataValues: [
                 [
-                    { raw: 6, formatted: '6.0', fieldId: 'views' },
-                    { raw: 12, formatted: '12.0', fieldId: 'views' },
-                    { raw: 11, formatted: '11.0', fieldId: 'views' },
-                ],
-                [
-                    { raw: 7, formatted: '7.0', fieldId: 'devices' },
-                    { raw: 0, formatted: '0.0', fieldId: 'devices' },
-                    { raw: 1, formatted: '1.0', fieldId: 'devices' },
-                ],
-            ],
-            pivotConfig,
-            titleFields: [
-                [
                     {
-                        type: FieldType.DIMENSION,
-                        fieldId: 'page',
-                        titleDirection: 'header',
+                        type: 'value',
+                        fieldId: 'views',
+                        value: { raw: 6, formatted: '6.0' },
+                    },
+                    {
+                        type: 'value',
+                        fieldId: 'views',
+                        value: { raw: 12, formatted: '12.0' },
+                    },
+                    {
+                        type: 'value',
+                        fieldId: 'views',
+                        value: { raw: 11, formatted: '11.0' },
                     },
                 ],
+                [
+                    {
+                        type: 'value',
+                        fieldId: 'devices',
+                        value: { raw: 7, formatted: '7.0' },
+                    },
+                    {
+                        type: 'value',
+                        fieldId: 'devices',
+                        value: { raw: 0, formatted: '0.0' },
+                    },
+                    {
+                        type: 'value',
+                        fieldId: 'devices',
+                        value: { raw: 1, formatted: '1.0' },
+                    },
+                ],
+            ],
+            pivotConfig: {
+                pivotDimensions: ['page'],
+                metricsAsRows: true,
+            },
+            titleFields: [
+                [{ fieldId: 'page', type: 'label', titleDirection: 'header' }],
             ],
         };
         const result = pivotQueryResults({
@@ -175,61 +250,123 @@ describe('Should pivot data', () => {
             ],
             headerValues: [
                 [
-                    { raw: 'blog', formatted: 'Blog' },
-                    { raw: 'blog', formatted: 'Blog' },
-                    { raw: 'docs', formatted: 'Docs' },
-                    { raw: 'docs', formatted: 'Docs' },
+                    {
+                        type: 'value',
+                        fieldId: 'views',
+                        value: { raw: 'blog', formatted: 'Blog' },
+                    },
+                    {
+                        type: 'value',
+                        fieldId: 'devices',
+                        value: { raw: 'blog', formatted: 'Blog' },
+                    },
+                    {
+                        type: 'value',
+                        fieldId: 'views',
+                        value: { raw: 'docs', formatted: 'Docs' },
+                    },
+                    {
+                        type: 'value',
+                        fieldId: 'devices',
+                        value: { raw: 'docs', formatted: 'Docs' },
+                    },
                 ],
                 [
-                    { raw: 'views', formatted: 'views' },
-                    { raw: 'devices', formatted: 'devices' },
-                    { raw: 'views', formatted: 'views' },
-                    { raw: 'devices', formatted: 'devices' },
+                    { type: 'label', fieldId: 'views' },
+                    { type: 'label', fieldId: 'devices' },
+                    { type: 'label', fieldId: 'views' },
+                    { type: 'label', fieldId: 'devices' },
                 ],
             ],
             indexValueTypes: [{ type: 'dimension', fieldId: 'page' }],
             indexValues: [
-                [{ raw: '/home', formatted: '/home' }],
-                [{ raw: '/about', formatted: '/about' }],
-                [{ raw: '/first-post', formatted: '/first-post' }],
+                [
+                    {
+                        type: 'value',
+                        fieldId: 'views',
+                        value: { raw: '/home', formatted: '/home' },
+                    },
+                ],
+                [
+                    {
+                        type: 'value',
+                        fieldId: 'views',
+                        value: { raw: '/about', formatted: '/about' },
+                    },
+                ],
+                [
+                    {
+                        type: 'value',
+                        fieldId: 'views',
+                        value: { raw: '/first-post', formatted: '/first-post' },
+                    },
+                ],
             ],
             dataColumnCount: 4,
             dataValues: [
                 [
-                    { raw: 6, formatted: '6.0', fieldId: 'views' },
-                    { raw: 7, formatted: '7.0', fieldId: 'devices' },
-                    { raw: 2, formatted: '2.0', fieldId: 'views' },
-                    { raw: 10, formatted: '10.0', fieldId: 'devices' },
+                    {
+                        type: 'value',
+                        fieldId: 'views',
+                        value: { raw: 6, formatted: '6.0' },
+                    },
+                    {
+                        type: 'value',
+                        fieldId: 'devices',
+                        value: { raw: 7, formatted: '7.0' },
+                    },
+                    {
+                        type: 'value',
+                        fieldId: 'views',
+                        value: { raw: 2, formatted: '2.0' },
+                    },
+                    {
+                        type: 'value',
+                        fieldId: 'devices',
+                        value: { raw: 10, formatted: '10.0' },
+                    },
                 ],
                 [
-                    { raw: 12, formatted: '12.0', fieldId: 'views' },
-                    { raw: 0, formatted: '0.0', fieldId: 'devices' },
-                    { raw: 2, formatted: '2.0', fieldId: 'views' },
-                    { raw: 13, formatted: '13.0', fieldId: 'devices' },
+                    {
+                        type: 'value',
+                        fieldId: 'views',
+                        value: { raw: 12, formatted: '12.0' },
+                    },
+                    {
+                        type: 'value',
+                        fieldId: 'devices',
+                        value: { raw: 0, formatted: '0.0' },
+                    },
+                    {
+                        type: 'value',
+                        fieldId: 'views',
+                        value: { raw: 2, formatted: '2.0' },
+                    },
+                    {
+                        type: 'value',
+                        fieldId: 'devices',
+                        value: { raw: 13, formatted: '13.0' },
+                    },
                 ],
                 [
-                    { raw: 11, formatted: '11.0', fieldId: 'views' },
-                    { raw: 1, formatted: '1.0', fieldId: 'devices' },
+                    {
+                        type: 'value',
+                        fieldId: 'views',
+                        value: { raw: 11, formatted: '11.0' },
+                    },
+                    {
+                        type: 'value',
+                        fieldId: 'devices',
+                        value: { raw: 1, formatted: '1.0' },
+                    },
                     null,
                     null,
                 ],
             ],
-            pivotConfig,
+            pivotConfig: { pivotDimensions: ['site'], metricsAsRows: false },
             titleFields: [
-                [
-                    {
-                        type: FieldType.DIMENSION,
-                        fieldId: 'site',
-                        titleDirection: 'header',
-                    },
-                ],
-                [
-                    {
-                        type: FieldType.DIMENSION,
-                        fieldId: 'page',
-                        titleDirection: 'index',
-                    },
-                ],
+                [{ fieldId: 'site', type: 'label', titleDirection: 'header' }],
+                [{ fieldId: 'page', type: 'label', titleDirection: 'index' }],
             ],
         };
         const result = pivotQueryResults({
@@ -237,6 +374,7 @@ describe('Should pivot data', () => {
             metricQuery: METRIC_QUERY_2DIM_2METRIC,
             rows: RESULT_ROWS_2DIM_2METRIC,
         });
+
         expect(result).toEqual(expected);
     });
     it('with 2 dimensions, 1 pivoted, metrics as rows', () => {
@@ -248,8 +386,16 @@ describe('Should pivot data', () => {
             headerValueTypes: [{ type: 'dimension', fieldId: 'site' }],
             headerValues: [
                 [
-                    { raw: 'blog', formatted: 'Blog' },
-                    { raw: 'docs', formatted: 'Docs' },
+                    {
+                        type: 'value',
+                        fieldId: 'views',
+                        value: { raw: 'blog', formatted: 'Blog' },
+                    },
+                    {
+                        type: 'value',
+                        fieldId: 'views',
+                        value: { raw: 'docs', formatted: 'Docs' },
+                    },
                 ],
             ],
             indexValueTypes: [
@@ -258,73 +404,139 @@ describe('Should pivot data', () => {
             ],
             indexValues: [
                 [
-                    { raw: '/home', formatted: '/home' },
-                    { raw: 'views', formatted: 'views' },
+                    {
+                        type: 'value',
+                        fieldId: 'views',
+                        value: { raw: '/home', formatted: '/home' },
+                    },
+                    { type: 'label', fieldId: 'views' },
                 ],
                 [
-                    { raw: '/home', formatted: '/home' },
-                    { raw: 'devices', formatted: 'devices' },
+                    {
+                        type: 'value',
+                        fieldId: 'devices',
+                        value: { raw: '/home', formatted: '/home' },
+                    },
+                    { type: 'label', fieldId: 'devices' },
                 ],
                 [
-                    { raw: '/about', formatted: '/about' },
-                    { raw: 'views', formatted: 'views' },
+                    {
+                        type: 'value',
+                        fieldId: 'views',
+                        value: { raw: '/about', formatted: '/about' },
+                    },
+                    { type: 'label', fieldId: 'views' },
                 ],
                 [
-                    { raw: '/about', formatted: '/about' },
-                    { raw: 'devices', formatted: 'devices' },
+                    {
+                        type: 'value',
+                        fieldId: 'devices',
+                        value: { raw: '/about', formatted: '/about' },
+                    },
+                    { type: 'label', fieldId: 'devices' },
                 ],
                 [
-                    { raw: '/first-post', formatted: '/first-post' },
-                    { raw: 'views', formatted: 'views' },
+                    {
+                        type: 'value',
+                        fieldId: 'views',
+                        value: { raw: '/first-post', formatted: '/first-post' },
+                    },
+                    { type: 'label', fieldId: 'views' },
                 ],
                 [
-                    { raw: '/first-post', formatted: '/first-post' },
-                    { raw: 'devices', formatted: 'devices' },
+                    {
+                        type: 'value',
+                        fieldId: 'devices',
+                        value: { raw: '/first-post', formatted: '/first-post' },
+                    },
+                    { type: 'label', fieldId: 'devices' },
                 ],
             ],
             dataColumnCount: 2,
             dataValues: [
                 [
-                    { raw: 6, formatted: '6.0', fieldId: 'views' },
-                    { raw: 2, formatted: '2.0', fieldId: 'views' },
-                ],
-                [
-                    { raw: 7, formatted: '7.0', fieldId: 'devices' },
-                    { raw: 10, formatted: '10.0', fieldId: 'devices' },
-                ],
-                [
-                    { raw: 12, formatted: '12.0', fieldId: 'views' },
-                    { raw: 2, formatted: '2.0', fieldId: 'views' },
-                ],
-                [
-                    { raw: 0, formatted: '0.0', fieldId: 'devices' },
-                    { raw: 13, formatted: '13.0', fieldId: 'devices' },
-                ],
-                [{ raw: 11, formatted: '11.0', fieldId: 'views' }, null],
-                [{ raw: 1, formatted: '1.0', fieldId: 'devices' }, null],
-            ],
-            pivotConfig,
-            titleFields: [
-                [
                     {
-                        type: FieldType.DIMENSION,
-                        fieldId: 'page',
-                        titleDirection: 'index',
+                        type: 'value',
+                        fieldId: 'views',
+                        value: { raw: 6, formatted: '6.0' },
                     },
                     {
-                        type: FieldType.DIMENSION,
+                        type: 'value',
+                        fieldId: 'views',
+                        value: { raw: 2, formatted: '2.0' },
+                    },
+                ],
+                [
+                    {
+                        type: 'value',
+                        fieldId: 'devices',
+                        value: { raw: 7, formatted: '7.0' },
+                    },
+                    {
+                        type: 'value',
+                        fieldId: 'devices',
+                        value: { raw: 10, formatted: '10.0' },
+                    },
+                ],
+                [
+                    {
+                        type: 'value',
+                        fieldId: 'views',
+                        value: { raw: 12, formatted: '12.0' },
+                    },
+                    {
+                        type: 'value',
+                        fieldId: 'views',
+                        value: { raw: 2, formatted: '2.0' },
+                    },
+                ],
+                [
+                    {
+                        type: 'value',
+                        fieldId: 'devices',
+                        value: { raw: 0, formatted: '0.0' },
+                    },
+                    {
+                        type: 'value',
+                        fieldId: 'devices',
+                        value: { raw: 13, formatted: '13.0' },
+                    },
+                ],
+                [
+                    {
+                        type: 'value',
+                        fieldId: 'views',
+                        value: { raw: 11, formatted: '11.0' },
+                    },
+                    null,
+                ],
+                [
+                    {
+                        type: 'value',
+                        fieldId: 'devices',
+                        value: { raw: 1, formatted: '1.0' },
+                    },
+                    null,
+                ],
+            ],
+            pivotConfig: { pivotDimensions: ['site'], metricsAsRows: true },
+            titleFields: [
+                [
+                    { fieldId: 'page', type: 'label', titleDirection: 'index' },
+                    {
                         fieldId: 'site',
+                        type: 'label',
                         titleDirection: 'header',
                     },
                 ],
             ],
         };
-        const results = pivotQueryResults({
+        const result = pivotQueryResults({
             pivotConfig,
             metricQuery: METRIC_QUERY_2DIM_2METRIC,
             rows: RESULT_ROWS_2DIM_2METRIC,
         });
-        expect(results).toStrictEqual(expected);
+        expect(result).toStrictEqual(expected);
     });
     it.skip('with 0 dimensions and 2 metrics as columns', () => {
         const pivotConfig = {
