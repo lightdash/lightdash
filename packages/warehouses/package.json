@@ -14,7 +14,7 @@
         "@lightdash/common": "^0.506.3",
         "lodash": "^4.17.21",
         "pg": "^8.7.1",
-        "snowflake-sdk": "^1.6.4"
+        "snowflake-sdk": "^1.6.20"
     },
     "description": "Warehouse connectors for Lightdash",
     "scripts": {
