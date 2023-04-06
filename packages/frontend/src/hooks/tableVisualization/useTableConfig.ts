@@ -118,8 +118,9 @@ const useTableConfig = (
         [columnProperties],
     );
 
-    const visibleFieldIds = useMemo(() => {
-        return selectedItemIds?.filter((fieldId) => isColumnVisible(fieldId));
+    const hiddenFieldIds = useMemo(() => {
+        if (!selectedItemIds) return [];
+        return selectedItemIds.filter((fieldId) => !isColumnVisible(fieldId));
     }, [selectedItemIds, isColumnVisible]);
 
     const getField = useCallback(
@@ -140,7 +141,10 @@ const useTableConfig = (
         return false;
     }, [resultsData, pivotDimensions]);
 
-    const pivotTableData = useMemo<PivotData | undefined>(() => {
+    const pivotTableData = useMemo<{
+        data: PivotData | undefined;
+        error: undefined | string;
+    }>(() => {
         // Note: user can have metricsAsRows enabled but if the configuration isn't allowed, it'll be ignored
         // In future we should change this to an error
         if (
@@ -151,16 +155,25 @@ const useTableConfig = (
         ) {
             // Pivot V2. This will always trigger when the above conditions are met.
             // The old pivot below will always trigger. So currently we pivot twice when the above conditions are met.
-            return pivotQueryResults({
-                pivotConfig: {
-                    pivotDimensions,
-                    metricsAsRows,
-                    columnOrder,
-                    visibleFieldIds,
-                },
-                metricQuery: resultsData.metricQuery,
-                rows: resultsData.rows,
-            });
+
+            try {
+                const data = pivotQueryResults({
+                    pivotConfig: {
+                        pivotDimensions,
+                        metricsAsRows,
+                        columnOrder,
+                        hiddenFieldIds,
+                    },
+                    metricQuery: resultsData.metricQuery,
+                    rows: resultsData.rows,
+                });
+
+                return { data: data, error: undefined };
+            } catch (e) {
+                return { data: undefined, error: e.message };
+            }
+        } else {
+            return { data: undefined, error: undefined };
         }
     }, [
         resultsData,
@@ -168,7 +181,7 @@ const useTableConfig = (
         canUseMetricsAsRows,
         metricsAsRows,
         columnOrder,
-        visibleFieldIds,
+        hiddenFieldIds,
     ]);
 
     const { rows, columns, error } = useMemo<{

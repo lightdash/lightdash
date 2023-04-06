@@ -4,7 +4,7 @@ export type PivotConfig = {
     pivotDimensions: string[];
     metricsAsRows: boolean;
     columnOrder?: string[];
-    visibleFieldIds?: string[];
+    hiddenFieldIds?: string[];
 };
 
 type Value = {

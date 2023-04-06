@@ -57,20 +57,17 @@ export const pivotQueryResults = ({
         throw new Error('Cannot pivot results with no rows');
     }
 
-    const visibleFieldIds = pivotConfig.visibleFieldIds || [];
-    if (visibleFieldIds.length === 0) {
-        throw new Error('Cannot pivot results with no visible fields');
-    }
+    const hiddenFieldIds = pivotConfig.hiddenFieldIds || [];
 
-    const columnOrder = (pivotConfig.columnOrder || []).filter((id) =>
-        visibleFieldIds.includes(id),
-    );
+    const columnOrder = (pivotConfig.columnOrder || []).filter((id) => {
+        return !hiddenFieldIds.includes(id);
+    });
 
     // Headers (column index)
     const headerDimensions = pivotConfig.pivotDimensions.filter(
         (pivotDimension) =>
             metricQuery.dimensions.includes(pivotDimension) &&
-            visibleFieldIds.includes(pivotDimension),
+            !hiddenFieldIds.includes(pivotDimension),
     );
     const headerDimensionValueTypes = headerDimensions.map<{
         type: FieldType.DIMENSION;
@@ -91,7 +88,7 @@ export const pivotQueryResults = ({
         .filter(
             (d) =>
                 !pivotConfig.pivotDimensions.includes(d) &&
-                visibleFieldIds.includes(d),
+                !hiddenFieldIds.includes(d),
         )
         .slice()
         .sort((a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b));
@@ -114,9 +111,13 @@ export const pivotQueryResults = ({
         ...metricQuery.metrics,
         ...metricQuery.tableCalculations.map((tc) => tc.name),
     ]
-        .filter((m) => visibleFieldIds.includes(m))
+        .filter((m) => !hiddenFieldIds.includes(m))
         .sort((a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b))
         .map((id) => ({ fieldId: id }));
+
+    if (metrics.length === 0) {
+        throw new Error('Cannot pivot results with no metrics');
+    }
 
     const N_ROWS = rows.length;
 
@@ -199,6 +200,10 @@ export const pivotQueryResults = ({
     const dataValues: (PivotValue | null)[][] = [...Array(N_DATA_ROWS)].map(
         () => Array(N_DATA_COLUMNS).fill(null),
     );
+
+    if (N_DATA_ROWS === 0 || N_DATA_COLUMNS === 0) {
+        throw new Error('Cannot pivot results with no data');
+    }
 
     // Compute pivoted data
     for (let nRow = 0; nRow < N_ROWS; nRow++) {
