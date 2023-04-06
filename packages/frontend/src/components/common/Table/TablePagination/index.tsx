@@ -11,11 +11,7 @@ interface ResultCountProps {
 const ResultCount: FC<ResultCountProps> = ({ count }) => {
     return (
         <PageCount>
-            {count === 0
-                ? 'No results'
-                : count === 1
-                ? '1 result'
-                : `${count} results`}
+            {count === 0 ? null : count === 1 ? '1 result' : `${count} results`}
         </PageCount>
     );
 };

@@ -46,7 +46,14 @@ const VisualizationCardOptions: FC = memo(() => {
                     return {
                         text: 'Mixed',
                         icon: (
-                            <IconChartAreaLine size={20} color={Colors.GRAY1} />
+                            <IconChartAreaLine
+                                size={20}
+                                color={
+                                    disabled === true
+                                        ? Colors.LIGHT_GRAY1
+                                        : Colors.GRAY1
+                                }
+                            />
                         ),
                     };
                 }
@@ -57,7 +64,14 @@ const VisualizationCardOptions: FC = memo(() => {
                         return {
                             text: 'Area chart',
                             icon: (
-                                <IconChartArea size={20} color={Colors.GRAY1} />
+                                <IconChartArea
+                                    size={20}
+                                    color={
+                                        disabled === true
+                                            ? Colors.LIGHT_GRAY1
+                                            : Colors.GRAY1
+                                    }
+                                />
                             ),
                         };
                     case CartesianSeriesType.LINE:
@@ -65,7 +79,14 @@ const VisualizationCardOptions: FC = memo(() => {
                         return {
                             text: 'Line chart',
                             icon: (
-                                <IconChartLine size={20} color={Colors.GRAY1} />
+                                <IconChartLine
+                                    size={20}
+                                    color={
+                                        disabled === true
+                                            ? Colors.LIGHT_GRAY1
+                                            : Colors.GRAY1
+                                    }
+                                />
                             ),
                         };
 
@@ -77,7 +98,11 @@ const VisualizationCardOptions: FC = memo(() => {
                                       <IconChartBar
                                           size={20}
                                           style={{ rotate: '90deg' }}
-                                          color={Colors.GRAY1}
+                                          color={
+                                              disabled === true
+                                                  ? Colors.LIGHT_GRAY1
+                                                  : Colors.GRAY1
+                                          }
                                       />
                                   ),
                               }
@@ -86,7 +111,11 @@ const VisualizationCardOptions: FC = memo(() => {
                                   icon: (
                                       <IconChartBar
                                           size={20}
-                                          color={Colors.GRAY1}
+                                          color={
+                                              disabled === true
+                                                  ? Colors.LIGHT_GRAY1
+                                                  : Colors.GRAY1
+                                          }
                                       />
                                   ),
                               };
@@ -96,7 +125,14 @@ const VisualizationCardOptions: FC = memo(() => {
                         return {
                             text: 'Scatter chart',
                             icon: (
-                                <IconChartDots size={20} color={Colors.GRAY1} />
+                                <IconChartDots
+                                    size={20}
+                                    color={
+                                        disabled === true
+                                            ? Colors.LIGHT_GRAY1
+                                            : Colors.GRAY1
+                                    }
+                                />
                             ),
                         };
                     default:
@@ -107,12 +143,30 @@ const VisualizationCardOptions: FC = memo(() => {
             case ChartType.TABLE:
                 return {
                     text: 'Table',
-                    icon: <IconTable size={20} color={Colors.GRAY1} />,
+                    icon: (
+                        <IconTable
+                            size={20}
+                            color={
+                                disabled === true
+                                    ? Colors.LIGHT_GRAY1
+                                    : Colors.GRAY1
+                            }
+                        />
+                    ),
                 };
             case ChartType.BIG_NUMBER:
                 return {
                     text: 'Big value',
-                    icon: <IconSquareNumber1 size={20} color={Colors.GRAY1} />,
+                    icon: (
+                        <IconSquareNumber1
+                            size={20}
+                            color={
+                                disabled === true
+                                    ? Colors.LIGHT_GRAY1
+                                    : Colors.GRAY1
+                            }
+                        />
+                    ),
                 };
             default: {
                 const never: never = chartType;
