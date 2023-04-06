@@ -1,3 +1,10 @@
+## [0.506.2](https://github.com/lightdash/lightdash/compare/0.506.1...0.506.2) (2023-04-06)
+
+
+### Bug Fixes
+
+* use log_version 2 for dbt json logs ([#5030](https://github.com/lightdash/lightdash/issues/5030)) ([06c1a01](https://github.com/lightdash/lightdash/commit/06c1a018d8a95829ab118b0750f56b6052d38def))
+
 ## [0.506.1](https://github.com/lightdash/lightdash/compare/0.506.0...0.506.1) (2023-04-06)
 
 
