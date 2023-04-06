@@ -1,3 +1,10 @@
+## [0.506.1](https://github.com/lightdash/lightdash/compare/0.506.0...0.506.1) (2023-04-06)
+
+
+### Bug Fixes
+
+* unify loading states for home page ([#5027](https://github.com/lightdash/lightdash/issues/5027)) ([9c0f6c9](https://github.com/lightdash/lightdash/commit/9c0f6c905436ed237822f26dd2ad6246b80af2f6))
+
 # [0.506.0](https://github.com/lightdash/lightdash/compare/0.505.7...0.506.0) (2023-04-05)
 
 
