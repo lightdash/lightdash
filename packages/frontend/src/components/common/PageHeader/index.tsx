@@ -1,4 +1,4 @@
-import { Colors, H3, Icon } from '@blueprintjs/core';
+import { Colors, H4, Icon } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const PAGE_HEADER_HEIGHT = 80;
@@ -21,8 +21,8 @@ export const PageTitleAndDetailsContainer = styled.div`
     flex: 1;
 `;
 
-export const PageTitle = styled(H3)`
-    margin: 0 5px 0 0;
+export const PageTitle = styled(H4)`
+    margin: 4px 5px 4px 0;
 `;
 
 export const PageTitleContainer = styled.div`
