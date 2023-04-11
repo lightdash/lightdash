@@ -1,3 +1,10 @@
+## [0.506.4](https://github.com/lightdash/lightdash/compare/0.506.3...0.506.4) (2023-04-11)
+
+
+### Bug Fixes
+
+* special characters global search ([#5050](https://github.com/lightdash/lightdash/issues/5050)) ([26be6d9](https://github.com/lightdash/lightdash/commit/26be6d9d785ec1e40cef20ef6f00cae815f08415))
+
 ## [0.506.3](https://github.com/lightdash/lightdash/compare/0.506.2...0.506.3) (2023-04-06)
 
 
