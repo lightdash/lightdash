@@ -45,16 +45,15 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
             .filter((group) => group.items.length > 0);
     }, [groups, items]);
 
-    const [draggableItems, setDraggableItems] = useState(
-        groupedItems.map((g) => g.items),
-    );
-    console.log(draggableItems);
     const handleOnDragEnd = (result: any) => {
-        if (!result.destination) return;
-        const newDraggableItems = Array.from(draggableItems);
-        const [draggedItem] = newDraggableItems.splice(result.source.index, 1);
-        newDraggableItems.splice(result.destination.index, 0, draggedItem);
-        setDraggableItems(newDraggableItems);
+        // here we can implement the order logic with a mutation hook
+        // Mantine use-list hook could be useful here
+        return result;
+        // if (!result.destination) return;
+        // const newDraggableItems = Array.from(draggableItems);
+        // const [draggedItem] = newDraggableItems.splice(result.source.index, 1);
+        // newDraggableItems.splice(result.destination.index, 0, draggedItem);
+        // setDraggableItems(newDraggableItems);
     };
 
     return (
@@ -73,12 +72,12 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
                     )}
                     <DragDropContext onDragEnd={handleOnDragEnd}>
                         <Droppable droppableId="pinned-charts">
-                            {(provided) => (
+                            {(dropProvided) => (
                                 <SimpleGrid
                                     cols={3}
                                     spacing="lg"
-                                    ref={provided.innerRef}
-                                    {...provided.droppableProps}
+                                    ref={dropProvided.innerRef}
+                                    {...dropProvided.droppableProps}
                                 >
                                     {group.items.map((item, index) => (
                                         <Draggable
@@ -136,7 +135,7 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
                                             )}
                                         </Draggable>
                                     ))}
-                                    {provided.placeholder}
+                                    {dropProvided.placeholder}
                                 </SimpleGrid>
                             )}
                         </Droppable>
