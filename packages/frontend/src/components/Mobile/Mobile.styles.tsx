@@ -1,5 +1,5 @@
 import styled from 'styled-components';
-import { ReactComponent as Logo } from '../../svgs/logo-dark.svg';
+import { ReactComponent as Logo } from '../../svgs/lightdash-black.svg';
 
 export const MobileViewWrapper = styled.div`
     background: #ebf1f5;
