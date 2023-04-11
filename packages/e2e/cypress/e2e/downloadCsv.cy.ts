@@ -27,7 +27,7 @@ describe('Download CSV on SQL Runner', () => {
         });
     });
 
-    it.only(
+    it(
         'Should download CSV from table chart on SQL runner',
         { retries: 3, pageLoadTimeout: 1000 },
         () => {
