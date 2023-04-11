@@ -12,6 +12,7 @@ import ResourceViewGridSpaceItem from './ResourceViewGridSpaceItem';
 
 export interface ResourceViewGridCommonProps {
     groups?: ResourceViewItemType[][];
+    isReorderDisabled?: boolean;
 }
 
 type ResourceViewGridProps = ResourceViewGridCommonProps &
@@ -29,6 +30,7 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
         ],
     ],
     onAction,
+    isReorderDisabled,
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
@@ -45,16 +47,21 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
             .filter((group) => group.items.length > 0);
     }, [groups, items]);
 
+    const [draggableItems, setDraggableItems] = useState(
+        groupedItems.map((g) => g.items),
+    );
     const handleOnDragEnd = (result: any) => {
         // here we can implement the order logic with a mutation hook
         // Mantine use-list hook could be useful here
         return result;
+        // code below for testing drag and drop, will remove later
         // if (!result.destination) return;
         // const newDraggableItems = Array.from(draggableItems);
         // const [draggedItem] = newDraggableItems.splice(result.source.index, 1);
         // newDraggableItems.splice(result.destination.index, 0, draggedItem);
         // setDraggableItems(newDraggableItems);
     };
+    console.log(isReorderDisabled);
 
     return (
         <Stack spacing="xl" p="lg">
@@ -71,7 +78,10 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
                         </Text>
                     )}
                     <DragDropContext onDragEnd={handleOnDragEnd}>
-                        <Droppable droppableId="pinned-charts">
+                        <Droppable
+                            droppableId="pinned-charts"
+                            isDropDisabled={isReorderDisabled}
+                        >
                             {(dropProvided) => (
                                 <SimpleGrid
                                     cols={3}
@@ -86,6 +96,7 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
                                             key={
                                                 item.type + '-' + item.data.uuid
                                             }
+                                            isDragDisabled={isReorderDisabled}
                                         >
                                             {(dragProvided) => (
                                                 <Anchor
