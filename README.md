@@ -314,6 +314,9 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/gictor"><img src="https://avatars.githubusercontent.com/u/2518420?v=4?s=100" width="100px;" alt="Victor Lindell"/><br /><sub><b>Victor Lindell</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=gictor" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/stellar-ahmed"><img src="https://avatars.githubusercontent.com/u/125902091?v=4?s=100" width="100px;" alt="stellar-ahmed"/><br /><sub><b>stellar-ahmed</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3Astellar-ahmed" title="Bug reports">🐛</a></td>
     </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/coopkw"><img src="https://avatars.githubusercontent.com/u/82987430?v=4?s=100" width="100px;" alt="Cooper Williams"/><br /><sub><b>Cooper Williams</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=coopkw" title="Code">💻</a></td>
+    </tr>
   </tbody>
 </table>
 

@@ -1003,6 +1003,15 @@
       "contributions": [
         "bug"
       ]
+    },
+    {
+      "login": "coopkw",
+      "name": "Cooper Williams",
+      "avatar_url": "https://avatars.githubusercontent.com/u/82987430?v=4",
+      "profile": "https://github.com/coopkw",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
