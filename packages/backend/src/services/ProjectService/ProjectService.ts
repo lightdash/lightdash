@@ -715,6 +715,7 @@ export class ProjectService {
             exploreName,
             csvLimit,
         );
+        console.debug('rows', rows);
 
         const { warehouseConnection } =
             await this.projectModel.getWithSensitiveFields(projectUuid);
@@ -779,6 +780,7 @@ export class ProjectService {
             projectUuid,
             exploreName,
         );
+        console.debug('query', query);
 
         const onboardingRecord =
             await this.onboardingModel.getByOrganizationUuid(
