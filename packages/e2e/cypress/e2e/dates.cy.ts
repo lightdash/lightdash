@@ -51,6 +51,9 @@ describe('Date tests', () => {
         cy.findByText('Filters').parent().findByRole('button').click();
         cy.findAllByText('Loading chart').should('have.length', 0);
         cy.get('tbody td').contains('2018-02');
+        cy.get('tbody td').contains('$415.00');
+        cy.get('tbody td').contains('26');
+
         cy.findByText('Charts').parent().findByRole('button').click(); // Collapse charts
         cy.findByText('SQL').parent().findByRole('button').click();
         cy.get('code')
