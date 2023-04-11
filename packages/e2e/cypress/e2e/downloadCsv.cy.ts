@@ -3,8 +3,6 @@ import { SEED_PROJECT } from '@lightdash/common';
 // https://github.com/cypress-io/cypress-example-recipes/blob/f4ecf5ad74e79c5668d1608d36f6dc365fc3b473/examples/testing-dom__download/cypress/e2e/utils.js#L36
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const validateCsv = (csvFilename: string, content: string) => {
-    cy.log(`Reading CSV file: ${csvFilename}`);
-
     const downloadsFolder = Cypress.config('downloadsFolder');
     const downloadedFilename = `${downloadsFolder}/${csvFilename}`;
 
@@ -17,42 +15,54 @@ const validateCsv = (csvFilename: string, content: string) => {
 describe('Download CSV on SQL Runner', () => {
     beforeEach(() => {
         cy.login();
-        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/sqlRunner`);
+
+        cy.intercept(/.*\.csv/g, (req) => {
+            req.destroy();
+            window.location.href = '/';
+        });
+        cy.on('url:changed', (newUrl) => {
+            if (newUrl.includes('.csv')) {
+                window.location.href = '/';
+            }
+        });
     });
 
-    it.only('Should download CSV from table chart on SQL runner', () => {
-        const downloadUrl = `/api/v1/projects/${SEED_PROJECT.project_uuid}/sqlRunner/downloadCsv`;
-        cy.intercept({
-            method: 'POST',
-            url: downloadUrl,
-        }).as('apiDownloadCsvUrl');
-
-        cy.findByText('payments').click();
-        cy.findAllByText('Run query').first().click();
-
-        const find = ['Payment method', 'bank_transfer', 'credit_card'];
-        find.forEach((text) => cy.findAllByText(text));
-        cy.contains('Page 1 of 3');
-
-        cy.findByText('Charts').parent().findByRole('button').click();
-        cy.findByText('Bar chart').click(); // Change chart type
-        cy.findByText('Table').click();
-
-        cy.findByText('Export CSV')
-            .click()
-            .then(() => {
-                cy.wait('@apiDownloadCsvUrl').then((interception) => {
-                    expect(interception?.response?.statusCode).to.eq(200);
-                    expect(
-                        interception?.response?.body.results,
-                    ).to.have.property('url');
-
-                    // TODO validate file
-                    // const csvFilename = interception?.response?.body.results.url.split('/').pop()
-                    // validateCsv(csvFilename, 'payment_method')
-                });
+    it.only(
+        'Should download CSV from table chart on SQL runner',
+        { retries: 3, pageLoadTimeout: 1000 },
+        () => {
+            cy.visit(`/projects/${SEED_PROJECT.project_uuid}/sqlRunner`, {
+                timeout: 60000,
             });
-    });
+
+            const downloadUrl = `/api/v1/projects/${SEED_PROJECT.project_uuid}/sqlRunner/downloadCsv`;
+            cy.intercept({
+                method: 'POST',
+                url: downloadUrl,
+            }).as('apiDownloadCsv');
+
+            cy.findByText('payments').click();
+            cy.findAllByText('Run query').first().click();
+
+            const find = ['Payment method', 'bank_transfer', 'credit_card'];
+            find.forEach((text) => cy.findAllByText(text));
+            cy.contains('Page 1 of 3');
+
+            cy.findByText('Charts').parent().findByRole('button').click();
+            cy.findByText('Bar chart').click(); // Change chart type
+            cy.findByText('Table').click();
+
+            cy.findByText('Export CSV').click();
+
+            cy.wait('@apiDownloadCsv').then((interception) => {
+                expect(interception?.response?.statusCode).to.eq(200);
+                expect(interception?.response?.body.results).to.have.property(
+                    'url',
+                );
+            });
+            // TODO validateCsv
+        },
+    );
 });
 
 describe('Download CSV on Dashboards', () => {
