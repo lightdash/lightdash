@@ -254,6 +254,7 @@ const SqlRunnerPage = () => {
                         ) : (
                             <>
                                 <Tree
+                                    setExpandedCards={setExpandedCards}
                                     contents={catalogTree}
                                     handleSelect={false}
                                     onNodeClick={handleNodeClick}
