@@ -1,6 +1,7 @@
 import { Button, Classes, Divider, Intent, Menu } from '@blueprintjs/core';
 import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { Dashboard, Space, UpdatedByUser } from '@lightdash/common';
+import { IconPencil } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
@@ -114,9 +115,9 @@ const DashboardHeader = ({
                         </Tooltip2>
                     )}
 
-                    {userCanManageDashboard && (
+                    {isEditMode && userCanManageDashboard && (
                         <Button
-                            icon="edit"
+                            icon={<IconPencil size={16} />}
                             disabled={isSaving}
                             onClick={handleEditClick}
                             minimal

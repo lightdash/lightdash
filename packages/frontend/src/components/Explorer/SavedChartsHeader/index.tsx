@@ -8,6 +8,7 @@ import {
 } from '@blueprintjs/core';
 import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
+import { IconPencil } from '@tabler/icons-react';
 import { FC, useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
@@ -180,17 +181,22 @@ const SavedChartsHeader: FC = () => {
                                         <Button icon="info-sign" minimal />
                                     </Tooltip2>
                                 )}
-                                {user.data?.ability?.can(
-                                    'manage',
-                                    'SavedChart',
-                                ) && (
-                                    <Button
-                                        icon="edit"
-                                        disabled={updateSavedChart.isLoading}
-                                        onClick={() => setIsRenamingChart(true)}
-                                        minimal
-                                    />
-                                )}
+                                {isEditMode &&
+                                    user.data?.ability?.can(
+                                        'manage',
+                                        'SavedChart',
+                                    ) && (
+                                        <Button
+                                            icon={<IconPencil size={16} />}
+                                            disabled={
+                                                updateSavedChart.isLoading
+                                            }
+                                            onClick={() =>
+                                                setIsRenamingChart(true)
+                                            }
+                                            minimal
+                                        />
+                                    )}
                                 <ChartUpdateModal
                                     isOpen={isRenamingChart}
                                     uuid={savedChart.uuid}
