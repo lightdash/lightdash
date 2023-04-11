@@ -10,7 +10,7 @@ export const getSearchResults = async ({
     query: string;
 }) =>
     lightdashApi<SearchResults>({
-        url: `/projects/${projectUuid}/search/${query}`,
+        url: `/projects/${projectUuid}/search/${encodeURIComponent(query)}`,
         method: 'GET',
         body: undefined,
     });
