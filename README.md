@@ -316,6 +316,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     </tr>
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/coopkw"><img src="https://avatars.githubusercontent.com/u/82987430?v=4?s=100" width="100px;" alt="Cooper Williams"/><br /><sub><b>Cooper Williams</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=coopkw" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/lokeswaran-aj"><img src="https://avatars.githubusercontent.com/u/74011196?v=4?s=100" width="100px;" alt="Lokeswaran Aruljothi"/><br /><sub><b>Lokeswaran Aruljothi</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=lokeswaran-aj" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
