@@ -1,10 +1,10 @@
 import { AnchorButton } from '@blueprintjs/core';
 import React from 'react';
 import {
+    Button,
     Content,
     DarkLogo,
     Icon,
-    MobileFooter,
     MobileViewWrapper,
     Paragraph,
     Text,
@@ -19,19 +19,10 @@ const MobileView = () => (
             <Paragraph>
                 Sign in on a laptop or desktop to get started! In the meantime:
             </Paragraph>
-        </Content>
-
-        <MobileFooter>
-            <AnchorButton
-                href="https://github.com/lightdash/lightdash/discussions"
-                target="_blank"
-                minimal
-                icon="chat"
-                style={{ margin: '0' }}
-            >
-                Join the conversation!
+            <AnchorButton href="https://www.lightdash.com/" target="_blank">
+                <Button>Check out our website</Button>
             </AnchorButton>
-        </MobileFooter>
+        </Content>
     </MobileViewWrapper>
 );
 
