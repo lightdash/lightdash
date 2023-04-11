@@ -88,12 +88,12 @@ export const Tree: React.FC<{
 }> = ({ setExpandedCards, contents, handleSelect, onNodeClick }) => {
     const [nodes, dispatch] = React.useReducer(treeReducer, contents);
 
-    const handleCardExpandOnNodeClick = (
-        card: SqlRunnerCards,
-        value: boolean,
-    ) => {
-        setExpandedCards((prev) => new Map(prev).set(card, value));
-    };
+    const handleCardExpandOnNodeClick = React.useCallback(
+        (card: SqlRunnerCards, value: boolean) => {
+            setExpandedCards((prev) => new Map(prev).set(card, value));
+        },
+        [setExpandedCards],
+    );
 
     const handleNodeClick = React.useCallback(
         (
@@ -120,7 +120,7 @@ export const Tree: React.FC<{
             }
             onNodeClick?.(node, nodePath, e);
         },
-        [handleSelect, onNodeClick],
+        [handleCardExpandOnNodeClick, handleSelect, onNodeClick],
     );
 
     const handleNodeCollapse = React.useCallback(
