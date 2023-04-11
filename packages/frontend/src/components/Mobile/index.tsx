@@ -6,6 +6,7 @@ import {
     Icon,
     MobileFooter,
     MobileViewWrapper,
+    Paragraph,
     Text,
 } from './Mobile.styles';
 
@@ -15,7 +16,9 @@ const MobileView = () => (
             <DarkLogo title="Home" />
             <Icon>&#128586;</Icon>
             <Text>Lightdash currently works best on bigger screens.</Text>
-            <Text>Sign in on a laptop or desktop to get started!</Text>
+            <Paragraph>
+                Sign in on a laptop or desktop to get started! In the meantime:
+            </Paragraph>
         </Content>
 
         <MobileFooter>

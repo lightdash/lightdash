@@ -24,8 +24,17 @@ export const Icon = styled.span`
 
 export const Text = styled.p`
     max-width: 14.6875rem;
-    font-size: 1rem;
-    line-height: 1.125rem;
+    font-size: 1.125rem;
+    font-weight: 500;
+    line-height: 1.3125rem;
+    color: #000000;
+    margin: 1.5rem auto;
+`;
+
+export const Paragraph = styled.p`
+    max-width: 14.6875rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
     color: #5c7080;
     margin: 1.5rem auto;
 `;
