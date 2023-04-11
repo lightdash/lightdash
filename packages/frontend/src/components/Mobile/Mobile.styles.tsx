@@ -9,6 +9,10 @@ export const MobileViewWrapper = styled.div`
 
 export const Content = styled.div`
     padding: 4.125rem 2.6875rem 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
     text-align: center;
 `;
 
@@ -46,15 +50,14 @@ export const Button = styled.div`
     align-items: center;
     padding: 10px 15px;
     gap: 8px;
-    position: absolute;
-    left: 6.88%;
-    right: 6.88%;
-    top: 58.98%;
-    bottom: 33.98%;
     background: #2d72d2;
     border: 1px solid #1e5f87;
     box-shadow: inset 0px -1px 1px rgba(16, 22, 26, 0.2);
     border-radius: 3px;
     color: #ffffff;
+    font-weight: 500;
+`;
+export const LinkText = styled.p`
+    margin: 1.125rem;
     font-weight: 500;
 `;

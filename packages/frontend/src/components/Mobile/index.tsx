@@ -1,10 +1,11 @@
-import { AnchorButton } from '@blueprintjs/core';
+import { Anchor } from '@mantine/core';
 import React from 'react';
 import {
     Button,
     Content,
     DarkLogo,
     Icon,
+    LinkText,
     MobileViewWrapper,
     Paragraph,
     Text,
@@ -19,9 +20,19 @@ const MobileView = () => (
             <Paragraph>
                 Sign in on a laptop or desktop to get started! In the meantime:
             </Paragraph>
-            <AnchorButton href="https://www.lightdash.com/" target="_blank">
+            <Anchor
+                style={{ width: '17.25rem', height: '2.5rem' }}
+                href="https://www.lightdash.com/"
+                target="_blank"
+            >
                 <Button>Check out our website</Button>
-            </AnchorButton>
+            </Anchor>
+            <Anchor
+                href="https://join.slack.com/t/lightdash-community/shared_invite/zt-16q953ork-NZr1qdEqxSwB17E2ckUe7A"
+                target="_blank"
+            >
+                <LinkText>...or join our community!</LinkText>
+            </Anchor>
         </Content>
     </MobileViewWrapper>
 );
