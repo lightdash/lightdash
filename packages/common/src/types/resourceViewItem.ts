@@ -11,7 +11,19 @@ export enum ResourceViewItemType {
 
 export type ResourceViewChartItem = {
     type: ResourceViewItemType.CHART;
-    data: SpaceQuery;
+    data: Pick<
+        SpaceQuery,
+        | 'uuid'
+        | 'name'
+        | 'chartType'
+        | 'firstViewedAt'
+        | 'views'
+        | 'pinnedListUuid'
+        | 'spaceUuid'
+        | 'description'
+        | 'updatedAt'
+        | 'updatedByUser'
+    >;
 };
 
 export type ResourceViewDashboardItem = {
