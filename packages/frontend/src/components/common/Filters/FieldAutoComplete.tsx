@@ -9,7 +9,11 @@ import {
 import { useMemo } from 'react';
 import { createGlobalStyle } from 'styled-components';
 import FieldIcon from './FieldIcon';
-import renderFilterItem from './renderFilterItem';
+import {
+    renderFilterItem,
+    renderFilterItemWithoutTableName,
+} from './renderFilterItem';
+import renderFilterList from './renderFilterList';
 
 const AutocompleteMaxHeight = createGlobalStyle`
   .autocomplete-max-height {
@@ -31,6 +35,7 @@ type FieldAutoCompleteProps<T> = {
     onClosed?: () => void;
     popoverProps?: Popover2Props;
     inputProps?: React.ComponentProps<typeof Suggest2>['inputProps'];
+    hasGrouping?: boolean;
 };
 
 const FieldAutoComplete = <T extends Field | TableCalculation>({
@@ -45,6 +50,7 @@ const FieldAutoComplete = <T extends Field | TableCalculation>({
     placeholder,
     popoverProps,
     inputProps,
+    hasGrouping = false,
 }: FieldAutoCompleteProps<T>) => {
     const sortedFields = useMemo(() => {
         return fields.sort((a, b) =>
@@ -90,7 +96,15 @@ const FieldAutoComplete = <T extends Field | TableCalculation>({
                     captureDismiss: true,
                     ...popoverProps,
                 }}
-                itemRenderer={renderFilterItem}
+                itemRenderer={
+                    hasGrouping
+                        ? renderFilterItemWithoutTableName
+                        : renderFilterItem
+                }
+                // type fix needed
+                // TS2322: Type 'ItemListRenderer<Field | TableCalculation | AdditionalMetric> | undefined' is not assignable to type 'ItemListRenderer<T> | undefined'.
+                // @ts-ignore
+                itemListRenderer={hasGrouping ? renderFilterList : undefined}
                 activeItem={activeField}
                 selectedItem={activeField}
                 noResults={<MenuItem2 disabled text="No results." />}

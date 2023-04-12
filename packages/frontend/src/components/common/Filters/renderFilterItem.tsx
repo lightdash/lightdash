@@ -4,12 +4,13 @@ import {
     AdditionalMetric,
     Field,
     getItemId,
+    getItemLabelWithoutTableName,
     TableCalculation,
 } from '@lightdash/common';
 import FieldIcon from './FieldIcon';
 import FieldLabel from './FieldLabel';
 
-const renderFilterItem: ItemRenderer<
+export const renderFilterItem: ItemRenderer<
     Field | TableCalculation | AdditionalMetric
 > = (item, { modifiers, handleClick, handleFocus }) => {
     if (!modifiers.matchesPredicate) {
@@ -30,4 +31,23 @@ const renderFilterItem: ItemRenderer<
     );
 };
 
-export default renderFilterItem;
+export const renderFilterItemWithoutTableName: ItemRenderer<
+    Field | TableCalculation | AdditionalMetric
+> = (item, { modifiers, handleClick, handleFocus }) => {
+    if (!modifiers.matchesPredicate) {
+        return null;
+    }
+    return (
+        <MenuItem2
+            key={getItemId(item)}
+            roleStructure="listoption"
+            shouldDismissPopover={false}
+            active={modifiers.active}
+            disabled={modifiers.disabled}
+            icon={<FieldIcon item={item} />}
+            text={getItemLabelWithoutTableName(item)}
+            onClick={handleClick}
+            onFocus={handleFocus}
+        />
+    );
+};

@@ -98,6 +98,7 @@ const FilterSearch: FC<Props> = ({
                             canEscapeKeyClose: !popoverProps?.isOpen,
                             ...popoverProps,
                         }}
+                        hasGrouping
                     />
                 </FormGroup>
             ) : (
