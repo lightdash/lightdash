@@ -1,4 +1,8 @@
-import { ResourceViewItemType, ResourceViewSpaceItem } from '@lightdash/common';
+import {
+    ResourceViewDashboardItem,
+    ResourceViewItemType,
+    ResourceViewSpaceItem,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 
 type Dependencies = {
@@ -10,6 +14,63 @@ export class ResourceViewItemModel {
 
     constructor(dependencies: Dependencies) {
         this.database = dependencies.database;
+    }
+
+    async getDashboardsByPinnedListUuid(
+        pinnedListUuid: string,
+    ): Promise<ResourceViewDashboardItem[]> {
+        const rows = await this.database.raw<Record<string, any>[]>(
+            `
+select
+    pl.project_uuid,
+    pl.pinned_list_uuid,
+    s.space_uuid,
+    pd.dashboard_uuid,
+    u.user_uuid as created_by_user_uuid,
+    MAX(d.name) as name,
+    MAX(d.description) as description,
+    MAX(dv.created_at) as updated_at,
+    COUNT(adv.timestamp) as views,
+    MIN(adv.timestamp) as first_viewed_at,
+    MAX(u.first_name) as created_by_user_first_name,
+    MAX(u.last_name) as created_by_user_last_name
+from pinned_list pl
+inner join pinned_dashboard pd on pl.pinned_list_uuid = pd.pinned_list_uuid
+    and pd.pinned_list_uuid = :pinnedListUuid
+inner join dashboards d on pd.dashboard_uuid = d.dashboard_uuid
+inner join spaces s on s.space_id = d.space_id
+inner join (
+    select distinct on(dashboard_id) dashboard_id, created_at, updated_by_user_uuid
+    from dashboard_versions
+    order by dashboard_id, created_at desc
+) dv on d.dashboard_id = dv.dashboard_id
+left join analytics_dashboard_views adv on d.dashboard_uuid = adv.dashboard_uuid
+left join users u on dv.updated_by_user_uuid = u.user_uuid
+group by 1, 2, 3, 4, 5;
+`,
+            { pinnedListUuid },
+        );
+        const resourceType: ResourceViewItemType.DASHBOARD =
+            ResourceViewItemType.DASHBOARD;
+        const items = rows.map((row) => ({
+            type: resourceType,
+            data: {
+                uuid: row.dashboard_uuid,
+                spaceUuid: row.space_uuid,
+                description: row.description,
+                name: row.name,
+                views: row.views,
+                firstViewedAt: row.first_viewed_at,
+                pinnedListUuid: row.pinned_list_uuid,
+                updatedAt: row.updated_at,
+                updatedByUser: {
+                    userUuid: row.updated_by_user_uuid,
+                    firstName: row.updated_by_user_first_name,
+                    lastName: row.updated_by_user_last_name,
+                },
+            },
+        }));
+        return items;
     }
 
     async getSpacesByPinnedListUuid(
