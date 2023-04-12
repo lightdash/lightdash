@@ -12,7 +12,7 @@ import ResourceViewGridSpaceItem from './ResourceViewGridSpaceItem';
 
 export interface ResourceViewGridCommonProps {
     groups?: ResourceViewItemType[][];
-    isReorderDisabled?: boolean;
+    hasReorder?: boolean;
 }
 
 type ResourceViewGridProps = ResourceViewGridCommonProps &
@@ -30,7 +30,7 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
         ],
     ],
     onAction,
-    isReorderDisabled,
+    hasReorder = false,
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
@@ -61,7 +61,6 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
         // newDraggableItems.splice(result.destination.index, 0, draggedItem);
         // setDraggableItems(newDraggableItems);
     };
-    console.log(isReorderDisabled);
 
     return (
         <Stack spacing="xl" p="lg">
@@ -80,7 +79,7 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
                     <DragDropContext onDragEnd={handleOnDragEnd}>
                         <Droppable
                             droppableId="pinned-charts"
-                            isDropDisabled={isReorderDisabled}
+                            isDropDisabled={!hasReorder}
                         >
                             {(dropProvided) => (
                                 <SimpleGrid
@@ -96,7 +95,7 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
                                             key={
                                                 item.type + '-' + item.data.uuid
                                             }
-                                            isDragDisabled={isReorderDisabled}
+                                            isDragDisabled={!hasReorder}
                                         >
                                             {(dragProvided) => (
                                                 <Anchor
