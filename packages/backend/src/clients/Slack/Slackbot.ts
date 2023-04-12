@@ -148,7 +148,9 @@ export class SlackService {
                 const details = await unfurlService.unfurlDetails(l.url);
 
                 if (details) {
-                    Logger.debug(`Unfurling URL ${l.url}`);
+                    Logger.debug(
+                        `Unfurling ${details.pageType} with URL ${details.minimalUrl}`,
+                    );
 
                     await SlackService.sendUnfurl(
                         event,
