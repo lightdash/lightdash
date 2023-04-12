@@ -2,11 +2,11 @@ import { Text, Tooltip } from '@mantine/core';
 import moment from 'moment';
 import { FC } from 'react';
 
-import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import {
     ResourceViewChartItem,
     ResourceViewDashboardItem,
-} from './resourceTypeUtils';
+} from '@lightdash/common';
+import { useTimeAgo } from '../../../hooks/useTimeAgo';
 
 interface ResourceLastEditedProps {
     item: ResourceViewChartItem | ResourceViewDashboardItem;

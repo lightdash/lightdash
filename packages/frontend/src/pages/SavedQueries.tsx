@@ -1,5 +1,9 @@
 import { subject } from '@casl/ability';
-import { LightdashMode } from '@lightdash/common';
+import {
+    LightdashMode,
+    ResourceViewItemType,
+    wrapResourceView,
+} from '@lightdash/common';
 import { Button, Center, Group, Stack } from '@mantine/core';
 import { IconChartBar, IconPlus } from '@tabler/icons-react';
 import { FC } from 'react';
@@ -8,10 +12,6 @@ import { useHistory, useParams } from 'react-router-dom';
 import LoadingState from '../components/common/LoadingState';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ResourceView from '../components/common/ResourceView';
-import {
-    ResourceViewItemType,
-    wrapResourceView,
-} from '../components/common/ResourceView/resourceTypeUtils';
 import { SortDirection } from '../components/common/ResourceView/ResourceViewList';
 import { useSavedCharts } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';

@@ -1,4 +1,4 @@
-import { assertUnreachable } from '@lightdash/common';
+import { assertUnreachable, ResourceViewItem } from '@lightdash/common';
 import {
     Box,
     Divider,
@@ -19,7 +19,6 @@ import ResourceActionHandlers, {
 import ResourceEmptyState, {
     ResourceEmptyStateProps,
 } from './ResourceEmptyState';
-import { ResourceViewItem } from './resourceTypeUtils';
 import ResourceViewGrid, {
     ResourceViewGridCommonProps,
 } from './ResourceViewGrid';

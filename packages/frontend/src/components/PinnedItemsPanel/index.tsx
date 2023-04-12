@@ -1,5 +1,12 @@
 import { subject } from '@casl/ability';
-import { DashboardBasicDetails, Space, SpaceQuery } from '@lightdash/common';
+import {
+    DashboardBasicDetails,
+    ResourceViewItemType,
+    Space,
+    SpaceQuery,
+    spaceToResourceViewItem,
+    wrapResourceView,
+} from '@lightdash/common';
 import { Card, Group, Text } from '@mantine/core';
 import { IconPin } from '@tabler/icons-react';
 import React, { FC, useMemo } from 'react';
@@ -7,10 +14,6 @@ import { useApp } from '../../providers/AppProvider';
 import MantineIcon from '../common/MantineIcon';
 import MantineLinkButton from '../common/MantineLinkButton';
 import ResourceView, { ResourceViewType } from '../common/ResourceView';
-import {
-    ResourceViewItemType,
-    wrapResourceView,
-} from '../common/ResourceView/resourceTypeUtils';
 
 interface Props {
     data: {
@@ -40,7 +43,10 @@ const PinnedItemsPanel: FC<Props> = ({
                 ResourceViewItemType.DASHBOARD,
             ),
             ...wrapResourceView(data.savedCharts, ResourceViewItemType.CHART),
-            ...wrapResourceView(data.spaces, ResourceViewItemType.SPACE),
+            ...wrapResourceView(
+                data.spaces.map(spaceToResourceViewItem),
+                ResourceViewItemType.SPACE,
+            ),
         ].filter((item) => {
             return !!item.data.pinnedListUuid;
         });

@@ -1,6 +1,10 @@
-import { assertUnreachable, ChartKind } from '@lightdash/common';
+import {
+    assertUnreachable,
+    ChartKind,
+    ResourceViewItem,
+    ResourceViewItemType,
+} from '@lightdash/common';
 import moment from 'moment';
-import { ResourceViewItem, ResourceViewItemType } from './resourceTypeUtils';
 
 export const getResourceTypeName = (item: ResourceViewItem) => {
     switch (item.type) {

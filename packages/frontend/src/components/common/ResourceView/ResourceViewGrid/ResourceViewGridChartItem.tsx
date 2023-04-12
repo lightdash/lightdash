@@ -1,3 +1,4 @@
+import { ResourceViewChartItem } from '@lightdash/common';
 import {
     Box,
     Flex,
@@ -14,7 +15,6 @@ import ResourceViewActionMenu, {
     ResourceViewActionMenuCommonProps,
 } from '../ResourceActionMenu';
 import { ResourceIcon } from '../ResourceIcon';
-import { ResourceViewChartItem } from '../resourceTypeUtils';
 import { getResourceViewsSinceWhenDescription } from '../resourceUtils';
 
 interface ResourceViewGridChartItemProps
