@@ -224,18 +224,20 @@ export class UnfurlService {
             const [projectUuid, dashboardUuid] =
                 (await url.match(uuidRegex)) || [];
 
+            const { searchParams } = new URL(url);
             return {
                 isValid: true,
                 lightdashPage: LightdashPage.DASHBOARD,
                 url,
-                minimalUrl: `${this.lightdashConfig.siteUrl}/minimal/projects/${projectUuid}/dashboards/${dashboardUuid}`,
+                minimalUrl: `${
+                    this.lightdashConfig.siteUrl
+                }/minimal/projects/${projectUuid}/dashboards/${dashboardUuid}?${searchParams.toString()}`,
                 projectUuid,
                 dashboardUuid,
             };
         }
         if (url.match(chartUrl) !== null) {
             const [projectUuid, chartUuid] = (await url.match(uuidRegex)) || [];
-
             return {
                 isValid: true,
                 lightdashPage: LightdashPage.CHART,
