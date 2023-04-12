@@ -1,13 +1,21 @@
-import { assertUnreachable, DashboardTileTypes } from '@lightdash/common';
-import { FC } from 'react';
+import {
+    assertUnreachable,
+    DashboardFilters,
+    DashboardTileTypes,
+} from '@lightdash/common';
+import { FC, useMemo } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
-import { useParams } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 import ChartTile from '../components/DashboardTiles/DashboardChartTile';
 import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
 import { useDashboardQuery } from '../hooks/dashboard/useDashboard';
-import { DashboardProvider } from '../providers/DashboardProvider';
+import {
+    DashboardProvider,
+    useDashboardContext,
+} from '../providers/DashboardProvider';
 
+import { useMount } from 'react-use';
 import '../styles/react-grid.css';
 import {
     getReactGridLayoutConfig,
@@ -23,6 +31,12 @@ const MinimalDashboard: FC = () => {
         isError,
         error,
     } = useDashboardQuery(dashboardUuid);
+
+    const dashboardFilters: DashboardFilters | undefined = useMemo(() => {
+        const searchParams = new URLSearchParams(window.location.search);
+        const filterSearchParam = searchParams.get('filters');
+        return filterSearchParam ? JSON.parse(filterSearchParam) : undefined;
+    }, []);
 
     if (isError) {
         return <>{error.error.message}</>;
@@ -53,6 +67,7 @@ const MinimalDashboard: FC = () => {
                         {tile.type === DashboardTileTypes.SAVED_CHART ? (
                             <ChartTile
                                 key={tile.uuid}
+                                dashboardFilters={dashboardFilters}
                                 minimal
                                 tile={tile}
                                 isEditMode={false}

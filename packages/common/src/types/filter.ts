@@ -125,3 +125,23 @@ export enum FilterGroupOperator {
     and = 'and',
     or = 'or',
 }
+
+export const convertDashboardFiltersToFilters = (
+    dashboardFilters: DashboardFilters,
+): Filters => {
+    const { dimensions, metrics } = dashboardFilters;
+    const filters: Filters = {};
+    if (dimensions.length > 0) {
+        filters.dimensions = {
+            id: 'dashboard_dimension_filters',
+            and: dimensions.map((dimension) => dimension),
+        };
+    }
+    if (metrics.length > 0) {
+        filters.metrics = {
+            id: 'dashboard_dimension_metrics',
+            and: metrics.map((metric) => metric),
+        };
+    }
+    return filters;
+};

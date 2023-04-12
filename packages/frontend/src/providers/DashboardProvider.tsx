@@ -246,8 +246,8 @@ export const DashboardProvider: React.FC = ({ children }) => {
     useEffect(() => {
         const newParams = new URLSearchParams(search);
         if (
-            dashboardTemporaryFilters.dimensions.length === 0 &&
-            dashboardTemporaryFilters.metrics.length === 0
+            dashboardTemporaryFilters?.dimensions?.length === 0 &&
+            dashboardTemporaryFilters?.metrics?.length === 0
         ) {
             newParams.delete('filters');
         } else {
