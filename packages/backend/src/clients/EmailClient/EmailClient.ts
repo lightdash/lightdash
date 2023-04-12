@@ -246,17 +246,17 @@ export default class EmailClient {
         url: string,
         schedulerUrl: string,
     ) {
-        const csvUrls = `
+        const csvUrls = `<table
+        role="presentation"
+        width="100%"
+        cellpadding="0"
+        cellspacing="0"
+        class="t179"
+     >
             ${attachments
                 .map(
                     (attachment) =>
-                        `<table
-                           role="presentation"
-                           width="100%"
-                           cellpadding="0"
-                           cellspacing="0"
-                           class="t179"
-                        >
+                        `
                           <tr>
                             <td
                               class="t180"
@@ -282,13 +282,13 @@ export default class EmailClient {
                                    href="${attachment.path}">
                                      ${attachment.filename}
                                    </a>
-                         </tr>
+                         
                            </td>
-                      </table>
+                           </tr>
 `,
                 )
                 .join('')}
-        `;
+                </table>`;
         return this.sendEmail({
             to: recipient,
             subject,
