@@ -9,6 +9,7 @@ import MantineLinkButton from '../common/MantineLinkButton';
 import ResourceView, { ResourceViewType } from '../common/ResourceView';
 import {
     ResourceViewItemType,
+    spaceToResourceViewItem,
     wrapResourceView,
 } from '../common/ResourceView/resourceTypeUtils';
 
@@ -40,7 +41,10 @@ const PinnedItemsPanel: FC<Props> = ({
                 ResourceViewItemType.DASHBOARD,
             ),
             ...wrapResourceView(data.savedCharts, ResourceViewItemType.CHART),
-            ...wrapResourceView(data.spaces, ResourceViewItemType.SPACE),
+            ...wrapResourceView(
+                data.spaces.map(spaceToResourceViewItem),
+                ResourceViewItemType.SPACE,
+            ),
         ].filter((item) => {
             return !!item.data.pinnedListUuid;
         });

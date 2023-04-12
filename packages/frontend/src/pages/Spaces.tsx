@@ -13,6 +13,7 @@ import ResourceView, {
 } from '../components/common/ResourceView';
 import {
     ResourceViewItemType,
+    spaceToResourceViewItem,
     wrapResourceView,
 } from '../components/common/ResourceView/resourceTypeUtils';
 import SpaceActionModal, {
@@ -83,7 +84,10 @@ const Spaces: FC = () => {
                 </Group>
                 <ResourceView
                     view={ResourceViewType.GRID}
-                    items={wrapResourceView(spaces, ResourceViewItemType.SPACE)}
+                    items={wrapResourceView(
+                        spaces.map(spaceToResourceViewItem),
+                        ResourceViewItemType.SPACE,
+                    )}
                     headerProps={{
                         title: 'Spaces',
                     }}

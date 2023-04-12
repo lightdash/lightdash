@@ -40,7 +40,7 @@ enum ResourceAccess {
 const getResourceAccessType = (item: ResourceViewSpaceItem): ResourceAccess => {
     if (!item.data.isPrivate) {
         return ResourceAccess.Public;
-    } else if (item.data.access.length > 1) {
+    } else if (item.data.accessListLength > 1) {
         return ResourceAccess.Shared;
     } else {
         return ResourceAccess.Private;
@@ -116,8 +116,8 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
             case ResourceAccess.Public:
                 return 'Everyone in this project has access';
             case ResourceAccess.Shared:
-                return `Shared with ${item.data.access.length} user${
-                    item.data.access.length > 1 ? 's' : ''
+                return `Shared with ${item.data.accessListLength} user${
+                    item.data.accessListLength > 1 ? 's' : ''
                 }`;
             default:
                 return assertUnreachable(
@@ -203,11 +203,11 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
                     <Group>
                         <AttributeCount
                             Icon={IconLayoutDashboard}
-                            count={item.data.dashboards.length}
+                            count={item.data.dashboardCount}
                         />
                         <AttributeCount
                             Icon={IconChartBar}
-                            count={item.data.queries.length}
+                            count={item.data.chartCount}
                         />
                     </Group>
                 </Stack>

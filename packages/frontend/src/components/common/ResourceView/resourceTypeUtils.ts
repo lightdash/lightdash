@@ -11,8 +11,6 @@ export enum ResourceViewItemType {
     SPACE = 'space',
 }
 
-type ResourceViewAcceptedItems = SpaceQuery | DashboardBasicDetails | Space;
-
 export type ResourceViewChartItem = {
     type: ResourceViewItemType.CHART;
     data: SpaceQuery;
@@ -25,8 +23,20 @@ export type ResourceViewDashboardItem = {
 
 export type ResourceViewSpaceItem = {
     type: ResourceViewItemType.SPACE;
-    data: Space;
+    data: Pick<
+        Space,
+        'projectUuid' | 'uuid' | 'name' | 'isPrivate' | 'pinnedListUuid'
+    > & {
+        accessListLength: number;
+        dashboardCount: number;
+        chartCount: number;
+    };
 };
+
+type ResourceViewAcceptedItems =
+    | ResourceViewSpaceItem['data']
+    | ResourceViewChartItem['data']
+    | ResourceViewDashboardItem['data'];
 
 export type ResourceViewItem =
     | ResourceViewChartItem
@@ -56,7 +66,7 @@ export const wrapResource = <T extends ResourceViewAcceptedItems>(
         case ResourceViewItemType.DASHBOARD:
             return { type, data: resource as DashboardBasicDetails };
         case ResourceViewItemType.SPACE:
-            return { type, data: resource as Space };
+            return { type, data: resource as ResourceViewSpaceItem['data'] };
         default:
             return assertUnreachable(type, `Unknown resource type: ${type}`);
     }
@@ -68,3 +78,16 @@ export const wrapResourceView = (
 ): ResourceViewItem[] => {
     return resources.map((resource) => wrapResource(resource, type));
 };
+
+export const spaceToResourceViewItem = (
+    space: Space,
+): ResourceViewSpaceItem['data'] => ({
+    projectUuid: space.projectUuid,
+    uuid: space.uuid,
+    name: space.name,
+    isPrivate: space.isPrivate,
+    pinnedListUuid: space.pinnedListUuid,
+    accessListLength: space.access.length,
+    dashboardCount: space.dashboards.length,
+    chartCount: space.queries.length,
+});

@@ -8,6 +8,7 @@ import { useApp } from '../../../providers/AppProvider';
 import ResourceView, { ResourceViewType } from '../../common/ResourceView';
 import {
     ResourceViewItemType,
+    spaceToResourceViewItem,
     wrapResourceView,
 } from '../../common/ResourceView/resourceTypeUtils';
 import SpaceActionModal, { ActionType } from '../../common/SpaceActionModal';
@@ -36,7 +37,10 @@ const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {
         <>
             <ResourceView
                 view={ResourceViewType.GRID}
-                items={wrapResourceView(spaces, ResourceViewItemType.SPACE)}
+                items={wrapResourceView(
+                    spaces.map(spaceToResourceViewItem),
+                    ResourceViewItemType.SPACE,
+                )}
                 headerProps={{
                     title: 'Spaces',
 
