@@ -1,7 +1,7 @@
 import { Button, Classes, Divider, Intent, Menu } from '@blueprintjs/core';
 import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { Dashboard, Space, UpdatedByUser } from '@lightdash/common';
-import { IconPencil } from '@tabler/icons-react';
+import { IconDots, IconPencil } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
@@ -188,7 +188,7 @@ const DashboardHeader = ({
             ) : userCanManageDashboard ? (
                 <PageActionsContainer>
                     <Button
-                        icon="edit"
+                        icon={<IconPencil size={16} />}
                         text="Edit dashboard"
                         onClick={() => {
                             history.replace(
@@ -287,7 +287,7 @@ const DashboardHeader = ({
                             </Menu>
                         }
                     >
-                        <Button icon="more" />
+                        <Button icon={<IconDots size={16} />} />
                     </Popover2>
 
                     {isCreatingNewSpace && (
