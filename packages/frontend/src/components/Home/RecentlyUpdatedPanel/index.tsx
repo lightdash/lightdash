@@ -1,8 +1,11 @@
 import { subject } from '@casl/ability';
 import {
     DashboardBasicDetails,
+    isResourceViewSpaceItem,
     LightdashMode,
+    ResourceViewItemType,
     SpaceQuery,
+    wrapResourceView,
 } from '@lightdash/common';
 import { Button } from '@mantine/core';
 import { IconChartBar, IconPlus } from '@tabler/icons-react';
@@ -12,11 +15,6 @@ import { useApp } from '../../../providers/AppProvider';
 import MantineIcon from '../../common/MantineIcon';
 import MantineLinkButton from '../../common/MantineLinkButton';
 import ResourceView from '../../common/ResourceView';
-import {
-    isResourceViewSpaceItem,
-    ResourceViewItemType,
-    wrapResourceView,
-} from '../../common/ResourceView/resourceTypeUtils';
 
 interface Props {
     data: {

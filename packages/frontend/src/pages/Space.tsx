@@ -7,7 +7,11 @@ import {
 } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
-import { LightdashMode } from '@lightdash/common';
+import {
+    LightdashMode,
+    ResourceViewItemType,
+    wrapResourceView,
+} from '@lightdash/common';
 import { ActionIcon, Center, Group, Stack } from '@mantine/core';
 import {
     IconChartAreaLine,
@@ -25,10 +29,6 @@ import DashboardCreateModal from '../components/common/modal/DashboardCreateModa
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ResourceView from '../components/common/ResourceView';
 import { ResourceTypeIcon } from '../components/common/ResourceView/ResourceIcon';
-import {
-    ResourceViewItemType,
-    wrapResourceView,
-} from '../components/common/ResourceView/resourceTypeUtils';
 import ShareSpaceModal from '../components/common/ShareSpaceModal';
 import SpaceActionModal, {
     ActionType,

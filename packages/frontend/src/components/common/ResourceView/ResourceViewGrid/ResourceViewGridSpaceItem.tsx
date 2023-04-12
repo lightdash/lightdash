@@ -1,4 +1,4 @@
-import { assertUnreachable } from '@lightdash/common';
+import { assertUnreachable, ResourceViewSpaceItem } from '@lightdash/common';
 import {
     Box,
     Flex,
@@ -24,7 +24,6 @@ import ResourceViewActionMenu, {
     ResourceViewActionMenuCommonProps,
 } from '../ResourceActionMenu';
 import { ResourceIcon } from '../ResourceIcon';
-import { ResourceViewSpaceItem } from '../resourceTypeUtils';
 
 interface ResourceViewGridSpaceItemProps
     extends Pick<ResourceViewActionMenuCommonProps, 'onAction'> {

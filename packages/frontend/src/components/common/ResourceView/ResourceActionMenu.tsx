@@ -1,5 +1,9 @@
 import { subject } from '@casl/ability';
-import { assertUnreachable } from '@lightdash/common';
+import {
+    assertUnreachable,
+    ResourceViewItem,
+    ResourceViewItemType,
+} from '@lightdash/common';
 import { ActionIcon, Box, Menu } from '@mantine/core';
 import {
     IconCheck,
@@ -23,7 +27,6 @@ import {
     ResourceViewItemAction,
     ResourceViewItemActionState,
 } from './ResourceActionHandlers';
-import { ResourceViewItem, ResourceViewItemType } from './resourceTypeUtils';
 
 export interface ResourceViewActionMenuCommonProps {
     onAction: (newAction: ResourceViewItemActionState) => void;

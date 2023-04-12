@@ -107,6 +107,7 @@ export * from './types/pinning';
 export * from './types/pivot';
 export * from './types/projectMemberProfile';
 export * from './types/projects';
+export * from './types/resourceViewItem';
 export * from './types/results';
 export * from './types/savedCharts';
 export * from './types/scheduler';

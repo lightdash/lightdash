@@ -1,16 +1,16 @@
 import { AnchorButton, Button } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
-import { LightdashMode } from '@lightdash/common';
+import {
+    LightdashMode,
+    ResourceViewItemType,
+    spaceToResourceViewItem,
+    wrapResourceView,
+} from '@lightdash/common';
 import { IconFolders } from '@tabler/icons-react';
 import { FC, useState } from 'react';
 import { useSpaces } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
 import ResourceView, { ResourceViewType } from '../../common/ResourceView';
-import {
-    ResourceViewItemType,
-    spaceToResourceViewItem,
-    wrapResourceView,
-} from '../../common/ResourceView/resourceTypeUtils';
 import SpaceActionModal, { ActionType } from '../../common/SpaceActionModal';
 
 const SpaceBrowser: FC<{ projectUuid: string }> = ({ projectUuid }) => {

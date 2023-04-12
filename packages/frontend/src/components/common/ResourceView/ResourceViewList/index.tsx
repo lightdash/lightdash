@@ -1,18 +1,17 @@
-import { Anchor, Box, Group, Stack, Table, Text, Tooltip } from '@mantine/core';
-import { createStyles } from '@mantine/styles';
-import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
-import moment from 'moment';
-import React, { FC, useMemo, useState } from 'react';
-import { Link, useHistory, useParams } from 'react-router-dom';
-import { ResourceViewCommonProps } from '..';
-import { useSpaces } from '../../../../hooks/useSpaces';
-import { ResourceIcon } from '../ResourceIcon';
 import {
     isResourceViewItemChart,
     isResourceViewItemDashboard,
     isResourceViewSpaceItem,
     ResourceViewItem,
-} from '../resourceTypeUtils';
+} from '@lightdash/common';
+import { Anchor, Box, Group, Stack, Table, Text, Tooltip } from '@mantine/core';
+import { createStyles } from '@mantine/styles';
+import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
+import React, { FC, useMemo, useState } from 'react';
+import { Link, useHistory, useParams } from 'react-router-dom';
+import { ResourceViewCommonProps } from '..';
+import { useSpaces } from '../../../../hooks/useSpaces';
+import { ResourceIcon } from '../ResourceIcon';
 import {
     getResourceTypeName,
     getResourceUrl,

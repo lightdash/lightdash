@@ -1,10 +1,9 @@
-import { assertUnreachable } from '@lightdash/common';
+import { assertUnreachable, ResourceViewItemType } from '@lightdash/common';
 import { Anchor, SimpleGrid, Stack, Text } from '@mantine/core';
 import { FC, useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ResourceViewCommonProps } from '..';
 import { ResourceViewItemActionState } from '../ResourceActionHandlers';
-import { ResourceViewItemType } from '../resourceTypeUtils';
 import { getResourceName, getResourceUrl } from '../resourceUtils';
 import ResourceViewGridChartItem from './ResourceViewGridChartItem';
 import ResourceViewGridDashboardItem from './ResourceViewGridDashboardItem';

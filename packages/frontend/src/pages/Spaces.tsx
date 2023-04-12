@@ -1,6 +1,11 @@
 import { AnchorButton } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
-import { LightdashMode } from '@lightdash/common';
+import {
+    LightdashMode,
+    ResourceViewItemType,
+    spaceToResourceViewItem,
+    wrapResourceView,
+} from '@lightdash/common';
 import { Button, Center, Group, Stack } from '@mantine/core';
 import { IconFolders, IconPlus } from '@tabler/icons-react';
 import { FC, useState } from 'react';
@@ -11,11 +16,6 @@ import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ResourceView, {
     ResourceViewType,
 } from '../components/common/ResourceView';
-import {
-    ResourceViewItemType,
-    spaceToResourceViewItem,
-    wrapResourceView,
-} from '../components/common/ResourceView/resourceTypeUtils';
 import SpaceActionModal, {
     ActionType,
 } from '../components/common/SpaceActionModal';

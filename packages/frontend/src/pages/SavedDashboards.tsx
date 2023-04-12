@@ -1,5 +1,9 @@
 import { subject } from '@casl/ability';
-import { LightdashMode } from '@lightdash/common';
+import {
+    LightdashMode,
+    ResourceViewItemType,
+    wrapResourceView,
+} from '@lightdash/common';
 import { Button, Center, Group, Stack, Tooltip } from '@mantine/core';
 import { IconLayoutDashboard, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
@@ -9,10 +13,6 @@ import LoadingState from '../components/common/LoadingState';
 import DashboardCreateModal from '../components/common/modal/DashboardCreateModal';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ResourceView from '../components/common/ResourceView';
-import {
-    ResourceViewItemType,
-    wrapResourceView,
-} from '../components/common/ResourceView/resourceTypeUtils';
 import { SortDirection } from '../components/common/ResourceView/ResourceViewList';
 import { useCreateMutation } from '../hooks/dashboard/useDashboard';
 import { useDashboards } from '../hooks/dashboard/useDashboards';

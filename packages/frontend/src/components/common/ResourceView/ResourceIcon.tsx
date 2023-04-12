@@ -1,4 +1,9 @@
-import { assertUnreachable, ChartKind } from '@lightdash/common';
+import {
+    assertUnreachable,
+    ChartKind,
+    ResourceViewItem,
+    ResourceViewItemType,
+} from '@lightdash/common';
 import { Center, Paper } from '@mantine/core';
 import {
     IconChartArea,
@@ -14,7 +19,6 @@ import {
 } from '@tabler/icons-react';
 import { FC } from 'react';
 import MantineIcon from '../MantineIcon';
-import { ResourceViewItem, ResourceViewItemType } from './resourceTypeUtils';
 
 interface ResourceIconProps {
     item: ResourceViewItem;

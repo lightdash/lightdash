@@ -1,9 +1,7 @@
-import {
-    assertUnreachable,
-    DashboardBasicDetails,
-    Space,
-    SpaceQuery,
-} from '@lightdash/common';
+import assertUnreachable from '../utils/assertUnreachable';
+import { DashboardBasicDetails } from './dashboard';
+import { SpaceQuery } from './savedCharts';
+import { Space } from './space';
 
 export enum ResourceViewItemType {
     CHART = 'chart',
@@ -18,7 +16,18 @@ export type ResourceViewChartItem = {
 
 export type ResourceViewDashboardItem = {
     type: ResourceViewItemType.DASHBOARD;
-    data: DashboardBasicDetails;
+    data: Pick<
+        DashboardBasicDetails,
+        | 'uuid'
+        | 'spaceUuid'
+        | 'description'
+        | 'name'
+        | 'views'
+        | 'firstViewedAt'
+        | 'pinnedListUuid'
+        | 'updatedAt'
+        | 'updatedByUser'
+    >;
 };
 
 export type ResourceViewSpaceItem = {
@@ -75,9 +84,8 @@ export const wrapResource = <T extends ResourceViewAcceptedItems>(
 export const wrapResourceView = (
     resources: ResourceViewAcceptedItems[],
     type: ResourceViewItemType,
-): ResourceViewItem[] => {
-    return resources.map((resource) => wrapResource(resource, type));
-};
+): ResourceViewItem[] =>
+    resources.map((resource) => wrapResource(resource, type));
 
 export const spaceToResourceViewItem = (
     space: Space,

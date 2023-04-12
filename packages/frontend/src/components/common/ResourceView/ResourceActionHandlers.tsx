@@ -1,4 +1,11 @@
-import { assertUnreachable, Space } from '@lightdash/common';
+import {
+    assertUnreachable,
+    ResourceViewChartItem,
+    ResourceViewDashboardItem,
+    ResourceViewItem,
+    ResourceViewItemType,
+    Space,
+} from '@lightdash/common';
 import { FC, useCallback, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import {
@@ -18,12 +25,6 @@ import ChartUpdateModal from '../modal/ChartUpdateModal';
 import DashboardDeleteModal from '../modal/DashboardDeleteModal';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
 import SpaceActionModal, { ActionType } from '../SpaceActionModal';
-import {
-    ResourceViewChartItem,
-    ResourceViewDashboardItem,
-    ResourceViewItem,
-    ResourceViewItemType,
-} from './resourceTypeUtils';
 
 export enum ResourceViewItemAction {
     CLOSE,
