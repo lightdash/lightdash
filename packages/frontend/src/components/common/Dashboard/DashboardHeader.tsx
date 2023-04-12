@@ -197,9 +197,7 @@ const DashboardHeader = ({
                         }}
                     />
 
-                    <ShareLinkButton
-                        url={`${window.location.origin}/projects/${projectUuid}/dashboards/${dashboardUuid}/view`}
-                    />
+                    <ShareLinkButton url={`${window.location.href}`} />
 
                     <Popover2
                         placement="bottom"
