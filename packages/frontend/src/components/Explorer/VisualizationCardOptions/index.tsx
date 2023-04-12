@@ -49,9 +49,7 @@ const VisualizationCardOptions: FC = memo(() => {
                             <IconChartAreaLine
                                 size={20}
                                 color={
-                                    disabled === true
-                                        ? Colors.LIGHT_GRAY1
-                                        : Colors.GRAY1
+                                    disabled ? Colors.LIGHT_GRAY1 : Colors.GRAY1
                                 }
                             />
                         ),
@@ -67,7 +65,7 @@ const VisualizationCardOptions: FC = memo(() => {
                                 <IconChartArea
                                     size={20}
                                     color={
-                                        disabled === true
+                                        disabled
                                             ? Colors.LIGHT_GRAY1
                                             : Colors.GRAY1
                                     }
@@ -82,7 +80,7 @@ const VisualizationCardOptions: FC = memo(() => {
                                 <IconChartLine
                                     size={20}
                                     color={
-                                        disabled === true
+                                        disabled
                                             ? Colors.LIGHT_GRAY1
                                             : Colors.GRAY1
                                     }
@@ -99,7 +97,7 @@ const VisualizationCardOptions: FC = memo(() => {
                                           size={20}
                                           style={{ rotate: '90deg' }}
                                           color={
-                                              disabled === true
+                                              disabled
                                                   ? Colors.LIGHT_GRAY1
                                                   : Colors.GRAY1
                                           }
@@ -112,7 +110,7 @@ const VisualizationCardOptions: FC = memo(() => {
                                       <IconChartBar
                                           size={20}
                                           color={
-                                              disabled === true
+                                              disabled
                                                   ? Colors.LIGHT_GRAY1
                                                   : Colors.GRAY1
                                           }
@@ -128,7 +126,7 @@ const VisualizationCardOptions: FC = memo(() => {
                                 <IconChartDots
                                     size={20}
                                     color={
-                                        disabled === true
+                                        disabled
                                             ? Colors.LIGHT_GRAY1
                                             : Colors.GRAY1
                                     }
@@ -146,11 +144,7 @@ const VisualizationCardOptions: FC = memo(() => {
                     icon: (
                         <IconTable
                             size={20}
-                            color={
-                                disabled === true
-                                    ? Colors.LIGHT_GRAY1
-                                    : Colors.GRAY1
-                            }
+                            color={disabled ? Colors.LIGHT_GRAY1 : Colors.GRAY1}
                         />
                     ),
                 };
@@ -160,11 +154,7 @@ const VisualizationCardOptions: FC = memo(() => {
                     icon: (
                         <IconSquareNumber1
                             size={20}
-                            color={
-                                disabled === true
-                                    ? Colors.LIGHT_GRAY1
-                                    : Colors.GRAY1
-                            }
+                            color={disabled ? Colors.LIGHT_GRAY1 : Colors.GRAY1}
                         />
                     ),
                 };
