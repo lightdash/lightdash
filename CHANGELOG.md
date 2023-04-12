@@ -1,3 +1,10 @@
+## [0.507.1](https://github.com/lightdash/lightdash/compare/0.507.0...0.507.1) (2023-04-12)
+
+
+### Bug Fixes
+
+* Open sql runner code editor when a table is clicked on sidebar ([#5056](https://github.com/lightdash/lightdash/issues/5056)) ([bd7b6b1](https://github.com/lightdash/lightdash/commit/bd7b6b149333e3fd319e2d99cac38d0a924de906))
+
 # [0.507.0](https://github.com/lightdash/lightdash/compare/0.506.7...0.507.0) (2023-04-12)
 
 
