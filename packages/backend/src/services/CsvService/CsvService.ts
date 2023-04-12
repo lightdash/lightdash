@@ -310,6 +310,9 @@ export class CsvService {
         );
         const numberRows = rows.length;
 
+        if (numberRows === 0)
+            return { path: '#no-results', filename: `${chart.name} (empty)` };
+
         const explore = await this.projectService.getExplore(
             user,
             chart.projectUuid,
