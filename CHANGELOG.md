@@ -1,3 +1,10 @@
+## [0.506.6](https://github.com/lightdash/lightdash/compare/0.506.5...0.506.6) (2023-04-12)
+
+
+### Bug Fixes
+
+* scheduled delivery dashboard csv template ([#5060](https://github.com/lightdash/lightdash/issues/5060)) ([0d03d80](https://github.com/lightdash/lightdash/commit/0d03d80d0753d5210a08d68f37335ca3ad204603))
+
 ## [0.506.5](https://github.com/lightdash/lightdash/compare/0.506.4...0.506.5) (2023-04-12)
 
 
