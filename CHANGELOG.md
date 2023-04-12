@@ -1,3 +1,15 @@
+# [0.507.0](https://github.com/lightdash/lightdash/compare/0.506.7...0.507.0) (2023-04-12)
+
+
+### Bug Fixes
+
+* no results dashboard csv ([#5061](https://github.com/lightdash/lightdash/issues/5061)) ([f3c1bb3](https://github.com/lightdash/lightdash/commit/f3c1bb3610a27018928328e624f76f53920f07d9))
+
+
+### Features
+
+* copy full url on dashboard ([#5065](https://github.com/lightdash/lightdash/issues/5065)) ([ab093df](https://github.com/lightdash/lightdash/commit/ab093df87c85dfc894924bee9b55a80d2fd75835))
+
 ## [0.506.7](https://github.com/lightdash/lightdash/compare/0.506.6...0.506.7) (2023-04-12)
 
 
