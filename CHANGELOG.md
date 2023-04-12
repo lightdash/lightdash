@@ -1,3 +1,11 @@
+## [0.506.5](https://github.com/lightdash/lightdash/compare/0.506.4...0.506.5) (2023-04-12)
+
+
+### Bug Fixes
+
+* **client:** improve visuals of dashboard and chart headers ([#5043](https://github.com/lightdash/lightdash/issues/5043)) ([5f3f412](https://github.com/lightdash/lightdash/commit/5f3f412c31ac45fca946c645205c4ee1588d60a9))
+* contentDisposition headers for csv downloads ([#5025](https://github.com/lightdash/lightdash/issues/5025)) ([8612958](https://github.com/lightdash/lightdash/commit/8612958d9d87b7d0532f53d032c3089163036f78))
+
 ## [0.506.4](https://github.com/lightdash/lightdash/compare/0.506.3...0.506.4) (2023-04-11)
 
 
