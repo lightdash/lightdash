@@ -67,8 +67,17 @@ function treeReducer(state: TreeNodeInfo[], action: TreeAction) {
     }
 }
 
+enum SqlRunnerCards {
+    CHART = 'CHART',
+    SQL = 'SQL',
+    RESULTS = 'RESULTS',
+}
+
 // Note: this code is based on blueprint example https://github.com/palantir/blueprint/blob/develop/packages/docs-app/src/examples/core-examples/treeExample.tsx
 export const Tree: React.FC<{
+    setExpandedCards: React.Dispatch<
+        React.SetStateAction<Map<SqlRunnerCards, boolean>>
+    >;
     contents: TreeNodeInfo[];
     handleSelect: boolean;
     onNodeClick?: (
@@ -76,8 +85,15 @@ export const Tree: React.FC<{
         nodePath: NodePath,
         e: React.MouseEvent<HTMLElement>,
     ) => void;
-}> = ({ contents, handleSelect, onNodeClick }) => {
+}> = ({ setExpandedCards, contents, handleSelect, onNodeClick }) => {
     const [nodes, dispatch] = React.useReducer(treeReducer, contents);
+
+    const handleCardExpandOnNodeClick = React.useCallback(
+        (card: SqlRunnerCards, value: boolean) => {
+            setExpandedCards((prev) => new Map(prev).set(card, value));
+        },
+        [setExpandedCards],
+    );
 
     const handleNodeClick = React.useCallback(
         (
@@ -85,6 +101,7 @@ export const Tree: React.FC<{
             nodePath: NodePath,
             e: React.MouseEvent<HTMLElement>,
         ) => {
+            handleCardExpandOnNodeClick(SqlRunnerCards.SQL, true);
             if (handleSelect) {
                 const originallySelected = node.isSelected;
                 if (!e.shiftKey) {
@@ -103,7 +120,7 @@ export const Tree: React.FC<{
             }
             onNodeClick?.(node, nodePath, e);
         },
-        [handleSelect, onNodeClick],
+        [handleCardExpandOnNodeClick, handleSelect, onNodeClick],
     );
 
     const handleNodeCollapse = React.useCallback(
