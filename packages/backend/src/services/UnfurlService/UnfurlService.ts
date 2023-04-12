@@ -224,8 +224,6 @@ export class UnfurlService {
             const [projectUuid, dashboardUuid] =
                 (await url.match(uuidRegex)) || [];
 
-            const { searchParams } = new URL(url);
-            // TODO add support for filters after fixing https://github.com/lightdash/lightdash/issues/5064
             return {
                 isValid: true,
                 lightdashPage: LightdashPage.DASHBOARD,
@@ -375,7 +373,7 @@ export class UnfurlService {
         const buffer = await this.saveScreenshot(
             imageId,
             cookie,
-            url.replace('localhost:8080', 'localhots:3000'), // This is needed for local testing, it will do nothing on prod
+            url,
             lightdashPage,
             retries,
         );
