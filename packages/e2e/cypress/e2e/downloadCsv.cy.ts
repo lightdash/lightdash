@@ -130,7 +130,7 @@ describe('Download CSV on Explore', () => {
         cy.findByText('Loading chart').should('not.exist');
 
         cy.findByText('Export CSV').click();
-        cy.get('[data-icon="export"]').click();
+        cy.get('.bp4-popover2').get('button').contains('Export CSV').click();
 
         cy.wait('@apiDownloadCsv').then((interception) => {
             expect(interception?.response?.statusCode).to.eq(200);
@@ -165,7 +165,7 @@ describe('Download CSV on Explore', () => {
         cy.get('[role="menuitem"]').contains('Table').click();
 
         cy.findByText('Export CSV').click();
-        cy.get('[data-icon="export"]').click();
+        cy.get('.bp4-popover2').get('button').contains('Export CSV').click();
 
         cy.wait('@apiDownloadCsv').then((interception) => {
             expect(interception?.response?.statusCode).to.eq(200);
