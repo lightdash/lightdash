@@ -252,6 +252,11 @@ projectRouter.get(
                 const error = `This file ${req.params.fileId} doesn't exist on this server, this may be happening if you are running multiple containers or because files are not persisted. You can check out our docs to learn more on how to enable cloud storage: https://docs.lightdash.com/self-host/customize-deployment/configure-lightdash-to-use-external-object-storage`;
                 throw new NotFoundError(error);
             }
+            res.set('Content-Type', 'text/csv');
+            res.set(
+                'Content-Disposition',
+                `attachment; filename=${req.params.fileId}`,
+            );
             res.sendFile(filePath);
         } catch (error) {
             next(error);

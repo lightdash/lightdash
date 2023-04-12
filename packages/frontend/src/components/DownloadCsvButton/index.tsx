@@ -24,7 +24,7 @@ const DownloadCsvButton: FC<Props> = memo(({ disabled, getCsvLink }) => {
                     .then((scheduledCsvResponse) => {
                         pollCsvFileUrl(scheduledCsvResponse)
                             .then((url) => {
-                                window.open(url, '_blank');
+                                window.location.href = url;
                             })
                             .catch((error) => {
                                 showToastError({
