@@ -1,3 +1,10 @@
+## [0.506.7](https://github.com/lightdash/lightdash/compare/0.506.6...0.506.7) (2023-04-12)
+
+
+### Bug Fixes
+
+* month filter chart ([#5040](https://github.com/lightdash/lightdash/issues/5040)) ([62add12](https://github.com/lightdash/lightdash/commit/62add125af7a214e576316ae9e1e3bfc32d478b6))
+
 ## [0.506.6](https://github.com/lightdash/lightdash/compare/0.506.5...0.506.6) (2023-04-12)
 
 
