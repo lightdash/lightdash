@@ -146,12 +146,14 @@ export const useUnderlyingDataResults = (
 // This hook will be used for getting charts in view mode and dashboard tiles
 export const useChartResults = (chartUuid: string, filters?: Filters) => {
     const queryKey = ['savedChartResults', chartUuid, JSON.stringify(filters)];
+    const timezoneFixQuery = convertDateFilters({ filters } as MetricQuery);
+
     return useQuery<ApiQueryResults, ApiError>({
         queryKey,
         queryFn: () =>
             getChartResults({
                 chartUuid,
-                filters,
+                filters: timezoneFixQuery.filters,
             }),
         retry: false,
         refetchOnMount: false,

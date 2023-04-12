@@ -1,6 +1,7 @@
 import {
     CartesianSeriesType,
     ChartType,
+    ConditionalOperator,
     SEED_ORG_1_ADMIN,
     SEED_PROJECT,
 } from '@lightdash/common';
@@ -288,6 +289,59 @@ export async function seed(knex: Knex): Promise<void> {
                     'customers_days_between_created_and_first_order',
                     'payments_total_revenue',
                     'payments_unique_payment_count',
+                ],
+            },
+            updatedByUser,
+        },
+    );
+
+    await savedChartModel.create(
+        SEED_PROJECT.project_uuid,
+        SEED_ORG_1_ADMIN.user_uuid,
+        {
+            name: 'How many orders did we get on February?',
+            description:
+                'A single value of the total number of orders received in February',
+            tableName: 'orders',
+            metricQuery: {
+                dimensions: ['orders_order_date_month'],
+                metrics: [
+                    'orders_total_order_amount',
+                    'orders_completed_order_count',
+                ],
+                filters: {
+                    dimensions: {
+                        id: '9e696bbe-6ef9-4352-94cc-5a297efd965a',
+                        and: [
+                            {
+                                id: 'f00cfea4-0c92-4bac-b6fd-462b199f3db2',
+                                target: {
+                                    fieldId: 'orders_order_date_month',
+                                },
+                                operator: ConditionalOperator.EQUALS,
+                                values: ['2018-02-01T00:00:00Z'],
+                            },
+                        ],
+                    },
+                },
+                limit: 500,
+                sorts: [
+                    {
+                        fieldId: 'orders_completed_order_count',
+                        descending: false,
+                    },
+                ],
+                tableCalculations: [],
+            },
+            chartConfig: {
+                type: ChartType.TABLE,
+                config: undefined,
+            },
+            tableConfig: {
+                columnOrder: [
+                    'orders_order_date_month',
+                    'orders_total_order_amount',
+                    'orders_completed_order_count',
                 ],
             },
             updatedByUser,
