@@ -5,6 +5,7 @@ import {
     Explore,
     getItemLabel,
     getItemMap,
+    isDimension,
     isField,
     itemsInMetricQuery,
     PivotData,
@@ -98,6 +99,11 @@ const useTableConfig = (
         [columnProperties],
     );
 
+    const getField = useCallback(
+        (fieldId: string) => itemsMap[fieldId],
+        [itemsMap],
+    );
+
     const getFieldLabel = useCallback(
         (fieldId: string | null | undefined) => {
             return (
@@ -110,8 +116,13 @@ const useTableConfig = (
     // This is controlled by the state in this component.
     // User configures the names and visibilty of these in the config panel
     const isColumnVisible = useCallback(
-        (fieldId: string) => columnProperties[fieldId]?.visible ?? true,
-        [columnProperties],
+        (fieldId: string) => {
+            // if metricsAsRows is enabled, we should always show the dimensions
+            // hiding a dimension randomly removes values from all metrics
+            if (metricsAsRows && isDimension(getField(fieldId))) return true;
+            return columnProperties[fieldId]?.visible ?? true;
+        },
+        [metricsAsRows, getField, columnProperties],
     );
     const isColumnFrozen = useCallback(
         (fieldId: string) => columnProperties[fieldId]?.frozen === true,
@@ -122,11 +133,6 @@ const useTableConfig = (
         if (!selectedItemIds) return [];
         return selectedItemIds.filter((fieldId) => !isColumnVisible(fieldId));
     }, [selectedItemIds, isColumnVisible]);
-
-    const getField = useCallback(
-        (fieldId: string) => itemsMap[fieldId],
-        [itemsMap],
-    );
 
     const canUseMetricsAsRows = useMemo(() => {
         if (
