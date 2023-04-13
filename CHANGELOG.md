@@ -1,3 +1,10 @@
+## [0.509.3](https://github.com/lightdash/lightdash/compare/0.509.2...0.509.3) (2023-04-13)
+
+
+### Bug Fixes
+
+* added grouping to dashboard dimensions dropdown ([#5070](https://github.com/lightdash/lightdash/issues/5070)) ([41c882b](https://github.com/lightdash/lightdash/commit/41c882b2152d56dbc9a1498eb06178acf2f98037))
+
 ## [0.509.2](https://github.com/lightdash/lightdash/compare/0.509.1...0.509.2) (2023-04-13)
 
 
