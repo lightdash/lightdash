@@ -1,3 +1,16 @@
+# [0.509.0](https://github.com/lightdash/lightdash/compare/0.508.0...0.509.0) (2023-04-13)
+
+
+### Bug Fixes
+
+* improve copy invite email ([#5075](https://github.com/lightdash/lightdash/issues/5075)) ([505a6c8](https://github.com/lightdash/lightdash/commit/505a6c83f85118aa53adfdf91f5748083f76396c))
+
+
+### Features
+
+* pivot table interactivity tooltips ([#5019](https://github.com/lightdash/lightdash/issues/5019)) ([0cd3330](https://github.com/lightdash/lightdash/commit/0cd33303421ce6ef65f2b4ef641b02555e8e8414))
+* Reorder pinned items (FE POC) ([#5049](https://github.com/lightdash/lightdash/issues/5049)) ([6cd0545](https://github.com/lightdash/lightdash/commit/6cd0545f35288a064f9839e2459ccd9a17ef7e18))
+
 # [0.508.0](https://github.com/lightdash/lightdash/compare/0.507.1...0.508.0) (2023-04-13)
 
 
