@@ -419,13 +419,15 @@ export class UserModel {
                 .returning('*');
 
             if (!isOpenIdUser(activateUser)) {
-                await UserModel.createPasswordLogin(trx, {
-                    user_id: user.user_id,
-                    password_hash: await bcrypt.hash(
-                        activateUser.password,
-                        await bcrypt.genSalt(),
-                    ),
-                });
+                if (!this.hasPassword(userUuid)) {
+                    await UserModel.createPasswordLogin(trx, {
+                        user_id: user.user_id,
+                        password_hash: await bcrypt.hash(
+                            activateUser.password,
+                            await bcrypt.genSalt(),
+                        ),
+                    });
+                }
             } else {
                 await trx(OpenIdIdentitiesTableName)
                     .insert({
