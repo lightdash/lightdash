@@ -192,13 +192,23 @@ const UserActivity: FC = () => {
                             <BigNumberLabel>Number of viewers</BigNumberLabel>
                         </BigNumberContainer>
                     </ActivityCard>
-
+                    <ActivityCard grid="interactive-viewers">
+                        <BigNumberContainer>
+                            <BigNumber>
+                                {data.numberInteractiveViewers}
+                            </BigNumber>
+                            <BigNumberLabel>
+                                Number of interactive viewers
+                            </BigNumberLabel>
+                        </BigNumberContainer>
+                    </ActivityCard>
                     <ActivityCard grid="editors">
                         <BigNumberContainer>
                             <BigNumber>{data.numberEditors}</BigNumber>
                             <BigNumberLabel>Number of editors</BigNumberLabel>
                         </BigNumberContainer>
                     </ActivityCard>
+
                     <ActivityCard grid="admins">
                         <BigNumberContainer>
                             <BigNumber>{data.numberAdmins}</BigNumber>

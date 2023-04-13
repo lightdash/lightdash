@@ -8,6 +8,8 @@ export type UserWithCount = {
 export type UserActivity = {
     numberUsers: number;
     numberViewers: number;
+    numberInteractiveViewers: number;
+
     numberEditors: number;
     numberAdmins: number;
     numberWeeklyQueryingUsers: number;
