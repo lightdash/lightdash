@@ -43,9 +43,7 @@ const StickyMenuDivider: FC<StickyMenuDividerProps> = ({ index, title }) => {
         <MenuDivider $isFirst={index === 0}>
             {index !== 0 && <StyledDivider />}
 
-            <TableName>
-                {title} + {index}
-            </TableName>
+            <TableName>{title}</TableName>
         </MenuDivider>
     );
 };
