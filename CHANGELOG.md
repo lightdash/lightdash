@@ -1,3 +1,10 @@
+## [0.509.1](https://github.com/lightdash/lightdash/compare/0.509.0...0.509.1) (2023-04-13)
+
+
+### Bug Fixes
+
+* update dbt version in project form ([#5086](https://github.com/lightdash/lightdash/issues/5086)) ([ddf6871](https://github.com/lightdash/lightdash/commit/ddf68715c0922cd15e4b772a533cce49ee4b48dc))
+
 # [0.509.0](https://github.com/lightdash/lightdash/compare/0.508.0...0.509.0) (2023-04-13)
 
 
