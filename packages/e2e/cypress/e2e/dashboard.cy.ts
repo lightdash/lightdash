@@ -43,8 +43,9 @@ describe('Dashboard', () => {
         // Add filter
         cy.contains('Add filter').click();
 
-        cy.findByPlaceholderText('Search field...').click();
-        cy.contains('Payments Payment method').click();
+        cy.findByPlaceholderText('Search field...')
+            .click()
+            .type('payment method{enter}');
         cy.findByPlaceholderText('Start typing to filter results').type(
             'credit_card{enter}{esc}',
         );
