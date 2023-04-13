@@ -9,6 +9,20 @@ const TableName = styled.span`
     color: ${Colors.GRAY2};
 `;
 
+const StyledMenuDivider = styled(MenuDivider)`
+    position: sticky;
+    top: -6px;
+
+    &.bp4-menu-header:not(:first-of-type) {
+        top: -16px !important;
+    }
+
+    z-index: 1;
+    background: ${Colors.WHITE};
+    margin: 0;
+    padding: 8px 6px;
+`;
+
 const renderFilterList = <T extends Field | TableCalculation>({
     items,
     itemsParentRef,
@@ -40,9 +54,10 @@ const renderFilterList = <T extends Field | TableCalculation>({
         <Menu role="listbox" ulRef={itemsParentRef}>
             {getGroupedItems(items).map((groupedItem) => (
                 <React.Fragment key={groupedItem.key}>
-                    <MenuDivider
-                        title={<TableName>{groupedItem.group}</TableName>}
+                    <StyledMenuDivider
+                        title={<TableName>{groupedItem.group} </TableName>}
                     />
+
                     {groupedItem.items.map((item, index) =>
                         renderItem(item, groupedItem.index + index),
                     )}
