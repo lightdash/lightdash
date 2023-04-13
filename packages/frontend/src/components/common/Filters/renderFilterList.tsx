@@ -13,8 +13,9 @@ type MenuDividerProps = {
     $isFirst: boolean;
 };
 
-const STICK_HEADER_WITH_DIVIDER = -11;
-const STICK_HEADER_WITHOUT_DIVIDER = -5;
+const Y_PADDING = 5;
+const STICK_HEADER_WITHOUT_DIVIDER = -Y_PADDING;
+const STICK_HEADER_WITH_DIVIDER = -Y_PADDING - 1;
 
 const MenuDivider = styled.li<MenuDividerProps>`
     position: sticky;
@@ -25,7 +26,9 @@ const MenuDivider = styled.li<MenuDividerProps>`
     z-index: 1;
     background: ${Colors.WHITE};
     margin: 0;
-    padding: 5px 7px 5px 7px;
+    padding: ${({ $isFirst }) => ($isFirst ? Y_PADDING : 0)}px 7px
+        ${Y_PADDING}px 7px;
+    margin-top: ${({ $isFirst }) => ($isFirst ? 0 : Y_PADDING)}px;
 `;
 
 const StyledDivider = styled(Divider)`
