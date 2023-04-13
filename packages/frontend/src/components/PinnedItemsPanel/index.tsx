@@ -56,6 +56,7 @@ const PinnedItemsPanel: FC<Props> = ({
         <ResourceView
             items={pinnedItems}
             view={ResourceViewType.GRID}
+            // hasReorder
             gridProps={{
                 groups: [
                     [ResourceViewItemType.SPACE],

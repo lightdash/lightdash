@@ -47,6 +47,7 @@ export interface ResourceViewCommonProps {
     headerProps?: ResourceHeaderProps;
     emptyStateProps?: ResourceEmptyStateProps;
     view?: ResourceViewType;
+    hasReorder?: boolean;
 }
 
 export enum ResourceViewType {
@@ -68,6 +69,7 @@ const ResourceView: React.FC<ResourceViewProps> = ({
     listProps = {},
     headerProps = {},
     emptyStateProps = {},
+    hasReorder = false,
 }) => {
     const theme = useMantineTheme();
 
@@ -224,6 +226,7 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                         items={slicedSortedItems}
                         groups={gridProps.groups}
                         onAction={handleAction}
+                        hasReorder={hasReorder}
                     />
                 ) : (
                     assertUnreachable(view, 'Unknown resource view type')
