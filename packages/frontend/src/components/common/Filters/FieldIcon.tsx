@@ -19,7 +19,6 @@ import {
 } from '@tabler/icons-react';
 import { CSSProperties, FC } from 'react';
 import { getItemIconName } from '../../Explorer/ExploreTree/TableTree/Tree/TreeSingleNode';
-import { SearchItem } from '../../NavBar/GlobalSearch/hooks';
 
 const getFieldIcon = (field: Field | TableCalculation | AdditionalMetric) => {
     if (isField(field) && (isDimension(field) || isMetric(field))) {

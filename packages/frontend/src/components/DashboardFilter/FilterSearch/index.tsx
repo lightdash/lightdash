@@ -88,6 +88,7 @@ const FilterSearch: FC<Props> = ({
                     labelFor="field-autocomplete"
                 >
                     <FieldAutoComplete
+                        hasGrouping
                         id="field-autocomplete"
                         fields={fields}
                         onChange={handleChangeField}
