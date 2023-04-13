@@ -1,40 +1,41 @@
-import { Anchor } from '@mantine/core';
-import React from 'react';
-import {
-    Button,
-    Content,
-    DarkLogo,
-    Icon,
-    LinkText,
-    MobileViewWrapper,
-    Paragraph,
-    Text,
-} from './Mobile.styles';
+import { Anchor, Box, Image, Stack, Text, Title } from '@mantine/core';
+import LightdashLogo from '../../svgs/lightdash-black.svg';
+import MantineLinkButton from '../common/MantineLinkButton';
 
 const MobileView = () => (
-    <MobileViewWrapper>
-        <Content>
-            <DarkLogo title="Home" />
-            <Icon>&#128586;</Icon>
-            <Text>Lightdash currently works best on bigger screens.</Text>
-            <Paragraph>
+    <Box w="100vw" h="100vh" sx={{ background: '#ebf1f5' }}>
+        <Stack align="center" spacing="xl" justify="start" p="5xl">
+            <Image src={LightdashLogo} alt="lightdash logo" maw="8xl" my="lg" />
+            <Box
+                component="span"
+                sx={{
+                    fontSize: '2.5rem',
+                    display: 'block',
+                }}
+            >
+                &#128586;
+            </Box>
+            <Title ta="center" order={4}>
+                Lightdash currently works best on bigger screens.
+            </Title>
+            <Text ta="center" color="gray.6">
                 Sign in on a laptop or desktop to get started! In the meantime:
-            </Paragraph>
-            <Anchor
-                style={{ width: '17.25rem', height: '2.5rem' }}
+            </Text>
+            <MantineLinkButton
                 href="https://www.lightdash.com/"
                 target="_blank"
             >
-                <Button>Check out our website</Button>
-            </Anchor>
+                Check out our website
+            </MantineLinkButton>
             <Anchor
                 href="https://join.slack.com/t/lightdash-community/shared_invite/zt-16q953ork-NZr1qdEqxSwB17E2ckUe7A"
                 target="_blank"
+                span
             >
-                <LinkText>...or join our community!</LinkText>
+                ...or join our community!
             </Anchor>
-        </Content>
-    </MobileViewWrapper>
+        </Stack>
+    </Box>
 );
 
 export default MobileView;
