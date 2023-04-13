@@ -8,7 +8,7 @@ sidebar_label: Creating dashboards
 Dashboards allow you to arrange multiple charts that are related to each other into a single view.
 
 Checkout this tutorial on how to create your first dashboard:
-[![tutorial building first dashboard](./assets/tutorial_building_first_dashboard.png)](https://www.youtube.com/watch?v=6A4eoioe6So)
+[![tutorial building first dashboard](./assets/tutorial_building_first_dashboard.png)](https://youtu.be/olFcN8Pui08)
 
 ## 1. Open the dashboard page
 
