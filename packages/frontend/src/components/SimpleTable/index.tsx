@@ -56,7 +56,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
         );
     }
 
-    if (pivotTableData) {
+    if (pivotTableData.error || pivotTableData.data) {
         return (
             <Box w="100%" h="100%" p="xs" sx={{ overflowX: 'scroll' }}>
                 {pivotTableData.error || !pivotTableData.data ? (
