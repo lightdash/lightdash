@@ -1,7 +1,6 @@
 import { MenuItem2 } from '@blueprintjs/popover2';
 import { ItemRenderer } from '@blueprintjs/select';
 import {
-    AdditionalMetric,
     Field,
     getItemId,
     getItemLabelWithoutTableName,
@@ -10,9 +9,10 @@ import {
 import FieldIcon from './FieldIcon';
 import FieldLabel from './FieldLabel';
 
-export const renderFilterItem: ItemRenderer<
-    Field | TableCalculation | AdditionalMetric
-> = (item, { modifiers, handleClick, handleFocus }) => {
+export const renderFilterItem: ItemRenderer<Field | TableCalculation> = (
+    item,
+    { modifiers, handleClick, handleFocus },
+) => {
     if (!modifiers.matchesPredicate) {
         return null;
     }
@@ -32,7 +32,7 @@ export const renderFilterItem: ItemRenderer<
 };
 
 export const renderFilterItemWithoutTableName: ItemRenderer<
-    Field | TableCalculation | AdditionalMetric
+    Field | TableCalculation
 > = (item, { modifiers, handleClick, handleFocus }) => {
     if (!modifiers.matchesPredicate) {
         return null;

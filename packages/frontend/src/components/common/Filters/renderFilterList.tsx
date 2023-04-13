@@ -1,11 +1,6 @@
 import { Colors, Menu, MenuDivider } from '@blueprintjs/core';
-import { ItemListRenderer } from '@blueprintjs/select';
-import {
-    AdditionalMetric,
-    Field,
-    getItemTableName,
-    TableCalculation,
-} from '@lightdash/common';
+import { ItemListRendererProps } from '@blueprintjs/select';
+import { Field, getItemTableName, TableCalculation } from '@lightdash/common';
 import React from 'react';
 import styled from 'styled-components';
 
@@ -14,19 +9,20 @@ const TableName = styled.span`
     color: ${Colors.GRAY2};
 `;
 
-const renderFilterList: ItemListRenderer<
-    Field | TableCalculation | AdditionalMetric
-> = ({ items, itemsParentRef, query, renderItem }) => {
-    const getGroupedItems = (
-        filteredItems: (Field | TableCalculation | AdditionalMetric)[],
-    ) => {
+const renderFilterList = <T extends Field | TableCalculation>({
+    items,
+    itemsParentRef,
+    query,
+    renderItem,
+}: ItemListRendererProps<T>) => {
+    const getGroupedItems = (filteredItems: typeof items) => {
         return filteredItems.reduce<
-            Array<{
+            {
                 group: string;
                 index: number;
-                items: (Field | TableCalculation | AdditionalMetric)[];
+                items: typeof items;
                 key: number;
-            }>
+            }[]
         >((acc, item, index) => {
             const group = getItemTableName(item);
 

@@ -101,9 +101,6 @@ const FieldAutoComplete = <T extends Field | TableCalculation>({
                         ? renderFilterItemWithoutTableName
                         : renderFilterItem
                 }
-                // type fix needed
-                // TS2322: Type 'ItemListRenderer<Field | TableCalculation | AdditionalMetric> | undefined' is not assignable to type 'ItemListRenderer<T> | undefined'.
-                // @ts-ignore
                 itemListRenderer={hasGrouping ? renderFilterList : undefined}
                 activeItem={activeField}
                 selectedItem={activeField}

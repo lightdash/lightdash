@@ -47,25 +47,11 @@ export const getItemId = (item: Field | AdditionalMetric | TableCalculation) =>
 export const getItemLabel = (item: Field | TableCalculation) =>
     isField(item) ? `${item.tableLabel} ${item.label}` : item.displayName;
 
-export const getItemTableName = (
-    item: Field | TableCalculation | AdditionalMetric,
-) =>
-    // eslint-disable-next-line no-nested-ternary
-    isField(item)
-        ? `${item.tableLabel}`
-        : isAdditionalMetric(item)
-        ? `${item.table}`
-        : item.displayName;
+export const getItemTableName = (item: Field | TableCalculation) =>
+    isField(item) ? `${item.tableLabel}` : item.displayName;
 
-export const getItemLabelWithoutTableName = (
-    item: Field | TableCalculation | AdditionalMetric,
-) =>
-    // eslint-disable-next-line no-nested-ternary
-    isField(item)
-        ? `${item.name}`
-        : isAdditionalMetric(item)
-        ? `${item.name}`
-        : item.displayName;
+export const getItemLabelWithoutTableName = (item: Field | TableCalculation) =>
+    isField(item) ? `${item.name}` : item.displayName;
 
 export const getItemIcon = (
     item: Field | TableCalculation | AdditionalMetric,
