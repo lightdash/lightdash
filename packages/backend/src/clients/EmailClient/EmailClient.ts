@@ -158,7 +158,7 @@ export default class EmailClient {
                 roleAction = 'edit';
                 break;
             case ProjectMemberRole.ADMIN:
-                roleAction = 'administer';
+                roleAction = 'manage';
                 break;
             default:
                 const nope: never = projectMember.role;
