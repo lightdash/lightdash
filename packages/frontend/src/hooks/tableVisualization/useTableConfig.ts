@@ -61,36 +61,27 @@ const useTableConfig = (
         Record<string, ColumnProperties>
     >(tableChartConfig?.columns === undefined ? {} : tableChartConfig?.columns);
 
-    const selectedItemIds = useMemo(
-        () =>
-            resultsData
-                ? itemsInMetricQuery(resultsData.metricQuery)
-                : undefined,
-        [resultsData],
-    );
+    const selectedItemIds = useMemo(() => {
+        return resultsData
+            ? itemsInMetricQuery(resultsData.metricQuery)
+            : undefined;
+    }, [resultsData]);
     const itemsMap = useMemo(() => {
-        if (explore) {
-            return getItemMap(
-                explore,
-                resultsData?.metricQuery.additionalMetrics,
-                resultsData?.metricQuery.tableCalculations,
-            );
-        }
-        return {};
+        if (!explore) return {};
+
+        return getItemMap(
+            explore,
+            resultsData?.metricQuery.additionalMetrics,
+            resultsData?.metricQuery.tableCalculations,
+        );
     }, [explore, resultsData]);
 
     const getFieldLabelDefault = useCallback(
         (fieldId: string | null | undefined) => {
-            if (fieldId === null || fieldId === undefined) {
-                return undefined;
-            }
-            const item = itemsMap[fieldId] as
-                | typeof itemsMap[number]
-                | undefined;
+            if (!fieldId || !(fieldId in itemsMap)) return undefined;
 
-            if (item === undefined) {
-                return undefined;
-            }
+            const item = itemsMap[fieldId];
+
             if (isField(item) && !showTableNames) {
                 return item.label;
             } else {
@@ -128,9 +119,7 @@ const useTableConfig = (
     );
 
     const getField = useCallback(
-        (fieldId: string) => {
-            return itemsMap[fieldId];
-        },
+        (fieldId: string) => itemsMap[fieldId],
         [itemsMap],
     );
 

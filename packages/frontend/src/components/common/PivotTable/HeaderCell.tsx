@@ -1,21 +1,36 @@
-import { Box } from '@mantine/core';
+import { Box, Tooltip } from '@mantine/core';
 import { FC } from 'react';
 
 interface HeaderCellProps {
+    className?: string;
     level?: number;
+    description?: string;
 }
 
-const HeaderCell: FC<HeaderCellProps> = ({ children = '-', level = 0 }) => {
+const HeaderCell: FC<HeaderCellProps> = ({
+    children = '-',
+    className,
+    description,
+    level = 0,
+}) => {
     return (
-        <Box
-            component="th"
-            sx={(theme) => ({
-                fontWeight: 600,
-                backgroundColor: theme.colors.gray[level - 1],
-            })}
+        <Tooltip
+            withArrow
+            withinPortal
+            multiline
+            disabled={!description}
+            label={description}
         >
-            {children}
-        </Box>
+            <Box
+                component="th"
+                className={className}
+                sx={(theme) => ({
+                    backgroundColor: theme.colors.gray[level],
+                })}
+            >
+                {children}
+            </Box>
+        </Tooltip>
     );
 };
 

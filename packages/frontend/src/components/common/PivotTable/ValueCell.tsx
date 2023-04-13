@@ -3,12 +3,11 @@ import {
     Field,
     getConditionalFormattingConfig,
     getConditionalFormattingDescription,
-    PivotMetricValue,
+    PivotValue,
     TableCalculation,
 } from '@lightdash/common';
 import { Box, Text, Tooltip } from '@mantine/core';
 import { mergeRefs, useClipboard, useHotkeys } from '@mantine/hooks';
-import { darken } from 'polished';
 import {
     FC,
     ForwardedRef,
@@ -19,10 +18,11 @@ import {
 } from 'react';
 import { readableColor } from '../../../utils/colorUtils';
 import { getConditionalRuleLabel } from '../Filters/configs';
+import { usePivotTableCellStyles } from './tableStyles';
 import ValueCellMenu from './ValueCellMenu';
 
 interface ValueCellProps {
-    value: PivotMetricValue | null;
+    value: PivotValue | null;
     conditionalFormattings: ConditionalFormattingConfig[];
     getField: (fieldId: string) => Field | TableCalculation;
 }
@@ -51,7 +51,7 @@ const ValueCell: FC<ValueCellProps> = ({
     const conditionalFormatting = useMemo(() => {
         const conditionalFormattingConfig = getConditionalFormattingConfig(
             field,
-            value?.raw,
+            value?.value?.raw,
             conditionalFormattings,
         );
 
@@ -77,11 +77,20 @@ const ValueCell: FC<ValueCellProps> = ({
 
     const handleCopy = useCallback(() => {
         if (isMenuOpen) {
-            clipboard.copy(value?.formatted);
+            clipboard.copy(value?.value?.formatted);
         }
     }, [clipboard, value, isMenuOpen]);
 
     useHotkeys([['mod+c', handleCopy]]);
+
+    const { cx, classes } = usePivotTableCellStyles({
+        conditionalFormatting: conditionalFormatting
+            ? {
+                  backgroundColor: conditionalFormatting.backgroundColor,
+                  color: conditionalFormatting.color,
+              }
+            : undefined,
+    });
 
     return (
         <ValueCellMenu
@@ -110,32 +119,17 @@ const ValueCell: FC<ValueCellProps> = ({
                                     data-conditional-formatting={
                                         !!conditionalFormatting
                                     }
-                                    sx={(theme) => ({
-                                        color: conditionalFormatting?.color,
-                                        backgroundColor:
-                                            conditionalFormatting?.backgroundColor,
-
-                                        '&[data-expanded="true"]': {
-                                            backgroundColor:
-                                                conditionalFormatting?.backgroundColor
-                                                    ? darken(0.1)(
-                                                          conditionalFormatting.backgroundColor,
-                                                      )
-                                                    : theme.colors.blue[0],
-                                            outline:
-                                                conditionalFormatting?.backgroundColor
-                                                    ? 'none'
-                                                    : `1px solid ${theme.colors.blue[5]}`,
+                                    className={cx(
+                                        tooltipProps.className,
+                                        menuProps.className,
+                                        classes.root,
+                                        {
+                                            [classes.conditionalFormatting]:
+                                                conditionalFormatting,
                                         },
-
-                                        '&[data-copied="true"]': {
-                                            color: theme.black,
-                                            backgroundColor:
-                                                theme.colors.blue[1],
-                                        },
-                                    })}
+                                    )}
                                 >
-                                    <Text>{value?.formatted}</Text>
+                                    <Text>{value?.value?.formatted}</Text>
                                 </Box>
                             )}
                         />
