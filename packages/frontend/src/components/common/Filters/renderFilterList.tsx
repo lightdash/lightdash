@@ -1,7 +1,7 @@
-import { Colors, Menu, MenuDivider } from '@blueprintjs/core';
+import { Colors, Divider, Menu } from '@blueprintjs/core';
 import { ItemListRendererProps } from '@blueprintjs/select';
 import { Field, getItemTableName, TableCalculation } from '@lightdash/common';
-import React from 'react';
+import React, { FC } from 'react';
 import styled from 'styled-components';
 
 const TableName = styled.span`
@@ -9,19 +9,46 @@ const TableName = styled.span`
     color: ${Colors.GRAY2};
 `;
 
-const StyledMenuDivider = styled(MenuDivider)`
-    position: sticky;
-    top: -6px;
+type MenuDividerProps = {
+    $isFirst: boolean;
+};
 
-    &.bp4-menu-header:not(:first-of-type) {
-        top: -16px !important;
-    }
+const STICK_HEADER_WITH_DIVIDER = -11;
+const STICK_HEADER_WITHOUT_DIVIDER = -5;
+
+const MenuDivider = styled.li<MenuDividerProps>`
+    position: sticky;
+
+    top: ${({ $isFirst }) =>
+        $isFirst ? STICK_HEADER_WITHOUT_DIVIDER : STICK_HEADER_WITH_DIVIDER}px;
 
     z-index: 1;
     background: ${Colors.WHITE};
     margin: 0;
-    padding: 8px 6px;
+    padding: 5px 7px 5px 7px;
 `;
+
+const StyledDivider = styled(Divider)`
+    margin: 0;
+    margin-bottom: 5px;
+`;
+
+type StickyMenuDividerProps = {
+    index: number;
+    title: string;
+};
+
+const StickyMenuDivider: FC<StickyMenuDividerProps> = ({ index, title }) => {
+    return (
+        <MenuDivider $isFirst={index === 0}>
+            {index !== 0 && <StyledDivider />}
+
+            <TableName>
+                {title} + {index}
+            </TableName>
+        </MenuDivider>
+    );
+};
 
 const renderFilterList = <T extends Field | TableCalculation>({
     items,
@@ -30,36 +57,33 @@ const renderFilterList = <T extends Field | TableCalculation>({
     renderItem,
 }: ItemListRendererProps<T>) => {
     const getGroupedItems = (filteredItems: typeof items) => {
-        return filteredItems.reduce<
-            {
-                group: string;
-                index: number;
-                items: typeof items;
-                key: number;
-            }[]
-        >((acc, item, index) => {
-            const group = getItemTableName(item);
+        return filteredItems.reduce<{ group: string; items: typeof items }[]>(
+            (acc, item) => {
+                const group = getItemTableName(item);
 
-            const lastGroup = acc.at(-1);
-            if (lastGroup && lastGroup.group === group) {
-                lastGroup.items.push(item);
-            } else {
-                acc.push({ group, index, items: [item], key: index });
-            }
-            return acc;
-        }, []);
+                const lastGroup = acc.at(-1);
+                if (lastGroup && lastGroup.group === group) {
+                    lastGroup.items.push(item);
+                } else {
+                    acc.push({ group, items: [item] });
+                }
+                return acc;
+            },
+            [],
+        );
     };
 
     return (
         <Menu role="listbox" ulRef={itemsParentRef}>
-            {getGroupedItems(items).map((groupedItem) => (
-                <React.Fragment key={groupedItem.key}>
-                    <StyledMenuDivider
-                        title={<TableName>{groupedItem.group} </TableName>}
+            {getGroupedItems(items).map((groupedItem, index) => (
+                <React.Fragment key={index}>
+                    <StickyMenuDivider
+                        index={index}
+                        title={groupedItem.group}
                     />
 
-                    {groupedItem.items.map((item, index) =>
-                        renderItem(item, groupedItem.index + index),
+                    {groupedItem.items.map((item, itemIndex) =>
+                        renderItem(item, index + itemIndex),
                     )}
                 </React.Fragment>
             ))}
