@@ -148,15 +148,17 @@ export default class EmailClient {
         let roleAction = 'view';
         switch (projectMember.role) {
             case ProjectMemberRole.VIEWER:
-            case ProjectMemberRole.INTERACTIVE_VIEWER:
                 roleAction = 'view';
+                break;
+            case ProjectMemberRole.INTERACTIVE_VIEWER:
+                roleAction = 'explore';
                 break;
             case ProjectMemberRole.EDITOR:
             case ProjectMemberRole.DEVELOPER:
                 roleAction = 'edit';
                 break;
             case ProjectMemberRole.ADMIN:
-                roleAction = 'admin';
+                roleAction = 'administer';
                 break;
             default:
                 const nope: never = projectMember.role;
