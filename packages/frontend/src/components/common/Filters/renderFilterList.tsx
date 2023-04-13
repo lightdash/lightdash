@@ -36,18 +36,18 @@ const renderFilterList = <T extends Field | TableCalculation>({
         }, []);
     };
 
-    const menuContent = getGroupedItems(items).map((groupedItem) => (
-        <React.Fragment key={groupedItem.key}>
-            <MenuDivider title={<TableName>{groupedItem.group}</TableName>} />
-            {groupedItem.items.map((item, index) =>
-                renderItem(item, groupedItem.index + index),
-            )}
-        </React.Fragment>
-    ));
-
     return (
         <Menu role="listbox" ulRef={itemsParentRef}>
-            {menuContent}
+            {getGroupedItems(items).map((groupedItem) => (
+                <React.Fragment key={groupedItem.key}>
+                    <MenuDivider
+                        title={<TableName>{groupedItem.group}</TableName>}
+                    />
+                    {groupedItem.items.map((item, index) =>
+                        renderItem(item, groupedItem.index + index),
+                    )}
+                </React.Fragment>
+            ))}
         </Menu>
     );
 };

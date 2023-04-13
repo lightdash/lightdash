@@ -51,7 +51,7 @@ export const getItemTableName = (item: Field | TableCalculation) =>
     isField(item) ? `${item.tableLabel}` : item.displayName;
 
 export const getItemLabelWithoutTableName = (item: Field | TableCalculation) =>
-    isField(item) ? `${item.name}` : item.displayName;
+    isField(item) ? `${item.label}` : item.displayName;
 
 export const getItemIcon = (
     item: Field | TableCalculation | AdditionalMetric,
