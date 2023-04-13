@@ -287,7 +287,10 @@ const DashboardHeader = ({
                             </Menu>
                         }
                     >
-                        <Button icon={<IconDots size={16} />} />
+                        <Button
+                            style={{ padding: '5px 7px' }}
+                            icon={<IconDots size={16} />}
+                        />
                     </Popover2>
 
                     {isCreatingNewSpace && (

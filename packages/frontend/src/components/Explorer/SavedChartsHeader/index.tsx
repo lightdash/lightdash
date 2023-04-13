@@ -374,6 +374,7 @@ const SavedChartsHeader: FC = () => {
                             }
                         >
                             <Button
+                                style={{ padding: '5px 7px' }}
                                 icon={<IconDots size={16} />}
                                 disabled={!unsavedChartVersion.tableName}
                             />
