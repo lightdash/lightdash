@@ -1,3 +1,10 @@
+# [0.508.0](https://github.com/lightdash/lightdash/compare/0.507.1...0.508.0) (2023-04-13)
+
+
+### Features
+
+* add interactive viewers analytics ([a7f1c9a](https://github.com/lightdash/lightdash/commit/a7f1c9ad6623c78a63e3020346122977d0b5bb88))
+
 ## [0.507.1](https://github.com/lightdash/lightdash/compare/0.507.0...0.507.1) (2023-04-12)
 
 
