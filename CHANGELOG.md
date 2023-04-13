@@ -1,3 +1,10 @@
+## [0.509.2](https://github.com/lightdash/lightdash/compare/0.509.1...0.509.2) (2023-04-13)
+
+
+### Bug Fixes
+
+* Update the app screen when you're on mobile ([#5054](https://github.com/lightdash/lightdash/issues/5054)) ([8b984c7](https://github.com/lightdash/lightdash/commit/8b984c76e7bdc1f102da8f6ba007e934b96a5171))
+
 ## [0.509.1](https://github.com/lightdash/lightdash/compare/0.509.0...0.509.1) (2023-04-13)
 
 
