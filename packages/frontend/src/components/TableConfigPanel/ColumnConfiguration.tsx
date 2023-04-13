@@ -36,7 +36,10 @@ export const ColumnConfiguration: React.FC = () => {
                     <InputGroup
                         key={fieldId}
                         fill
-                        disabled={!isColumnVisible(fieldId)}
+                        disabled={
+                            !isColumnVisible(fieldId) &&
+                            !disableHidingDimensions
+                        }
                         defaultValue={getFieldLabelOverride(fieldId)}
                         placeholder={getFieldLabelDefault(fieldId)}
                         onBlur={(e) => {
