@@ -1,4 +1,4 @@
-import { ApiErrorPayload, ApiPinnedItem } from '@lightdash/common';
+import { ApiErrorPayload, ApiPinnedItems } from '@lightdash/common';
 import express from 'express';
 import {
     Controller,
@@ -13,26 +13,29 @@ import {
 } from 'tsoa';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 
-@Route('/api/v1/pinnedItem')
+@Route('/api/v1/pinnedItems')
 @Response<ApiErrorPayload>('default', 'Error')
 export class PinnedItemsController extends Controller {
     /**
      * Get a pinned item
-     * @param pinnedListUuid the list uuid for the pinned item
+     * @param pinnedListUuid the list uuid for the pinned items
      * @param req express request
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('{pinnedListUuid}')
-    @OperationId('getPinnedItem')
+    @OperationId('getPinnedItems')
     async get(
         @Path() pinnedListUuid: string,
         @Request() req: express.Request,
-    ): Promise<ApiPinnedItem> {
+    ): Promise<ApiPinnedItems> {
         this.setStatus(200);
         // this portion will be replaced by the service method like so:
-        // await pinningService.getPinnedItem(pinnedListUuid);
-        const pinnedItem = {} as ApiPinnedItem;
-        return pinnedItem;
+        // await pinningService.getPinnedCharts(pinnedListUuid);
+        // await pinningService.getPinnedDashboards(pinnedListUuid);
+        // await pinningService.getPinnedSpaces(pinnedListUuid);
+        // return { ...dashboards, ...charts, ...spaces };
+        const pinnedItems = {} as ApiPinnedItems;
+        return pinnedItems;
     }
 }
