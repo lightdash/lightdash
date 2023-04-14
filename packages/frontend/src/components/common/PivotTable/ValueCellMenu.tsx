@@ -6,12 +6,10 @@ import { useParams } from 'react-router-dom';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
-import DrillDownModal from '../../MetricQueryData/DrillDownModal';
 import {
     UnderlyingValueMap,
     useMetricQueryDataContext,
 } from '../../MetricQueryData/MetricQueryDataProvider';
-import UnderlyingDataModal from '../../MetricQueryData/UnderlyingDataModal';
 import MantineIcon from '../MantineIcon';
 
 type ValueCellMenuProps = {
@@ -52,6 +50,8 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
     }
 
     const handleOpenUnderlyingDataModal = () => {
+        console.log('click handler');
+
         openUnderlyingDataModel(item, pivotValue.value, rowMap);
         track({
             name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
@@ -80,71 +80,66 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
     };
 
     return (
-        <>
-            <UnderlyingDataModal />
-            <DrillDownModal />
+        <Menu
+            opened={opened}
+            onOpen={onOpen}
+            onClose={onClose}
+            withinPortal
+            shadow="md"
+            position="bottom-end"
+            radius="xs"
+            offset={{
+                mainAxis: 1,
+                crossAxis: 2,
+            }}
+        >
+            <Menu.Target>{children}</Menu.Target>
 
-            <Menu
-                opened={opened}
-                onOpen={onOpen}
-                onClose={onClose}
-                withinPortal
-                shadow="md"
-                position="bottom-end"
-                radius="xs"
-                offset={{
-                    mainAxis: 1,
-                    crossAxis: 2,
-                }}
-            >
-                <Menu.Target>{children}</Menu.Target>
+            <Menu.Dropdown>
+                <Menu.Item
+                    icon={
+                        <MantineIcon
+                            icon={IconCopy}
+                            size="md"
+                            fillOpacity={0}
+                        />
+                    }
+                    onClick={onCopy}
+                >
+                    Copy
+                </Menu.Item>
 
-                <Menu.Dropdown>
-                    <Menu.Item
-                        icon={
-                            <MantineIcon
-                                icon={IconCopy}
-                                size="md"
-                                fillOpacity={0}
-                            />
-                        }
-                        onClick={onCopy}
-                    >
-                        Copy
-                    </Menu.Item>
+                {item ? (
+                    <>
+                        <Menu.Item
+                            icon={
+                                <MantineIcon
+                                    icon={IconStack}
+                                    size="md"
+                                    fillOpacity={0}
+                                />
+                            }
+                            onClick={handleOpenUnderlyingDataModal}
+                        >
+                            View underlying data
+                        </Menu.Item>
 
-                    {item ? (
-                        <>
-                            <Menu.Item
-                                icon={
-                                    <MantineIcon
-                                        icon={IconStack}
-                                        size="md"
-                                        fillOpacity={0}
-                                    />
-                                }
-                                onClick={handleOpenUnderlyingDataModal}
-                            >
-                                View underlying data
-                            </Menu.Item>
-
-                            <Menu.Item
-                                icon={
-                                    <MantineIcon
-                                        icon={IconArrowBarToDown}
-                                        size="md"
-                                        fillOpacity={0}
-                                    />
-                                }
-                                onClick={handleOpenDrillIntoModal}
-                            >
-                                Drill into "{pivotValue.value.formatted}"
-                            </Menu.Item>
-                        </>
-                    ) : null}
-                </Menu.Dropdown>
-            </Menu>
-        </>
+                        <Menu.Item
+                            icon={
+                                <MantineIcon
+                                    icon={IconArrowBarToDown}
+                                    size="md"
+                                    fillOpacity={0}
+                                />
+                            }
+                            onClick={handleOpenDrillIntoModal}
+                        >
+                            Drill into "{pivotValue.value.formatted}"
+                        </Menu.Item>
+                    </>
+                ) : null}
+            </Menu.Dropdown>
+        </Menu>
     );
 };
 
