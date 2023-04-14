@@ -81,7 +81,7 @@ export const isDeleteSpacePinnedItem = (
 ): item is DeleteSpacePinnedItem => 'spaceUuid' in item && !!item.spaceUuid;
 
 export type ApiPinnedItems = {
-    dashboards: ResourceViewDashboardItem & { order: number }[];
-    charts: ResourceViewChartItem & { order: number }[];
-    spaces: ResourceViewSpaceItem & { order: number }[];
+    dashboards: (Omit<ResourceViewDashboardItem, 'type'> & { order: number })[];
+    charts: (Omit<ResourceViewChartItem, 'type'> & { order: number })[];
+    spaces: (Omit<ResourceViewSpaceItem, 'type'> & { order: number })[];
 };
