@@ -242,21 +242,20 @@ projectRouter.get(
 
     async (req, res, next) => {
         try {
-            if (!req.params.fileId.startsWith('csv-')) {
-                throw new NotFoundError(
-                    `CSV file not found ${req.params.fileId}`,
-                );
+            const { fileId } = req.params;
+
+            if (!fileId.startsWith('csv-') || !fileId.endsWith('.csv')) {
+                throw new NotFoundError(`CSV file not found ${fileId}`);
             }
-            const filePath = path.join('/tmp', req.params.fileId);
+            const sanitizedFileId = fileId.replace('..', '');
+
+            const filePath = path.join('/tmp', sanitizedFileId);
             if (!fs.existsSync(filePath)) {
-                const error = `This file ${req.params.fileId} doesn't exist on this server, this may be happening if you are running multiple containers or because files are not persisted. You can check out our docs to learn more on how to enable cloud storage: https://docs.lightdash.com/self-host/customize-deployment/configure-lightdash-to-use-external-object-storage`;
+                const error = `This file ${fileId} doesn't exist on this server, this may be happening if you are running multiple containers or because files are not persisted. You can check out our docs to learn more on how to enable cloud storage: https://docs.lightdash.com/self-host/customize-deployment/configure-lightdash-to-use-external-object-storage`;
                 throw new NotFoundError(error);
             }
             res.set('Content-Type', 'text/csv');
-            res.set(
-                'Content-Disposition',
-                `attachment; filename=${req.params.fileId}`,
-            );
+            res.set('Content-Disposition', `attachment; filename=${fileId}`);
             res.sendFile(filePath);
         } catch (error) {
             next(error);
