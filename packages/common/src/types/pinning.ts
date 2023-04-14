@@ -1,3 +1,9 @@
+import {
+    ResourceViewChartItem,
+    ResourceViewDashboardItem,
+    ResourceViewSpaceItem,
+} from './resourceViewItem';
+
 export type PinnedList = {
     pinnedListUuid: string;
     projectUuid: string;
@@ -73,3 +79,11 @@ export const isCreateSpacePinnedItem = (
 export const isDeleteSpacePinnedItem = (
     item: DeletePinnedItem,
 ): item is DeleteSpacePinnedItem => 'spaceUuid' in item && !!item.spaceUuid;
+
+export type ApiPinnedItem = {
+    item:
+        | ResourceViewChartItem
+        | ResourceViewDashboardItem
+        | ResourceViewSpaceItem;
+    order: number;
+};
