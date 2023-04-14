@@ -1,3 +1,10 @@
+## [0.510.1](https://github.com/lightdash/lightdash/compare/0.510.0...0.510.1) (2023-04-14)
+
+
+### Bug Fixes
+
+* already has password ([#5084](https://github.com/lightdash/lightdash/issues/5084)) ([f253734](https://github.com/lightdash/lightdash/commit/f253734d7ecc0c32710a2c90fbc54b26a3cc7a6f))
+
 # [0.510.0](https://github.com/lightdash/lightdash/compare/0.509.3...0.510.0) (2023-04-14)
 
 
