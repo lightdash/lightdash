@@ -50,8 +50,6 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
     }
 
     const handleOpenUnderlyingDataModal = () => {
-        console.log('click handler');
-
         openUnderlyingDataModel(item, pivotValue.value, rowMap);
         track({
             name: EventName.VIEW_UNDERLYING_DATA_CLICKED,

@@ -41,8 +41,6 @@ const CellContextMenu: FC<
     const value: ResultRow[0]['value'] = cell.getValue()?.value || {};
     const row = mapValues(cell.row.original, (v) => v?.value) || {};
 
-    console.log(meta?.item, value, row);
-
     return (
         <Menu>
             {!!value.raw && isField(item) && (
