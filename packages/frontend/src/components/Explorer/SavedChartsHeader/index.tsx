@@ -8,7 +8,7 @@ import {
 } from '@blueprintjs/core';
 import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
-import { IconPencil } from '@tabler/icons-react';
+import { IconDots, IconPencil } from '@tabler/icons-react';
 import { FC, useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
@@ -237,7 +237,7 @@ const SavedChartsHeader: FC = () => {
                         {!isEditMode ? (
                             <>
                                 <Button
-                                    icon="edit"
+                                    icon={<IconPencil size={16} />}
                                     onClick={() =>
                                         history.push({
                                             pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/edit`,
@@ -374,7 +374,8 @@ const SavedChartsHeader: FC = () => {
                             }
                         >
                             <Button
-                                icon="more"
+                                style={{ padding: '5px 7px' }}
+                                icon={<IconDots size={16} />}
                                 disabled={!unsavedChartVersion.tableName}
                             />
                         </Popover2>

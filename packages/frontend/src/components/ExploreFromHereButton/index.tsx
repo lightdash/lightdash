@@ -1,4 +1,5 @@
 import { subject } from '@casl/ability';
+import { IconTelescope } from '@tabler/icons-react';
 import { useMemo } from 'react';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useApp } from '../../providers/AppProvider';
@@ -36,7 +37,7 @@ const ExploreFromHereButton = () => {
         <StyledLinkButton
             intent="primary"
             large
-            icon="series-search"
+            icon={<IconTelescope size={16} />}
             href={exploreFromHereUrl}
         >
             Explore from here
