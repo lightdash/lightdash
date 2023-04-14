@@ -57,17 +57,15 @@ export const pivotQueryResults = ({
         throw new Error('Cannot pivot results with no rows');
     }
 
-    const hiddenFieldIds = pivotConfig.hiddenFieldIds || [];
+    const hiddenMetricFieldIds = pivotConfig.hiddenMetricFieldIds || [];
 
     const columnOrder = (pivotConfig.columnOrder || []).filter((id) => {
-        return !hiddenFieldIds.includes(id);
+        return !hiddenMetricFieldIds.includes(id);
     });
 
     // Headers (column index)
     const headerDimensions = pivotConfig.pivotDimensions.filter(
-        (pivotDimension) =>
-            metricQuery.dimensions.includes(pivotDimension) &&
-            !hiddenFieldIds.includes(pivotDimension),
+        (pivotDimension) => metricQuery.dimensions.includes(pivotDimension),
     );
     const headerDimensionValueTypes = headerDimensions.map<{
         type: FieldType.DIMENSION;
@@ -85,11 +83,7 @@ export const pivotQueryResults = ({
 
     // Indices (row index)
     const indexDimensions = metricQuery.dimensions
-        .filter(
-            (d) =>
-                !pivotConfig.pivotDimensions.includes(d) &&
-                !hiddenFieldIds.includes(d),
-        )
+        .filter((d) => !pivotConfig.pivotDimensions.includes(d))
         .slice()
         .sort((a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b));
     const indexDimensionValueTypes = indexDimensions.map<{
@@ -111,7 +105,7 @@ export const pivotQueryResults = ({
         ...metricQuery.metrics,
         ...metricQuery.tableCalculations.map((tc) => tc.name),
     ]
-        .filter((m) => !hiddenFieldIds.includes(m))
+        .filter((m) => !hiddenMetricFieldIds.includes(m))
         .sort((a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b))
         .map((id) => ({ fieldId: id }));
 
