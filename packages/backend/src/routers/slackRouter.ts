@@ -58,14 +58,20 @@ slackRouter.get(
 
     async (req, res, next) => {
         try {
-            if (!req.params.imageId.startsWith('slack-image')) {
+            const { imageId } = req.params;
+            if (
+                !imageId.startsWith('slack-image') ||
+                !imageId.endsWith('.png')
+            ) {
                 throw new NotFoundError(
                     `Slack image not found ${req.params.imageId}`,
                 );
             }
-            const filePath = path.join('/tmp', req.params.imageId);
+            const sanitizedImageId = imageId.replace('..', '');
+
+            const filePath = path.join('/tmp', sanitizedImageId);
             if (!fs.existsSync(filePath)) {
-                const error = `This file ${req.params.imageId} doesn't exist on this server, this may be happening if you are running multiple containers or because files are not persisted. You can check out our docs to learn more on how to enable cloud storage: https://docs.lightdash.com/self-host/customize-deployment/configure-lightdash-to-use-external-object-storage`;
+                const error = `This file ${imageId} doesn't exist on this server, this may be happening if you are running multiple containers or because files are not persisted. You can check out our docs to learn more on how to enable cloud storage: https://docs.lightdash.com/self-host/customize-deployment/configure-lightdash-to-use-external-object-storage`;
                 throw new NotFoundError(error);
             }
             res.sendFile(filePath);
