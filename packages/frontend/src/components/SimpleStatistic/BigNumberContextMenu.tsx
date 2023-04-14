@@ -14,7 +14,10 @@ import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
-import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';
+import {
+    UnderlyingValueMap,
+    useMetricQueryDataContext,
+} from '../MetricQueryData/MetricQueryDataProvider';
 
 interface BigNumberContextMenuProps {
     renderTarget: Popover2Props['renderTarget'];
@@ -39,13 +42,13 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
         [bigNumberConfig],
     );
 
-    const row: ResultRow = useMemo(() => {
-        return resultsData?.rows?.[0] || {};
+    const row: UnderlyingValueMap = useMemo(() => {
+        return resultsData?.rows?.[0].value?.value || {};
     }, [resultsData]);
 
     const value = useMemo(() => {
         if (bigNumberConfig.selectedField) {
-            return row[bigNumberConfig.selectedField]?.value;
+            return row[bigNumberConfig.selectedField];
         }
     }, [row, bigNumberConfig]);
 
@@ -55,11 +58,11 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
             bigNumberConfig.selectedField !== undefined &&
             value
         ) {
-            const meta = {
-                item: bigNumberConfig.getField(bigNumberConfig.selectedField),
-            };
+            const item = bigNumberConfig.getField(
+                bigNumberConfig.selectedField,
+            );
 
-            openUnderlyingDataModel(value, meta, row);
+            openUnderlyingDataModel(item, value, row);
             track({
                 name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
                 properties: {
@@ -74,11 +77,11 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
         bigNumberConfig,
         value,
         openUnderlyingDataModel,
+        projectUuid,
         row,
         track,
         user?.data?.organizationUuid,
         user?.data?.userUuid,
-        projectUuid,
     ]);
 
     return (
@@ -124,7 +127,8 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
                         })}
                     >
                         <DrillDownMenuItem
-                            row={resultsData?.rows[0]}
+                            // TODO: come back to this
+                            row={resultsData?.rows[0].value}
                             selectedItem={selectedItem}
                             trackingData={{
                                 organizationId: user?.data?.organizationUuid,

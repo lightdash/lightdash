@@ -26,6 +26,7 @@ import {
     PivotReference,
     ResultRow,
     SavedChart,
+    TableCalculation,
 } from '@lightdash/common';
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
@@ -54,6 +55,8 @@ import VisualizationProvider from '../LightdashVisualization/VisualizationProvid
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
 import {
     getDataFromChartClick,
+    UnderlyingValue,
+    UnderlyingValueMap,
     useMetricQueryDataContext,
 } from '../MetricQueryData/MetricQueryDataProvider';
 import { EchartSeriesClickEvent } from '../SimpleChart';
@@ -279,9 +282,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         DashboardFilterRule[]
     >([]);
     const [viewUnderlyingDataOptions, setViewUnderlyingDataOptions] = useState<{
-        value: ResultRow[0]['value'];
-        meta: TableColumn['meta'];
-        row: ResultRow;
+        item: Field | TableCalculation | undefined;
+        value: UnderlyingValue;
+        row: UnderlyingValueMap;
         dimensions: string[];
         pivotReference?: PivotReference;
     }>();
@@ -524,15 +527,15 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                                         undefined
                                                     ) {
                                                         const {
+                                                            item,
                                                             value,
-                                                            meta,
                                                             row,
                                                             dimensions,
                                                             pivotReference,
                                                         } = viewUnderlyingDataOptions;
                                                         openUnderlyingDataModel(
+                                                            item,
                                                             value,
-                                                            meta,
                                                             row,
                                                             dimensions,
                                                             pivotReference,
@@ -568,8 +571,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                                     viewUnderlyingDataOptions?.row
                                                 }
                                                 selectedItem={
-                                                    viewUnderlyingDataOptions
-                                                        ?.meta?.item
+                                                    viewUnderlyingDataOptions?.item
                                                 }
                                                 pivotReference={
                                                     viewUnderlyingDataOptions?.pivotReference

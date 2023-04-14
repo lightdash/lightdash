@@ -89,8 +89,8 @@ export const SeriesContextMenu: FC<{
     const onViewUnderlyingData = useCallback(() => {
         if (underlyingData !== undefined) {
             openUnderlyingDataModel(
+                underlyingData.item,
                 underlyingData.value,
-                underlyingData.meta,
                 underlyingData.row,
                 dimensions,
                 underlyingData.pivotReference,
@@ -166,7 +166,7 @@ export const SeriesContextMenu: FC<{
                         >
                             <DrillDownMenuItem
                                 row={underlyingData?.row}
-                                selectedItem={underlyingData?.meta?.item}
+                                selectedItem={underlyingData?.item}
                                 pivotReference={underlyingData?.pivotReference}
                                 trackingData={{
                                     organizationId:

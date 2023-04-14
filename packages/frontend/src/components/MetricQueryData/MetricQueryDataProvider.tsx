@@ -7,32 +7,27 @@ import {
     isDimension,
     MetricQuery,
     PivotReference,
-    ResultRow,
     TableCalculation,
 } from '@lightdash/common';
-import React, {
-    createContext,
-    FC,
-    useCallback,
-    useContext,
-    useState,
-} from 'react';
+import { createContext, FC, useCallback, useContext, useState } from 'react';
 import { EChartSeries } from '../../hooks/echarts/useEcharts';
 import { useExplore } from '../../hooks/useExplore';
-import { TableColumn } from '../common/Table/types';
 import { EchartSeriesClickEvent } from '../SimpleChart';
 
+export type UnderlyingValue = { raw: unknown; formatted: string };
+export type UnderlyingValueMap = { [fieldId: string]: UnderlyingValue };
+
 type MetricQueryDataConfig = {
-    value: ResultRow[0]['value'];
-    meta: TableColumn['meta'];
-    row: ResultRow;
+    item: Field | TableCalculation | undefined;
+    value: UnderlyingValue;
+    row: UnderlyingValueMap;
     dimensions?: string[];
     pivotReference?: PivotReference;
     dashboardFilters?: DashboardFilters;
 };
 
 type DrillDownConfig = {
-    row: ResultRow;
+    row: UnderlyingValueMap;
     selectedItem: Field | TableCalculation;
     pivotReference?: PivotReference;
     dashboardFilters?: DashboardFilters;
@@ -45,9 +40,9 @@ type MetricQueryDataContext = {
     underlyingDataConfig: MetricQueryDataConfig | undefined;
     isUnderlyingDataModalOpen: boolean;
     openUnderlyingDataModel: (
-        value: ResultRow[0]['value'],
-        meta: TableColumn['meta'],
-        row: ResultRow,
+        item: Field | TableCalculation | undefined,
+        value: UnderlyingValue,
+        row: UnderlyingValueMap,
         dimensions?: string[],
         pivotReference?: PivotReference,
         dashboardFilters?: DashboardFilters,
@@ -87,16 +82,15 @@ export const getDataFromChartClick = (
             ? selectedMetricsAndTableCalculations[0]
             : selectedFields[0];
     const selectedValue = e.data[getItemId(selectedField)];
-    const row: ResultRow = Object.entries(e.data as Record<string, any>).reduce(
-        (acc, entry) => {
-            const [key, val] = entry;
-            return { ...acc, [key]: { value: { raw: val, formatted: val } } };
-        },
-        {},
-    );
+    const row: UnderlyingValueMap = Object.entries(
+        e.data as Record<string, any>,
+    ).reduce((acc, entry) => {
+        const [key, val] = entry;
+        return { ...acc, [key]: { raw: val, formatted: val } };
+    }, {});
 
     return {
-        meta: { item: selectedField },
+        item: selectedField,
         value: { raw: selectedValue, formatted: selectedValue },
         row,
         pivotReference,
@@ -138,16 +132,16 @@ export const MetricQueryDataProvider: FC<Props> = ({
 
     const openUnderlyingDataModel = useCallback(
         (
-            value: ResultRow[0]['value'],
-            meta: TableColumn['meta'],
-            row: ResultRow,
+            item: Field | TableCalculation | undefined,
+            value: UnderlyingValue,
+            row: UnderlyingValueMap,
             dimensions?: string[],
             pivotReference?: PivotReference,
             dashboardFilters?: DashboardFilters,
         ) => {
             setUnderlyingDataConfig({
                 value,
-                meta,
+                item,
                 row,
                 dimensions,
                 pivotReference,

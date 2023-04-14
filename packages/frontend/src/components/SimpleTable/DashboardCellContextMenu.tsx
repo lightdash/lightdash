@@ -15,6 +15,7 @@ import {
     ResultRow,
 } from '@lightdash/common';
 import { uuid4 } from '@sentry/utils';
+import mapValues from 'lodash-es/mapValues';
 import React, { FC } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
 import { useParams } from 'react-router-dom';
@@ -48,6 +49,7 @@ const DashboardCellContextMenu: FC<
     const item = meta?.item;
 
     const value: ResultRow[0]['value'] = cell.getValue()?.value || {};
+    const row = mapValues(cell.row.original, (v) => v?.value) || {};
 
     const filterField =
         isDimension(item) && !item.hidden
@@ -133,9 +135,9 @@ const DashboardCellContextMenu: FC<
                                 },
                             });
                             openUnderlyingDataModel(
+                                meta.item,
                                 value,
-                                meta,
-                                cell.row.original || {},
+                                row,
                                 undefined,
                                 meta?.pivotReference,
                                 dashboardFiltersThatApplyToChart,
@@ -152,7 +154,7 @@ const DashboardCellContextMenu: FC<
                 })}
             >
                 <DrillDownMenuItem
-                    row={cell.row.original || {}}
+                    row={row}
                     dashboardFilters={dashboardFiltersThatApplyToChart}
                     pivotReference={meta?.pivotReference}
                     selectedItem={item}

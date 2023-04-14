@@ -1,79 +1,114 @@
-import { PivotValue } from '@lightdash/common';
+import { Field, PivotValue, TableCalculation } from '@lightdash/common';
 import { Menu, MenuProps } from '@mantine/core';
-import { IconCopy } from '@tabler/icons-react';
+import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
 import { FC } from 'react';
+import { useParams } from 'react-router-dom';
+import { useApp } from '../../../providers/AppProvider';
+import { useTracking } from '../../../providers/TrackingProvider';
+import { EventName } from '../../../types/Events';
+import DrillDownModal from '../../MetricQueryData/DrillDownModal';
+import { useMetricQueryDataContext } from '../../MetricQueryData/MetricQueryDataProvider';
+import UnderlyingDataModal from '../../MetricQueryData/UnderlyingDataModal';
 import MantineIcon from '../MantineIcon';
 
 type ValueCellMenuProps = {
+    item: Field | TableCalculation | undefined;
     value: PivotValue | null;
     onCopy: () => void;
 } & Pick<MenuProps, 'opened' | 'onOpen' | 'onClose'>;
 
 const ValueCellMenu: FC<ValueCellMenuProps> = ({
     children,
-    // value,
+    item,
+    value: pivotValue,
     opened,
     onOpen,
     onClose,
     onCopy,
 }) => {
+    const { track } = useTracking();
+    const { openUnderlyingDataModel } = useMetricQueryDataContext();
+    const { user } = useApp();
+    // TODO: get rid of this from here
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+
+    if (!pivotValue || !pivotValue.value) {
+        return <>{children}</>;
+    }
+
+    const handleOpenUnderlyingDataModal = () => {
+        openUnderlyingDataModel(item, pivotValue.value, {});
+        track({
+            name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
+            properties: {
+                organizationId: user?.data?.organizationUuid,
+                userId: user?.data?.userUuid,
+                projectId: projectUuid,
+            },
+        });
+    };
+
     return (
-        <Menu
-            opened={opened}
-            onOpen={onOpen}
-            onClose={onClose}
-            withinPortal
-            shadow="md"
-            position="bottom-end"
-            radius="xs"
-            offset={{
-                mainAxis: 1,
-                crossAxis: 2,
-            }}
-        >
-            <Menu.Target>{children}</Menu.Target>
+        <>
+            <UnderlyingDataModal />
+            <DrillDownModal />
 
-            <Menu.Dropdown>
-                <Menu.Item
-                    icon={
-                        <MantineIcon
-                            icon={IconCopy}
-                            size="md"
-                            fillOpacity={0}
-                        />
-                    }
-                    onClick={onCopy}
-                >
-                    Copy
-                </Menu.Item>
+            <Menu
+                opened={opened}
+                onOpen={onOpen}
+                onClose={onClose}
+                withinPortal
+                shadow="md"
+                position="bottom-end"
+                radius="xs"
+                offset={{
+                    mainAxis: 1,
+                    crossAxis: 2,
+                }}
+            >
+                <Menu.Target>{children}</Menu.Target>
 
-                {/*
-                <Menu.Item
-                    icon={
-                        <MantineIcon
-                            icon={IconStack}
-                            size="md"
-                            fillOpacity={0}
-                        />
-                    }
-                >
-                    View underlying data
-                </Menu.Item>
+                <Menu.Dropdown>
+                    <Menu.Item
+                        icon={
+                            <MantineIcon
+                                icon={IconCopy}
+                                size="md"
+                                fillOpacity={0}
+                            />
+                        }
+                        onClick={onCopy}
+                    >
+                        Copy
+                    </Menu.Item>
 
-                <Menu.Item
-                    icon={
-                        <MantineIcon
-                            icon={IconArrowBarToDown}
-                            size="md"
-                            fillOpacity={0}
-                        />
-                    }
-                >
-                    Drill into "{value?.formatted}"
-                </Menu.Item>
-                */}
-            </Menu.Dropdown>
-        </Menu>
+                    <Menu.Item
+                        icon={
+                            <MantineIcon
+                                icon={IconStack}
+                                size="md"
+                                fillOpacity={0}
+                            />
+                        }
+                        onClick={handleOpenUnderlyingDataModal}
+                    >
+                        View underlying data
+                    </Menu.Item>
+
+                    <Menu.Item
+                        icon={
+                            <MantineIcon
+                                icon={IconArrowBarToDown}
+                                size="md"
+                                fillOpacity={0}
+                            />
+                        }
+                    >
+                        Drill into "{pivotValue.value.formatted}"
+                    </Menu.Item>
+                </Menu.Dropdown>
+            </Menu>
+        </>
     );
 };
 

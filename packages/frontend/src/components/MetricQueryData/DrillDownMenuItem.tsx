@@ -13,10 +13,13 @@ import {
 import { FC } from 'react';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
-import { useMetricQueryDataContext } from './MetricQueryDataProvider';
+import {
+    UnderlyingValueMap,
+    useMetricQueryDataContext,
+} from './MetricQueryDataProvider';
 
 export const DrillDownMenuItem: FC<{
-    row: ResultRow | undefined;
+    row: UnderlyingValueMap | undefined;
     selectedItem: Field | TableCalculation | undefined;
     dashboardFilters?: DashboardFilters;
     pivotReference?: PivotReference;
@@ -48,7 +51,7 @@ export const DrillDownMenuItem: FC<{
             pivotReference !== undefined
                 ? hashFieldReference(pivotReference)
                 : getFieldId(selectedItem);
-        const value = row[fieldId]?.value.formatted;
+        const value = row[fieldId]?.formatted;
 
         return (
             <MenuItem2

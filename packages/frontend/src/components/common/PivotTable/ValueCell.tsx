@@ -95,10 +95,11 @@ const ValueCell: FC<ValueCellProps> = ({
     return (
         <ValueCellMenu
             opened={isMenuOpen}
-            onOpen={() => setIsMenuOpen(true)}
-            onClose={() => setIsMenuOpen(false)}
+            item={field}
             value={value}
             onCopy={handleCopy}
+            onOpen={() => setIsMenuOpen(true)}
+            onClose={() => setIsMenuOpen(false)}
         >
             <ForwardRef
                 render={(menuProps, menuRef) => (

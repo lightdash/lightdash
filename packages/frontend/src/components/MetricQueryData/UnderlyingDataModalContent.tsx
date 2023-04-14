@@ -9,7 +9,6 @@ import {
     FilterRule,
     getDimensions,
     getFields,
-    getResultValues,
     isDimension,
     isField,
     isMetric,
@@ -72,12 +71,12 @@ const UnderlyingDataModalContent: FC<Props> = () => {
     );
 
     const showUnderlyingValues: string[] | undefined = useMemo(() => {
-        return underlyingDataConfig?.meta !== undefined &&
-            isField(underlyingDataConfig?.meta?.item) &&
-            isMetric(underlyingDataConfig?.meta.item)
-            ? underlyingDataConfig?.meta.item.showUnderlyingValues
+        return underlyingDataConfig?.item !== undefined &&
+            isField(underlyingDataConfig.item) &&
+            isMetric(underlyingDataConfig.item)
+            ? underlyingDataConfig?.item.showUnderlyingValues
             : undefined;
-    }, [underlyingDataConfig?.meta]);
+    }, [underlyingDataConfig?.item]);
 
     const sortByUnderlyingValues = useCallback(
         (columnA: TableColumn, columnB: TableColumn) => {
@@ -106,9 +105,9 @@ const UnderlyingDataModalContent: FC<Props> = () => {
 
     const underlyingDataMetricQuery = useMemo<MetricQuery>(() => {
         if (!underlyingDataConfig) return defaultMetricQuery;
-        const { meta, row, pivotReference, dimensions, value } =
+        const { item, row, pivotReference, dimensions, value } =
             underlyingDataConfig;
-        if (meta?.item === undefined) return defaultMetricQuery;
+        if (item === undefined) return defaultMetricQuery;
 
         // We include tables from all fields that appear on the SQL query (aka tables from all columns in results)
         const rowFieldIds = pivotReference?.pivotValues
@@ -130,14 +129,9 @@ const UnderlyingDataModalContent: FC<Props> = () => {
         ]);
 
         // If we are viewing data from a metric or a table calculation, we filter using all existing dimensions in the table
-        const dimensionFilters = !isDimension(meta?.item)
+        const dimensionFilters = !isDimension(item)
             ? Object.entries(row).reduce((acc, r) => {
-                  const [
-                      key,
-                      {
-                          value: { raw },
-                      },
-                  ] = r;
+                  const [key, { raw }] = r;
 
                   const dimensionFilter: FilterRule = {
                       id: uuidv4(),
@@ -163,7 +157,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                   {
                       id: uuidv4(),
                       target: {
-                          fieldId: getFieldId(meta?.item),
+                          fieldId: getFieldId(item),
                       },
                       operator:
                           value.raw === null
@@ -186,7 +180,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
 
         // Metric filters fieldId don't have table prefixes, we add it here
         const metric: Metric | undefined =
-            isField(meta?.item) && isMetric(meta.item) ? meta.item : undefined;
+            isField(item) && isMetric(item) ? item : undefined;
         const metricFilters =
             metric?.filters?.map((filter) => {
                 return {
@@ -221,8 +215,8 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                 and: combinedFilters,
             },
         };
-        const showUnderlyingTable: string | undefined = isField(meta?.item)
-            ? meta.item.table
+        const showUnderlyingTable: string | undefined = isField(item)
+            ? item.table
             : undefined;
         const availableDimensions = allDimensions.filter(
             (dimension) =>
