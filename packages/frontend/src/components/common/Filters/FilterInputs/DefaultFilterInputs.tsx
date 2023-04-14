@@ -79,7 +79,9 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
                     onChange={(values) =>
                         onChange({
                             ...rule,
-                            values,
+                            values: values?.filter(
+                                (v, i, arr) => arr.indexOf(v) === i,
+                            ),
                         })
                     }
                 />
