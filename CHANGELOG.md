@@ -1,3 +1,10 @@
+## [0.510.4](https://github.com/lightdash/lightdash/compare/0.510.3...0.510.4) (2023-04-14)
+
+
+### Bug Fixes
+
+* filter tag input does not allow duplicate values ([#5096](https://github.com/lightdash/lightdash/issues/5096)) ([28c74fc](https://github.com/lightdash/lightdash/commit/28c74fcc2a500ee150d85c8323b773f418239641))
+
 ## [0.510.3](https://github.com/lightdash/lightdash/compare/0.510.2...0.510.3) (2023-04-14)
 
 
