@@ -80,10 +80,8 @@ export const isDeleteSpacePinnedItem = (
     item: DeletePinnedItem,
 ): item is DeleteSpacePinnedItem => 'spaceUuid' in item && !!item.spaceUuid;
 
-export type ApiPinnedItem = {
-    item:
-        | ResourceViewChartItem
-        | ResourceViewDashboardItem
-        | ResourceViewSpaceItem;
-    order: number;
+export type ApiPinnedItems = {
+    dashboards: ResourceViewDashboardItem & { order: number }[];
+    charts: ResourceViewChartItem & { order: number }[];
+    spaces: ResourceViewSpaceItem & { order: number }[];
 };
