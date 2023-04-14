@@ -108,15 +108,14 @@ export class UserModel {
 
     // DB Errors:
     // user_id does not exist (foreign key)
-    // user_id already has password (not unique)
-
     static async createPasswordLogin(
         db: Knex,
         passwordLoginIn: DbPasswordLoginIn,
     ) {
-        await db(PasswordLoginTableName).insert<DbPasswordLoginIn>(
-            passwordLoginIn,
-        );
+        await db(PasswordLoginTableName)
+            .insert<DbPasswordLoginIn>(passwordLoginIn)
+            .onConflict('user_id')
+            .merge();
     }
 
     static async createUserTransaction(
