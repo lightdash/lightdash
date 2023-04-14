@@ -7,6 +7,7 @@ import {
     getItemMap,
     isDimension,
     isField,
+    isMetric,
     itemsInMetricQuery,
     PivotData,
     ResultRow,
@@ -157,9 +158,15 @@ const useTableConfig = (
             // Pivot V2. This will always trigger when the above conditions are met.
             // The old pivot below will always trigger. So currently we pivot twice when the above conditions are met.
 
-            const hiddenMetricFieldIds = selectedItemIds?.filter(
-                (fieldId) => !isColumnVisible(fieldId),
-            );
+            const hiddenMetricFieldIds = selectedItemIds?.filter((fieldId) => {
+                const field = getField(fieldId);
+
+                return (
+                    !isColumnVisible(fieldId) &&
+                    isField(field) &&
+                    isMetric(field)
+                );
+            });
 
             try {
                 const data = pivotQueryResults({
@@ -183,11 +190,12 @@ const useTableConfig = (
     }, [
         resultsData,
         pivotDimensions,
+        columnOrder,
         canUseMetricsAsRows,
         metricsAsRows,
-        columnOrder,
         selectedItemIds,
         isColumnVisible,
+        getField,
     ]);
 
     const { rows, columns, error } = useMemo<{
