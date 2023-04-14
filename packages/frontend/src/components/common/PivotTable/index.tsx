@@ -195,6 +195,7 @@ const PivotTable: FC<PivotTableProps> = ({
                             {row.map((pivotValue, rowIndex) => (
                                 <ValueCell
                                     key={rowIndex}
+                                    row={row}
                                     value={pivotValue}
                                     getField={getField}
                                     conditionalFormattings={

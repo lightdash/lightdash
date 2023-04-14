@@ -23,6 +23,7 @@ import ValueCellMenu from './ValueCellMenu';
 
 interface ValueCellProps {
     value: PivotValue | null;
+    row: (PivotValue | null)[];
     conditionalFormattings: ConditionalFormattingConfig[];
     getField: (fieldId: string) => Field | TableCalculation;
 }
@@ -40,6 +41,7 @@ const ForwardRef = forwardRef<HTMLTableCellElement, ForwardRefProps>(
 
 const ValueCell: FC<ValueCellProps> = ({
     value,
+    row,
     conditionalFormattings,
     getField,
 }) => {
@@ -97,6 +99,7 @@ const ValueCell: FC<ValueCellProps> = ({
             opened={isMenuOpen}
             item={field}
             value={value}
+            row={row}
             onCopy={handleCopy}
             onOpen={() => setIsMenuOpen(true)}
             onClose={() => setIsMenuOpen(false)}

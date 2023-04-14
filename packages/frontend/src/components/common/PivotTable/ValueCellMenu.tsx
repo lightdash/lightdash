@@ -1,19 +1,23 @@
 import { Field, PivotValue, TableCalculation } from '@lightdash/common';
 import { Menu, MenuProps } from '@mantine/core';
 import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
-import { FC } from 'react';
+import { FC, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import DrillDownModal from '../../MetricQueryData/DrillDownModal';
-import { useMetricQueryDataContext } from '../../MetricQueryData/MetricQueryDataProvider';
+import {
+    UnderlyingValueMap,
+    useMetricQueryDataContext,
+} from '../../MetricQueryData/MetricQueryDataProvider';
 import UnderlyingDataModal from '../../MetricQueryData/UnderlyingDataModal';
 import MantineIcon from '../MantineIcon';
 
 type ValueCellMenuProps = {
     item: Field | TableCalculation | undefined;
     value: PivotValue | null;
+    row: (PivotValue | null)[];
     onCopy: () => void;
 } & Pick<MenuProps, 'opened' | 'onOpen' | 'onClose'>;
 
@@ -21,6 +25,7 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
     children,
     item,
     value: pivotValue,
+    row: pivotRow,
     opened,
     onOpen,
     onClose,
@@ -32,12 +37,21 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
     // TODO: get rid of this from here
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
+    const rowMap = useMemo(() => {
+        return pivotRow.reduce<UnderlyingValueMap>((acc, row) => {
+            if (row?.fieldId && row.value) {
+                return { ...acc, [row.fieldId]: row.value };
+            }
+            return acc;
+        }, {});
+    }, [pivotRow]);
+
     if (!pivotValue || !pivotValue.value) {
         return <>{children}</>;
     }
 
     const handleOpenUnderlyingDataModal = () => {
-        openUnderlyingDataModel(item, pivotValue.value, {});
+        openUnderlyingDataModel(item, pivotValue.value, rowMap);
         track({
             name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
             properties: {

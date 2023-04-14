@@ -28,6 +28,7 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
     const { track } = useTracking();
     const { user } = useApp();
     const { projectUuid } = useParams<{ projectUuid: string }>();
+
     return (
         <Menu>
             {item && value.raw && isField(item) && (
