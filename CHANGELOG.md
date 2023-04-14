@@ -1,3 +1,10 @@
+## [0.510.3](https://github.com/lightdash/lightdash/compare/0.510.2...0.510.3) (2023-04-14)
+
+
+### Bug Fixes
+
+* add extra security to file endpoints ([#5090](https://github.com/lightdash/lightdash/issues/5090)) ([fcc808c](https://github.com/lightdash/lightdash/commit/fcc808c84c2cc3afb343063e32a49440d32a553c))
+
 ## [0.510.2](https://github.com/lightdash/lightdash/compare/0.510.1...0.510.2) (2023-04-14)
 
 
