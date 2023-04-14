@@ -1,3 +1,10 @@
+# [0.510.0](https://github.com/lightdash/lightdash/compare/0.509.3...0.510.0) (2023-04-14)
+
+
+### Features
+
+* add dashboard filter dropdown group header stickiness ([#5088](https://github.com/lightdash/lightdash/issues/5088)) ([9092f3d](https://github.com/lightdash/lightdash/commit/9092f3dba82f9ec5e283ca2e500f92fd7e7c4316))
+
 ## [0.509.3](https://github.com/lightdash/lightdash/compare/0.509.2...0.509.3) (2023-04-13)
 
 
