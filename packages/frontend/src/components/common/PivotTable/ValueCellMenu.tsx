@@ -32,7 +32,8 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
     onCopy,
 }) => {
     const { track } = useTracking();
-    const { openUnderlyingDataModel } = useMetricQueryDataContext();
+    const { openUnderlyingDataModel, openDrillDownModel } =
+        useMetricQueryDataContext();
     const { user } = useApp();
     // TODO: get rid of this from here
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -57,6 +58,22 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
             properties: {
                 organizationId: user?.data?.organizationUuid,
                 userId: user?.data?.userUuid,
+                projectId: projectUuid,
+            },
+        });
+    };
+
+    const handleOpenDrillIntoModal = () => {
+        if (!item) return;
+
+        // TODO: missing pivotReference
+
+        openDrillDownModel({ row: rowMap, selectedItem: item });
+        track({
+            name: EventName.DRILL_BY_CLICKED,
+            properties: {
+                organizationId: user.data?.organizationUuid,
+                userId: user.data?.userUuid,
                 projectId: projectUuid,
             },
         });
@@ -96,30 +113,35 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
                         Copy
                     </Menu.Item>
 
-                    <Menu.Item
-                        icon={
-                            <MantineIcon
-                                icon={IconStack}
-                                size="md"
-                                fillOpacity={0}
-                            />
-                        }
-                        onClick={handleOpenUnderlyingDataModal}
-                    >
-                        View underlying data
-                    </Menu.Item>
+                    {item ? (
+                        <>
+                            <Menu.Item
+                                icon={
+                                    <MantineIcon
+                                        icon={IconStack}
+                                        size="md"
+                                        fillOpacity={0}
+                                    />
+                                }
+                                onClick={handleOpenUnderlyingDataModal}
+                            >
+                                View underlying data
+                            </Menu.Item>
 
-                    <Menu.Item
-                        icon={
-                            <MantineIcon
-                                icon={IconArrowBarToDown}
-                                size="md"
-                                fillOpacity={0}
-                            />
-                        }
-                    >
-                        Drill into "{pivotValue.value.formatted}"
-                    </Menu.Item>
+                            <Menu.Item
+                                icon={
+                                    <MantineIcon
+                                        icon={IconArrowBarToDown}
+                                        size="md"
+                                        fillOpacity={0}
+                                    />
+                                }
+                                onClick={handleOpenDrillIntoModal}
+                            >
+                                Drill into "{pivotValue.value.formatted}"
+                            </Menu.Item>
+                        </>
+                    ) : null}
                 </Menu.Dropdown>
             </Menu>
         </>

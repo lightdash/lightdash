@@ -30,11 +30,14 @@ import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
-import { useMetricQueryDataContext } from './MetricQueryDataProvider';
+import {
+    UnderlyingValueMap,
+    useMetricQueryDataContext,
+} from './MetricQueryDataProvider';
 
 type CombineFiltersArgs = {
     metricQuery: MetricQuery;
-    row: ResultRow;
+    row: UnderlyingValueMap;
     pivotReference?: PivotReference;
     dashboardFilters?: DashboardFilters;
     extraFilters?: Filters;
@@ -84,11 +87,10 @@ const combineFilters = ({
                 fieldId: dimension,
             },
             operator:
-                rowValue.value.raw === null
+                rowValue.raw === null
                     ? FilterOperator.NULL
                     : FilterOperator.EQUALS,
-            values:
-                rowValue.value.raw === null ? undefined : [rowValue.value.raw],
+            values: rowValue.raw === null ? undefined : [rowValue.raw],
         };
         return [...acc, dimensionFilter];
     }, []);
@@ -106,7 +108,7 @@ type DrillDownExploreUrlArgs = {
     projectUuid: string;
     tableName: string;
     metricQuery: MetricQuery;
-    row: ResultRow;
+    row: UnderlyingValueMap;
     drillByMetric: FieldId;
     drillByDimension: FieldId;
     dashboardFilters?: DashboardFilters;
@@ -183,7 +185,7 @@ const DrillDownModal: FC = () => {
                 drillDownConfig.pivotReference !== undefined
                     ? hashFieldReference(drillDownConfig.pivotReference)
                     : getFieldId(drillDownConfig.selectedItem);
-            return drillDownConfig.row[fieldId]?.value.formatted;
+            return drillDownConfig.row[fieldId]?.formatted;
         }
     }, [drillDownConfig]);
 

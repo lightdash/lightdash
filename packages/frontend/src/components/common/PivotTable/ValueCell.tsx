@@ -85,13 +85,11 @@ const ValueCell: FC<ValueCellProps> = ({
 
     useHotkeys([['mod+c', handleCopy]]);
 
+    const hasValue = !!value?.value?.formatted;
+
     const { cx, classes } = usePivotTableCellStyles({
-        conditionalFormatting: conditionalFormatting
-            ? {
-                  backgroundColor: conditionalFormatting.backgroundColor,
-                  color: conditionalFormatting.color,
-              }
-            : undefined,
+        hasValue,
+        conditionalFormatting,
     });
 
     return (
