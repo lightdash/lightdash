@@ -160,9 +160,11 @@ export const useUpdateMultipleMutation = (projectUuid: string) => {
 };
 
 export const useUpdateMutation = (savedQueryUuid?: string) => {
+    const history = useHistory();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
     const { projectUuid } = useParams<{ projectUuid: string }>();
+    const dashboardUuid = useSearchParams('fromDashboard');
 
     return useMutation<SavedChart, ApiError, UpdateSavedChart>(
         (data) => {
@@ -180,6 +182,14 @@ export const useUpdateMutation = (savedQueryUuid?: string) => {
                 queryClient.setQueryData(['saved_query', data.uuid], data);
                 showToastSuccess({
                     title: `Success! Chart was saved.`,
+                    action: {
+                        text: 'Open dashboard',
+                        icon: 'arrow-right',
+                        onClick: () =>
+                            history.push(
+                                `/projects/${data.projectUuid}/dashboards/${dashboardUuid}`,
+                            ),
+                    },
                 });
             },
             onError: (error) => {
