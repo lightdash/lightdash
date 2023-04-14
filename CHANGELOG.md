@@ -1,3 +1,10 @@
+## [0.510.2](https://github.com/lightdash/lightdash/compare/0.510.1...0.510.2) (2023-04-14)
+
+
+### Bug Fixes
+
+* minimal dashboard filters ([#5066](https://github.com/lightdash/lightdash/issues/5066)) ([0bc0de8](https://github.com/lightdash/lightdash/commit/0bc0de89cc49b6551348a9dbcb79d4b36adc2bee))
+
 ## [0.510.1](https://github.com/lightdash/lightdash/compare/0.510.0...0.510.1) (2023-04-14)
 
 
