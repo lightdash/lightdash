@@ -159,12 +159,13 @@ export const useUpdateMultipleMutation = (projectUuid: string) => {
     );
 };
 
-export const useUpdateMutation = (savedQueryUuid?: string) => {
+export const useUpdateMutation = (
+    dashboardUuid: string,
+    savedQueryUuid?: string,
+) => {
     const history = useHistory();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
-    const dashboardUuid = useSearchParams('fromDashboard');
 
     return useMutation<SavedChart, ApiError, UpdateSavedChart>(
         (data) => {
@@ -176,7 +177,10 @@ export const useUpdateMutation = (savedQueryUuid?: string) => {
         {
             mutationKey: ['saved_query_create'],
             onSuccess: async (data) => {
-                await queryClient.invalidateQueries(['space', projectUuid]);
+                await queryClient.invalidateQueries([
+                    'space',
+                    data.projectUuid,
+                ]);
 
                 await queryClient.invalidateQueries('spaces');
                 queryClient.setQueryData(['saved_query', data.uuid], data);
