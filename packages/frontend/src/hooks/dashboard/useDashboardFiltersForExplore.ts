@@ -46,11 +46,11 @@ const useDashboardFiltersForExplore = (
         return {
             dimensions: overrideTileFilters([
                 ...dashboardFilters.dimensions,
-                ...dashboardTemporaryFilters.dimensions,
+                ...(dashboardTemporaryFilters?.dimensions ?? []),
             ]),
             metrics: overrideTileFilters([
                 ...dashboardFilters.metrics,
-                ...dashboardTemporaryFilters.metrics,
+                ...(dashboardTemporaryFilters?.metrics ?? []),
             ]),
         };
     }, [dashboardFilters, dashboardTemporaryFilters, overrideTileFilters]);

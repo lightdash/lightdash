@@ -8,8 +8,10 @@ import {
 import { subject } from '@casl/ability';
 import {
     ChartType,
+    convertDashboardFiltersToFilters,
     DashboardChartTile as IDashboardChartTile,
     DashboardFilterRule,
+    DashboardFilters,
     Field,
     fieldId,
     FilterOperator,
@@ -63,6 +65,7 @@ import {
 } from './TileBase/TileBase.styles';
 
 import { Can } from '../common/Authorization';
+import DashboardFilter from '../DashboardFilter';
 interface ExportResultAsCSVModalProps {
     projectUuid: string;
     savedChart: SavedChart;
@@ -180,8 +183,13 @@ const ValidDashboardChartTileMinimal: FC<{
     isTitleHidden?: boolean;
     data: SavedChart;
     project: string;
-}> = ({ tileUuid, data, project, isTitleHidden = false }) => {
-    const { data: resultData, isLoading } = useChartResults(data.uuid);
+    dashboardFilters?: DashboardFilters;
+}> = ({ tileUuid, data, project, dashboardFilters, isTitleHidden = false }) => {
+    const filters =
+        dashboardFilters !== undefined
+            ? convertDashboardFiltersToFilters(dashboardFilters)
+            : undefined;
+    const { data: resultData, isLoading } = useChartResults(data.uuid, filters);
     const { data: explore } = useExplore(data.tableName);
 
     return (
@@ -219,6 +227,7 @@ interface DashboardChartTileMainProps
         'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
     > {
     tile: IDashboardChartTile;
+    dashboardFilters?: DashboardFilters;
 }
 
 const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
@@ -685,6 +694,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
             uuid: tileUuid,
             properties: { savedChartUuid, hideTitle },
         },
+        dashboardFilters,
     } = props;
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
@@ -692,7 +702,6 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         tileUuid,
         savedChartUuid,
     );
-
     return (
         <TileBase
             title={data?.name || ''}
@@ -707,6 +716,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                     isTitleHidden={hideTitle}
                     data={data}
                     project={projectUuid}
+                    dashboardFilters={dashboardFilters}
                 />
             ) : (
                 <InvalidDashboardChartTile />
