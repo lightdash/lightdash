@@ -86,9 +86,9 @@ export const Table = styled(HTMLTable)<{ $showFooter: boolean }>`
     }
 
     .last-sticky-column {
-        background-color: rgb(222, 222, 222);
-        border-right: 2px solid rgb(245, 245, 245);
-        border-left: 2px solid rgb(245, 245, 245);
+        background-color: ${Colors.GRAY5};
+        border-right: 2px solid ${Colors.LIGHT_GRAY3};
+        border-left: 2px solid ${Colors.LIGHT_GRAY3};
     }
 `;
 
