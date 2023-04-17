@@ -118,7 +118,7 @@ const useTableConfig = (
     // User configures the names and visibilty of these in the config panel
     const isColumnVisible = useCallback(
         (fieldId: string) => {
-            // if pivotDimensions is enabled, we should always show the dimensions
+            // we should always show dimensions when pivoting
             // hiding a dimension randomly removes values from all metrics
             if (
                 pivotDimensions &&
