@@ -262,12 +262,12 @@ passport.deserializeUser(async (id: string, done) => {
     }
 });
 
-export const slackService = new SlackService({
-    slackAuthenticationModel,
-    lightdashConfig,
-});
-
 if (lightdashConfig.scheduler?.enabled) {
+    const slackService = new SlackService({
+        slackAuthenticationModel,
+        lightdashConfig,
+    });
+
     const worker = new SchedulerWorker({ lightdashConfig });
     worker.run().catch((e) => {
         Logger.error('Error starting scheduler worker', e);

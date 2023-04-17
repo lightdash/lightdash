@@ -1,6 +1,8 @@
 import * as Sentry from '@sentry/node';
+import { SlackService } from './clients/Slack/Slackbot';
 import { lightdashConfig } from './config/lightdashConfig';
 import Logger from './logger';
+import { slackAuthenticationModel } from './models/models';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import { VERSION } from './version';
 
@@ -22,6 +24,11 @@ Sentry.init({
             : lightdashConfig.mode,
     integrations: [],
     ignoreErrors: ['WarehouseQueryError', 'FieldReferenceError'],
+});
+
+const slackService = new SlackService({
+    slackAuthenticationModel,
+    lightdashConfig,
 });
 
 if (process.env.CI !== 'true') {
