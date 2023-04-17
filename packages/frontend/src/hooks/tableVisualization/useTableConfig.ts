@@ -118,12 +118,19 @@ const useTableConfig = (
     // User configures the names and visibilty of these in the config panel
     const isColumnVisible = useCallback(
         (fieldId: string) => {
-            // if metricsAsRows is enabled, we should always show the dimensions
+            // if pivotDimensions is enabled, we should always show the dimensions
             // hiding a dimension randomly removes values from all metrics
-            if (metricsAsRows && isDimension(getField(fieldId))) return true;
+            if (
+                pivotDimensions &&
+                pivotDimensions.length > 0 &&
+                isDimension(getField(fieldId))
+            ) {
+                return true;
+            }
+
             return columnProperties[fieldId]?.visible ?? true;
         },
-        [metricsAsRows, getField, columnProperties],
+        [pivotDimensions, getField, columnProperties],
     );
     const isColumnFrozen = useCallback(
         (fieldId: string) => columnProperties[fieldId]?.frozen === true,
