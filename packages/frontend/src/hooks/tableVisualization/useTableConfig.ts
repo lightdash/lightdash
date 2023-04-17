@@ -5,7 +5,9 @@ import {
     Explore,
     getItemLabel,
     getItemMap,
+    isDimension,
     isField,
+    isMetric,
     itemsInMetricQuery,
     PivotData,
     ResultRow,
@@ -98,6 +100,11 @@ const useTableConfig = (
         [columnProperties],
     );
 
+    const getField = useCallback(
+        (fieldId: string) => itemsMap[fieldId],
+        [itemsMap],
+    );
+
     const getFieldLabel = useCallback(
         (fieldId: string | null | undefined) => {
             return (
@@ -110,17 +117,24 @@ const useTableConfig = (
     // This is controlled by the state in this component.
     // User configures the names and visibilty of these in the config panel
     const isColumnVisible = useCallback(
-        (fieldId: string) => columnProperties[fieldId]?.visible ?? true,
-        [columnProperties],
+        (fieldId: string) => {
+            // we should always show dimensions when pivoting
+            // hiding a dimension randomly removes values from all metrics
+            if (
+                pivotDimensions &&
+                pivotDimensions.length > 0 &&
+                isDimension(getField(fieldId))
+            ) {
+                return true;
+            }
+
+            return columnProperties[fieldId]?.visible ?? true;
+        },
+        [pivotDimensions, getField, columnProperties],
     );
     const isColumnFrozen = useCallback(
         (fieldId: string) => columnProperties[fieldId]?.frozen === true,
         [columnProperties],
-    );
-
-    const getField = useCallback(
-        (fieldId: string) => itemsMap[fieldId],
-        [itemsMap],
     );
 
     const canUseMetricsAsRows = useMemo(() => {
@@ -136,7 +150,10 @@ const useTableConfig = (
         return false;
     }, [resultsData, pivotDimensions]);
 
-    const pivotTableData = useMemo<PivotData | undefined>(() => {
+    const pivotTableData = useMemo<{
+        data: PivotData | undefined;
+        error: undefined | string;
+    }>(() => {
         // Note: user can have metricsAsRows enabled but if the configuration isn't allowed, it'll be ignored
         // In future we should change this to an error
         if (
@@ -147,22 +164,45 @@ const useTableConfig = (
         ) {
             // Pivot V2. This will always trigger when the above conditions are met.
             // The old pivot below will always trigger. So currently we pivot twice when the above conditions are met.
-            return pivotQueryResults({
-                pivotConfig: {
-                    pivotDimensions,
-                    metricsAsRows,
-                    columnOrder,
-                },
-                metricQuery: resultsData.metricQuery,
-                rows: resultsData.rows,
+
+            const hiddenMetricFieldIds = selectedItemIds?.filter((fieldId) => {
+                const field = getField(fieldId);
+
+                return (
+                    !isColumnVisible(fieldId) &&
+                    isField(field) &&
+                    isMetric(field)
+                );
             });
+
+            try {
+                const data = pivotQueryResults({
+                    pivotConfig: {
+                        pivotDimensions,
+                        metricsAsRows,
+                        columnOrder,
+                        hiddenMetricFieldIds,
+                    },
+                    metricQuery: resultsData.metricQuery,
+                    rows: resultsData.rows,
+                });
+
+                return { data: data, error: undefined };
+            } catch (e) {
+                return { data: undefined, error: e.message };
+            }
+        } else {
+            return { data: undefined, error: undefined };
         }
     }, [
         resultsData,
         pivotDimensions,
+        columnOrder,
         canUseMetricsAsRows,
         metricsAsRows,
-        columnOrder,
+        selectedItemIds,
+        isColumnVisible,
+        getField,
     ]);
 
     const { rows, columns, error } = useMemo<{

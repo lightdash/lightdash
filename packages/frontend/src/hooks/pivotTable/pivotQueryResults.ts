@@ -56,7 +56,13 @@ export const pivotQueryResults = ({
     if (rows.length === 0) {
         throw new Error('Cannot pivot results with no rows');
     }
-    const columnOrder = pivotConfig.columnOrder || [];
+
+    const hiddenMetricFieldIds = pivotConfig.hiddenMetricFieldIds || [];
+
+    const columnOrder = (pivotConfig.columnOrder || []).filter((id) => {
+        return !hiddenMetricFieldIds.includes(id);
+    });
+
     // Headers (column index)
     const headerDimensions = pivotConfig.pivotDimensions.filter(
         (pivotDimension) => metricQuery.dimensions.includes(pivotDimension),
@@ -99,8 +105,13 @@ export const pivotQueryResults = ({
         ...metricQuery.metrics,
         ...metricQuery.tableCalculations.map((tc) => tc.name),
     ]
+        .filter((m) => !hiddenMetricFieldIds.includes(m))
         .sort((a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b))
         .map((id) => ({ fieldId: id }));
+
+    if (metrics.length === 0) {
+        throw new Error('Cannot pivot results with no metrics');
+    }
 
     const N_ROWS = rows.length;
 
@@ -183,6 +194,10 @@ export const pivotQueryResults = ({
     const dataValues: (PivotValue | null)[][] = [...Array(N_DATA_ROWS)].map(
         () => Array(N_DATA_COLUMNS).fill(null),
     );
+
+    if (N_DATA_ROWS === 0 || N_DATA_COLUMNS === 0) {
+        throw new Error('Cannot pivot results with no data');
+    }
 
     // Compute pivoted data
     for (let nRow = 0; nRow < N_ROWS; nRow++) {

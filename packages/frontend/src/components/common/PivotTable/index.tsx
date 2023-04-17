@@ -46,7 +46,7 @@ const PivotTable: FC<PivotTableProps> = ({
         >
             <thead>
                 {data.headerValueTypes.map(
-                    (headerValueType, headerValueTypeIndex) => {
+                    (_headerValueType, headerValueTypeIndex) => {
                         const headerValues =
                             data.headerValues[headerValueTypeIndex];
 
