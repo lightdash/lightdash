@@ -13,7 +13,9 @@ import { MemberAbility } from './types';
 const { projectUuid } = PROJECT_VIEWER;
 
 const defineAbilityForProjectMember = (
-    member: Pick<ProjectMemberProfile, 'role' | 'projectUuid'> | undefined,
+    member:
+        | Pick<ProjectMemberProfile, 'role' | 'projectUuid' | 'userUuid'>
+        | undefined,
 ): MemberAbility => {
     const builder = new AbilityBuilder<MemberAbility>(Ability);
     if (member) {

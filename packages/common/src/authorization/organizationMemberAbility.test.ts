@@ -82,7 +82,7 @@ describe('Organization member permissions', () => {
         it('can view dashboards', () => {
             expect(ability.can('view', 'Dashboard')).toEqual(true);
         });
-        it('cannot manage dashboards from their own organization', () => {
+        it('can manage dashboards from their own organization', () => {
             expect(
                 ability.can(
                     'manage',
@@ -108,6 +108,50 @@ describe('Organization member permissions', () => {
         });
         it('cannot run SQL Queries', () => {
             expect(ability.can('manage', 'SqlRunner')).toEqual(false);
+        });
+        it('can manage public spaces', () => {
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Space', {
+                        organizationUuid: '456',
+                        isPrivate: false,
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Space', {
+                        organizationUuid: '456',
+                        isPrivate: false,
+                        access: ['random-uuid'],
+                    }),
+                ),
+            ).toEqual(true);
+        });
+        it('cannot manage private spaces', () => {
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Space', {
+                        organizationUuid: '456',
+                        isPrivate: true,
+                    }),
+                ),
+            ).toEqual(false);
+        });
+        it('can manage space if granted access', () => {
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Space', {
+                        organizationUuid: '456',
+                        isPrivate: true,
+                        access: [ORGANIZATION_EDITOR.userUuid],
+                    }),
+                ),
+            ).toEqual(true);
         });
     });
     describe('when user is an developer', () => {
@@ -143,6 +187,43 @@ describe('Organization member permissions', () => {
     describe('when user is a viewer', () => {
         beforeEach(() => {
             ability = defineAbilityForOrganizationMember(ORGANIZATION_VIEWER);
+        });
+        it('can view spaces', () => {
+            expect(ability.can('view', 'Space')).toEqual(true);
+        });
+        it('can view public spaces in their organization', () => {
+            expect(
+                ability.can(
+                    'view',
+                    subject('Space', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+                        isPrivate: false,
+                    }),
+                ),
+            ).toEqual(true);
+        });
+        it('cannot view private spaces in their organization', () => {
+            expect(
+                ability.can(
+                    'view',
+                    subject('Space', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+                        isPrivate: true,
+                    }),
+                ),
+            ).toEqual(false);
+        });
+        it('can view private spaces in their organization if they have access', () => {
+            expect(
+                ability.can(
+                    'view',
+                    subject('Space', {
+                        organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+                        isPrivate: true,
+                        access: [ORGANIZATION_VIEWER.userUuid],
+                    }),
+                ),
+            ).toEqual(true);
         });
         it('can view member profiles', () => {
             expect(ability.can('view', 'OrganizationMemberProfile')).toEqual(
