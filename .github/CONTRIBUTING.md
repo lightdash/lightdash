@@ -394,6 +394,12 @@ yarn load:env ./scripts/seed-lightdash.sh
 
 # run
 yarn load:env yarn dev
+
+# Log in dev mode
+When navigating to http://localhost:3000 you will be prompt to the login page, you can use our demo login details:
+
+Username: demo@lightdash.com
+Password: demo_password!
 ```
 
 > ⚠️ you can add env variables to your system and ignore running `yarn load:env` before each command
