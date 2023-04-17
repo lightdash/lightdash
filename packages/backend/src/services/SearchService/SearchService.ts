@@ -11,6 +11,7 @@ import { analytics } from '../../analytics/client';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../models/SearchModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type Dependencies = {
     searchModel: SearchModel;
@@ -73,16 +74,7 @@ export class SearchService {
             const spaceUuid: string =
                 'spaceUuid' in item ? item.spaceUuid : item.uuid;
             const itemSpace = spaces.find((s) => s.uuid === spaceUuid);
-            const hasSpaceAccess = user.ability.can(
-                'view',
-                subject('Space', {
-                    organizationUuid: itemSpace?.organizationUuid,
-                    projectUuid: itemSpace?.projectUuid,
-                    isPrivate: itemSpace?.isPrivate,
-                    access: itemSpace?.access.map((a) => a.userUuid),
-                }),
-            );
-            return itemSpace && hasSpaceAccess;
+            return itemSpace && hasSpaceAccess(itemSpace, user.userUuid);
         };
 
         const hasExploreAccess = user.ability.can(

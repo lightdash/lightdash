@@ -29,6 +29,7 @@ import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type Dependencies = {
     dashboardModel: DashboardModel;
@@ -82,7 +83,7 @@ export class DashboardService {
 
     async hasDashboardSpaceAccess(
         spaceUuid: string,
-        user: SessionUser,
+        userUuid: string,
     ): Promise<boolean> {
         let space: Space;
 
@@ -93,15 +94,8 @@ export class DashboardService {
             console.error(e);
             return false;
         }
-        return user.ability.can(
-            'view',
-            subject('Space', {
-                organizationUuid: space.organizationUuid,
-                projectUuid: space.projectUuid,
-                isPrivate: space.isPrivate,
-                access: space.access.map((access) => access.userUuid),
-            }),
-        );
+
+        return hasSpaceAccess(space, userUuid);
     }
 
     static getCreateEventProperties(
@@ -153,18 +147,11 @@ export class DashboardService {
             const dashboardSpace = spaces.find(
                 (space) => space.uuid === dashboard.spaceUuid,
             );
-            const hasSpaceAccess = user.ability.can(
-                'view',
-                subject('Space', {
-                    organizationUuid: dashboardSpace?.organizationUuid,
-                    projectUuid: dashboardSpace?.projectUuid,
-                    isPrivate: dashboardSpace?.isPrivate,
-                    access: dashboardSpace?.access.map(
-                        (access) => access.userUuid,
-                    ),
-                }),
+            return (
+                hasAbility &&
+                dashboardSpace &&
+                hasSpaceAccess(dashboardSpace, user.userUuid)
             );
-            return hasAbility && dashboardSpace && hasSpaceAccess;
         });
     }
 
@@ -176,7 +163,12 @@ export class DashboardService {
         if (user.ability.cannot('view', subject('Dashboard', dashboard))) {
             throw new ForbiddenError();
         }
-        if (!(await this.hasDashboardSpaceAccess(dashboard.spaceUuid, user))) {
+        if (
+            !(await this.hasDashboardSpaceAccess(
+                dashboard.spaceUuid,
+                user.userUuid,
+            ))
+        ) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",
             );
@@ -230,7 +222,7 @@ export class DashboardService {
         ) {
             throw new ForbiddenError();
         }
-        if (!(await this.hasDashboardSpaceAccess(space.uuid, user))) {
+        if (!(await this.hasDashboardSpaceAccess(space.uuid, user.userUuid))) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",
             );
@@ -259,7 +251,12 @@ export class DashboardService {
             throw new ForbiddenError();
         }
 
-        if (!(await this.hasDashboardSpaceAccess(dashboard.spaceUuid, user))) {
+        if (
+            !(await this.hasDashboardSpaceAccess(
+                dashboard.spaceUuid,
+                user.userUuid,
+            ))
+        ) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",
             );
@@ -316,7 +313,7 @@ export class DashboardService {
         if (
             !(await this.hasDashboardSpaceAccess(
                 existingDashboard.spaceUuid,
-                user,
+                user.userUuid,
             ))
         ) {
             throw new ForbiddenError(
@@ -380,7 +377,7 @@ export class DashboardService {
             throw new ForbiddenError();
         }
 
-        if (!(await this.hasDashboardSpaceAccess(spaceUuid, user))) {
+        if (!(await this.hasDashboardSpaceAccess(spaceUuid, user.userUuid))) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",
             );
@@ -439,7 +436,12 @@ export class DashboardService {
             throw new ForbiddenError();
         }
 
-        if (!(await this.hasDashboardSpaceAccess(space.space_uuid, user))) {
+        if (
+            !(await this.hasDashboardSpaceAccess(
+                space.space_uuid,
+                user.userUuid,
+            ))
+        ) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",
             );
@@ -468,7 +470,7 @@ export class DashboardService {
             throw new ForbiddenError();
         }
 
-        if (!(await this.hasDashboardSpaceAccess(spaceUuid, user))) {
+        if (!(await this.hasDashboardSpaceAccess(spaceUuid, user.userUuid))) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",
             );

@@ -17,6 +17,13 @@ type Dependencies = {
     pinnedListModel: PinnedListModel;
 };
 
+export const hasSpaceAccess = (space: Space, userUuid: string): boolean =>
+    !space.isPrivate ||
+    space.access.find(
+        (userAccess) =>
+            userAccess.userUuid === userUuid && userAccess.role !== null,
+    ) !== undefined;
+
 export class SpaceService {
     private readonly projectModel: ProjectModel;
 
@@ -35,16 +42,15 @@ export class SpaceService {
         user: SessionUser,
     ): Promise<Space[]> {
         const spaces = await this.spaceModel.getAllSpaces(projectUuid);
-        return spaces.filter((space) =>
-            user.ability.can(
-                'view',
-                subject('SavedChart', {
-                    organizationUuid: space.organizationUuid,
-                    projectUuid: space.projectUuid,
-                    isPrivate: space.isPrivate,
-                    access: space.access.map((a) => a.userUuid),
-                }),
-            ),
+        return spaces.filter(
+            (space) =>
+                user.ability.can(
+                    'view',
+                    subject('SavedChart', {
+                        organizationUuid: space.organizationUuid,
+                        projectUuid,
+                    }),
+                ) && hasSpaceAccess(space, user.userUuid),
         );
     }
 
@@ -60,11 +66,10 @@ export class SpaceService {
                 'view',
                 subject('Space', {
                     organizationUuid: space.organizationUuid,
-                    projectUuid: space.projectUuid,
-                    isPrivate: space.isPrivate,
-                    access: space.access.map((a) => a.userUuid),
+                    projectUuid,
                 }),
-            )
+            ) ||
+            !hasSpaceAccess(space, user.userUuid)
         ) {
             throw new ForbiddenError();
         }
@@ -129,10 +134,9 @@ export class SpaceService {
                 subject('Space', {
                     organizationUuid: space.organizationUuid,
                     projectUuid: space.projectUuid,
-                    isPrivate: space.isPrivate,
-                    access: space.access.map((a) => a.userUuid),
                 }),
-            )
+            ) ||
+            !hasSpaceAccess(space, user.userUuid)
         ) {
             throw new ForbiddenError();
         }
@@ -169,11 +173,10 @@ export class SpaceService {
                 'delete',
                 subject('Space', {
                     organizationUuid: space.organizationUuid,
-                    isPrivate: space.isPrivate,
                     projectUuid: space.projectUuid,
-                    access: space.access.map((a) => a.userUuid),
                 }),
-            )
+            ) ||
+            !hasSpaceAccess(space, user.userUuid)
         ) {
             throw new ForbiddenError();
         }
@@ -202,10 +205,9 @@ export class SpaceService {
                 subject('Space', {
                     organizationUuid: space.organizationUuid,
                     projectUuid: space.projectUuid,
-                    isPrivate: space.isPrivate,
-                    access: space.access.map((a) => a.userUuid),
                 }),
-            )
+            ) ||
+            !hasSpaceAccess(space, user.userUuid)
         ) {
             throw new ForbiddenError();
         }
@@ -225,10 +227,9 @@ export class SpaceService {
                 subject('Space', {
                     organizationUuid: space.organizationUuid,
                     projectUuid: space.projectUuid,
-                    isPrivate: space.isPrivate,
-                    access: space.access.map((a) => a.userUuid),
                 }),
-            )
+            ) ||
+            !hasSpaceAccess(space, user.userUuid)
         ) {
             throw new ForbiddenError();
         }

@@ -31,12 +31,6 @@ export const organizationMemberAbilities: Record<
         });
         can('view', 'Space', {
             organizationUuid: member.organizationUuid,
-            isPrivate: false,
-        });
-        can('view', 'Space', {
-            organizationUuid: member.organizationUuid,
-            isPrivate: true,
-            access: member.userUuid,
         });
         can('view', 'SavedChart', {
             organizationUuid: member.organizationUuid,
@@ -72,12 +66,6 @@ export const organizationMemberAbilities: Record<
         });
         can('manage', 'Space', {
             organizationUuid: member.organizationUuid,
-            isPrivate: false,
-        });
-        can('manage', 'Space', {
-            organizationUuid: member.organizationUuid,
-            isPrivate: true,
-            access: member.userUuid,
         });
         can('manage', 'SavedChart', {
             organizationUuid: member.organizationUuid,

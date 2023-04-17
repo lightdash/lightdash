@@ -9,7 +9,7 @@ import { MemberAbility } from './types';
 export const projectMemberAbilities: Record<
     ProjectMemberRole,
     (
-        member: Pick<ProjectMemberProfile, 'role' | 'projectUuid' | 'userUuid'>,
+        member: Pick<ProjectMemberProfile, 'role' | 'projectUuid'>,
         builder: Pick<AbilityBuilder<MemberAbility>, 'can'>,
     ) => void
 > = {
@@ -19,12 +19,6 @@ export const projectMemberAbilities: Record<
         });
         can('view', 'Space', {
             projectUuid: member.projectUuid,
-            isPrivate: false,
-        });
-        can('view', 'Space', {
-            projectUuid: member.projectUuid,
-            isPrivate: true,
-            access: member.userUuid,
         });
         can('view', 'SavedChart', {
             projectUuid: member.projectUuid,
@@ -53,12 +47,6 @@ export const projectMemberAbilities: Record<
         });
         can('manage', 'Space', {
             projectUuid: member.projectUuid,
-            isPrivate: false,
-        });
-        can('manage', 'Space', {
-            projectUuid: member.projectUuid,
-            isPrivate: true,
-            access: member.userUuid,
         });
         can('manage', 'SavedChart', {
             projectUuid: member.projectUuid,

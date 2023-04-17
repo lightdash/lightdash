@@ -78,6 +78,7 @@ import { buildQuery } from '../../queryBuilder';
 import { compileMetricQuery } from '../../queryCompiler';
 import { ProjectAdapter } from '../../types';
 import { runWorkerThread, wrapSentryTransaction } from '../../utils';
+import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type ProjectServiceDependencies = {
     projectModel: ProjectModel;
@@ -1377,17 +1378,7 @@ export class ProjectService {
             const space = await this.spaceModel.getFullSpace(
                 savedChart.spaceUuid,
             );
-            if (
-                user.ability.cannot(
-                    'view',
-                    subject('Space', {
-                        organizationUuid: space.organizationUuid,
-                        projectUuid: space.projectUuid,
-                        isPrivate: space.isPrivate,
-                        access: space.access.map((a) => a.userUuid),
-                    }),
-                )
-            ) {
+            if (!hasSpaceAccess(space, user.userUuid)) {
                 throw new ForbiddenError();
             }
 

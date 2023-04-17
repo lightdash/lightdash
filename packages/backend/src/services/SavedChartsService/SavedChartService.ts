@@ -25,6 +25,7 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type Dependencies = {
     projectModel: ProjectModel;
@@ -76,19 +77,11 @@ export class SavedChartService {
 
     async hasChartSpaceAccess(
         spaceUuid: string,
-        user: SessionUser,
+        userUuid: string,
     ): Promise<boolean> {
         try {
             const space = await this.spaceModel.getFullSpace(spaceUuid);
-            return user.ability.can(
-                'view',
-                subject('Space', {
-                    organizationUuid: space.organizationUuid,
-                    projectUuid: space.projectUuid,
-                    isPrivate: space.isPrivate,
-                    access: space.access.map((a) => a.userUuid),
-                }),
-            );
+            return hasSpaceAccess(space, userUuid);
         } catch (e) {
             return false;
         }
@@ -322,7 +315,12 @@ export class SavedChartService {
         if (user.ability.cannot('view', subject('SavedChart', savedChart))) {
             throw new ForbiddenError();
         }
-        if (!(await this.hasChartSpaceAccess(savedChart.spaceUuid, user))) {
+        if (
+            !(await this.hasChartSpaceAccess(
+                savedChart.spaceUuid,
+                user.userUuid,
+            ))
+        ) {
             throw new ForbiddenError(
                 "You don't have access to the space this chart belongs to",
             );
