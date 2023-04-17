@@ -1,3 +1,10 @@
+## [0.511.2](https://github.com/lightdash/lightdash/compare/0.511.1...0.511.2) (2023-04-17)
+
+
+### Bug Fixes
+
+* csv error slack ([#5115](https://github.com/lightdash/lightdash/issues/5115)) ([684e944](https://github.com/lightdash/lightdash/commit/684e9444e488af6d4f00d138202ca6004f9e5bf5))
+
 ## [0.511.1](https://github.com/lightdash/lightdash/compare/0.511.0...0.511.1) (2023-04-17)
 
 
