@@ -40,7 +40,11 @@ export const getQueryResults = async ({
     query,
     csvLimit,
 }: QueryResultsProps) => {
-    const timezoneFixQuery = query && convertDateFilters(query);
+    const timezoneFixQuery = query && {
+        ...query,
+        filters: convertDateFilters(query.filters),
+    };
+
     return lightdashApi<ApiQueryResults>({
         url: `/projects/${projectUuid}/explores/${tableId}/runQuery`,
         method: 'POST',
@@ -113,7 +117,11 @@ export const getUnderlyingDataResults = async ({
     tableId: string;
     query: MetricQuery;
 }) => {
-    const timezoneFixQuery = convertDateFilters(query);
+    const timezoneFixQuery = {
+        ...query,
+        filters: convertDateFilters(query.filters),
+    };
+
     return lightdashApi<ApiQueryResults>({
         url: `/projects/${projectUuid}/explores/${tableId}/runUnderlyingDataQuery`,
         method: 'POST',
@@ -146,14 +154,14 @@ export const useUnderlyingDataResults = (
 // This hook will be used for getting charts in view mode and dashboard tiles
 export const useChartResults = (chartUuid: string, filters?: Filters) => {
     const queryKey = ['savedChartResults', chartUuid, JSON.stringify(filters)];
-    const timezoneFixQuery = convertDateFilters({ filters } as MetricQuery);
+    const timezoneFixFilters = filters && convertDateFilters(filters);
 
     return useQuery<ApiQueryResults, ApiError>({
         queryKey,
         queryFn: () =>
             getChartResults({
                 chartUuid,
-                filters: timezoneFixQuery.filters,
+                filters: timezoneFixFilters,
             }),
         retry: false,
         refetchOnMount: false,
