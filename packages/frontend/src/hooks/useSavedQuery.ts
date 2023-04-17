@@ -160,7 +160,7 @@ export const useUpdateMultipleMutation = (projectUuid: string) => {
 };
 
 export const useUpdateMutation = (
-    dashboardUuid: string,
+    dashboardUuid?: string,
     savedQueryUuid?: string,
 ) => {
     const history = useHistory();
@@ -186,14 +186,16 @@ export const useUpdateMutation = (
                 queryClient.setQueryData(['saved_query', data.uuid], data);
                 showToastSuccess({
                     title: `Success! Chart was saved.`,
-                    action: {
-                        text: 'Open dashboard',
-                        icon: 'arrow-right',
-                        onClick: () =>
-                            history.push(
-                                `/projects/${data.projectUuid}/dashboards/${dashboardUuid}`,
-                            ),
-                    },
+                    action: dashboardUuid
+                        ? {
+                              text: 'Open dashboard',
+                              icon: 'arrow-right',
+                              onClick: () =>
+                                  history.push(
+                                      `/projects/${data.projectUuid}/dashboards/${dashboardUuid}`,
+                                  ),
+                          }
+                        : undefined,
                 });
             },
             onError: (error) => {

@@ -78,7 +78,7 @@ const SavedChartsHeader: FC = () => {
     const { data: spaces } = useSpaces(projectUuid);
     const { mutate: moveChartToSpace } = useMoveChartMutation();
     const updateSavedChart = useUpdateMutation(
-        dashboardUuid!,
+        dashboardUuid ? dashboardUuid : undefined,
         savedChart?.uuid,
     );
 
