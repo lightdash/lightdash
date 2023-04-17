@@ -1058,6 +1058,7 @@ export class ProjectService {
                     name: errorResponse.name,
                     statusCode: errorResponse.statusCode,
                     projectType: project.dbtConnection.type,
+                    warehouseType: project.warehouseConnection?.type,
                 },
             });
             throw errorResponse;

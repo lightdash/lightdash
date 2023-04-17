@@ -285,6 +285,7 @@ type ProjectErrorEvent = BaseTrack & {
         name: string;
         statusCode: number;
         projectType: DbtProjectType;
+        warehouseType?: WarehouseTypes;
     };
 };
 
