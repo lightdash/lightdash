@@ -37,10 +37,10 @@ export const convertDateFilters = (query: MetricQuery): MetricQuery => {
         ...query,
         filters: {
             dimensions:
-                query.filters.dimensions &&
+                query.filters?.dimensions &&
                 convertFilterGroups(query.filters.dimensions),
             metrics:
-                query.filters.metrics &&
+                query.filters?.metrics &&
                 convertFilterGroups(query.filters.metrics),
         },
     };
