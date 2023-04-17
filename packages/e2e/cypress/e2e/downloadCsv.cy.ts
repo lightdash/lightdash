@@ -91,7 +91,7 @@ describe('Download CSV on Dashboards', () => {
         cy.get('thead th').should('have.length', 6); // Table chart
         cy.contains('Days since').trigger('mouseenter');
 
-        cy.get('[data-icon="more"]').eq(1).click();
+        cy.get('[icon="more"]').click();
         cy.findByText('Export CSV').click();
         cy.get('button').contains('Export CSV').click();
 
