@@ -106,7 +106,6 @@ export const getNotificationPageData = async (
             pageType,
             `slack-image-notification-${nanoid()}`,
             userUuid,
-            3, // up to 3 retries
         );
         if (imageUrl === undefined) {
             throw new Error('Unable to unfurl image');
