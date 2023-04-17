@@ -1,3 +1,10 @@
+# [0.511.0](https://github.com/lightdash/lightdash/compare/0.510.6...0.511.0) (2023-04-17)
+
+
+### Features
+
+* pivot table hide columns ([#5032](https://github.com/lightdash/lightdash/issues/5032)) ([f78d594](https://github.com/lightdash/lightdash/commit/f78d59415a45ff4a5ebdc50e489a184e312e4a01))
+
 ## [0.510.6](https://github.com/lightdash/lightdash/compare/0.510.5...0.510.6) (2023-04-17)
 
 
