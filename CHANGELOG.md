@@ -1,3 +1,10 @@
+## [0.510.6](https://github.com/lightdash/lightdash/compare/0.510.5...0.510.6) (2023-04-17)
+
+
+### Bug Fixes
+
+* adding open dashboard button to update chart success toast ([#5095](https://github.com/lightdash/lightdash/issues/5095)) ([f9e0563](https://github.com/lightdash/lightdash/commit/f9e05633955675a3dd58e888db90618b464e2b1f))
+
 ## [0.510.5](https://github.com/lightdash/lightdash/compare/0.510.4...0.510.5) (2023-04-17)
 
 
