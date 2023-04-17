@@ -1,3 +1,10 @@
+## [0.510.5](https://github.com/lightdash/lightdash/compare/0.510.4...0.510.5) (2023-04-17)
+
+
+### Bug Fixes
+
+* more icon download csv ([#5101](https://github.com/lightdash/lightdash/issues/5101)) ([e4c18ce](https://github.com/lightdash/lightdash/commit/e4c18ceda7267509f8d2c29eb116faba9afc5cc6))
+
 ## [0.510.4](https://github.com/lightdash/lightdash/compare/0.510.3...0.510.4) (2023-04-14)
 
 
