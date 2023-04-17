@@ -1,3 +1,10 @@
+## [0.511.1](https://github.com/lightdash/lightdash/compare/0.511.0...0.511.1) (2023-04-17)
+
+
+### Bug Fixes
+
+* redirect user to active or first default project uuid ([#5117](https://github.com/lightdash/lightdash/issues/5117)) ([137d906](https://github.com/lightdash/lightdash/commit/137d90615fcbe44c98bb4f9ab17c0365c6bf1424))
+
 # [0.511.0](https://github.com/lightdash/lightdash/compare/0.510.6...0.511.0) (2023-04-17)
 
 
