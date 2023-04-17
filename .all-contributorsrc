@@ -1021,6 +1021,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "joaoviana",
+      "name": "João Viana",
+      "avatar_url": "https://avatars.githubusercontent.com/u/7611706?v=4",
+      "profile": "https://github.com/joaoviana",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "contributorsPerLine": 7,
