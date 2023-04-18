@@ -2,6 +2,7 @@ import {
     FilterGroup,
     FilterGroupItem,
     FilterRule,
+    Filters,
     getFilterGroupItemsPropertyName,
     getItemsFromFilterGroup,
     isFilterGroup,
@@ -9,7 +10,7 @@ import {
 } from '@lightdash/common';
 import moment from 'moment';
 
-export const convertDateFilters = (query: MetricQuery): MetricQuery => {
+export const convertDateFilters = (filters: Filters): Filters => {
     // Fix original date time values on filters instead of converting dates into UTC when using JSON.stringify on API request
     const convertFilterRule = (filterRule: FilterRule): FilterRule => {
         return {
@@ -34,14 +35,8 @@ export const convertDateFilters = (query: MetricQuery): MetricQuery => {
         };
     };
     return {
-        ...query,
-        filters: {
-            dimensions:
-                query.filters.dimensions &&
-                convertFilterGroups(query.filters.dimensions),
-            metrics:
-                query.filters.metrics &&
-                convertFilterGroups(query.filters.metrics),
-        },
+        dimensions:
+            filters.dimensions && convertFilterGroups(filters.dimensions),
+        metrics: filters.metrics && convertFilterGroups(filters.metrics),
     };
 };

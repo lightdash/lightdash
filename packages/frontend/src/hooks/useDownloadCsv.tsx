@@ -26,7 +26,10 @@ export const downloadCsv = async ({
     columnOrder: string[];
     customLabels?: Record<string, string>;
 }) => {
-    const timezoneFixQuery = convertDateFilters(query);
+    const timezoneFixQuery = {
+        ...query,
+        filters: convertDateFilters(query.filters),
+    };
     return lightdashApi<ApiScheduledDownloadCsv>({
         url: `/projects/${projectUuid}/explores/${tableId}/downloadCsv`,
         method: 'POST',
