@@ -99,7 +99,7 @@ export const useQueryResults = (props?: {
                 return Promise.reject();
             }
         },
-        [mutateAsync, projectUuid],
+        [mutateAsync, projectUuid, props?.chartUuid],
     );
 
     return useMemo(
