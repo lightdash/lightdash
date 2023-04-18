@@ -313,19 +313,23 @@ export class UserModel {
 
     private async getUserProjectRoles(
         userId: number,
-    ): Promise<Pick<ProjectMemberProfile, 'projectUuid' | 'role'>[]> {
+    ): Promise<
+        Pick<ProjectMemberProfile, 'projectUuid' | 'role' | 'userUuid'>[]
+    > {
         const projectMemberships = await this.database('project_memberships')
-            .leftJoin(
+            .innerJoin(
                 'projects',
                 'project_memberships.project_id',
                 'projects.project_id',
             )
-            .select('*')
+            .innerJoin('users', 'project_memberships.user_id', 'users.user_id')
+            .select(['project_uuid', 'role', 'user_uuid'])
             .where('user_id', userId);
 
         return projectMemberships.map((membership) => ({
             projectUuid: membership.project_uuid,
             role: membership.role,
+            userUuid: membership.user_uuid,
         }));
     }
 
