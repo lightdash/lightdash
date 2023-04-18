@@ -98,7 +98,6 @@ export class UnfurlService {
         cookie: string,
         url: string,
         lightdashPage: LightdashPage,
-        retries: number = 0,
     ): Promise<Buffer | undefined> {
         let browser;
 
@@ -168,25 +167,6 @@ export class UnfurlService {
 
             return imageBuffer;
         } catch (e) {
-            if (browser) await browser.close();
-
-            if (retries > 0) {
-                Logger.warn(
-                    `Retrying (${retries}) to fetch screenshots from headless chrome ${e.message}`,
-                );
-                const delay = (ms: number) =>
-                    new Promise((res) => {
-                        setTimeout(res, ms);
-                    });
-                await delay(10000); // Wait 10 seconds before retrying
-                return await this.saveScreenshot(
-                    imageId,
-                    cookie,
-                    url,
-                    lightdashPage,
-                    retries - 1,
-                );
-            }
             Sentry.captureException(e);
 
             Logger.error(
@@ -368,7 +348,6 @@ export class UnfurlService {
         lightdashPage: LightdashPage,
         imageId: string,
         authUserUuid: string,
-        retries: number = 0,
     ): Promise<string | undefined> {
         const cookie = await this.getUserCookie(authUserUuid);
 
@@ -377,7 +356,6 @@ export class UnfurlService {
             cookie,
             url,
             lightdashPage,
-            retries,
         );
 
         let imageUrl;
@@ -418,7 +396,6 @@ export class UnfurlService {
             pageType,
             `${snakeCaseName(name)}_${useNanoid()}`,
             user.userUuid,
-            3, // up to 3 retries
         );
         if (imageUrl === undefined) {
             throw new Error('Unable to unfurl image');
