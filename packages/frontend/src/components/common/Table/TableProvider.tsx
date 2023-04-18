@@ -206,7 +206,7 @@ export const TableProvider: FC<Props> = ({
                 },
             },
         ],
-        [selectedCell],
+        [selectedCell, showToastSuccess],
     );
 
     const { handleKeyDown } = useHotkeys(hotkeys);
