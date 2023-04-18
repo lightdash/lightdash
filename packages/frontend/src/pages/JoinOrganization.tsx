@@ -10,7 +10,7 @@ import {
     Text,
     Title,
 } from '@mantine/core';
-import React, { FC, useEffect } from 'react';
+import { FC, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { useHistory } from 'react-router-dom';
 import Page from '../components/common/Page/Page';
@@ -62,7 +62,7 @@ export const JoinOrganizationPage: FC = () => {
         if (hasCreatedOrg || hasJoinedOrg) {
             history.push('/');
         }
-    }, [hasCreatedOrg, hasJoinedOrg]);
+    }, [hasCreatedOrg, hasJoinedOrg, history]);
 
     if (health.isLoading || isLoadingAllowedOrgs || isCreatingOrg) {
         return <PageSpinner />;
