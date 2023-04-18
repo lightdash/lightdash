@@ -162,6 +162,11 @@ export type ApiScheduledJobsResponse = {
     results: ScheduledJobs[];
 };
 
+export type ApiSchedulerLogsResponse = {
+    status: 'ok';
+    results: SchedulerLog[];
+};
+
 // Scheduler task types
 
 export type ScheduledDeliveryPayload = { schedulerUuid: string };

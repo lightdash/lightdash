@@ -15,6 +15,9 @@ import {
 } from '@lightdash/common';
 import { NotFound } from 'express-openapi-validator/dist/openapi.validator';
 import { Knex } from 'knex';
+import { DashboardsTableName } from '../../database/entities/dashboards';
+import { ProjectTableName } from '../../database/entities/projects';
+import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import {
     SchedulerDb,
     SchedulerEmailTargetDb,
@@ -25,6 +28,7 @@ import {
     SchedulerTable,
     SchedulerTableName,
 } from '../../database/entities/scheduler';
+import { SpaceTableName } from '../../database/entities/spaces';
 
 type ModelDependencies = {
     database: Knex;
@@ -326,6 +330,73 @@ export class SchedulerModel {
                 .delete()
                 .where('scheduler_uuid', schedulerUuid);
         });
+    }
+
+    async getSchedulerLogs(projectUuid: string): Promise<SchedulerLog[]> {
+        const schedulerChartUuids = await this.database(SchedulerTableName)
+            .select('scheduler_uuid')
+            .leftJoin(
+                SavedChartsTableName,
+                `${SavedChartsTableName}.saved_query_uuid`,
+                `${SchedulerTableName}.saved_chart_uuid`,
+            )
+            .leftJoin(
+                SpaceTableName,
+                `${SpaceTableName}.space_id`,
+                `${SavedChartsTableName}.space_id`,
+            )
+            .leftJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid);
+
+        const schedulerDashboardUuids = await this.database(SchedulerTableName)
+            .select('scheduler_uuid')
+            .leftJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${SchedulerTableName}.dashboard_uuid`,
+            )
+            .leftJoin(
+                SpaceTableName,
+                `${SpaceTableName}.space_id`,
+                `${DashboardsTableName}.space_id`,
+            )
+            .leftJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid);
+
+        const schedulerUuids = new Set(
+            [...schedulerChartUuids, ...schedulerDashboardUuids].map(
+                (s) => s.scheduler_uuid,
+            ),
+        );
+        const uniqueSchedulerUuids = [...schedulerUuids];
+
+        const logs = await this.database(SchedulerLogTableName)
+
+            .select()
+            .whereIn(`scheduler_uuid`, uniqueSchedulerUuids);
+        return logs.map((log) => ({
+            ...log,
+            task: log.task as SchedulerLog['task'],
+            scheduledTime: log.scheduled_time,
+            schedulerUuid: log.scheduler_uuid,
+            jobGroup: log.job_group,
+            jobId: log.job_id,
+            status: log.status as SchedulerJobStatus,
+            target: log.target === null ? undefined : log.target,
+            targetType:
+                log.target_type === null
+                    ? undefined
+                    : (log.target_type as SchedulerLog['targetType']),
+            details: log.details === null ? undefined : log.details,
+        }));
     }
 
     async logSchedulerJob(log: SchedulerLog): Promise<void> {

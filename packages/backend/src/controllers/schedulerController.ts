@@ -2,6 +2,7 @@ import {
     ApiErrorPayload,
     ApiScheduledJobsResponse,
     ApiSchedulerAndTargetsResponse,
+    ApiSchedulerLogsResponse,
 } from '@lightdash/common';
 import { Delete } from '@tsoa/runtime';
 import express from 'express';
@@ -28,6 +29,29 @@ import {
 @Route('/api/v1/schedulers')
 @Response<ApiErrorPayload>('default', 'Error')
 export class SchedulerController extends Controller {
+    /**
+     * Get scheduled logs
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{projectUuid}/logs')
+    @OperationId('getSchedulerLogs')
+    async getLogs(
+        @Path() projectUuid: string,
+
+        @Request() req: express.Request,
+    ): Promise<ApiSchedulerLogsResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await schedulerService.getSchedulerLogs(
+                req.user!,
+                projectUuid,
+            ),
+        };
+    }
+
     /**
      * Get a scheduler
      * @param schedulerUuid The uuid of the scheduler to update

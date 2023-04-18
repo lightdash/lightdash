@@ -653,6 +653,73 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SchedulerJobStatus: {
+        dataType: 'refEnum',
+        enums: ['scheduled', 'started', 'completed', 'error'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.any_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SchedulerLog: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                details: { ref: 'Record_string.any_' },
+                targetType: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['email'] },
+                        { dataType: 'enum', enums: ['slack'] },
+                    ],
+                },
+                target: { dataType: 'string' },
+                status: { ref: 'SchedulerJobStatus', required: true },
+                scheduledTime: { dataType: 'datetime', required: true },
+                jobGroup: { dataType: 'string' },
+                jobId: { dataType: 'string', required: true },
+                schedulerUuid: { dataType: 'string' },
+                task: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'enum',
+                            enums: ['handleScheduledDelivery'],
+                        },
+                        { dataType: 'enum', enums: ['sendEmailNotification'] },
+                        { dataType: 'enum', enums: ['sendSlackNotification'] },
+                        { dataType: 'enum', enums: ['downloadCsv'] },
+                    ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSchedulerLogsResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'SchedulerLog' },
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SchedulerCsvOptions: {
         dataType: 'refAlias',
         type: {
@@ -1872,6 +1939,52 @@ export function RegisterRoutes(app: express.Router) {
                 const controller = new SavedChartController();
 
                 const promise = controller.postDashboardTile.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.get(
+        '/api/v1/schedulers/:projectUuid/logs',
+        ...fetchMiddlewares<RequestHandler>(SchedulerController),
+        ...fetchMiddlewares<RequestHandler>(
+            SchedulerController.prototype.getLogs,
+        ),
+
+        function SchedulerController_getLogs(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const controller = new SchedulerController();
+
+                const promise = controller.getLogs.apply(
                     controller,
                     validatedArgs as any,
                 );

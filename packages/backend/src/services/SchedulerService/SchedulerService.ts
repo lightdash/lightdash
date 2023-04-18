@@ -214,4 +214,11 @@ export class SchedulerService {
         }
         return job;
     }
+
+    async getSchedulerLogs(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<SchedulerLog[]> {
+        return this.schedulerModel.getSchedulerLogs(projectUuid);
+    }
 }
