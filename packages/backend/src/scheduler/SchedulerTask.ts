@@ -402,7 +402,9 @@ export const downloadCsv = async (
             status: SchedulerJobStatus.ERROR,
             details: { createdByUserUuid: payload.userUuid, error: e },
         });
+
         // do not throw error to avoid retrying
+        Logger.error(`Unable to complete job "${jobId}": ${JSON.stringify(e)}`);
     }
 };
 
