@@ -1,6 +1,6 @@
 import { Anchor, Button, PinInput, Stack, Text, Title } from '@mantine/core';
 import { isNotEmpty, useForm } from '@mantine/form';
-import React, { FC, useEffect, useState } from 'react';
+import { FC, useEffect } from 'react';
 import Countdown, { zeroPad } from 'react-countdown';
 import {
     useEmailStatus,
@@ -25,6 +25,7 @@ const VerifyEmailForm: FC<{ isLoading?: boolean }> = ({ isLoading }) => {
             code: isNotEmpty('This field is required.'),
         },
     });
+    const { setFieldError, clearFieldError } = form;
     const errorMessage = form.errors.code;
     const expirationTime = data?.otp?.expiresAt || new Date();
     const loadingState =
@@ -40,11 +41,11 @@ const VerifyEmailForm: FC<{ isLoading?: boolean }> = ({ isLoading }) => {
                       remainingAttempts > 1 ? 's' : ''
                   } left.`
                 : "Hmm that code doesn't match the one we sent you. You've already had 5 attempts, please resend a verification email and try again.";
-            form.setFieldError('code', message);
+            setFieldError('code', message);
         } else {
-            form.clearFieldError('code');
+            clearFieldError('code');
         }
-    }, [data, form.setFieldError, form.clearFieldError]);
+    }, [data, setFieldError, clearFieldError]);
 
     if (loadingState) {
         return <LoadingState title="" />;
