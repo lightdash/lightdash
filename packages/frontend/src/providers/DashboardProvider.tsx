@@ -94,9 +94,10 @@ export const DashboardProvider: React.FC = ({ children }) => {
         useDashboardsAvailableFilters(tileSavedChartUuids);
 
     const filterableFieldsByTileUuid = useMemo(() => {
-        if (!dashboard || !filterableFieldsBySavedQueryUuid) return;
+        if (!dashboard || !dashboardTiles || !filterableFieldsBySavedQueryUuid)
+            return;
 
-        return dashboard.tiles
+        return dashboardTiles
             .filter(isDashboardChartTileType)
             .reduce<DashboardAvailableFilters>((acc, tile) => {
                 const savedChartUuid = tile.properties.savedChartUuid;
@@ -108,7 +109,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
                         filterableFieldsBySavedQueryUuid[savedChartUuid],
                 };
             }, {});
-    }, [dashboard, filterableFieldsBySavedQueryUuid]);
+    }, [dashboard, dashboardTiles, filterableFieldsBySavedQueryUuid]);
 
     const allFilterableFields = useMemo(() => {
         if (isLoading || !filterableFieldsBySavedQueryUuid) return;

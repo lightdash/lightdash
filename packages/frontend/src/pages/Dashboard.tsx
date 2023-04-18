@@ -153,7 +153,6 @@ const Dashboard = () => {
         [dashboardTemporaryFilters],
     );
     const isEditMode = useMemo(() => mode === 'edit', [mode]);
-    // const [hasTilesChanged, setHasTilesChanged] = useState<boolean>(false);
     const {
         mutate,
         isSuccess,

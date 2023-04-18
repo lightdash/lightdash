@@ -3,13 +3,12 @@ import { Popover2Props } from '@blueprintjs/popover2';
 import {
     DashboardFieldTarget,
     DashboardFilterRule,
-    DashboardTile,
     FilterableField,
     FilterOperator,
     isField,
     isFilterableField,
 } from '@lightdash/common';
-import { FC, useEffect, useState } from 'react';
+import { FC, useState } from 'react';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
@@ -33,11 +32,8 @@ const FilterSearch: FC<Props> = ({
     popoverProps,
 }) => {
     const { track } = useTracking();
-    const { dashboardTiles, filterableFieldsByTileUuid, haveTilesChanged } =
+    const { dashboardTiles, filterableFieldsByTileUuid } =
         useDashboardContext();
-    const [tiles, setTiles] = useState<DashboardTile[]>(dashboardTiles);
-    // const { dashboardTiles, filterableFieldsByTileUuid } =
-    //     useDashboardContext();
     const { addDimensionDashboardFilter } = useDashboardContext();
 
     const [selectedField, setSelectedField] = useState<FilterableField>();
@@ -78,13 +74,6 @@ const FilterSearch: FC<Props> = ({
         setSelectedTabId(undefined);
         setSelectedField(undefined);
     };
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    useEffect(() => {
-        if (haveTilesChanged) {
-            return setTiles(dashboardTiles);
-        }
-        return setTiles(dashboardTiles);
-    }, [haveTilesChanged]);
 
     return (
         <FilterModalContainer
