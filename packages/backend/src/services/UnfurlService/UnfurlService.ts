@@ -167,14 +167,14 @@ export class UnfurlService {
 
             return imageBuffer;
         } catch (e) {
-            if (browser) await browser.close();
-
             Sentry.captureException(e);
 
             Logger.error(
                 `Unable to fetch screenshots from headless chrome ${e.message}`,
             );
             throw e;
+        } finally {
+            if (browser) await browser.close();
         }
     }
 
