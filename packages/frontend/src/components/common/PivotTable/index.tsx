@@ -34,6 +34,28 @@ const PivotTable: FC<PivotTableProps> = ({
     const { cx: tableCx, classes: tableStyles } = usePivotTableStyles();
     const { cx: cellCx, classes: cellStyles } = usePivotTableCellStyles({});
 
+    const getUnderlyingFieldValues = useCallback(
+        (rowIndex: number, colIndex: number) => {
+            const field = data.dataValues[rowIndex][colIndex];
+
+            const initialData =
+                field && field.value ? { [field.fieldId]: field.value } : {};
+
+            return [
+                // get the index values for this row
+                ...(data.indexValues[rowIndex] ?? []),
+                // get the header values for this column
+                ...(data.headerValues.map((hv) => hv[colIndex]) ?? []),
+            ]
+                .filter((iv) => iv.type === 'value')
+                .reduce<UnderlyingValueMap>((acc, iv) => {
+                    if (!iv.value) return acc;
+                    return { ...acc, [iv.fieldId]: iv.value };
+                }, initialData);
+        },
+        [data.indexValues, data.headerValues, data.dataValues],
+    );
+
     return (
         <Table
             cellSpacing={1}
