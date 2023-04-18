@@ -38,6 +38,8 @@ type DashboardContext = {
     fieldsWithSuggestions: FieldsWithSuggestions;
     dashboardTiles: Dashboard['tiles'] | [];
     setDashboardTiles: Dispatch<SetStateAction<Dashboard['tiles'] | []>>;
+    haveTilesChanged: boolean;
+    setHaveTilesChanged: Dispatch<SetStateAction<boolean>>;
     dashboardFilters: DashboardFilters;
     dashboardTemporaryFilters: DashboardFilters;
     setDashboardFilters: Dispatch<SetStateAction<DashboardFilters>>;
@@ -79,6 +81,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
     const [dashboardTiles, setDashboardTiles] = useState<Dashboard['tiles']>(
         [],
     );
+    const [haveTilesChanged, setHaveTilesChanged] = useState<boolean>(false);
 
     const tileSavedChartUuids = useMemo(() => {
         return dashboardTiles
@@ -91,9 +94,10 @@ export const DashboardProvider: React.FC = ({ children }) => {
         useDashboardsAvailableFilters(tileSavedChartUuids);
 
     const filterableFieldsByTileUuid = useMemo(() => {
-        if (!dashboard || !filterableFieldsBySavedQueryUuid) return;
+        if (!dashboard || !dashboardTiles || !filterableFieldsBySavedQueryUuid)
+            return;
 
-        return dashboard.tiles
+        return dashboardTiles
             .filter(isDashboardChartTileType)
             .reduce<DashboardAvailableFilters>((acc, tile) => {
                 const savedChartUuid = tile.properties.savedChartUuid;
@@ -105,7 +109,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
                         filterableFieldsBySavedQueryUuid[savedChartUuid],
                 };
             }, {});
-    }, [dashboard, filterableFieldsBySavedQueryUuid]);
+    }, [dashboard, dashboardTiles, filterableFieldsBySavedQueryUuid]);
 
     const allFilterableFields = useMemo(() => {
         if (isLoading || !filterableFieldsBySavedQueryUuid) return;
@@ -266,6 +270,8 @@ export const DashboardProvider: React.FC = ({ children }) => {
         fieldsWithSuggestions,
         dashboardTiles,
         setDashboardTiles,
+        haveTilesChanged,
+        setHaveTilesChanged,
         setDashboardTemporaryFilters,
         dashboardFilters,
         dashboardTemporaryFilters,

@@ -141,6 +141,8 @@ const Dashboard = () => {
         setHaveFiltersChanged,
         dashboardTiles,
         setDashboardTiles,
+        haveTilesChanged,
+        setHaveTilesChanged,
         setDashboardFilters,
         setDashboardTemporaryFilters,
     } = useDashboardContext();
@@ -151,7 +153,6 @@ const Dashboard = () => {
         [dashboardTemporaryFilters],
     );
     const isEditMode = useMemo(() => mode === 'edit', [mode]);
-    const [hasTilesChanged, setHasTilesChanged] = useState<boolean>(false);
     const {
         mutate,
         isSuccess,
@@ -182,7 +183,7 @@ const Dashboard = () => {
 
     useEffect(() => {
         if (isSuccess) {
-            setHasTilesChanged(false);
+            setHaveTilesChanged(false);
             setHaveFiltersChanged(false);
             setDashboardTemporaryFilters({ dimensions: [], metrics: [] });
             reset();
@@ -224,7 +225,7 @@ const Dashboard = () => {
                 }),
             );
 
-            setHasTilesChanged(true);
+            setHaveTilesChanged(true);
         },
         [setDashboardTiles],
     );
@@ -235,7 +236,7 @@ const Dashboard = () => {
                 return appendNewTilesToBottom(currentDashboardTiles, tiles);
             });
 
-            setHasTilesChanged(true);
+            setHaveTilesChanged(true);
         },
         [setDashboardTiles],
     );
@@ -248,7 +249,7 @@ const Dashboard = () => {
                 ),
             );
 
-            setHasTilesChanged(true);
+            setHaveTilesChanged(true);
         },
         [setDashboardTiles],
     );
@@ -260,14 +261,14 @@ const Dashboard = () => {
                     tile.uuid === updatedTile.uuid ? updatedTile : tile,
                 ),
             );
-            setHasTilesChanged(true);
+            setHaveTilesChanged(true);
         },
         [setDashboardTiles],
     );
 
     const handleCancel = useCallback(() => {
         setDashboardTiles(dashboard?.tiles || []);
-        setHasTilesChanged(false);
+        setHaveTilesChanged(false);
         if (dashboard) setDashboardFilters(dashboard.filters);
         setHaveFiltersChanged(false);
         history.push(
@@ -317,7 +318,7 @@ const Dashboard = () => {
 
     useEffect(() => {
         const checkReload = (event: BeforeUnloadEvent) => {
-            if (isEditMode && (hasTilesChanged || haveFiltersChanged)) {
+            if (isEditMode && (haveTilesChanged || haveFiltersChanged)) {
                 const message =
                     'You have unsaved changes to your dashboard! Are you sure you want to leave without saving?';
                 event.returnValue = message;
@@ -326,13 +327,13 @@ const Dashboard = () => {
         };
         window.addEventListener('beforeunload', checkReload);
         return () => window.removeEventListener('beforeunload', checkReload);
-    }, [hasTilesChanged, haveFiltersChanged, isEditMode]);
+    }, [haveTilesChanged, haveFiltersChanged, isEditMode]);
 
     useEffect(() => {
         history.block((prompt) => {
             if (
                 isEditMode &&
-                (hasTilesChanged || haveFiltersChanged) &&
+                (haveTilesChanged || haveFiltersChanged) &&
                 !prompt.pathname.includes(
                     `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
                 )
@@ -350,7 +351,7 @@ const Dashboard = () => {
     }, [
         isEditMode,
         history,
-        hasTilesChanged,
+        haveTilesChanged,
         haveFiltersChanged,
         projectUuid,
         dashboardUuid,
@@ -407,7 +408,9 @@ const Dashboard = () => {
                 isEditMode={isEditMode}
                 isSaving={isSaving}
                 hasDashboardChanged={
-                    hasTilesChanged || haveFiltersChanged || hasTemporaryFilters
+                    haveTilesChanged ||
+                    haveFiltersChanged ||
+                    hasTemporaryFilters
                 }
                 onAddTiles={handleAddTiles}
                 onSaveDashboard={() =>
