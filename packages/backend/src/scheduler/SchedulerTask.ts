@@ -5,7 +5,6 @@ import {
     isSchedulerCsvOptions,
     isSlackTarget,
     LightdashPage,
-    MetricQuery,
     NotificationPayloadBase,
     ScheduledDeliveryPayload,
     Scheduler,
@@ -14,7 +13,6 @@ import {
     SlackNotificationPayload,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
-import { Job } from 'graphile-worker';
 import { nanoid } from 'nanoid';
 import { analytics } from '../analytics/client';
 import {
@@ -344,7 +342,6 @@ export const sendSlackNotification = async (
             status: SchedulerJobStatus.COMPLETED,
         });
     } catch (e) {
-        Logger.error(`Unable to complete job "${jobId}": ${JSON.stringify(e)}`);
         analytics.track({
             event: 'scheduler_notification_job.failed',
             anonymousId: LightdashAnalytics.anonymousId,
@@ -401,9 +398,7 @@ export const downloadCsv = async (
             status: SchedulerJobStatus.ERROR,
             details: { createdByUserUuid: payload.userUuid, error: e },
         });
-
-        // do not throw error to avoid retrying
-        Logger.error(`Unable to complete job "${jobId}": ${JSON.stringify(e)}`);
+        throw e; // Cascade error to it can be retried by graphile
     }
 };
 
@@ -535,7 +530,6 @@ export const sendEmailNotification = async (
             status: SchedulerJobStatus.COMPLETED,
         });
     } catch (e) {
-        Logger.error(`Unable to complete job "${jobId}": ${JSON.stringify(e)}`);
         analytics.track({
             event: 'scheduler_notification_job.failed',
             anonymousId: LightdashAnalytics.anonymousId,
@@ -634,7 +628,6 @@ export const handleScheduledDelivery = async (
             },
         });
     } catch (e) {
-        Logger.error(`Unable to complete job "${jobId}": ${JSON.stringify(e)}`);
         analytics.track({
             event: 'scheduler_job.failed',
             anonymousId: LightdashAnalytics.anonymousId,
