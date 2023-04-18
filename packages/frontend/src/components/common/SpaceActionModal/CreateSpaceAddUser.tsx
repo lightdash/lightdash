@@ -87,7 +87,7 @@ export const CreateSpaceAddUser: FC<CreateSpaceAddUserProps> = ({
         );
     }, [form, usersSelected]);
     const renderUserShare: ItemRenderer<string> = useCallback(
-        (userUuid, { modifiers, handleClick, query }) => {
+        (userUuid, { modifiers, handleClick }) => {
             if (!modifiers.matchesPredicate) {
                 return null;
             }
@@ -144,7 +144,7 @@ export const CreateSpaceAddUser: FC<CreateSpaceAddUserProps> = ({
                 />
             );
         },
-        [usersSelected, organizationUsers],
+        [organizationUsers, usersSelected, sessionUser?.userUuid],
     );
 
     return (
