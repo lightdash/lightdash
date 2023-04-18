@@ -11,11 +11,12 @@ import {
     Route,
     SuccessResponse,
 } from 'tsoa';
+import { pinningService } from '../services/services';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 
 @Route('/api/v1/pinnedItems')
 @Response<ApiErrorPayload>('default', 'Error')
-export class PinnedItemsController extends Controller {
+export class PinningController extends Controller {
     /**
      * Get a pinned item
      * @param pinnedListUuid the list uuid for the pinned items
@@ -30,12 +31,19 @@ export class PinnedItemsController extends Controller {
         @Request() req: express.Request,
     ): Promise<ApiPinnedItems> {
         this.setStatus(200);
-        // this portion will be replaced by the service method like so:
-        // await pinningService.getPinnedCharts(pinnedListUuid);
-        // await pinningService.getPinnedDashboards(pinnedListUuid);
-        // await pinningService.getPinnedSpaces(pinnedListUuid);
-        // return { ...dashboards, ...charts, ...spaces };
-        const pinnedItems = {} as ApiPinnedItems;
-        return pinnedItems;
+        const pinnedDashboards = await pinningService.getPinnedDashboards(
+            pinnedListUuid,
+        );
+        const pinnedCharts = await pinningService.getPinnedCharts(
+            pinnedListUuid,
+        );
+        const pinnedSpaces = await pinningService.getPinnedSpaces(
+            pinnedListUuid,
+        );
+        return {
+            dashboards: pinnedDashboards,
+            charts: pinnedCharts,
+            spaces: pinnedSpaces,
+        };
     }
 }
