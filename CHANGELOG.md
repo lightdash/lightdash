@@ -1,3 +1,10 @@
+## [0.511.3](https://github.com/lightdash/lightdash/compare/0.511.2...0.511.3) (2023-04-18)
+
+
+### Bug Fixes
+
+* date dashboard filter ([#5112](https://github.com/lightdash/lightdash/issues/5112)) ([cf1c476](https://github.com/lightdash/lightdash/commit/cf1c4765f1fe128979bb2067148afa3dc1572fb1))
+
 ## [0.511.2](https://github.com/lightdash/lightdash/compare/0.511.1...0.511.2) (2023-04-17)
 
 
