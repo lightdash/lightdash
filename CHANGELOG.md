@@ -1,3 +1,10 @@
+## [0.511.4](https://github.com/lightdash/lightdash/compare/0.511.3...0.511.4) (2023-04-18)
+
+
+### Bug Fixes
+
+* add logger to `downloadCsv` job ([#5119](https://github.com/lightdash/lightdash/issues/5119)) ([42396c4](https://github.com/lightdash/lightdash/commit/42396c4248fd553d7926f6121cd27186b1826341))
+
 ## [0.511.3](https://github.com/lightdash/lightdash/compare/0.511.2...0.511.3) (2023-04-18)
 
 
