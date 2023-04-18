@@ -1,3 +1,10 @@
+## [0.511.5](https://github.com/lightdash/lightdash/compare/0.511.4...0.511.5) (2023-04-18)
+
+
+### Bug Fixes
+
+* disable browser retries ([#5113](https://github.com/lightdash/lightdash/issues/5113)) ([b1e5872](https://github.com/lightdash/lightdash/commit/b1e58725811ce8a311d8b8753b6fed7195754126))
+
 ## [0.511.4](https://github.com/lightdash/lightdash/compare/0.511.3...0.511.4) (2023-04-18)
 
 
