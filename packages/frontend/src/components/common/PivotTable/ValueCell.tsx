@@ -17,11 +17,18 @@ import {
     useState,
 } from 'react';
 import { readableColor } from '../../../utils/colorUtils';
+import { UnderlyingValueMap } from '../../MetricQueryData/MetricQueryDataProvider';
 import { getConditionalRuleLabel } from '../Filters/configs';
 import { usePivotTableCellStyles } from './tableStyles';
 import ValueCellMenu from './ValueCellMenu';
 
 interface ValueCellProps {
+    rowIndex: number;
+    colIndex: number;
+    getUnderlyingFieldValues: (
+        colIndex: number,
+        rowIndex: number,
+    ) => UnderlyingValueMap;
     value: PivotValue | null;
     row: (PivotValue | null)[];
     conditionalFormattings: ConditionalFormattingConfig[];
@@ -40,9 +47,12 @@ const ForwardRef = forwardRef<HTMLTableCellElement, ForwardRefProps>(
 );
 
 const ValueCell: FC<ValueCellProps> = ({
+    rowIndex,
+    colIndex,
     value,
     row,
     conditionalFormattings,
+    getUnderlyingFieldValues,
     getField,
 }) => {
     const field = useMemo(
@@ -94,10 +104,13 @@ const ValueCell: FC<ValueCellProps> = ({
 
     return (
         <ValueCellMenu
+            rowIndex={rowIndex}
+            colIndex={colIndex}
             opened={isMenuOpen}
             item={field}
             value={value}
             row={row}
+            getUnderlyingFieldValues={getUnderlyingFieldValues}
             onCopy={handleCopy}
             onOpen={() => setIsMenuOpen(true)}
             onClose={() => setIsMenuOpen(false)}

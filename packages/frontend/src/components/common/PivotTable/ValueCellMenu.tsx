@@ -13,17 +13,26 @@ import {
 import MantineIcon from '../MantineIcon';
 
 type ValueCellMenuProps = {
+    rowIndex: number;
+    colIndex: number;
     item: Field | TableCalculation | undefined;
     value: PivotValue | null;
     row: (PivotValue | null)[];
     onCopy: () => void;
+    getUnderlyingFieldValues: (
+        colIndex: number,
+        rowIndex: number,
+    ) => UnderlyingValueMap;
 } & Pick<MenuProps, 'opened' | 'onOpen' | 'onClose'>;
 
 const ValueCellMenu: FC<ValueCellMenuProps> = ({
     children,
+    rowIndex,
+    getUnderlyingFieldValues,
+    colIndex,
     item,
     value: pivotValue,
-    row: pivotRow,
+    // row: pivotRow,
     opened,
     onOpen,
     onClose,
@@ -36,21 +45,18 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
     // TODO: get rid of this from here
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
-    const rowMap = useMemo(() => {
-        return pivotRow.reduce<UnderlyingValueMap>((acc, row) => {
-            if (row?.fieldId && row.value) {
-                return { ...acc, [row.fieldId]: row.value };
-            }
-            return acc;
-        }, {});
-    }, [pivotRow]);
-
     if (!pivotValue || !pivotValue.value) {
         return <>{children}</>;
     }
 
     const handleOpenUnderlyingDataModal = () => {
-        openUnderlyingDataModel(item, pivotValue.value, rowMap);
+        const underlyingFieldValues = getUnderlyingFieldValues(
+            rowIndex,
+            colIndex,
+        );
+
+        openUnderlyingDataModel(item, pivotValue.value, underlyingFieldValues);
+
         track({
             name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
             properties: {
@@ -63,10 +69,12 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
 
     const handleOpenDrillIntoModal = () => {
         if (!item) return;
+        const underlyingFieldValues = getUnderlyingFieldValues(
+            rowIndex,
+            colIndex,
+        );
 
-        // TODO: missing pivotReference
-
-        openDrillDownModel({ row: rowMap, selectedItem: item });
+        openDrillDownModel({ row: underlyingFieldValues, selectedItem: item });
         track({
             name: EventName.DRILL_BY_CLICKED,
             properties: {

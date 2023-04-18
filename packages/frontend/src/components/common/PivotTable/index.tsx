@@ -6,7 +6,8 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import { Table, TableProps } from '@mantine/core';
-import React, { FC } from 'react';
+import React, { FC, useCallback } from 'react';
+import { UnderlyingValueMap } from '../../MetricQueryData/MetricQueryDataProvider';
 import HeaderCell from './HeaderCell';
 import IndexCell from './IndexCell';
 import { usePivotTableCellStyles, usePivotTableStyles } from './tableStyles';
@@ -68,15 +69,14 @@ const PivotTable: FC<PivotTableProps> = ({
         >
             <thead>
                 {data.headerValueTypes.map(
-                    (_headerValueType, headerValueTypeIndex) => {
-                        const headerValues =
-                            data.headerValues[headerValueTypeIndex];
+                    (_headerValueType, headerRowIndex) => {
+                        const headerValues = data.headerValues[headerRowIndex];
 
                         const headerLevel =
-                            data.headerValueTypes.length - headerValueTypeIndex;
+                            data.headerValueTypes.length - headerRowIndex;
 
                         return (
-                            <tr key={headerValueTypeIndex}>
+                            <tr key={headerRowIndex}>
                                 <>
                                     {!hideRowNumbers && (
                                         <th
@@ -88,11 +88,11 @@ const PivotTable: FC<PivotTableProps> = ({
                                     )}
 
                                     {data.indexValueTypes.map(
-                                        (_indexValueType, indexValueIndex) => {
+                                        (_indexValueType, indexColIndex) => {
                                             const titleField =
                                                 data.titleFields[
-                                                    headerValueTypeIndex
-                                                ][indexValueIndex];
+                                                    headerRowIndex
+                                                ][indexColIndex];
 
                                             const field = titleField?.fieldId
                                                 ? getField(titleField?.fieldId)
@@ -107,7 +107,7 @@ const PivotTable: FC<PivotTableProps> = ({
 
                                             return (
                                                 <TitleCell
-                                                    key={indexValueIndex}
+                                                    key={`${headerRowIndex}-${indexColIndex}`}
                                                     className={cellCx(
                                                         cellStyles.root,
                                                         cellStyles.header,
@@ -134,7 +134,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                     )}
 
                                     {headerValues.map(
-                                        (headerValue, headerValueIndex) => {
+                                        (headerValue, headerColIndex) => {
                                             const isLabel =
                                                 headerValue.type === 'label';
                                             const field = getField(
@@ -148,7 +148,7 @@ const PivotTable: FC<PivotTableProps> = ({
 
                                             return (
                                                 <HeaderCell
-                                                    key={headerValueIndex}
+                                                    key={`${headerRowIndex}-${headerColIndex}`}
                                                     className={cellCx(
                                                         cellStyles.root,
                                                         cellStyles.header,
@@ -174,8 +174,8 @@ const PivotTable: FC<PivotTableProps> = ({
             </thead>
 
             <tbody>
-                {data.dataValues.map((row, i) => (
-                    <tr key={i}>
+                {data.dataValues.map((row, rowIndex) => (
+                    <tr key={rowIndex}>
                         <>
                             {!hideRowNumbers && (
                                 <td
@@ -184,42 +184,54 @@ const PivotTable: FC<PivotTableProps> = ({
                                         cellStyles.rowNumber,
                                     )}
                                 >
-                                    {i + 1}
+                                    {rowIndex + 1}
                                 </td>
                             )}
 
-                            {data.indexValueTypes.map((_indexValueType, j) => {
-                                const indexValue = data.indexValues[i][j];
-                                const field = getField(indexValue.fieldId);
-                                const isLabel = indexValue.type === 'label';
+                            {data.indexValueTypes.map(
+                                (_indexValueType, indexColIndex) => {
+                                    const indexValue =
+                                        data.indexValues[rowIndex][
+                                            indexColIndex
+                                        ];
+                                    const field = getField(indexValue.fieldId);
+                                    const isLabel = indexValue.type === 'label';
 
-                                const description =
-                                    isLabel && isField(field)
-                                        ? field.description
-                                        : undefined;
+                                    const description =
+                                        isLabel && isField(field)
+                                            ? field.description
+                                            : undefined;
 
-                                return (
-                                    <IndexCell
-                                        key={`${i}-${j}`}
-                                        className={cellCx(
-                                            cellStyles.root,
-                                            cellStyles.header,
-                                        )}
-                                        description={description}
-                                    >
-                                        {isLabel
-                                            ? getFieldLabel(indexValue.fieldId)
-                                            : indexValue.value.formatted}
-                                    </IndexCell>
-                                );
-                            })}
+                                    return (
+                                        <IndexCell
+                                            key={`${rowIndex}-${indexColIndex}`}
+                                            className={cellCx(
+                                                cellStyles.root,
+                                                cellStyles.header,
+                                            )}
+                                            description={description}
+                                        >
+                                            {isLabel
+                                                ? getFieldLabel(
+                                                      indexValue.fieldId,
+                                                  )
+                                                : indexValue.value.formatted}
+                                        </IndexCell>
+                                    );
+                                },
+                            )}
 
-                            {row.map((pivotValue, rowIndex) => (
+                            {row.map((pivotValue, colIndex) => (
                                 <ValueCell
-                                    key={rowIndex}
+                                    key={`${rowIndex}-${colIndex}`}
+                                    colIndex={colIndex}
+                                    rowIndex={rowIndex}
                                     row={row}
                                     value={pivotValue}
                                     getField={getField}
+                                    getUnderlyingFieldValues={
+                                        getUnderlyingFieldValues
+                                    }
                                     conditionalFormattings={
                                         conditionalFormattings
                                     }
