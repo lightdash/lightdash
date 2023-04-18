@@ -127,7 +127,6 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
                         })}
                     >
                         <DrillDownMenuItem
-                            // TODO: come back to this
                             row={resultsData?.rows[0].value}
                             selectedItem={selectedItem}
                             trackingData={{
