@@ -69,7 +69,17 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
                 },
             });
         }
-    }, [explore, bigNumberConfig, row, value, openUnderlyingDataModel]);
+    }, [
+        explore,
+        bigNumberConfig,
+        value,
+        openUnderlyingDataModel,
+        row,
+        track,
+        user?.data?.organizationUuid,
+        user?.data?.userUuid,
+        projectUuid,
+    ]);
 
     return (
         <Popover2

@@ -2,7 +2,6 @@ import {
     Button,
     Colors,
     FormGroup,
-    Icon,
     InputGroup,
     Intent,
 } from '@blueprintjs/core';
@@ -13,7 +12,7 @@ import {
     UpdateUserArgs,
     validateEmail,
 } from '@lightdash/common';
-import React, { FC, useEffect, useState } from 'react';
+import { FC, useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from 'react-query';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -91,7 +90,13 @@ const ProfilePanel: FC = () => {
         ) {
             setShowVerifyEmailModal(false);
         }
-    }, [sendVerificationEmailError, data, error, showError]);
+    }, [
+        sendVerificationEmailError,
+        data,
+        error,
+        showError,
+        isEmailServerConfigured,
+    ]);
 
     const handleUpdate = () => {
         if (firstName && lastName && email && validateEmail(email)) {
