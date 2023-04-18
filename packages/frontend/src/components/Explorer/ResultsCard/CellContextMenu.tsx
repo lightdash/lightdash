@@ -30,7 +30,7 @@ const CellContextMenu: FC<
     }
 > = ({ cell, isEditMode, itemsMap }) => {
     const { addFilter } = useFilters();
-    const { openUnderlyingDataModel } = useMetricQueryDataContext();
+    const { openUnderlyingDataModal } = useMetricQueryDataContext();
     const { track } = useTracking();
     const { showToastSuccess } = useToaster();
     const meta = cell.column.columnDef.meta;
@@ -74,7 +74,7 @@ const CellContextMenu: FC<
                         text="View underlying data"
                         icon="layers"
                         onClick={() => {
-                            openUnderlyingDataModel(meta.item, value, row);
+                            openUnderlyingDataModal(meta.item, value, row);
                             track({
                                 name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
                                 properties: {

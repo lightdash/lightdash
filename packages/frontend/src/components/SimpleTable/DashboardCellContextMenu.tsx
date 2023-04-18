@@ -38,7 +38,7 @@ const DashboardCellContextMenu: FC<
     }
 > = ({ cell, explore, tileUuid }) => {
     const { showToastSuccess } = useToaster();
-    const { openUnderlyingDataModel } = useMetricQueryDataContext();
+    const { openUnderlyingDataModal } = useMetricQueryDataContext();
     const { addDimensionDashboardFilter } = useDashboardContext();
     const dashboardFiltersThatApplyToChart = useDashboardFiltersForExplore(
         tileUuid,
@@ -134,7 +134,7 @@ const DashboardCellContextMenu: FC<
                                     projectId: projectUuid,
                                 },
                             });
-                            openUnderlyingDataModel(
+                            openUnderlyingDataModal(
                                 meta.item,
                                 value,
                                 row,

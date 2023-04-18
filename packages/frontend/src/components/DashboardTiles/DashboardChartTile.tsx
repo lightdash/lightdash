@@ -262,7 +262,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     }>();
     const { user } = useApp();
 
-    const { openUnderlyingDataModel } = useMetricQueryDataContext();
+    const { openUnderlyingDataModal } = useMetricQueryDataContext();
     const contextMenuRenderTarget = useCallback(
         ({ ref }: Popover2TargetProps) => (
             <Portal>
@@ -533,7 +533,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                                             dimensions,
                                                             pivotReference,
                                                         } = viewUnderlyingDataOptions;
-                                                        openUnderlyingDataModel(
+                                                        openUnderlyingDataModal(
                                                             item,
                                                             value,
                                                             row,

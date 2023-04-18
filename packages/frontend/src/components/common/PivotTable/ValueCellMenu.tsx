@@ -39,7 +39,7 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
     onCopy,
 }) => {
     const { track } = useTracking();
-    const { openUnderlyingDataModel, openDrillDownModel } =
+    const { openUnderlyingDataModal, openDrillDownModel } =
         useMetricQueryDataContext();
     const { user } = useApp();
     // TODO: get rid of this from here
@@ -55,7 +55,7 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
             colIndex,
         );
 
-        openUnderlyingDataModel(item, pivotValue.value, underlyingFieldValues);
+        openUnderlyingDataModal(item, pivotValue.value, underlyingFieldValues);
 
         track({
             name: EventName.VIEW_UNDERLYING_DATA_CLICKED,

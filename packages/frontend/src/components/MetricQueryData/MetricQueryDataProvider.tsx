@@ -39,7 +39,7 @@ type MetricQueryDataContext = {
     metricQuery?: MetricQuery;
     underlyingDataConfig: MetricQueryDataConfig | undefined;
     isUnderlyingDataModalOpen: boolean;
-    openUnderlyingDataModel: (
+    openUnderlyingDataModal: (
         item: Field | TableCalculation | undefined,
         value: UnderlyingValue,
         row: UnderlyingValueMap,
@@ -130,7 +130,7 @@ export const MetricQueryDataProvider: FC<Props> = ({
         setIsUnderlyingDataModalOpen(false);
     }, []);
 
-    const openUnderlyingDataModel = useCallback(
+    const openUnderlyingDataModal = useCallback(
         (
             item: Field | TableCalculation | undefined,
             value: UnderlyingValue,
@@ -159,7 +159,7 @@ export const MetricQueryDataProvider: FC<Props> = ({
                 tableName,
                 metricQuery,
                 underlyingDataConfig,
-                openUnderlyingDataModel,
+                openUnderlyingDataModal,
                 isUnderlyingDataModalOpen,
                 closeUnderlyingDataModal,
                 isDrillDownModalOpen,

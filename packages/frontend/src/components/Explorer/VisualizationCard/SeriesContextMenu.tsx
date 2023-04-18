@@ -47,7 +47,7 @@ export const SeriesContextMenu: FC<{
     const { resultsData: { metricQuery } = {} } = context;
 
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
-    const { openUnderlyingDataModel } = useMetricQueryDataContext();
+    const { openUnderlyingDataModal } = useMetricQueryDataContext();
 
     const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
         left: number;
@@ -88,7 +88,7 @@ export const SeriesContextMenu: FC<{
 
     const onViewUnderlyingData = useCallback(() => {
         if (underlyingData !== undefined) {
-            openUnderlyingDataModel(
+            openUnderlyingDataModal(
                 underlyingData.item,
                 underlyingData.value,
                 underlyingData.row,
@@ -96,7 +96,7 @@ export const SeriesContextMenu: FC<{
                 underlyingData.pivotReference,
             );
         }
-    }, [openUnderlyingDataModel, dimensions, underlyingData]);
+    }, [openUnderlyingDataModal, dimensions, underlyingData]);
     const contextMenuRenderTarget = useCallback(
         ({ ref }: Popover2TargetProps) => (
             <Portal>

@@ -17,7 +17,7 @@ import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
 import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';
 
 const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
-    const { openUnderlyingDataModel } = useMetricQueryDataContext();
+    const { openUnderlyingDataModal } = useMetricQueryDataContext();
     const { showToastSuccess } = useToaster();
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
@@ -58,7 +58,7 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
                         text="View underlying data"
                         icon="layers"
                         onClick={() => {
-                            openUnderlyingDataModel(meta.item, value, row);
+                            openUnderlyingDataModal(meta.item, value, row);
                             track({
                                 name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
                                 properties: {

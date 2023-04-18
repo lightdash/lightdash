@@ -28,7 +28,7 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
 }) => {
     const { showToastSuccess } = useToaster();
     const { resultsData, bigNumberConfig } = useVisualizationContext();
-    const { openUnderlyingDataModel, tableName } = useMetricQueryDataContext();
+    const { openUnderlyingDataModal, tableName } = useMetricQueryDataContext();
     const { data: explore } = useExplore(tableName);
 
     const { track } = useTracking();
@@ -62,7 +62,7 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
                 bigNumberConfig.selectedField,
             );
 
-            openUnderlyingDataModel(item, value, row);
+            openUnderlyingDataModal(item, value, row);
             track({
                 name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
                 properties: {
@@ -76,7 +76,7 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
         explore,
         bigNumberConfig,
         value,
-        openUnderlyingDataModel,
+        openUnderlyingDataModal,
         projectUuid,
         row,
         track,
