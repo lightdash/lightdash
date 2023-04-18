@@ -1,6 +1,10 @@
 import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
-import { DashboardFilterRule, FilterableField } from '@lightdash/common';
-import { FC, useState } from 'react';
+import {
+    DashboardFilterRule,
+    DashboardTile,
+    FilterableField,
+} from '@lightdash/common';
+import { FC, useCallback, useEffect, useState } from 'react';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import {
     getConditionalRuleLabel,
@@ -33,9 +37,13 @@ const ActiveFilter: FC<Props> = ({
     onRemove,
     onUpdate,
 }) => {
-    const { dashboardTiles, allFilterableFields, filterableFieldsByTileUuid } =
-        useDashboardContext();
-
+    const {
+        dashboardTiles,
+        allFilterableFields,
+        filterableFieldsByTileUuid,
+        haveTilesChanged,
+    } = useDashboardContext();
+    const [tiles, setTiles] = useState<DashboardTile[]>(dashboardTiles);
     const [selectedTabId, setSelectedTabId] = useState<FilterTabs>();
 
     if (!filterableFieldsByTileUuid || !allFilterableFields) {
@@ -56,6 +64,15 @@ const ActiveFilter: FC<Props> = ({
         allFilterableFields,
     );
 
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    useEffect(() => {
+        if (haveTilesChanged) {
+            return setTiles(dashboardTiles);
+        }
+        return setTiles(dashboardTiles);
+    }, [haveTilesChanged]);
+    console.log('tiles', tiles);
+
     return (
         <Popover2
             lazy
@@ -64,7 +81,7 @@ const ActiveFilter: FC<Props> = ({
                 <FilterModalContainer $wide={selectedTabId === 'tiles'}>
                     <FilterConfiguration
                         isEditMode={isEditMode}
-                        tiles={dashboardTiles}
+                        tiles={tiles}
                         selectedTabId={selectedTabId}
                         onTabChange={setSelectedTabId}
                         field={field}

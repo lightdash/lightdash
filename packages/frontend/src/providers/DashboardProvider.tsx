@@ -38,6 +38,8 @@ type DashboardContext = {
     fieldsWithSuggestions: FieldsWithSuggestions;
     dashboardTiles: Dashboard['tiles'] | [];
     setDashboardTiles: Dispatch<SetStateAction<Dashboard['tiles'] | []>>;
+    haveTilesChanged: boolean;
+    setHaveTilesChanged: Dispatch<SetStateAction<boolean>>;
     dashboardFilters: DashboardFilters;
     dashboardTemporaryFilters: DashboardFilters;
     setDashboardFilters: Dispatch<SetStateAction<DashboardFilters>>;
@@ -79,6 +81,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
     const [dashboardTiles, setDashboardTiles] = useState<Dashboard['tiles']>(
         [],
     );
+    const [haveTilesChanged, setHaveTilesChanged] = useState<boolean>(false);
 
     const tileSavedChartUuids = useMemo(() => {
         return dashboardTiles
@@ -266,6 +269,8 @@ export const DashboardProvider: React.FC = ({ children }) => {
         fieldsWithSuggestions,
         dashboardTiles,
         setDashboardTiles,
+        haveTilesChanged,
+        setHaveTilesChanged,
         setDashboardTemporaryFilters,
         dashboardFilters,
         dashboardTemporaryFilters,
