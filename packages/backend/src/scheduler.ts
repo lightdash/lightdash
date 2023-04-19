@@ -42,7 +42,6 @@ const server = http.createServer(app);
 
 async function onSignal() {
     Logger.debug('SIGTERM signal received: closing HTTP server');
-    // stops the scheduler worker
     if (worker && worker.runner) {
         await worker?.runner?.stop();
     }

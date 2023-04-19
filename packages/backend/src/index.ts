@@ -219,19 +219,12 @@ app.use((error: Error, req: Request, res: Response, _: NextFunction) => {
 
 // Run the server
 const port = process.env.PORT || 8080;
-const server = app.listen(port, () => {
+app.listen(port, () => {
     if (process.env.HEADLESS !== 'true') {
         Logger.info(
             `\n   |     |     |     |     |     |     |\n   |     |     |     |     |     |     |\n   |     |     |     |     |     |     |  \n \\ | / \\ | / \\ | / \\ | / \\ | / \\ | / \\ | /\n  \\|/   \\|/   \\|/   \\|/   \\|/   \\|/   \\|/\n------------------------------------------\nLaunch lightdash at http://localhost:${port}\n------------------------------------------\n  /|\\   /|\\   /|\\   /|\\   /|\\   /|\\   /|\\\n / | \\ / | \\ / | \\ / | \\ / | \\ / | \\ / | \\\n   |     |     |     |     |     |     |\n   |     |     |     |     |     |     |\n   |     |     |     |     |     |     |`,
         );
     }
-});
-
-process.on('SIGTERM', () => {
-    Logger.debug('SIGTERM signal received: closing HTTP server');
-    server.close(() => {
-        Logger.debug('HTTP server closed');
-    });
 });
 
 // We need to override this interface to have our user typing
