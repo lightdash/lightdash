@@ -4,7 +4,7 @@ import {
     ApiSuccessEmpty,
     ApiUserAllowedOrganizationsResponse,
 } from '@lightdash/common';
-import { Controller, Query } from '@tsoa/runtime';
+import { Controller, Delete, Query } from '@tsoa/runtime';
 import express from 'express';
 import {
     Get,
@@ -118,6 +118,24 @@ export class UserController extends Controller {
                 resolve();
             });
         });
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    /**
+     * Delete user
+     * @param req express request
+     */
+    @Middlewares([isAuthenticated])
+    @Delete('/me')
+    @OperationId('deleteUser')
+    async deleteUser(
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        await userService.delete(req.user!, req.user!.userUuid);
         this.setStatus(200);
         return {
             status: 'ok',
