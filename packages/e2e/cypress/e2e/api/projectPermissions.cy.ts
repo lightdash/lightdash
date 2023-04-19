@@ -65,15 +65,12 @@ describe('Lightdash API tests for member user with admin project permissions', (
         });
     });
 
-    it('Should get success response (200) from editor only endpoints', () => {
-        const projectUuid = SEED_PROJECT.project_uuid;
-        const endpoints = [`/schedulers/${projectUuid}/logs`];
-
-        endpoints.forEach((endpoint) => {
-            cy.request(`${apiUrl}${endpoint}`).then((resp) => {
-                expect(resp.status).to.eq(200);
-                expect(resp.body).to.have.property('status', 'ok');
-            });
+    it('Should get success response (200) from GET scheduler logs', () => {
+        cy.request(
+            `${apiUrl}/schedulers/${SEED_PROJECT.project_uuid}/logs`,
+        ).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body).to.have.property('status', 'ok');
         });
     });
     it('Should get list of dashboards from projects', () => {

@@ -225,6 +225,7 @@ export class SchedulerService {
             user.ability.cannot(
                 'manage',
                 subject('Dashboard', {
+                    organizationUuid: user.organizationUuid,
                     projectUuid,
                 }),
             )
