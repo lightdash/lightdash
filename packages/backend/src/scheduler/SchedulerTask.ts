@@ -290,17 +290,12 @@ export const sendSlackNotification = async (
                 if (csvUrl === undefined) {
                     throw new Error('Missing CSV URL');
                 }
-                if (csvUrl.path === '#no-results') {
-                    // Slack doesn't like URL blocks with no URL, so we are capturing this case
-                    Logger.error(`No CSV results for chart ${savedChartUuid}`);
 
-                    blocks = getChartCsvResultsBlocks(getBlocksArgs);
-                } else {
-                    blocks = getChartCsvResultsBlocks({
-                        ...getBlocksArgs,
-                        csvUrl: csvUrl.path,
-                    });
-                }
+                blocks = getChartCsvResultsBlocks({
+                    ...getBlocksArgs,
+                    csvUrl:
+                        csvUrl.path !== '#no-results' ? csvUrl.path : undefined,
+                });
             } else if (dashboardUuid) {
                 if (csvUrls === undefined) {
                     throw new Error('Missing CSV URLS');
