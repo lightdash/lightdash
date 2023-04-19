@@ -65,6 +65,17 @@ describe('Lightdash API tests for member user with admin project permissions', (
         });
     });
 
+    it('Should get success response (200) from editor only endpoints', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+        const endpoints = [`/schedulers/${projectUuid}/logs`];
+
+        endpoints.forEach((endpoint) => {
+            cy.request(`${apiUrl}${endpoint}`).then((resp) => {
+                expect(resp.status).to.eq(200);
+                expect(resp.body).to.have.property('status', 'ok');
+            });
+        });
+    });
     it('Should get list of dashboards from projects', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
         cy.request(`${apiUrl}/projects/${projectUuid}/dashboards`).then(
@@ -348,6 +359,14 @@ describe('Lightdash API tests for member user with editor project permissions', 
         });
     });
 
+    it('Should get success response (200) from GET scheduler logs', () => {
+        cy.request(
+            `${apiUrl}/schedulers/${SEED_PROJECT.project_uuid}/logs`,
+        ).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body).to.have.property('status', 'ok');
+        });
+    });
     it('Should get list of dashboards from projects', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
         cy.request(`${apiUrl}/projects/${projectUuid}/dashboards`).then(
@@ -551,6 +570,14 @@ describe('Lightdash API tests for member user with developer project permissions
         cy.loginWithEmail(email);
     });
 
+    it('Should get success response (200) from GET scheduler logs', () => {
+        cy.request(
+            `${apiUrl}/schedulers/${SEED_PROJECT.project_uuid}/logs`,
+        ).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body).to.have.property('status', 'ok');
+        });
+    });
     it('Should get success response (200) from POST sqlQuery', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
@@ -604,6 +631,17 @@ describe('Lightdash API tests for member user with interactive_viewer project pe
             expect(resp.body).to.have.property('status', 'ok');
         });
     });
+
+    it('Should get forbidden error (403) from GET Scheduler logs', () => {
+        cy.request({
+            url: `${apiUrl}/schedulers/${SEED_PROJECT.project_uuid}/logs`,
+            timeout: 500,
+            failOnStatusCode: false,
+        }).then((resp) => {
+            expect(resp.status).to.eq(403);
+        });
+    });
+
     it('Should get success response (200) from POST downloadCsv', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
@@ -790,6 +828,16 @@ describe('Lightdash API tests for member user with viewer project permissions', 
                 expect(resp.status).to.eq(200);
                 expect(resp.body).to.have.property('status', 'ok');
             });
+        });
+    });
+
+    it('Should get forbidden error (403) from GET Scheduler logs', () => {
+        cy.request({
+            url: `${apiUrl}/schedulers/${SEED_PROJECT.project_uuid}/logs`,
+            timeout: 500,
+            failOnStatusCode: false,
+        }).then((resp) => {
+            expect(resp.status).to.eq(403);
         });
     });
 
@@ -1056,7 +1104,7 @@ describe('Lightdash API tests for member user with NO project permissions', () =
         });
     });
 
-    it('Should get forbidden error (403) from GET project endpoints from another organization', () => {
+    it('Should get forbidden error (403) from project endpoints', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
         const endpoints = [
             `/projects/${projectUuid}`,
@@ -1065,6 +1113,7 @@ describe('Lightdash API tests for member user with NO project permissions', () =
             `/projects/${projectUuid}/catalog`,
             `/projects/${projectUuid}/tablesConfiguration`,
             `/projects/${projectUuid}/hasSavedCharts`,
+            `/schedulers/${projectUuid}/logs`,
         ];
 
         endpoints.forEach((endpoint) => {

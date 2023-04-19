@@ -220,6 +220,18 @@ export class SchedulerService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<SchedulersAndLogs> {
+        // Only allow editors to view scheduler logs
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Dashboard', {
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
         return this.schedulerModel.getSchedulerLogs(projectUuid);
     }
 }
