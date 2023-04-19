@@ -1,7 +1,8 @@
+import { subject } from '@casl/ability';
 import { Field, PivotValue, TableCalculation } from '@lightdash/common';
 import { Menu, MenuProps } from '@mantine/core';
 import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
-import { FC, useMemo } from 'react';
+import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
@@ -36,16 +37,33 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
     onClose,
     onCopy,
 }) => {
+    const { user } = useApp();
     const { track } = useTracking();
     const { openUnderlyingDataModal, openDrillDownModel } =
         useMetricQueryDataContext();
-    const { user } = useApp();
-    // TODO: get rid of this from here
+
+    // FIXME: get rid of this from here
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     if (!pivotValue || !pivotValue.value) {
         return <>{children}</>;
     }
+
+    const canViewUnderlyingData = user.data?.ability?.can(
+        'view',
+        subject('UnderlyingData', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid: projectUuid,
+        }),
+    );
+
+    const canViewDrillInto = user.data?.ability?.can(
+        'manage',
+        subject('Explore', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid: projectUuid,
+        }),
+    );
 
     const handleOpenUnderlyingDataModal = () => {
         const underlyingFieldValues = getUnderlyingFieldValues(
@@ -121,33 +139,37 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
                     Copy
                 </Menu.Item>
 
-                {item ? (
+                {item && (canViewUnderlyingData || canViewDrillInto) ? (
                     <>
-                        <Menu.Item
-                            icon={
-                                <MantineIcon
-                                    icon={IconStack}
-                                    size="md"
-                                    fillOpacity={0}
-                                />
-                            }
-                            onClick={handleOpenUnderlyingDataModal}
-                        >
-                            View underlying data
-                        </Menu.Item>
+                        {canViewUnderlyingData ? (
+                            <Menu.Item
+                                icon={
+                                    <MantineIcon
+                                        icon={IconStack}
+                                        size="md"
+                                        fillOpacity={0}
+                                    />
+                                }
+                                onClick={handleOpenUnderlyingDataModal}
+                            >
+                                View underlying data
+                            </Menu.Item>
+                        ) : null}
 
-                        <Menu.Item
-                            icon={
-                                <MantineIcon
-                                    icon={IconArrowBarToDown}
-                                    size="md"
-                                    fillOpacity={0}
-                                />
-                            }
-                            onClick={handleOpenDrillIntoModal}
-                        >
-                            Drill into "{pivotValue.value.formatted}"
-                        </Menu.Item>
+                        {canViewDrillInto ? (
+                            <Menu.Item
+                                icon={
+                                    <MantineIcon
+                                        icon={IconArrowBarToDown}
+                                        size="md"
+                                        fillOpacity={0}
+                                    />
+                                }
+                                onClick={handleOpenDrillIntoModal}
+                            >
+                                Drill into "{pivotValue.value.formatted}"
+                            </Menu.Item>
+                        ) : null}
                     </>
                 ) : null}
             </Menu.Dropdown>

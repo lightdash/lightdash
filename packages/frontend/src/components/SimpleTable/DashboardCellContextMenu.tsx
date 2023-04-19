@@ -120,7 +120,6 @@ const DashboardCellContextMenu: FC<
                         projectUuid: projectUuid,
                     })}
                 >
-                    {' '}
                     <MenuItem2
                         text="View underlying data"
                         icon="layers"
@@ -146,6 +145,7 @@ const DashboardCellContextMenu: FC<
                     />
                 </Can>
             )}
+
             <Can
                 I="manage"
                 this={subject('Explore', {
