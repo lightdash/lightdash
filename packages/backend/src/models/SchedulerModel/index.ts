@@ -7,9 +7,11 @@ import {
     NotFoundError,
     Scheduler,
     SchedulerAndTargets,
+    SchedulerBase,
     SchedulerEmailTarget,
     SchedulerJobStatus,
     SchedulerLog,
+    SchedulersAndLogs,
     SchedulerSlackTarget,
     UpdateSchedulerAndTargets,
 } from '@lightdash/common';
@@ -332,9 +334,26 @@ export class SchedulerModel {
         });
     }
 
-    async getSchedulerLogs(projectUuid: string): Promise<SchedulerLog[]> {
+    static parseScheduler(schedulerDb: SchedulerDb): SchedulerBase {
+        return {
+            schedulerUuid: schedulerDb.scheduler_uuid,
+            name: schedulerDb.name,
+            createdAt: schedulerDb.created_at,
+            updatedAt: schedulerDb.updated_at,
+            createdBy: schedulerDb.created_by,
+            format: schedulerDb.format as SchedulerBase['format'],
+            cron: schedulerDb.cron,
+            savedChartUuid: schedulerDb.saved_chart_uuid,
+            dashboardUuid: schedulerDb.dashboard_uuid,
+            options: schedulerDb.options,
+        };
+    }
+
+    async getSchedulerForProject(
+        projectUuid: string,
+    ): Promise<SchedulerBase[]> {
         const schedulerChartUuids = await this.database(SchedulerTableName)
-            .select('scheduler_uuid')
+            .select('scheduler.*')
             .leftJoin(
                 SavedChartsTableName,
                 `${SavedChartsTableName}.saved_query_uuid`,
@@ -353,7 +372,7 @@ export class SchedulerModel {
             .where(`${ProjectTableName}.project_uuid`, projectUuid);
 
         const schedulerDashboardUuids = await this.database(SchedulerTableName)
-            .select('scheduler_uuid')
+            .select('scheduler.*')
             .leftJoin(
                 DashboardsTableName,
                 `${DashboardsTableName}.dashboard_uuid`,
@@ -371,18 +390,23 @@ export class SchedulerModel {
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid);
 
-        const schedulerUuids = new Set(
-            [...schedulerChartUuids, ...schedulerDashboardUuids].map(
-                (s) => s.scheduler_uuid,
-            ),
-        );
+        return [
+            ...schedulerChartUuids.map(SchedulerModel.parseScheduler),
+            ...schedulerDashboardUuids.map(SchedulerModel.parseScheduler),
+        ];
+    }
+
+    async getSchedulerLogs(projectUuid: string): Promise<SchedulersAndLogs> {
+        const schedulers = await this.getSchedulerForProject(projectUuid);
+        const schedulerUuids = schedulers.map((s) => s.schedulerUuid);
+
         const uniqueSchedulerUuids = [...schedulerUuids];
 
         const logs = await this.database(SchedulerLogTableName)
 
             .select()
             .whereIn(`scheduler_uuid`, uniqueSchedulerUuids);
-        return logs.map((log) => ({
+        const schedulerLogs: SchedulerLog[] = logs.map((log) => ({
             ...log,
             task: log.task as SchedulerLog['task'],
             scheduledTime: log.scheduled_time,
@@ -397,6 +421,11 @@ export class SchedulerModel {
                     : (log.target_type as SchedulerLog['targetType']),
             details: log.details === null ? undefined : log.details,
         }));
+
+        return {
+            logs: schedulerLogs,
+            schedulers,
+        };
     }
 
     async logSchedulerJob(log: SchedulerLog): Promise<void> {

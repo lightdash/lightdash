@@ -153,6 +153,10 @@ export type ApiSchedulerAndTargetsResponse = {
     results: SchedulerAndTargets;
 };
 
+export type SchedulersAndLogs = {
+    logs: SchedulerLog[];
+    schedulers: SchedulerBase[];
+};
 export type ScheduledJobs = {
     date: Date;
     id: string;
@@ -164,7 +168,7 @@ export type ApiScheduledJobsResponse = {
 
 export type ApiSchedulerLogsResponse = {
     status: 'ok';
-    results: SchedulerLog[];
+    results: SchedulersAndLogs;
 };
 
 // Scheduler task types
