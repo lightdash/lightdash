@@ -1,6 +1,6 @@
 import { Button } from '@blueprintjs/core';
 import { FC, useState } from 'react';
-import { useOrganisation } from '../../../hooks/organisation/useOrganisation';
+import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useApp } from '../../../providers/AppProvider';
 import OrganisationDeleteModal from '../../common/modal/OrganisationDeleteModal';
 import {
@@ -11,7 +11,7 @@ import {
 } from './DeleteOrganisationPanel.styles';
 
 export const DeleteOrganisationPanel: FC = () => {
-    const { isLoading: isLoading, data: organisation } = useOrganisation();
+    const { isLoading: isLoading, data: organisation } = useOrganization();
 
     const [showConfirmation, setShowConfirmation] = useState<boolean>(false);
     const { user } = useApp();

@@ -1,10 +1,10 @@
 import { Colors, Icon } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import { ECHARTS_DEFAULT_COLORS } from '@lightdash/common';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { BlockPicker, ColorResult } from 'react-color';
 import { useToggle } from 'react-use';
-import { useOrganisation } from '../../../hooks/organisation/useOrganisation';
+import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { ColorButton, ColorButtonInner } from './Series.styles';
 
 type Props = {
@@ -14,7 +14,7 @@ type Props = {
 
 const SeriesColorPicker: FC<Props> = ({ color, onChange }) => {
     const [isOpen, toggle] = useToggle(false);
-    const { isLoading: isOrgLoading, data } = useOrganisation();
+    const { isLoading: isOrgLoading, data } = useOrganization();
 
     const colors = data?.chartColors || ECHARTS_DEFAULT_COLORS;
     return (
