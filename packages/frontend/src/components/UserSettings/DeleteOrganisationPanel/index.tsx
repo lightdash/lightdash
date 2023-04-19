@@ -2,7 +2,7 @@ import { Button } from '@blueprintjs/core';
 import { FC, useState } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useApp } from '../../../providers/AppProvider';
-import OrganisationDeleteModal from '../../common/modal/OrganisationDeleteModal';
+import OrganizationDeleteModal from '../../common/modal/OrganizationDeleteModal';
 import {
     CardContainer,
     Description,
@@ -40,7 +40,7 @@ export const DeleteOrganisationPanel: FC = () => {
                 </PanelContent>
             </CardContainer>
 
-            <OrganisationDeleteModal
+            <OrganizationDeleteModal
                 isOpen={showConfirmation}
                 onClose={() => setShowConfirmation(false)}
                 onConfirm={() => setShowConfirmation(false)}
