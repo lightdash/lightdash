@@ -1,6 +1,7 @@
 import {
     ConditionalFormattingConfig,
     Field,
+    fieldId,
     isField,
     PivotData,
     ResultValue,
@@ -36,30 +37,6 @@ const PivotTable: FC<PivotTableProps> = ({
     const { cx: tableCx, classes: tableStyles } = usePivotTableStyles();
     const { cx: cellCx, classes: cellStyles } = usePivotTableCellStyles({});
 
-    const getUnderlyingFieldValues = useCallback(
-        (rowIndex: number, colIndex: number) => {
-            // const value = data.dataValues[rowIndex][colIndex];
-
-            // const initialData =
-            //     field && field. ? { [field.fieldId]: field.value } : {};
-
-            const initialData = !data.dataValues || {};
-
-            return [
-                // get the index values for this row
-                ...(data.indexValues[rowIndex] ?? []),
-                // get the header values for this column
-                ...(data.headerValues.map((hv) => hv[colIndex]) ?? []),
-            ]
-                .filter((iv) => iv.type === 'value')
-                .reduce<Record<string, ResultValue>>((acc, iv) => {
-                    if (!iv.value) return acc;
-                    return { ...acc, [iv.fieldId]: iv.value };
-                }, initialData);
-        },
-        [data.indexValues, data.headerValues, data.dataValues],
-    );
-
     const getItemFromAxis = useCallback(
         (rowIndex: number, colIndex: number) => {
             const value = data.pivotConfig.metricsAsRows
@@ -76,6 +53,31 @@ const PivotTable: FC<PivotTableProps> = ({
             data.indexValues,
             getField,
         ],
+    );
+
+    const getUnderlyingFieldValues = useCallback(
+        (rowIndex: number, colIndex: number) => {
+            const item = getItemFromAxis(rowIndex, colIndex);
+            const itemValue = data.dataValues[rowIndex][colIndex];
+
+            const initialData =
+                isField(item) && itemValue
+                    ? { [fieldId(item)]: itemValue }
+                    : {};
+
+            return [
+                // get the index values for this row
+                ...(data.indexValues[rowIndex] ?? []),
+                // get the header values for this column
+                ...(data.headerValues.map((hv) => hv[colIndex]) ?? []),
+            ]
+                .filter((iv) => iv.type === 'value')
+                .reduce<Record<string, ResultValue>>((acc, iv) => {
+                    if (!iv.value) return acc;
+                    return { ...acc, [iv.fieldId]: iv.value };
+                }, initialData);
+        },
+        [data.indexValues, data.headerValues, data.dataValues, getItemFromAxis],
     );
 
     return (
