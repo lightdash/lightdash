@@ -6,9 +6,9 @@ import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useOrganizationUpdateMutation } from '../../../hooks/organization/useOrganizationUpdateMutation';
 import Form from '../../ReactHookForm/Form';
 import Input from '../../ReactHookForm/Input';
-import { FormWrapper } from './OrganisationPanel.styles';
+import { FormWrapper } from './OrganizationPanel.styles';
 
-const OrganisationPanel: FC = () => {
+const OrganizationPanel: FC = () => {
     const { isLoading: isOrgLoading, data } = useOrganization();
     const updateMutation = useOrganizationUpdateMutation();
     const isLoading = updateMutation.isLoading || isOrgLoading;
@@ -36,7 +36,7 @@ const OrganisationPanel: FC = () => {
                 disableSubmitOnEnter
             >
                 <Input
-                    label="Organisation name"
+                    label="Organization name"
                     name="name"
                     placeholder="Lightdash"
                     disabled={isLoading}
@@ -57,4 +57,4 @@ const OrganisationPanel: FC = () => {
     );
 };
 
-export default OrganisationPanel;
+export default OrganizationPanel;

@@ -195,7 +195,7 @@ const ProjectAccessCreation: FC<ProjectAccessCreationProps> = ({
                                         <MenuItem2
                                             icon="add"
                                             key={email}
-                                            text={`Invite ${email} as new member of this organisation`}
+                                            text={`Invite ${email} as new member of this organization`}
                                             onClick={() => {
                                                 setAddNewMember(true);
                                             }}

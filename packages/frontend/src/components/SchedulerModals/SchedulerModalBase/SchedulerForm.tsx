@@ -80,7 +80,7 @@ const SlackErrorContent: FC<{ slackState: SlackStates }> = ({
                         {' '}
                         reinstall the Slack integration{' '}
                     </a>
-                    for your organisation
+                    for your organization
                 </p>
             </>
         );

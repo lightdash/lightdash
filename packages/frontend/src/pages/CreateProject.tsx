@@ -25,7 +25,7 @@ enum ConnectMethod {
 
 const CreateProject: FC = () => {
     const history = useHistory();
-    const { isLoading: isLoadingOrganisation, data: organisation } =
+    const { isLoading: isLoadingOrganization, data: organization } =
         useOrganization();
 
     const {
@@ -62,14 +62,14 @@ const CreateProject: FC = () => {
     if (
         isLoadingHealth ||
         !health ||
-        isLoadingOrganisation ||
-        !organisation ||
+        isLoadingOrganization ||
+        !organization ||
         isTokenCreating
     ) {
         return <PageSpinner />;
     }
 
-    const isCreatingFirstProject = !!organisation.needsProject;
+    const isCreatingFirstProject = !!organization.needsProject;
 
     return (
         <ProjectFormProvider>

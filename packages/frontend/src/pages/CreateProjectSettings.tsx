@@ -18,7 +18,7 @@ const CreateProjectSettings: FC = () => {
 
     const onSuccess = async () => {
         await queryClient.invalidateQueries(['health']);
-        await queryClient.refetchQueries(['organisation']);
+        await queryClient.refetchQueries(['organization']);
         history.push({
             pathname: `/projects/${projectUuid}/home`,
         });
