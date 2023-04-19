@@ -1,7 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
     LightdashMode,
-    Organisation,
+    Organization,
     OrganizationMemberRole,
     SessionUser,
 } from '@lightdash/common';
@@ -27,7 +27,7 @@ export const user: SessionUser = {
     abilityRules: [],
 };
 
-export const organization: Organisation = {
+export const organization: Organization = {
     organizationUuid: 'organizationUuid',
     name: 'Lightdash',
 };
