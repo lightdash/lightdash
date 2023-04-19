@@ -13,24 +13,6 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
     projectUuid,
 }) => {
     const { data } = useSchedulerLogs(projectUuid);
-    const getScheduledContent = (uuid: string, type: 'chart' | 'dashboard') => {
-        const { data: scheduledContentData } =
-            type === 'chart'
-                ? // eslint-disable-next-line react-hooks/rules-of-hooks
-                  useSavedQuery({ id: uuid })
-                : // eslint-disable-next-line react-hooks/rules-of-hooks
-                  useDashboardQuery(uuid);
-        return (
-            <Anchor
-                href={`/projects/${projectUuid}/${
-                    type === 'chart' ? 'saved' : 'dashboards'
-                }/${scheduledContentData?.uuid}/view`}
-                target="_blank"
-            >
-                {scheduledContentData?.name}
-            </Anchor>
-        );
-    };
 
     return (
         <Card withBorder shadow="xs">
@@ -52,15 +34,21 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
                                 <td>{scheduler.logs[0].status}</td>
                                 <td>{scheduler.name}</td>
                                 <td>
-                                    {scheduler.dashboardUuid !== null
-                                        ? getScheduledContent(
-                                              scheduler.dashboardUuid,
-                                              'dashboard',
-                                          )
-                                        : getScheduledContent(
-                                              scheduler.savedChartUuid!,
-                                              'chart',
-                                          )}
+                                    {scheduler.dashboardUuid !== null ? (
+                                        <Anchor
+                                            href={`/projects/${projectUuid}/dashboards/${scheduler?.dashboardUuid}/view`}
+                                            target="_blank"
+                                        >
+                                            Scheduled dashboard
+                                        </Anchor>
+                                    ) : (
+                                        <Anchor
+                                            href={`/projects/${projectUuid}/saved/${scheduler?.savedChartUuid}/view`}
+                                            target="_blank"
+                                        >
+                                            Scheduled chart
+                                        </Anchor>
+                                    )}
                                 </td>
                                 <td>
                                     {new Date(
