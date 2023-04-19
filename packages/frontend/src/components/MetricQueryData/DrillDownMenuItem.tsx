@@ -1,36 +1,29 @@
 import { MenuItem2 } from '@blueprintjs/popover2';
 import {
-    DashboardFilters,
-    Field,
     fieldId as getFieldId,
     hashFieldReference,
     isField,
     isMetric,
-    PivotReference,
-    ResultRow,
-    TableCalculation,
 } from '@lightdash/common';
 import { FC } from 'react';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import {
-    UnderlyingValueMap,
+    DrillDownConfig,
     useMetricQueryDataContext,
 } from './MetricQueryDataProvider';
 
-export const DrillDownMenuItem: FC<{
-    row: UnderlyingValueMap | undefined;
-    selectedItem: Field | TableCalculation | undefined;
-    dashboardFilters?: DashboardFilters;
-    pivotReference?: PivotReference;
+type DrillDownMenuItemProps = Partial<DrillDownConfig> & {
     trackingData: {
         organizationId: string | undefined;
         userId: string | undefined;
         projectId: string | undefined;
     };
-}> = ({
-    row,
-    selectedItem,
+};
+
+const DrillDownMenuItem: FC<DrillDownMenuItemProps> = ({
+    item,
+    fieldValues,
     dashboardFilters,
     pivotReference,
     trackingData,
@@ -40,18 +33,18 @@ export const DrillDownMenuItem: FC<{
     const { track } = useTracking();
 
     if (
-        selectedItem &&
-        isField(selectedItem) &&
-        isMetric(selectedItem) &&
+        item &&
+        isField(item) &&
+        isMetric(item) &&
         explore &&
-        row &&
+        fieldValues &&
         metricQuery
     ) {
         const fieldId =
             pivotReference !== undefined
                 ? hashFieldReference(pivotReference)
-                : getFieldId(selectedItem);
-        const value = row[fieldId]?.formatted;
+                : getFieldId(item);
+        const value = fieldValues[fieldId]?.formatted;
 
         return (
             <MenuItem2
@@ -59,8 +52,8 @@ export const DrillDownMenuItem: FC<{
                 icon="path"
                 onClick={() => {
                     openDrillDownModel({
-                        row,
-                        selectedItem,
+                        item,
+                        fieldValues,
                         dashboardFilters,
                         pivotReference,
                     });

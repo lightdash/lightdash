@@ -49,7 +49,7 @@ const DashboardCellContextMenu: FC<
     const item = meta?.item;
 
     const value: ResultRow[0]['value'] = cell.getValue()?.value || {};
-    const row = mapValues(cell.row.original, (v) => v?.value) || {};
+    const fieldValues = mapValues(cell.row.original, (v) => v?.value) || {};
 
     const filterField =
         isDimension(item) && !item.hidden
@@ -134,14 +134,14 @@ const DashboardCellContextMenu: FC<
                                     projectId: projectUuid,
                                 },
                             });
-                            openUnderlyingDataModal(
-                                meta.item,
+                            openUnderlyingDataModal({
+                                item: meta.item,
                                 value,
-                                row,
-                                undefined,
-                                meta?.pivotReference,
-                                dashboardFiltersThatApplyToChart,
-                            );
+                                fieldValues,
+                                pivotReference: meta?.pivotReference,
+                                dashboardFilters:
+                                    dashboardFiltersThatApplyToChart,
+                            });
                         }}
                     />
                 </Can>
@@ -154,10 +154,10 @@ const DashboardCellContextMenu: FC<
                 })}
             >
                 <DrillDownMenuItem
-                    row={row}
+                    item={item}
+                    fieldValues={fieldValues}
                     dashboardFilters={dashboardFiltersThatApplyToChart}
                     pivotReference={meta?.pivotReference}
-                    selectedItem={item}
                     trackingData={{
                         organizationId: user?.data?.organizationUuid,
                         userId: user?.data?.userUuid,

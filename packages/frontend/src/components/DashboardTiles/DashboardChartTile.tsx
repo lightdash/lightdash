@@ -284,7 +284,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     const [viewUnderlyingDataOptions, setViewUnderlyingDataOptions] = useState<{
         item: Field | TableCalculation | undefined;
         value: UnderlyingValue;
-        row: UnderlyingValueMap;
+        fieldValues: UnderlyingValueMap;
         dimensions: string[];
         pivotReference?: PivotReference;
     }>();
@@ -519,45 +519,36 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                             })}
                                         >
                                             <MenuItem2
-                                                text={`View underlying data`}
-                                                icon={'layers'}
-                                                onClick={(e) => {
+                                                text="View underlying data"
+                                                icon="layers"
+                                                onClick={() => {
                                                     if (
-                                                        viewUnderlyingDataOptions !==
-                                                        undefined
+                                                        !viewUnderlyingDataOptions
                                                     ) {
-                                                        const {
-                                                            item,
-                                                            value,
-                                                            row,
-                                                            dimensions,
-                                                            pivotReference,
-                                                        } = viewUnderlyingDataOptions;
-                                                        openUnderlyingDataModal(
-                                                            item,
-                                                            value,
-                                                            row,
-                                                            dimensions,
-                                                            pivotReference,
-                                                            dashboardFiltersThatApplyToChart,
-                                                        );
-                                                        track({
-                                                            name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
-                                                            properties: {
-                                                                organizationId:
-                                                                    user?.data
-                                                                        ?.organizationUuid,
-                                                                userId: user
-                                                                    ?.data
-                                                                    ?.userUuid,
-                                                                projectId:
-                                                                    projectUuid,
-                                                            },
-                                                        });
+                                                        return;
                                                     }
+
+                                                    openUnderlyingDataModal({
+                                                        ...viewUnderlyingDataOptions,
+                                                        dashboardFilters:
+                                                            dashboardFiltersThatApplyToChart,
+                                                    });
+                                                    track({
+                                                        name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
+                                                        properties: {
+                                                            organizationId:
+                                                                user?.data
+                                                                    ?.organizationUuid,
+                                                            userId: user?.data
+                                                                ?.userUuid,
+                                                            projectId:
+                                                                projectUuid,
+                                                        },
+                                                    });
                                                 }}
                                             />
                                         </Can>
+
                                         <Can
                                             I="manage"
                                             this={subject('Explore', {
@@ -567,15 +558,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                             })}
                                         >
                                             <DrillDownMenuItem
-                                                row={
-                                                    viewUnderlyingDataOptions?.row
-                                                }
-                                                selectedItem={
-                                                    viewUnderlyingDataOptions?.item
-                                                }
-                                                pivotReference={
-                                                    viewUnderlyingDataOptions?.pivotReference
-                                                }
+                                                {...viewUnderlyingDataOptions}
                                                 dashboardFilters={
                                                     dashboardFiltersThatApplyToChart
                                                 }

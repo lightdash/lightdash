@@ -39,7 +39,7 @@ const CellContextMenu: FC<
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const value: ResultRow[0]['value'] = cell.getValue()?.value || {};
-    const row = mapValues(cell.row.original, (v) => v?.value) || {};
+    const fieldValues = mapValues(cell.row.original, (v) => v?.value) || {};
 
     return (
         <Menu>
@@ -74,7 +74,11 @@ const CellContextMenu: FC<
                         text="View underlying data"
                         icon="layers"
                         onClick={() => {
-                            openUnderlyingDataModal(meta.item, value, row);
+                            openUnderlyingDataModal({
+                                item: meta.item,
+                                value,
+                                fieldValues,
+                            });
                             track({
                                 name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
                                 properties: {
@@ -113,8 +117,8 @@ const CellContextMenu: FC<
                 )}
 
                 <DrillDownMenuItem
-                    row={row}
-                    selectedItem={item}
+                    item={item}
+                    fieldValues={fieldValues}
                     trackingData={{
                         organizationId: user.data?.organizationUuid,
                         userId: user.data?.userUuid,

@@ -23,7 +23,7 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
     const item = meta?.item;
 
     const value: ResultRow[0]['value'] = cell.getValue()?.value || {};
-    const row = mapValues(cell.row.original, (v) => v?.value) || {};
+    const fieldValues = mapValues(cell.row.original, (v) => v?.value) || {};
 
     const { track } = useTracking();
     const { user } = useApp();
@@ -58,7 +58,11 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
                         text="View underlying data"
                         icon="layers"
                         onClick={() => {
-                            openUnderlyingDataModal(meta.item, value, row);
+                            openUnderlyingDataModal({
+                                item: meta.item,
+                                value,
+                                fieldValues,
+                            });
                             track({
                                 name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
                                 properties: {
@@ -80,9 +84,9 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
                 })}
             >
                 <DrillDownMenuItem
-                    row={row}
+                    item={item}
+                    fieldValues={fieldValues}
                     pivotReference={meta?.pivotReference}
-                    selectedItem={item}
                     trackingData={{
                         organizationId: user?.data?.organizationUuid,
                         userId: user?.data?.userUuid,

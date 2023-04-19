@@ -53,7 +53,11 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
             colIndex,
         );
 
-        openUnderlyingDataModal(item, pivotValue.value, underlyingFieldValues);
+        openUnderlyingDataModal({
+            item,
+            value: pivotValue.value,
+            fieldValues: underlyingFieldValues,
+        });
 
         track({
             name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
@@ -72,7 +76,11 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
             colIndex,
         );
 
-        openDrillDownModel({ row: underlyingFieldValues, selectedItem: item });
+        openDrillDownModel({
+            item,
+            fieldValues: underlyingFieldValues,
+        });
+
         track({
             name: EventName.DRILL_BY_CLICKED,
             properties: {

@@ -88,13 +88,10 @@ export const SeriesContextMenu: FC<{
 
     const onViewUnderlyingData = useCallback(() => {
         if (underlyingData !== undefined) {
-            openUnderlyingDataModal(
-                underlyingData.item,
-                underlyingData.value,
-                underlyingData.row,
+            openUnderlyingDataModal({
+                ...underlyingData,
                 dimensions,
-                underlyingData.pivotReference,
-            );
+            });
         }
     }, [openUnderlyingDataModal, dimensions, underlyingData]);
     const contextMenuRenderTarget = useCallback(
@@ -165,9 +162,7 @@ export const SeriesContextMenu: FC<{
                             })}
                         >
                             <DrillDownMenuItem
-                                row={underlyingData?.row}
-                                selectedItem={underlyingData?.item}
-                                pivotReference={underlyingData?.pivotReference}
+                                {...underlyingData}
                                 trackingData={{
                                     organizationId:
                                         user?.data?.organizationUuid,
