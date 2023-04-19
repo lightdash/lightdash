@@ -128,6 +128,7 @@ export * from './utils/filters';
 export * from './utils/formatting';
 export * from './utils/github';
 export * from './utils/item';
+export * from './utils/scheduler';
 export * from './utils/time';
 export * from './utils/timeFrames';
 

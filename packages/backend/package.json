@@ -47,7 +47,6 @@
         "connect-session-knex": "^2.1.0",
         "cookie-parser": "^1.4.5",
         "cron-converter": "^2.0.0",
-        "cronstrue": "^2.23.0",
         "csv-stringify": "^6.2.4",
         "execa": "^5.0.0",
         "express": "^4.17.3",

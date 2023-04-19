@@ -154,7 +154,6 @@ export type ApiSchedulerAndTargetsResponse = {
 };
 
 export type SchedulerWithLogs = SchedulerBase & {
-    lastLog: SchedulerLog | undefined;
     logs: SchedulerLog[];
 };
 export type ScheduledJobs = {

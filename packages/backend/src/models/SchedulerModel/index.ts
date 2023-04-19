@@ -444,7 +444,6 @@ export class SchedulerModel {
 
             return {
                 ...scheduler,
-                lastLog: filteredLogs[0],
                 logs: filteredLogs,
             };
         });
