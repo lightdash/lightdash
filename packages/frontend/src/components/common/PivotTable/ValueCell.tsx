@@ -22,7 +22,7 @@ import { getConditionalRuleLabel } from '../Filters/configs';
 import { usePivotTableCellStyles } from './tableStyles';
 import ValueCellMenu from './ValueCellMenu';
 
-interface ValueCellProps {
+type ValueCellProps = {
     rowIndex: number;
     colIndex: number;
     getUnderlyingFieldValues: (
@@ -32,17 +32,17 @@ interface ValueCellProps {
     value: PivotValue | null;
     conditionalFormattings: ConditionalFormattingConfig[];
     getField: (fieldId: string) => Field | TableCalculation;
-}
+};
 
-interface ForwardRefProps {
+type ForwardRefProps = {
     render: (
         props: React.HTMLAttributes<HTMLTableCellElement>,
         ref: ForwardedRef<HTMLTableCellElement> | null,
     ) => JSX.Element;
-}
+};
 
 const ForwardRef = forwardRef<HTMLTableCellElement, ForwardRefProps>(
-    (props, ref) => props.render(props, ref),
+    ({ render, ...props }, ref) => render(props, ref),
 );
 
 const ValueCell: FC<ValueCellProps> = ({
