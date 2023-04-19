@@ -8,15 +8,15 @@ import {
     Description,
     PanelContent,
     Title,
-} from './DeleteOrganisationPanel.styles';
+} from './DeleteOrganizationPanel.styles';
 
-export const DeleteOrganisationPanel: FC = () => {
-    const { isLoading: isLoading, data: organisation } = useOrganization();
+export const DeleteOrganizationPanel: FC = () => {
+    const { isLoading: isLoading, data: organization } = useOrganization();
 
     const [showConfirmation, setShowConfirmation] = useState<boolean>(false);
     const { user } = useApp();
 
-    if (isLoading || organisation === undefined) return null;
+    if (isLoading || organization === undefined) return null;
     if (!user.data?.ability?.can('delete', 'Organization')) return null;
 
     return (
@@ -34,7 +34,7 @@ export const DeleteOrganisationPanel: FC = () => {
                         outlined
                         intent="danger"
                         icon="trash"
-                        text={`Delete '${organisation.name}'`}
+                        text={`Delete '${organization.name}'`}
                         onClick={() => setShowConfirmation(true)}
                     />
                 </PanelContent>

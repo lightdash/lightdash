@@ -1,6 +1,6 @@
 import { Button, Intent } from '@blueprintjs/core';
 import { OrganizationMemberRole, ProjectType } from '@lightdash/common';
-import React, { FC, useEffect, useMemo } from 'react';
+import { FC, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import {
     useAllowedEmailDomains,
@@ -15,7 +15,7 @@ import Form from '../../ReactHookForm/Form';
 import MultiSelect from '../../ReactHookForm/MultiSelect';
 import Select2 from '../../ReactHookForm/Select2';
 import TagInput from '../../ReactHookForm/TagInput';
-import { Description } from '../DeleteOrganisationPanel/DeleteOrganisationPanel.styles';
+import { Description } from '../DeleteOrganizationPanel/DeleteOrganizationPanel.styles';
 import { FormWrapper } from '../OrganizationPanel/OrganizationPanel.styles';
 
 type FormData = {
