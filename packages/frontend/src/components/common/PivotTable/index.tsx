@@ -226,7 +226,6 @@ const PivotTable: FC<PivotTableProps> = ({
                                     key={`${rowIndex}-${colIndex}`}
                                     colIndex={colIndex}
                                     rowIndex={rowIndex}
-                                    row={row}
                                     value={pivotValue}
                                     getField={getField}
                                     getUnderlyingFieldValues={

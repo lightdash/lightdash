@@ -17,7 +17,6 @@ type ValueCellMenuProps = {
     colIndex: number;
     item: Field | TableCalculation | undefined;
     value: PivotValue | null;
-    row: (PivotValue | null)[];
     onCopy: () => void;
     getUnderlyingFieldValues: (
         colIndex: number,
@@ -32,7 +31,6 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
     colIndex,
     item,
     value: pivotValue,
-    // row: pivotRow,
     opened,
     onOpen,
     onClose,

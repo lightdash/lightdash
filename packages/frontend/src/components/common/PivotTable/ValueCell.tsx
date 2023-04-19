@@ -30,7 +30,6 @@ interface ValueCellProps {
         rowIndex: number,
     ) => UnderlyingValueMap;
     value: PivotValue | null;
-    row: (PivotValue | null)[];
     conditionalFormattings: ConditionalFormattingConfig[];
     getField: (fieldId: string) => Field | TableCalculation;
 }
@@ -50,7 +49,6 @@ const ValueCell: FC<ValueCellProps> = ({
     rowIndex,
     colIndex,
     value,
-    row,
     conditionalFormattings,
     getUnderlyingFieldValues,
     getField,
@@ -109,7 +107,6 @@ const ValueCell: FC<ValueCellProps> = ({
             opened={isMenuOpen}
             item={field}
             value={value}
-            row={row}
             getUnderlyingFieldValues={getUnderlyingFieldValues}
             onCopy={handleCopy}
             onOpen={() => setIsMenuOpen(true)}
