@@ -13,7 +13,6 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
     projectUuid,
 }) => {
     const { data } = useSchedulerLogs(projectUuid);
-    console.log(typeof data![0].logs[0].details);
     const renderStatusBadge = (
         status: string,
         details?: Record<string, any | undefined>,
