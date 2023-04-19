@@ -31,6 +31,7 @@ import { EncryptionService } from './EncryptionService/EncryptionService';
 import { HealthService } from './HealthService/HealthService';
 import { OrganizationService } from './OrganizationService/OrganizationService';
 import { PersonalAccessTokenService } from './PersonalAccessTokenService';
+import { PinningService } from './PinningService/PinningService';
 import { ProjectService } from './ProjectService/ProjectService';
 import { SavedChartService } from './SavedChartsService/SavedChartService';
 import { SchedulerService } from './SchedulerService/SchedulerService';
@@ -148,4 +149,11 @@ export const csvService = new CsvService({
     projectService,
     dashboardModel,
     savedChartModel,
+});
+
+export const pinningService = new PinningService({
+    dashboardModel,
+    savedChartModel,
+    spaceModel,
+    pinnedListModel,
 });
