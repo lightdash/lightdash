@@ -78,7 +78,8 @@ const PivotTable: FC<PivotTableProps> = ({
                         return (
                             <tr key={headerRowIndex}>
                                 <>
-                                    {!hideRowNumbers && (
+                                    {/* shows empty cell if row numbers are visible */}
+                                    {hideRowNumbers ? null : (
                                         <th
                                             className={cellCx(
                                                 cellStyles.root,
@@ -87,6 +88,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                         />
                                     )}
 
+                                    {/* renders the title labels */}
                                     {data.indexValueTypes.map(
                                         (_indexValueType, indexColIndex) => {
                                             const titleField =
@@ -133,6 +135,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                         },
                                     )}
 
+                                    {/* renders the header values or labels */}
                                     {headerValues.map(
                                         (headerValue, headerColIndex) => {
                                             const isLabel =
@@ -188,6 +191,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                 </td>
                             )}
 
+                            {/* renders the index values or labels */}
                             {data.indexValueTypes.map(
                                 (_indexValueType, indexColIndex) => {
                                     const indexValue =
@@ -221,6 +225,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                 },
                             )}
 
+                            {/* renders the pivot values */}
                             {row.map((pivotValue, colIndex) => (
                                 <ValueCell
                                     key={`${rowIndex}-${colIndex}`}
