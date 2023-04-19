@@ -1,3 +1,10 @@
+## [0.513.2](https://github.com/lightdash/lightdash/compare/0.513.1...0.513.2) (2023-04-19)
+
+
+### Bug Fixes
+
+* when a query returns no results, some buttons needs to be greyed out ([#5028](https://github.com/lightdash/lightdash/issues/5028)) ([25f8d05](https://github.com/lightdash/lightdash/commit/25f8d051e6b2a23cbfb45ff0697b6e45953f612c))
+
 ## [0.513.1](https://github.com/lightdash/lightdash/compare/0.513.0...0.513.1) (2023-04-19)
 
 
