@@ -10,6 +10,9 @@ const deleteUserQuery = async () =>
     });
 
 export const useDeleteUserMutation = () =>
-    useMutation<undefined, ApiError, undefined>(deleteUserQuery, {
+    useMutation<undefined, ApiError>(deleteUserQuery, {
         mutationKey: ['user_delete'],
+        onSuccess: () => {
+            window.location.href = '/login';
+        },
     });

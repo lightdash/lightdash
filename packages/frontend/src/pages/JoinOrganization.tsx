@@ -79,23 +79,18 @@ export const JoinOrganizationPage: FC = () => {
     return (
         <Page isFullHeight>
             {createOrgError ? (
-                <NonIdealState
-                    icon="error"
-                    title="Error"
-                    description={createOrgError.error.message}
-                    action={
-                        <Button
-                            onClick={() => {
-                                console.log('delete user');
-                                // @ts-expect-error
-                                deleteUser();
-                                history.push('/register');
-                            }}
-                        >
-                            Delete user and go back
-                        </Button>
-                    }
-                />
+                <Stack mt="4xl">
+                    <NonIdealState
+                        icon="error"
+                        title="Error"
+                        description={createOrgError.error.message}
+                        action={
+                            <Button onClick={() => deleteUser()}>
+                                Cancel registration
+                            </Button>
+                        }
+                    />
+                </Stack>
             ) : (
                 <>
                     <Helmet>
