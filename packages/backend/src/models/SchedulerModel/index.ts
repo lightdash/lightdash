@@ -438,15 +438,13 @@ export class SchedulerModel {
         );
 
         return schedulers.map((scheduler) => {
-            const filteredLogs = schedulerLogs.filter(
-                (log) => log.schedulerUuid === scheduler.schedulerUuid,
-            );
+            const filteredLogs = schedulerLogs
+                .filter((log) => log.schedulerUuid === scheduler.schedulerUuid)
+                .sort(SchedulerModel.sortLogs);
+
             return {
                 ...scheduler,
-                lastLog:
-                    filteredLogs.length === 0
-                        ? undefined
-                        : filteredLogs.sort(SchedulerModel.sortLogs)[0],
+                lastLog: filteredLogs[0],
                 logs: filteredLogs,
             };
         });
