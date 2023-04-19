@@ -11,8 +11,8 @@ import {
     SchedulerEmailTarget,
     SchedulerJobStatus,
     SchedulerLog,
-    SchedulersAndLogs,
     SchedulerSlackTarget,
+    SchedulerWithLogs,
     UpdateSchedulerAndTargets,
 } from '@lightdash/common';
 import { NotFound } from 'express-openapi-validator/dist/openapi.validator';
@@ -396,8 +396,10 @@ export class SchedulerModel {
         ];
     }
 
-    async getSchedulerLogs(projectUuid: string): Promise<SchedulersAndLogs> {
-        const schedulers = await this.getSchedulerForProject(projectUuid);
+    async getSchedulerLogs(projectUuid: string): Promise<SchedulerWithLogs[]> {
+        const schedulers: SchedulerBase[] = await this.getSchedulerForProject(
+            projectUuid,
+        );
         const schedulerUuids = schedulers.map((s) => s.schedulerUuid);
 
         const uniqueSchedulerUuids = [...schedulerUuids];
@@ -407,7 +409,6 @@ export class SchedulerModel {
             .select()
             .whereIn(`scheduler_uuid`, uniqueSchedulerUuids);
         const schedulerLogs: SchedulerLog[] = logs.map((log) => ({
-            ...log,
             task: log.task as SchedulerLog['task'],
             scheduledTime: log.scheduled_time,
             schedulerUuid: log.scheduler_uuid,
@@ -422,10 +423,12 @@ export class SchedulerModel {
             details: log.details === null ? undefined : log.details,
         }));
 
-        return {
-            logs: schedulerLogs,
-            schedulers,
-        };
+        return schedulers.map((scheduler) => ({
+            ...scheduler,
+            logs: schedulerLogs.filter(
+                (log) => log.schedulerUuid === scheduler.schedulerUuid,
+            ),
+        }));
     }
 
     async logSchedulerJob(log: SchedulerLog): Promise<void> {
