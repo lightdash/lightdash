@@ -16,7 +16,7 @@ import { Helmet } from 'react-helmet';
 import { useHistory } from 'react-router-dom';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
-import { useOrganisationCreateMutation } from '../hooks/organisation/useOrganisationCreateMutation';
+import { useOrganizationCreateMutation } from '../hooks/organization/useOrganizationCreateMutation';
 import useAllowedOrganizations from '../hooks/user/useAllowedOrganizations';
 import { useJoinOrganizationMutation } from '../hooks/user/useJoinOrganizationMutation';
 import { useDeleteUserMutation } from '../hooks/user/useUserDeleteMutation';
@@ -33,7 +33,7 @@ export const JoinOrganizationPage: FC = () => {
         isLoading: isCreatingOrg,
         isSuccess: hasCreatedOrg,
         error: createOrgError,
-    } = useOrganisationCreateMutation();
+    } = useOrganizationCreateMutation();
     const { mutate: deleteUser } = useDeleteUserMutation();
     const {
         mutate: joinOrg,

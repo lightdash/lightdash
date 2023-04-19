@@ -9,7 +9,7 @@ import {
     IconUserCircle,
     IconUserPlus,
 } from '@tabler/icons-react';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { Helmet } from 'react-helmet';
 import { Redirect, Route, Switch } from 'react-router-dom';
 import { Can } from '../components/common/Authorization';
@@ -31,7 +31,7 @@ import ProjectManagementPanel from '../components/UserSettings/ProjectManagement
 import SlackSettingsPanel from '../components/UserSettings/SlackSettingsPanel';
 import SocialLoginsPanel from '../components/UserSettings/SocialLoginsPanel';
 import UserManagementPanel from '../components/UserSettings/UserManagementPanel';
-import { useOrganisation } from '../hooks/organisation/useOrganisation';
+import { useOrganization } from '../hooks/organization/useOrganization';
 import { useApp } from '../providers/AppProvider';
 import { TrackPage } from '../providers/TrackingProvider';
 import { PageName } from '../types/Events';
@@ -57,7 +57,7 @@ const Settings: FC = () => {
         data: organization,
         isLoading: isOrganizationLoading,
         error: organizationError,
-    } = useOrganisation();
+    } = useOrganization();
 
     if (isHealthLoading || isUserLoading || isOrganizationLoading) {
         return <PageSpinner />;

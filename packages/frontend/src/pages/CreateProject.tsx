@@ -13,7 +13,7 @@ import SelectWarehouse, {
 } from '../components/ProjectConnection/ProjectConnectFlow/SelectWarehouse';
 import UnsupportedWarehouse from '../components/ProjectConnection/ProjectConnectFlow/UnsupportedWarehouse';
 import { ProjectFormProvider } from '../components/ProjectConnection/ProjectFormProvider';
-import { useOrganisation } from '../hooks/organisation/useOrganisation';
+import { useOrganization } from '../hooks/organization/useOrganization';
 import { useCreateAccessToken } from '../hooks/useAccessToken';
 import useSearchParams from '../hooks/useSearchParams';
 import { useApp } from '../providers/AppProvider';
@@ -26,7 +26,7 @@ enum ConnectMethod {
 const CreateProject: FC = () => {
     const history = useHistory();
     const { isLoading: isLoadingOrganisation, data: organisation } =
-        useOrganisation();
+        useOrganization();
 
     const {
         health: { data: health, isLoading: isLoadingHealth },

@@ -7,8 +7,8 @@ import {
     InputGroup,
 } from '@blueprintjs/core';
 import { FC, useState } from 'react';
-import { useOrganisation } from '../../../hooks/organisation/useOrganisation';
-import { useDeleteOrganisationMutation } from '../../../hooks/organisation/useOrganisationDeleteMultation';
+import { useOrganization } from '../../../hooks/organization/useOrganization';
+import { useDeleteOrganizationMutation } from '../../../hooks/organization/useOrganizationDeleteMultation';
 
 interface OrganizationDeleteModalProps extends DialogProps {
     onConfirm?: () => void;
@@ -19,9 +19,9 @@ const OrganisationDeleteModal: FC<OrganizationDeleteModalProps> = ({
     onClose,
     ...modalProps
 }) => {
-    const { isLoading, data: organisation } = useOrganisation();
+    const { isLoading, data: organisation } = useOrganization();
     const { mutateAsync, isLoading: isDeleting } =
-        useDeleteOrganisationMutation();
+        useDeleteOrganizationMutation();
 
     const [confirmOrgName, setConfirmOrgName] = useState<string>();
 

@@ -3,18 +3,18 @@ import { useQuery } from 'react-query';
 import { UseQueryOptions } from 'react-query/types/react/types';
 import { lightdashApi } from '../../api';
 
-const getOrganisation = async () =>
+const getOrganization = async () =>
     lightdashApi<Organisation>({
         url: `/org`,
         method: 'GET',
         body: undefined,
     });
 
-export const useOrganisation = (
+export const useOrganization = (
     useQueryOptions?: UseQueryOptions<Organisation, ApiError>,
 ) =>
     useQuery<Organisation, ApiError>({
-        queryKey: ['organisation'],
-        queryFn: getOrganisation,
+        queryKey: ['organization'],
+        queryFn: getOrganization,
         ...useQueryOptions,
     });
