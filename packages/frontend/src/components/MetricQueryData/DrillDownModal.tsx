@@ -23,19 +23,17 @@ import {
     isField,
     MetricQuery,
     PivotReference,
+    ResultValue,
 } from '@lightdash/common';
 import React, { FC, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
-import {
-    UnderlyingValueMap,
-    useMetricQueryDataContext,
-} from './MetricQueryDataProvider';
+import { useMetricQueryDataContext } from './MetricQueryDataProvider';
 
 type CombineFiltersArgs = {
-    fieldValues: UnderlyingValueMap;
+    fieldValues: Record<string, ResultValue>;
     metricQuery: MetricQuery;
     pivotReference?: PivotReference;
     dashboardFilters?: DashboardFilters;
@@ -104,7 +102,7 @@ const combineFilters = ({
 };
 
 type DrillDownExploreUrlArgs = {
-    fieldValues: UnderlyingValueMap;
+    fieldValues: Record<string, ResultValue>;
     projectUuid: string;
     tableName: string;
     metricQuery: MetricQuery;

@@ -3,12 +3,12 @@ import {
     Field,
     isField,
     PivotData,
+    ResultValue,
     TableCalculation,
 } from '@lightdash/common';
 import { Table, TableProps } from '@mantine/core';
 import { last } from 'lodash-es';
 import React, { FC, useCallback } from 'react';
-import { UnderlyingValueMap } from '../../MetricQueryData/MetricQueryDataProvider';
 import HeaderCell from './HeaderCell';
 import IndexCell from './IndexCell';
 import { usePivotTableCellStyles, usePivotTableStyles } from './tableStyles';
@@ -52,7 +52,7 @@ const PivotTable: FC<PivotTableProps> = ({
                 ...(data.headerValues.map((hv) => hv[colIndex]) ?? []),
             ]
                 .filter((iv) => iv.type === 'value')
-                .reduce<UnderlyingValueMap>((acc, iv) => {
+                .reduce<Record<string, ResultValue>>((acc, iv) => {
                     if (!iv.value) return acc;
                     return { ...acc, [iv.fieldId]: iv.value };
                 }, initialData);

@@ -12,10 +12,7 @@ import { useParams } from 'react-router-dom';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
-import {
-    UnderlyingValueMap,
-    useMetricQueryDataContext,
-} from '../../MetricQueryData/MetricQueryDataProvider';
+import { useMetricQueryDataContext } from '../../MetricQueryData/MetricQueryDataProvider';
 import MantineIcon from '../MantineIcon';
 
 type ValueCellMenuProps = {
@@ -27,7 +24,7 @@ type ValueCellMenuProps = {
     getUnderlyingFieldValues: (
         colIndex: number,
         rowIndex: number,
-    ) => UnderlyingValueMap;
+    ) => Record<string, ResultValue>;
 } & Pick<MenuProps, 'opened' | 'onOpen' | 'onClose'>;
 
 const ValueCellMenu: FC<ValueCellMenuProps> = ({

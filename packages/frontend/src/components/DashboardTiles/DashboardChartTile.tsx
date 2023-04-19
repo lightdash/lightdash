@@ -24,6 +24,7 @@ import {
     isFilterableField,
     isTableChartConfig,
     PivotReference,
+    ResultValue,
     SavedChart,
     TableCalculation,
 } from '@lightdash/common';
@@ -54,8 +55,6 @@ import VisualizationProvider from '../LightdashVisualization/VisualizationProvid
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
 import {
     getDataFromChartClick,
-    UnderlyingValue,
-    UnderlyingValueMap,
     useMetricQueryDataContext,
 } from '../MetricQueryData/MetricQueryDataProvider';
 import { EchartSeriesClickEvent } from '../SimpleChart';
@@ -282,8 +281,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     >([]);
     const [viewUnderlyingDataOptions, setViewUnderlyingDataOptions] = useState<{
         item: Field | TableCalculation | undefined;
-        value: UnderlyingValue;
-        fieldValues: UnderlyingValueMap;
+        value: ResultValue;
+        fieldValues: Record<string, ResultValue>;
         dimensions: string[];
         pivotReference?: PivotReference;
     }>();

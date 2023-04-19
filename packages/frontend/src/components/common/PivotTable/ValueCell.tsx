@@ -18,7 +18,6 @@ import {
     useState,
 } from 'react';
 import { readableColor } from '../../../utils/colorUtils';
-import { UnderlyingValueMap } from '../../MetricQueryData/MetricQueryDataProvider';
 import { getConditionalRuleLabel } from '../Filters/configs';
 import { usePivotTableCellStyles } from './tableStyles';
 import ValueCellMenu from './ValueCellMenu';
@@ -32,7 +31,7 @@ type ValueCellProps = {
     getUnderlyingFieldValues: (
         colIndex: number,
         rowIndex: number,
-    ) => UnderlyingValueMap;
+    ) => Record<string, ResultValue>;
     getField: (fieldId: string) => Field | TableCalculation;
 };
 
