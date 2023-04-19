@@ -13,8 +13,8 @@ import { useHistory } from 'react-router-dom';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {
     useCreateMutation,
-    useDeleteMutation,
     useSpace,
+    useSpaceDeleteMutation,
     useUpdateMutation,
 } from '../../../hooks/useSpaces';
 import Form from '../../ReactHookForm/Form';
@@ -214,7 +214,7 @@ const SpaceActionModal: FC<Omit<ActionModalProps, 'data' | 'isDisabled'>> = ({
         useUpdateMutation(projectUuid, spaceUuid!);
 
     const { mutateAsync: deleteMutation, isLoading: isDeleting } =
-        useDeleteMutation(projectUuid);
+        useSpaceDeleteMutation(projectUuid);
 
     const handleSubmitForm = async (state?: Space) => {
         if (actionType === ActionType.CREATE) {
