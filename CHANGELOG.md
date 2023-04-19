@@ -1,3 +1,10 @@
+# [0.514.0](https://github.com/lightdash/lightdash/compare/0.513.2...0.514.0) (2023-04-19)
+
+
+### Features
+
+* send slack message for empty csv results ([#5150](https://github.com/lightdash/lightdash/issues/5150)) ([d847c4b](https://github.com/lightdash/lightdash/commit/d847c4b319601d64305bda8734e7187f23e280be))
+
 ## [0.513.2](https://github.com/lightdash/lightdash/compare/0.513.1...0.513.2) (2023-04-19)
 
 
