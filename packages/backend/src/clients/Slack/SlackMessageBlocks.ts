@@ -70,7 +70,7 @@ type GetChartCsvResultsBlocksArgs = {
     title: string;
     description: string | undefined;
     ctaUrl: string;
-    csvUrl: string;
+    csvUrl?: string;
     footerMarkdown?: string;
 };
 export const getChartCsvResultsBlocks = ({
@@ -105,7 +105,9 @@ export const getChartCsvResultsBlocks = ({
                 action_id: 'button-action',
             },
         },
-        {
+    ];
+    if (csvUrl) {
+        blocks.push({
             type: 'actions',
             elements: [
                 {
@@ -119,8 +121,16 @@ export const getChartCsvResultsBlocks = ({
                     action_id: 'download-results',
                 },
             ],
-        },
-    ];
+        });
+    } else {
+        blocks.push({
+            type: 'section',
+            text: {
+                type: 'mrkdwn',
+                text: '*_This query returned no results_*',
+            },
+        });
+    }
     if (footerMarkdown) {
         blocks.push({
             type: 'context',
