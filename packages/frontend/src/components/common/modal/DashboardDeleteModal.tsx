@@ -7,8 +7,8 @@ import {
 } from '@blueprintjs/core';
 import { FC } from 'react';
 import {
+    useDashboardDeleteMutation,
     useDashboardQuery,
-    useDeleteMutation,
 } from '../../../hooks/dashboard/useDashboard';
 
 interface DashboardDeleteModalProps extends DialogProps {
@@ -23,7 +23,7 @@ const DashboardDeleteModal: FC<DashboardDeleteModalProps> = ({
 }) => {
     const { data: dashboard, isLoading } = useDashboardQuery(uuid);
     const { mutateAsync: deleteDashboard, isLoading: isDeleting } =
-        useDeleteMutation();
+        useDashboardDeleteMutation();
 
     if (isLoading || !dashboard) {
         return null;

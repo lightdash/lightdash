@@ -29,7 +29,7 @@ import MetricQueryDataProvider from '../components/MetricQueryData/MetricQueryDa
 import UnderlyingDataModal from '../components/MetricQueryData/UnderlyingDataModal';
 import {
     appendNewTilesToBottom,
-    useDeleteMutation,
+    useDashboardDeleteMutation,
     useDuplicateDashboardMutation,
     useExportDashboard,
     useMoveDashboardMutation,
@@ -163,7 +163,7 @@ const Dashboard = () => {
     const { mutate: duplicateDashboard } = useDuplicateDashboardMutation({
         showRedirectButton: true,
     });
-    const { mutateAsync: deleteDashboard } = useDeleteMutation();
+    const { mutateAsync: deleteDashboard } = useDashboardDeleteMutation();
     const { mutate: exportDashboard } = useExportDashboard();
 
     const layouts = useMemo(

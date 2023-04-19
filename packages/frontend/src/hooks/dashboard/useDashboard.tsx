@@ -326,7 +326,7 @@ export const useDuplicateDashboardMutation = (
     );
 };
 
-export const useDeleteMutation = () => {
+export const useDashboardDeleteMutation = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
     return useMutation<undefined, ApiError, string>(deleteDashboard, {
