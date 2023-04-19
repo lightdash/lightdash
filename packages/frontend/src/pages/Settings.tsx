@@ -217,7 +217,7 @@ const Settings: FC = () => {
                                     <Description>
                                         Anyone with email addresses at these
                                         domains can automatically join the
-                                        organisation.
+                                        organization.
                                     </Description>
                                 </div>
                                 <AllowedDomainsPanel />

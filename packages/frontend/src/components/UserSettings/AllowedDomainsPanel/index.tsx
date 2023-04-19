@@ -27,7 +27,7 @@ type FormData = {
 const roleOptions = [
     {
         value: OrganizationMemberRole.VIEWER,
-        label: 'Organisation Viewer',
+        label: 'Organization Viewer',
         subLabel: (
             <Description>
                 Has view access across all projects in the org
@@ -36,7 +36,7 @@ const roleOptions = [
     },
     {
         value: OrganizationMemberRole.MEMBER,
-        label: 'Organisation Member',
+        label: 'Organization Member',
         subLabel: (
             <Description>Has view access to selected projects only</Description>
         ),
@@ -129,7 +129,7 @@ const AllowedDomainsPanel: FC = () => {
                         <Select2
                             label="Default role"
                             name="role"
-                            placeholder="Organisation viewer"
+                            placeholder="Organization viewer"
                             disabled={isLoading}
                             items={roleOptions}
                             defaultValue="viewer"

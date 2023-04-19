@@ -17,7 +17,7 @@ const joinOrgQuery = async (orgUuid: string) =>
 export const useJoinOrganizationMutation = () => {
     const queryClient = useQueryClient();
     return useMutation<undefined, ApiError, string>(joinOrgQuery, {
-        mutationKey: ['organisation_create'],
+        mutationKey: ['organization_create'],
         onSuccess: async () => {
             await queryClient.invalidateQueries(['user']);
         },

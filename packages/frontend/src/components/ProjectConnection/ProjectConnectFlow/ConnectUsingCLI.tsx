@@ -82,7 +82,7 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                     (uuid) => !existingUuids.includes(uuid),
                 );
 
-                await queryClient.invalidateQueries('organisation');
+                await queryClient.invalidateQueries('organization');
 
                 history.replace(
                     `/createProject/cli?projectUuid=${newProjectUuid}`,

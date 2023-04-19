@@ -47,9 +47,9 @@ const OrganizationDeleteModal: FC<OrganizationDeleteModalProps> = ({
         >
             <DialogBody>
                 <p>
-                    Type the name of this organisation{' '}
+                    Type the name of this organization{' '}
                     <b>{organization.name}</b> to confirm you want to delete
-                    this organisation and its users. This action is not
+                    this organization and its users. This action is not
                     reversible.
                 </p>
 

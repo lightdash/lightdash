@@ -41,11 +41,11 @@ const SchedulerModalError: FC<{
         } else {
             let title = 'No Slack configuration found';
             let description =
-                'To create a scheduled delivery, you need to setup Slack for your organisation.';
+                'To create a scheduled delivery, you need to setup Slack for your organization.';
             if (slackSettings && !hasRequiredScopes(slackSettings)) {
                 title = 'Slack integration needs to be reinstalled';
                 description =
-                    'To create a scheduled delivery, you need to reinstall the Slack integration for your organisation.';
+                    'To create a scheduled delivery, you need to reinstall the Slack integration for your organization.';
             }
             const canManageSlackIntegration = user.data?.ability.can(
                 'manage',
