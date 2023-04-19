@@ -149,7 +149,7 @@ type TrackOrganizationEvent = BaseTrack & {
     };
 };
 
-type OrganisationAllowedEmailDomainUpdatedEvent = BaseTrack & {
+type OrganizationAllowedEmailDomainUpdatedEvent = BaseTrack & {
     event: 'organization_allowed_email_domains.updated';
     properties: {
         organizationId: string;
@@ -610,7 +610,7 @@ type Track =
     | CreateDashboardOrVersionEvent
     | ProjectTablesConfigurationEvent
     | TrackOrganizationEvent
-    | OrganisationAllowedEmailDomainUpdatedEvent
+    | OrganizationAllowedEmailDomainUpdatedEvent
     | LoginEvent
     | IdentityLinkedEvent
     | SqlExecutedEvent

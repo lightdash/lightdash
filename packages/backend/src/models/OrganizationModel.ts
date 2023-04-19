@@ -20,7 +20,7 @@ export class OrganizationModel {
         this.database = database;
     }
 
-    static mapDBObjectToOrganisation(data: DbOrganization): Organisation {
+    static mapDBObjectToOrganization(data: DbOrganization): Organisation {
         return {
             organizationUuid: data.organization_uuid,
             name: data.organization_name,
@@ -40,9 +40,9 @@ export class OrganizationModel {
             .where('organization_uuid', organizationUuid)
             .select('*');
         if (org === undefined) {
-            throw new NotFoundError(`No organisation found`);
+            throw new NotFoundError(`No organization found`);
         }
-        return OrganizationModel.mapDBObjectToOrganisation(org);
+        return OrganizationModel.mapDBObjectToOrganization(org);
     }
 
     async create(data: CreateOrganization): Promise<Organisation> {
@@ -51,7 +51,7 @@ export class OrganizationModel {
                 organization_name: data.name,
             })
             .returning('*');
-        return OrganizationModel.mapDBObjectToOrganisation(org);
+        return OrganizationModel.mapDBObjectToOrganization(org);
     }
 
     async update(
@@ -66,7 +66,7 @@ export class OrganizationModel {
                 chart_colors: data.chartColors,
             })
             .returning('*');
-        return OrganizationModel.mapDBObjectToOrganisation(org);
+        return OrganizationModel.mapDBObjectToOrganization(org);
     }
 
     async deleteOrgAndUsers(
@@ -77,7 +77,7 @@ export class OrganizationModel {
             .where('organization_uuid', organizationUuid)
             .select('*');
         if (org === undefined) {
-            throw new NotFoundError(`No organisation found`);
+            throw new NotFoundError(`No organization found`);
         }
 
         await this.database.transaction(async (trx) => {

@@ -27,7 +27,7 @@ export const user: SessionUser = {
     abilityRules: [],
 };
 
-export const organisation: Organisation = {
+export const organization: Organisation = {
     organizationUuid: 'organizationUuid',
     name: 'Lightdash',
 };
