@@ -36,15 +36,15 @@ import {
 } from './MetricQueryDataProvider';
 
 type CombineFiltersArgs = {
+    fieldValues: UnderlyingValueMap;
     metricQuery: MetricQuery;
-    row: UnderlyingValueMap;
     pivotReference?: PivotReference;
     dashboardFilters?: DashboardFilters;
     extraFilters?: Filters;
 };
 const combineFilters = ({
+    fieldValues,
     metricQuery,
-    row,
     pivotReference,
     dashboardFilters,
     extraFilters,
@@ -77,7 +77,7 @@ const combineFilters = ({
     const dimensionFilters: FilterRule[] = metricQuery.dimensions.reduce<
         FilterRule[]
     >((acc, dimension) => {
-        const rowValue = row[dimension];
+        const rowValue = fieldValues[dimension];
         if (!rowValue) {
             return acc;
         }
@@ -105,10 +105,10 @@ const combineFilters = ({
 };
 
 type DrillDownExploreUrlArgs = {
+    fieldValues: UnderlyingValueMap;
     projectUuid: string;
     tableName: string;
     metricQuery: MetricQuery;
-    row: UnderlyingValueMap;
     drillByMetric: FieldId;
     drillByDimension: FieldId;
     dashboardFilters?: DashboardFilters;
@@ -117,10 +117,10 @@ type DrillDownExploreUrlArgs = {
 };
 
 const drillDownExploreUrl = ({
+    fieldValues,
     projectUuid,
     tableName,
     metricQuery,
-    row,
     drillByMetric,
     drillByDimension,
     dashboardFilters,
@@ -135,7 +135,7 @@ const drillDownExploreUrl = ({
             metrics: [drillByMetric],
             filters: combineFilters({
                 metricQuery,
-                row,
+                fieldValues,
                 dashboardFilters,
                 extraFilters,
                 pivotReference,
@@ -180,12 +180,12 @@ const DrillDownModal: FC = () => {
         return [];
     }, [explore]);
     const value = useMemo(() => {
-        if (drillDownConfig && isField(drillDownConfig.selectedItem)) {
+        if (drillDownConfig && isField(drillDownConfig.item)) {
             const fieldId =
                 drillDownConfig.pivotReference !== undefined
                     ? hashFieldReference(drillDownConfig.pivotReference)
-                    : getFieldId(drillDownConfig.selectedItem);
-            return drillDownConfig.row[fieldId]?.formatted;
+                    : getFieldId(drillDownConfig.item);
+            return drillDownConfig.fieldValues[fieldId]?.formatted;
         }
     }, [drillDownConfig]);
 
@@ -195,8 +195,8 @@ const DrillDownModal: FC = () => {
                 projectUuid,
                 tableName: explore.name,
                 metricQuery,
-                row: drillDownConfig.row,
-                drillByMetric: getItemId(drillDownConfig.selectedItem),
+                fieldValues: drillDownConfig.fieldValues,
+                drillByMetric: getItemId(drillDownConfig.item),
                 drillByDimension: getItemId(selectedDimension),
                 dashboardFilters: drillDownConfig.dashboardFilters,
                 pivotReference: drillDownConfig.pivotReference,
