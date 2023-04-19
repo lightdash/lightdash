@@ -8,7 +8,10 @@ import {
 import { FC } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useDashboardsContainingChart } from '../../../hooks/dashboard/useDashboards';
-import { useDeleteMutation, useSavedQuery } from '../../../hooks/useSavedQuery';
+import {
+    useSavedQuery,
+    useSavedQueryDeleteMutation,
+} from '../../../hooks/useSavedQuery';
 
 interface ChartDeleteModalProps extends DialogProps {
     uuid: string;
@@ -25,7 +28,7 @@ const ChartDeleteModal: FC<ChartDeleteModalProps> = ({
     const { data: relatedDashboards, isLoading: isLoadingRelatedDashboards } =
         useDashboardsContainingChart(projectUuid, uuid);
     const { mutateAsync: deleteChart, isLoading: isDeleting } =
-        useDeleteMutation();
+        useSavedQueryDeleteMutation();
 
     if (
         isLoading ||

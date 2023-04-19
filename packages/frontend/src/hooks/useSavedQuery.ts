@@ -93,7 +93,7 @@ export const useSavedQuery = ({ id, useQueryOptions }: Args = {}) =>
         ...useQueryOptions,
     });
 
-export const useDeleteMutation = () => {
+export const useSavedQueryDeleteMutation = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
     return useMutation<undefined, ApiError, string>(deleteSavedQuery, {
