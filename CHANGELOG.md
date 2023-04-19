@@ -1,3 +1,16 @@
+# [0.512.0](https://github.com/lightdash/lightdash/compare/0.511.5...0.512.0) (2023-04-19)
+
+
+### Bug Fixes
+
+* newly added tiles not available for filtering ([#5134](https://github.com/lightdash/lightdash/issues/5134)) ([de96825](https://github.com/lightdash/lightdash/commit/de9682509af4f18063edc9025c67460bf3e21ccc))
+* review missing dependencies from hooks' deps arrays ([#5128](https://github.com/lightdash/lightdash/issues/5128)) ([faada1b](https://github.com/lightdash/lightdash/commit/faada1bc2dbbb8be543b57387cc661c878f0ec59))
+
+
+### Features
+
+* pinned items API ([#5093](https://github.com/lightdash/lightdash/issues/5093)) ([7eeb950](https://github.com/lightdash/lightdash/commit/7eeb950e422153f26eebffbb6752ad6556df8980))
+
 ## [0.511.5](https://github.com/lightdash/lightdash/compare/0.511.4...0.511.5) (2023-04-18)
 
 
