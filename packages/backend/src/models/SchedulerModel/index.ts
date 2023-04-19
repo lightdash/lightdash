@@ -24,6 +24,7 @@ import {
     SchedulerDb,
     SchedulerEmailTargetDb,
     SchedulerEmailTargetTableName,
+    SchedulerLogDb,
     SchedulerLogTableName,
     SchedulerSlackTargetDb,
     SchedulerSlackTargetTableName,
@@ -35,6 +36,13 @@ import { SpaceTableName } from '../../database/entities/spaces';
 type ModelDependencies = {
     database: Knex;
 };
+
+const statusOrder = [
+    SchedulerJobStatus.ERROR,
+    SchedulerJobStatus.COMPLETED,
+    SchedulerJobStatus.STARTED,
+    SchedulerJobStatus.SCHEDULED,
+].map((s) => s.toString());
 
 export class SchedulerModel {
     private database: Knex;
@@ -349,6 +357,23 @@ export class SchedulerModel {
         };
     }
 
+    static parseSchedulerLog(logDb: SchedulerLogDb): SchedulerLog {
+        return {
+            task: logDb.task as SchedulerLog['task'],
+            scheduledTime: logDb.scheduled_time,
+            schedulerUuid: logDb.scheduler_uuid,
+            jobGroup: logDb.job_group,
+            jobId: logDb.job_id,
+            status: logDb.status as SchedulerJobStatus,
+            target: logDb.target === null ? undefined : logDb.target,
+            targetType:
+                logDb.target_type === null
+                    ? undefined
+                    : (logDb.target_type as SchedulerLog['targetType']),
+            details: logDb.details === null ? undefined : logDb.details,
+        };
+    }
+
     async getSchedulerForProject(
         projectUuid: string,
     ): Promise<SchedulerBase[]> {
@@ -408,27 +433,23 @@ export class SchedulerModel {
 
             .select()
             .whereIn(`scheduler_uuid`, uniqueSchedulerUuids);
-        const schedulerLogs: SchedulerLog[] = logs.map((log) => ({
-            task: log.task as SchedulerLog['task'],
-            scheduledTime: log.scheduled_time,
-            schedulerUuid: log.scheduler_uuid,
-            jobGroup: log.job_group,
-            jobId: log.job_id,
-            status: log.status as SchedulerJobStatus,
-            target: log.target === null ? undefined : log.target,
-            targetType:
-                log.target_type === null
-                    ? undefined
-                    : (log.target_type as SchedulerLog['targetType']),
-            details: log.details === null ? undefined : log.details,
-        }));
+        const schedulerLogs: SchedulerLog[] = logs.map(
+            SchedulerModel.parseSchedulerLog,
+        );
 
-        return schedulers.map((scheduler) => ({
-            ...scheduler,
-            logs: schedulerLogs.filter(
+        return schedulers.map((scheduler) => {
+            const filteredLogs = schedulerLogs.filter(
                 (log) => log.schedulerUuid === scheduler.schedulerUuid,
-            ),
-        }));
+            );
+            return {
+                ...scheduler,
+                lastLog:
+                    filteredLogs.length === 0
+                        ? undefined
+                        : filteredLogs.sort(SchedulerModel.sortLogs)[0],
+                logs: filteredLogs,
+            };
+        });
     }
 
     async logSchedulerJob(log: SchedulerLog): Promise<void> {
@@ -454,6 +475,18 @@ export class SchedulerModel {
         });
     }
 
+    static sortLogs = (a: SchedulerLog, b: SchedulerLog) => {
+        // Sometimes scheduled event is added after the job is completed
+
+        // First sort by date, then sort by status
+        if (a.scheduledTime.getTime() === b.scheduledTime.getTime()) {
+            return (
+                statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status)
+            );
+        }
+        return a.scheduledTime.getTime() - b.scheduledTime.getTime();
+    };
+
     async getCsvUrl(jobId: string, userUuid: string) {
         const jobs = await this.database(SchedulerLogTableName)
             .where(`job_id`, jobId)
@@ -461,17 +494,9 @@ export class SchedulerModel {
             .orderBy('scheduled_time', 'desc')
             .returning('*');
 
-        // Sometimes scheduled event is added after the job is completed
-        const statusOrder = [
-            SchedulerJobStatus.ERROR,
-            SchedulerJobStatus.COMPLETED,
-            SchedulerJobStatus.STARTED,
-            SchedulerJobStatus.SCHEDULED,
-        ].map((s) => s.toString());
-        const job = jobs.sort(
-            (a, b) =>
-                statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status),
-        )[0];
+        const job = jobs
+            .map(SchedulerModel.parseSchedulerLog)
+            .sort(SchedulerModel.sortLogs)[0];
         if (!job || job.details?.createdByUserUuid !== userUuid)
             throw new NotFoundError('Download CSV job not found');
 

@@ -153,7 +153,10 @@ export type ApiSchedulerAndTargetsResponse = {
     results: SchedulerAndTargets;
 };
 
-export type SchedulerWithLogs = SchedulerBase & { logs: SchedulerLog[] };
+export type SchedulerWithLogs = SchedulerBase & {
+    lastLog: SchedulerLog | undefined;
+    logs: SchedulerLog[];
+};
 export type ScheduledJobs = {
     date: Date;
     id: string;
