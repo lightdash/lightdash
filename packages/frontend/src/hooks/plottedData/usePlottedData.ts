@@ -4,6 +4,7 @@ import {
     hashFieldReference,
     PivotReference,
     ResultRow,
+    ResultValue,
 } from '@lightdash/common';
 import { useMemo } from 'react';
 
@@ -24,17 +25,19 @@ export const getPivotedData = (
 } => {
     const pivotValuesMap: PivotValueMap = {};
     const rowKeyMap: Record<string, FieldId | PivotReference> = {};
-    const pivotedRowMap = rows.reduce<Record<string, ResultRow>>((acc, row) => {
+    const pivotedRowMap = rows.reduce<
+        Record<string, Record<string, ResultValue>>
+    >((acc, row) => {
         const unpivotedKeysAndValues: string[] = [];
 
-        const pivotedRow: ResultRow = {};
+        const pivotedRow: Record<string, ResultValue> = {};
         Object.entries(row).forEach(([key, value]) => {
             if (keysToPivot.includes(key)) {
                 const pivotReference: PivotReference = {
                     field: key,
                     pivotValues: pivotKeys.map((pivotKey) => ({
                         field: pivotKey,
-                        value: row[pivotKey].value.raw,
+                        value: row[pivotKey].raw,
                     })),
                 };
                 const pivotedKeyHash: string =
@@ -43,14 +46,15 @@ export const getPivotedData = (
                     if (!pivotValuesMap[pivotKey]) {
                         pivotValuesMap[pivotKey] = {};
                     }
-                    pivotValuesMap[pivotKey][row[pivotKey].value.raw] =
-                        row[pivotKey].value;
+
+                    pivotValuesMap[pivotKey][`${row[pivotKey].raw}`] =
+                        row[pivotKey];
                 });
                 pivotedRow[pivotedKeyHash] = value;
                 rowKeyMap[pivotedKeyHash] = pivotReference;
             }
             if (keysToNotPivot.includes(key)) {
-                unpivotedKeysAndValues.push(key, `${value.value.raw}`);
+                unpivotedKeysAndValues.push(key, `${value.raw}`);
                 pivotedRow[key] = value;
                 rowKeyMap[key] = key;
             }

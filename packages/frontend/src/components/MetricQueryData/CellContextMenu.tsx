@@ -1,6 +1,6 @@
 import { Menu } from '@blueprintjs/core';
 import { FieldUrl, isField, ResultRow } from '@lightdash/common';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { CellContextMenuProps } from '../common/Table/types';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
 

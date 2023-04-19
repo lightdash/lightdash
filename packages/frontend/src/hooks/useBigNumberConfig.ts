@@ -128,7 +128,7 @@ const useBigNumberConfig = (
     }, [bigNumberConfigData]);
 
     const bigNumberRaw =
-        selectedField && resultsData?.rows?.[0]?.[selectedField]?.value.raw;
+        selectedField && resultsData?.rows?.[0]?.[selectedField].raw;
 
     const isNumber =
         isNumericItem(item) &&
@@ -136,8 +136,7 @@ const useBigNumberConfig = (
         !valueIsNaN(bigNumberRaw);
 
     const bigNumber = !isNumber
-        ? selectedField &&
-          resultsData?.rows?.[0]?.[selectedField]?.value.formatted
+        ? selectedField && resultsData?.rows?.[0]?.[selectedField]?.formatted
         : formatValue(bigNumberRaw, {
               format: isField(item) ? item.format : undefined,
               round: bigNumberStyle

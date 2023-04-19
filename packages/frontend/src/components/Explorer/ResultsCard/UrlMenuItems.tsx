@@ -21,8 +21,8 @@ const UrlMenuItem: FC<{
     urlConfig: FieldUrl;
     itemsMap?: Record<string, Field | TableCalculation>;
     itemIdsInRow: string[];
-    value: { raw: any; formatted: string };
-    row: Record<string, Record<string, { raw: any; formatted: string }>>;
+    value: { raw: unknown; formatted: string };
+    row: Record<string, Record<string, { raw: unknown; formatted: string }>>;
 }> = ({ urlConfig, itemsMap, itemIdsInRow, value, row }) => {
     const { track } = useTracking();
     const [url, renderError] = useMemo(() => {

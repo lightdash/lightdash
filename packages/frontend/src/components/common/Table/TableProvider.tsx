@@ -1,5 +1,9 @@
 import { HotkeyConfig, useHotkeys } from '@blueprintjs/core';
-import { ConditionalFormattingConfig, ResultRow } from '@lightdash/common';
+import {
+    ConditionalFormattingConfig,
+    ResultRow,
+    ResultValue,
+} from '@lightdash/common';
 import {
     Cell,
     ColumnOrderState,
@@ -9,7 +13,7 @@ import {
     useReactTable,
 } from '@tanstack/react-table';
 import copy from 'copy-to-clipboard';
-import { debounce } from 'lodash-es';
+import { debounce, mapValues } from 'lodash-es';
 import React, {
     createContext,
     FC,
@@ -31,7 +35,7 @@ import {
 } from './types';
 
 type Props = {
-    data: ResultRow[];
+    data: Record<string, ResultValue>[];
     columns: Array<TableColumn | TableHeader>;
     headerContextMenu?: FC<HeaderProps>;
     cellContextMenu?: FC<CellContextMenuProps>;
@@ -130,7 +134,7 @@ export const TableProvider: FC<Props> = ({
         : [stickyRowColumn, ...stickyColumns, ...otherColumns];
 
     const table = useReactTable({
-        data,
+        data: data.map((row) => mapValues(row, (value) => ({ value }))),
         columns: visibleColumns,
         state: {
             columnVisibility,

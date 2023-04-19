@@ -24,7 +24,6 @@ import {
     isFilterableField,
     isTableChartConfig,
     PivotReference,
-    ResultRow,
     SavedChart,
     TableCalculation,
 } from '@lightdash/common';
@@ -148,7 +147,7 @@ const ValidDashboardChartTile: FC<{
                 resultData.metricQuery.dimensions.reduce((sum, dimensionId) => {
                     const newSuggestions: string[] =
                         resultData.rows.reduce<string[]>((acc, row) => {
-                            const value = row[dimensionId]?.value.raw;
+                            const value = row[dimensionId]?.raw;
                             if (typeof value === 'string') {
                                 return [...acc, value];
                             }

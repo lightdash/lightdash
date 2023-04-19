@@ -8,7 +8,7 @@ import {
     isDimension,
     isField,
     MetricType,
-    ResultRow,
+    ResultValue,
     TableCalculation,
 } from '@lightdash/common';
 import { useMemo } from 'react';
@@ -35,27 +35,24 @@ export const isSummable = (item: Field | TableCalculation) => {
 };
 
 export const getResultColumnTotals = (
-    rows: ResultRow[],
+    rows: Record<string, ResultValue>[],
     keys: Array<string>,
 ): Record<FieldId, number | undefined> => {
     if (keys.length > 0) {
-        return rows.reduce<Record<FieldId, number | undefined>>(
-            (acc, row: ResultRow) => {
-                keys.forEach((key) => {
-                    if (row[key]) {
-                        acc[key] = (acc[key] || 0) + Number(row[key].value.raw);
-                    }
-                });
-                return acc;
-            },
-            {},
-        );
+        return rows.reduce<Record<FieldId, number | undefined>>((acc, row) => {
+            keys.forEach((key) => {
+                if (row[key]) {
+                    acc[key] = (acc[key] || 0) + Number(row[key].raw);
+                }
+            });
+            return acc;
+        }, {});
     }
     return {};
 };
 
 export const getResultColumnTotalsFromItemsMap = (
-    rows: ResultRow[],
+    rows: Record<string, ResultValue>[],
     itemsMap: Record<FieldId, Field | TableCalculation>,
 ): Record<FieldId, number | undefined> => {
     return getResultColumnTotals(

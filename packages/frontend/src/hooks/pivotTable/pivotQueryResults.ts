@@ -7,7 +7,7 @@ import {
     PivotIndexType,
     PivotTitleValue,
     PivotValue,
-    ResultRow,
+    ResultValue,
 } from '@lightdash/common';
 
 type PivotQueryResultsArgs = {
@@ -16,10 +16,22 @@ type PivotQueryResultsArgs = {
         MetricQuery,
         'dimensions' | 'metrics' | 'tableCalculations' | 'additionalMetrics'
     >;
-    rows: ResultRow[];
+    rows: Record<string, ResultValue>[];
 };
 
-const setKeyIfNotExists = (obj: any, keys: string[], value: any): boolean => {
+type RecursiveRecord<T = unknown> = {
+    [key: string]: RecursiveRecord<T> | T;
+};
+
+const isRecursiveRecord = (value: unknown): value is RecursiveRecord => {
+    return typeof value === 'object' && value !== null;
+};
+
+const setIndexByKey = (
+    obj: RecursiveRecord<number>,
+    keys: string[],
+    value: number,
+): boolean => {
     if (keys.length === 0) {
         return false;
     }
@@ -34,18 +46,41 @@ const setKeyIfNotExists = (obj: any, keys: string[], value: any): boolean => {
     if (obj[key] === undefined) {
         obj[key] = {};
     }
-    return setKeyIfNotExists(obj[key], rest, value);
+
+    const nextObject = obj[key];
+    if (!isRecursiveRecord(nextObject)) {
+        throw new Error('Cannot set key on non-object');
+    }
+
+    return setIndexByKey(nextObject, rest, value);
 };
 
-const getByKey = (obj: any, keys: string[]): any => {
+const getIndexByKey = (
+    obj: RecursiveRecord<number>,
+    keys: string[],
+): number => {
     if (keys.length === 0) {
-        return undefined;
+        throw new Error('Cannot get key from empty keys array');
     }
+
     const [key, ...rest] = keys;
+
     if (rest.length === 0) {
-        return obj[key];
+        const value = obj[key];
+
+        if (typeof value !== 'number') {
+            throw new Error('Expected a number');
+        } else {
+            return value;
+        }
+    } else {
+        const nextObj = obj[key];
+        if (isRecursiveRecord(nextObj)) {
+            return getIndexByKey(nextObj, rest);
+        } else {
+            throw new Error('Expected a RecursiveRecord object');
+        }
     }
-    return getByKey(obj[key], rest);
 };
 
 export const pivotQueryResults = ({
@@ -133,7 +168,7 @@ export const pivotQueryResults = ({
                 .map<PivotValue>((fieldId) => ({
                     type: 'value',
                     fieldId: fieldId,
-                    value: row[fieldId].value,
+                    value: row[fieldId],
                 }))
                 .concat(
                     pivotConfig.metricsAsRows
@@ -145,7 +180,7 @@ export const pivotQueryResults = ({
                 .map<PivotValue>((fieldId) => ({
                     type: 'value',
                     fieldId: fieldId,
-                    value: row[fieldId].value,
+                    value: row[fieldId],
                 }))
                 .concat(
                     pivotConfig.metricsAsRows
@@ -155,7 +190,7 @@ export const pivotQueryResults = ({
 
             // Write the index values
             if (
-                setKeyIfNotExists(
+                setIndexByKey(
                     rowIndices,
                     indexRowValues.map((l) =>
                         l.type === 'value' ? String(l.value.raw) : l.fieldId,
@@ -169,7 +204,7 @@ export const pivotQueryResults = ({
 
             // Write the header values
             if (
-                setKeyIfNotExists(
+                setIndexByKey(
                     columnIndices,
                     headerRowValues.map((l) =>
                         l.type === 'value' ? String(l.value.raw) : l.fieldId,
@@ -191,7 +226,7 @@ export const pivotQueryResults = ({
     const N_DATA_ROWS = rowCount;
     const N_DATA_COLUMNS = columnCount;
     // Compute the data values
-    const dataValues: (PivotValue | null)[][] = [...Array(N_DATA_ROWS)].map(
+    const dataValues: (ResultValue | null)[][] = [...Array(N_DATA_ROWS)].map(
         () => Array(N_DATA_COLUMNS).fill(null),
     );
 
@@ -204,24 +239,23 @@ export const pivotQueryResults = ({
         const row = rows[nRow];
         for (let nMetric = 0; nMetric < metrics.length; nMetric++) {
             const metric = metrics[nMetric];
-            const value = row[metric.fieldId].value;
+            const value = row[metric.fieldId];
             const rowKeys = [
-                ...indexDimensions.map((d) => row[d].value.raw),
+                ...indexDimensions.map((d) => row[d].raw),
                 ...(pivotConfig.metricsAsRows ? [metric.fieldId] : []),
             ];
             const columnKeys = [
-                ...headerDimensions.map((d) => row[d].value.raw),
+                ...headerDimensions.map((d) => row[d].raw),
                 ...(pivotConfig.metricsAsRows ? [] : [metric.fieldId]),
             ];
 
-            const rowIndex = getByKey(rowIndices, rowKeys);
-            const columnIndex = getByKey(columnIndices, columnKeys);
+            const rowKeysString = rowKeys.map((k) => String(k));
+            const columnKeysString = columnKeys.map((k) => String(k));
 
-            dataValues[rowIndex][columnIndex] = {
-                type: 'value',
-                fieldId: metric.fieldId,
-                value: value,
-            };
+            const rowIndex = getIndexByKey(rowIndices, rowKeysString);
+            const columnIndex = getIndexByKey(columnIndices, columnKeysString);
+
+            dataValues[rowIndex][columnIndex] = value;
         }
     }
 

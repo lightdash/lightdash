@@ -1,7 +1,7 @@
 import { Button, PopoverPosition } from '@blueprintjs/core';
 import { Classes, Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
-import { getResultValues } from '@lightdash/common';
+import { getResultValueArray } from '@lightdash/common';
 import { FC, memo, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { downloadCsv } from '../../../hooks/useDownloadCsv';

@@ -39,7 +39,6 @@ import {
     ProjectMemberProfile,
     ProjectMemberRole,
 } from './types/projectMemberProfile';
-import { ResultRow } from './types/results';
 import { SavedChart, Series } from './types/savedCharts';
 import { SearchResults } from './types/search';
 import { ShareUrl } from './types/share';
@@ -62,6 +61,7 @@ import {
     ProjectType,
     WarehouseCredentials,
 } from './types/projects';
+import { ResultValue } from './types/results';
 import { SchedulerAndTargets, SchedulerWithLogs } from './types/scheduler';
 import { SlackChannel } from './types/slack';
 import { Space } from './types/space';
@@ -161,7 +161,7 @@ export const replaceStringInArray = (
 ) =>
     arrayToUpdate.map((value) => (value === valueToReplace ? newValue : value));
 
-export type SqlResultsRow = { [columnName: string]: any };
+export type SqlResultsRow = { [columnName: string]: unknown };
 export type SqlResultsField = { name: string; type: string }; // TODO: standardise column types
 export type SqlQueryResults = {
     fields: SqlResultsField[]; // TODO: standard column types
@@ -273,7 +273,7 @@ export const hasSpecialCharacters = (text: string) => /[^a-zA-Z ]/g.test(text);
 
 export type ApiQueryResults = {
     metricQuery: MetricQuery;
-    rows: ResultRow[];
+    rows: Record<string, ResultValue>[];
 };
 
 export type ApiSqlQueryResults = {
@@ -625,15 +625,15 @@ export type UpdateProject = Omit<
     warehouseConnection: CreateWarehouseCredentials;
 };
 
-export const getResultValues = (
-    rows: ResultRow[],
+export const getResultValueArray = (
+    rows: Record<string, ResultValue>[],
     onlyRaw: boolean = false,
-): { [col: string]: any }[] =>
-    rows.map((row: ResultRow) =>
-        Object.keys(row).reduce((acc, key) => {
-            const value: string = onlyRaw
-                ? row[key]?.value?.raw
-                : row[key]?.value?.formatted || row[key]?.value?.raw;
+): Record<string, string | unknown>[] =>
+    rows.map((row: Record<string, ResultValue>) =>
+        Object.keys(row).reduce<Record<string, unknown>>((acc, key) => {
+            const value: unknown = onlyRaw
+                ? row[key]?.raw
+                : row[key]?.formatted || row[key]?.raw;
 
             return { ...acc, [key]: value };
         }, {}),
@@ -729,22 +729,23 @@ export function itemsInMetricQuery(
 export function formatRows(
     rows: { [col: string]: any }[],
     itemMap: Record<string, Field | TableCalculation>,
-): ResultRow[] {
+): Record<string, ResultValue>[] {
     return rows.map((row) =>
-        Object.keys(row).reduce((acc, columnName) => {
-            const col = row[columnName];
+        Object.keys(row).reduce<Record<string, ResultValue>>(
+            (acc, columnName) => {
+                const col = row[columnName];
 
-            const item = itemMap[columnName];
-            return {
-                ...acc,
-                [columnName]: {
-                    value: {
+                const item = itemMap[columnName];
+                return {
+                    ...acc,
+                    [columnName]: {
                         raw: col,
                         formatted: formatItemValue(item, col),
                     },
-                },
-            };
-        }, {}),
+                };
+            },
+            {},
+        ),
     );
 }
 

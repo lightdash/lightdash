@@ -11,7 +11,7 @@ import {
     Spinner,
 } from '@blueprintjs/core';
 import { Classes } from '@blueprintjs/popover2';
-import { ApiScheduledDownloadCsv, ResultRow } from '@lightdash/common';
+import { ApiScheduledDownloadCsv, ResultValue } from '@lightdash/common';
 import { FC, Fragment, memo, useState } from 'react';
 import { useMutation } from 'react-query';
 import useHealth from '../../hooks/health/useHealth';
@@ -43,7 +43,7 @@ type ExportCsvRenderProps = {
 };
 
 export type ExportCSVProps = {
-    rows: ResultRow[] | undefined;
+    rows: Record<string, ResultValue>[] | undefined;
     getCsvLink: (
         limit: number | null,
         onlyRaw: boolean,

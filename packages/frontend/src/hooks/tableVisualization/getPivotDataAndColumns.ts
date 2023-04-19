@@ -5,7 +5,7 @@ import {
     formatItemValue,
     hashFieldReference,
     PivotReference,
-    ResultRow,
+    ResultValue,
     TableCalculation,
 } from '@lightdash/common';
 import { getTableHeaderDarkerBg } from '../../components/common/Table/Table.styles';
@@ -64,7 +64,7 @@ const getPivotDataAndColumns = ({
     isColumnVisible,
     getFieldLabel,
 }: Args): {
-    rows: ResultRow[];
+    rows: Record<string, ResultValue>[];
     columns: Array<TableHeader | TableColumn>;
     error?: string;
 } => {

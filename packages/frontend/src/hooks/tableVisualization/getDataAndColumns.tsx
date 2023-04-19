@@ -4,7 +4,7 @@ import {
     formatItemValue,
     friendlyName,
     isField,
-    ResultRow,
+    ResultValue,
     TableCalculation,
 } from '@lightdash/common';
 import {
@@ -38,7 +38,7 @@ const getDataAndColumns = ({
     showTableNames,
     getFieldLabelOverride,
 }: Args): {
-    rows: ResultRow[];
+    rows: Record<string, ResultValue>[];
     columns: Array<TableHeader | TableColumn>;
     error?: string;
 } => {

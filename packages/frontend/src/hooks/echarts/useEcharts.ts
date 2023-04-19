@@ -13,12 +13,11 @@ import {
     friendlyName,
     getAxisName,
     getDefaultSeriesColor,
-    getFieldLabel,
     getFieldMap,
     getFields,
     getItemId,
     getItemLabelWithoutTableName,
-    getResultValues,
+    getResultValueArray,
     hashFieldReference,
     isCompleteLayout,
     isDimension,
@@ -28,7 +27,7 @@ import {
     Metric,
     MetricType,
     PivotReference,
-    ResultRow,
+    ResultValue,
     Series,
     TableCalculation,
     timeFrameConfigs,
@@ -263,31 +262,62 @@ const removeEmptyProperties = <T = Record<any, any>>(obj: T | undefined) => {
     );
 };
 
+const minDate = (a: number | string, b: string) => {
+    if (typeof a === 'number') return b;
+
+    const dateA = new Date(a);
+    const dateB = new Date(b);
+    return dateA < dateB ? a : b;
+};
+
+const maxDate = (a: number | string, b: string) => {
+    if (typeof a === 'number') return b;
+
+    const dateA = new Date(a);
+    const dateB = new Date(b);
+    return dateA > dateB ? a : b;
+};
+
+const minNumber = (a: number | string, b: number) => {
+    const numberA = Number(a);
+    const numberB = Number(b);
+    return numberA < numberB ? a : b;
+};
+
+const maxNumber = (a: number | string, b: number) => {
+    const numberA = Number(a);
+    const numberB = Number(b);
+    return numberA > numberB ? a : b;
+};
+
 export const getMinAndMaxValues = (
     axis: string | undefined,
-    rows: ResultRow[],
+    rows: Record<string, ResultValue>[],
 ): (string | number)[] => {
     if (!axis) return [];
+
     return rows
-        .map((row) => row[axis]?.value?.raw)
+        .map((row) => row[axis]?.raw)
         .reduce<(string | number)[]>(
             (acc, value) => {
                 if (typeof value === 'number') {
-                    const min = acc[0] < value ? acc[0] : value;
-                    const max = acc[1] > value ? acc[1] : value;
+                    const min = minNumber(acc[0], value);
+                    const max = maxNumber(acc[1], value);
+                    return [min, max];
+                } else if (
+                    typeof value === 'string' &&
+                    moment(value, 'YYYY-MM-DD', false).isValid()
+                ) {
+                    // is date
+                    const min = minDate(acc[0], value);
+                    const max = maxDate(acc[1], value);
                     return [min, max];
                 } else if (typeof value === 'string') {
-                    if (moment(value, 'YYYY-MM-DD', false).isValid()) {
-                        // is date
-                        const min = acc[0] < value ? acc[0] : value;
-                        const max = acc[1] > value ? acc[1] : value;
-                        return [min, max];
-                    }
+                    // is numeric string
                     const number = parseFloat(value);
                     if (!isNaN(number)) {
-                        // is float
-                        const min = acc[0] < number ? acc[0] : number;
-                        const max = acc[1] > number ? acc[1] : number;
+                        const min = minNumber(acc[0], number);
+                        const max = maxNumber(acc[1], number);
                         return [min, max];
                     }
                 }
@@ -795,7 +825,7 @@ const getEchartAxis = ({
     const longestValueYAxisLeft: string | undefined =
         leftAxisYId &&
         resultsData?.rows
-            .map((row) => row[leftAxisYId]?.value?.formatted)
+            .map((row) => row[leftAxisYId]?.formatted)
             .reduce<string>(
                 (acc, p) => (p && acc.length > p.length ? acc : p),
                 '',
@@ -805,7 +835,7 @@ const getEchartAxis = ({
     const longestValueYAxisRight: string | undefined =
         rightAxisYId &&
         resultsData?.rows
-            .map((row) => row[rightAxisYId]?.value?.formatted)
+            .map((row) => row[rightAxisYId].formatted)
             .reduce<string>(
                 (acc, p) => (p && acc.length > p.length ? acc : p),
                 '',
@@ -1003,13 +1033,13 @@ const getValidStack = (series: EChartSeries | undefined) => {
 };
 
 const calculateStackTotal = (
-    row: ResultRow,
+    row: Record<string, ResultValue>,
     series: EChartSeries[],
     flipAxis: boolean | undefined,
 ) => {
     return series.reduce<number>((acc, s) => {
         const hash = flipAxis ? s.encode?.x : s.encode?.y;
-        const numberValue = hash ? toNumber(row[hash]?.value.raw) : 0;
+        const numberValue = hash ? toNumber(row[hash]?.raw) : 0;
         if (!Number.isNaN(numberValue)) {
             acc += numberValue;
         }
@@ -1023,7 +1053,7 @@ const calculateStackTotal = (
 // - the total of that stack to be used in the label
 // The x/axis value and the "0" need to flip position if the axis are flipped
 const getStackTotalRows = (
-    rows: ResultRow[],
+    rows: Record<string, ResultValue>[],
     series: EChartSeries[],
     flipAxis: boolean | undefined,
 ): [unknown, unknown, number][] => {
@@ -1034,14 +1064,14 @@ const getStackTotalRows = (
             return [null, null, 0];
         }
         return flipAxis
-            ? [0, row[hash]?.value.raw, total]
-            : [row[hash]?.value.raw, 0, total];
+            ? [0, row[hash]?.raw, total]
+            : [row[hash]?.raw, 0, total];
     });
 };
 
 // To hack the stack totals in echarts we need to create a fake series with the value 0 and display the total in the label
 const getStackTotalSeries = (
-    rows: ResultRow[],
+    rows: Record<string, ResultValue>[],
     seriesWithStack: EChartSeries[],
     items: Array<Field | TableCalculation>,
     flipAxis: boolean | undefined,
@@ -1248,11 +1278,11 @@ const useEcharts = () => {
                 id: 'lightdashResults',
                 source:
                     validCartesianConfig?.layout?.xField === EMPTY_X_AXIS
-                        ? getResultValues(rows, true).map((s) => ({
+                        ? getResultValueArray(rows, true).map((s) => ({
                               ...s,
                               [EMPTY_X_AXIS]: ' ',
                           }))
-                        : getResultValues(rows, true),
+                        : getResultValueArray(rows, true),
             },
             tooltip: {
                 show: true,

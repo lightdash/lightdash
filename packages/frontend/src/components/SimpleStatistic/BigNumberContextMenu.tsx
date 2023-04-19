@@ -43,7 +43,7 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
     );
 
     const fieldValues: UnderlyingValueMap = useMemo(() => {
-        return mapValues(resultsData?.rows?.[0], (r) => r.value) ?? {};
+        return resultsData?.rows?.[0] ?? {};
     }, [resultsData]);
 
     const value = useMemo(() => {
@@ -128,7 +128,7 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
                     >
                         <DrillDownMenuItem
                             item={selectedItem}
-                            fieldValues={resultsData?.rows[0].value}
+                            fieldValues={resultsData?.rows[0]}
                             trackingData={{
                                 organizationId: user?.data?.organizationUuid,
                                 userId: user?.data?.userUuid,

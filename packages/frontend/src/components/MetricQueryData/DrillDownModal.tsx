@@ -23,7 +23,6 @@ import {
     isField,
     MetricQuery,
     PivotReference,
-    ResultRow,
 } from '@lightdash/common';
 import React, { FC, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';

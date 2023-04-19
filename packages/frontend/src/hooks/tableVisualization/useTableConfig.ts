@@ -10,7 +10,7 @@ import {
     isMetric,
     itemsInMetricQuery,
     PivotData,
-    ResultRow,
+    ResultValue,
     TableChart,
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -206,7 +206,7 @@ const useTableConfig = (
     ]);
 
     const { rows, columns, error } = useMemo<{
-        rows: ResultRow[];
+        rows: Record<string, ResultValue>[];
         columns: Array<TableColumn | TableHeader>;
         error?: string;
     }>(() => {

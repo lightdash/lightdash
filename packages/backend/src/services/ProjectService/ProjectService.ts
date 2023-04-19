@@ -47,7 +47,7 @@ import {
     ProjectMemberRole,
     ProjectType,
     RequestMethod,
-    ResultRow,
+    ResultValue,
     SessionUser,
     SummaryExplore,
     TablesConfiguration,
@@ -729,14 +729,14 @@ export class ProjectService {
         // If there are more than 500 rows, we need to format them in a background job
         const formattedRows =
             rows.length > 500
-                ? await wrapSentryTransaction<ResultRow[]>(
+                ? await wrapSentryTransaction<Record<string, ResultValue>[]>(
                       'formatted rows',
                       {
                           rows: rows.length,
                           warehouse: warehouseConnection?.type,
                       },
                       async () =>
-                          runWorkerThread<ResultRow[]>(
+                          runWorkerThread<Record<string, ResultValue>[]>(
                               new Worker(
                                   './dist/services/ProjectService/formatRows.js',
                                   {
