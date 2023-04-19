@@ -13,45 +13,75 @@ type Dependencies = {
 
 const getCharts = async (
     knex: Knex,
+    projectUuid: string,
     pinnedListUuid: string,
+    allowedSpaceUuids: string[],
 ): Promise<ResourceViewChartItem[]> => {
-    const rows = await knex.raw<Record<string, any>[]>(
-        `
-                select
-                    pl.project_uuid,
-                    pl.pinned_list_uuid,
-                    s.space_uuid,
-                    pc.saved_chart_uuid,
-                    u.user_uuid as updated_by_user_uuid,
-                    MAX(sq.name) as name,
-                    MAX(sq.description) as description,
-                    MAX(sqv.updated_at) as updated_at,
-                    MAX(sqv.chart_type) as chart_type,
-                    COUNT(acv.timestamp) as views,
-                    MIN(acv.timestamp) as first_viewed_at,
-                    MAX(u.first_name) as updated_by_user_first_name,
-                    MAX(u.last_name) as updated_by_user_last_name
-                from pinned_list pl
-                inner join pinned_chart pc on pl.pinned_list_uuid = pc.pinned_list_uuid
-                    and pc.pinned_list_uuid = :pinnedListUuid
-                inner join saved_queries sq on pc.saved_chart_uuid = sq.saved_query_uuid
-                inner join spaces s on sq.space_id = s.space_id
-                inner join (
-                    select distinct on(saved_query_id) saved_query_id, created_at as updated_at, updated_by_user_uuid, chart_type
-                    from saved_queries_versions
-                    order by saved_query_id, created_at desc
-                ) sqv on sq.saved_query_id = sqv.saved_query_id
-                left join analytics_chart_views acv on sq.saved_query_uuid = acv.chart_uuid
-                left join users u on sqv.updated_by_user_uuid = u.user_uuid
-                group by 1, 2, 3, 4, 5;
-`,
-        { pinnedListUuid },
-    );
+    if (allowedSpaceUuids.length === 0) {
+        return [];
+    }
+    const rows = (await knex('pinned_list')
+        .select({
+            project_uuid: 'pinned_list.project_uuid',
+            pinned_list_uuid: 'pinned_list.pinned_list_uuid',
+            space_uuid: 'spaces.space_uuid',
+            saved_chart_uuid: 'pinned_chart.saved_chart_uuid',
+            updated_by_user_uuid: 'users.user_uuid',
+        })
+        .max({
+            name: 'saved_queries.name',
+            description: 'saved_queries.description',
+            updated_at: 'sqv.updated_at',
+            chart_type: 'sqv.chart_type',
+            updated_by_user_first_name: 'users.first_name',
+            updated_by_user_last_name: 'users.last_name',
+        })
+        .min({
+            first_viewed_at: 'analytics_chart_views.timestamp',
+        })
+        .count({
+            views: 'analytics_chart_views.timestamp',
+        })
+        .innerJoin(
+            'pinned_chart',
+            'pinned_list.pinned_list_uuid',
+            'pinned_chart.pinned_list_uuid',
+        )
+        .innerJoin(
+            'saved_queries',
+            'pinned_chart.saved_chart_uuid',
+            'saved_queries.saved_query_uuid',
+        )
+        .innerJoin('spaces', 'saved_queries.space_id', 'spaces.space_id')
+        .innerJoin(
+            knex('saved_queries_versions')
+                .distinctOn('saved_query_id')
+                .orderBy('saved_query_id')
+                .orderBy('created_at', 'desc')
+                .select(
+                    'saved_query_id',
+                    'created_at as updated_at',
+                    'updated_by_user_uuid',
+                    'chart_type',
+                )
+                .as('sqv'),
+            'saved_queries.saved_query_id',
+            'sqv.saved_query_id',
+        )
+        .leftJoin(
+            'analytics_chart_views',
+            'saved_queries.saved_query_uuid',
+            'analytics_chart_views.chart_uuid',
+        )
+        .leftJoin('users', 'sqv.updated_by_user_uuid', 'users.user_uuid')
+        .whereIn('spaces.space_uuid', allowedSpaceUuids)
+        .andWhere('pinned_list.pinned_list_uuid', pinnedListUuid)
+        .andWhere('pinned_list.project_uuid', projectUuid)
+        .groupBy(1, 2, 3, 4, 5)) as Record<string, any>[];
     const resourceType: ResourceViewItemType.CHART = ResourceViewItemType.CHART;
     const items = rows.map((row) => ({
         type: resourceType,
         data: {
-            projectUuid: row.project_uuid,
             pinnedListUuid: row.pinned_list_uuid,
             spaceUuid: row.space_uuid,
             uuid: row.saved_chart_uuid,
@@ -73,49 +103,67 @@ const getCharts = async (
 
 const getDashboards = async (
     knex: Knex,
+    projectUuid: string,
     pinnedListUuid: string,
+    allowedSpaceUuids: string[],
 ): Promise<ResourceViewDashboardItem[]> => {
-    const rows = await knex.raw<Record<string, any>[]>(
-        `
-                select
-                    pl.project_uuid,
-                    pl.pinned_list_uuid,
-                    sss.space_uuid,
-                    sss.access as space_access,
-                    pd.dashboard_uuid,
-                    u.user_uuid as updated_by_user_uuid,
-                    MAX(d.name) as name,
-                    MAX(d.description) as description,
-                    MAX(dv.created_at) as updated_at,
-                    COUNT(adv.timestamp) as views,
-                    MIN(adv.timestamp) as first_viewed_at,
-                    MAX(u.first_name) as updated_by_user_first_name,
-                    MAX(u.last_name) as updated_by_user_last_name,
-                from pinned_list pl
-                inner join pinned_dashboard pd on pl.pinned_list_uuid = pd.pinned_list_uuid
-                    and pd.pinned_list_uuid = :pinnedListUuid
-                inner join dashboards d on pd.dashboard_uuid = d.dashboard_uuid
-                inner join (
-                    select
-                        s.space_id,
-                        s.space_uuid,
-                        jsonb_agg(su.user_uuid) FILTER (WHERE su.user_uuid IS NOT NULL) as access
-                    from spaces s
-                    left join space_share ss on s.space_id = ss.space_id
-                    left join users su on ss.user_id = su.user_id
-                    group by 1, 2
-                ) sss on sss.space_id = d.space_id
-                inner join (
-                    select distinct on(dashboard_id) dashboard_id, created_at, updated_by_user_uuid
-                    from dashboard_versions
-                    order by dashboard_id, created_at desc
-                ) dv on d.dashboard_id = dv.dashboard_id
-                left join analytics_dashboard_views adv on d.dashboard_uuid = adv.dashboard_uuid
-                left join users u on dv.updated_by_user_uuid = u.user_uuid
-                group by 1, 2, 3, 4, 5, 6;
-`,
-        { pinnedListUuid },
-    );
+    if (allowedSpaceUuids.length === 0) {
+        return [];
+    }
+    const rows = (await knex('pinned_list')
+        .innerJoin(
+            'pinned_dashboard',
+            'pinned_list.pinned_list_uuid',
+            'pinned_dashboard.pinned_list_uuid',
+        )
+        .innerJoin(
+            'dashboards',
+            'pinned_dashboard.dashboard_uuid',
+            'dashboards.dashboard_uuid',
+        )
+        .innerJoin('spaces', 'dashboards.space_id', 'spaces.space_id')
+        .innerJoin(
+            knex('dashboard_versions')
+                .distinctOn('dashboard_id')
+                .orderBy('dashboard_id')
+                .orderBy('created_at', 'desc')
+                .select(
+                    'dashboard_id',
+                    'created_at as updated_at',
+                    'updated_by_user_uuid',
+                )
+                .as('dv'),
+            'dashboards.dashboard_id',
+            'dv.dashboard_id',
+        )
+        .leftJoin(
+            'analytics_dashboard_views',
+            'dashboards.dashboard_uuid',
+            'analytics_dashboard_views.dashboard_uuid',
+        )
+        .leftJoin('users', 'dv.updated_by_user_uuid', 'users.user_uuid')
+        .whereIn('spaces.space_uuid', allowedSpaceUuids)
+        .andWhere('pinned_list.pinned_list_uuid', pinnedListUuid)
+        .andWhere('pinned_list.project_uuid', projectUuid)
+        .select(
+            'pinned_list.project_uuid',
+            'pinned_list.pinned_list_uuid',
+            'spaces.space_uuid',
+            'pinned_dashboard.dashboard_uuid',
+            'users.user_uuid as updated_by_user_uuid',
+        )
+        .max({
+            name: 'dashboards.name',
+            description: 'dashboards.description',
+            updated_at: 'dv.updated_at',
+            updated_by_user_first_name: 'users.first_name',
+            updated_by_user_last_name: 'users.last_name',
+        })
+        .min({
+            first_viewed_at: 'analytics_dashboard_views.timestamp',
+        })
+        .count({ views: 'analytics_dashboard_views.timestamp' })
+        .groupBy(1, 2, 3, 4, 5)) as Record<string, any>[];
     const resourceType: ResourceViewItemType.DASHBOARD =
         ResourceViewItemType.DASHBOARD;
     const items = rows.map((row) => ({
@@ -139,11 +187,12 @@ const getDashboards = async (
     return items;
 };
 
-const getSpaces = async (
+const getAllSpaces = async (
     knex: Knex,
+    projectUuid: string,
     pinnedListUuid: string,
 ): Promise<ResourceViewSpaceItem[]> => {
-    const rows = await knex.raw<Record<string, any>[]>(
+    const { rows } = await knex.raw<{ rows: Record<string, any>[] }>(
         `
             select
                 o.organization_uuid,
@@ -153,11 +202,12 @@ const getSpaces = async (
                 MAX(s.name) as name,
                 BOOL_OR(s.is_private) as is_private,
                 COUNT(DISTINCT ss.user_id) as access_list_length,
-                jsonb_agg(u.user_uuid) FILTER (WHERE u.user_uuid is not null) as access,
+                COALESCE(json_agg(distinct u.user_uuid) FILTER (WHERE u.user_uuid is not null), '[]') as access,
                 COUNT(DISTINCT d.dashboard_id) as dashboard_count,
                 COUNT(DISTINCT sq.saved_query_id) as chart_count
             from pinned_list pl
             inner join projects p on pl.project_uuid = p.project_uuid
+                and pl.project_uuid = :projectUuid
             inner join organizations o on p.organization_id = o.organization_id
             inner join pinned_space ps on pl.pinned_list_uuid = ps.pinned_list_uuid
                 and ps.pinned_list_uuid = :pinnedListUuid
@@ -168,7 +218,7 @@ const getSpaces = async (
             left join saved_queries sq on s.space_id = sq.space_id
             group by 1, 2, 3, 4;
         `,
-        { pinnedListUuid },
+        { pinnedListUuid, projectUuid },
     );
     const resourceType: ResourceViewItemType.SPACE = ResourceViewItemType.SPACE;
     return rows.map<ResourceViewSpaceItem>((row) => ({
@@ -195,33 +245,39 @@ export class ResourceViewItemModel {
         this.database = dependencies.database;
     }
 
-    async getResourceViewItemsByPinnedListUuid(
+    async getAllowedChartsAndDashboards(
+        projectUuid: string,
         pinnedListUuid: string,
-    ): Promise<ResourceViewItem[]> {
+        allowedSpacesUuids: string[],
+    ): Promise<{
+        dashboards: ResourceViewDashboardItem[];
+        charts: ResourceViewChartItem[];
+    }> {
         const results = await this.database.transaction(async (trx) => {
-            const spaces = await getSpaces(trx, pinnedListUuid);
-            const dashboards = await getDashboards(trx, pinnedListUuid);
-            const charts = await getCharts(trx, pinnedListUuid);
-            return [...spaces, ...dashboards, ...charts];
+            const dashboards = await getDashboards(
+                trx,
+                projectUuid,
+                pinnedListUuid,
+                allowedSpacesUuids,
+            );
+            const charts = await getCharts(
+                trx,
+                projectUuid,
+                pinnedListUuid,
+                allowedSpacesUuids,
+            );
+            return {
+                dashboards,
+                charts,
+            };
         });
         return results;
     }
 
-    async getChartsByPinnedListUuid(
-        pinnedListUuid: string,
-    ): Promise<ResourceViewChartItem[]> {
-        return getCharts(this.database, pinnedListUuid);
-    }
-
-    async getDashboardsByPinnedListUuid(
-        pinnedListUuid: string,
-    ): Promise<ResourceViewDashboardItem[]> {
-        return getDashboards(this.database, pinnedListUuid);
-    }
-
-    async getSpacesByPinnedListUuid(
+    async getAllSpacesByPinnedListUuid(
+        projectUuid: string,
         pinnedListUuid: string,
     ): Promise<ResourceViewSpaceItem[]> {
-        return getSpaces(this.database, pinnedListUuid);
+        return getAllSpaces(this.database, projectUuid, pinnedListUuid);
     }
 }

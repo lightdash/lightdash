@@ -16,6 +16,7 @@ import {
     personalAccessTokenModel,
     pinnedListModel,
     projectModel,
+    resourceViewItemModel,
     savedChartModel,
     schedulerModel,
     searchModel,
@@ -156,4 +157,6 @@ export const pinningService = new PinningService({
     savedChartModel,
     spaceModel,
     pinnedListModel,
+    resourceViewItemModel,
+    projectModel,
 });
