@@ -1,3 +1,10 @@
+# [0.513.0](https://github.com/lightdash/lightdash/compare/0.512.0...0.513.0) (2023-04-19)
+
+
+### Features
+
+* add worker logs ([#5138](https://github.com/lightdash/lightdash/issues/5138)) ([e27191c](https://github.com/lightdash/lightdash/commit/e27191c5a1741d0a3aa30bb9a64a47536964cdfe))
+
 # [0.512.0](https://github.com/lightdash/lightdash/compare/0.511.5...0.512.0) (2023-04-19)
 
 
