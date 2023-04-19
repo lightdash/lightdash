@@ -9,14 +9,14 @@ import {
     userModel,
 } from '../../models/models';
 import { OrganizationService } from './OrganizationService';
-import { organisation, user } from './OrganizationService.mock';
+import { organization, user } from './OrganizationService.mock';
 
 jest.mock('../../models/models', () => ({
     projectModel: {
         hasProjects: jest.fn(async () => true),
     },
     organizationModel: {
-        get: jest.fn(async () => organisation),
+        get: jest.fn(async () => organization),
     },
     organizationAllowedEmailDomainsModel: {},
 }));
@@ -43,7 +43,7 @@ describe('organization service', () => {
 
     it('Should return needsProject false if there are projects in DB', async () => {
         expect(await organizationService.get(user)).toEqual({
-            ...organisation,
+            ...organization,
             needsProject: false,
         });
     });
@@ -52,7 +52,7 @@ describe('organization service', () => {
             async () => false,
         );
         expect(await organizationService.get(user)).toEqual({
-            ...organisation,
+            ...organization,
             needsProject: true,
         });
     });

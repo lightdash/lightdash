@@ -80,11 +80,11 @@ export class OrganizationService {
             user.organizationUuid,
         ));
 
-        const organisation = await this.organizationModel.get(
+        const organization = await this.organizationModel.get(
             user.organizationUuid,
         );
         return {
-            ...organisation,
+            ...organization,
             needsProject,
         };
     }
