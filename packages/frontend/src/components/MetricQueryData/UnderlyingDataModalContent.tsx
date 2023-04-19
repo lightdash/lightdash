@@ -105,7 +105,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
 
     const underlyingDataMetricQuery = useMemo<MetricQuery>(() => {
         if (!underlyingDataConfig) return defaultMetricQuery;
-        const { item, row, pivotReference, dimensions, value } =
+        const { item, fieldValues, pivotReference, dimensions, value } =
             underlyingDataConfig;
         if (item === undefined) return defaultMetricQuery;
 
@@ -113,9 +113,9 @@ const UnderlyingDataModalContent: FC<Props> = () => {
         const rowFieldIds = pivotReference?.pivotValues
             ? [
                   ...pivotReference.pivotValues.map(({ field }) => field),
-                  ...Object.keys(row),
+                  ...Object.keys(fieldValues),
               ]
-            : Object.keys(row);
+            : Object.keys(fieldValues);
 
         // On charts, we might want to include the dimensions from SQLquery and not from rowdata, so we include those instead
         const dimensionFieldIds = dimensions ? dimensions : rowFieldIds;
@@ -130,7 +130,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
 
         // If we are viewing data from a metric or a table calculation, we filter using all existing dimensions in the table
         const dimensionFilters = !isDimension(item)
-            ? Object.entries(row).reduce((acc, r) => {
+            ? Object.entries(fieldValues).reduce((acc, r) => {
                   const [key, { raw }] = r;
 
                   const dimensionFilter: FilterRule = {
