@@ -17,7 +17,7 @@ import {
 } from 'react-beautiful-dnd';
 import { createPortal } from 'react-dom';
 import { getSeriesGroupedByField } from '../../../hooks/cartesianChartConfig/utils';
-import { useOrganisation } from '../../../hooks/organisation/useOrganisation';
+import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import BasicSeriesConfiguration from './BasicSeriesConfiguration';
 import GroupedSeriesConfiguration from './GroupedSeriesConfiguration';
@@ -50,7 +50,7 @@ const SeriesTab: FC<Props> = ({ items }) => {
             updateSeries,
         },
     } = useVisualizationContext();
-    const { data: orgData } = useOrganisation({ refetchOnMount: false });
+    const { data: orgData } = useOrganization({ refetchOnMount: false });
 
     const fallbackSeriesColours = useMemo(() => {
         return (dirtyEchartsConfig?.series || [])

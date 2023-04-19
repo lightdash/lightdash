@@ -2,8 +2,8 @@ import { Intent, Spinner } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { ECHARTS_DEFAULT_COLORS } from '@lightdash/common';
 import { FC, useCallback, useEffect, useState } from 'react';
-import { useOrganisation } from '../../../hooks/organisation/useOrganisation';
-import { useOrganisationUpdateMutation } from '../../../hooks/organisation/useOrganisationUpdateMutation';
+import { useOrganization } from '../../../hooks/organization/useOrganization';
+import { useOrganizationUpdateMutation } from '../../../hooks/organization/useOrganizationUpdateMutation';
 import { InputWrapper } from '../../ChartConfigPanel/ChartConfigPanel.styles';
 import { Can, useAbilityContext } from '../../common/Authorization';
 import ColorInput from '../../common/ColorInput';
@@ -16,8 +16,8 @@ import {
 
 const AppearancePanel: FC = () => {
     const ability = useAbilityContext();
-    const { isLoading: isOrgLoading, data } = useOrganisation();
-    const updateMutation = useOrganisationUpdateMutation();
+    const { isLoading: isOrgLoading, data } = useOrganization();
+    const updateMutation = useOrganizationUpdateMutation();
     let [colors, setColors] = useState<string[]>(
         data?.chartColors || ECHARTS_DEFAULT_COLORS.slice(0, 8),
     );

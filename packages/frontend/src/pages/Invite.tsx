@@ -18,7 +18,7 @@ import {
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import CreateUserForm from '../components/RegisterForms/CreateUserForm';
-import { useOrganisation } from '../hooks/organisation/useOrganisation';
+import { useOrganization } from '../hooks/organization/useOrganization';
 import useToaster from '../hooks/toaster/useToaster';
 import { useInviteLink } from '../hooks/useInviteLink';
 import { useApp } from '../providers/AppProvider';
@@ -32,7 +32,7 @@ interface WelcomeCardProps {
 }
 
 const WelcomeCard: FC<WelcomeCardProps> = ({ email, setReadyToJoin }) => {
-    const { data: org } = useOrganisation();
+    const { data: org } = useOrganization();
 
     return (
         <>

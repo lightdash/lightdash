@@ -1,4 +1,3 @@
-import { SchedulerJobStatus } from '@lightdash/common';
 import { getSchedule, stringToArray } from 'cron-converter';
 import {
     JobHelpers,
@@ -17,6 +16,7 @@ import {
     sendEmailNotification,
     sendSlackNotification,
 } from './SchedulerTask';
+import schedulerWorkerEventEmitter from './SchedulerWorkerEventEmitter';
 
 type SchedulerWorkerDependencies = {
     lightdashConfig: LightdashConfig;
@@ -40,9 +40,8 @@ export const getDailyDatesFromCron = (
     return dailyDates;
 };
 
-const workerLogger = new GraphileLogger((scope) => (level, message, meta) => {
-    const sanitizedLevel = level === 'warning' ? 'warn' : level;
-    Logger[sanitizedLevel](message, meta, scope);
+const workerLogger = new GraphileLogger((scope) => (_, message, meta) => {
+    Logger.debug(message, { meta, scope });
 });
 
 export class SchedulerWorker {
@@ -57,6 +56,7 @@ export class SchedulerWorker {
         await schedulerClient.graphileUtils;
         // Run a worker to execute jobs:
         Logger.info('Running scheduler');
+
         const runner = await runGraphileWorker({
             connectionString: this.lightdashConfig.database.connectionUri,
             logger: workerLogger,
@@ -74,13 +74,7 @@ export class SchedulerWorker {
                 },
             ]),
             taskList: {
-                generateDailyJobs: async (
-                    payload: any,
-                    helpers: JobHelpers,
-                ) => {
-                    Logger.info(
-                        `Processing generateDailyJobs job "${helpers.job.id}"`,
-                    );
+                generateDailyJobs: async () => {
                     const schedulers =
                         await schedulerService.getAllSchedulers();
                     const promises = schedulers.map(async (scheduler) => {
@@ -95,10 +89,6 @@ export class SchedulerWorker {
                     payload: any,
                     helpers: JobHelpers,
                 ) => {
-                    Logger.info(
-                        `Processing handleScheduledDelivery job "${helpers.job.id}"`,
-                        payload,
-                    );
                     await handleScheduledDelivery(
                         helpers.job.id,
                         helpers.job.run_at,
@@ -109,27 +99,15 @@ export class SchedulerWorker {
                     payload: any,
                     helpers: JobHelpers,
                 ) => {
-                    Logger.info(
-                        `Processing sendSlackNotification job "${helpers.job.id}"`,
-                        payload,
-                    );
                     await sendSlackNotification(helpers.job.id, payload);
                 },
                 sendEmailNotification: async (
                     payload: any,
                     helpers: JobHelpers,
                 ) => {
-                    Logger.info(
-                        `Processing sendEmailNotification job "${helpers.job.id}"`,
-                        payload,
-                    );
                     await sendEmailNotification(helpers.job.id, payload);
                 },
                 downloadCsv: async (payload: any, helpers: JobHelpers) => {
-                    Logger.info(
-                        `Processing downloadCsv job "${helpers.job.id}"`,
-                        payload,
-                    );
                     await downloadCsv(
                         helpers.job.id,
                         helpers.job.run_at,
@@ -137,6 +115,7 @@ export class SchedulerWorker {
                     );
                 },
             },
+            events: schedulerWorkerEventEmitter,
         });
 
         await runner.promise;

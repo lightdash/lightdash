@@ -157,7 +157,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
 
             updateSeries(sortedSeries);
         },
-        [seriesGroup, updateSeries, series],
+        [series, seriesGroup, updateSeries, getSeriesColor],
     );
 
     return (

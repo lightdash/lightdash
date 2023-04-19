@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import {
     useAllowedEmailDomains,
     useUpdateAllowedEmailDomains,
-} from '../../../hooks/organisation/useAllowedDomains';
+} from '../../../hooks/organization/useAllowedDomains';
 import { useProjects } from '../../../hooks/useProjects';
 import {
     isValidEmailDomain,

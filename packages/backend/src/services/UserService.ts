@@ -177,29 +177,24 @@ export class UserService {
     }
 
     async delete(user: SessionUser, userUuidToDelete: string): Promise<void> {
-        if (user.userUuid === userUuidToDelete) {
-            throw new ForbiddenError('User can not delete themself');
-        }
-        if (user.organizationUuid === undefined) {
-            throw new NotExistsError('Organization not found');
-        }
+        if (user.organizationUuid) {
+            if (user.ability.cannot('delete', 'OrganizationMemberProfile')) {
+                throw new ForbiddenError();
+            }
 
-        if (user.ability.cannot('delete', 'OrganizationMemberProfile')) {
-            throw new ForbiddenError();
-        }
-
-        // Race condition between check and delete
-        const [admin, ...remainingAdmins] =
-            await this.organizationMemberProfileModel.getOrganizationAdmins(
-                user.organizationUuid,
-            );
-        if (
-            remainingAdmins.length === 0 &&
-            admin.userUuid === userUuidToDelete
-        ) {
-            throw new ForbiddenError(
-                'Organization must have at least one admin',
-            );
+            // Race condition between check and delete
+            const [admin, ...remainingAdmins] =
+                await this.organizationMemberProfileModel.getOrganizationAdmins(
+                    user.organizationUuid,
+                );
+            if (
+                remainingAdmins.length === 0 &&
+                admin.userUuid === userUuidToDelete
+            ) {
+                throw new ForbiddenError(
+                    'Organization must have at least one admin',
+                );
+            }
         }
 
         await this.sessionModel.deleteAllByUserUuid(userUuidToDelete);

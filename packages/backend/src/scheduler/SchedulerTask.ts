@@ -334,7 +334,6 @@ export const sendSlackNotification = async (
             status: SchedulerJobStatus.COMPLETED,
         });
     } catch (e) {
-        Logger.error(`Unable to complete job "${jobId}": ${JSON.stringify(e)}`);
         analytics.track({
             event: 'scheduler_notification_job.failed',
             anonymousId: LightdashAnalytics.anonymousId,
@@ -391,9 +390,7 @@ export const downloadCsv = async (
             status: SchedulerJobStatus.ERROR,
             details: { createdByUserUuid: payload.userUuid, error: e },
         });
-
-        // do not throw error to avoid retrying
-        Logger.error(`Unable to complete job "${jobId}": ${JSON.stringify(e)}`);
+        throw e; // Cascade error to it can be retried by graphile
     }
 };
 
@@ -525,7 +522,6 @@ export const sendEmailNotification = async (
             status: SchedulerJobStatus.COMPLETED,
         });
     } catch (e) {
-        Logger.error(`Unable to complete job "${jobId}": ${JSON.stringify(e)}`);
         analytics.track({
             event: 'scheduler_notification_job.failed',
             anonymousId: LightdashAnalytics.anonymousId,
@@ -624,7 +620,6 @@ export const handleScheduledDelivery = async (
             },
         });
     } catch (e) {
-        Logger.error(`Unable to complete job "${jobId}": ${JSON.stringify(e)}`);
         analytics.track({
             event: 'scheduler_job.failed',
             anonymousId: LightdashAnalytics.anonymousId,

@@ -10,7 +10,7 @@ const deleteDashboard = async (id: string) =>
         body: undefined,
     });
 
-export const useDeleteOrganisationMutation = () => {
+export const useDeleteOrganizationMutation = () => {
     const { showToastError } = useToaster();
     return useMutation<undefined, ApiError, string>(deleteDashboard, {
         onSuccess: async () => {
@@ -18,7 +18,7 @@ export const useDeleteOrganisationMutation = () => {
         },
         onError: (error) => {
             showToastError({
-                title: `Failed to delete organisation`,
+                title: `Failed to delete organization`,
                 subtitle: error.error.message,
             });
         },

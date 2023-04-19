@@ -1,16 +1,16 @@
 import { Button, Intent } from '@blueprintjs/core';
 import { Organisation } from '@lightdash/common';
-import React, { FC, useEffect } from 'react';
+import { FC, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { useOrganisation } from '../../../hooks/organisation/useOrganisation';
-import { useOrganisationUpdateMutation } from '../../../hooks/organisation/useOrganisationUpdateMutation';
+import { useOrganization } from '../../../hooks/organization/useOrganization';
+import { useOrganizationUpdateMutation } from '../../../hooks/organization/useOrganizationUpdateMutation';
 import Form from '../../ReactHookForm/Form';
 import Input from '../../ReactHookForm/Input';
 import { FormWrapper } from './OrganisationPanel.styles';
 
 const OrganisationPanel: FC = () => {
-    const { isLoading: isOrgLoading, data } = useOrganisation();
-    const updateMutation = useOrganisationUpdateMutation();
+    const { isLoading: isOrgLoading, data } = useOrganization();
+    const updateMutation = useOrganizationUpdateMutation();
     const isLoading = updateMutation.isLoading || isOrgLoading;
     const methods = useForm<Organisation>({
         mode: 'onSubmit',

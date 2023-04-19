@@ -40,7 +40,7 @@ import { useMemo } from 'react';
 import { defaultGrid } from '../../components/ChartConfigPanel/Grid';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
 import { EMPTY_X_AXIS } from '../cartesianChartConfig/useCartesianChartConfig';
-import { useOrganisation } from '../organisation/useOrganisation';
+import { useOrganization } from '../organization/useOrganization';
 import usePlottedData from '../plottedData/usePlottedData';
 
 const getLabelFromField = (
@@ -1096,7 +1096,7 @@ const useEcharts = () => {
         pivotDimensions,
         resultsData,
     } = context;
-    const { data: organisationData } = useOrganisation();
+    const { data: organizationData } = useOrganization();
 
     const [pivotedKeys, nonPivotedKeys] = useMemo(() => {
         if (
@@ -1215,7 +1215,7 @@ const useEcharts = () => {
 
     const colors = useMemo<string[]>(() => {
         const allColors =
-            organisationData?.chartColors || ECHARTS_DEFAULT_COLORS;
+            organizationData?.chartColors || ECHARTS_DEFAULT_COLORS;
         //Do not use colors from hidden series
         return validCartesianConfig?.eChartsConfig.series
             ? validCartesianConfig.eChartsConfig.series.reduce<string[]>(
@@ -1230,7 +1230,7 @@ const useEcharts = () => {
                   [],
               )
             : allColors;
-    }, [organisationData?.chartColors, validCartesianConfig]);
+    }, [organizationData?.chartColors, validCartesianConfig]);
 
     const eChartsOptions = useMemo(
         () => ({
