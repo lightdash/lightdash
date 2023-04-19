@@ -2031,6 +2031,13 @@
   resolved "https://registry.yarnpkg.com/@fullstory/browser/-/browser-1.6.2.tgz#fa636a4579779fe23fa87a11dd175be25c67185c"
   integrity sha512-r3kPrTKijI/LkdSW7t1GlXPn4jPuZL4AFGDJBWMj4E4HLeF2lCvZtSOZ1YTwZtJFciLp/+KOIW3qBDkqqXC2qw==
 
+"@godaddy/terminus@^4.12.0":
+  version "4.12.0"
+  resolved "https://registry.yarnpkg.com/@godaddy/terminus/-/terminus-4.12.0.tgz#a31f03383c47e33d608415afb4510130093bf88a"
+  integrity sha512-zbl6gKxPAnAoAAGCyRN1kOMHTXgiW3C09w8McLKZWSSHQlsiRZlMZzBwSv1aK9PaRU25w80cnOlt3ow+uQwR1Q==
+  dependencies:
+    stoppable "^1.1.0"
+
 "@google-cloud/bigquery@^5.9.1":
   version "5.9.1"
   resolved "https://registry.npmjs.org/@google-cloud/bigquery/-/bigquery-5.9.1.tgz"
@@ -15164,6 +15171,11 @@ statuses@2.0.1:
   version "1.5.0"
   resolved "https://registry.npmjs.org/statuses/-/statuses-1.5.0.tgz"
   integrity sha1-Fhx9rBd2Wf2YEfQ3cfqZOBR4Yow=
+
+stoppable@^1.1.0:
+  version "1.1.0"
+  resolved "https://registry.yarnpkg.com/stoppable/-/stoppable-1.1.0.tgz#32da568e83ea488b08e4d7ea2c3bcc9d75015d5b"
+  integrity sha512-KXDYZ9dszj6bzvnEMRYvxgeTHU74QBFL54XKtP3nyMuJ81CFYtABZ3bAzL2EdFUaEwJOBOgENyFj3R7oTzDyyw==
 
 stream-browserify@3.0.0:
   version "3.0.0"
