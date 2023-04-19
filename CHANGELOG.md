@@ -1,3 +1,10 @@
+## [0.513.1](https://github.com/lightdash/lightdash/compare/0.513.0...0.513.1) (2023-04-19)
+
+
+### Bug Fixes
+
+* handle error for multiple orgs registration when it's not allowed ([#5141](https://github.com/lightdash/lightdash/issues/5141)) ([571f27c](https://github.com/lightdash/lightdash/commit/571f27c8b034e0194ebb8a663bebdbc683dba2a5))
+
 # [0.513.0](https://github.com/lightdash/lightdash/compare/0.512.0...0.513.0) (2023-04-19)
 
 
