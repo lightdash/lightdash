@@ -41,7 +41,7 @@ export const getDailyDatesFromCron = (
 };
 
 const workerLogger = new GraphileLogger((scope) => (_, message, meta) => {
-    Logger.debug(message, meta, scope);
+    Logger.debug(message, { meta, scope });
 });
 
 export class SchedulerWorker {

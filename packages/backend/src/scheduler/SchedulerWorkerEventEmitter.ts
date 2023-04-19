@@ -21,6 +21,7 @@ schedulerWorkerEventEmitter.on('worker:fatalError', ({ worker, error }) => {
 schedulerWorkerEventEmitter.on('job:start', ({ worker, job }) => {
     Logger.info(
         `Worker ${worker.workerId} started job ${job.id} (${job.task_identifier}). Attempt ${job.attempts} of ${job.max_attempts}`,
+        { payload: job.payload },
     );
 });
 
