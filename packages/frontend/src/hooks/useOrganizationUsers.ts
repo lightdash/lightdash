@@ -42,7 +42,7 @@ export const useOrganizationUsers = () => {
     });
 };
 
-export const useDeleteUserMutation = () => {
+export const useDeleteOrganizationUserMutation = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
     return useMutation<undefined, ApiError, string>(deleteUserQuery, {

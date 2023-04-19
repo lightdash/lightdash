@@ -12,11 +12,11 @@ import {
     OrganizationMemberProfile,
     OrganizationMemberRole,
 } from '@lightdash/common';
-import React, { FC, useEffect, useState } from 'react';
+import { FC, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import {
-    useDeleteUserMutation,
+    useDeleteOrganizationUserMutation,
     useOrganizationUsers,
     useUpdateUserMutation,
 } from '../../../hooks/useOrganizationUsers';
@@ -64,7 +64,8 @@ const UserListItem: FC<{
     },
 }) => {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-    const { mutate, isLoading: isDeleting } = useDeleteUserMutation();
+    const { mutate, isLoading: isDeleting } =
+        useDeleteOrganizationUserMutation();
     const inviteLink = useCreateInviteLinkMutation();
     const { track } = useTracking();
     const { user, health } = useApp();
