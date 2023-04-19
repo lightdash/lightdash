@@ -16,7 +16,7 @@ import MultiSelect from '../../ReactHookForm/MultiSelect';
 import Select2 from '../../ReactHookForm/Select2';
 import TagInput from '../../ReactHookForm/TagInput';
 import { Description } from '../DeleteOrganisationPanel/DeleteOrganisationPanel.styles';
-import { FormWrapper } from '../OrganisationPanel/OrganisationPanel.styles';
+import { FormWrapper } from '../OrganizationPanel/OrganizationPanel.styles';
 
 type FormData = {
     emailDomains: string[];

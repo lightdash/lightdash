@@ -24,7 +24,7 @@ import AllowedDomainsPanel from '../components/UserSettings/AllowedDomainsPanel'
 import AppearancePanel from '../components/UserSettings/AppearancePanel';
 import { DeleteOrganisationPanel } from '../components/UserSettings/DeleteOrganisationPanel';
 import { Description } from '../components/UserSettings/DeleteOrganisationPanel/DeleteOrganisationPanel.styles';
-import OrganisationPanel from '../components/UserSettings/OrganisationPanel';
+import OrganizationPanel from '../components/UserSettings/OrganizationPanel';
 import PasswordPanel from '../components/UserSettings/PasswordPanel';
 import ProfilePanel from '../components/UserSettings/ProfilePanel';
 import ProjectManagementPanel from '../components/UserSettings/ProjectManagementPanel';
@@ -209,7 +209,7 @@ const Settings: FC = () => {
                         <Content>
                             <CardContainer>
                                 <Title>General</Title>
-                                <OrganisationPanel />
+                                <OrganizationPanel />
                             </CardContainer>
                             <CardContainer>
                                 <div>
