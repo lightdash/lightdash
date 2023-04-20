@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/common",
-    "version": "0.516.0",
+    "version": "0.517.0",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "files": [
@@ -20,7 +20,6 @@
         "pegjs": "^0.10.0",
         "uuid": "^8.3.2",
         "cronstrue": "^2.23.0"
-
     },
     "scripts": {
         "dev": "tsc --build --watch --preserveWatchOutput tsconfig.json",

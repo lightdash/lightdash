@@ -1,3 +1,10 @@
+# [0.517.0](https://github.com/lightdash/lightdash/compare/0.516.0...0.517.0) (2023-04-20)
+
+
+### Features
+
+* scheduler log dashboard ([#5135](https://github.com/lightdash/lightdash/issues/5135)) ([4291c14](https://github.com/lightdash/lightdash/commit/4291c14482e2620231983d9c60217da00d985c1d))
+
 # [0.516.0](https://github.com/lightdash/lightdash/compare/0.515.0...0.516.0) (2023-04-20)
 
 
