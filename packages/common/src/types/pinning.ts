@@ -88,3 +88,11 @@ export type ApiPinnedItems = {
         spaces: ResourceViewSpaceItem[];
     };
 };
+
+export type PinnedItems = {
+    data: {
+        dashboards: ResourceViewDashboardItem[];
+        charts: ResourceViewChartItem[];
+        spaces: ResourceViewSpaceItem[];
+    };
+};

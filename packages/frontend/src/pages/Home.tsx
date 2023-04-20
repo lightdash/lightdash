@@ -11,6 +11,7 @@ import RecentlyUpdatedPanel from '../components/Home/RecentlyUpdatedPanel';
 import PageSpinner from '../components/PageSpinner';
 import PinnedItemsPanel from '../components/PinnedItemsPanel';
 import { useDashboards } from '../hooks/dashboard/useDashboards';
+import { usePinnedItems } from '../hooks/pinning/usePinnedItems';
 import {
     useOnboardingStatus,
     useProjectSavedChartStatus,
@@ -25,6 +26,12 @@ const Home: FC = () => {
     const savedChartStatus = useProjectSavedChartStatus(selectedProjectUuid);
     const project = useProject(selectedProjectUuid);
     const onboarding = useOnboardingStatus();
+
+    const { data } = usePinnedItems(
+        selectedProjectUuid,
+        project?.data?.pinnedListUuid || '',
+    );
+    console.log({ data });
 
     const { data: dashboards = [], isLoading: dashboardsLoading } =
         useDashboards(selectedProjectUuid);
