@@ -25,7 +25,7 @@ import { stringify } from 'csv-stringify';
 import * as fs from 'fs';
 import * as fsPromise from 'fs/promises';
 
-import moment from 'moment';
+import moment, { MomentInput } from 'moment';
 import { nanoid } from 'nanoid';
 import { pipeline, Readable, Transform, TransformCallback } from 'stream';
 import { Worker } from 'worker_threads';
@@ -53,6 +53,16 @@ type CsvServiceDependencies = {
     userModel: UserModel;
 };
 
+const isRowValueTimestamp = (
+    value: unknown,
+    field: { type: DimensionType },
+): value is MomentInput => field.type === DimensionType.TIMESTAMP;
+
+const isRowValueDate = (
+    value: unknown,
+    field: { type: DimensionType },
+): value is MomentInput => field.type === DimensionType.DATE;
+
 export const convertSqlToCsv = (
     results: ApiSqlQueryResults,
     customLabels: Record<string, string> = {},
@@ -62,16 +72,15 @@ export const convertSqlToCsv = (
     );
     const csvBody = results?.rows.map((row) =>
         Object.values(results?.fields).map((field, fieldIndex) => {
-            if (field.type === DimensionType.TIMESTAMP) {
-                return moment(Object.values(row)[fieldIndex]).format(
-                    'YYYY-MM-DD HH:mm:ss',
-                );
+            const rowValue = Object.values(row)[fieldIndex];
+
+            if (isRowValueTimestamp(rowValue, field)) {
+                return moment(rowValue).format('YYYY-MM-DD HH:mm:ss');
             }
-            if (field.type === DimensionType.DATE) {
-                return moment(Object.values(row)[fieldIndex]).format(
-                    'YYYY-MM-DD',
-                );
+            if (isRowValueDate(rowValue, field)) {
+                return moment(rowValue).format('YYYY-MM-DD');
             }
+
             return Object.values(row)[fieldIndex];
         }),
     );

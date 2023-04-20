@@ -278,7 +278,7 @@ export type ApiQueryResults = {
 
 export type ApiSqlQueryResults = {
     fields: Record<string, { type: DimensionType }>;
-    rows: { [col: string]: any }[];
+    rows: Record<string, unknown>[];
 };
 
 export type ApiScheduledDownloadCsv = {

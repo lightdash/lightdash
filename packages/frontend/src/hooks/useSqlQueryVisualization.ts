@@ -110,10 +110,8 @@ const useSqlQueryVisualization = ({
                               return {
                                   ...acc,
                                   [`${SQL_RESULTS_TABLE_NAME}_${columnName}`]: {
-                                      value: {
-                                          raw,
-                                          formatted: `${raw}`,
-                                      },
+                                      raw,
+                                      formatted: `${raw}`,
                                   },
                               };
                           }, {}),
