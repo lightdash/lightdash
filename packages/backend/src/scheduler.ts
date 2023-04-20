@@ -49,7 +49,7 @@ async function onSignal() {
 
 async function onHealthCheck() {
     return new Promise((resolve, reject) => {
-        if (worker && worker.runner && worker?.isRunning) {
+        if (worker && worker.runner && worker.isRunning) {
             resolve('Scheduler worker is running');
         } else {
             reject(new Error('Scheduler worker not running'));
