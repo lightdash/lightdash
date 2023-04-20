@@ -109,17 +109,17 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
                                                     {scheduler.dashboardUuid !==
                                                     null ? (
                                                         <Anchor
-                                                            href={`/projects/${projectUuid}/dashboards/${scheduler?.dashboardUuid}/view`}
+                                                            href={`/projects/${projectUuid}/dashboards/${scheduler?.dashboardUuid}/view/?scheduler_uuid=${scheduler.schedulerUuid}`}
                                                             target="_blank"
                                                         >
-                                                            Scheduled dashboard
+                                                            Edit schedule
                                                         </Anchor>
                                                     ) : (
                                                         <Anchor
-                                                            href={`/projects/${projectUuid}/saved/${scheduler?.savedChartUuid}/view`}
+                                                            href={`/projects/${projectUuid}/saved/${scheduler?.savedChartUuid}/view/?scheduler_uuid=${scheduler.schedulerUuid}`}
                                                             target="_blank"
                                                         >
-                                                            Scheduled chart
+                                                            Edit schedule
                                                         </Anchor>
                                                     )}
                                                 </td>
@@ -217,17 +217,17 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
                                                     {scheduler.dashboardUuid !==
                                                     null ? (
                                                         <Anchor
-                                                            href={`/projects/${projectUuid}/dashboards/${scheduler?.dashboardUuid}/view`}
+                                                            href={`/projects/${projectUuid}/dashboards/${scheduler?.dashboardUuid}/view/?scheduler_uuid=${scheduler.schedulerUuid}`}
                                                             target="_blank"
                                                         >
-                                                            Scheduled dashboard
+                                                            Edit schedule
                                                         </Anchor>
                                                     ) : (
                                                         <Anchor
-                                                            href={`/projects/${projectUuid}/saved/${scheduler?.savedChartUuid}/view`}
+                                                            href={`/projects/${projectUuid}/saved/${scheduler?.savedChartUuid}/view/?scheduler_uuid=${scheduler.schedulerUuid}`}
                                                             target="_blank"
                                                         >
-                                                            Scheduled chart
+                                                            Edit schedule
                                                         </Anchor>
                                                     )}
                                                 </td>
