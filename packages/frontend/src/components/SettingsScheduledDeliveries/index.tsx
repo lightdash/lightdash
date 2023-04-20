@@ -20,6 +20,13 @@ interface ProjectUserAccessProps {
     projectUuid: string;
 }
 
+const formatTime = (date: Date) => {
+    return new Date(date).toLocaleString('en-US', {
+        timeZone: 'UTC',
+        dateStyle: 'short',
+        timeStyle: 'short',
+    });
+};
 const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
     projectUuid,
 }) => {
@@ -120,6 +127,19 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
                                                 />
                                             </ActionIcon>
                                         );
+                                        const lastLog = logs.find(
+                                            (log) => log.status != 'scheduled',
+                                        );
+                                        const nextDelivery = logs
+                                            .reverse()
+                                            .find(
+                                                (log) =>
+                                                    log.status ===
+                                                        'scheduled' &&
+                                                    new Date(
+                                                        log.scheduledTime,
+                                                    ) > new Date(),
+                                            );
                                         return (
                                             <tr key={scheduler.schedulerUuid}>
                                                 <td>{scheduler.name}</td>
@@ -146,8 +166,31 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
                                                         scheduler.cron,
                                                     )}
                                                 </td>
-                                                <td>{/* LAST DELIVERY */}</td>
-                                                <td>{/* NEXT DELIVERY */}</td>
+                                                <td>
+                                                    {lastLog ? (
+                                                        <p>
+                                                            {' '}
+                                                            {formatTime(
+                                                                lastLog.scheduledTime,
+                                                            )}
+                                                            {renderStatusBadge(
+                                                                lastLog.status,
+                                                                lastLog.details
+                                                                    ? lastLog.details
+                                                                    : undefined,
+                                                            )}
+                                                        </p>
+                                                    ) : (
+                                                        'No deliveries yet'
+                                                    )}
+                                                </td>
+                                                <td>
+                                                    {nextDelivery
+                                                        ? formatTime(
+                                                              nextDelivery.scheduledTime,
+                                                          )
+                                                        : 'No deliveries yet'}
+                                                </td>
                                                 <td>
                                                     {scheduler.dashboardUuid !==
                                                     null ? (
@@ -274,18 +317,8 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
                                                 </td>
                                                 <td>
                                                     {log.scheduledTime
-                                                        ? new Date(
+                                                        ? formatTime(
                                                               log.scheduledTime,
-                                                          ).toLocaleString(
-                                                              'en-US',
-                                                              {
-                                                                  timeZone:
-                                                                      'UTC',
-                                                                  dateStyle:
-                                                                      'short',
-                                                                  timeStyle:
-                                                                      'short',
-                                                              },
                                                           )
                                                         : 'Delivery not started yet'}
                                                 </td>
