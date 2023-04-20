@@ -130,7 +130,6 @@ describe('Download CSV on Explore', () => {
         cy.findByText('Loading chart').should('not.exist');
 
         cy.findByText('Export CSV').click();
-        cy.get('.bp4-popover2').contains('button', 'Export CSV').click();
 
         cy.wait('@apiDownloadCsv').then((interception) => {
             expect(interception?.response?.statusCode).to.eq(200);
