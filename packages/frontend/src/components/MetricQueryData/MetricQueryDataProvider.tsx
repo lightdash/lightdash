@@ -7,33 +7,28 @@ import {
     isDimension,
     MetricQuery,
     PivotReference,
-    ResultRow,
     TableCalculation,
 } from '@lightdash/common';
-import React, {
-    createContext,
-    FC,
-    useCallback,
-    useContext,
-    useState,
-} from 'react';
+import { createContext, FC, useCallback, useContext, useState } from 'react';
 import { EChartSeries } from '../../hooks/echarts/useEcharts';
 import { useExplore } from '../../hooks/useExplore';
-import { TableColumn } from '../common/Table/types';
 import { EchartSeriesClickEvent } from '../SimpleChart';
 
-type MetricQueryDataConfig = {
-    value: ResultRow[0]['value'];
-    meta: TableColumn['meta'];
-    row: ResultRow;
+export type UnderlyingValue = { raw: unknown; formatted: string };
+export type UnderlyingValueMap = { [fieldId: string]: UnderlyingValue };
+
+export type UnderlyingDataConfig = {
+    item: Field | TableCalculation | undefined;
+    value: UnderlyingValue;
+    fieldValues: UnderlyingValueMap;
     dimensions?: string[];
     pivotReference?: PivotReference;
     dashboardFilters?: DashboardFilters;
 };
 
-type DrillDownConfig = {
-    row: ResultRow;
-    selectedItem: Field | TableCalculation;
+export type DrillDownConfig = {
+    item: Field | TableCalculation;
+    fieldValues: UnderlyingValueMap;
     pivotReference?: PivotReference;
     dashboardFilters?: DashboardFilters;
 };
@@ -42,16 +37,10 @@ type MetricQueryDataContext = {
     tableName: string;
     explore: Explore | undefined;
     metricQuery?: MetricQuery;
-    underlyingDataConfig: MetricQueryDataConfig | undefined;
+
+    underlyingDataConfig: UnderlyingDataConfig | undefined;
     isUnderlyingDataModalOpen: boolean;
-    openUnderlyingDataModel: (
-        value: ResultRow[0]['value'],
-        meta: TableColumn['meta'],
-        row: ResultRow,
-        dimensions?: string[],
-        pivotReference?: PivotReference,
-        dashboardFilters?: DashboardFilters,
-    ) => void;
+    openUnderlyingDataModal: (config: UnderlyingDataConfig) => void;
     closeUnderlyingDataModal: () => void;
 
     drillDownConfig: DrillDownConfig | undefined;
@@ -64,7 +53,7 @@ export const getDataFromChartClick = (
     e: EchartSeriesClickEvent,
     itemsMap: Record<string, Field | TableCalculation>,
     series: EChartSeries[],
-): MetricQueryDataConfig => {
+): UnderlyingDataConfig => {
     const pivotReference = series[e.seriesIndex]?.pivotReference;
     const selectedFields = Object.values(itemsMap).filter((item) => {
         if (
@@ -87,18 +76,17 @@ export const getDataFromChartClick = (
             ? selectedMetricsAndTableCalculations[0]
             : selectedFields[0];
     const selectedValue = e.data[getItemId(selectedField)];
-    const row: ResultRow = Object.entries(e.data as Record<string, any>).reduce(
-        (acc, entry) => {
-            const [key, val] = entry;
-            return { ...acc, [key]: { value: { raw: val, formatted: val } } };
-        },
-        {},
-    );
+    const fieldValues: UnderlyingValueMap = Object.entries(
+        e.data as Record<string, any>,
+    ).reduce((acc, entry) => {
+        const [key, val] = entry;
+        return { ...acc, [key]: { raw: val, formatted: val } };
+    }, {});
 
     return {
-        meta: { item: selectedField },
+        item: selectedField,
         value: { raw: selectedValue, formatted: selectedValue },
-        row,
+        fieldValues,
         pivotReference,
     };
 };
@@ -115,13 +103,14 @@ export const MetricQueryDataProvider: FC<Props> = ({
     children,
 }) => {
     const [underlyingDataConfig, setUnderlyingDataConfig] =
-        useState<MetricQueryDataConfig>();
+        useState<UnderlyingDataConfig>();
     const [drillDownConfig, setDrillDownConfig] = useState<DrillDownConfig>();
     const [isUnderlyingDataModalOpen, setIsUnderlyingDataModalOpen] =
         useState<boolean>(false);
     const [isDrillDownModalOpen, setIsDrillDownModalOpen] =
         useState<boolean>(false);
     const { data: explore } = useExplore(tableName);
+
     const openDrillDownModel = useCallback(
         (config: DrillDownConfig) => {
             setDrillDownConfig(config);
@@ -132,32 +121,17 @@ export const MetricQueryDataProvider: FC<Props> = ({
     const closeDrillDownModal = useCallback(() => {
         setIsDrillDownModalOpen(false);
     }, []);
-    const closeUnderlyingDataModal = useCallback(() => {
-        setIsUnderlyingDataModalOpen(false);
-    }, []);
 
-    const openUnderlyingDataModel = useCallback(
-        (
-            value: ResultRow[0]['value'],
-            meta: TableColumn['meta'],
-            row: ResultRow,
-            dimensions?: string[],
-            pivotReference?: PivotReference,
-            dashboardFilters?: DashboardFilters,
-        ) => {
-            setUnderlyingDataConfig({
-                value,
-                meta,
-                row,
-                dimensions,
-                pivotReference,
-                dashboardFilters,
-            });
-
+    const openUnderlyingDataModal = useCallback(
+        (config: UnderlyingDataConfig) => {
+            setUnderlyingDataConfig(config);
             setIsUnderlyingDataModalOpen(true);
         },
         [setUnderlyingDataConfig],
     );
+    const closeUnderlyingDataModal = useCallback(() => {
+        setIsUnderlyingDataModalOpen(false);
+    }, []);
 
     return (
         <Context.Provider
@@ -165,7 +139,7 @@ export const MetricQueryDataProvider: FC<Props> = ({
                 tableName,
                 metricQuery,
                 underlyingDataConfig,
-                openUnderlyingDataModel,
+                openUnderlyingDataModal,
                 isUnderlyingDataModalOpen,
                 closeUnderlyingDataModal,
                 isDrillDownModalOpen,
