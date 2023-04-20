@@ -1,5 +1,6 @@
 import clamp from 'lodash-es/clamp';
-import React, { FC, useEffect, useMemo, useRef, useState } from 'react';
+import { FC, HTMLAttributes, useMemo } from 'react';
+import { useResizeObserver } from '../../hooks/useResizeObserver';
 import {
     TILE_HEADER_HEIGHT,
     TILE_HEADER_MARGIN_BOTTOM,
@@ -14,7 +15,7 @@ import {
     BigNumberLabel,
 } from './SimpleStatistics.styles';
 
-interface SimpleStatisticsProps extends React.HTMLAttributes<HTMLDivElement> {
+interface SimpleStatisticsProps extends HTMLAttributes<HTMLDivElement> {
     minimal?: boolean;
     isDashboard?: boolean;
     isTitleHidden?: boolean;
@@ -39,65 +40,6 @@ const calculateFontSize = (
             ((fontSizeMax - fontSizeMin) * (boundWidth - BOX_MIN_WIDTH)) /
                 (BOX_MAX_WIDTH - BOX_MIN_WIDTH),
     );
-
-type ObserverRect = Omit<DOMRectReadOnly, 'toJSON'>;
-
-const defaultState: ObserverRect = {
-    x: 0,
-    y: 0,
-    width: 0,
-    height: 0,
-    top: 0,
-    left: 0,
-    bottom: 0,
-    right: 0,
-};
-
-export function useResizeObserver<T extends HTMLElement = any>() {
-    const frameID = useRef(0);
-    const [ref, setState] = useState<T | null>(null);
-
-    const [rect, setRect] = useState<ObserverRect>(defaultState);
-
-    const observer = useMemo(
-        () =>
-            typeof window !== 'undefined'
-                ? new ResizeObserver((entries: any) => {
-                      const entry = entries[0];
-
-                      console.log(entry, 'this happens');
-
-                      if (entry) {
-                          cancelAnimationFrame(frameID.current);
-
-                          frameID.current = requestAnimationFrame(() => {
-                              if (ref) {
-                                  setRect(entry.contentRect);
-                              }
-                          });
-                      }
-                  })
-                : null,
-        [ref],
-    );
-
-    useEffect(() => {
-        if (ref) {
-            console.log('observe', ref, observer);
-            observer?.observe(ref);
-        }
-
-        return () => {
-            observer?.disconnect();
-
-            if (frameID.current) {
-                cancelAnimationFrame(frameID.current);
-            }
-        };
-    }, [ref, observer]);
-
-    return [setState, rect] as const;
-}
 
 const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     minimal = false,
@@ -138,15 +80,6 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             labelFontSize: labelSize,
         };
     }, [observerElementSize]);
-
-    // const [count, setCount] = useState(0);
-    // useEffect(() => {
-    //     const timer = setTimeout(() => {
-    //         setCount(count + 1);
-    //     }, 1000);
-
-    //     return () => clearTimeout(timer);
-    // }, [resizeObserverRef, resizeObserverRef.current]);
 
     const validData = bigNumber && resultsData?.rows.length;
 
