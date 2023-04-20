@@ -1,3 +1,10 @@
+## [0.517.1](https://github.com/lightdash/lightdash/compare/0.517.0...0.517.1) (2023-04-20)
+
+
+### Bug Fixes
+
+* minimal page big number chart font sizes ([#5172](https://github.com/lightdash/lightdash/issues/5172)) ([29ec999](https://github.com/lightdash/lightdash/commit/29ec999bbf327f6c435a3556e9e720d9f207bf64))
+
 # [0.517.0](https://github.com/lightdash/lightdash/compare/0.516.0...0.517.0) (2023-04-20)
 
 
