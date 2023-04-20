@@ -1,3 +1,10 @@
+# [0.516.0](https://github.com/lightdash/lightdash/compare/0.515.0...0.516.0) (2023-04-20)
+
+
+### Features
+
+* health endpoints for standalone scheduler ([#5149](https://github.com/lightdash/lightdash/issues/5149)) ([e8c5f28](https://github.com/lightdash/lightdash/commit/e8c5f281a88d2ae01ca936c6b2e0e3c1b7af84a4))
+
 # [0.515.0](https://github.com/lightdash/lightdash/compare/0.514.1...0.515.0) (2023-04-20)
 
 
