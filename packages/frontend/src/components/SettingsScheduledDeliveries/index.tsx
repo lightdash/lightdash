@@ -1,5 +1,6 @@
 import { getHumanReadableCronExpression } from '@lightdash/common';
 import {
+    ActionIcon,
     Anchor,
     Badge,
     Card,
@@ -10,7 +11,7 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
-import { IconClock, IconSend } from '@tabler/icons-react';
+import { IconClock, IconDots, IconPencil, IconSend } from '@tabler/icons-react';
 import { FC } from 'react';
 import { useSchedulerLogs } from '../../hooks/scheduler/useScheduler';
 import MantineIcon from '../common/MantineIcon';
@@ -79,7 +80,7 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
                         </Tabs.Tab>
                     </Tabs.List>
                     <Tabs.Panel value="scheduled-deliveries">
-                        <Table my="sm" horizontalSpacing="md" highlightOnHover>
+                        <Table my="sm" horizontalSpacing="md">
                             <thead>
                                 <tr>
                                     <th>Name</th>
@@ -87,6 +88,7 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
                                     <th>Frequency</th>
                                     <th>Last delivery</th>
                                     <th>Next delivery</th>
+                                    <th></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -102,6 +104,22 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
                                                       scheduler.schedulerUuid,
                                               )
                                             : [];
+                                        const editIcon = (
+                                            <ActionIcon
+                                                sx={(theme) => ({
+                                                    ':hover': {
+                                                        backgroundColor:
+                                                            theme.colors
+                                                                .gray[1],
+                                                    },
+                                                })}
+                                            >
+                                                <MantineIcon
+                                                    icon={IconPencil}
+                                                    size={16}
+                                                />
+                                            </ActionIcon>
+                                        );
                                         return (
                                             <tr key={scheduler.schedulerUuid}>
                                                 <td>{scheduler.name}</td>
@@ -109,17 +127,17 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
                                                     {scheduler.dashboardUuid !==
                                                     null ? (
                                                         <Anchor
-                                                            href={`/projects/${projectUuid}/dashboards/${scheduler?.dashboardUuid}/view/?scheduler_uuid=${scheduler.schedulerUuid}`}
+                                                            href={`/projects/${projectUuid}/dashboards/${scheduler?.dashboardUuid}/view`}
                                                             target="_blank"
                                                         >
-                                                            Edit schedule
+                                                            View dashboard
                                                         </Anchor>
                                                     ) : (
                                                         <Anchor
-                                                            href={`/projects/${projectUuid}/saved/${scheduler?.savedChartUuid}/view/?scheduler_uuid=${scheduler.schedulerUuid}`}
+                                                            href={`/projects/${projectUuid}/saved/${scheduler?.savedChartUuid}/view`}
                                                             target="_blank"
                                                         >
-                                                            Edit schedule
+                                                            View chart
                                                         </Anchor>
                                                     )}
                                                 </td>
@@ -130,6 +148,24 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
                                                 </td>
                                                 <td>{/* LAST DELIVERY */}</td>
                                                 <td>{/* NEXT DELIVERY */}</td>
+                                                <td>
+                                                    {scheduler.dashboardUuid !==
+                                                    null ? (
+                                                        <Anchor
+                                                            href={`/projects/${projectUuid}/dashboards/${scheduler?.dashboardUuid}/view/?scheduler_uuid=${scheduler.schedulerUuid}`}
+                                                            target="_blank"
+                                                        >
+                                                            {editIcon}
+                                                        </Anchor>
+                                                    ) : (
+                                                        <Anchor
+                                                            href={`/projects/${projectUuid}/saved/${scheduler?.savedChartUuid}/view/?scheduler_uuid=${scheduler.schedulerUuid}`}
+                                                            target="_blank"
+                                                        >
+                                                            {editIcon}
+                                                        </Anchor>
+                                                    )}
+                                                </td>
                                             </tr>
                                         );
                                     })
@@ -217,17 +253,17 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
                                                     {scheduler.dashboardUuid !==
                                                     null ? (
                                                         <Anchor
-                                                            href={`/projects/${projectUuid}/dashboards/${scheduler?.dashboardUuid}/view/?scheduler_uuid=${scheduler.schedulerUuid}`}
+                                                            href={`/projects/${projectUuid}/dashboards/${scheduler?.dashboardUuid}/view`}
                                                             target="_blank"
                                                         >
-                                                            Edit schedule
+                                                            View dashboard
                                                         </Anchor>
                                                     ) : (
                                                         <Anchor
-                                                            href={`/projects/${projectUuid}/saved/${scheduler?.savedChartUuid}/view/?scheduler_uuid=${scheduler.schedulerUuid}`}
+                                                            href={`/projects/${projectUuid}/saved/${scheduler?.savedChartUuid}/view`}
                                                             target="_blank"
                                                         >
-                                                            Edit schedule
+                                                            View chart
                                                         </Anchor>
                                                     )}
                                                 </td>
