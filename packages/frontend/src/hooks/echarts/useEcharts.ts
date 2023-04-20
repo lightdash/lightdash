@@ -304,12 +304,24 @@ export const getMinAndMaxValues = (
                     // is number or numeric string
                     const currentNumber =
                         typeof value === 'string' ? parseFloat(value) : value;
+                    const currentMin =
+                        typeof acc[0] === 'string'
+                            ? parseFloat(acc[0])
+                            : acc[0];
+                    const currentMax =
+                        typeof acc[1] === 'string'
+                            ? parseFloat(acc[1])
+                            : acc[1];
 
                     if (!isNaN(currentNumber)) {
                         const min =
-                            currentNumber < currentNumber ? value : acc[0];
+                            currentNumber < currentMin
+                                ? currentNumber
+                                : currentMin;
                         const max =
-                            currentNumber > currentNumber ? value : acc[1];
+                            currentNumber > currentMax
+                                ? currentNumber
+                                : currentMax;
 
                         return [min, max];
                     }
