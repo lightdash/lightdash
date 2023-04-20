@@ -1,3 +1,10 @@
+## [0.514.1](https://github.com/lightdash/lightdash/compare/0.514.0...0.514.1) (2023-04-20)
+
+
+### Bug Fixes
+
+* minimal chart padding ([#5152](https://github.com/lightdash/lightdash/issues/5152)) ([b1ad14f](https://github.com/lightdash/lightdash/commit/b1ad14fc9162ea914a7072590bab6a0084e43092))
+
 # [0.514.0](https://github.com/lightdash/lightdash/compare/0.513.2...0.514.0) (2023-04-19)
 
 
