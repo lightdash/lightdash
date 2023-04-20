@@ -61,7 +61,7 @@ export enum CartesianSeriesType {
 
 export type PivotReference = {
     field: string;
-    pivotValues?: { field: string; value: any }[];
+    pivotValues?: { field: string; value: unknown }[];
 };
 
 export const isPivotReferenceWithValues = (
