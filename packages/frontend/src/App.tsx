@@ -1,5 +1,6 @@
 import { Colors } from '@blueprintjs/core';
 import { Ability } from '@casl/ability';
+import { Stack } from '@mantine/core';
 import { Helmet } from 'react-helmet';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import { ReactQueryDevtools } from 'react-query/devtools';
@@ -101,13 +102,12 @@ const App = () => (
                                                         <PrivateRoute path="/minimal">
                                                             <Switch>
                                                                 <Route path="/minimal/projects/:projectUuid/saved/:savedQueryUuid">
-                                                                    <div
-                                                                        style={{
-                                                                            height: '100vh',
-                                                                        }}
+                                                                    <Stack
+                                                                        p="lg"
+                                                                        h="100vh"
                                                                     >
                                                                         <MinimalSavedExplorer />
-                                                                    </div>
+                                                                    </Stack>
                                                                 </Route>
 
                                                                 <Route path="/minimal/projects/:projectUuid/dashboards/:dashboardUuid">
