@@ -64,6 +64,7 @@ createTerminus(server, {
         '/api/v1/livez': () => Promise.resolve(),
     },
     onSignal,
+    logger: Logger.error,
 });
 
 server.listen(process.env.PORT || 8081);
