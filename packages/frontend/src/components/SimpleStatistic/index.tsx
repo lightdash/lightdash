@@ -1,6 +1,5 @@
-import { mergeRefs, useElementSize, useResizeObserver } from '@mantine/hooks';
 import clamp from 'lodash-es/clamp';
-import React, { FC, useMemo } from 'react';
+import React, { FC, useEffect, useMemo, useRef, useState } from 'react';
 import {
     TILE_HEADER_HEIGHT,
     TILE_HEADER_MARGIN_BOTTOM,
@@ -41,6 +40,65 @@ const calculateFontSize = (
                 (BOX_MAX_WIDTH - BOX_MIN_WIDTH),
     );
 
+type ObserverRect = Omit<DOMRectReadOnly, 'toJSON'>;
+
+const defaultState: ObserverRect = {
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+    top: 0,
+    left: 0,
+    bottom: 0,
+    right: 0,
+};
+
+export function useResizeObserver<T extends HTMLElement = any>() {
+    const frameID = useRef(0);
+    const [ref, setState] = useState<T | null>(null);
+
+    const [rect, setRect] = useState<ObserverRect>(defaultState);
+
+    const observer = useMemo(
+        () =>
+            typeof window !== 'undefined'
+                ? new ResizeObserver((entries: any) => {
+                      const entry = entries[0];
+
+                      console.log(entry, 'this happens');
+
+                      if (entry) {
+                          cancelAnimationFrame(frameID.current);
+
+                          frameID.current = requestAnimationFrame(() => {
+                              if (ref) {
+                                  setRect(entry.contentRect);
+                              }
+                          });
+                      }
+                  })
+                : null,
+        [ref],
+    );
+
+    useEffect(() => {
+        if (ref) {
+            console.log('observe', ref, observer);
+            observer?.observe(ref);
+        }
+
+        return () => {
+            observer?.disconnect();
+
+            if (frameID.current) {
+                cancelAnimationFrame(frameID.current);
+            }
+        };
+    }, [ref, observer]);
+
+    return [setState, rect] as const;
+}
+
 const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     minimal = false,
     isDashboard = false,
@@ -53,12 +111,12 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
         bigNumberConfig: { bigNumber, bigNumberLabel, defaultLabel },
         isSqlRunner,
     } = useVisualizationContext();
-    const { ref: elementSizeRef, ...elementSize } = useElementSize();
-    const [resizeObserverRef, observerElementSize] = useResizeObserver();
+
+    const [setRef, observerElementSize] = useResizeObserver();
 
     const { valueFontSize, labelFontSize } = useMemo(() => {
         const boundWidth = clamp(
-            observerElementSize?.width || elementSize?.width || 0,
+            observerElementSize?.width || 0,
             BOX_MIN_WIDTH,
             BOX_MAX_WIDTH,
         );
@@ -79,7 +137,16 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             valueFontSize: valueSize,
             labelFontSize: labelSize,
         };
-    }, [elementSize, observerElementSize]);
+    }, [observerElementSize]);
+
+    // const [count, setCount] = useState(0);
+    // useEffect(() => {
+    //     const timer = setTimeout(() => {
+    //         setCount(count + 1);
+    //     }, 1000);
+
+    //     return () => clearTimeout(timer);
+    // }, [resizeObserverRef, resizeObserverRef.current]);
 
     const validData = bigNumber && resultsData?.rows.length;
 
@@ -92,7 +159,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                     ? TILE_HEADER_HEIGHT + TILE_HEADER_MARGIN_BOTTOM - 8
                     : TILE_HEADER_HEIGHT
             }
-            ref={mergeRefs(elementSizeRef, resizeObserverRef)}
+            ref={(elem) => setRef(elem)}
             {...wrapperProps}
         >
             <BigNumberHalf>
