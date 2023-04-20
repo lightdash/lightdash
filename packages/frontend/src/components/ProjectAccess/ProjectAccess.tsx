@@ -65,7 +65,7 @@ const UserListItem: FC<{
 
                     {relevantOrgRole && (
                         <Tooltip2
-                            content={`This user inherits the organisation role: ${relevantOrgRole}`}
+                            content={`This user inherits the organization role: ${relevantOrgRole}`}
                         >
                             <RelevantOrgRoleIcon
                                 icon="warning-sign"
@@ -247,7 +247,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
                 <UserListItem
                     key={orgUser.email}
                     user={orgUser}
-                    roleTooltip={`This user inherits the organisation role: ${orgUser.role}`}
+                    roleTooltip={`This user inherits the organization role: ${orgUser.role}`}
                 />
             ))}
         </ProjectAccessWrapper>

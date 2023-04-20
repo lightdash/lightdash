@@ -1,6 +1,6 @@
 import { Button, Intent } from '@blueprintjs/core';
 import { OrganizationMemberRole, ProjectType } from '@lightdash/common';
-import React, { FC, useEffect, useMemo } from 'react';
+import { FC, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import {
     useAllowedEmailDomains,
@@ -15,8 +15,8 @@ import Form from '../../ReactHookForm/Form';
 import MultiSelect from '../../ReactHookForm/MultiSelect';
 import Select2 from '../../ReactHookForm/Select2';
 import TagInput from '../../ReactHookForm/TagInput';
-import { Description } from '../DeleteOrganisationPanel/DeleteOrganisationPanel.styles';
-import { FormWrapper } from '../OrganisationPanel/OrganisationPanel.styles';
+import { Description } from '../DeleteOrganizationPanel/DeleteOrganizationPanel.styles';
+import { FormWrapper } from '../OrganizationPanel/OrganizationPanel.styles';
 
 type FormData = {
     emailDomains: string[];
@@ -27,7 +27,7 @@ type FormData = {
 const roleOptions = [
     {
         value: OrganizationMemberRole.VIEWER,
-        label: 'Organisation Viewer',
+        label: 'Organization Viewer',
         subLabel: (
             <Description>
                 Has view access across all projects in the org
@@ -36,7 +36,7 @@ const roleOptions = [
     },
     {
         value: OrganizationMemberRole.MEMBER,
-        label: 'Organisation Member',
+        label: 'Organization Member',
         subLabel: (
             <Description>Has view access to selected projects only</Description>
         ),
@@ -129,7 +129,7 @@ const AllowedDomainsPanel: FC = () => {
                         <Select2
                             label="Default role"
                             name="role"
-                            placeholder="Organisation viewer"
+                            placeholder="Organization viewer"
                             disabled={isLoading}
                             items={roleOptions}
                             defaultValue="viewer"

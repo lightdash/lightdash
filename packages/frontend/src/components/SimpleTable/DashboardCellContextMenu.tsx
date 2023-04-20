@@ -15,6 +15,7 @@ import {
     ResultRow,
 } from '@lightdash/common';
 import { uuid4 } from '@sentry/utils';
+import mapValues from 'lodash-es/mapValues';
 import React, { FC } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
 import { useParams } from 'react-router-dom';
@@ -37,7 +38,7 @@ const DashboardCellContextMenu: FC<
     }
 > = ({ cell, explore, tileUuid }) => {
     const { showToastSuccess } = useToaster();
-    const { openUnderlyingDataModel } = useMetricQueryDataContext();
+    const { openUnderlyingDataModal } = useMetricQueryDataContext();
     const { addDimensionDashboardFilter } = useDashboardContext();
     const dashboardFiltersThatApplyToChart = useDashboardFiltersForExplore(
         tileUuid,
@@ -48,6 +49,7 @@ const DashboardCellContextMenu: FC<
     const item = meta?.item;
 
     const value: ResultRow[0]['value'] = cell.getValue()?.value || {};
+    const fieldValues = mapValues(cell.row.original, (v) => v?.value) || {};
 
     const filterField =
         isDimension(item) && !item.hidden
@@ -118,7 +120,6 @@ const DashboardCellContextMenu: FC<
                         projectUuid: projectUuid,
                     })}
                 >
-                    {' '}
                     <MenuItem2
                         text="View underlying data"
                         icon="layers"
@@ -132,18 +133,19 @@ const DashboardCellContextMenu: FC<
                                     projectId: projectUuid,
                                 },
                             });
-                            openUnderlyingDataModel(
+                            openUnderlyingDataModal({
+                                item: meta.item,
                                 value,
-                                meta,
-                                cell.row.original || {},
-                                undefined,
-                                meta?.pivotReference,
-                                dashboardFiltersThatApplyToChart,
-                            );
+                                fieldValues,
+                                pivotReference: meta?.pivotReference,
+                                dashboardFilters:
+                                    dashboardFiltersThatApplyToChart,
+                            });
                         }}
                     />
                 </Can>
             )}
+
             <Can
                 I="manage"
                 this={subject('Explore', {
@@ -152,10 +154,10 @@ const DashboardCellContextMenu: FC<
                 })}
             >
                 <DrillDownMenuItem
-                    row={cell.row.original || {}}
+                    item={item}
+                    fieldValues={fieldValues}
                     dashboardFilters={dashboardFiltersThatApplyToChart}
                     pivotReference={meta?.pivotReference}
-                    selectedItem={item}
                     trackingData={{
                         organizationId: user?.data?.organizationUuid,
                         userId: user?.data?.userUuid,

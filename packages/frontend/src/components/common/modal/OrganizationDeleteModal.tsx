@@ -14,21 +14,21 @@ interface OrganizationDeleteModalProps extends DialogProps {
     onConfirm?: () => void;
 }
 
-const OrganisationDeleteModal: FC<OrganizationDeleteModalProps> = ({
+const OrganizationDeleteModal: FC<OrganizationDeleteModalProps> = ({
     onConfirm,
     onClose,
     ...modalProps
 }) => {
-    const { isLoading, data: organisation } = useOrganization();
+    const { isLoading, data: organization } = useOrganization();
     const { mutateAsync, isLoading: isDeleting } =
         useDeleteOrganizationMutation();
 
     const [confirmOrgName, setConfirmOrgName] = useState<string>();
 
-    if (isLoading || !organisation) return null;
+    if (isLoading || !organization) return null;
 
     const handleConfirm = async () => {
-        await mutateAsync(organisation.organizationUuid);
+        await mutateAsync(organization.organizationUuid);
         onConfirm?.();
     };
 
@@ -40,21 +40,21 @@ const OrganisationDeleteModal: FC<OrganizationDeleteModalProps> = ({
     return (
         <Dialog
             lazy
-            title="Delete Organisation"
+            title="Delete Organization"
             icon="trash"
             {...modalProps}
             onClose={handleClose}
         >
             <DialogBody>
                 <p>
-                    Type the name of this organisation{' '}
-                    <b>{organisation.name}</b> to confirm you want to delete
-                    this organisation and its users. This action is not
+                    Type the name of this organization{' '}
+                    <b>{organization.name}</b> to confirm you want to delete
+                    this organization and its users. This action is not
                     reversible.
                 </p>
 
                 <InputGroup
-                    placeholder={organisation.name}
+                    placeholder={organization.name}
                     value={confirmOrgName}
                     onChange={(e) => setConfirmOrgName(e.target.value)}
                 />
@@ -68,7 +68,7 @@ const OrganisationDeleteModal: FC<OrganizationDeleteModalProps> = ({
                         <Button
                             disabled={
                                 confirmOrgName?.toLowerCase() !==
-                                organisation.name.toLowerCase()
+                                organization.name.toLowerCase()
                             }
                             loading={isDeleting}
                             intent="danger"
@@ -84,4 +84,4 @@ const OrganisationDeleteModal: FC<OrganizationDeleteModalProps> = ({
     );
 };
 
-export default OrganisationDeleteModal;
+export default OrganizationDeleteModal;

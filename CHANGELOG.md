@@ -1,3 +1,38 @@
+# [0.516.0](https://github.com/lightdash/lightdash/compare/0.515.0...0.516.0) (2023-04-20)
+
+
+### Features
+
+* health endpoints for standalone scheduler ([#5149](https://github.com/lightdash/lightdash/issues/5149)) ([e8c5f28](https://github.com/lightdash/lightdash/commit/e8c5f281a88d2ae01ca936c6b2e0e3c1b7af84a4))
+
+# [0.515.0](https://github.com/lightdash/lightdash/compare/0.514.1...0.515.0) (2023-04-20)
+
+
+### Features
+
+* pivot table underlying data drill into ([#5097](https://github.com/lightdash/lightdash/issues/5097)) ([6ff61ce](https://github.com/lightdash/lightdash/commit/6ff61ce8e1834e1931e38d3f1e0ae8e45ae2e2e3))
+
+## [0.514.1](https://github.com/lightdash/lightdash/compare/0.514.0...0.514.1) (2023-04-20)
+
+
+### Bug Fixes
+
+* minimal chart padding ([#5152](https://github.com/lightdash/lightdash/issues/5152)) ([b1ad14f](https://github.com/lightdash/lightdash/commit/b1ad14fc9162ea914a7072590bab6a0084e43092))
+
+# [0.514.0](https://github.com/lightdash/lightdash/compare/0.513.2...0.514.0) (2023-04-19)
+
+
+### Features
+
+* send slack message for empty csv results ([#5150](https://github.com/lightdash/lightdash/issues/5150)) ([d847c4b](https://github.com/lightdash/lightdash/commit/d847c4b319601d64305bda8734e7187f23e280be))
+
+## [0.513.2](https://github.com/lightdash/lightdash/compare/0.513.1...0.513.2) (2023-04-19)
+
+
+### Bug Fixes
+
+* when a query returns no results, some buttons needs to be greyed out ([#5028](https://github.com/lightdash/lightdash/issues/5028)) ([25f8d05](https://github.com/lightdash/lightdash/commit/25f8d051e6b2a23cbfb45ff0697b6e45953f612c))
+
 ## [0.513.1](https://github.com/lightdash/lightdash/compare/0.513.0...0.513.1) (2023-04-19)
 
 

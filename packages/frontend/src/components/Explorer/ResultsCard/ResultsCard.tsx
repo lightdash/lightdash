@@ -39,6 +39,9 @@ const ResultsCard: FC = memo(() => {
     const rows = useExplorerContext(
         (context) => context.queryResults.data?.rows,
     );
+    const resultsData = useExplorerContext(
+        (context) => context.queryResults.data,
+    );
     const setRowLimit = useExplorerContext(
         (context) => context.actions.setRowLimit,
     );
@@ -52,6 +55,8 @@ const ResultsCard: FC = memo(() => {
     const columnOrder = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableConfig.columnOrder,
     );
+
+    const disabled = !resultsData || resultsData.rows.length <= 0;
 
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
@@ -111,6 +116,7 @@ const ResultsCard: FC = memo(() => {
                             })}
                         >
                             <Popover2
+                                disabled={disabled}
                                 lazy
                                 position={PopoverPosition.BOTTOM_LEFT}
                                 popoverClassName={
@@ -127,6 +133,7 @@ const ResultsCard: FC = memo(() => {
                                     text="Export CSV"
                                     rightIcon="caret-down"
                                     minimal
+                                    disabled={disabled}
                                 />
                             </Popover2>
                         </Can>

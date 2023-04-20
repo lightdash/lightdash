@@ -47,7 +47,7 @@ export const SeriesContextMenu: FC<{
     const { resultsData: { metricQuery } = {} } = context;
 
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
-    const { openUnderlyingDataModel } = useMetricQueryDataContext();
+    const { openUnderlyingDataModal } = useMetricQueryDataContext();
 
     const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
         left: number;
@@ -88,15 +88,12 @@ export const SeriesContextMenu: FC<{
 
     const onViewUnderlyingData = useCallback(() => {
         if (underlyingData !== undefined) {
-            openUnderlyingDataModel(
-                underlyingData.value,
-                underlyingData.meta,
-                underlyingData.row,
+            openUnderlyingDataModal({
+                ...underlyingData,
                 dimensions,
-                underlyingData.pivotReference,
-            );
+            });
         }
-    }, [openUnderlyingDataModel, dimensions, underlyingData]);
+    }, [openUnderlyingDataModal, dimensions, underlyingData]);
     const contextMenuRenderTarget = useCallback(
         ({ ref }: Popover2TargetProps) => (
             <Portal>
@@ -165,9 +162,7 @@ export const SeriesContextMenu: FC<{
                             })}
                         >
                             <DrillDownMenuItem
-                                row={underlyingData?.row}
-                                selectedItem={underlyingData?.meta?.item}
-                                pivotReference={underlyingData?.pivotReference}
+                                {...underlyingData}
                                 trackingData={{
                                     organizationId:
                                         user?.data?.organizationUuid,

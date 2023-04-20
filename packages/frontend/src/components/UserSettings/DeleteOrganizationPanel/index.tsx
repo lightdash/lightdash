@@ -2,21 +2,21 @@ import { Button } from '@blueprintjs/core';
 import { FC, useState } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useApp } from '../../../providers/AppProvider';
-import OrganisationDeleteModal from '../../common/modal/OrganisationDeleteModal';
+import OrganizationDeleteModal from '../../common/modal/OrganizationDeleteModal';
 import {
     CardContainer,
     Description,
     PanelContent,
     Title,
-} from './DeleteOrganisationPanel.styles';
+} from './DeleteOrganizationPanel.styles';
 
-export const DeleteOrganisationPanel: FC = () => {
-    const { isLoading: isLoading, data: organisation } = useOrganization();
+export const DeleteOrganizationPanel: FC = () => {
+    const { isLoading: isLoading, data: organization } = useOrganization();
 
     const [showConfirmation, setShowConfirmation] = useState<boolean>(false);
     const { user } = useApp();
 
-    if (isLoading || organisation === undefined) return null;
+    if (isLoading || organization === undefined) return null;
     if (!user.data?.ability?.can('delete', 'Organization')) return null;
 
     return (
@@ -34,13 +34,13 @@ export const DeleteOrganisationPanel: FC = () => {
                         outlined
                         intent="danger"
                         icon="trash"
-                        text={`Delete '${organisation.name}'`}
+                        text={`Delete '${organization.name}'`}
                         onClick={() => setShowConfirmation(true)}
                     />
                 </PanelContent>
             </CardContainer>
 
-            <OrganisationDeleteModal
+            <OrganizationDeleteModal
                 isOpen={showConfirmation}
                 onClose={() => setShowConfirmation(false)}
                 onConfirm={() => setShowConfirmation(false)}

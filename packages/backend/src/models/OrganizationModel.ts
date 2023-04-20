@@ -1,7 +1,7 @@
 import {
     CreateOrganization,
     NotFoundError,
-    Organisation,
+    Organization,
     UpdateOrganization,
     UserAllowedOrganization,
 } from '@lightdash/common';
@@ -20,7 +20,7 @@ export class OrganizationModel {
         this.database = database;
     }
 
-    static mapDBObjectToOrganisation(data: DbOrganization): Organisation {
+    static mapDBObjectToOrganization(data: DbOrganization): Organization {
         return {
             organizationUuid: data.organization_uuid,
             name: data.organization_name,
@@ -35,29 +35,29 @@ export class OrganizationModel {
         return orgs.length > 0;
     }
 
-    async get(organizationUuid: string): Promise<Organisation> {
+    async get(organizationUuid: string): Promise<Organization> {
         const [org] = await this.database(OrganizationTableName)
             .where('organization_uuid', organizationUuid)
             .select('*');
         if (org === undefined) {
-            throw new NotFoundError(`No organisation found`);
+            throw new NotFoundError(`No organization found`);
         }
-        return OrganizationModel.mapDBObjectToOrganisation(org);
+        return OrganizationModel.mapDBObjectToOrganization(org);
     }
 
-    async create(data: CreateOrganization): Promise<Organisation> {
+    async create(data: CreateOrganization): Promise<Organization> {
         const [org] = await this.database(OrganizationTableName)
             .insert({
                 organization_name: data.name,
             })
             .returning('*');
-        return OrganizationModel.mapDBObjectToOrganisation(org);
+        return OrganizationModel.mapDBObjectToOrganization(org);
     }
 
     async update(
         organizationUuid: string,
         data: UpdateOrganization,
-    ): Promise<Organisation> {
+    ): Promise<Organization> {
         // Undefined values are ignored by .update (it DOES NOT set null)
         const [org] = await this.database(OrganizationTableName)
             .where('organization_uuid', organizationUuid)
@@ -66,7 +66,7 @@ export class OrganizationModel {
                 chart_colors: data.chartColors,
             })
             .returning('*');
-        return OrganizationModel.mapDBObjectToOrganisation(org);
+        return OrganizationModel.mapDBObjectToOrganization(org);
     }
 
     async deleteOrgAndUsers(
@@ -77,7 +77,7 @@ export class OrganizationModel {
             .where('organization_uuid', organizationUuid)
             .select('*');
         if (org === undefined) {
-            throw new NotFoundError(`No organisation found`);
+            throw new NotFoundError(`No organization found`);
         }
 
         await this.database.transaction(async (trx) => {

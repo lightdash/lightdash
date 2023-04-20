@@ -35,7 +35,6 @@ import {
     JobStatusType,
     JobStepType,
     JobType,
-    Metric,
     MetricQuery,
     MetricType,
     MissingWarehouseCredentialsError,

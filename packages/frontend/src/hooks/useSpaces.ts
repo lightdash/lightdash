@@ -57,7 +57,7 @@ const deleteQuery = async (projectUuid: string, spaceUuid: string) =>
         body: undefined,
     });
 
-export const useDeleteMutation = (projectUuid: string) => {
+export const useSpaceDeleteMutation = (projectUuid: string) => {
     const { showToastSuccess, showToastError } = useToaster();
     const queryClient = useQueryClient();
 

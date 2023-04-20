@@ -50,7 +50,7 @@ import { FieldValueSearchResult } from './types/fieldMatch';
 import {
     AllowedEmailDomains,
     OnboardingStatus,
-    Organisation,
+    Organization,
     OrganizationProject,
     UpdateAllowedEmailDomains,
 } from './types/organization';
@@ -429,7 +429,7 @@ export type InviteLink = {
     expiresAt: Date;
     inviteCode: string;
     inviteUrl: string;
-    organisationUuid: string;
+    organizationUuid: string;
     userUuid: string;
     email: string;
 };
@@ -451,7 +451,7 @@ type ApiResults =
     | ApiStatusResults
     | ApiRefreshResults
     | ApiHealthResults
-    | Organisation
+    | Organization
     | LightdashUser
     | SavedChart
     | SavedChart[]

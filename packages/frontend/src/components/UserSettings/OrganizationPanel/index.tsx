@@ -1,18 +1,18 @@
 import { Button, Intent } from '@blueprintjs/core';
-import { Organisation } from '@lightdash/common';
+import { Organization } from '@lightdash/common';
 import { FC, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useOrganizationUpdateMutation } from '../../../hooks/organization/useOrganizationUpdateMutation';
 import Form from '../../ReactHookForm/Form';
 import Input from '../../ReactHookForm/Input';
-import { FormWrapper } from './OrganisationPanel.styles';
+import { FormWrapper } from './OrganizationPanel.styles';
 
-const OrganisationPanel: FC = () => {
+const OrganizationPanel: FC = () => {
     const { isLoading: isOrgLoading, data } = useOrganization();
     const updateMutation = useOrganizationUpdateMutation();
     const isLoading = updateMutation.isLoading || isOrgLoading;
-    const methods = useForm<Organisation>({
+    const methods = useForm<Organization>({
         mode: 'onSubmit',
     });
     const { setValue } = methods;
@@ -23,7 +23,7 @@ const OrganisationPanel: FC = () => {
         }
     }, [data, setValue]);
 
-    const handleUpdate = (value: Organisation) => {
+    const handleUpdate = (value: Organization) => {
         updateMutation.mutate(value);
     };
 
@@ -36,7 +36,7 @@ const OrganisationPanel: FC = () => {
                 disableSubmitOnEnter
             >
                 <Input
-                    label="Organisation name"
+                    label="Organization name"
                     name="name"
                     placeholder="Lightdash"
                     disabled={isLoading}
@@ -57,4 +57,4 @@ const OrganisationPanel: FC = () => {
     );
 };
 
-export default OrganisationPanel;
+export default OrganizationPanel;

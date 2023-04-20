@@ -1031,6 +1031,15 @@
         "doc",
         "code"
       ]
+    },
+    {
+      "login": "muhammadjufry",
+      "name": "Muhammad Jufry",
+      "avatar_url": "https://avatars.githubusercontent.com/u/97773130?v=4",
+      "profile": "https://github.com/muhammadjufry",
+      "contributions": [
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,
