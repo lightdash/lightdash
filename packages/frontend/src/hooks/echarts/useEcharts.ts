@@ -278,18 +278,6 @@ const maxDate = (a: number | string, b: string) => {
     return dateA > dateB ? a : b;
 };
 
-const minNumber = (a: number | string, b: number) => {
-    const numberA = Number(a);
-    const numberB = Number(b);
-    return numberA < numberB ? a : b;
-};
-
-const maxNumber = (a: number | string, b: number) => {
-    const numberA = Number(a);
-    const numberB = Number(b);
-    return numberA > numberB ? a : b;
-};
-
 export const getMinAndMaxValues = (
     axis: string | undefined,
     rows: Record<string, ResultValue>[],
@@ -300,24 +288,35 @@ export const getMinAndMaxValues = (
         .map((row) => row[axis]?.raw)
         .reduce<(string | number)[]>(
             (acc, value) => {
-                if (typeof value === 'number') {
-                    const min = minNumber(acc[0], value);
-                    const max = maxNumber(acc[1], value);
-                    return [min, max];
-                } else if (
+                if (
                     typeof value === 'string' &&
                     moment(value, 'YYYY-MM-DD', false).isValid()
                 ) {
                     // is date
                     const min = minDate(acc[0], value);
                     const max = maxDate(acc[1], value);
+
                     return [min, max];
-                } else if (typeof value === 'string') {
-                    // is numeric string
-                    const number = parseFloat(value);
-                    if (!isNaN(number)) {
-                        const min = minNumber(acc[0], number);
-                        const max = maxNumber(acc[1], number);
+                } else if (
+                    typeof value === 'string' ||
+                    typeof value === 'number'
+                ) {
+                    // is number or numeric string
+                    const currentNumber =
+                        typeof value === 'string' ? parseFloat(value) : value;
+                    const currentMin =
+                        typeof acc[0] === 'string'
+                            ? parseFloat(acc[0])
+                            : acc[0];
+                    const currentMax =
+                        typeof acc[1] === 'string'
+                            ? parseFloat(acc[1])
+                            : acc[1];
+
+                    if (!isNaN(currentNumber)) {
+                        const min = currentNumber < currentMin ? value : acc[0];
+                        const max = currentNumber > currentMax ? value : acc[1];
+
                         return [min, max];
                     }
                 }
@@ -454,6 +453,15 @@ const getMinAndMaxReferenceLines = (
         bottomAxisXId,
         resultsData.rows,
     );
+
+    console.log({
+        minValueLeftY,
+        maxValueLeftY,
+        minValueRightY,
+        maxValueRightY,
+        minValueX,
+        maxValueX,
+    });
 
     const [minReferenceLineX, maxReferenceLineX] =
         getMinAndMaxReferenceLineValues('xAxis', bottomAxisXId);
