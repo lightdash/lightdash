@@ -27,18 +27,14 @@ const Home: FC = () => {
     const project = useProject(selectedProjectUuid);
     const onboarding = useOnboardingStatus();
 
-    const { data } = usePinnedItems(
+    const { data: pinnedItems, isLoading: pinnedItemsLoading } = usePinnedItems(
         selectedProjectUuid,
         project?.data?.pinnedListUuid || '',
     );
-    console.log({ data });
-
     const { data: dashboards = [], isLoading: dashboardsLoading } =
         useDashboards(selectedProjectUuid);
     const { data: savedCharts = [], isLoading: chartsLoading } =
         useSavedCharts(selectedProjectUuid);
-    const { data: spaces = [], isLoading: spacesLoading } =
-        useSpaces(selectedProjectUuid);
 
     const { user } = useApp();
 
@@ -48,7 +44,7 @@ const Home: FC = () => {
         savedChartStatus.isLoading ||
         dashboardsLoading ||
         chartsLoading ||
-        spacesLoading;
+        pinnedItemsLoading;
     const error = onboarding.error || project.error || savedChartStatus.error;
 
     useUnmount(() => onboarding.remove());
@@ -85,7 +81,7 @@ const Home: FC = () => {
                             projectUuid={project.data.projectUuid}
                         />
                         <PinnedItemsPanel
-                            data={{ dashboards, savedCharts, spaces }}
+                            data={pinnedItems!}
                             projectUuid={project.data.projectUuid}
                             organizationUuid={project.data.organizationUuid}
                         />
