@@ -4,6 +4,7 @@ import {
     Logger as GraphileLogger,
     parseCronItems,
     run as runGraphileWorker,
+    Runner,
 } from 'graphile-worker';
 import moment from 'moment';
 import { schedulerClient } from '../clients/clients';
@@ -47,6 +48,10 @@ const workerLogger = new GraphileLogger((scope) => (_, message, meta) => {
 export class SchedulerWorker {
     lightdashConfig: LightdashConfig;
 
+    runner: Runner | undefined;
+
+    isRunning: boolean = false;
+
     constructor({ lightdashConfig }: SchedulerWorkerDependencies) {
         this.lightdashConfig = lightdashConfig;
     }
@@ -57,7 +62,7 @@ export class SchedulerWorker {
         // Run a worker to execute jobs:
         Logger.info('Running scheduler');
 
-        const runner = await runGraphileWorker({
+        this.runner = await runGraphileWorker({
             connectionString: this.lightdashConfig.database.connectionUri,
             logger: workerLogger,
             concurrency: this.lightdashConfig.scheduler?.concurrency,
@@ -118,6 +123,9 @@ export class SchedulerWorker {
             events: schedulerWorkerEventEmitter,
         });
 
-        await runner.promise;
+        this.isRunning = true;
+        await this.runner.promise.finally(() => {
+            this.isRunning = false;
+        });
     }
 }
