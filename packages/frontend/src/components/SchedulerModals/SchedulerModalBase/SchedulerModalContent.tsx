@@ -12,7 +12,7 @@ import {
     SchedulerAndTargets,
     UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
-import React, { FC, useEffect, useState } from 'react';
+import { FC, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import {
     UseMutationResult,
@@ -70,9 +70,6 @@ const CreateStateContent: FC<{
 }> = ({ resourceUuid, createMutation, onBack }) => {
     const methods = useForm<CreateSchedulerAndTargetsWithoutIds>({
         mode: 'onSubmit',
-        defaultValues: {
-            targets: [],
-        },
     });
     useEffect(() => {
         if (createMutation.isSuccess) {
