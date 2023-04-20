@@ -1,7 +1,7 @@
 import {
     ApiError,
-    SchedulerAndLogs,
     SchedulerAndTargets,
+    SchedulerWithLogs,
 } from '@lightdash/common';
 import { useQuery } from 'react-query';
 import { lightdashApi } from '../../api';
@@ -14,7 +14,7 @@ const getScheduler = async (uuid: string) =>
     });
 
 const getSchedulerLogs = async (projectUuid: string) =>
-    lightdashApi<SchedulerAndLogs>({
+    lightdashApi<SchedulerWithLogs>({
         url: `/schedulers/${projectUuid}/logs`,
         method: 'GET',
         body: undefined,
@@ -27,7 +27,7 @@ export const useScheduler = (uuid: string) =>
     });
 
 export const useSchedulerLogs = (projectUuid: string) =>
-    useQuery<SchedulerAndLogs, ApiError>({
+    useQuery<SchedulerWithLogs, ApiError>({
         queryKey: ['schedulerLogs', projectUuid],
         queryFn: () => getSchedulerLogs(projectUuid),
     });

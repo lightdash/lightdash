@@ -62,7 +62,7 @@ import {
     ProjectType,
     WarehouseCredentials,
 } from './types/projects';
-import { SchedulerAndLogs, SchedulerAndTargets } from './types/scheduler';
+import { SchedulerAndTargets, SchedulerWithLogs } from './types/scheduler';
 import { SlackChannel } from './types/slack';
 import { Space } from './types/space';
 import { TableBase } from './types/table';
@@ -497,7 +497,7 @@ type ApiResults =
     | UserAllowedOrganization[]
     | EmailStatusExpiring
     | ApiScheduledDownloadCsv
-    | SchedulerAndLogs;
+    | SchedulerWithLogs;
 
 export type ApiResponse = {
     status: 'ok';
