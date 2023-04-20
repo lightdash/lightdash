@@ -10,7 +10,6 @@ import {
     Scheduler,
     SchedulerAndTargets,
     SchedulerLog,
-    SchedulerWithLogs,
     SessionUser,
     UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
@@ -215,10 +214,7 @@ export class SchedulerService {
         return job;
     }
 
-    async getSchedulerLogs(
-        user: SessionUser,
-        projectUuid: string,
-    ): Promise<SchedulerWithLogs[]> {
+    async getSchedulerLogs(user: SessionUser, projectUuid: string) {
         // Only allow editors to view scheduler logs
         if (
             user.ability.cannot(

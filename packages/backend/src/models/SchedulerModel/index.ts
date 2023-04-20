@@ -6,13 +6,13 @@ import {
     isUpdateSchedulerSlackTarget,
     NotFoundError,
     Scheduler,
+    SchedulerAndLogs,
     SchedulerAndTargets,
     SchedulerBase,
     SchedulerEmailTarget,
     SchedulerJobStatus,
     SchedulerLog,
     SchedulerSlackTarget,
-    SchedulerWithLogs,
     UpdateSchedulerAndTargets,
 } from '@lightdash/common';
 import { NotFound } from 'express-openapi-validator/dist/openapi.validator';
@@ -421,7 +421,7 @@ export class SchedulerModel {
         ];
     }
 
-    async getSchedulerLogs(projectUuid: string): Promise<SchedulerWithLogs[]> {
+    async getSchedulerLogs(projectUuid: string): Promise<SchedulerAndLogs> {
         const schedulers: SchedulerBase[] = await this.getSchedulerForProject(
             projectUuid,
         );
@@ -437,16 +437,10 @@ export class SchedulerModel {
             SchedulerModel.parseSchedulerLog,
         );
 
-        return schedulers.map((scheduler) => {
-            const filteredLogs = schedulerLogs
-                .filter((log) => log.schedulerUuid === scheduler.schedulerUuid)
-                .sort(SchedulerModel.sortLogs);
-
-            return {
-                ...scheduler,
-                logs: filteredLogs,
-            };
-        });
+        return {
+            schedulers,
+            logs: schedulerLogs.sort(SchedulerModel.sortLogs),
+        };
     }
 
     async logSchedulerJob(log: SchedulerLog): Promise<void> {
@@ -473,15 +467,16 @@ export class SchedulerModel {
     }
 
     static sortLogs = (a: SchedulerLog, b: SchedulerLog) => {
-        // Sometimes scheduled event is added after the job is completed
-
-        // First sort by date, then sort by status
+        /** 
+         *  Sometimes scheduled event is added after the job is completed
+            First sort by date DESC, then sort by status,
+         */
         if (a.scheduledTime.getTime() === b.scheduledTime.getTime()) {
             return (
                 statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status)
             );
         }
-        return a.scheduledTime.getTime() - b.scheduledTime.getTime();
+        return b.scheduledTime.getTime() - a.scheduledTime.getTime();
     };
 
     async getCsvUrl(jobId: string, userUuid: string) {
@@ -491,9 +486,10 @@ export class SchedulerModel {
             .orderBy('scheduled_time', 'desc')
             .returning('*');
 
-        const job = jobs
-            .map(SchedulerModel.parseSchedulerLog)
-            .sort(SchedulerModel.sortLogs)[0];
+        const job = jobs.sort(
+            (a, b) =>
+                statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status),
+        )[0];
         if (!job || job.details?.createdByUserUuid !== userUuid)
             throw new NotFoundError('Download CSV job not found');
 
