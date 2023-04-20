@@ -181,7 +181,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    Organisation: {
+    Organization: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -203,7 +203,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                results: { ref: 'Organisation', required: true },
+                results: { ref: 'Organization', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
@@ -222,7 +222,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Organisation.name_': {
+    'Pick_Organization.name_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -233,10 +233,10 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CreateOrganization: {
         dataType: 'refAlias',
-        type: { ref: 'Pick_Organisation.name_', validators: {} },
+        type: { ref: 'Pick_Organization.name_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Partial_Omit_Organisation.organizationUuid-or-needsProject__': {
+    'Partial_Omit_Organization.organizationUuid-or-needsProject__': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -254,7 +254,7 @@ const models: TsoaRoute.Models = {
     UpdateOrganization: {
         dataType: 'refAlias',
         type: {
-            ref: 'Partial_Omit_Organisation.organizationUuid-or-needsProject__',
+            ref: 'Partial_Omit_Organization.organizationUuid-or-needsProject__',
             validators: {},
         },
     },
