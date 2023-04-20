@@ -6,13 +6,13 @@ import {
     isUpdateSchedulerSlackTarget,
     NotFoundError,
     Scheduler,
-    SchedulerAndLogs,
     SchedulerAndTargets,
     SchedulerBase,
     SchedulerEmailTarget,
     SchedulerJobStatus,
     SchedulerLog,
     SchedulerSlackTarget,
+    SchedulerWithLogs,
     UpdateSchedulerAndTargets,
 } from '@lightdash/common';
 import { NotFound } from 'express-openapi-validator/dist/openapi.validator';
@@ -421,7 +421,7 @@ export class SchedulerModel {
         ];
     }
 
-    async getSchedulerLogs(projectUuid: string): Promise<SchedulerAndLogs> {
+    async getSchedulerLogs(projectUuid: string): Promise<SchedulerWithLogs> {
         const schedulers: SchedulerBase[] = await this.getSchedulerForProject(
             projectUuid,
         );

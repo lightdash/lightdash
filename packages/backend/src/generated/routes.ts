@@ -1087,7 +1087,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SchedulerAndLogs: {
+    SchedulerWithLogs: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -1112,7 +1112,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                results: { ref: 'SchedulerAndLogs', required: true },
+                results: { ref: 'SchedulerWithLogs', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
