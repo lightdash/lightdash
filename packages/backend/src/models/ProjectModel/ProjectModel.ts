@@ -28,6 +28,7 @@ import { Knex } from 'knex';
 import { DatabaseError } from 'pg';
 import { LightdashConfig } from '../../config/parseConfig';
 import { OrganizationTableName } from '../../database/entities/organizations';
+import { PinnedListTableName } from '../../database/entities/pinnedList';
 import { DbProjectMembership } from '../../database/entities/projectMemberships';
 import {
     CachedExploresTableName,
@@ -282,6 +283,7 @@ export class ProjectModel {
                   encrypted_credentials: null;
                   warehouse_type: null;
                   organization_uuid: string;
+                  pinned_list_uuid?: string;
               }
             | {
                   name: string;
@@ -290,6 +292,7 @@ export class ProjectModel {
                   encrypted_credentials: Buffer;
                   warehouse_type: string;
                   organization_uuid: string;
+                  pinned_list_uuid?: string;
               }
         )[];
         const projects = await this.database('projects')
@@ -302,6 +305,11 @@ export class ProjectModel {
                 OrganizationTableName,
                 'organizations.organization_id',
                 'projects.organization_id',
+            )
+            .leftJoin(
+                PinnedListTableName,
+                'pinned_list.project_uuid',
+                'projects.project_uuid',
             )
             .column([
                 this.database.ref('name').withSchema(ProjectTableName),
@@ -318,9 +326,12 @@ export class ProjectModel {
                 this.database
                     .ref('organization_uuid')
                     .withSchema(OrganizationTableName),
+                this.database
+                    .ref('pinned_list_uuid')
+                    .withSchema(PinnedListTableName),
             ])
             .select<QueryResult>()
-            .where('project_uuid', projectUuid);
+            .where('projects.project_uuid', projectUuid);
         if (projects.length === 0) {
             throw new NotExistsError(
                 `Cannot find project with id: ${projectUuid}`,
@@ -338,12 +349,13 @@ export class ProjectModel {
         } catch (e) {
             throw new UnexpectedServerError('Failed to load dbt credentials');
         }
-        const result = {
+        const result: Omit<Project, 'warehouseConnection'> = {
             organizationUuid: project.organization_uuid,
             projectUuid,
             name: project.name,
             type: project.project_type,
             dbtConnection: dbtSensitiveCredentials,
+            pinnedListUuid: project.pinned_list_uuid,
         };
         if (!project.warehouse_type) {
             return result;
@@ -389,6 +401,7 @@ export class ProjectModel {
             type: project.type,
             dbtConnection: nonSensitiveDbtCredentials,
             warehouseConnection: nonSensitiveCredentials,
+            pinnedListUuid: project.pinnedListUuid,
         };
     }
 
