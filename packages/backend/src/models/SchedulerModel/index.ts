@@ -7,28 +7,42 @@ import {
     NotFoundError,
     Scheduler,
     SchedulerAndTargets,
+    SchedulerBase,
     SchedulerEmailTarget,
     SchedulerJobStatus,
     SchedulerLog,
     SchedulerSlackTarget,
+    SchedulerWithLogs,
     UpdateSchedulerAndTargets,
 } from '@lightdash/common';
 import { NotFound } from 'express-openapi-validator/dist/openapi.validator';
 import { Knex } from 'knex';
+import { DashboardsTableName } from '../../database/entities/dashboards';
+import { ProjectTableName } from '../../database/entities/projects';
+import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import {
     SchedulerDb,
     SchedulerEmailTargetDb,
     SchedulerEmailTargetTableName,
+    SchedulerLogDb,
     SchedulerLogTableName,
     SchedulerSlackTargetDb,
     SchedulerSlackTargetTableName,
     SchedulerTable,
     SchedulerTableName,
 } from '../../database/entities/scheduler';
+import { SpaceTableName } from '../../database/entities/spaces';
 
 type ModelDependencies = {
     database: Knex;
 };
+
+const statusOrder = [
+    SchedulerJobStatus.ERROR,
+    SchedulerJobStatus.COMPLETED,
+    SchedulerJobStatus.STARTED,
+    SchedulerJobStatus.SCHEDULED,
+].map((s) => s.toString());
 
 export class SchedulerModel {
     private database: Knex;
@@ -328,6 +342,107 @@ export class SchedulerModel {
         });
     }
 
+    static parseScheduler(schedulerDb: SchedulerDb): SchedulerBase {
+        return {
+            schedulerUuid: schedulerDb.scheduler_uuid,
+            name: schedulerDb.name,
+            createdAt: schedulerDb.created_at,
+            updatedAt: schedulerDb.updated_at,
+            createdBy: schedulerDb.created_by,
+            format: schedulerDb.format as SchedulerBase['format'],
+            cron: schedulerDb.cron,
+            savedChartUuid: schedulerDb.saved_chart_uuid,
+            dashboardUuid: schedulerDb.dashboard_uuid,
+            options: schedulerDb.options,
+        };
+    }
+
+    static parseSchedulerLog(logDb: SchedulerLogDb): SchedulerLog {
+        return {
+            task: logDb.task as SchedulerLog['task'],
+            scheduledTime: logDb.scheduled_time,
+            schedulerUuid: logDb.scheduler_uuid,
+            jobGroup: logDb.job_group,
+            jobId: logDb.job_id,
+            status: logDb.status as SchedulerJobStatus,
+            target: logDb.target === null ? undefined : logDb.target,
+            targetType:
+                logDb.target_type === null
+                    ? undefined
+                    : (logDb.target_type as SchedulerLog['targetType']),
+            details: logDb.details === null ? undefined : logDb.details,
+        };
+    }
+
+    async getSchedulerForProject(
+        projectUuid: string,
+    ): Promise<SchedulerBase[]> {
+        const schedulerChartUuids = await this.database(SchedulerTableName)
+            .select('scheduler.*')
+            .leftJoin(
+                SavedChartsTableName,
+                `${SavedChartsTableName}.saved_query_uuid`,
+                `${SchedulerTableName}.saved_chart_uuid`,
+            )
+            .leftJoin(
+                SpaceTableName,
+                `${SpaceTableName}.space_id`,
+                `${SavedChartsTableName}.space_id`,
+            )
+            .leftJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid);
+
+        const schedulerDashboardUuids = await this.database(SchedulerTableName)
+            .select('scheduler.*')
+            .leftJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${SchedulerTableName}.dashboard_uuid`,
+            )
+            .leftJoin(
+                SpaceTableName,
+                `${SpaceTableName}.space_id`,
+                `${DashboardsTableName}.space_id`,
+            )
+            .leftJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid);
+
+        return [
+            ...schedulerChartUuids.map(SchedulerModel.parseScheduler),
+            ...schedulerDashboardUuids.map(SchedulerModel.parseScheduler),
+        ];
+    }
+
+    async getSchedulerLogs(projectUuid: string): Promise<SchedulerWithLogs> {
+        const schedulers: SchedulerBase[] = await this.getSchedulerForProject(
+            projectUuid,
+        );
+        const schedulerUuids = schedulers.map((s) => s.schedulerUuid);
+
+        const uniqueSchedulerUuids = [...schedulerUuids];
+
+        const logs = await this.database(SchedulerLogTableName)
+
+            .select()
+            .whereIn(`scheduler_uuid`, uniqueSchedulerUuids);
+        const schedulerLogs: SchedulerLog[] = logs.map(
+            SchedulerModel.parseSchedulerLog,
+        );
+
+        return {
+            schedulers,
+            logs: schedulerLogs.sort(SchedulerModel.sortLogs),
+        };
+    }
+
     async logSchedulerJob(log: SchedulerLog): Promise<void> {
         await this.database(SchedulerLogTableName).insert({
             task: log.task,
@@ -351,6 +466,19 @@ export class SchedulerModel {
         });
     }
 
+    static sortLogs = (a: SchedulerLog, b: SchedulerLog) => {
+        /** 
+         *  Sometimes scheduled event is added after the job is completed
+            First sort by date DESC, then sort by status,
+         */
+        if (a.scheduledTime.getTime() === b.scheduledTime.getTime()) {
+            return (
+                statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status)
+            );
+        }
+        return b.scheduledTime.getTime() - a.scheduledTime.getTime();
+    };
+
     async getCsvUrl(jobId: string, userUuid: string) {
         const jobs = await this.database(SchedulerLogTableName)
             .where(`job_id`, jobId)
@@ -358,13 +486,6 @@ export class SchedulerModel {
             .orderBy('scheduled_time', 'desc')
             .returning('*');
 
-        // Sometimes scheduled event is added after the job is completed
-        const statusOrder = [
-            SchedulerJobStatus.ERROR,
-            SchedulerJobStatus.COMPLETED,
-            SchedulerJobStatus.STARTED,
-            SchedulerJobStatus.SCHEDULED,
-        ].map((s) => s.toString());
         const job = jobs.sort(
             (a, b) =>
                 statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status),

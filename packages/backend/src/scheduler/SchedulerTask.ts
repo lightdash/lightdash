@@ -1,6 +1,7 @@
 import {
     DownloadCsvPayload,
     EmailNotificationPayload,
+    getHumanReadableCronExpression,
     isEmailTarget,
     isSchedulerCsvOptions,
     isSlackTarget,
@@ -12,7 +13,6 @@ import {
     SchedulerLog,
     SlackNotificationPayload,
 } from '@lightdash/common';
-import cronstrue from 'cronstrue';
 import { nanoid } from 'nanoid';
 import { analytics } from '../analytics/client';
 import {
@@ -184,14 +184,6 @@ export const getNotificationPageData = async (
         csvUrls,
     };
 };
-
-function getHumanReadableCronExpression(cronExpression: string) {
-    const value = cronstrue.toString(cronExpression, {
-        verbose: true,
-        throwExceptionOnParseError: false,
-    });
-    return value[0].toLowerCase() + value.slice(1);
-}
 
 export const sendSlackNotification = async (
     jobId: string,

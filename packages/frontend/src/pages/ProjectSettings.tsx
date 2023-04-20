@@ -16,6 +16,7 @@ import DbtCloudSettings from '../components/DbtCloudSettings';
 import ProjectUserAccess from '../components/ProjectAccess';
 import { UpdateProjectConnection } from '../components/ProjectConnection';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
+import SettingsScheduledDeliveries from '../components/SettingsScheduledDeliveries';
 import SettingsUsageAnalytics from '../components/SettingsUsageAnalytics';
 import { useProject } from '../hooks/useProject';
 import { useApp } from '../providers/AppProvider';
@@ -28,6 +29,7 @@ enum SettingsTabs {
     TABLES_CONFIGURATION = 'tablesConfiguration',
     PROJECT_ACCESS = 'projectAccess',
     USAGE_ANALYTICS = 'usageAnalytics',
+    SCHEDULED_DELIVERTIES = 'scheduledDeliveries',
 }
 
 enum IntegrationsTabs {
@@ -112,6 +114,10 @@ const ProjectSettings: FC = () => {
                             title="Usage Analytics"
                         />
                     )}
+                    <Tab
+                        id={SettingsTabs.SCHEDULED_DELIVERTIES}
+                        title="Scheduled Deliveries"
+                    />
                 </Tabs>
             </TabsWrapper>
 
@@ -145,6 +151,12 @@ const ProjectSettings: FC = () => {
                     path={`${basePath}/${SettingsTabs.USAGE_ANALYTICS}`}
                 >
                     <SettingsUsageAnalytics projectUuid={projectUuid} />
+                </Route>
+                <Route
+                    exact
+                    path={`${basePath}/${SettingsTabs.SCHEDULED_DELIVERTIES}`}
+                >
+                    <SettingsScheduledDeliveries projectUuid={projectUuid} />
                 </Route>
                 <Redirect to={basePath} />
             </Switch>
