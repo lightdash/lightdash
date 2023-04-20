@@ -8,7 +8,9 @@ import {
     RadioGroup,
 } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
+import { CreateSchedulerAndTargetsWithoutIds } from '@lightdash/common';
 import React, { FC, useEffect, useMemo, useState } from 'react';
+import { UseFormReturn } from 'react-hook-form';
 import useHealth from '../../../hooks/health/useHealth';
 import { useSlackChannels } from '../../../hooks/slack/useSlackChannels';
 import { useGetSlack } from '../../../hooks/useSlack';
@@ -16,14 +18,13 @@ import { isInvalidCronExpression } from '../../../utils/fieldValidators';
 import { ArrayInput } from '../../ReactHookForm/ArrayInput';
 import AutoComplete from '../../ReactHookForm/AutoComplete';
 import CronInput from '../../ReactHookForm/CronInput';
-import Form from '../../ReactHookForm/Form';
-import Input from '../../ReactHookForm/Input';
-
 import {
     InlinedInputs,
     InlinedLabel,
     InlineIcon,
 } from '../../ReactHookForm/CronInput/CronInput.styles';
+import Form from '../../ReactHookForm/Form';
+import Input from '../../ReactHookForm/Input';
 import { hasRequiredScopes } from '../../UserSettings/SlackSettingsPanel';
 import {
     EmailIcon,
@@ -176,7 +177,10 @@ const SchedulerOptions: FC<
 };
 
 const SchedulerForm: FC<
-    { disabled: boolean } & React.ComponentProps<typeof Form>
+    {
+        disabled: boolean;
+        methods: UseFormReturn<CreateSchedulerAndTargetsWithoutIds, object>;
+    } & Omit<React.ComponentProps<typeof Form>, 'methods'>
 > = ({ disabled, methods, ...rest }) => {
     const slackQuery = useGetSlack();
     const slackState = useMemo(() => {
@@ -210,10 +214,11 @@ const SchedulerForm: FC<
     const isAddEmailDisabled = disabled || !health.data?.hasEmailClient;
     const isImageDisabled = !health.data?.hasHeadlessBrowser;
 
-    const format = methods.watch('format');
+    const format = methods.watch('format', isImageDisabled ? 'csv' : 'image');
 
     const [showDestinationLabel, setShowDestinationLabel] =
         useState<boolean>(true);
+
     return (
         <Form name="scheduler" methods={methods} {...rest}>
             <FormGroup label={<Title>1. Name the delivery</Title>}>
@@ -246,19 +251,21 @@ const SchedulerForm: FC<
                         <InlinedLabel>Format</InlinedLabel>
 
                         <StyledSelect
-                            name="format"
-                            value={format}
-                            onChange={(e) => {
-                                methods.setValue(
-                                    'format',
-                                    e.currentTarget.value,
-                                );
+                            {...methods.register('format', {
+                                value: format,
 
-                                const isCsvValue =
-                                    e.currentTarget.value === 'csv';
-                                if (!isCsvValue)
-                                    methods.setValue('options', {});
-                            }}
+                                onChange: (e) => {
+                                    methods.setValue(
+                                        'format',
+                                        e.currentTarget.value,
+                                    );
+
+                                    const isCsvValue =
+                                        e.currentTarget.value === 'csv';
+                                    if (!isCsvValue)
+                                        methods.setValue('options', {});
+                                },
+                            })}
                             options={[
                                 {
                                     value: 'image',
@@ -314,8 +321,8 @@ const SchedulerForm: FC<
                             renderRow={(key, index, remove) => {
                                 setShowDestinationLabel(false);
                                 const isSlack =
-                                    methods.getValues()?.targets?.[index]
-                                        ?.channel !== undefined;
+                                    'channel' in
+                                    methods.getValues()?.targets?.[index];
 
                                 if (isSlack) {
                                     return (
