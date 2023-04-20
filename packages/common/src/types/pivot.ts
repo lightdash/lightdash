@@ -19,15 +19,23 @@ export type PivotValue =
     | { type: 'label'; fieldId: string; value?: undefined }
     | { type: 'value'; fieldId: string; value: ResultValue };
 
-export type PivotTitleValue = PivotValue & {
+export type TotalLabel = {
     titleDirection: 'index' | 'header';
 };
+
+export type PivotTitleValue = PivotValue & TotalLabel;
+
+export type TotalTitle = {
+    title: string;
+} & TotalLabel;
 
 export type PivotData = {
     titleFields: (PivotTitleValue | null)[][];
 
     headerValueTypes: PivotHeaderType[];
     headerValues: PivotValue[][];
+
+    headerTotals?: TotalTitle[][];
 
     indexValueTypes: PivotIndexType[];
     indexValues: PivotValue[][];

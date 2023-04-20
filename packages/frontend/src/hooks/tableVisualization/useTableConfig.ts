@@ -229,6 +229,7 @@ const useTableConfig = (
                     },
                     metricQuery: resultsData.metricQuery,
                     rows: resultsData.rows,
+                    itemsMap: itemsMap,
                 });
 
                 return { data: data, error: undefined };
@@ -247,6 +248,7 @@ const useTableConfig = (
         selectedItemIds,
         isColumnVisible,
         getField,
+        itemsMap,
     ]);
 
     // Remove columProperties from map if the column has been removed from results

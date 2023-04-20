@@ -1,5 +1,9 @@
 import {
+    Field,
     FieldType,
+    formatValue,
+    isField,
+    isMetric,
     MetricQuery,
     PivotConfig,
     PivotData,
@@ -9,7 +13,9 @@ import {
     PivotValue,
     ResultRow,
     ResultValue,
+    TableCalculation,
 } from '@lightdash/common';
+import last from 'lodash-es/last';
 
 type PivotQueryResultsArgs = {
     pivotConfig: PivotConfig;
@@ -18,6 +24,7 @@ type PivotQueryResultsArgs = {
         'dimensions' | 'metrics' | 'tableCalculations' | 'additionalMetrics'
     >;
     rows: ResultRow[];
+    itemsMap: Record<string, TableCalculation | Field>;
 };
 
 type RecursiveRecord<T = unknown> = {
@@ -98,7 +105,14 @@ export const pivotQueryResults = ({
     pivotConfig,
     metricQuery,
     rows,
+    itemsMap,
 }: PivotQueryResultsArgs): PivotData => {
+    console.log({
+        pivotConfig,
+        metricQuery,
+        rows,
+    });
+
     if (rows.length === 0) {
         throw new Error('Cannot pivot results with no rows');
     }
@@ -262,8 +276,8 @@ export const pivotQueryResults = ({
                 ...(pivotConfig.metricsAsRows ? [] : [metric.fieldId]),
             ];
 
-            const rowKeysString = rowKeys.map((k) => String(k));
-            const columnKeysString = columnKeys.map((k) => String(k));
+            const rowKeysString = rowKeys.map(String);
+            const columnKeysString = columnKeys.map(String);
 
             const rowIndex = getIndexByKey(rowIndices, rowKeysString);
             const columnIndex = getIndexByKey(columnIndices, columnKeysString);
@@ -271,6 +285,37 @@ export const pivotQueryResults = ({
             dataValues[rowIndex][columnIndex] = value;
         }
     }
+
+    // compute row totals
+    let rowTotals: (ResultValue | null)[][] | undefined;
+    if (pivotConfig.metricsAsRows) {
+        rowTotals = [...Array(1)].map(() => Array(N_DATA_ROWS).fill(null));
+
+        rowTotals = rowTotals.map((row) => {
+            return row.map((_, totalRowIndex) => {
+                const indexValue = indexValues.map(last)[totalRowIndex];
+                const item = indexValue ? itemsMap[indexValue?.fieldId] : null;
+
+                const sum = dataValues[totalRowIndex].reduce((acc, value) => {
+                    const parsedVal = Number(value?.raw);
+                    const finalVal = Number.isNaN(parsedVal) ? 0 : parsedVal;
+                    return acc + finalVal;
+                }, 0);
+
+                const formattedSum = formatValue(
+                    sum,
+                    item && isField(item) && isMetric(item) ? item : undefined,
+                );
+
+                return {
+                    raw: sum,
+                    formatted: formattedSum,
+                };
+            });
+        });
+    }
+
+    console.log(rowTotals);
 
     const titleFields: (PivotTitleValue | null)[][] = [
         ...Array(headerValueTypes.length),
@@ -303,5 +348,6 @@ export const pivotQueryResults = ({
         dataValues,
         pivotConfig,
         titleFields,
+        rowTotals,
     };
 };
