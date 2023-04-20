@@ -954,73 +954,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SchedulerJobStatus: {
-        dataType: 'refEnum',
-        enums: ['scheduled', 'started', 'completed', 'error'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string.any_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SchedulerLog: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                details: { ref: 'Record_string.any_' },
-                targetType: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'enum', enums: ['email'] },
-                        { dataType: 'enum', enums: ['slack'] },
-                    ],
-                },
-                target: { dataType: 'string' },
-                status: { ref: 'SchedulerJobStatus', required: true },
-                scheduledTime: { dataType: 'datetime', required: true },
-                jobGroup: { dataType: 'string' },
-                jobId: { dataType: 'string', required: true },
-                schedulerUuid: { dataType: 'string' },
-                task: {
-                    dataType: 'union',
-                    subSchemas: [
-                        {
-                            dataType: 'enum',
-                            enums: ['handleScheduledDelivery'],
-                        },
-                        { dataType: 'enum', enums: ['sendEmailNotification'] },
-                        { dataType: 'enum', enums: ['sendSlackNotification'] },
-                        { dataType: 'enum', enums: ['downloadCsv'] },
-                    ],
-                    required: true,
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiSchedulerLogsResponse: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                results: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'SchedulerLog' },
-                    required: true,
-                },
-                status: { dataType: 'enum', enums: ['ok'], required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SchedulerCsvOptions: {
         dataType: 'refAlias',
         type: {
@@ -1098,6 +1031,89 @@ const models: TsoaRoute.Models = {
                 createdAt: { dataType: 'datetime', required: true },
                 name: { dataType: 'string', required: true },
                 schedulerUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SchedulerJobStatus: {
+        dataType: 'refEnum',
+        enums: ['scheduled', 'started', 'completed', 'error'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.any_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SchedulerLog: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                details: { ref: 'Record_string.any_' },
+                targetType: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['email'] },
+                        { dataType: 'enum', enums: ['slack'] },
+                    ],
+                },
+                target: { dataType: 'string' },
+                status: { ref: 'SchedulerJobStatus', required: true },
+                scheduledTime: { dataType: 'datetime', required: true },
+                jobGroup: { dataType: 'string' },
+                jobId: { dataType: 'string', required: true },
+                schedulerUuid: { dataType: 'string' },
+                task: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'enum',
+                            enums: ['handleScheduledDelivery'],
+                        },
+                        { dataType: 'enum', enums: ['sendEmailNotification'] },
+                        { dataType: 'enum', enums: ['sendSlackNotification'] },
+                        { dataType: 'enum', enums: ['downloadCsv'] },
+                    ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SchedulerAndLogs: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                logs: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'SchedulerLog' },
+                    required: true,
+                },
+                schedulers: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'SchedulerBase' },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSchedulerLogsResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'SchedulerAndLogs', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
         },
