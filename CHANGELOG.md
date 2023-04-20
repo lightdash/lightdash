@@ -1,3 +1,10 @@
+# [0.515.0](https://github.com/lightdash/lightdash/compare/0.514.1...0.515.0) (2023-04-20)
+
+
+### Features
+
+* pivot table underlying data drill into ([#5097](https://github.com/lightdash/lightdash/issues/5097)) ([6ff61ce](https://github.com/lightdash/lightdash/commit/6ff61ce8e1834e1931e38d3f1e0ae8e45ae2e2e3))
+
 ## [0.514.1](https://github.com/lightdash/lightdash/compare/0.514.0...0.514.1) (2023-04-20)
 
 
