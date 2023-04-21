@@ -11,6 +11,7 @@ import RecentlyUpdatedPanel from '../components/Home/RecentlyUpdatedPanel';
 import PageSpinner from '../components/PageSpinner';
 import PinnedItemsPanel from '../components/PinnedItemsPanel';
 import { useDashboards } from '../hooks/dashboard/useDashboards';
+import { usePinnedItems } from '../hooks/pinning/usePinnedItems';
 import {
     useOnboardingStatus,
     useProjectSavedChartStatus,
@@ -26,12 +27,14 @@ const Home: FC = () => {
     const project = useProject(selectedProjectUuid);
     const onboarding = useOnboardingStatus();
 
+    const { data: pinnedItems, isLoading: pinnedItemsLoading } = usePinnedItems(
+        selectedProjectUuid,
+        project?.data?.pinnedListUuid || '',
+    );
     const { data: dashboards = [], isLoading: dashboardsLoading } =
         useDashboards(selectedProjectUuid);
     const { data: savedCharts = [], isLoading: chartsLoading } =
         useSavedCharts(selectedProjectUuid);
-    const { data: spaces = [], isLoading: spacesLoading } =
-        useSpaces(selectedProjectUuid);
 
     const { user } = useApp();
 
@@ -41,7 +44,7 @@ const Home: FC = () => {
         savedChartStatus.isLoading ||
         dashboardsLoading ||
         chartsLoading ||
-        spacesLoading;
+        pinnedItemsLoading;
     const error = onboarding.error || project.error || savedChartStatus.error;
 
     useUnmount(() => onboarding.remove());
@@ -78,7 +81,7 @@ const Home: FC = () => {
                             projectUuid={project.data.projectUuid}
                         />
                         <PinnedItemsPanel
-                            data={{ dashboards, savedCharts, spaces }}
+                            data={pinnedItems!}
                             projectUuid={project.data.projectUuid}
                             organizationUuid={project.data.organizationUuid}
                         />

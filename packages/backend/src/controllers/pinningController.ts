@@ -40,7 +40,7 @@ export class PinningController extends Controller {
         this.setStatus(200);
         return {
             status: 'ok',
-            data: pinnedItems,
+            results: pinnedItems,
         };
     }
 }
