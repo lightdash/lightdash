@@ -64,6 +64,7 @@ const getCharts = async (
                     'created_at as updated_at',
                     'updated_by_user_uuid',
                     'chart_type',
+                    'chart_config',
                 )
                 .as('sqv'),
             'saved_queries.saved_query_id',
