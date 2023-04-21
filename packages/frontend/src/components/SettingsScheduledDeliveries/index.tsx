@@ -1,4 +1,7 @@
-import { getHumanReadableCronExpression } from '@lightdash/common';
+import {
+    getHumanReadableCronExpression,
+    isSlackTarget,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
@@ -6,20 +9,56 @@ import {
     Card,
     Group,
     Loader,
-    Stack,
+    Modal,
     Table,
     Tabs,
+    Text,
     Title,
     Tooltip,
 } from '@mantine/core';
 import { IconClock, IconDots, IconPencil, IconSend } from '@tabler/icons-react';
-import { FC } from 'react';
+import { FC, useState } from 'react';
 import { useSchedulerLogs } from '../../hooks/scheduler/useScheduler';
 import MantineIcon from '../common/MantineIcon';
 
 interface ProjectUserAccessProps {
     projectUuid: string;
 }
+
+const ListTargets: FC<{ targets: string[] }> = ({ targets }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    if (targets.length === 0) {
+        return <p>No targets</p>;
+    }
+
+    return (
+        <>
+            {targets.slice(0, 2).map((target) => (
+                <p key={target}>{target}</p>
+            ))}
+
+            {targets.length > 2 && (
+                <>
+                    <Anchor onClick={() => setIsOpen(true)}>
+                        {`+${targets.length - 2} more contacts`}
+                    </Anchor>
+
+                    {isOpen && (
+                        <Modal
+                            title={'Contacts list'}
+                            opened={true}
+                            onClose={() => setIsOpen(false)}
+                        >
+                            {targets.map((target) => (
+                                <p key={target}>{target}</p>
+                            ))}
+                        </Modal>
+                    )}
+                </>
+            )}
+        </>
+    );
+};
 
 const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
     projectUuid,
@@ -74,7 +113,7 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
     };
 
     return (
-        <Card withBorder shadow="xs">
+        <Card withBorder shadow="xs" style={{ width: 1000, marginLeft: -100 }}>
             <Tabs defaultValue="scheduled-deliveries" mb="sm">
                 <Tabs.List>
                     <Tabs.Tab
@@ -96,11 +135,16 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
                     </Tabs.Tab>
                 </Tabs.List>
                 <Tabs.Panel value="scheduled-deliveries">
-                    <Table my="sm" horizontalSpacing="md">
+                    <Table my="sm" horizontalSpacing="sm">
                         <thead>
                             <tr>
                                 <th>Name</th>
                                 <th>Content</th>
+                                <th>Created by</th>
+
+                                <th>Type</th>
+                                <th>Send to</th>
+
                                 <th>Frequency</th>
                                 <th>Last delivery</th>
                                 <th>Next delivery</th>
@@ -168,10 +212,35 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
                                                 )}
                                             </td>
                                             <td>
-                                                {getHumanReadableCronExpression(
-                                                    scheduler.cron,
-                                                )}
+                                                {
+                                                    data.users.find(
+                                                        (u) =>
+                                                            u.userUuid ===
+                                                            scheduler.createdBy,
+                                                    )?.name
+                                                }
                                             </td>
+                                            <td>{scheduler.format}</td>
+                                            <td>
+                                                <ListTargets
+                                                    targets={scheduler.targets.map(
+                                                        (target) =>
+                                                            isSlackTarget(
+                                                                target,
+                                                            )
+                                                                ? target.channel
+                                                                : target.recipient,
+                                                    )}
+                                                />
+                                            </td>
+                                            <td>
+                                                <Text fz="xs">
+                                                    {getHumanReadableCronExpression(
+                                                        scheduler.cron,
+                                                    )}
+                                                </Text>
+                                            </td>
+
                                             <td>
                                                 {lastDelivery ? (
                                                     <>
@@ -252,12 +321,15 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
                     </Table>
                 </Tabs.Panel>
                 <Tabs.Panel value="run-history">
-                    <Table my="sm" horizontalSpacing="md" highlightOnHover>
+                    <Table my="xs" horizontalSpacing="sm" highlightOnHover>
                         <thead>
                             <tr>
                                 <th>Status</th>
                                 <th>Name</th>
                                 <th>Content</th>
+                                <th>Created by</th>
+                                <th>Type</th>
+                                <th>Send to</th>
                                 <th>Frequency</th>
                                 <th>Delivery start</th>
                             </tr>
@@ -308,9 +380,37 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
                                                 )}
                                             </td>
                                             <td>
-                                                {getHumanReadableCronExpression(
-                                                    scheduler.cron,
+                                                {
+                                                    data.users.find(
+                                                        (u) =>
+                                                            u.userUuid ===
+                                                            scheduler.createdBy,
+                                                    )?.name
+                                                }
+                                            </td>
+                                            <td>{scheduler.format}</td>
+                                            <td>
+                                                {log.target ? (
+                                                    <p>{log.target}</p>
+                                                ) : (
+                                                    <ListTargets
+                                                        targets={scheduler.targets.map(
+                                                            (target) =>
+                                                                isSlackTarget(
+                                                                    target,
+                                                                )
+                                                                    ? target.channel
+                                                                    : target.recipient,
+                                                        )}
+                                                    />
                                                 )}
+                                            </td>
+                                            <td>
+                                                <Text fz="xs">
+                                                    {getHumanReadableCronExpression(
+                                                        scheduler.cron,
+                                                    )}
+                                                </Text>
                                             </td>
                                             <td>
                                                 {log.scheduledTime

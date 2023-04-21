@@ -1216,6 +1216,17 @@ const models: TsoaRoute.Models = {
                     array: { dataType: 'refAlias', ref: 'SchedulerLog' },
                     required: true,
                 },
+                users: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            userUuid: { dataType: 'string', required: true },
+                            name: { dataType: 'string', required: true },
+                        },
+                    },
+                    required: true,
+                },
                 schedulers: {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'SchedulerAndTargets' },

@@ -32,6 +32,7 @@ import {
     SchedulerTableName,
 } from '../../database/entities/scheduler';
 import { SpaceTableName } from '../../database/entities/spaces';
+import { UserTableName } from '../../database/entities/users';
 
 type ModelDependencies = {
     database: Knex;
@@ -361,7 +362,7 @@ export class SchedulerModel {
 
     async getSchedulerForProject(
         projectUuid: string,
-    ): Promise<SchedulerBase[]> {
+    ): Promise<SchedulerAndTargets[]> {
         const schedulerCharts = this.database(SchedulerTableName)
             .select('scheduler.*')
             .leftJoin(
@@ -410,23 +411,28 @@ export class SchedulerModel {
     }
 
     async getSchedulerLogs(projectUuid: string): Promise<SchedulerWithLogs> {
-        const schedulers: SchedulerBase[] = await this.getSchedulerForProject(
-            projectUuid,
-        );
+        const schedulers = await this.getSchedulerForProject(projectUuid);
         const schedulerUuids = schedulers.map((s) => s.schedulerUuid);
-
-        const uniqueSchedulerUuids = [...schedulerUuids];
 
         const logs = await this.database(SchedulerLogTableName)
 
             .select()
-            .whereIn(`scheduler_uuid`, uniqueSchedulerUuids);
+            .whereIn(`scheduler_uuid`, schedulerUuids);
         const schedulerLogs: SchedulerLog[] = logs.map(
             SchedulerModel.parseSchedulerLog,
         );
 
+        const userUuids = schedulers.map((s) => s.createdBy);
+        const users = await this.database(UserTableName)
+            .select('first_name', 'last_name', 'user_uuid')
+            .whereIn('user_uuid', userUuids);
+
         return {
             schedulers,
+            users: users.map((u) => ({
+                name: `${u.first_name} ${u.last_name}`,
+                userUuid: u.user_uuid,
+            })),
             logs: schedulerLogs.sort(SchedulerModel.sortLogs),
         };
     }
