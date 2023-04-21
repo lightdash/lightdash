@@ -5,7 +5,7 @@ import PageSpinner from '../components/PageSpinner';
 import { useActiveProjectUuid } from '../hooks/useProject';
 import { useProjects } from '../hooks/useProjects';
 
-export const Projects: FC = () => {
+const Projects: FC = () => {
     const { isLoading, data, error } = useProjects();
     const activeProjectUuid = useActiveProjectUuid();
 
@@ -21,3 +21,5 @@ export const Projects: FC = () => {
 
     return <Redirect to={`/projects/${activeProjectUuid}/home`} />;
 };
+
+export default Projects;

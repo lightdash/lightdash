@@ -37,7 +37,10 @@ import {
 } from '../hooks/dashboard/useDashboard';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import { useSpaces } from '../hooks/useSpaces';
-import { useDashboardContext } from '../providers/DashboardProvider';
+import {
+    DashboardProvider,
+    useDashboardContext,
+} from '../providers/DashboardProvider';
 import { TrackSection } from '../providers/TrackingProvider';
 import '../styles/react-grid.css';
 import { SectionName } from '../types/Events';
@@ -123,7 +126,7 @@ const GridTile: FC<
     }
 });
 
-const Dashboard = () => {
+const Dashboard: FC = () => {
     const history = useHistory();
     const { projectUuid, dashboardUuid, mode } = useParams<{
         projectUuid: string;
@@ -470,4 +473,13 @@ const Dashboard = () => {
         </>
     );
 };
-export default Dashboard;
+
+const DashboardPage: FC = () => {
+    return (
+        <DashboardProvider>
+            <Dashboard />
+        </DashboardProvider>
+    );
+};
+
+export default DashboardPage;
