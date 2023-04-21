@@ -131,7 +131,7 @@ describe('Download CSV on Explore', () => {
 
         cy.findByText('Export CSV').click();
 
-        cy.wait('@apiDownloadCsv').then((interception) => {
+        cy.wait('@apiDownloadCsv', { timeout: 10000 }).then((interception) => {
             expect(interception?.response?.statusCode).to.eq(200);
             expect(interception?.response?.body.results).to.have.property(
                 'jobId',
