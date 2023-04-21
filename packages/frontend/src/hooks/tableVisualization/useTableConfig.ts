@@ -10,7 +10,7 @@ import {
     isMetric,
     itemsInMetricQuery,
     PivotData,
-    ResultValue,
+    ResultRow,
     TableChart,
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -150,63 +150,8 @@ const useTableConfig = (
         return false;
     }, [resultsData, pivotDimensions]);
 
-    const pivotTableData = useMemo<{
-        data: PivotData | undefined;
-        error: undefined | string;
-    }>(() => {
-        // Note: user can have metricsAsRows enabled but if the configuration isn't allowed, it'll be ignored
-        // In future we should change this to an error
-        if (
-            canUseMetricsAsRows &&
-            metricsAsRows &&
-            resultsData?.metricQuery &&
-            pivotDimensions
-        ) {
-            // Pivot V2. This will always trigger when the above conditions are met.
-            // The old pivot below will always trigger. So currently we pivot twice when the above conditions are met.
-
-            const hiddenMetricFieldIds = selectedItemIds?.filter((fieldId) => {
-                const field = getField(fieldId);
-
-                return (
-                    !isColumnVisible(fieldId) &&
-                    isField(field) &&
-                    isMetric(field)
-                );
-            });
-
-            try {
-                const data = pivotQueryResults({
-                    pivotConfig: {
-                        pivotDimensions,
-                        metricsAsRows,
-                        columnOrder,
-                        hiddenMetricFieldIds,
-                    },
-                    metricQuery: resultsData.metricQuery,
-                    rows: resultsData.rows,
-                });
-
-                return { data: data, error: undefined };
-            } catch (e) {
-                return { data: undefined, error: e.message };
-            }
-        } else {
-            return { data: undefined, error: undefined };
-        }
-    }, [
-        resultsData,
-        pivotDimensions,
-        columnOrder,
-        canUseMetricsAsRows,
-        metricsAsRows,
-        selectedItemIds,
-        isColumnVisible,
-        getField,
-    ]);
-
     const { rows, columns, error } = useMemo<{
-        rows: Record<string, ResultValue>[];
+        rows: ResultRow[];
         columns: Array<TableColumn | TableHeader>;
         error?: string;
     }>(() => {
@@ -247,6 +192,62 @@ const useTableConfig = (
         isColumnFrozen,
         getFieldLabel,
         getFieldLabelOverride,
+    ]);
+
+    const pivotTableData = useMemo<{
+        data: PivotData | undefined;
+        error: undefined | string;
+    }>(() => {
+        // Note: user can have metricsAsRows enabled but if the configuration isn't allowed, it'll be ignored
+        // In future we should change this to an error
+        if (
+            canUseMetricsAsRows &&
+            metricsAsRows &&
+            resultsData?.metricQuery &&
+            pivotDimensions
+        ) {
+            // Pivot V2. This will always trigger when the above conditions are met.
+            // The old pivot below will always trigger. So currently we pivot twice when the above conditions are met.
+
+            const hiddenMetricFieldIds = selectedItemIds?.filter((fieldId) => {
+                const field = getField(fieldId);
+
+                return (
+                    !isColumnVisible(fieldId) &&
+                    isField(field) &&
+                    isMetric(field)
+                );
+            });
+
+            try {
+                const data = pivotQueryResults({
+                    pivotConfig: {
+                        pivotDimensions,
+                        metricsAsRows,
+                        columnOrder,
+                        hiddenMetricFieldIds,
+                    },
+                    metricQuery: resultsData.metricQuery,
+                    rows,
+                });
+
+                return { data: data, error: undefined };
+            } catch (e) {
+                return { data: undefined, error: e.message };
+            }
+        } else {
+            return { data: undefined, error: undefined };
+        }
+    }, [
+        resultsData,
+        pivotDimensions,
+        columnOrder,
+        canUseMetricsAsRows,
+        metricsAsRows,
+        selectedItemIds,
+        isColumnVisible,
+        getField,
+        rows,
     ]);
 
     // Remove columProperties from map if the column has been removed from results

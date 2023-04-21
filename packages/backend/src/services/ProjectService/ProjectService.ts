@@ -47,7 +47,7 @@ import {
     ProjectMemberRole,
     ProjectType,
     RequestMethod,
-    ResultValue,
+    ResultRow,
     SessionUser,
     SummaryExplore,
     TablesConfiguration,
@@ -55,7 +55,6 @@ import {
     UpdateProject,
     UpdateProjectMember,
     WarehouseClient,
-    WarehouseTypes,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { URL } from 'url';
@@ -729,14 +728,14 @@ export class ProjectService {
         // If there are more than 500 rows, we need to format them in a background job
         const formattedRows =
             rows.length > 500
-                ? await wrapSentryTransaction<Record<string, ResultValue>[]>(
+                ? await wrapSentryTransaction<ResultRow[]>(
                       'formatted rows',
                       {
                           rows: rows.length,
                           warehouse: warehouseConnection?.type,
                       },
                       async () =>
-                          runWorkerThread<Record<string, ResultValue>[]>(
+                          runWorkerThread<ResultRow[]>(
                               new Worker(
                                   './dist/services/ProjectService/formatRows.js',
                                   {

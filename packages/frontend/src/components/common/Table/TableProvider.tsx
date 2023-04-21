@@ -35,7 +35,7 @@ import {
 } from './types';
 
 type Props = {
-    data: Record<string, ResultValue>[];
+    data: ResultRow[];
     columns: Array<TableColumn | TableHeader>;
     headerContextMenu?: FC<HeaderProps>;
     cellContextMenu?: FC<CellContextMenuProps>;
@@ -134,7 +134,7 @@ export const TableProvider: FC<Props> = ({
         : [stickyRowColumn, ...stickyColumns, ...otherColumns];
 
     const table = useReactTable({
-        data: data.map((row) => mapValues(row, (value) => ({ value }))),
+        data,
         columns: visibleColumns,
         state: {
             columnVisibility,

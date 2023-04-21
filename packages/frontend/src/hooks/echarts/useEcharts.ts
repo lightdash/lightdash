@@ -27,7 +27,7 @@ import {
     Metric,
     MetricType,
     PivotReference,
-    ResultValue,
+    ResultRow,
     Series,
     TableCalculation,
     timeFrameConfigs,
@@ -280,12 +280,12 @@ const maxDate = (a: number | string, b: string) => {
 
 export const getMinAndMaxValues = (
     axis: string | undefined,
-    rows: Record<string, ResultValue>[],
+    rows: ResultRow[],
 ): (string | number)[] => {
     if (!axis) return [];
 
     return rows
-        .map((row) => row[axis]?.raw)
+        .map((row) => row[axis]?.value.raw)
         .reduce<(string | number)[]>(
             (acc, value) => {
                 if (
@@ -839,7 +839,7 @@ const getEchartAxis = ({
     const longestValueYAxisLeft: string | undefined =
         leftAxisYId &&
         resultsData?.rows
-            .map((row) => row[leftAxisYId]?.formatted)
+            .map((row) => row[leftAxisYId]?.value.formatted)
             .reduce<string>(
                 (acc, p) => (p && acc.length > p.length ? acc : p),
                 '',
@@ -849,7 +849,7 @@ const getEchartAxis = ({
     const longestValueYAxisRight: string | undefined =
         rightAxisYId &&
         resultsData?.rows
-            .map((row) => row[rightAxisYId].formatted)
+            .map((row) => row[rightAxisYId].value.formatted)
             .reduce<string>(
                 (acc, p) => (p && acc.length > p.length ? acc : p),
                 '',
@@ -1047,13 +1047,13 @@ const getValidStack = (series: EChartSeries | undefined) => {
 };
 
 const calculateStackTotal = (
-    row: Record<string, ResultValue>,
+    row: ResultRow,
     series: EChartSeries[],
     flipAxis: boolean | undefined,
 ) => {
     return series.reduce<number>((acc, s) => {
         const hash = flipAxis ? s.encode?.x : s.encode?.y;
-        const numberValue = hash ? toNumber(row[hash]?.raw) : 0;
+        const numberValue = hash ? toNumber(row[hash]?.value.raw) : 0;
         if (!Number.isNaN(numberValue)) {
             acc += numberValue;
         }
@@ -1067,7 +1067,7 @@ const calculateStackTotal = (
 // - the total of that stack to be used in the label
 // The x/axis value and the "0" need to flip position if the axis are flipped
 const getStackTotalRows = (
-    rows: Record<string, ResultValue>[],
+    rows: ResultRow[],
     series: EChartSeries[],
     flipAxis: boolean | undefined,
 ): [unknown, unknown, number][] => {
@@ -1078,14 +1078,14 @@ const getStackTotalRows = (
             return [null, null, 0];
         }
         return flipAxis
-            ? [0, row[hash]?.raw, total]
-            : [row[hash]?.raw, 0, total];
+            ? [0, row[hash]?.value.raw, total]
+            : [row[hash]?.value.raw, 0, total];
     });
 };
 
 // To hack the stack totals in echarts we need to create a fake series with the value 0 and display the total in the label
 const getStackTotalSeries = (
-    rows: Record<string, ResultValue>[],
+    rows: ResultRow[],
     seriesWithStack: EChartSeries[],
     items: Array<Field | TableCalculation>,
     flipAxis: boolean | undefined,

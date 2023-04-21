@@ -9,7 +9,7 @@ import {
 import { useMemo } from 'react';
 
 export type PivotValueMap = {
-    [pivotKey: string]: Record<string, ResultRow[0]['value']>;
+    [pivotKey: string]: Record<string, ResultValue>;
 };
 export type RowKeyMap = Record<string, FieldId | PivotReference>;
 
@@ -25,19 +25,17 @@ export const getPivotedData = (
 } => {
     const pivotValuesMap: PivotValueMap = {};
     const rowKeyMap: Record<string, FieldId | PivotReference> = {};
-    const pivotedRowMap = rows.reduce<
-        Record<string, Record<string, ResultValue>>
-    >((acc, row) => {
+    const pivotedRowMap = rows.reduce<Record<string, ResultRow>>((acc, row) => {
         const unpivotedKeysAndValues: string[] = [];
 
-        const pivotedRow: Record<string, ResultValue> = {};
+        const pivotedRow: ResultRow = {};
         Object.entries(row).forEach(([key, value]) => {
             if (keysToPivot.includes(key)) {
                 const pivotReference: PivotReference = {
                     field: key,
                     pivotValues: pivotKeys.map((pivotKey) => ({
                         field: pivotKey,
-                        value: row[pivotKey].raw,
+                        value: row[pivotKey].value.raw,
                     })),
                 };
                 const pivotedKeyHash: string =
@@ -47,14 +45,14 @@ export const getPivotedData = (
                         pivotValuesMap[pivotKey] = {};
                     }
 
-                    pivotValuesMap[pivotKey][`${row[pivotKey].raw}`] =
-                        row[pivotKey];
+                    pivotValuesMap[pivotKey][`${row[pivotKey].value.raw}`] =
+                        row[pivotKey].value;
                 });
                 pivotedRow[pivotedKeyHash] = value;
                 rowKeyMap[pivotedKeyHash] = pivotReference;
             }
             if (keysToNotPivot.includes(key)) {
-                unpivotedKeysAndValues.push(key, `${value.raw}`);
+                unpivotedKeysAndValues.push(key, `${value.value.raw}`);
                 pivotedRow[key] = value;
                 rowKeyMap[key] = key;
             }

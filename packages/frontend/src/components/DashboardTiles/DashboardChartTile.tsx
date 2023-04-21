@@ -146,7 +146,7 @@ const ValidDashboardChartTile: FC<{
                 resultData.metricQuery.dimensions.reduce((sum, dimensionId) => {
                     const newSuggestions: string[] =
                         resultData.rows.reduce<string[]>((acc, row) => {
-                            const value = row[dimensionId]?.raw;
+                            const value = row[dimensionId]?.value.raw;
                             if (typeof value === 'string') {
                                 return [...acc, value];
                             }

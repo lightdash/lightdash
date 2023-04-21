@@ -1,4 +1,4 @@
-import { ResultValue } from '@lightdash/common';
+import { ResultRow } from '@lightdash/common';
 import {
     getAxisDefaultMaxValue,
     getAxisDefaultMinValue,
@@ -121,13 +121,13 @@ describe('getAxisDefaultMaxValue', () => {
 });
 
 describe('getMinAndMaxValues', () => {
-    test.only('should return min/max values for numbers', () => {
+    test('should return min/max values for numbers', () => {
         const axis = 'axis';
         const values = [
             1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 40, 50, -1, -2, -3, -100, 0,
         ];
-        const resultRow: Record<string, ResultValue>[] = values.map((v) => ({
-            [axis]: { raw: v, formatted: v.toString() },
+        const resultRow: ResultRow[] = values.map((v) => ({
+            [axis]: { value: { raw: v, formatted: v.toString() } },
         }));
         expect(getMinAndMaxValues(axis, resultRow)).toStrictEqual([-100, 50]);
     });
@@ -143,8 +143,8 @@ describe('getMinAndMaxValues', () => {
             '2017-03-29',
             '2019-01-15',
         ];
-        const resultRow = values.map<Record<string, ResultValue>>((v) => ({
-            [axis]: { raw: `${v}${time}`, formatted: v },
+        const resultRow: ResultRow[] = values.map((v) => ({
+            [axis]: { value: { raw: `${v}${time}`, formatted: v } },
         }));
         expect(getMinAndMaxValues(axis, resultRow)).toStrictEqual([
             `2017-03-29${time}`,
@@ -163,8 +163,8 @@ describe('getMinAndMaxValues', () => {
             '-5.000',
             '0.000',
         ];
-        const resultRow: Record<string, ResultValue>[] = values.map((v) => ({
-            [axis]: { raw: v, formatted: v },
+        const resultRow: ResultRow[] = values.map((v) => ({
+            [axis]: { value: { raw: v, formatted: v } },
         }));
         expect(getMinAndMaxValues(axis, resultRow)).toStrictEqual([-5.0, 50.0]);
     });
@@ -172,8 +172,8 @@ describe('getMinAndMaxValues', () => {
     test('string values should return invalid min/max', () => {
         const axis = 'axis';
         const values = ['a', 'b', 'c', 'z'];
-        const resultRow: Record<string, ResultValue>[] = values.map((v) => ({
-            [axis]: { raw: v, formatted: v },
+        const resultRow: ResultRow[] = values.map((v) => ({
+            [axis]: { value: { raw: v, formatted: v } },
         }));
         expect(getMinAndMaxValues(axis, resultRow)).toStrictEqual([0, 0]);
     });

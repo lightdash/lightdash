@@ -61,7 +61,7 @@ import {
     ProjectType,
     WarehouseCredentials,
 } from './types/projects';
-import { ResultValue } from './types/results';
+import { ResultRow } from './types/results';
 import { SchedulerAndTargets, SchedulerWithLogs } from './types/scheduler';
 import { SlackChannel } from './types/slack';
 import { Space } from './types/space';
@@ -273,7 +273,7 @@ export const hasSpecialCharacters = (text: string) => /[^a-zA-Z ]/g.test(text);
 
 export type ApiQueryResults = {
     metricQuery: MetricQuery;
-    rows: Record<string, ResultValue>[];
+    rows: ResultRow[];
 };
 
 export type ApiSqlQueryResults = {
@@ -626,14 +626,14 @@ export type UpdateProject = Omit<
 };
 
 export const getResultValueArray = (
-    rows: Record<string, ResultValue>[],
+    rows: ResultRow[],
     onlyRaw: boolean = false,
-): Record<string, string | unknown>[] =>
-    rows.map((row: Record<string, ResultValue>) =>
+): Record<string, unknown>[] =>
+    rows.map((row) =>
         Object.keys(row).reduce<Record<string, unknown>>((acc, key) => {
-            const value: unknown = onlyRaw
-                ? row[key]?.raw
-                : row[key]?.formatted || row[key]?.raw;
+            const value = onlyRaw
+                ? row[key]?.value.raw
+                : row[key]?.value.formatted || row[key]?.value.raw;
 
             return { ...acc, [key]: value };
         }, {}),
@@ -729,23 +729,22 @@ export function itemsInMetricQuery(
 export function formatRows(
     rows: { [col: string]: any }[],
     itemMap: Record<string, Field | TableCalculation>,
-): Record<string, ResultValue>[] {
+): ResultRow[] {
     return rows.map((row) =>
-        Object.keys(row).reduce<Record<string, ResultValue>>(
-            (acc, columnName) => {
-                const col = row[columnName];
+        Object.keys(row).reduce<ResultRow>((acc, columnName) => {
+            const col = row[columnName];
 
-                const item = itemMap[columnName];
-                return {
-                    ...acc,
-                    [columnName]: {
+            const item = itemMap[columnName];
+            return {
+                ...acc,
+                [columnName]: {
+                    value: {
                         raw: col,
                         formatted: formatItemValue(item, col),
                     },
-                };
-            },
-            {},
-        ),
+                },
+            };
+        }, {}),
     );
 }
 

@@ -3,8 +3,4 @@ export type ResultValue = {
     formatted: string;
 };
 
-export type ResultRow = {
-    [col: string]: {
-        value: ResultValue;
-    };
-};
+export type ResultRow = Record<string, { value: ResultValue }>;
