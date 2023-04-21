@@ -14,6 +14,7 @@ import {
     getItemMap,
     isDashboardChartTileType,
     isField,
+    isMomentInput,
     isTableChartConfig,
     MetricQuery,
     SchedulerCsvOptions,
@@ -56,12 +57,14 @@ type CsvServiceDependencies = {
 const isRowValueTimestamp = (
     value: unknown,
     field: { type: DimensionType },
-): value is MomentInput => field.type === DimensionType.TIMESTAMP;
+): value is MomentInput =>
+    isMomentInput(value) && field.type === DimensionType.TIMESTAMP;
 
 const isRowValueDate = (
     value: unknown,
     field: { type: DimensionType },
-): value is MomentInput => field.type === DimensionType.DATE;
+): value is MomentInput =>
+    isMomentInput(value) && field.type === DimensionType.DATE;
 
 export const convertSqlToCsv = (
     results: ApiSqlQueryResults,

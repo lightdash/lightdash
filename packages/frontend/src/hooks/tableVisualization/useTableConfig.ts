@@ -247,7 +247,6 @@ const useTableConfig = (
         selectedItemIds,
         isColumnVisible,
         getField,
-        rows,
     ]);
 
     // Remove columProperties from map if the column has been removed from results
