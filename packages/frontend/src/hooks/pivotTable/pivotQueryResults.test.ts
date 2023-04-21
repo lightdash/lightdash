@@ -279,6 +279,8 @@ describe('Should pivot data', () => {
                 [{ fieldId: 'site', type: 'label', titleDirection: 'header' }],
                 [{ fieldId: 'page', type: 'label', titleDirection: 'index' }],
             ],
+            headerTotals: undefined,
+            rowTotals: undefined,
         };
         const result = pivotQueryResults({
             pivotConfig,
@@ -395,6 +397,8 @@ describe('Should pivot data', () => {
                     },
                 ],
             ],
+            headerTotals: undefined,
+            rowTotals: undefined,
         };
         const result = pivotQueryResults({
             pivotConfig,

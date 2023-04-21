@@ -15,6 +15,7 @@ import HeaderCell from './HeaderCell';
 import IndexCell from './IndexCell';
 import { usePivotTableCellStyles, usePivotTableStyles } from './tableStyles';
 import TitleCell from './TitleCell';
+import TotalCell from './TotalCell';
 import ValueCell from './ValueCell';
 
 type PivotTableProps = TableProps &
@@ -97,7 +98,7 @@ const PivotTable: FC<PivotTableProps> = ({
                         data.headerValues.length - headerRowIndex;
 
                     return (
-                        <tr key={headerRowIndex}>
+                        <tr key={`header-row-${headerRowIndex}`}>
                             <>
                                 {/* shows empty cell if row numbers are visible */}
                                 {hideRowNumbers ? null : (
@@ -129,7 +130,7 @@ const PivotTable: FC<PivotTableProps> = ({
 
                                         return (
                                             <TitleCell
-                                                key={`${headerRowIndex}-${indexColIndex}`}
+                                                key={`title-${headerRowIndex}-${indexColIndex}`}
                                                 className={cellCx(
                                                     cellStyles.root,
                                                     cellStyles.header,
@@ -169,7 +170,7 @@ const PivotTable: FC<PivotTableProps> = ({
 
                                         return (
                                             <HeaderCell
-                                                key={`${headerRowIndex}-${headerColIndex}`}
+                                                key={`header-${headerRowIndex}-${headerColIndex}`}
                                                 className={cellCx(
                                                     cellStyles.root,
                                                     cellStyles.header,
@@ -187,6 +188,32 @@ const PivotTable: FC<PivotTableProps> = ({
                                         );
                                     },
                                 )}
+
+                                {/* render the total label */}
+                                {data.pivotConfig.rowTotals
+                                    ? data.headerTotals?.[headerRowIndex].map(
+                                          (total, totalIndex) =>
+                                              total ? (
+                                                  <HeaderCell
+                                                      key={`header-total-${headerRowIndex}-${totalIndex}`}
+                                                      className={cellCx(
+                                                          cellStyles.root,
+                                                          cellStyles.header,
+                                                      )}
+                                                  >
+                                                      {total.title}
+                                                  </HeaderCell>
+                                              ) : (
+                                                  <th
+                                                      key={`header-total-${headerRowIndex}-${totalIndex}`}
+                                                      className={cellCx(
+                                                          cellStyles.root,
+                                                          cellStyles.rowNumber,
+                                                      )}
+                                                  />
+                                              ),
+                                      )
+                                    : null}
                             </>
                         </tr>
                     );
@@ -195,7 +222,7 @@ const PivotTable: FC<PivotTableProps> = ({
 
             <tbody>
                 {data.dataValues.map((row, rowIndex) => (
-                    <tr key={rowIndex}>
+                    <tr key={`row-${rowIndex}`}>
                         <>
                             {!hideRowNumbers && (
                                 <td
@@ -225,7 +252,7 @@ const PivotTable: FC<PivotTableProps> = ({
 
                                     return (
                                         <IndexCell
-                                            key={`${rowIndex}-${indexColIndex}`}
+                                            key={`index-${rowIndex}-${indexColIndex}`}
                                             className={cellCx(
                                                 cellStyles.root,
                                                 cellStyles.header,
@@ -251,7 +278,7 @@ const PivotTable: FC<PivotTableProps> = ({
 
                                 return (
                                     <ValueCell
-                                        key={`${rowIndex}-${colIndex}`}
+                                        key={`value-${rowIndex}-${colIndex}`}
                                         item={item}
                                         value={value}
                                         colIndex={colIndex}
@@ -266,6 +293,20 @@ const PivotTable: FC<PivotTableProps> = ({
                                     />
                                 );
                             })}
+
+                            {/* render the total values */}
+                            {data.pivotConfig.rowTotals
+                                ? data.rowTotals?.[rowIndex].map(
+                                      (total, totalIndex) => (
+                                          <TotalCell
+                                              value={total}
+                                              key={`row-total-${rowIndex}-${totalIndex}`}
+                                          >
+                                              {total?.formatted}
+                                          </TotalCell>
+                                      ),
+                                  )
+                                : null}
                         </>
                     </tr>
                 ))}

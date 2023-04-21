@@ -30,11 +30,15 @@ const useTableConfig = (
         !!tableChartConfig?.showColumnCalculation,
     );
 
+    const [showRowCalculation, setShowRowCalculation] = useState<boolean>(
+        !!tableChartConfig?.showRowCalculation,
+    );
+
     const [conditionalFormattings, setConditionalFormattings] = useState<
         ConditionalFormattingConfig[]
     >(tableChartConfig?.conditionalFormattings ?? []);
 
-    const [showTableNames, setShowTableName] = useState<boolean>(
+    const [showTableNames, setShowTableNames] = useState<boolean>(
         tableChartConfig?.showTableNames === undefined
             ? true
             : tableChartConfig.showTableNames,
@@ -55,7 +59,7 @@ const useTableConfig = (
             tableChartConfig?.showTableNames === undefined &&
             explore !== undefined
         ) {
-            setShowTableName(explore.joinedTables.length > 0);
+            setShowTableNames(explore.joinedTables.length > 0);
         }
     }, [explore, tableChartConfig?.showTableNames]);
 
@@ -198,6 +202,10 @@ const useTableConfig = (
         data: PivotData | undefined;
         error: undefined | string;
     }>(() => {
+        console.log({
+            columnTotals: tableChartConfig?.showColumnCalculation,
+            rowTotals: tableChartConfig?.showRowCalculation,
+        });
         // Note: user can have metricsAsRows enabled but if the configuration isn't allowed, it'll be ignored
         // In future we should change this to an error
         if (
@@ -226,6 +234,8 @@ const useTableConfig = (
                         metricsAsRows,
                         columnOrder,
                         hiddenMetricFieldIds,
+                        columnTotals: tableChartConfig?.showColumnCalculation,
+                        rowTotals: tableChartConfig?.showRowCalculation,
                     },
                     metricQuery: resultsData.metricQuery,
                     rows: resultsData.rows,
@@ -249,6 +259,8 @@ const useTableConfig = (
         isColumnVisible,
         getField,
         itemsMap,
+        tableChartConfig?.showColumnCalculation,
+        tableChartConfig?.showRowCalculation,
     ]);
 
     // Remove columProperties from map if the column has been removed from results
@@ -289,6 +301,7 @@ const useTableConfig = (
     const validTableConfig: TableChart = useMemo(
         () => ({
             showColumnCalculation,
+            showRowCalculation,
             showTableNames,
             columns: columnProperties,
             hideRowNumbers,
@@ -297,6 +310,7 @@ const useTableConfig = (
         }),
         [
             showColumnCalculation,
+            showRowCalculation,
             hideRowNumbers,
             showTableNames,
             columnProperties,
@@ -311,18 +325,18 @@ const useTableConfig = (
         validTableConfig,
         showColumnCalculation,
         setShowColumnCalculation,
+        showRowCalculation,
+        setShowRowCalculation,
         showTableNames,
-        setShowTableName,
+        setShowTableNames,
         hideRowNumbers,
         setHideRowNumbers,
-        metricsAsRows,
-        setMetricsAsRows,
-        rows,
-        error,
-        columns,
         columnProperties,
         setColumnProperties,
         updateColumnProperty,
+        rows,
+        error,
+        columns,
         getFieldLabelOverride,
         getFieldLabelDefault,
         getFieldLabel,
@@ -332,6 +346,8 @@ const useTableConfig = (
         conditionalFormattings,
         onSetConditionalFormattings: handleSetConditionalFormattings,
         pivotTableData,
+        metricsAsRows,
+        setMetricsAsRows,
         canUseMetricsAsRows,
     };
 };

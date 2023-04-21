@@ -6,6 +6,8 @@ export type PivotConfig = {
     metricsAsRows: boolean;
     columnOrder?: string[];
     hiddenMetricFieldIds?: string[];
+    rowTotals?: boolean;
+    columnTotals?: boolean;
 };
 
 type HeaderOrIndexType =
@@ -35,7 +37,7 @@ export type PivotData = {
     headerValueTypes: PivotHeaderType[];
     headerValues: PivotValue[][];
 
-    headerTotals?: TotalTitle[][];
+    headerTotals?: (TotalTitle | null)[][];
 
     indexValueTypes: PivotIndexType[];
     indexValues: PivotValue[][];

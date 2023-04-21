@@ -23,12 +23,14 @@ const GeneralSettings: FC = () => {
         resultsData,
         pivotDimensions,
         tableConfig: {
-            showColumnCalculation,
             showTableNames,
+            setShowTableNames,
             hideRowNumbers,
-            setShowTableName,
-            setShowColumnCalculation,
             setHideRowNumbers,
+            showColumnCalculation,
+            setShowColumnCalculation,
+            showRowCalculation,
+            setShowRowCalculation,
             metricsAsRows,
             setMetricsAsRows,
             canUseMetricsAsRows,
@@ -132,18 +134,10 @@ const GeneralSettings: FC = () => {
 
             <FormGroup>
                 <Checkbox
-                    label="Show column total"
-                    checked={showColumnCalculation}
-                    onChange={() => {
-                        setShowColumnCalculation(!showColumnCalculation);
-                    }}
-                />
-
-                <Checkbox
                     label="Show table names"
                     checked={showTableNames}
                     onChange={() => {
-                        setShowTableName(!showTableNames);
+                        setShowTableNames(!showTableNames);
                     }}
                 />
 
@@ -155,15 +149,32 @@ const GeneralSettings: FC = () => {
                     }}
                 />
 
-                {canUseMetricsAsRows && (
-                    <Checkbox
-                        label="Show metrics as rows"
-                        checked={metricsAsRows}
-                        onChange={() => {
-                            setMetricsAsRows(!metricsAsRows);
-                        }}
-                    />
-                )}
+                {canUseMetricsAsRows ? (
+                    <>
+                        <Checkbox
+                            label="Show metrics as rows"
+                            checked={metricsAsRows}
+                            onChange={() => {
+                                setMetricsAsRows(!metricsAsRows);
+                            }}
+                        />
+                        <Checkbox
+                            label="Show row total"
+                            checked={showRowCalculation}
+                            onChange={() => {
+                                setShowRowCalculation(!showRowCalculation);
+                            }}
+                        />
+                    </>
+                ) : null}
+
+                <Checkbox
+                    label="Show column total"
+                    checked={showColumnCalculation}
+                    onChange={() => {
+                        setShowColumnCalculation(!showColumnCalculation);
+                    }}
+                />
             </FormGroup>
 
             <SectionTitle>Columns</SectionTitle>

@@ -14,6 +14,7 @@ import {
     ResultRow,
     ResultValue,
     TableCalculation,
+    TotalTitle,
 } from '@lightdash/common';
 import last from 'lodash-es/last';
 
@@ -105,14 +106,8 @@ export const pivotQueryResults = ({
     pivotConfig,
     metricQuery,
     rows,
-    itemsMap,
+    itemsMap = {},
 }: PivotQueryResultsArgs): PivotData => {
-    console.log({
-        pivotConfig,
-        metricQuery,
-        rows,
-    });
-
     if (rows.length === 0) {
         throw new Error('Cannot pivot results with no rows');
     }
@@ -288,12 +283,31 @@ export const pivotQueryResults = ({
 
     // compute row totals
     let rowTotals: (ResultValue | null)[][] | undefined;
-    if (pivotConfig.metricsAsRows) {
-        rowTotals = [...Array(1)].map(() => Array(N_DATA_ROWS).fill(null));
+    let headerTotals: (TotalTitle | null)[][] | undefined;
 
-        rowTotals = rowTotals.map((row) => {
-            return row.map((_, totalRowIndex) => {
-                const indexValue = indexValues.map(last)[totalRowIndex];
+    console.log({ pivotConfig });
+
+    if (pivotConfig.rowTotals && pivotConfig.metricsAsRows) {
+        const N_TOTAL_COLS = 1;
+        const N_TOTAL_ROWS = headerValues.length;
+
+        rowTotals = create2DArray<ResultValue | null>(
+            N_DATA_ROWS,
+            N_TOTAL_COLS,
+        );
+        headerTotals = create2DArray<TotalTitle | null>(
+            N_TOTAL_ROWS,
+            N_TOTAL_COLS,
+        );
+
+        headerTotals[N_TOTAL_ROWS - 1][N_TOTAL_COLS - 1] = {
+            title: 'Total',
+            titleDirection: 'header',
+        };
+
+        rowTotals = rowTotals.map((row, totalRowIndex) => {
+            return row.map((_, totalColIndex) => {
+                const indexValue = indexValues.map(last)[totalColIndex];
                 const item = indexValue ? itemsMap[indexValue?.fieldId] : null;
 
                 const sum = dataValues[totalRowIndex].reduce((acc, value) => {
@@ -301,6 +315,10 @@ export const pivotQueryResults = ({
                     const finalVal = Number.isNaN(parsedVal) ? 0 : parsedVal;
                     return acc + finalVal;
                 }, 0);
+
+                console.log(
+                    item && isField(item) && isMetric(item) ? item : undefined,
+                );
 
                 const formattedSum = formatValue(
                     sum,
@@ -348,6 +366,7 @@ export const pivotQueryResults = ({
         dataValues,
         pivotConfig,
         titleFields,
+        headerTotals,
         rowTotals,
     };
 };
