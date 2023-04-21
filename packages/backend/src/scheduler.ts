@@ -67,4 +67,4 @@ createTerminus(server, {
     logger: Logger.error,
 });
 
-server.listen(process.env.SCHEDULER_PORT || 8081);
+server.listen(process.env.PORT || 8081);
