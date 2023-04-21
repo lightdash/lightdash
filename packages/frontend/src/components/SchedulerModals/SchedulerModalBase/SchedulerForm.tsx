@@ -36,6 +36,12 @@ import {
     Title,
 } from './SchedulerModalBase.styles';
 
+const isSlack = (
+    target: CreateSchedulerAndTargetsWithoutIds['targets'][number],
+): target is {
+    channel: string;
+} => 'channel' in target && target.channel !== undefined;
+
 export enum Limit {
     TABLE = 'table',
     ALL = 'all',
@@ -319,11 +325,11 @@ const SchedulerForm: FC<{
                             disabled={disabled}
                             renderRow={(key, index, remove) => {
                                 setShowDestinationLabel(false);
-                                const isSlack =
-                                    'channel' in
+
+                                const target =
                                     methods.getValues()?.targets?.[index];
 
-                                if (isSlack) {
+                                if (isSlack(target)) {
                                     return (
                                         <TargetRow key={key}>
                                             <SlackIcon />
