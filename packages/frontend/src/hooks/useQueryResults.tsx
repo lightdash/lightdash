@@ -75,7 +75,7 @@ export const useQueryResults = (props?: {
     const { mutateAsync } = mutation;
 
     const mutateAsyncOverride = useCallback(
-        (tableName: string, metricQuery: MetricQuery) => {
+        async (tableName: string, metricQuery: MetricQuery) => {
             const fields = new Set([
                 ...metricQuery.dimensions,
                 ...metricQuery.metrics,
@@ -83,7 +83,7 @@ export const useQueryResults = (props?: {
             ]);
             const isValidQuery = fields.size > 0;
             if (!!tableName && isValidQuery) {
-                mutateAsync({
+                await mutateAsync({
                     projectUuid,
                     tableId: tableName,
                     query: metricQuery,
