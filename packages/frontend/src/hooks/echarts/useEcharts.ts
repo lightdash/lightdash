@@ -840,7 +840,7 @@ const getEchartAxis = ({
     const longestValueYAxisRight: string | undefined =
         rightAxisYId &&
         resultsData?.rows
-            .map((row) => row[rightAxisYId].value.formatted)
+            .map((row) => row[rightAxisYId]?.value.formatted)
             .reduce<string>(
                 (acc, p) => (p && acc.length > p.length ? acc : p),
                 '',
