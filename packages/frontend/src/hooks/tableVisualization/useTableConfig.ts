@@ -228,7 +228,7 @@ const useTableConfig = (
                         hiddenMetricFieldIds,
                     },
                     metricQuery: resultsData.metricQuery,
-                    rows,
+                    rows: resultsData.rows,
                 });
 
                 return { data: data, error: undefined };
