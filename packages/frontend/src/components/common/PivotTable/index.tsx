@@ -8,8 +8,9 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import { Table, TableProps } from '@mantine/core';
-import { last } from 'lodash-es';
+import last from 'lodash-es/last';
 import React, { FC, useCallback } from 'react';
+
 import HeaderCell from './HeaderCell';
 import IndexCell from './IndexCell';
 import { usePivotTableCellStyles, usePivotTableStyles } from './tableStyles';

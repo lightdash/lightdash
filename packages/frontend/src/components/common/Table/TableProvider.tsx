@@ -1,9 +1,5 @@
 import { HotkeyConfig, useHotkeys } from '@blueprintjs/core';
-import {
-    ConditionalFormattingConfig,
-    ResultRow,
-    ResultValue,
-} from '@lightdash/common';
+import { ConditionalFormattingConfig, ResultRow } from '@lightdash/common';
 import {
     Cell,
     ColumnOrderState,
@@ -13,7 +9,7 @@ import {
     useReactTable,
 } from '@tanstack/react-table';
 import copy from 'copy-to-clipboard';
-import { debounce, mapValues } from 'lodash-es';
+import debounce from 'lodash-es/debounce';
 import React, {
     createContext,
     FC,

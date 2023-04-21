@@ -5,7 +5,7 @@ import {
     Space,
     SpaceShare,
 } from '@lightdash/common';
-import { upperFirst } from 'lodash-es';
+import upperFirst from 'lodash-es/upperFirst';
 import { FC } from 'react';
 import { useDeleteSpaceShareMutation } from '../../../hooks/useSpaces';
 import {

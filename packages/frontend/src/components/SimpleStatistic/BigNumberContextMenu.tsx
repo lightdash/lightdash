@@ -41,7 +41,7 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
     );
 
     const fieldValues: Record<string, ResultValue> = useMemo(() => {
-        return mapValues(resultsData?.rows?.[0] ?? {}, (col) => col.value);
+        return mapValues(resultsData?.rows?.[0], (col) => col.value) ?? {};
     }, [resultsData]);
 
     const value = useMemo(() => {

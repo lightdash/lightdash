@@ -460,15 +460,6 @@ const getMinAndMaxReferenceLines = (
         resultsData.rows,
     );
 
-    console.log({
-        minValueLeftY,
-        maxValueLeftY,
-        minValueRightY,
-        maxValueRightY,
-        minValueX,
-        maxValueX,
-    });
-
     const [minReferenceLineX, maxReferenceLineX] =
         getMinAndMaxReferenceLineValues('xAxis', bottomAxisXId);
     const [minReferenceLineLeftY, maxReferenceLineLeftY] =

@@ -8,7 +8,7 @@ import {
     FilterType,
     isFilterRule,
 } from '@lightdash/common';
-import { isString } from 'lodash-es';
+import isString from 'lodash-es/isString';
 import React from 'react';
 import { useFiltersContext } from '../FiltersProvider';
 import MultiAutoComplete from './AutoComplete/MultiAutoComplete';
