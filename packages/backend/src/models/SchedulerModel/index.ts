@@ -438,6 +438,16 @@ export class SchedulerModel {
     }
 
     async logSchedulerJob(log: SchedulerLog): Promise<void> {
+        if (log.schedulerUuid) {
+            const schedulersList = await this.database(SchedulerTableName)
+                .select('scheduler_uuid')
+                .where('scheduler_uuid', log.schedulerUuid);
+
+            if (schedulersList.length === 0) {
+                return;
+            }
+        }
+
         await this.database(SchedulerLogTableName).insert({
             task: log.task,
             scheduler_uuid: log.schedulerUuid,
