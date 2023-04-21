@@ -342,21 +342,6 @@ export class SchedulerModel {
         });
     }
 
-    static parseScheduler(schedulerDb: SchedulerDb): SchedulerBase {
-        return {
-            schedulerUuid: schedulerDb.scheduler_uuid,
-            name: schedulerDb.name,
-            createdAt: schedulerDb.created_at,
-            updatedAt: schedulerDb.updated_at,
-            createdBy: schedulerDb.created_by,
-            format: schedulerDb.format as SchedulerBase['format'],
-            cron: schedulerDb.cron,
-            savedChartUuid: schedulerDb.saved_chart_uuid,
-            dashboardUuid: schedulerDb.dashboard_uuid,
-            options: schedulerDb.options,
-        };
-    }
-
     static parseSchedulerLog(logDb: SchedulerLogDb): SchedulerLog {
         return {
             task: logDb.task as SchedulerLog['task'],
@@ -377,7 +362,7 @@ export class SchedulerModel {
     async getSchedulerForProject(
         projectUuid: string,
     ): Promise<SchedulerBase[]> {
-        const schedulerChartUuids = await this.database(SchedulerTableName)
+        const schedulerCharts = this.database(SchedulerTableName)
             .select('scheduler.*')
             .leftJoin(
                 SavedChartsTableName,
@@ -396,7 +381,7 @@ export class SchedulerModel {
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid);
 
-        const schedulerDashboardUuids = await this.database(SchedulerTableName)
+        const schedulerDashboards = this.database(SchedulerTableName)
             .select('scheduler.*')
             .leftJoin(
                 DashboardsTableName,
@@ -415,10 +400,13 @@ export class SchedulerModel {
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid);
 
-        return [
-            ...schedulerChartUuids.map(SchedulerModel.parseScheduler),
-            ...schedulerDashboardUuids.map(SchedulerModel.parseScheduler),
-        ];
+        const schedulerDashboardWithTargets =
+            await this.getSchedulersWithTargets(schedulerDashboards);
+        const schedulerChartWithTargets = await this.getSchedulersWithTargets(
+            schedulerCharts,
+        );
+
+        return [...schedulerChartWithTargets, ...schedulerDashboardWithTargets];
     }
 
     async getSchedulerLogs(projectUuid: string): Promise<SchedulerWithLogs> {
