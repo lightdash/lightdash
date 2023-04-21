@@ -102,7 +102,7 @@ const UrlMenuItems: FC<{
     cell: Cell<ResultRow, ResultRow[0]>;
     itemsMap?: Record<string, Field | TableCalculation>;
 }> = ({ urls, cell, itemsMap }) => {
-    const value: ResultRow[0]['value'] = cell.getValue()?.value || {};
+    const value: ResultValue = cell.getValue()?.value || {};
     const [itemIdsInRow, rowData] = useMemo(() => {
         const itemIds: string[] = [];
         const row = cell.row

@@ -1,11 +1,9 @@
 import { Button, PopoverPosition } from '@blueprintjs/core';
 import { Classes, Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
-import { getResultValueArray } from '@lightdash/common';
 import { FC, memo, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { downloadCsv } from '../../../hooks/useDownloadCsv';
-import { getQueryResults } from '../../../hooks/useQueryResults';
 import { useApp } from '../../../providers/AppProvider';
 import {
     ExplorerSection,
@@ -15,7 +13,6 @@ import AddColumnButton from '../../AddColumnButton';
 import { Can } from '../../common/Authorization';
 import CollapsableCard from '../../common/CollapsableCard';
 import ExportCSV from '../../ExportCSV';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import LimitButton from '../../LimitButton';
 import SortButton from '../../SortButton';
 import { ExplorerResults } from './ExplorerResults';
