@@ -130,10 +130,10 @@ export const pivotQueryResults = ({
             const metric = metrics[nMetric];
 
             const indexRowValues: PivotValue[] = indexDimensions
-                .map<PivotValue>((d) => ({
+                .map<PivotValue>((fieldId) => ({
                     type: 'value',
-                    fieldId: metric.fieldId,
-                    value: row[d].value,
+                    fieldId: fieldId,
+                    value: row[fieldId].value,
                 }))
                 .concat(
                     pivotConfig.metricsAsRows
@@ -142,10 +142,10 @@ export const pivotQueryResults = ({
                 );
 
             const headerRowValues: PivotValue[] = headerDimensions
-                .map<PivotValue>((d) => ({
+                .map<PivotValue>((fieldId) => ({
                     type: 'value',
-                    fieldId: metric.fieldId,
-                    value: row[d].value,
+                    fieldId: fieldId,
+                    value: row[fieldId].value,
                 }))
                 .concat(
                     pivotConfig.metricsAsRows

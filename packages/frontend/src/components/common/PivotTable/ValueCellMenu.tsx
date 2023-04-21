@@ -1,22 +1,114 @@
-import { PivotValue } from '@lightdash/common';
+import { subject } from '@casl/ability';
+import { Field, PivotValue, TableCalculation } from '@lightdash/common';
 import { Menu, MenuProps } from '@mantine/core';
-import { IconCopy } from '@tabler/icons-react';
+import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
 import { FC } from 'react';
+import { useParams } from 'react-router-dom';
+import { useApp } from '../../../providers/AppProvider';
+import { useTracking } from '../../../providers/TrackingProvider';
+import { EventName } from '../../../types/Events';
+import {
+    UnderlyingValueMap,
+    useMetricQueryDataContext,
+} from '../../MetricQueryData/MetricQueryDataProvider';
 import MantineIcon from '../MantineIcon';
 
 type ValueCellMenuProps = {
+    rowIndex: number;
+    colIndex: number;
+    item: Field | TableCalculation | undefined;
     value: PivotValue | null;
     onCopy: () => void;
+    getUnderlyingFieldValues: (
+        colIndex: number,
+        rowIndex: number,
+    ) => UnderlyingValueMap;
 } & Pick<MenuProps, 'opened' | 'onOpen' | 'onClose'>;
 
 const ValueCellMenu: FC<ValueCellMenuProps> = ({
     children,
-    // value,
+    rowIndex,
+    getUnderlyingFieldValues,
+    colIndex,
+    item,
+    value: pivotValue,
     opened,
     onOpen,
     onClose,
     onCopy,
 }) => {
+    const { user } = useApp();
+    const { track } = useTracking();
+    const { openUnderlyingDataModal, openDrillDownModel } =
+        useMetricQueryDataContext();
+
+    // FIXME: get rid of this from here
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+
+    if (!pivotValue || !pivotValue.value) {
+        return <>{children}</>;
+    }
+
+    const canViewUnderlyingData = user.data?.ability?.can(
+        'view',
+        subject('UnderlyingData', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid: projectUuid,
+        }),
+    );
+
+    const canViewDrillInto = user.data?.ability?.can(
+        'manage',
+        subject('Explore', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid: projectUuid,
+        }),
+    );
+
+    const handleOpenUnderlyingDataModal = () => {
+        const underlyingFieldValues = getUnderlyingFieldValues(
+            rowIndex,
+            colIndex,
+        );
+
+        openUnderlyingDataModal({
+            item,
+            value: pivotValue.value,
+            fieldValues: underlyingFieldValues,
+        });
+
+        track({
+            name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
+            properties: {
+                organizationId: user?.data?.organizationUuid,
+                userId: user?.data?.userUuid,
+                projectId: projectUuid,
+            },
+        });
+    };
+
+    const handleOpenDrillIntoModal = () => {
+        if (!item) return;
+        const underlyingFieldValues = getUnderlyingFieldValues(
+            rowIndex,
+            colIndex,
+        );
+
+        openDrillDownModel({
+            item,
+            fieldValues: underlyingFieldValues,
+        });
+
+        track({
+            name: EventName.DRILL_BY_CLICKED,
+            properties: {
+                organizationId: user.data?.organizationUuid,
+                userId: user.data?.userUuid,
+                projectId: projectUuid,
+            },
+        });
+    };
+
     return (
         <Menu
             opened={opened}
@@ -47,31 +139,39 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
                     Copy
                 </Menu.Item>
 
-                {/*
-                <Menu.Item
-                    icon={
-                        <MantineIcon
-                            icon={IconStack}
-                            size="md"
-                            fillOpacity={0}
-                        />
-                    }
-                >
-                    View underlying data
-                </Menu.Item>
+                {item && (canViewUnderlyingData || canViewDrillInto) ? (
+                    <>
+                        {canViewUnderlyingData ? (
+                            <Menu.Item
+                                icon={
+                                    <MantineIcon
+                                        icon={IconStack}
+                                        size="md"
+                                        fillOpacity={0}
+                                    />
+                                }
+                                onClick={handleOpenUnderlyingDataModal}
+                            >
+                                View underlying data
+                            </Menu.Item>
+                        ) : null}
 
-                <Menu.Item
-                    icon={
-                        <MantineIcon
-                            icon={IconArrowBarToDown}
-                            size="md"
-                            fillOpacity={0}
-                        />
-                    }
-                >
-                    Drill into "{value?.formatted}"
-                </Menu.Item>
-                */}
+                        {canViewDrillInto ? (
+                            <Menu.Item
+                                icon={
+                                    <MantineIcon
+                                        icon={IconArrowBarToDown}
+                                        size="md"
+                                        fillOpacity={0}
+                                    />
+                                }
+                                onClick={handleOpenDrillIntoModal}
+                            >
+                                Drill into "{pivotValue.value.formatted}"
+                            </Menu.Item>
+                        ) : null}
+                    </>
+                ) : null}
             </Menu.Dropdown>
         </Menu>
     );

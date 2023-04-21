@@ -9,7 +9,6 @@ import {
     ScheduledJobs,
     Scheduler,
     SchedulerAndTargets,
-    SchedulerJobStatus,
     SchedulerLog,
     SessionUser,
     UpdateSchedulerAndTargetsWithoutId,
@@ -213,5 +212,22 @@ export class SchedulerService {
             throw new ForbiddenError();
         }
         return job;
+    }
+
+    async getSchedulerLogs(user: SessionUser, projectUuid: string) {
+        // Only allow editors to view scheduler logs
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Dashboard', {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        return this.schedulerModel.getSchedulerLogs(projectUuid);
     }
 }

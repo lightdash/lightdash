@@ -9,6 +9,7 @@ import {
     ResultRow,
     TableCalculation,
 } from '@lightdash/common';
+import mapValues from 'lodash-es/mapValues';
 import { FC } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
 import { useParams } from 'react-router-dom';
@@ -29,7 +30,7 @@ const CellContextMenu: FC<
     }
 > = ({ cell, isEditMode, itemsMap }) => {
     const { addFilter } = useFilters();
-    const { openUnderlyingDataModel } = useMetricQueryDataContext();
+    const { openUnderlyingDataModal } = useMetricQueryDataContext();
     const { track } = useTracking();
     const { showToastSuccess } = useToaster();
     const meta = cell.column.columnDef.meta;
@@ -38,6 +39,8 @@ const CellContextMenu: FC<
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const value: ResultRow[0]['value'] = cell.getValue()?.value || {};
+    const fieldValues = mapValues(cell.row.original, (v) => v?.value) || {};
+
     return (
         <Menu>
             {!!value.raw && isField(item) && (
@@ -71,11 +74,11 @@ const CellContextMenu: FC<
                         text="View underlying data"
                         icon="layers"
                         onClick={() => {
-                            openUnderlyingDataModel(
+                            openUnderlyingDataModal({
+                                item: meta.item,
                                 value,
-                                meta,
-                                cell.row.original || {},
-                            );
+                                fieldValues,
+                            });
                             track({
                                 name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
                                 properties: {
@@ -114,8 +117,8 @@ const CellContextMenu: FC<
                 )}
 
                 <DrillDownMenuItem
-                    row={cell.row.original || {}}
-                    selectedItem={item}
+                    item={item}
+                    fieldValues={fieldValues}
                     trackingData={{
                         organizationId: user.data?.organizationUuid,
                         userId: user.data?.userUuid,

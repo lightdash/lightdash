@@ -1,6 +1,6 @@
-import { mergeRefs, useElementSize, useResizeObserver } from '@mantine/hooks';
 import clamp from 'lodash-es/clamp';
-import React, { FC, useMemo } from 'react';
+import { FC, HTMLAttributes, useMemo } from 'react';
+import { useResizeObserver } from '../../hooks/useResizeObserver';
 import {
     TILE_HEADER_HEIGHT,
     TILE_HEADER_MARGIN_BOTTOM,
@@ -15,7 +15,7 @@ import {
     BigNumberLabel,
 } from './SimpleStatistics.styles';
 
-interface SimpleStatisticsProps extends React.HTMLAttributes<HTMLDivElement> {
+interface SimpleStatisticsProps extends HTMLAttributes<HTMLDivElement> {
     minimal?: boolean;
     isDashboard?: boolean;
     isTitleHidden?: boolean;
@@ -53,12 +53,12 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
         bigNumberConfig: { bigNumber, bigNumberLabel, defaultLabel },
         isSqlRunner,
     } = useVisualizationContext();
-    const { ref: elementSizeRef, ...elementSize } = useElementSize();
-    const [resizeObserverRef, observerElementSize] = useResizeObserver();
+
+    const [setRef, observerElementSize] = useResizeObserver();
 
     const { valueFontSize, labelFontSize } = useMemo(() => {
         const boundWidth = clamp(
-            observerElementSize?.width || elementSize?.width || 0,
+            observerElementSize?.width || 0,
             BOX_MIN_WIDTH,
             BOX_MAX_WIDTH,
         );
@@ -79,7 +79,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             valueFontSize: valueSize,
             labelFontSize: labelSize,
         };
-    }, [elementSize, observerElementSize]);
+    }, [observerElementSize]);
 
     const validData = bigNumber && resultsData?.rows.length;
 
@@ -92,7 +92,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                     ? TILE_HEADER_HEIGHT + TILE_HEADER_MARGIN_BOTTOM - 8
                     : TILE_HEADER_HEIGHT
             }
-            ref={mergeRefs(elementSizeRef, resizeObserverRef)}
+            ref={(elem) => setRef(elem)}
             {...wrapperProps}
         >
             <BigNumberHalf>

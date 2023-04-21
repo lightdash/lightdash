@@ -17,30 +17,40 @@ import {
     useState,
 } from 'react';
 import { readableColor } from '../../../utils/colorUtils';
+import { UnderlyingValueMap } from '../../MetricQueryData/MetricQueryDataProvider';
 import { getConditionalRuleLabel } from '../Filters/configs';
 import { usePivotTableCellStyles } from './tableStyles';
 import ValueCellMenu from './ValueCellMenu';
 
-interface ValueCellProps {
+type ValueCellProps = {
+    rowIndex: number;
+    colIndex: number;
+    getUnderlyingFieldValues: (
+        colIndex: number,
+        rowIndex: number,
+    ) => UnderlyingValueMap;
     value: PivotValue | null;
     conditionalFormattings: ConditionalFormattingConfig[];
     getField: (fieldId: string) => Field | TableCalculation;
-}
+};
 
-interface ForwardRefProps {
+type ForwardRefProps = {
     render: (
         props: React.HTMLAttributes<HTMLTableCellElement>,
         ref: ForwardedRef<HTMLTableCellElement> | null,
     ) => JSX.Element;
-}
+};
 
 const ForwardRef = forwardRef<HTMLTableCellElement, ForwardRefProps>(
-    (props, ref) => props.render(props, ref),
+    ({ render, ...props }, ref) => render(props, ref),
 );
 
 const ValueCell: FC<ValueCellProps> = ({
+    rowIndex,
+    colIndex,
     value,
     conditionalFormattings,
+    getUnderlyingFieldValues,
     getField,
 }) => {
     const field = useMemo(
@@ -83,22 +93,24 @@ const ValueCell: FC<ValueCellProps> = ({
 
     useHotkeys([['mod+c', handleCopy]]);
 
+    const hasValue = !!value?.value?.formatted;
+
     const { cx, classes } = usePivotTableCellStyles({
-        conditionalFormatting: conditionalFormatting
-            ? {
-                  backgroundColor: conditionalFormatting.backgroundColor,
-                  color: conditionalFormatting.color,
-              }
-            : undefined,
+        hasValue,
+        conditionalFormatting,
     });
 
     return (
         <ValueCellMenu
+            rowIndex={rowIndex}
+            colIndex={colIndex}
             opened={isMenuOpen}
+            item={field}
+            value={value}
+            getUnderlyingFieldValues={getUnderlyingFieldValues}
+            onCopy={handleCopy}
             onOpen={() => setIsMenuOpen(true)}
             onClose={() => setIsMenuOpen(false)}
-            value={value}
-            onCopy={handleCopy}
         >
             <ForwardRef
                 render={(menuProps, menuRef) => (

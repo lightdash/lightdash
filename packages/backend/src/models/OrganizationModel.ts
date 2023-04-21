@@ -1,7 +1,7 @@
 import {
     CreateOrganization,
     NotFoundError,
-    Organisation,
+    Organization,
     UpdateOrganization,
     UserAllowedOrganization,
 } from '@lightdash/common';
@@ -20,7 +20,7 @@ export class OrganizationModel {
         this.database = database;
     }
 
-    static mapDBObjectToOrganization(data: DbOrganization): Organisation {
+    static mapDBObjectToOrganization(data: DbOrganization): Organization {
         return {
             organizationUuid: data.organization_uuid,
             name: data.organization_name,
@@ -35,7 +35,7 @@ export class OrganizationModel {
         return orgs.length > 0;
     }
 
-    async get(organizationUuid: string): Promise<Organisation> {
+    async get(organizationUuid: string): Promise<Organization> {
         const [org] = await this.database(OrganizationTableName)
             .where('organization_uuid', organizationUuid)
             .select('*');
@@ -45,7 +45,7 @@ export class OrganizationModel {
         return OrganizationModel.mapDBObjectToOrganization(org);
     }
 
-    async create(data: CreateOrganization): Promise<Organisation> {
+    async create(data: CreateOrganization): Promise<Organization> {
         const [org] = await this.database(OrganizationTableName)
             .insert({
                 organization_name: data.name,
@@ -57,7 +57,7 @@ export class OrganizationModel {
     async update(
         organizationUuid: string,
         data: UpdateOrganization,
-    ): Promise<Organisation> {
+    ): Promise<Organization> {
         // Undefined values are ignored by .update (it DOES NOT set null)
         const [org] = await this.database(OrganizationTableName)
             .where('organization_uuid', organizationUuid)

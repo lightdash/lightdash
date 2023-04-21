@@ -1,20 +1,23 @@
 import { Menu, Position } from '@blueprintjs/core';
 import { MenuItem2, Popover2, Popover2Props } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
-import { Can } from '../common/Authorization';
-
-import { ResultRow } from '@lightdash/common';
+import mapValues from 'lodash-es/mapValues';
 import { FC, useCallback, useMemo } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
 import { useParams } from 'react-router-dom';
+
 import useToaster from '../../hooks/toaster/useToaster';
 import { useExplore } from '../../hooks/useExplore';
 import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
+import { Can } from '../common/Authorization';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
-import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';
+import {
+    UnderlyingValueMap,
+    useMetricQueryDataContext,
+} from '../MetricQueryData/MetricQueryDataProvider';
 
 interface BigNumberContextMenuProps {
     renderTarget: Popover2Props['renderTarget'];
@@ -25,7 +28,7 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
 }) => {
     const { showToastSuccess } = useToaster();
     const { resultsData, bigNumberConfig } = useVisualizationContext();
-    const { openUnderlyingDataModel, tableName } = useMetricQueryDataContext();
+    const { openUnderlyingDataModal, tableName } = useMetricQueryDataContext();
     const { data: explore } = useExplore(tableName);
 
     const { track } = useTracking();
@@ -39,15 +42,15 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
         [bigNumberConfig],
     );
 
-    const row: ResultRow = useMemo(() => {
-        return resultsData?.rows?.[0] || {};
+    const fieldValues: UnderlyingValueMap = useMemo(() => {
+        return mapValues(resultsData?.rows?.[0], (r) => r.value) ?? {};
     }, [resultsData]);
 
     const value = useMemo(() => {
         if (bigNumberConfig.selectedField) {
-            return row[bigNumberConfig.selectedField]?.value;
+            return fieldValues[bigNumberConfig.selectedField];
         }
-    }, [row, bigNumberConfig]);
+    }, [fieldValues, bigNumberConfig]);
 
     const viewUnderlyingData = useCallback(() => {
         if (
@@ -55,11 +58,11 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
             bigNumberConfig.selectedField !== undefined &&
             value
         ) {
-            const meta = {
-                item: bigNumberConfig.getField(bigNumberConfig.selectedField),
-            };
+            const item = bigNumberConfig.getField(
+                bigNumberConfig.selectedField,
+            );
 
-            openUnderlyingDataModel(value, meta, row);
+            openUnderlyingDataModal({ item, value, fieldValues });
             track({
                 name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
                 properties: {
@@ -70,15 +73,15 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
             });
         }
     }, [
+        projectUuid,
         explore,
-        bigNumberConfig,
         value,
-        openUnderlyingDataModel,
-        row,
+        fieldValues,
+        bigNumberConfig,
         track,
+        openUnderlyingDataModal,
         user?.data?.organizationUuid,
         user?.data?.userUuid,
-        projectUuid,
     ]);
 
     return (
@@ -124,8 +127,8 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
                         })}
                     >
                         <DrillDownMenuItem
-                            row={resultsData?.rows[0]}
-                            selectedItem={selectedItem}
+                            item={selectedItem}
+                            fieldValues={resultsData?.rows[0].value}
                             trackingData={{
                                 organizationId: user?.data?.organizationUuid,
                                 userId: user?.data?.userUuid,

@@ -7,7 +7,7 @@ import {
     LightdashMode,
     NotExistsError,
     OnbordingRecord,
-    Organisation,
+    Organization,
     OrganizationMemberProfile,
     OrganizationMemberProfileUpdate,
     OrganizationMemberRole,
@@ -72,7 +72,7 @@ export class OrganizationService {
             organizationAllowedEmailDomainsModel;
     }
 
-    async get(user: SessionUser): Promise<Organisation> {
+    async get(user: SessionUser): Promise<Organization> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }

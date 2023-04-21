@@ -1,3 +1,46 @@
+## [0.517.2](https://github.com/lightdash/lightdash/compare/0.517.1...0.517.2) (2023-04-21)
+
+
+### Bug Fixes
+
+* limit and index scheduler logs ([#5178](https://github.com/lightdash/lightdash/issues/5178)) ([5814402](https://github.com/lightdash/lightdash/commit/5814402cfcc0e7e9dd596ed885e612b063ad98af))
+* uncaught rejection in useQueryResults.tsx ([#5180](https://github.com/lightdash/lightdash/issues/5180)) ([ee35b76](https://github.com/lightdash/lightdash/commit/ee35b76938bd797fe62b8ae06bf88db93e372154))
+
+## [0.517.1](https://github.com/lightdash/lightdash/compare/0.517.0...0.517.1) (2023-04-20)
+
+
+### Bug Fixes
+
+* minimal page big number chart font sizes ([#5172](https://github.com/lightdash/lightdash/issues/5172)) ([29ec999](https://github.com/lightdash/lightdash/commit/29ec999bbf327f6c435a3556e9e720d9f207bf64))
+
+# [0.517.0](https://github.com/lightdash/lightdash/compare/0.516.0...0.517.0) (2023-04-20)
+
+
+### Features
+
+* scheduler log dashboard ([#5135](https://github.com/lightdash/lightdash/issues/5135)) ([4291c14](https://github.com/lightdash/lightdash/commit/4291c14482e2620231983d9c60217da00d985c1d))
+
+# [0.516.0](https://github.com/lightdash/lightdash/compare/0.515.0...0.516.0) (2023-04-20)
+
+
+### Features
+
+* health endpoints for standalone scheduler ([#5149](https://github.com/lightdash/lightdash/issues/5149)) ([e8c5f28](https://github.com/lightdash/lightdash/commit/e8c5f281a88d2ae01ca936c6b2e0e3c1b7af84a4))
+
+# [0.515.0](https://github.com/lightdash/lightdash/compare/0.514.1...0.515.0) (2023-04-20)
+
+
+### Features
+
+* pivot table underlying data drill into ([#5097](https://github.com/lightdash/lightdash/issues/5097)) ([6ff61ce](https://github.com/lightdash/lightdash/commit/6ff61ce8e1834e1931e38d3f1e0ae8e45ae2e2e3))
+
+## [0.514.1](https://github.com/lightdash/lightdash/compare/0.514.0...0.514.1) (2023-04-20)
+
+
+### Bug Fixes
+
+* minimal chart padding ([#5152](https://github.com/lightdash/lightdash/issues/5152)) ([b1ad14f](https://github.com/lightdash/lightdash/commit/b1ad14fc9162ea914a7072590bab6a0084e43092))
+
 # [0.514.0](https://github.com/lightdash/lightdash/compare/0.513.2...0.514.0) (2023-04-19)
 
 

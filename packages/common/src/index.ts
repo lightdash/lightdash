@@ -50,7 +50,7 @@ import { FieldValueSearchResult } from './types/fieldMatch';
 import {
     AllowedEmailDomains,
     OnboardingStatus,
-    Organisation,
+    Organization,
     OrganizationProject,
     UpdateAllowedEmailDomains,
 } from './types/organization';
@@ -63,10 +63,7 @@ import {
     ProjectType,
     WarehouseCredentials,
 } from './types/projects';
-import {
-    NotificationPayloadBase,
-    SchedulerAndTargets,
-} from './types/scheduler';
+import { SchedulerAndTargets, SchedulerWithLogs } from './types/scheduler';
 import { SlackChannel } from './types/slack';
 import { Space } from './types/space';
 import { TableBase } from './types/table';
@@ -129,6 +126,7 @@ export * from './utils/filters';
 export * from './utils/formatting';
 export * from './utils/github';
 export * from './utils/item';
+export * from './utils/scheduler';
 export * from './utils/time';
 export * from './utils/timeFrames';
 
@@ -432,7 +430,7 @@ export type InviteLink = {
     expiresAt: Date;
     inviteCode: string;
     inviteUrl: string;
-    organisationUuid: string;
+    organizationUuid: string;
     userUuid: string;
     email: string;
 };
@@ -454,7 +452,7 @@ type ApiResults =
     | ApiStatusResults
     | ApiRefreshResults
     | ApiHealthResults
-    | Organisation
+    | Organization
     | LightdashUser
     | SavedChart
     | SavedChart[]
@@ -500,7 +498,8 @@ type ApiResults =
     | UserAllowedOrganization[]
     | EmailStatusExpiring
     | ApiScheduledDownloadCsv
-    | PinnedItems;
+    | PinnedItems
+    | SchedulerWithLogs;
 
 export type ApiResponse = {
     status: 'ok';

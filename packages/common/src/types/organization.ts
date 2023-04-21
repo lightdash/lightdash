@@ -4,14 +4,14 @@ import { ProjectType } from './projects';
 /**
  * Details of a user's Organization
  */
-export type Organisation = {
+export type Organization = {
     /**
-     * The unique identifier of the organisation
+     * The unique identifier of the organization
      * @format uuid
      */
     organizationUuid: string;
     /**
-     * The name of the organisation
+     * The name of the organization
      */
     name: string;
 
@@ -25,15 +25,15 @@ export type Organisation = {
     needsProject?: boolean;
 };
 
-export type CreateOrganization = Pick<Organisation, 'name'>;
+export type CreateOrganization = Pick<Organization, 'name'>;
 
 export type UpdateOrganization = Partial<
-    Omit<Organisation, 'organizationUuid' | 'needsProject'>
+    Omit<Organization, 'organizationUuid' | 'needsProject'>
 >;
 
 export type ApiOrganization = {
     status: 'ok';
-    results: Organisation;
+    results: Organization;
 };
 
 /**

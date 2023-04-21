@@ -1,5 +1,5 @@
 import { Button, Intent } from '@blueprintjs/core';
-import { Organisation } from '@lightdash/common';
+import { Organization } from '@lightdash/common';
 import { FC, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
@@ -12,7 +12,7 @@ const OrganizationPanel: FC = () => {
     const { isLoading: isOrgLoading, data } = useOrganization();
     const updateMutation = useOrganizationUpdateMutation();
     const isLoading = updateMutation.isLoading || isOrgLoading;
-    const methods = useForm<Organisation>({
+    const methods = useForm<Organization>({
         mode: 'onSubmit',
     });
     const { setValue } = methods;
@@ -23,7 +23,7 @@ const OrganizationPanel: FC = () => {
         }
     }, [data, setValue]);
 
-    const handleUpdate = (value: Organisation) => {
+    const handleUpdate = (value: Organization) => {
         updateMutation.mutate(value);
     };
 

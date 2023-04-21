@@ -30,6 +30,7 @@ type PivotTableCellStylesProps = {
         backgroundColor: string;
         color: string;
     };
+    hasValue?: boolean;
 };
 
 export const usePivotTableCellStyles = createStyles<
@@ -40,6 +41,8 @@ export const usePivotTableCellStyles = createStyles<
         textAlign: 'left',
         whiteSpace: 'nowrap',
         fontWeight: 400,
+
+        cursor: props.hasValue ? 'pointer' : 'default',
 
         color: theme.colors.gray[7],
         backgroundColor: theme.white,
@@ -58,7 +61,15 @@ export const usePivotTableCellStyles = createStyles<
         '&[data-copied="true"]': {
             color: theme.black,
             backgroundColor: theme.colors.blue[2],
+            outline: `1px solid ${theme.colors.blue[9]}`,
         },
+
+        ':hover:not([data-expanded="true"]):not([data-copied="true"])':
+            props.hasValue
+                ? {
+                      outline: `1px solid ${theme.colors.gray[6]}`,
+                  }
+                : undefined,
     },
 
     header: {

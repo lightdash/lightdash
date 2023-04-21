@@ -181,7 +181,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    Organisation: {
+    Organization: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -203,7 +203,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                results: { ref: 'Organisation', required: true },
+                results: { ref: 'Organization', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
@@ -222,7 +222,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Organisation.name_': {
+    'Pick_Organization.name_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -233,10 +233,10 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CreateOrganization: {
         dataType: 'refAlias',
-        type: { ref: 'Pick_Organisation.name_', validators: {} },
+        type: { ref: 'Pick_Organization.name_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Partial_Omit_Organisation.organizationUuid-or-needsProject__': {
+    'Partial_Omit_Organization.organizationUuid-or-needsProject__': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -254,7 +254,7 @@ const models: TsoaRoute.Models = {
     UpdateOrganization: {
         dataType: 'refAlias',
         type: {
-            ref: 'Partial_Omit_Organisation.organizationUuid-or-needsProject__',
+            ref: 'Partial_Omit_Organization.organizationUuid-or-needsProject__',
             validators: {},
         },
     },
@@ -986,6 +986,89 @@ const models: TsoaRoute.Models = {
                 createdAt: { dataType: 'datetime', required: true },
                 name: { dataType: 'string', required: true },
                 schedulerUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SchedulerJobStatus: {
+        dataType: 'refEnum',
+        enums: ['scheduled', 'started', 'completed', 'error'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.any_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SchedulerLog: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                details: { ref: 'Record_string.any_' },
+                targetType: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['email'] },
+                        { dataType: 'enum', enums: ['slack'] },
+                    ],
+                },
+                target: { dataType: 'string' },
+                status: { ref: 'SchedulerJobStatus', required: true },
+                scheduledTime: { dataType: 'datetime', required: true },
+                jobGroup: { dataType: 'string' },
+                jobId: { dataType: 'string', required: true },
+                schedulerUuid: { dataType: 'string' },
+                task: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'enum',
+                            enums: ['handleScheduledDelivery'],
+                        },
+                        { dataType: 'enum', enums: ['sendEmailNotification'] },
+                        { dataType: 'enum', enums: ['sendSlackNotification'] },
+                        { dataType: 'enum', enums: ['downloadCsv'] },
+                    ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SchedulerWithLogs: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                logs: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'SchedulerLog' },
+                    required: true,
+                },
+                schedulers: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'SchedulerBase' },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSchedulerLogsResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'SchedulerWithLogs', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
         },
@@ -2174,6 +2257,52 @@ export function RegisterRoutes(app: express.Router) {
                 const controller = new SavedChartController();
 
                 const promise = controller.postDashboardTile.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.get(
+        '/api/v1/schedulers/:projectUuid/logs',
+        ...fetchMiddlewares<RequestHandler>(SchedulerController),
+        ...fetchMiddlewares<RequestHandler>(
+            SchedulerController.prototype.getLogs,
+        ),
+
+        function SchedulerController_getLogs(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const controller = new SchedulerController();
+
+                const promise = controller.getLogs.apply(
                     controller,
                     validatedArgs as any,
                 );

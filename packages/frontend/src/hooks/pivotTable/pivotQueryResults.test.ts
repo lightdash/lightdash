@@ -79,14 +79,14 @@ describe('Should pivot data', () => {
                 [
                     {
                         type: 'value',
-                        fieldId: 'views',
+                        fieldId: 'page',
                         value: { raw: '/home', formatted: '/home' },
                     },
                 ],
                 [
                     {
                         type: 'value',
-                        fieldId: 'views',
+                        fieldId: 'page',
                         value: {
                             raw: '/about',
                             formatted: '/about',
@@ -96,7 +96,7 @@ describe('Should pivot data', () => {
                 [
                     {
                         type: 'value',
-                        fieldId: 'views',
+                        fieldId: 'page',
                         value: {
                             raw: '/first-post',
                             formatted: '/first-post',
@@ -166,17 +166,17 @@ describe('Should pivot data', () => {
                 [
                     {
                         type: 'value',
-                        fieldId: 'views',
+                        fieldId: 'page',
                         value: { raw: '/home', formatted: '/home' },
                     },
                     {
                         type: 'value',
-                        fieldId: 'views',
+                        fieldId: 'page',
                         value: { raw: '/about', formatted: '/about' },
                     },
                     {
                         type: 'value',
-                        fieldId: 'views',
+                        fieldId: 'page',
                         value: { raw: '/first-post', formatted: '/first-post' },
                     },
                 ],
@@ -252,22 +252,22 @@ describe('Should pivot data', () => {
                 [
                     {
                         type: 'value',
-                        fieldId: 'views',
+                        fieldId: 'site',
                         value: { raw: 'blog', formatted: 'Blog' },
                     },
                     {
                         type: 'value',
-                        fieldId: 'devices',
+                        fieldId: 'site',
                         value: { raw: 'blog', formatted: 'Blog' },
                     },
                     {
                         type: 'value',
-                        fieldId: 'views',
+                        fieldId: 'site',
                         value: { raw: 'docs', formatted: 'Docs' },
                     },
                     {
                         type: 'value',
-                        fieldId: 'devices',
+                        fieldId: 'site',
                         value: { raw: 'docs', formatted: 'Docs' },
                     },
                 ],
@@ -283,21 +283,21 @@ describe('Should pivot data', () => {
                 [
                     {
                         type: 'value',
-                        fieldId: 'views',
+                        fieldId: 'page',
                         value: { raw: '/home', formatted: '/home' },
                     },
                 ],
                 [
                     {
                         type: 'value',
-                        fieldId: 'views',
+                        fieldId: 'page',
                         value: { raw: '/about', formatted: '/about' },
                     },
                 ],
                 [
                     {
                         type: 'value',
-                        fieldId: 'views',
+                        fieldId: 'page',
                         value: { raw: '/first-post', formatted: '/first-post' },
                     },
                 ],
@@ -388,12 +388,12 @@ describe('Should pivot data', () => {
                 [
                     {
                         type: 'value',
-                        fieldId: 'views',
+                        fieldId: 'site',
                         value: { raw: 'blog', formatted: 'Blog' },
                     },
                     {
                         type: 'value',
-                        fieldId: 'views',
+                        fieldId: 'site',
                         value: { raw: 'docs', formatted: 'Docs' },
                     },
                 ],
@@ -406,7 +406,7 @@ describe('Should pivot data', () => {
                 [
                     {
                         type: 'value',
-                        fieldId: 'views',
+                        fieldId: 'page',
                         value: { raw: '/home', formatted: '/home' },
                     },
                     { type: 'label', fieldId: 'views' },
@@ -414,7 +414,7 @@ describe('Should pivot data', () => {
                 [
                     {
                         type: 'value',
-                        fieldId: 'devices',
+                        fieldId: 'page',
                         value: { raw: '/home', formatted: '/home' },
                     },
                     { type: 'label', fieldId: 'devices' },
@@ -422,7 +422,7 @@ describe('Should pivot data', () => {
                 [
                     {
                         type: 'value',
-                        fieldId: 'views',
+                        fieldId: 'page',
                         value: { raw: '/about', formatted: '/about' },
                     },
                     { type: 'label', fieldId: 'views' },
@@ -430,7 +430,7 @@ describe('Should pivot data', () => {
                 [
                     {
                         type: 'value',
-                        fieldId: 'devices',
+                        fieldId: 'page',
                         value: { raw: '/about', formatted: '/about' },
                     },
                     { type: 'label', fieldId: 'devices' },
@@ -438,7 +438,7 @@ describe('Should pivot data', () => {
                 [
                     {
                         type: 'value',
-                        fieldId: 'views',
+                        fieldId: 'page',
                         value: { raw: '/first-post', formatted: '/first-post' },
                     },
                     { type: 'label', fieldId: 'views' },
@@ -446,7 +446,7 @@ describe('Should pivot data', () => {
                 [
                     {
                         type: 'value',
-                        fieldId: 'devices',
+                        fieldId: 'page',
                         value: { raw: '/first-post', formatted: '/first-post' },
                     },
                     { type: 'label', fieldId: 'devices' },
