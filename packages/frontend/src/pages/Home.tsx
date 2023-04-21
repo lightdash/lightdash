@@ -27,7 +27,10 @@ const Home: FC = () => {
     const project = useProject(selectedProjectUuid);
     const onboarding = useOnboardingStatus();
 
-    const { data: pinnedItems, isLoading: pinnedItemsLoading } = usePinnedItems(
+    const {
+        data: pinnedItems = { dashboards: [], charts: [], spaces: [] },
+        isLoading: pinnedItemsLoading,
+    } = usePinnedItems(
         selectedProjectUuid,
         project?.data?.pinnedListUuid || '',
     );
@@ -81,7 +84,7 @@ const Home: FC = () => {
                             projectUuid={project.data.projectUuid}
                         />
                         <PinnedItemsPanel
-                            data={pinnedItems!}
+                            data={pinnedItems}
                             projectUuid={project.data.projectUuid}
                             organizationUuid={project.data.organizationUuid}
                         />

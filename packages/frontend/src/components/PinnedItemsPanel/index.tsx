@@ -24,14 +24,7 @@ const PinnedItemsPanel: FC<Props> = ({
         'update',
         subject('Project', { organizationUuid, projectUuid }),
     );
-
-    const pinnedItems = useMemo(() => {
-        return [...data.dashboards, ...data.spaces, ...data.charts].filter(
-            (item) => {
-                return !!item.data.pinnedListUuid;
-            },
-        );
-    }, [data]);
+    const pinnedItems = [...data.dashboards, ...data.spaces, ...data.charts];
 
     return pinnedItems && pinnedItems.length > 0 ? (
         <ResourceView
