@@ -432,7 +432,9 @@ export class SchedulerModel {
         const logs = await this.database(SchedulerLogTableName)
 
             .select()
-            .whereIn(`scheduler_uuid`, uniqueSchedulerUuids);
+            .whereIn(`scheduler_uuid`, uniqueSchedulerUuids)
+            .limit(1500);
+
         const schedulerLogs: SchedulerLog[] = logs.map(
             SchedulerModel.parseSchedulerLog,
         );
