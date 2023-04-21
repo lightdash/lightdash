@@ -1,3 +1,10 @@
+## [0.517.3](https://github.com/lightdash/lightdash/compare/0.517.2...0.517.3) (2023-04-21)
+
+
+### Bug Fixes
+
+* handle default scheduler when headless browser is disabled ([#5164](https://github.com/lightdash/lightdash/issues/5164)) ([8dee687](https://github.com/lightdash/lightdash/commit/8dee6879845bcc7e212426d7fe41cf1dd7437434))
+
 ## [0.517.2](https://github.com/lightdash/lightdash/compare/0.517.1...0.517.2) (2023-04-21)
 
 
