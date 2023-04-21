@@ -10,7 +10,6 @@ import {
     ResultRow,
     ResultValue,
 } from '@lightdash/common';
-import mapValues from 'lodash-es/mapValues';
 
 type PivotQueryResultsArgs = {
     pivotConfig: PivotConfig;
@@ -98,10 +97,8 @@ const getIndexByKey = (
 export const pivotQueryResults = ({
     pivotConfig,
     metricQuery,
-    rows: resultRows,
+    rows,
 }: PivotQueryResultsArgs): PivotData => {
-    const rows = resultRows.map((row) => mapValues(row, (r) => r.value));
-
     if (rows.length === 0) {
         throw new Error('Cannot pivot results with no rows');
     }
@@ -182,7 +179,7 @@ export const pivotQueryResults = ({
                 .map<PivotValue>((fieldId) => ({
                     type: 'value',
                     fieldId: fieldId,
-                    value: row[fieldId],
+                    value: row[fieldId].value,
                 }))
                 .concat(
                     pivotConfig.metricsAsRows
@@ -194,7 +191,7 @@ export const pivotQueryResults = ({
                 .map<PivotValue>((fieldId) => ({
                     type: 'value',
                     fieldId: fieldId,
-                    value: row[fieldId],
+                    value: row[fieldId].value,
                 }))
                 .concat(
                     pivotConfig.metricsAsRows
@@ -207,9 +204,7 @@ export const pivotQueryResults = ({
                 setIndexByKey(
                     rowIndices,
                     indexRowValues.map((l) =>
-                        l.type === 'value' && l.value
-                            ? String(l.value?.raw)
-                            : l.fieldId,
+                        l.type === 'value' ? String(l.value?.raw) : l.fieldId,
                     ),
                     rowCount,
                 )
@@ -223,9 +218,7 @@ export const pivotQueryResults = ({
                 setIndexByKey(
                     columnIndices,
                     headerRowValues.map((l) =>
-                        l.type === 'value' && l.value
-                            ? String(l.value.raw)
-                            : l.fieldId,
+                        l.type === 'value' ? String(l.value.raw) : l.fieldId,
                     ),
                     columnCount,
                 )
@@ -258,14 +251,14 @@ export const pivotQueryResults = ({
         const row = rows[nRow];
         for (let nMetric = 0; nMetric < metrics.length; nMetric++) {
             const metric = metrics[nMetric];
-            const value = row[metric.fieldId];
+            const value = row[metric.fieldId].value;
 
             const rowKeys = [
-                ...indexDimensions.map((d) => row[d].raw),
+                ...indexDimensions.map((d) => row[d].value.raw),
                 ...(pivotConfig.metricsAsRows ? [metric.fieldId] : []),
             ];
             const columnKeys = [
-                ...headerDimensions.map((d) => row[d].raw),
+                ...headerDimensions.map((d) => row[d].value.raw),
                 ...(pivotConfig.metricsAsRows ? [] : [metric.fieldId]),
             ];
 
