@@ -325,9 +325,18 @@ export class SavedChartModel {
             description: 'Gets a single chart including statistics',
         });
         try {
-            const [savedQuery] = await this.database<DbSavedChartDetails>(
-                SavedChartsTableName,
-            )
+            const [savedQuery] = await this.database
+                .with('view_stats', (qb) => {
+                    qb.count({ views: '*' })
+                        .min({
+                            first_viewed_at: 'timestamp',
+                        })
+                        .select('chart_uuid')
+                        .groupBy('chart_uuid')
+                        .from('analytics_chart_views')
+                        .where('chart_uuid', savedChartUuid);
+                })
+                .from<DbSavedChartDetails>(SavedChartsTableName)
                 .innerJoin(
                     SpaceTableName,
                     `${SavedChartsTableName}.space_id`,
@@ -363,6 +372,11 @@ export class SavedChartModel {
                     `${PinnedListTableName}.pinned_list_uuid`,
                     `${PinnedChartTableName}.pinned_list_uuid`,
                 )
+                .leftJoin(
+                    'view_stats',
+                    'view_stats.chart_uuid',
+                    'saved_queries.saved_query_uuid',
+                )
                 .select<
                     (DbSavedChartDetails & {
                         space_uuid: string;
@@ -391,14 +405,8 @@ export class SavedChartModel {
                     `${SpaceTableName}.space_uuid`,
                     `${SpaceTableName}.name as spaceName`,
                     `${PinnedListTableName}.pinned_list_uuid`,
-                    this.database.raw(
-                        `(SELECT COUNT('${AnalyticsChartViewsTableName}.chart_uuid') FROM ${AnalyticsChartViewsTableName} WHERE ${AnalyticsChartViewsTableName}.chart_uuid = ?) as views`,
-                        savedChartUuid,
-                    ),
-                    this.database.raw(
-                        `(SELECT ${AnalyticsChartViewsTableName}.timestamp FROM ${AnalyticsChartViewsTableName} WHERE ${AnalyticsChartViewsTableName}.chart_uuid = ? ORDER BY ${AnalyticsChartViewsTableName}.timestamp ASC LIMIT 1) as first_viewed_at`,
-                        savedChartUuid,
-                    ),
+                    `view_stats.views`,
+                    `view_stats.first_viewed_at`,
                 ])
                 .where(
                     `${SavedChartsTableName}.saved_query_uuid`,
