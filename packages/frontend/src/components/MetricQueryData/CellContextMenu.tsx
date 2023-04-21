@@ -1,5 +1,5 @@
 import { Menu } from '@blueprintjs/core';
-import { FieldUrl, isField } from '@lightdash/common';
+import { FieldUrl, isField, ResultValue } from '@lightdash/common';
 import { FC } from 'react';
 import { CellContextMenuProps } from '../common/Table/types';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
