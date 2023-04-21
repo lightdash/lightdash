@@ -1,7 +1,7 @@
 import {
+    getChartType,
     ResourceViewChartItem,
     ResourceViewDashboardItem,
-    ResourceViewItem,
     ResourceViewItemType,
     ResourceViewSpaceItem,
 } from '@lightdash/common';
@@ -27,6 +27,7 @@ const getCharts = async (
             space_uuid: 'spaces.space_uuid',
             saved_chart_uuid: 'pinned_chart.saved_chart_uuid',
             updated_by_user_uuid: 'users.user_uuid',
+            chart_config: 'sqv.chart_config',
         })
         .max({
             name: 'saved_queries.name',
@@ -77,7 +78,7 @@ const getCharts = async (
         .whereIn('spaces.space_uuid', allowedSpaceUuids)
         .andWhere('pinned_list.pinned_list_uuid', pinnedListUuid)
         .andWhere('pinned_list.project_uuid', projectUuid)
-        .groupBy(1, 2, 3, 4, 5)) as Record<string, any>[];
+        .groupBy(1, 2, 3, 4, 5, 6)) as Record<string, any>[];
     const resourceType: ResourceViewItemType.CHART = ResourceViewItemType.CHART;
     const items = rows.map((row) => ({
         type: resourceType,
@@ -90,7 +91,7 @@ const getCharts = async (
             updatedAt: row.updated_at,
             views: row.views,
             firstViewedAt: row.first_viewed_at,
-            chartType: row.chart_type,
+            chartType: getChartType(row.chart_type, row.chart_config),
             updatedByUser: row.updated_by_user_uuid && {
                 userUuid: row.updated_by_user_uuid,
                 firstName: row.updated_by_user_first_name,
