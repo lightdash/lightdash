@@ -10,7 +10,7 @@ import {
 import { Tooltip2 } from '@blueprintjs/popover2';
 import { CreateSchedulerAndTargetsWithoutIds } from '@lightdash/common';
 import React, { FC, useEffect, useMemo, useState } from 'react';
-import { UseFormReturn } from 'react-hook-form';
+import { useFormContext } from 'react-hook-form';
 import useHealth from '../../../hooks/health/useHealth';
 import { useSlackChannels } from '../../../hooks/slack/useSlackChannels';
 import { useGetSlack } from '../../../hooks/useSlack';
@@ -176,12 +176,11 @@ const SchedulerOptions: FC<
     );
 };
 
-const SchedulerForm: FC<
-    {
-        disabled: boolean;
-        methods: UseFormReturn<CreateSchedulerAndTargetsWithoutIds, object>;
-    } & Omit<React.ComponentProps<typeof Form>, 'methods'>
-> = ({ disabled, methods, ...rest }) => {
+const SchedulerForm: FC<{
+    disabled: boolean;
+}> = ({ disabled }) => {
+    const methods = useFormContext<CreateSchedulerAndTargetsWithoutIds>();
+
     const slackQuery = useGetSlack();
     const slackState = useMemo(() => {
         if (slackQuery.isLoading) {
@@ -220,7 +219,7 @@ const SchedulerForm: FC<
         useState<boolean>(true);
 
     return (
-        <Form name="scheduler" methods={methods} {...rest}>
+        <Form name="scheduler" methods={methods}>
             <FormGroup label={<Title>1. Name the delivery</Title>}>
                 <Input
                     name="name"

@@ -13,7 +13,7 @@ import {
     UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
 import { FC, useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { FormProvider, useForm } from 'react-hook-form';
 import {
     UseMutationResult,
     UseQueryResult,
@@ -83,10 +83,9 @@ const CreateStateContent: FC<{
     return (
         <>
             <DialogBody>
-                <SchedulerForm
-                    disabled={createMutation.isLoading}
-                    methods={methods}
-                />
+                <FormProvider {...methods}>
+                    <SchedulerForm disabled={createMutation.isLoading} />
+                </FormProvider>
             </DialogBody>
             <DialogFooter
                 actions={
@@ -156,10 +155,9 @@ const UpdateStateContent: FC<{
     return (
         <>
             <DialogBody>
-                <SchedulerForm
-                    disabled={mutation.isLoading}
-                    methods={methods}
-                />
+                <FormProvider {...methods}>
+                    <SchedulerForm disabled={mutation.isLoading} />
+                </FormProvider>
             </DialogBody>
             <DialogFooter
                 actions={
