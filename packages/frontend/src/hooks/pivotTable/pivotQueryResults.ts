@@ -282,22 +282,22 @@ export const pivotQueryResults = ({
     }
 
     // compute row totals
-    let rowTotals: (ResultValue | null)[][] | undefined;
     let headerTotals: (TotalTitle | null)[][] | undefined;
-
+    let rowTotals: (ResultValue | null)[][] | undefined;
     if (pivotConfig.rowTotals && pivotConfig.metricsAsRows) {
         const N_TOTAL_COLS = 1;
         const N_TOTAL_ROWS = headerValues.length;
 
-        rowTotals = create2DArray<ResultValue | null>(
-            N_DATA_ROWS,
-            N_TOTAL_COLS,
-        );
         headerTotals = create2DArray<TotalTitle | null>(
             N_TOTAL_ROWS,
             N_TOTAL_COLS,
         );
+        rowTotals = create2DArray<ResultValue | null>(
+            N_DATA_ROWS,
+            N_TOTAL_COLS,
+        );
 
+        // set the header last cell as the title total
         headerTotals[N_TOTAL_ROWS - 1][N_TOTAL_COLS - 1] = {
             title: 'Total',
             titleDirection: 'header',
@@ -313,6 +313,60 @@ export const pivotQueryResults = ({
                     const finalVal = Number.isNaN(parsedVal) ? 0 : parsedVal;
                     return acc + finalVal;
                 }, 0);
+
+                const formattedSum = formatValue(
+                    sum,
+                    item && isField(item) && isMetric(item) ? item : undefined,
+                );
+
+                return {
+                    raw: sum,
+                    formatted: formattedSum,
+                };
+            });
+        });
+    }
+
+    let footerTotals: (TotalTitle | null)[][] | undefined;
+    let columnTotals: (ResultValue | null)[][] | undefined;
+    if (pivotConfig.columnTotals && pivotConfig.metricsAsRows) {
+        const N_TOTAL_ROWS = metrics.length;
+        const N_TOTAL_COLS = indexValueTypes.length;
+
+        footerTotals = create2DArray<TotalTitle | null>(
+            N_TOTAL_ROWS,
+            N_TOTAL_COLS,
+        );
+        columnTotals = create2DArray<ResultValue | null>(
+            N_TOTAL_ROWS,
+            N_DATA_COLUMNS,
+        );
+
+        metrics.forEach((metric, metricIndex) => {
+            const item = itemsMap[metric.fieldId];
+
+            footerTotals![metricIndex][N_TOTAL_COLS - 1] = {
+                title: `Total ${item?.name || metric.fieldId}`,
+                titleDirection: 'index',
+            };
+        });
+
+        columnTotals = columnTotals.map((row, totalRowIndex) => {
+            return row.map((_, totalColumnIndex) => {
+                const indexValue = indexValues.map(last)[totalRowIndex];
+                const item = indexValue ? itemsMap[indexValue?.fieldId] : null;
+
+                const sum = dataValues
+                    .filter(
+                        (__, index) => index % N_TOTAL_ROWS === totalRowIndex,
+                    )
+                    .reduce((acc, value) => {
+                        const parsedVal = Number(value[totalColumnIndex]?.raw);
+                        const finalVal = Number.isNaN(parsedVal)
+                            ? 0
+                            : parsedVal;
+                        return acc + finalVal;
+                    }, 0);
 
                 const formattedSum = formatValue(
                     sum,
@@ -360,5 +414,7 @@ export const pivotQueryResults = ({
         titleFields,
         headerTotals,
         rowTotals,
+        footerTotals,
+        columnTotals,
     };
 };

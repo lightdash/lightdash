@@ -37,16 +37,17 @@ export type PivotData = {
     headerValueTypes: PivotHeaderType[];
     headerValues: PivotValue[][];
 
-    headerTotals?: (TotalTitle | null)[][];
-
     indexValueTypes: PivotIndexType[];
     indexValues: PivotValue[][];
 
     dataColumnCount: number;
     dataValues: (ResultValue | null)[][];
 
-    columnTotals?: (ResultValue | null)[][];
+    headerTotals?: (TotalTitle | null)[][];
+    footerTotals?: (TotalTitle | null)[][];
+
     rowTotals?: (ResultValue | null)[][];
+    columnTotals?: (ResultValue | null)[][];
 
     pivotConfig: PivotConfig;
 };

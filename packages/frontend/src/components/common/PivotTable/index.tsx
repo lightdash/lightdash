@@ -311,6 +311,63 @@ const PivotTable: FC<PivotTableProps> = ({
                     </tr>
                 ))}
             </tbody>
+
+            {data.pivotConfig.columnTotals ? (
+                <tfoot>
+                    {data.columnTotals?.map((row, totalRowIndex) => (
+                        <tr key={`column-total-${totalRowIndex}`}>
+                            {/* shows empty cell if row numbers are visible */}
+                            {hideRowNumbers ? null : (
+                                <th
+                                    className={cellCx(
+                                        cellStyles.root,
+                                        cellStyles.rowNumber,
+                                    )}
+                                />
+                            )}
+
+                            {/* render the total label */}
+                            {data.footerTotals?.[totalRowIndex].map(
+                                (total, totalColIndex) =>
+                                    total ? (
+                                        <HeaderCell
+                                            key={`footer-total-${totalRowIndex}-${totalColIndex}`}
+                                            textAlign={
+                                                total.titleDirection === 'index'
+                                                    ? 'right'
+                                                    : 'left'
+                                            }
+                                            className={cellCx(
+                                                cellStyles.root,
+                                                cellStyles.header,
+                                            )}
+                                        >
+                                            {total.title}
+                                        </HeaderCell>
+                                    ) : (
+                                        <th
+                                            key={`footer-total-${totalRowIndex}-${totalColIndex}`}
+                                            className={cellCx(
+                                                cellStyles.root,
+                                                cellStyles.rowNumber,
+                                            )}
+                                        />
+                                    ),
+                            )}
+
+                            {/* render the total values */}
+                            {row.map((total, totalColIndex) => (
+                                <TotalCell
+                                    key={`column-total-${totalRowIndex}-${totalColIndex}`}
+                                    value={total}
+                                >
+                                    {total?.formatted}
+                                </TotalCell>
+                            ))}
+                        </tr>
+                    ))}
+                </tfoot>
+            ) : null}
         </Table>
     );
 };

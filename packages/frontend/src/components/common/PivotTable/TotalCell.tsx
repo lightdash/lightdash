@@ -14,16 +14,17 @@ type TotalCellProps = {
     value: ResultValue | null;
 };
 
+// TODO: duplicate
 type ForwardRefProps = {
     render: (
         props: React.HTMLAttributes<HTMLTableCellElement>,
         ref: ForwardedRef<HTMLTableCellElement> | null,
     ) => JSX.Element;
 };
-
 const ForwardRef = forwardRef<HTMLTableCellElement, ForwardRefProps>(
     ({ render, ...props }, ref) => render(props, ref),
 );
+// end duplicate
 
 const TotalCell: FC<TotalCellProps> = ({ value }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
