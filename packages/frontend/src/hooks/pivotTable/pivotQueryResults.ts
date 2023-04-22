@@ -285,8 +285,6 @@ export const pivotQueryResults = ({
     let rowTotals: (ResultValue | null)[][] | undefined;
     let headerTotals: (TotalTitle | null)[][] | undefined;
 
-    console.log({ pivotConfig });
-
     if (pivotConfig.rowTotals && pivotConfig.metricsAsRows) {
         const N_TOTAL_COLS = 1;
         const N_TOTAL_ROWS = headerValues.length;
@@ -306,8 +304,8 @@ export const pivotQueryResults = ({
         };
 
         rowTotals = rowTotals.map((row, totalRowIndex) => {
-            return row.map((_, totalColIndex) => {
-                const indexValue = indexValues.map(last)[totalColIndex];
+            return row.map(() => {
+                const indexValue = indexValues.map(last)[totalRowIndex];
                 const item = indexValue ? itemsMap[indexValue?.fieldId] : null;
 
                 const sum = dataValues[totalRowIndex].reduce((acc, value) => {
@@ -315,10 +313,6 @@ export const pivotQueryResults = ({
                     const finalVal = Number.isNaN(parsedVal) ? 0 : parsedVal;
                     return acc + finalVal;
                 }, 0);
-
-                console.log(
-                    item && isField(item) && isMetric(item) ? item : undefined,
-                );
 
                 const formattedSum = formatValue(
                     sum,
@@ -332,8 +326,6 @@ export const pivotQueryResults = ({
             });
         });
     }
-
-    console.log(rowTotals);
 
     const titleFields: (PivotTitleValue | null)[][] = [
         ...Array(headerValueTypes.length),

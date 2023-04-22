@@ -202,10 +202,6 @@ const useTableConfig = (
         data: PivotData | undefined;
         error: undefined | string;
     }>(() => {
-        console.log({
-            columnTotals: tableChartConfig?.showColumnCalculation,
-            rowTotals: tableChartConfig?.showRowCalculation,
-        });
         // Note: user can have metricsAsRows enabled but if the configuration isn't allowed, it'll be ignored
         // In future we should change this to an error
         if (
@@ -239,7 +235,7 @@ const useTableConfig = (
                     },
                     metricQuery: resultsData.metricQuery,
                     rows: resultsData.rows,
-                    itemsMap: itemsMap,
+                    itemsMap,
                 });
 
                 return { data: data, error: undefined };
