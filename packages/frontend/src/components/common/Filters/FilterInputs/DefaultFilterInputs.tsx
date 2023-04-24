@@ -1,5 +1,3 @@
-import { TagInput } from '@blueprintjs/core';
-import { Popover2Props } from '@blueprintjs/popover2';
 import {
     assertUnreachable,
     ConditionalRule,
@@ -8,18 +6,20 @@ import {
     FilterType,
     isFilterRule,
 } from '@lightdash/common';
+import { Box, MultiSelect, NumberInput } from '@mantine/core';
+import { uniq } from 'lodash-es';
 import isString from 'lodash-es/isString';
 import React from 'react';
 import { useFiltersContext } from '../FiltersProvider';
 import MultiAutoComplete from './AutoComplete/MultiAutoComplete';
-import { StyledNumericInput } from './NumericInput.styles';
 
 export type FilterInputsProps<T extends ConditionalRule> = {
     filterType: FilterType;
     field: FilterableItem;
     rule: T;
     onChange: (value: T) => void;
-    popoverProps?: Popover2Props;
+    // TODO: get rid of popover props?
+    // popoverProps?: Popover2Props;
     disabled?: boolean;
 };
 
@@ -27,7 +27,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
     field,
     filterType,
     rule,
-    popoverProps,
+    // popoverProps,
     disabled,
     onChange,
 }: React.PropsWithChildren<FilterInputsProps<T>>) => {
@@ -39,7 +39,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
     switch (rule.operator) {
         case FilterOperator.NULL:
         case FilterOperator.NOT_NULL:
-            return <span style={{ width: '100%' }} />;
+            return <Box sx={{ flex: 1 }} />;
         case FilterOperator.STARTS_WITH:
         case FilterOperator.INCLUDE:
         case FilterOperator.NOT_INCLUDE:
@@ -52,7 +52,8 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
                         field={field}
                         values={(rule.values || []).filter(isString)}
                         suggestions={suggestions || []}
-                        popoverProps={popoverProps}
+                        // TODO: mantinify
+                        // popoverProps={popoverProps}
                         onChange={(values) =>
                             onChange({
                                 ...rule,
@@ -62,28 +63,54 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
                     />
                 );
             }
+
+            const values =
+                rule.values?.map((v) => ({
+                    value: String(v),
+                    label: String(v),
+                    originalValue: v,
+                })) || [];
+
+            const currentValue = values.map((v) => v.value);
+
+            const handleChange = (newValues: string[]) => {
+                onChange({ ...rule, values: uniq(newValues.filter(Boolean)) });
+            };
+
             return (
-                <TagInput
-                    className={disabled ? 'disabled-filter' : ''}
-                    fill
-                    disabled={disabled}
-                    addOnBlur
-                    inputProps={{
-                        type:
-                            filterType === FilterType.NUMBER
-                                ? 'number'
-                                : 'text',
+                <MultiSelect
+                    sx={{
+                        flex: 1,
+                        // TODO: extract this elsewhere
+                        'input::-webkit-outer-spin-button, input::-webkit-inner-spin-button':
+                            {
+                                appearance: 'none',
+                                margin: 0,
+                                "input[type='number']": {
+                                    appearance: 'textfield',
+                                },
+                            },
                     }}
-                    tagProps={{ minimal: true }}
-                    values={rule.values || []}
-                    onChange={(values) =>
-                        onChange({
-                            ...rule,
-                            values: values?.filter(
-                                (v, i, arr) => arr.indexOf(v) === i,
-                            ),
-                        })
+                    type={
+                        filterType === FilterType.NUMBER ? 'number' : 'search'
                     }
+                    searchable
+                    creatable
+                    clearSearchOnChange
+                    clearSearchOnBlur
+                    getCreateLabel={(query) => `+ add "${query}"`}
+                    disabled={disabled}
+                    data={values}
+                    placeholder={`Enter a ${filterType}`}
+                    value={currentValue}
+                    onChange={handleChange}
+                    onCreate={(query) => {
+                        handleChange([...currentValue, query]);
+                        return query;
+                    }}
+                    onBlur={(e) => {
+                        handleChange([...currentValue, e.currentTarget.value]);
+                    }}
                 />
             );
         }
@@ -105,16 +132,16 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
             if (parsedValue && isNaN(parsedValue)) parsedValue = undefined;
 
             return (
-                <StyledNumericInput
-                    className={disabled ? 'disabled-filter' : ''}
+                <NumberInput
+                    sx={{ flex: 1 }}
                     disabled={disabled}
-                    fill
                     type="number"
+                    placeholder="Enter a number"
                     defaultValue={parsedValue}
-                    onValueChange={(numericValue, stringValue) => {
+                    onChange={(numberValue) => {
                         onChange({
                             ...rule,
-                            values: stringValue === '' ? [] : [numericValue],
+                            values: numberValue ? [] : [numberValue],
                         });
                     }}
                 />
