@@ -1,7 +1,8 @@
-import { HTMLSelect } from '@blueprintjs/core';
 import { ConditionalRule, FilterOperator } from '@lightdash/common';
+import { Select } from '@mantine/core';
 import DefaultFilterInputs, { FilterInputsProps } from './DefaultFilterInputs';
 
+// TODO: revisit types
 const BooleanFilterInputs = <T extends ConditionalRule>(
     props: React.PropsWithChildren<FilterInputsProps<T>>,
 ) => {
@@ -9,17 +10,15 @@ const BooleanFilterInputs = <T extends ConditionalRule>(
     switch (rule.operator) {
         case FilterOperator.EQUALS: {
             return (
-                <HTMLSelect
-                    fill
-                    className={disabled ? 'disabled-filter' : ''}
+                <Select
                     disabled={disabled}
-                    onChange={(e) =>
+                    onChange={(value) =>
                         onChange({
                             ...rule,
-                            values: [e.currentTarget.value === 'true'],
+                            values: [value === 'true'],
                         })
                     }
-                    options={[
+                    data={[
                         { value: 'true', label: 'True' },
                         { value: 'false', label: 'False' },
                     ]}
