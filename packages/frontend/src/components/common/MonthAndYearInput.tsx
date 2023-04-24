@@ -1,4 +1,4 @@
-import { Group, Select } from '@mantine/core';
+import { Select } from '@mantine/core';
 import moment from 'moment';
 import { FC } from 'react';
 import YearInput from './YearInput';
@@ -15,7 +15,7 @@ const MonthAndYearInput: FC<Props> = ({ value, onChange, disabled }) => {
     const monthName = moment(value).format('MMMM');
 
     return (
-        <Group grow sx={{ flex: 1 }}>
+        <>
             <Select
                 disabled={disabled}
                 onChange={(month) => {
@@ -29,7 +29,7 @@ const MonthAndYearInput: FC<Props> = ({ value, onChange, disabled }) => {
             />
 
             <YearInput disabled={disabled} value={value} onChange={onChange} />
-        </Group>
+        </>
     );
 };
 
