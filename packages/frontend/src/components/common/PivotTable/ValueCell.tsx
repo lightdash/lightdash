@@ -4,6 +4,7 @@ import {
     getConditionalFormattingConfig,
     getConditionalFormattingDescription,
     PivotValue,
+    ResultValue,
     TableCalculation,
 } from '@lightdash/common';
 import { Box, Text, Tooltip } from '@mantine/core';
@@ -17,20 +18,20 @@ import {
     useState,
 } from 'react';
 import { readableColor } from '../../../utils/colorUtils';
-import { UnderlyingValueMap } from '../../MetricQueryData/MetricQueryDataProvider';
 import { getConditionalRuleLabel } from '../Filters/configs';
 import { usePivotTableCellStyles } from './tableStyles';
 import ValueCellMenu from './ValueCellMenu';
 
 type ValueCellProps = {
+    item: Field | TableCalculation;
+    value: ResultValue | null;
     rowIndex: number;
     colIndex: number;
+    conditionalFormattings: ConditionalFormattingConfig[];
     getUnderlyingFieldValues: (
         colIndex: number,
         rowIndex: number,
-    ) => UnderlyingValueMap;
-    value: PivotValue | null;
-    conditionalFormattings: ConditionalFormattingConfig[];
+    ) => Record<string, ResultValue>;
     getField: (fieldId: string) => Field | TableCalculation;
 };
 
@@ -46,27 +47,22 @@ const ForwardRef = forwardRef<HTMLTableCellElement, ForwardRefProps>(
 );
 
 const ValueCell: FC<ValueCellProps> = ({
+    item,
+    value,
     rowIndex,
     colIndex,
-    value,
     conditionalFormattings,
     getUnderlyingFieldValues,
-    getField,
 }) => {
-    const field = useMemo(
-        () => (value?.fieldId ? getField(value.fieldId) : undefined),
-        [value, getField],
-    );
-
     const conditionalFormatting = useMemo(() => {
         const conditionalFormattingConfig = getConditionalFormattingConfig(
-            field,
-            value?.value?.raw,
+            item,
+            value?.raw,
             conditionalFormattings,
         );
 
         const tooltipContent = getConditionalFormattingDescription(
-            field,
+            item,
             conditionalFormattingConfig,
             getConditionalRuleLabel,
         );
@@ -78,7 +74,7 @@ const ValueCell: FC<ValueCellProps> = ({
             color: readableColor(conditionalFormattingConfig.color),
             backgroundColor: conditionalFormattingConfig.color,
         };
-    }, [conditionalFormattings, field, value]);
+    }, [conditionalFormattings, item, value]);
 
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -87,13 +83,13 @@ const ValueCell: FC<ValueCellProps> = ({
 
     const handleCopy = useCallback(() => {
         if (isMenuOpen) {
-            clipboard.copy(value?.value?.formatted);
+            clipboard.copy(value?.formatted);
         }
     }, [clipboard, value, isMenuOpen]);
 
     useHotkeys([['mod+c', handleCopy]]);
 
-    const hasValue = !!value?.value?.formatted;
+    const hasValue = !!value?.formatted;
 
     const { cx, classes } = usePivotTableCellStyles({
         hasValue,
@@ -105,7 +101,7 @@ const ValueCell: FC<ValueCellProps> = ({
             rowIndex={rowIndex}
             colIndex={colIndex}
             opened={isMenuOpen}
-            item={field}
+            item={item}
             value={value}
             getUnderlyingFieldValues={getUnderlyingFieldValues}
             onCopy={handleCopy}
@@ -141,7 +137,7 @@ const ValueCell: FC<ValueCellProps> = ({
                                         },
                                     )}
                                 >
-                                    <Text>{value?.value?.formatted}</Text>
+                                    <Text>{value?.formatted}</Text>
                                 </Box>
                             )}
                         />

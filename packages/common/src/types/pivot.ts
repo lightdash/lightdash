@@ -1,15 +1,11 @@
 import { FieldType } from './field';
+import { ResultValue } from './results';
 
 export type PivotConfig = {
     pivotDimensions: string[];
     metricsAsRows: boolean;
     columnOrder?: string[];
     hiddenMetricFieldIds?: string[];
-};
-
-type Value = {
-    raw: unknown;
-    formatted: string;
 };
 
 type HeaderOrIndexType =
@@ -21,7 +17,7 @@ export type PivotIndexType = HeaderOrIndexType;
 
 export type PivotValue =
     | { type: 'label'; fieldId: string; value?: undefined }
-    | { type: 'value'; fieldId: string; value: Value };
+    | { type: 'value'; fieldId: string; value: ResultValue };
 
 export type PivotTitleValue = PivotValue & {
     titleDirection: 'index' | 'header';
@@ -37,10 +33,10 @@ export type PivotData = {
     indexValues: PivotValue[][];
 
     dataColumnCount: number;
-    dataValues: (PivotValue | null)[][];
+    dataValues: (ResultValue | null)[][];
 
-    columnTotals?: (Value | null)[];
-    rowTotals?: (Value | null)[];
+    columnTotals?: (ResultValue | null)[][];
+    rowTotals?: (ResultValue | null)[][];
 
     pivotConfig: PivotConfig;
 };

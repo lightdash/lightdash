@@ -128,7 +128,7 @@ const useBigNumberConfig = (
     }, [bigNumberConfigData]);
 
     const bigNumberRaw =
-        selectedField && resultsData?.rows?.[0]?.[selectedField]?.value.raw;
+        selectedField && resultsData?.rows?.[0]?.[selectedField].value.raw;
 
     const isNumber =
         isNumericItem(item) &&

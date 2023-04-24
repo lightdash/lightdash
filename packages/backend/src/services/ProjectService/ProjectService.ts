@@ -55,7 +55,6 @@ import {
     UpdateProject,
     UpdateProjectMember,
     WarehouseClient,
-    WarehouseTypes,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { URL } from 'url';

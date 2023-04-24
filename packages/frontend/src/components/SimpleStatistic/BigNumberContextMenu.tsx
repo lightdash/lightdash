@@ -6,6 +6,7 @@ import { FC, useCallback, useMemo } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
 import { useParams } from 'react-router-dom';
 
+import { ResultValue } from '@lightdash/common';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useExplore } from '../../hooks/useExplore';
 import { useApp } from '../../providers/AppProvider';
@@ -14,10 +15,7 @@ import { EventName } from '../../types/Events';
 import { Can } from '../common/Authorization';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
-import {
-    UnderlyingValueMap,
-    useMetricQueryDataContext,
-} from '../MetricQueryData/MetricQueryDataProvider';
+import { useMetricQueryDataContext } from '../MetricQueryData/MetricQueryDataProvider';
 
 interface BigNumberContextMenuProps {
     renderTarget: Popover2Props['renderTarget'];
@@ -42,8 +40,8 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
         [bigNumberConfig],
     );
 
-    const fieldValues: UnderlyingValueMap = useMemo(() => {
-        return mapValues(resultsData?.rows?.[0], (r) => r.value) ?? {};
+    const fieldValues: Record<string, ResultValue> = useMemo(() => {
+        return mapValues(resultsData?.rows?.[0], (col) => col.value) ?? {};
     }, [resultsData]);
 
     const value = useMemo(() => {
@@ -128,7 +126,7 @@ export const BigNumberContextMenu: FC<BigNumberContextMenuProps> = ({
                     >
                         <DrillDownMenuItem
                             item={selectedItem}
-                            fieldValues={resultsData?.rows[0].value}
+                            fieldValues={fieldValues}
                             trackingData={{
                                 organizationId: user?.data?.organizationUuid,
                                 userId: user?.data?.userUuid,

@@ -1,4 +1,3 @@
-import { FieldType } from '@lightdash/common';
 import { pivotQueryResults } from './pivotQueryResults';
 import {
     METRIC_QUERY_0DIM_2METRIC,
@@ -107,40 +106,16 @@ describe('Should pivot data', () => {
             dataColumnCount: 2,
             dataValues: [
                 [
-                    {
-                        type: 'value',
-                        fieldId: 'views',
-                        value: { raw: 6, formatted: '6.0' },
-                    },
-                    {
-                        type: 'value',
-                        fieldId: 'devices',
-                        value: { raw: 7, formatted: '7.0' },
-                    },
+                    { raw: 6, formatted: '6.0' },
+                    { raw: 7, formatted: '7.0' },
                 ],
                 [
-                    {
-                        type: 'value',
-                        fieldId: 'views',
-                        value: { raw: 12, formatted: '12.0' },
-                    },
-                    {
-                        type: 'value',
-                        fieldId: 'devices',
-                        value: { raw: 0, formatted: '0.0' },
-                    },
+                    { raw: 12, formatted: '12.0' },
+                    { raw: 0, formatted: '0.0' },
                 ],
                 [
-                    {
-                        type: 'value',
-                        fieldId: 'views',
-                        value: { raw: 11, formatted: '11.0' },
-                    },
-                    {
-                        type: 'value',
-                        fieldId: 'devices',
-                        value: { raw: 1, formatted: '1.0' },
-                    },
+                    { raw: 11, formatted: '11.0' },
+                    { raw: 1, formatted: '1.0' },
                 ],
             ],
             pivotConfig,
@@ -189,38 +164,14 @@ describe('Should pivot data', () => {
             dataColumnCount: 3,
             dataValues: [
                 [
-                    {
-                        type: 'value',
-                        fieldId: 'views',
-                        value: { raw: 6, formatted: '6.0' },
-                    },
-                    {
-                        type: 'value',
-                        fieldId: 'views',
-                        value: { raw: 12, formatted: '12.0' },
-                    },
-                    {
-                        type: 'value',
-                        fieldId: 'views',
-                        value: { raw: 11, formatted: '11.0' },
-                    },
+                    { raw: 6, formatted: '6.0' },
+                    { raw: 12, formatted: '12.0' },
+                    { raw: 11, formatted: '11.0' },
                 ],
                 [
-                    {
-                        type: 'value',
-                        fieldId: 'devices',
-                        value: { raw: 7, formatted: '7.0' },
-                    },
-                    {
-                        type: 'value',
-                        fieldId: 'devices',
-                        value: { raw: 0, formatted: '0.0' },
-                    },
-                    {
-                        type: 'value',
-                        fieldId: 'devices',
-                        value: { raw: 1, formatted: '1.0' },
-                    },
+                    { raw: 7, formatted: '7.0' },
+                    { raw: 0, formatted: '0.0' },
+                    { raw: 1, formatted: '1.0' },
                 ],
             ],
             pivotConfig: {
@@ -305,60 +256,20 @@ describe('Should pivot data', () => {
             dataColumnCount: 4,
             dataValues: [
                 [
-                    {
-                        type: 'value',
-                        fieldId: 'views',
-                        value: { raw: 6, formatted: '6.0' },
-                    },
-                    {
-                        type: 'value',
-                        fieldId: 'devices',
-                        value: { raw: 7, formatted: '7.0' },
-                    },
-                    {
-                        type: 'value',
-                        fieldId: 'views',
-                        value: { raw: 2, formatted: '2.0' },
-                    },
-                    {
-                        type: 'value',
-                        fieldId: 'devices',
-                        value: { raw: 10, formatted: '10.0' },
-                    },
+                    { raw: 6, formatted: '6.0' },
+                    { raw: 7, formatted: '7.0' },
+                    { raw: 2, formatted: '2.0' },
+                    { raw: 10, formatted: '10.0' },
                 ],
                 [
-                    {
-                        type: 'value',
-                        fieldId: 'views',
-                        value: { raw: 12, formatted: '12.0' },
-                    },
-                    {
-                        type: 'value',
-                        fieldId: 'devices',
-                        value: { raw: 0, formatted: '0.0' },
-                    },
-                    {
-                        type: 'value',
-                        fieldId: 'views',
-                        value: { raw: 2, formatted: '2.0' },
-                    },
-                    {
-                        type: 'value',
-                        fieldId: 'devices',
-                        value: { raw: 13, formatted: '13.0' },
-                    },
+                    { raw: 12, formatted: '12.0' },
+                    { raw: 0, formatted: '0.0' },
+                    { raw: 2, formatted: '2.0' },
+                    { raw: 13, formatted: '13.0' },
                 ],
                 [
-                    {
-                        type: 'value',
-                        fieldId: 'views',
-                        value: { raw: 11, formatted: '11.0' },
-                    },
-                    {
-                        type: 'value',
-                        fieldId: 'devices',
-                        value: { raw: 1, formatted: '1.0' },
-                    },
+                    { raw: 11, formatted: '11.0' },
+                    { raw: 1, formatted: '1.0' },
                     null,
                     null,
                 ],
@@ -455,69 +366,23 @@ describe('Should pivot data', () => {
             dataColumnCount: 2,
             dataValues: [
                 [
-                    {
-                        type: 'value',
-                        fieldId: 'views',
-                        value: { raw: 6, formatted: '6.0' },
-                    },
-                    {
-                        type: 'value',
-                        fieldId: 'views',
-                        value: { raw: 2, formatted: '2.0' },
-                    },
+                    { raw: 6, formatted: '6.0' },
+                    { raw: 2, formatted: '2.0' },
                 ],
                 [
-                    {
-                        type: 'value',
-                        fieldId: 'devices',
-                        value: { raw: 7, formatted: '7.0' },
-                    },
-                    {
-                        type: 'value',
-                        fieldId: 'devices',
-                        value: { raw: 10, formatted: '10.0' },
-                    },
+                    { raw: 7, formatted: '7.0' },
+                    { raw: 10, formatted: '10.0' },
                 ],
                 [
-                    {
-                        type: 'value',
-                        fieldId: 'views',
-                        value: { raw: 12, formatted: '12.0' },
-                    },
-                    {
-                        type: 'value',
-                        fieldId: 'views',
-                        value: { raw: 2, formatted: '2.0' },
-                    },
+                    { raw: 12, formatted: '12.0' },
+                    { raw: 2, formatted: '2.0' },
                 ],
                 [
-                    {
-                        type: 'value',
-                        fieldId: 'devices',
-                        value: { raw: 0, formatted: '0.0' },
-                    },
-                    {
-                        type: 'value',
-                        fieldId: 'devices',
-                        value: { raw: 13, formatted: '13.0' },
-                    },
+                    { raw: 0, formatted: '0.0' },
+                    { raw: 13, formatted: '13.0' },
                 ],
-                [
-                    {
-                        type: 'value',
-                        fieldId: 'views',
-                        value: { raw: 11, formatted: '11.0' },
-                    },
-                    null,
-                ],
-                [
-                    {
-                        type: 'value',
-                        fieldId: 'devices',
-                        value: { raw: 1, formatted: '1.0' },
-                    },
-                    null,
-                ],
+                [{ raw: 11, formatted: '11.0' }, null],
+                [{ raw: 1, formatted: '1.0' }, null],
             ],
             pivotConfig: { pivotDimensions: ['site'], metricsAsRows: true },
             titleFields: [

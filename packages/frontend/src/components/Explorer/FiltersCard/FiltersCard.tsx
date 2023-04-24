@@ -7,7 +7,7 @@ import {
     Field,
     fieldId,
     FilterRule,
-    getResultValues,
+    getResultValueArray,
     getTotalFilterRules,
     getVisibleFields,
     isFilterableField,
@@ -102,7 +102,7 @@ const FiltersCard: FC = memo(() => {
                                     prev[fieldId(field)]?.suggestions || [];
                                 const newSuggestions: string[] =
                                     (queryResults &&
-                                        getResultValues(
+                                        getResultValueArray(
                                             queryResults.rows,
                                             true,
                                         ).reduce<string[]>((acc, row) => {

@@ -1,7 +1,7 @@
 import { Menu, MenuDivider } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
-import { isDimension, isField, ResultRow } from '@lightdash/common';
+import { isDimension, isField, ResultValue } from '@lightdash/common';
 import mapValues from 'lodash-es/mapValues';
 import React, { FC } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
@@ -22,7 +22,7 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
 
-    const value: ResultRow[0]['value'] = cell.getValue()?.value || {};
+    const value: ResultValue = cell.getValue()?.value || {};
     const fieldValues = mapValues(cell.row.original, (v) => v?.value) || {};
 
     const { track } = useTracking();

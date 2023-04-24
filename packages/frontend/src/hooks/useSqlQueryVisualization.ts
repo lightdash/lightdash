@@ -30,12 +30,12 @@ const useSqlQueryVisualization = ({
     initialState,
     sqlQueryMutation: { data },
 }: Args) => {
-    const fields: {
-        sqlQueryDimensions: Record<FieldId, CompiledDimension>;
-        sqlQueryMetrics: Record<FieldId, CompiledMetric>;
-    } = useMemo(
+    const fields = useMemo(
         () =>
-            Object.entries(data?.fields || []).reduce(
+            Object.entries(data?.fields || []).reduce<{
+                sqlQueryDimensions: Record<FieldId, CompiledDimension>;
+                sqlQueryMetrics: Record<FieldId, CompiledMetric>;
+            }>(
                 (acc, [key, { type }]) => {
                     if (type === DimensionType.NUMBER) {
                         const metric: CompiledMetric = {
