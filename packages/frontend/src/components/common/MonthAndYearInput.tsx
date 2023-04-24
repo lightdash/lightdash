@@ -1,4 +1,4 @@
-import { HTMLSelect } from '@blueprintjs/core';
+import { Group, Select } from '@mantine/core';
 import moment from 'moment';
 import { FC } from 'react';
 import YearInput from './YearInput';
@@ -12,27 +12,24 @@ type Props = {
 const months = moment.months();
 
 const MonthAndYearInput: FC<Props> = ({ value, onChange, disabled }) => {
-    const utcMonthValue = moment(value).month();
+    const monthName = moment(value).format('MMMM');
+
     return (
-        <>
-            <HTMLSelect
-                className={disabled ? 'disabled-filter' : ''}
+        <Group grow sx={{ flex: 1 }}>
+            <Select
                 disabled={disabled}
-                fill={false}
-                style={{ width: 150 }}
-                onChange={(e) =>
-                    onChange(
-                        moment(value).month(e.currentTarget.value).toDate(),
-                    )
-                }
-                options={months.map((label, index) => ({
-                    value: index,
-                    label,
+                onChange={(month) => {
+                    if (month) onChange(moment(value).month(month).toDate());
+                }}
+                data={months.map((month) => ({
+                    value: month,
+                    label: month,
                 }))}
-                value={utcMonthValue}
+                value={monthName}
             />
+
             <YearInput disabled={disabled} value={value} onChange={onChange} />
-        </>
+        </Group>
     );
 };
 

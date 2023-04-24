@@ -14,6 +14,7 @@ const YearInput: FC<Props> = ({ value, onChange, disabled }) => {
     return (
         <NumberInput
             disabled={disabled}
+            placeholder="Type year"
             min={1000}
             max={9999}
             defaultValue={utcYearValue}
