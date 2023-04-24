@@ -1,11 +1,6 @@
-import { Tooltip2 } from '@blueprintjs/popover2';
 import { FilterableField, FilterRule } from '@lightdash/common';
-import React, { FC, useCallback } from 'react';
-import {
-    FilterGroupHeader,
-    FilterGroupItemsWrapper,
-    FilterGroupWrapper,
-} from './FilterGroupForm.styles';
+import { Stack, Text, Tooltip } from '@mantine/core';
+import { FC, useCallback } from 'react';
 import FilterRuleForm from './FilterRuleForm';
 
 type Props = {
@@ -43,28 +38,31 @@ const SimplifiedFilterGroupForm: FC<Props> = ({
     );
 
     return (
-        <FilterGroupWrapper>
-            <FilterGroupHeader>
-                <Tooltip2
-                    content="You can only use the 'and' operator when combining metrics & dimensions"
-                    disabled={filterRules.length > 1}
-                >
-                    <p>All of the following conditions match:</p>
-                </Tooltip2>
-            </FilterGroupHeader>
-            <FilterGroupItemsWrapper>
+        <Stack spacing="sm" p="lg">
+            <Tooltip
+                withArrow
+                position="top-start"
+                label="You can only use the 'and' operator when combining metrics & dimensions"
+                disabled={filterRules.length > 1}
+            >
+                <Text component="span" color="gray">
+                    All of the following conditions match:
+                </Text>
+            </Tooltip>
+
+            <Stack spacing="lg">
                 {filterRules.map((item, index) => (
                     <FilterRuleForm
-                        isEditMode={isEditMode}
                         key={item.id}
+                        isEditMode={isEditMode}
                         filterRule={item}
                         fields={fields}
                         onChange={(value) => onChangeItem(index, value)}
                         onDelete={() => onDeleteItem(index)}
                     />
                 ))}
-            </FilterGroupItemsWrapper>
-        </FilterGroupWrapper>
+            </Stack>
+        </Stack>
     );
 };
 
