@@ -132,7 +132,7 @@ describe('Download CSV on Explore', () => {
         });
     });
 
-    it.only(
+    it(
         'Should download CSV from results on Explore',
         { retries: 3, pageLoadTimeout: 1000 },
         () => {
