@@ -88,17 +88,17 @@ const FilterSearch: FC<Props> = ({
                     labelFor="field-autocomplete"
                 >
                     <FieldAutoComplete
-                        hasGrouping
                         id="field-autocomplete"
                         fields={fields}
                         onChange={handleChangeField}
-                        popoverProps={{
-                            lazy: true,
-                            matchTargetWidth: true,
-                            captureDismiss: !popoverProps?.isOpen,
-                            canEscapeKeyClose: !popoverProps?.isOpen,
-                            ...popoverProps,
-                        }}
+                        // TODO: revisit those...
+                        // popoverProps={{
+                        //     lazy: true,
+                        //     matchTargetWidth: true,
+                        //     captureDismiss: !popoverProps?.isOpen,
+                        //     canEscapeKeyClose: !popoverProps?.isOpen,
+                        //     ...popoverProps,
+                        // }}
                     />
                 </FormGroup>
             ) : (
