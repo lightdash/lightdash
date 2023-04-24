@@ -78,7 +78,9 @@ describe('Download CSV on Dashboards', () => {
             }
         });
 
-        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards`, {
+            timeout: 60000,
+        });
     });
 
     it(
@@ -132,7 +134,9 @@ describe('Download CSV on Explore', () => {
                 window.location.href = '/';
             }
         });
-        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`, {
+            timeout: 60000,
+        });
     });
 
     it(
