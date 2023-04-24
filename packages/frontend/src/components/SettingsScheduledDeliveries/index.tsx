@@ -27,7 +27,10 @@ interface ProjectUserAccessProps {
     projectUuid: string;
 }
 
-const getContent = (scheduler: Scheduler, projectUuid: string) => {
+const SchedulerContent: FC<{ scheduler: Scheduler; projectUuid: string }> = ({
+    scheduler,
+    projectUuid,
+}) => {
     return scheduler.dashboardUuid !== null ? (
         <Anchor
             href={`/projects/${projectUuid}/dashboards/${scheduler?.dashboardUuid}/view`}
@@ -44,8 +47,10 @@ const getContent = (scheduler: Scheduler, projectUuid: string) => {
         </Anchor>
     );
 };
-
-const getDetails = (scheduler: SchedulerAndTargets, user?: User) => {
+const SchedulerDetails: FC<{ scheduler: SchedulerAndTargets; user?: User }> = ({
+    scheduler,
+    user,
+}) => {
     return (
         <Tooltip
             position="right"
@@ -217,16 +222,16 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
                                         <tr key={scheduler.schedulerUuid}>
                                             <td>
                                                 {scheduler.name}{' '}
-                                                {getDetails(
-                                                    scheduler,
-                                                    createdBy,
-                                                )}
+                                                <SchedulerDetails
+                                                    scheduler={scheduler}
+                                                    user={createdBy}
+                                                ></SchedulerDetails>
                                             </td>
                                             <td>
-                                                {getContent(
-                                                    scheduler,
-                                                    projectUuid,
-                                                )}
+                                                <SchedulerContent
+                                                    scheduler={scheduler}
+                                                    projectUuid={projectUuid}
+                                                ></SchedulerContent>
                                             </td>
 
                                             <td>
@@ -364,16 +369,16 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
                                             </td>
                                             <td>
                                                 {scheduler.name}{' '}
-                                                {getDetails(
-                                                    scheduler,
-                                                    createdBy,
-                                                )}
+                                                <SchedulerDetails
+                                                    scheduler={scheduler}
+                                                    user={createdBy}
+                                                ></SchedulerDetails>
                                             </td>
                                             <td>
-                                                {getContent(
-                                                    scheduler,
-                                                    projectUuid,
-                                                )}
+                                                <SchedulerContent
+                                                    scheduler={scheduler}
+                                                    projectUuid={projectUuid}
+                                                ></SchedulerContent>
                                             </td>
 
                                             <td>
