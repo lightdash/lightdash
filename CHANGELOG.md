@@ -1,3 +1,15 @@
+# [0.519.0](https://github.com/lightdash/lightdash/compare/0.518.0...0.519.0) (2023-04-24)
+
+
+### Bug Fixes
+
+* e2e test with sql runner and csv download ([#5174](https://github.com/lightdash/lightdash/issues/5174)) ([79af283](https://github.com/lightdash/lightdash/commit/79af28376342d4c89a5715f4cf2425b836d05a89))
+
+
+### Features
+
+* add extra columns scheduler dashboard ([#5182](https://github.com/lightdash/lightdash/issues/5182)) ([5c0908e](https://github.com/lightdash/lightdash/commit/5c0908e4de5d1a8ff26d6414b4d5d27d409bb7f5))
+
 # [0.518.0](https://github.com/lightdash/lightdash/compare/0.517.3...0.518.0) (2023-04-24)
 
 
