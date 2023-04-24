@@ -1,6 +1,9 @@
+import { Colors } from '@blueprintjs/core';
 import {
     getHumanReadableCronExpression,
     isSlackTarget,
+    Scheduler,
+    SchedulerAndTargets,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -9,15 +12,14 @@ import {
     Card,
     Group,
     Loader,
-    Modal,
     Table,
     Tabs,
-    Text,
     Title,
     Tooltip,
 } from '@mantine/core';
-import { IconClock, IconDots, IconPencil, IconSend } from '@tabler/icons-react';
-import { FC, useState } from 'react';
+import { User } from '@sentry/react';
+import { IconClock, IconHelp, IconPencil, IconSend } from '@tabler/icons-react';
+import { FC } from 'react';
 import { useSchedulerLogs } from '../../hooks/scheduler/useScheduler';
 import MantineIcon from '../common/MantineIcon';
 
@@ -25,38 +27,55 @@ interface ProjectUserAccessProps {
     projectUuid: string;
 }
 
-const ListTargets: FC<{ targets: string[] }> = ({ targets }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    if (targets.length === 0) {
-        return <p>No targets</p>;
-    }
+const getContent = (scheduler: Scheduler, projectUuid: string) => {
+    return scheduler.dashboardUuid !== null ? (
+        <Anchor
+            href={`/projects/${projectUuid}/dashboards/${scheduler?.dashboardUuid}/view`}
+            target="_blank"
+        >
+            View dashboard
+        </Anchor>
+    ) : (
+        <Anchor
+            href={`/projects/${projectUuid}/saved/${scheduler?.savedChartUuid}/view`}
+            target="_blank"
+        >
+            View chart
+        </Anchor>
+    );
+};
 
+const getDetails = (scheduler: SchedulerAndTargets, user?: User) => {
     return (
-        <>
-            {targets.slice(0, 2).map((target) => (
-                <p key={target}>{target}</p>
-            ))}
-
-            {targets.length > 2 && (
+        <Tooltip
+            position="right"
+            multiline
+            withArrow
+            label={
                 <>
-                    <Anchor onClick={() => setIsOpen(true)}>
-                        {`+${targets.length - 2} more contacts`}
-                    </Anchor>
-
-                    {isOpen && (
-                        <Modal
-                            title={'Contacts list'}
-                            opened={true}
-                            onClose={() => setIsOpen(false)}
-                        >
-                            {targets.map((target) => (
-                                <p key={target}>{target}</p>
+                    <p>
+                        Created by: {user?.firstName} {user?.lastName}
+                    </p>
+                    <p>Type: {scheduler.format}</p>
+                    <p>
+                        Sent to:{' '}
+                        <ul>
+                            {scheduler.targets.map((s, index) => (
+                                <li key={index}>
+                                    {isSlackTarget(s) ? s.channel : s.recipient}
+                                </li>
                             ))}
-                        </Modal>
-                    )}
+                        </ul>
+                    </p>
                 </>
-            )}
-        </>
+            }
+        >
+            <IconHelp
+                size={20}
+                color={Colors.GRAY4}
+                style={{ marginBottom: -5 }}
+            />
+        </Tooltip>
     );
 };
 
@@ -113,7 +132,7 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
     };
 
     return (
-        <Card withBorder shadow="xs" style={{ width: 1000, marginLeft: -100 }}>
+        <Card withBorder shadow="xs" style={{ overflow: 'visible' }}>
             <Tabs defaultValue="scheduled-deliveries" mb="sm">
                 <Tabs.List>
                     <Tabs.Tab
@@ -135,15 +154,11 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
                     </Tabs.Tab>
                 </Tabs.List>
                 <Tabs.Panel value="scheduled-deliveries">
-                    <Table my="sm" horizontalSpacing="sm">
+                    <Table my="sm" horizontalSpacing="sm" fontSize={'xs'}>
                         <thead>
                             <tr>
                                 <th>Name</th>
                                 <th>Content</th>
-                                <th>Created by</th>
-
-                                <th>Type</th>
-                                <th>Send to</th>
 
                                 <th>Frequency</th>
                                 <th>Last delivery</th>
@@ -190,55 +205,32 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
                                         </ActionIcon>
                                     );
 
+                                    const createdBy = data.users.find(
+                                        (u) =>
+                                            u.userUuid === scheduler.createdBy,
+                                    );
                                     return (
                                         <tr key={scheduler.schedulerUuid}>
-                                            <td>{scheduler.name}</td>
                                             <td>
-                                                {scheduler.dashboardUuid !==
-                                                null ? (
-                                                    <Anchor
-                                                        href={`/projects/${projectUuid}/dashboards/${scheduler?.dashboardUuid}/view`}
-                                                        target="_blank"
-                                                    >
-                                                        View dashboard
-                                                    </Anchor>
-                                                ) : (
-                                                    <Anchor
-                                                        href={`/projects/${projectUuid}/saved/${scheduler?.savedChartUuid}/view`}
-                                                        target="_blank"
-                                                    >
-                                                        View chart
-                                                    </Anchor>
+                                                {scheduler.name}{' '}
+                                                {getDetails(
+                                                    scheduler,
+                                                    createdBy,
                                                 )}
                                             </td>
                                             <td>
+                                                {getContent(
+                                                    scheduler,
+                                                    projectUuid,
+                                                )}
+                                            </td>
+
+                                            <td>
                                                 {
-                                                    data.users.find(
-                                                        (u) =>
-                                                            u.userUuid ===
-                                                            scheduler.createdBy,
-                                                    )?.name
-                                                }
-                                            </td>
-                                            <td>{scheduler.format}</td>
-                                            <td>
-                                                <ListTargets
-                                                    targets={scheduler.targets.map(
-                                                        (target) =>
-                                                            isSlackTarget(
-                                                                target,
-                                                            )
-                                                                ? target.channel
-                                                                : target.recipient,
-                                                    )}
-                                                />
-                                            </td>
-                                            <td>
-                                                <Text fz="xs">
-                                                    {getHumanReadableCronExpression(
+                                                    getHumanReadableCronExpression(
                                                         scheduler.cron,
-                                                    )}
-                                                </Text>
+                                                    ).split(',')[0]
+                                                }
                                             </td>
 
                                             <td>
@@ -321,15 +313,17 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
                     </Table>
                 </Tabs.Panel>
                 <Tabs.Panel value="run-history">
-                    <Table my="xs" horizontalSpacing="sm" highlightOnHover>
+                    <Table
+                        my="xs"
+                        horizontalSpacing="sm"
+                        highlightOnHover
+                        fontSize={'xs'}
+                    >
                         <thead>
                             <tr>
                                 <th>Status</th>
                                 <th>Name</th>
                                 <th>Content</th>
-                                <th>Created by</th>
-                                <th>Type</th>
-                                <th>Send to</th>
                                 <th>Frequency</th>
                                 <th>Delivery start</th>
                             </tr>
@@ -346,6 +340,10 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
                                             s.schedulerUuid ===
                                             log.schedulerUuid,
                                     )[0];
+                                    const createdBy = data.users.find(
+                                        (u) =>
+                                            u.userUuid === scheduler.createdBy,
+                                    );
                                     return (
                                         <tr key={log.schedulerUuid}>
                                             <td>
@@ -360,57 +358,26 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
                                                           'no status',
                                                       )}
                                             </td>
-                                            <td>{scheduler.name}</td>
                                             <td>
-                                                {scheduler.dashboardUuid !==
-                                                null ? (
-                                                    <Anchor
-                                                        href={`/projects/${projectUuid}/dashboards/${scheduler?.dashboardUuid}/view`}
-                                                        target="_blank"
-                                                    >
-                                                        View dashboard
-                                                    </Anchor>
-                                                ) : (
-                                                    <Anchor
-                                                        href={`/projects/${projectUuid}/saved/${scheduler?.savedChartUuid}/view`}
-                                                        target="_blank"
-                                                    >
-                                                        View chart
-                                                    </Anchor>
+                                                {scheduler.name}{' '}
+                                                {getDetails(
+                                                    scheduler,
+                                                    createdBy,
                                                 )}
                                             </td>
+                                            <td>
+                                                {getContent(
+                                                    scheduler,
+                                                    projectUuid,
+                                                )}
+                                            </td>
+
                                             <td>
                                                 {
-                                                    data.users.find(
-                                                        (u) =>
-                                                            u.userUuid ===
-                                                            scheduler.createdBy,
-                                                    )?.name
-                                                }
-                                            </td>
-                                            <td>{scheduler.format}</td>
-                                            <td>
-                                                {log.target ? (
-                                                    <p>{log.target}</p>
-                                                ) : (
-                                                    <ListTargets
-                                                        targets={scheduler.targets.map(
-                                                            (target) =>
-                                                                isSlackTarget(
-                                                                    target,
-                                                                )
-                                                                    ? target.channel
-                                                                    : target.recipient,
-                                                        )}
-                                                    />
-                                                )}
-                                            </td>
-                                            <td>
-                                                <Text fz="xs">
-                                                    {getHumanReadableCronExpression(
+                                                    getHumanReadableCronExpression(
                                                         scheduler.cron,
-                                                    )}
-                                                </Text>
+                                                    ).split(',')[0]
+                                                }
                                             </td>
                                             <td>
                                                 {log.scheduledTime

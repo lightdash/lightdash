@@ -1222,7 +1222,8 @@ const models: TsoaRoute.Models = {
                         dataType: 'nestedObjectLiteral',
                         nestedProperties: {
                             userUuid: { dataType: 'string', required: true },
-                            name: { dataType: 'string', required: true },
+                            lastName: { dataType: 'string', required: true },
+                            firstName: { dataType: 'string', required: true },
                         },
                     },
                     required: true,

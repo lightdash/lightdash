@@ -430,7 +430,8 @@ export class SchedulerModel {
         return {
             schedulers,
             users: users.map((u) => ({
-                name: `${u.first_name} ${u.last_name}`,
+                firstName: u.first_name,
+                lastName: u.last_name,
                 userUuid: u.user_uuid,
             })),
             logs: schedulerLogs.sort(SchedulerModel.sortLogs),

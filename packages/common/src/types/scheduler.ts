@@ -155,7 +155,7 @@ export type ApiSchedulerAndTargetsResponse = {
 
 export type SchedulerWithLogs = {
     schedulers: SchedulerAndTargets[];
-    users: { name: string; userUuid: string }[];
+    users: { firstName: string; lastName: string; userUuid: string }[];
     logs: SchedulerLog[];
 };
 
