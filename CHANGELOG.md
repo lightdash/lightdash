@@ -1,3 +1,10 @@
+# [0.518.0](https://github.com/lightdash/lightdash/compare/0.517.3...0.518.0) (2023-04-24)
+
+
+### Features
+
+* pivot table with safe types ([#5153](https://github.com/lightdash/lightdash/issues/5153)) ([b56986a](https://github.com/lightdash/lightdash/commit/b56986a02cb76702160b1959f102254080c6e79b))
+
 ## [0.517.3](https://github.com/lightdash/lightdash/compare/0.517.2...0.517.3) (2023-04-21)
 
 
