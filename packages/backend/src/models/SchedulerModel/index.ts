@@ -418,6 +418,9 @@ export class SchedulerModel {
 
             .select()
             .whereIn(`scheduler_uuid`, schedulerUuids);
+            .orderBy('created_at', 'desc')
+            .limit(100);
+
         const schedulerLogs: SchedulerLog[] = logs.map(
             SchedulerModel.parseSchedulerLog,
         );
