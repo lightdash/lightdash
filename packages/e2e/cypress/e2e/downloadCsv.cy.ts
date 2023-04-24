@@ -153,7 +153,7 @@ describe('Download CSV on Explore', () => {
             cy.findByText('Loading results').should('not.exist');
 
             cy.findByText('Export CSV').click();
-            cy.get('.bp4-popover2').contains('Export CSV').click();
+            cy.get('[icon="export"]').click();
 
             cy.wait('@apiDownloadCsv', { timeout: 3000 }).then(
                 (interception) => {
