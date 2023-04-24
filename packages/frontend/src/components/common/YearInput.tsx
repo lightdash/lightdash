@@ -1,20 +1,19 @@
-import { NumberInput } from '@mantine/core';
+import { NumberInput, NumberInputProps } from '@mantine/core';
 import moment from 'moment';
 import { FC } from 'react';
 
-type Props = {
+interface YearInputProps extends Omit<NumberInputProps, 'value' | 'onChange'> {
     value: Date;
     onChange: (value: Date) => void;
-    disabled?: boolean;
-};
+}
 
-const YearInput: FC<Props> = ({ value, onChange, disabled }) => {
+const YearInput: FC<YearInputProps> = ({ value, onChange, ...rest }) => {
     const utcYearValue = moment(value).year();
 
     return (
         <NumberInput
-            disabled={disabled}
-            placeholder="Type year"
+            {...rest}
+            placeholder="Enter year"
             min={1000}
             max={9999}
             defaultValue={utcYearValue}
