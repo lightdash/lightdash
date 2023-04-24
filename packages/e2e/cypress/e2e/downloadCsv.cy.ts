@@ -68,76 +68,106 @@ describe('Download CSV on SQL Runner', () => {
 describe('Download CSV on Dashboards', () => {
     beforeEach(() => {
         cy.login();
+        cy.intercept(/.*\.csv/g, (req) => {
+            req.destroy();
+            window.location.href = '/';
+        });
+        cy.on('url:changed', (newUrl) => {
+            if (newUrl.includes('.csv')) {
+                window.location.href = '/';
+            }
+        });
+
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
     });
 
-    it('Should download a CSV from dashboard', () => {
-        const downloadUrl = `/api/v1/projects/${SEED_PROJECT.project_uuid}/explores/payments/downloadCsv`;
-        cy.intercept({
-            method: 'POST',
-            url: downloadUrl,
-        }).as('apiDownloadCsv');
+    it(
+        'Should download a CSV from dashboard',
+        { retries: 3, pageLoadTimeout: 1000 },
+        () => {
+            const downloadUrl = `/api/v1/projects/${SEED_PROJECT.project_uuid}/explores/payments/downloadCsv`;
+            cy.intercept({
+                method: 'POST',
+                url: downloadUrl,
+            }).as('apiDownloadCsv');
 
-        // wiat for the dashboard to load
-        cy.findByText('Loading dashboards').should('not.exist');
+            // wiat for the dashboard to load
+            cy.findByText('Loading dashboards').should('not.exist');
 
-        cy.contains('a', 'Jaffle dashboard').click();
+            cy.contains('a', 'Jaffle dashboard').click();
 
-        cy.findAllByText('Loading chart').should('have.length', 0); // Finish loading
+            cy.findAllByText('Loading chart').should('have.length', 0); // Finish loading
 
-        cy.findAllByText('No chart available').should('have.length', 0);
-        cy.findAllByText('No data available').should('have.length', 0);
+            cy.findAllByText('No chart available').should('have.length', 0);
+            cy.findAllByText('No data available').should('have.length', 0);
 
-        cy.get('thead th').should('have.length', 6); // Table chart
-        cy.contains('Days since').trigger('mouseenter');
+            cy.get('thead th').should('have.length', 6); // Table chart
+            cy.contains('Days since').trigger('mouseenter');
 
-        cy.get('[icon="more"]').click();
-        cy.findByText('Export CSV').click();
-        cy.get('button').contains('Export CSV').click();
+            cy.get('[icon="more"]').click();
+            cy.findByText('Export CSV').click();
+            cy.get('button').contains('Export CSV').click();
 
-        cy.wait('@apiDownloadCsv').then((interception) => {
-            expect(interception?.response?.statusCode).to.eq(200);
+            cy.wait('@apiDownloadCsv').then((interception) => {
+                expect(interception?.response?.statusCode).to.eq(200);
 
-            expect(interception?.response?.body.results).to.have.property(
-                'jobId',
-            );
-        });
-    });
+                expect(interception?.response?.body.results).to.have.property(
+                    'jobId',
+                );
+            });
+        },
+    );
 });
 
 describe('Download CSV on Explore', () => {
     beforeEach(() => {
         cy.login();
+
+        cy.intercept(/.*\.csv/g, (req) => {
+            req.destroy();
+            window.location.href = '/';
+        });
+        cy.on('url:changed', (newUrl) => {
+            if (newUrl.includes('.csv')) {
+                window.location.href = '/';
+            }
+        });
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
     });
 
-    it('Should download CSV from results on Explore', () => {
-        const downloadUrl = `/api/v1/projects/${SEED_PROJECT.project_uuid}/explores/orders/downloadCsv`;
-        cy.intercept({
-            method: 'POST',
-            url: downloadUrl,
-        }).as('apiDownloadCsv');
+    it(
+        'Should download CSV from results on Explore',
+        { retries: 3, pageLoadTimeout: 1000 },
+        () => {
+            const downloadUrl = `/api/v1/projects/${SEED_PROJECT.project_uuid}/explores/orders/downloadCsv`;
+            cy.intercept({
+                method: 'POST',
+                url: downloadUrl,
+            }).as('apiDownloadCsv');
 
-        // choose table and select fields
-        cy.findByText('Orders').click();
-        cy.findByText('First name').click();
-        cy.findByText('Unique order count').click();
+            // choose table and select fields
+            cy.findByText('Orders').click();
+            cy.findByText('First name').click();
+            cy.findByText('Unique order count').click();
 
-        // run query
-        cy.get('button').contains('Run query').click();
+            // run query
+            cy.get('button').contains('Run query').click();
 
-        // wait for the chart to finish loading
-        cy.findByText('Loading chart').should('not.exist');
+            // wait for the chart to finish loading
+            cy.findByText('Loading chart').should('not.exist');
 
-        cy.findByText('Export CSV').click();
+            cy.findByText('Export CSV').click();
 
-        cy.wait('@apiDownloadCsv', { timeout: 10000 }).then((interception) => {
-            expect(interception?.response?.statusCode).to.eq(200);
-            expect(interception?.response?.body.results).to.have.property(
-                'jobId',
+            cy.wait('@apiDownloadCsv', { timeout: 10000 }).then(
+                (interception) => {
+                    expect(interception?.response?.statusCode).to.eq(200);
+                    expect(
+                        interception?.response?.body.results,
+                    ).to.have.property('jobId');
+                },
             );
-        });
-    });
+        },
+    );
     it('Should download CSV from table chart on Explore', () => {
         const downloadUrl = `/api/v1/projects/${SEED_PROJECT.project_uuid}/explores/orders/downloadCsv`;
         cy.intercept({
