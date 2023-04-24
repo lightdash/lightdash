@@ -133,7 +133,11 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
 
     return (
         <Card withBorder shadow="xs" style={{ overflow: 'visible' }}>
-            <Tabs defaultValue="scheduled-deliveries" mb="sm">
+            <Tabs
+                keepMounted={false}
+                defaultValue="scheduled-deliveries"
+                mb="sm"
+            >
                 <Tabs.List>
                     <Tabs.Tab
                         value="scheduled-deliveries"
