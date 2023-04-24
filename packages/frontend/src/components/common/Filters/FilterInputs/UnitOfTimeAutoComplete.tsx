@@ -1,5 +1,5 @@
 import { UnitOfTime } from '@lightdash/common';
-import { Select } from '@mantine/core';
+import { Select, SelectProps } from '@mantine/core';
 import { FC, useMemo } from 'react';
 
 type UnitOfTimeOption = {
@@ -23,28 +23,28 @@ const getUnitOfTimeValue = (unitOfTime: UnitOfTime, isCompleted: boolean) => {
     return `${isCompleted ? 'completed-' : ''}${unitOfTime}`;
 };
 
-type Props = {
+interface UnitOfTimeAutoCompleteProps
+    extends Omit<SelectProps, 'data' | 'onChange'> {
     value: UnitOfTime;
-    disabled?: boolean;
+    completed: boolean;
     isTimestamp: boolean;
     showOptionsInPlural?: boolean;
     showCompletedOptions?: boolean;
-    completed: boolean;
     onClosed?: () => void;
     onChange: (
         value: Pick<UnitOfTimeOption, 'unitOfTime' | 'completed'>,
     ) => void;
-};
+}
 
-const UnitOfTimeAutoComplete: FC<Props> = ({
+const UnitOfTimeAutoComplete: FC<UnitOfTimeAutoCompleteProps> = ({
     isTimestamp,
     completed,
     value,
     showOptionsInPlural = true,
     showCompletedOptions = true,
-    onChange,
     onClosed,
-    disabled,
+    onChange,
+    ...rest
 }) => {
     const data = useMemo(() => {
         const dateIndex = Object.keys(UnitOfTime).indexOf(UnitOfTime.days);
@@ -89,9 +89,7 @@ const UnitOfTimeAutoComplete: FC<Props> = ({
 
     return (
         <Select
-            disabled={disabled}
-            searchable
-            nothingFound="No results..."
+            {...rest}
             data={data}
             value={getUnitOfTimeValue(value, completed)}
             onChange={(newValue) => {
