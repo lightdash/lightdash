@@ -2,7 +2,6 @@ import {
     ApiCompiledQueryResults,
     ApiExploreResults,
     ApiExploresResults,
-    ApiQueryResults,
     ApiSqlQueryResults,
     getRequestMethod,
     LightdashRequestMethodHeader,
@@ -20,7 +19,6 @@ import {
     isAuthenticated,
     unauthorisedInDemo,
 } from '../controllers/authentication';
-import { SchedulerClient } from '../scheduler/SchedulerClient';
 import { CsvService } from '../services/CsvService/CsvService';
 import {
     csvService,

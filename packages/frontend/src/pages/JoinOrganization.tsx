@@ -23,7 +23,7 @@ import { useDeleteUserMutation } from '../hooks/user/useUserDeleteMutation';
 import { useApp } from '../providers/AppProvider';
 import LightdashLogo from '../svgs/lightdash-black.svg';
 
-export const JoinOrganizationPage: FC = () => {
+const JoinOrganizationPage: FC = () => {
     const { health, user } = useApp();
     const history = useHistory();
     const { isLoading: isLoadingAllowedOrgs, data: allowedOrgs } =
@@ -179,3 +179,5 @@ export const JoinOrganizationPage: FC = () => {
         </Page>
     );
 };
+
+export default JoinOrganizationPage;

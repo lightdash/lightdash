@@ -22,7 +22,7 @@ import { useEmailStatus } from '../hooks/useEmailVerification';
 import { useApp } from '../providers/AppProvider';
 import LightdashLogo from '../svgs/lightdash-black.svg';
 
-export const VerificationSuccess: FC<{
+const VerificationSuccess: FC<{
     isOpen: boolean;
     onClose: () => void;
     onContinue: () => void;
@@ -42,7 +42,7 @@ export const VerificationSuccess: FC<{
     );
 };
 
-export const VerifyEmailPage: FC = () => {
+const VerifyEmailPage: FC = () => {
     const { health } = useApp();
     const { data, isLoading: statusLoading } = useEmailStatus();
     const { show: showIntercom } = useIntercom();
@@ -105,3 +105,5 @@ export const VerifyEmailModal: FC<{
         </Modal>
     );
 };
+
+export default VerifyEmailPage;

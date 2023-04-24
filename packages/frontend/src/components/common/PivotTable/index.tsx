@@ -1,13 +1,16 @@
 import {
     ConditionalFormattingConfig,
     Field,
+    fieldId,
     isField,
     PivotData,
+    ResultValue,
     TableCalculation,
 } from '@lightdash/common';
 import { Table, TableProps } from '@mantine/core';
+import last from 'lodash-es/last';
 import React, { FC, useCallback } from 'react';
-import { UnderlyingValueMap } from '../../MetricQueryData/MetricQueryDataProvider';
+
 import HeaderCell from './HeaderCell';
 import IndexCell from './IndexCell';
 import { usePivotTableCellStyles, usePivotTableStyles } from './tableStyles';
@@ -35,12 +38,33 @@ const PivotTable: FC<PivotTableProps> = ({
     const { cx: tableCx, classes: tableStyles } = usePivotTableStyles();
     const { cx: cellCx, classes: cellStyles } = usePivotTableCellStyles({});
 
+    const getItemFromAxis = useCallback(
+        (rowIndex: number, colIndex: number) => {
+            const value = data.pivotConfig.metricsAsRows
+                ? last(data.headerValues)?.[colIndex]
+                : last(data.indexValues[rowIndex]);
+
+            if (!value || !value.fieldId) throw new Error('Invalid pivot data');
+
+            return getField(value.fieldId);
+        },
+        [
+            data.pivotConfig.metricsAsRows,
+            data.headerValues,
+            data.indexValues,
+            getField,
+        ],
+    );
+
     const getUnderlyingFieldValues = useCallback(
         (rowIndex: number, colIndex: number) => {
-            const field = data.dataValues[rowIndex][colIndex];
+            const item = getItemFromAxis(rowIndex, colIndex);
+            const itemValue = data.dataValues[rowIndex][colIndex];
 
             const initialData =
-                field && field.value ? { [field.fieldId]: field.value } : {};
+                isField(item) && itemValue
+                    ? { [fieldId(item)]: itemValue }
+                    : {};
 
             return [
                 // get the index values for this row
@@ -49,12 +73,12 @@ const PivotTable: FC<PivotTableProps> = ({
                 ...(data.headerValues.map((hv) => hv[colIndex]) ?? []),
             ]
                 .filter((iv) => iv.type === 'value')
-                .reduce<UnderlyingValueMap>((acc, iv) => {
+                .reduce<Record<string, ResultValue>>((acc, iv) => {
                     if (!iv.value) return acc;
                     return { ...acc, [iv.fieldId]: iv.value };
                 }, initialData);
         },
-        [data.indexValues, data.headerValues, data.dataValues],
+        [data.indexValues, data.headerValues, data.dataValues, getItemFromAxis],
     );
 
     return (
@@ -68,112 +92,105 @@ const PivotTable: FC<PivotTableProps> = ({
             {...tableProps}
         >
             <thead>
-                {data.headerValueTypes.map(
-                    (_headerValueType, headerRowIndex) => {
-                        const headerValues = data.headerValues[headerRowIndex];
+                {data.headerValues.map((headerValues, headerRowIndex) => {
+                    const headerLevel =
+                        data.headerValues.length - headerRowIndex;
 
-                        const headerLevel =
-                            data.headerValueTypes.length - headerRowIndex;
+                    return (
+                        <tr key={headerRowIndex}>
+                            <>
+                                {/* shows empty cell if row numbers are visible */}
+                                {hideRowNumbers ? null : (
+                                    <th
+                                        className={cellCx(
+                                            cellStyles.root,
+                                            cellStyles.rowNumber,
+                                        )}
+                                    />
+                                )}
 
-                        return (
-                            <tr key={headerRowIndex}>
-                                <>
-                                    {/* shows empty cell if row numbers are visible */}
-                                    {hideRowNumbers ? null : (
-                                        <th
-                                            className={cellCx(
-                                                cellStyles.root,
-                                                cellStyles.rowNumber,
-                                            )}
-                                        />
-                                    )}
+                                {/* renders the title labels */}
+                                {data.indexValueTypes.map(
+                                    (_indexValueType, indexColIndex) => {
+                                        const titleField =
+                                            data.titleFields[headerRowIndex][
+                                                indexColIndex
+                                            ];
 
-                                    {/* renders the title labels */}
-                                    {data.indexValueTypes.map(
-                                        (_indexValueType, indexColIndex) => {
-                                            const titleField =
-                                                data.titleFields[
-                                                    headerRowIndex
-                                                ][indexColIndex];
+                                        const field = titleField?.fieldId
+                                            ? getField(titleField?.fieldId)
+                                            : undefined;
 
-                                            const field = titleField?.fieldId
-                                                ? getField(titleField?.fieldId)
+                                        const isEmpty = !titleField?.fieldId;
+
+                                        const isHeaderTitle =
+                                            titleField?.titleDirection ===
+                                            'header';
+
+                                        return (
+                                            <TitleCell
+                                                key={`${headerRowIndex}-${indexColIndex}`}
+                                                className={cellCx(
+                                                    cellStyles.root,
+                                                    cellStyles.header,
+                                                )}
+                                                isEmpty={isEmpty}
+                                                isHeaderTitle={isHeaderTitle}
+                                                description={
+                                                    isField(field)
+                                                        ? field.description
+                                                        : undefined
+                                                }
+                                                level={headerLevel}
+                                            >
+                                                {titleField?.fieldId
+                                                    ? getFieldLabel(
+                                                          titleField?.fieldId,
+                                                      )
+                                                    : undefined}
+                                            </TitleCell>
+                                        );
+                                    },
+                                )}
+
+                                {/* renders the header values or labels */}
+                                {headerValues.map(
+                                    (headerValue, headerColIndex) => {
+                                        const isLabel =
+                                            headerValue.type === 'label';
+                                        const field = getField(
+                                            headerValue.fieldId,
+                                        );
+
+                                        const description =
+                                            isLabel && isField(field)
+                                                ? field.description
                                                 : undefined;
 
-                                            const isEmpty =
-                                                !titleField?.fieldId;
-
-                                            const isHeaderTitle =
-                                                titleField?.titleDirection ===
-                                                'header';
-
-                                            return (
-                                                <TitleCell
-                                                    key={`${headerRowIndex}-${indexColIndex}`}
-                                                    className={cellCx(
-                                                        cellStyles.root,
-                                                        cellStyles.header,
-                                                    )}
-                                                    isEmpty={isEmpty}
-                                                    isHeaderTitle={
-                                                        isHeaderTitle
-                                                    }
-                                                    description={
-                                                        isField(field)
-                                                            ? field.description
-                                                            : undefined
-                                                    }
-                                                    level={headerLevel}
-                                                >
-                                                    {titleField?.fieldId
-                                                        ? getFieldLabel(
-                                                              titleField?.fieldId,
-                                                          )
-                                                        : undefined}
-                                                </TitleCell>
-                                            );
-                                        },
-                                    )}
-
-                                    {/* renders the header values or labels */}
-                                    {headerValues.map(
-                                        (headerValue, headerColIndex) => {
-                                            const isLabel =
-                                                headerValue.type === 'label';
-                                            const field = getField(
-                                                headerValue.fieldId,
-                                            );
-
-                                            const description =
-                                                isLabel && isField(field)
-                                                    ? field.description
-                                                    : undefined;
-
-                                            return (
-                                                <HeaderCell
-                                                    key={`${headerRowIndex}-${headerColIndex}`}
-                                                    className={cellCx(
-                                                        cellStyles.root,
-                                                        cellStyles.header,
-                                                    )}
-                                                    level={headerLevel}
-                                                    description={description}
-                                                >
-                                                    {isLabel
-                                                        ? getFieldLabel(
-                                                              headerValue.fieldId,
-                                                          )
-                                                        : headerValue.value
-                                                              .formatted}
-                                                </HeaderCell>
-                                            );
-                                        },
-                                    )}
-                                </>
-                            </tr>
-                        );
-                    },
-                )}
+                                        return (
+                                            <HeaderCell
+                                                key={`${headerRowIndex}-${headerColIndex}`}
+                                                className={cellCx(
+                                                    cellStyles.root,
+                                                    cellStyles.header,
+                                                )}
+                                                level={headerLevel}
+                                                description={description}
+                                            >
+                                                {isLabel
+                                                    ? getFieldLabel(
+                                                          headerValue.fieldId,
+                                                      )
+                                                    : headerValue.value
+                                                          .formatted}
+                                            </HeaderCell>
+                                        );
+                                    },
+                                )}
+                            </>
+                        </tr>
+                    );
+                })}
             </thead>
 
             <tbody>
@@ -226,21 +243,29 @@ const PivotTable: FC<PivotTableProps> = ({
                             )}
 
                             {/* renders the pivot values */}
-                            {row.map((pivotValue, colIndex) => (
-                                <ValueCell
-                                    key={`${rowIndex}-${colIndex}`}
-                                    colIndex={colIndex}
-                                    rowIndex={rowIndex}
-                                    value={pivotValue}
-                                    getField={getField}
-                                    getUnderlyingFieldValues={
-                                        getUnderlyingFieldValues
-                                    }
-                                    conditionalFormattings={
-                                        conditionalFormattings
-                                    }
-                                />
-                            ))}
+                            {row.map((value, colIndex) => {
+                                const item = getItemFromAxis(
+                                    rowIndex,
+                                    colIndex,
+                                );
+
+                                return (
+                                    <ValueCell
+                                        key={`${rowIndex}-${colIndex}`}
+                                        item={item}
+                                        value={value}
+                                        colIndex={colIndex}
+                                        rowIndex={rowIndex}
+                                        getField={getField}
+                                        getUnderlyingFieldValues={
+                                            getUnderlyingFieldValues
+                                        }
+                                        conditionalFormattings={
+                                            conditionalFormattings
+                                        }
+                                    />
+                                );
+                            })}
                         </>
                     </tr>
                 ))}

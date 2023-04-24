@@ -1,6 +1,6 @@
-import { Collapse, Colors, Intent, Tag, Text } from '@blueprintjs/core';
+import { Collapse, Intent, Tag, Text } from '@blueprintjs/core';
 import { hasIntersection } from '@lightdash/common';
-import { intersectionBy } from 'lodash-es';
+import intersectionBy from 'lodash-es/intersectionBy';
 import { FC } from 'react';
 import { useToggle } from 'react-use';
 import HighlightedText from '../../../../common/HighlightedText';

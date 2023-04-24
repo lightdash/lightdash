@@ -6,7 +6,7 @@ import {
     isDimension,
     isField,
     isFilterableField,
-    ResultRow,
+    ResultValue,
     TableCalculation,
 } from '@lightdash/common';
 import mapValues from 'lodash-es/mapValues';
@@ -38,7 +38,7 @@ const CellContextMenu: FC<
     const { user } = useApp();
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
-    const value: ResultRow[0]['value'] = cell.getValue()?.value || {};
+    const value: ResultValue = cell.getValue()?.value || {};
     const fieldValues = mapValues(cell.row.original, (v) => v?.value) || {};
 
     return (

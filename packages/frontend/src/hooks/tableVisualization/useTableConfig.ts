@@ -150,6 +150,50 @@ const useTableConfig = (
         return false;
     }, [resultsData, pivotDimensions]);
 
+    const { rows, columns, error } = useMemo<{
+        rows: ResultRow[];
+        columns: Array<TableColumn | TableHeader>;
+        error?: string;
+    }>(() => {
+        if (!resultsData || !selectedItemIds) {
+            return {
+                rows: [],
+                columns: [],
+            };
+        }
+        if (pivotDimensions && pivotDimensions.length > 0) {
+            return getPivotDataAndColumns({
+                columnOrder,
+                itemsMap,
+                resultsData,
+                pivotDimensions,
+                isColumnVisible,
+                getFieldLabel,
+            });
+        } else {
+            return getDataAndColumns({
+                itemsMap,
+                selectedItemIds,
+                resultsData,
+                isColumnVisible,
+                showTableNames,
+                getFieldLabelOverride,
+                isColumnFrozen,
+            });
+        }
+    }, [
+        selectedItemIds,
+        columnOrder,
+        itemsMap,
+        resultsData,
+        pivotDimensions,
+        isColumnVisible,
+        showTableNames,
+        isColumnFrozen,
+        getFieldLabel,
+        getFieldLabelOverride,
+    ]);
+
     const pivotTableData = useMemo<{
         data: PivotData | undefined;
         error: undefined | string;
@@ -203,50 +247,6 @@ const useTableConfig = (
         selectedItemIds,
         isColumnVisible,
         getField,
-    ]);
-
-    const { rows, columns, error } = useMemo<{
-        rows: ResultRow[];
-        columns: Array<TableColumn | TableHeader>;
-        error?: string;
-    }>(() => {
-        if (!resultsData || !selectedItemIds) {
-            return {
-                rows: [],
-                columns: [],
-            };
-        }
-        if (pivotDimensions && pivotDimensions.length > 0) {
-            return getPivotDataAndColumns({
-                columnOrder,
-                itemsMap,
-                resultsData,
-                pivotDimensions,
-                isColumnVisible,
-                getFieldLabel,
-            });
-        } else {
-            return getDataAndColumns({
-                itemsMap,
-                selectedItemIds,
-                resultsData,
-                isColumnVisible,
-                showTableNames,
-                getFieldLabelOverride,
-                isColumnFrozen,
-            });
-        }
-    }, [
-        selectedItemIds,
-        columnOrder,
-        itemsMap,
-        resultsData,
-        pivotDimensions,
-        isColumnVisible,
-        showTableNames,
-        isColumnFrozen,
-        getFieldLabel,
-        getFieldLabelOverride,
     ]);
 
     // Remove columProperties from map if the column has been removed from results

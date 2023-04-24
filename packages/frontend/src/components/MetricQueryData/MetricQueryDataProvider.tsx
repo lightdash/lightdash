@@ -7,6 +7,7 @@ import {
     isDimension,
     MetricQuery,
     PivotReference,
+    ResultValue,
     TableCalculation,
 } from '@lightdash/common';
 import { createContext, FC, useCallback, useContext, useState } from 'react';
@@ -14,13 +15,10 @@ import { EChartSeries } from '../../hooks/echarts/useEcharts';
 import { useExplore } from '../../hooks/useExplore';
 import { EchartSeriesClickEvent } from '../SimpleChart';
 
-export type UnderlyingValue = { raw: unknown; formatted: string };
-export type UnderlyingValueMap = { [fieldId: string]: UnderlyingValue };
-
 export type UnderlyingDataConfig = {
     item: Field | TableCalculation | undefined;
-    value: UnderlyingValue;
-    fieldValues: UnderlyingValueMap;
+    value: ResultValue;
+    fieldValues: Record<string, ResultValue>;
     dimensions?: string[];
     pivotReference?: PivotReference;
     dashboardFilters?: DashboardFilters;
@@ -28,7 +26,7 @@ export type UnderlyingDataConfig = {
 
 export type DrillDownConfig = {
     item: Field | TableCalculation;
-    fieldValues: UnderlyingValueMap;
+    fieldValues: Record<string, ResultValue>;
     pivotReference?: PivotReference;
     dashboardFilters?: DashboardFilters;
 };
@@ -76,7 +74,7 @@ export const getDataFromChartClick = (
             ? selectedMetricsAndTableCalculations[0]
             : selectedFields[0];
     const selectedValue = e.data[getItemId(selectedField)];
-    const fieldValues: UnderlyingValueMap = Object.entries(
+    const fieldValues: Record<string, ResultValue> = Object.entries(
         e.data as Record<string, any>,
     ).reduce((acc, entry) => {
         const [key, val] = entry;

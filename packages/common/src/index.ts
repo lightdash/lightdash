@@ -39,7 +39,6 @@ import {
     ProjectMemberProfile,
     ProjectMemberRole,
 } from './types/projectMemberProfile';
-import { ResultRow } from './types/results';
 import { SavedChart, Series } from './types/savedCharts';
 import { SearchResults } from './types/search';
 import { ShareUrl } from './types/share';
@@ -62,6 +61,7 @@ import {
     ProjectType,
     WarehouseCredentials,
 } from './types/projects';
+import { ResultRow } from './types/results';
 import { SchedulerAndTargets, SchedulerWithLogs } from './types/scheduler';
 import { SlackChannel } from './types/slack';
 import { Space } from './types/space';
@@ -161,7 +161,7 @@ export const replaceStringInArray = (
 ) =>
     arrayToUpdate.map((value) => (value === valueToReplace ? newValue : value));
 
-export type SqlResultsRow = { [columnName: string]: any };
+export type SqlResultsRow = { [columnName: string]: unknown };
 export type SqlResultsField = { name: string; type: string }; // TODO: standardise column types
 export type SqlQueryResults = {
     fields: SqlResultsField[]; // TODO: standard column types
@@ -278,7 +278,7 @@ export type ApiQueryResults = {
 
 export type ApiSqlQueryResults = {
     fields: Record<string, { type: DimensionType }>;
-    rows: { [col: string]: any }[];
+    rows: Record<string, unknown>[];
 };
 
 export type ApiScheduledDownloadCsv = {
@@ -625,15 +625,15 @@ export type UpdateProject = Omit<
     warehouseConnection: CreateWarehouseCredentials;
 };
 
-export const getResultValues = (
+export const getResultValueArray = (
     rows: ResultRow[],
     onlyRaw: boolean = false,
-): { [col: string]: any }[] =>
-    rows.map((row: ResultRow) =>
-        Object.keys(row).reduce((acc, key) => {
-            const value: string = onlyRaw
-                ? row[key]?.value?.raw
-                : row[key]?.value?.formatted || row[key]?.value?.raw;
+): Record<string, unknown>[] =>
+    rows.map((row) =>
+        Object.keys(row).reduce<Record<string, unknown>>((acc, key) => {
+            const value = onlyRaw
+                ? row[key]?.value.raw
+                : row[key]?.value.formatted || row[key]?.value.raw;
 
             return { ...acc, [key]: value };
         }, {}),
@@ -731,7 +731,7 @@ export function formatRows(
     itemMap: Record<string, Field | TableCalculation>,
 ): ResultRow[] {
     return rows.map((row) =>
-        Object.keys(row).reduce((acc, columnName) => {
+        Object.keys(row).reduce<ResultRow>((acc, columnName) => {
             const col = row[columnName];
 
             const item = itemMap[columnName];

@@ -1,5 +1,10 @@
 import { subject } from '@casl/ability';
-import { Field, PivotValue, TableCalculation } from '@lightdash/common';
+import {
+    Field,
+    PivotValue,
+    ResultValue,
+    TableCalculation,
+} from '@lightdash/common';
 import { Menu, MenuProps } from '@mantine/core';
 import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
 import { FC } from 'react';
@@ -7,22 +12,19 @@ import { useParams } from 'react-router-dom';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
-import {
-    UnderlyingValueMap,
-    useMetricQueryDataContext,
-} from '../../MetricQueryData/MetricQueryDataProvider';
+import { useMetricQueryDataContext } from '../../MetricQueryData/MetricQueryDataProvider';
 import MantineIcon from '../MantineIcon';
 
 type ValueCellMenuProps = {
     rowIndex: number;
     colIndex: number;
     item: Field | TableCalculation | undefined;
-    value: PivotValue | null;
+    value: ResultValue | null;
     onCopy: () => void;
     getUnderlyingFieldValues: (
         colIndex: number,
         rowIndex: number,
-    ) => UnderlyingValueMap;
+    ) => Record<string, ResultValue>;
 } & Pick<MenuProps, 'opened' | 'onOpen' | 'onClose'>;
 
 const ValueCellMenu: FC<ValueCellMenuProps> = ({
@@ -31,7 +33,7 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
     getUnderlyingFieldValues,
     colIndex,
     item,
-    value: pivotValue,
+    value,
     opened,
     onOpen,
     onClose,
@@ -45,7 +47,7 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
     // FIXME: get rid of this from here
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
-    if (!pivotValue || !pivotValue.value) {
+    if (!value) {
         return <>{children}</>;
     }
 
@@ -73,7 +75,7 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
 
         openUnderlyingDataModal({
             item,
-            value: pivotValue.value,
+            value,
             fieldValues: underlyingFieldValues,
         });
 
@@ -167,7 +169,7 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
                                 }
                                 onClick={handleOpenDrillIntoModal}
                             >
-                                Drill into "{pivotValue.value.formatted}"
+                                Drill into "{value.formatted}"
                             </Menu.Item>
                         ) : null}
                     </>

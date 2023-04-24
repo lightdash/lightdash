@@ -127,7 +127,7 @@ describe('getMinAndMaxValues', () => {
             1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 40, 50, -1, -2, -3, -100, 0,
         ];
         const resultRow: ResultRow[] = values.map((v) => ({
-            [axis]: { value: { raw: v, formatted: v } },
+            [axis]: { value: { raw: v, formatted: v.toString() } },
         }));
         expect(getMinAndMaxValues(axis, resultRow)).toStrictEqual([-100, 50]);
     });

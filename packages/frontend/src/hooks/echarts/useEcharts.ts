@@ -13,12 +13,11 @@ import {
     friendlyName,
     getAxisName,
     getDefaultSeriesColor,
-    getFieldLabel,
     getFieldMap,
     getFields,
     getItemId,
     getItemLabelWithoutTableName,
-    getResultValues,
+    getResultValueArray,
     hashFieldReference,
     isCompleteLayout,
     isDimension,
@@ -263,31 +262,67 @@ const removeEmptyProperties = <T = Record<any, any>>(obj: T | undefined) => {
     );
 };
 
+const minDate = (a: number | string, b: string) => {
+    if (typeof a === 'number') return b;
+
+    const dateA = new Date(a);
+    const dateB = new Date(b);
+    return dateA < dateB ? a : b;
+};
+
+const maxDate = (a: number | string, b: string) => {
+    if (typeof a === 'number') return b;
+
+    const dateA = new Date(a);
+    const dateB = new Date(b);
+    return dateA > dateB ? a : b;
+};
+
 export const getMinAndMaxValues = (
     axis: string | undefined,
     rows: ResultRow[],
 ): (string | number)[] => {
     if (!axis) return [];
+
     return rows
-        .map((row) => row[axis]?.value?.raw)
+        .map((row) => row[axis]?.value.raw)
         .reduce<(string | number)[]>(
             (acc, value) => {
-                if (typeof value === 'number') {
-                    const min = acc[0] < value ? acc[0] : value;
-                    const max = acc[1] > value ? acc[1] : value;
+                if (
+                    typeof value === 'string' &&
+                    moment(value, 'YYYY-MM-DD', false).isValid()
+                ) {
+                    // is date
+                    const min = minDate(acc[0], value);
+                    const max = maxDate(acc[1], value);
+
                     return [min, max];
-                } else if (typeof value === 'string') {
-                    if (moment(value, 'YYYY-MM-DD', false).isValid()) {
-                        // is date
-                        const min = acc[0] < value ? acc[0] : value;
-                        const max = acc[1] > value ? acc[1] : value;
-                        return [min, max];
-                    }
-                    const number = parseFloat(value);
-                    if (!isNaN(number)) {
-                        // is float
-                        const min = acc[0] < number ? acc[0] : number;
-                        const max = acc[1] > number ? acc[1] : number;
+                } else if (
+                    typeof value === 'string' ||
+                    typeof value === 'number'
+                ) {
+                    // is number or numeric string
+                    const currentNumber =
+                        typeof value === 'string' ? parseFloat(value) : value;
+                    const currentMin =
+                        typeof acc[0] === 'string'
+                            ? parseFloat(acc[0])
+                            : acc[0];
+                    const currentMax =
+                        typeof acc[1] === 'string'
+                            ? parseFloat(acc[1])
+                            : acc[1];
+
+                    if (!isNaN(currentNumber)) {
+                        const min =
+                            currentNumber < currentMin
+                                ? currentNumber
+                                : currentMin;
+                        const max =
+                            currentNumber > currentMax
+                                ? currentNumber
+                                : currentMax;
+
                         return [min, max];
                     }
                 }
@@ -795,7 +830,7 @@ const getEchartAxis = ({
     const longestValueYAxisLeft: string | undefined =
         leftAxisYId &&
         resultsData?.rows
-            .map((row) => row[leftAxisYId]?.value?.formatted)
+            .map((row) => row[leftAxisYId]?.value.formatted)
             .reduce<string>(
                 (acc, p) => (p && acc.length > p.length ? acc : p),
                 '',
@@ -805,7 +840,7 @@ const getEchartAxis = ({
     const longestValueYAxisRight: string | undefined =
         rightAxisYId &&
         resultsData?.rows
-            .map((row) => row[rightAxisYId]?.value?.formatted)
+            .map((row) => row[rightAxisYId]?.value.formatted)
             .reduce<string>(
                 (acc, p) => (p && acc.length > p.length ? acc : p),
                 '',
@@ -1248,11 +1283,11 @@ const useEcharts = () => {
                 id: 'lightdashResults',
                 source:
                     validCartesianConfig?.layout?.xField === EMPTY_X_AXIS
-                        ? getResultValues(rows, true).map((s) => ({
+                        ? getResultValueArray(rows, true).map((s) => ({
                               ...s,
                               [EMPTY_X_AXIS]: ' ',
                           }))
-                        : getResultValues(rows, true),
+                        : getResultValueArray(rows, true),
             },
             tooltip: {
                 show: true,

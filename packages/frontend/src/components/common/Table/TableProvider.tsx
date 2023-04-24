@@ -9,7 +9,7 @@ import {
     useReactTable,
 } from '@tanstack/react-table';
 import copy from 'copy-to-clipboard';
-import { debounce } from 'lodash-es';
+import debounce from 'lodash-es/debounce';
 import React, {
     createContext,
     FC,
