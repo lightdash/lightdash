@@ -417,7 +417,7 @@ export class SchedulerModel {
         const logs = await this.database(SchedulerLogTableName)
 
             .select()
-            .whereIn(`scheduler_uuid`, schedulerUuids);
+            .whereIn(`scheduler_uuid`, schedulerUuids)
             .orderBy('created_at', 'desc')
             .limit(100);
 
