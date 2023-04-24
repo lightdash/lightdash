@@ -1,15 +1,18 @@
-import { Button, Colors, HTMLSelect } from '@blueprintjs/core';
 import {
     createFilterRuleFromField,
     fieldId as getFieldId,
     FilterableField,
+    FilterOperator,
     FilterRule,
     FilterType,
     getFilterRuleWithDefaultValue,
     getFilterTypeFromItem,
     isField,
 } from '@lightdash/common';
+import { ActionIcon, Group, Select, Text } from '@mantine/core';
+import { IconX } from '@tabler/icons-react';
 import { FC, useCallback, useMemo } from 'react';
+import MantineIcon from '../MantineIcon';
 import { FilterTypeConfig } from './configs';
 import FieldAutoComplete from './FieldAutoComplete';
 
@@ -62,14 +65,7 @@ const FilterRuleForm: FC<Props> = ({
     );
 
     return (
-        <div
-            style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 10,
-                flex: 1,
-            }}
-        >
+        <Group spacing="md">
             {activeField ? (
                 <>
                     <FieldAutoComplete
@@ -82,19 +78,20 @@ const FilterRuleForm: FC<Props> = ({
                         }}
                         disabled={!isEditMode}
                     />
-                    <HTMLSelect
-                        className={!isEditMode ? 'disabled-filter' : ''}
-                        fill={false}
+
+                    <Select
                         disabled={!isEditMode}
-                        style={{ width: 150 }}
-                        onChange={(e) => {
+                        // TODO: revisit this
+                        sx={{ width: 150 }}
+                        data={filterConfig.operatorOptions}
+                        value={filterRule.operator}
+                        onChange={(value: FilterOperator) => {
                             onChange(
                                 getFilterRuleWithDefaultValue(
                                     activeField,
                                     {
                                         ...filterRule,
-                                        operator: e.currentTarget
-                                            .value as FilterRule['operator'],
+                                        operator: value,
                                     },
                                     (filterRule.values?.length || 0) > 0
                                         ? filterRule.values
@@ -102,9 +99,8 @@ const FilterRuleForm: FC<Props> = ({
                                 ),
                             );
                         }}
-                        options={filterConfig.operatorOptions}
-                        value={filterRule.operator}
                     />
+
                     <filterConfig.inputs
                         filterType={filterType}
                         field={activeField}
@@ -114,13 +110,23 @@ const FilterRuleForm: FC<Props> = ({
                     />
                 </>
             ) : (
-                <span style={{ width: '100%', color: Colors.GRAY1 }}>
+                <Text color="gray">
                     Tried to reference field with unknown id:{' '}
                     {filterRule.target.fieldId}
-                </span>
+                </Text>
             )}
-            {isEditMode && <Button minimal icon="cross" onClick={onDelete} />}
-        </div>
+
+            {isEditMode && (
+                <ActionIcon
+                    size="lg"
+                    variant="light"
+                    color="gray"
+                    onClick={onDelete}
+                >
+                    <MantineIcon size="md" icon={IconX} />
+                </ActionIcon>
+            )}
+        </Group>
     );
 };
 
