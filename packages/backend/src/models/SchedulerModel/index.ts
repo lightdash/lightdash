@@ -103,12 +103,8 @@ export class SchedulerModel {
     }
 
     private async getSchedulersWithTargets(
-        schedulersQueryBuilder: Knex.QueryBuilder<
-            SchedulerTable,
-            SchedulerDb[]
-        >,
+        schedulers: SchedulerDb[],
     ): Promise<SchedulerAndTargets[]> {
-        const schedulers = await schedulersQueryBuilder;
         const slackTargets = await this.database(SchedulerSlackTargetTableName)
             .select()
             .whereIn(
@@ -136,7 +132,7 @@ export class SchedulerModel {
 
     async getAllSchedulers(): Promise<SchedulerAndTargets[]> {
         const schedulers = this.database(SchedulerTableName).select();
-        return this.getSchedulersWithTargets(schedulers);
+        return this.getSchedulersWithTargets(await schedulers);
     }
 
     async getChartSchedulers(
@@ -145,7 +141,7 @@ export class SchedulerModel {
         const schedulers = this.database(SchedulerTableName)
             .select()
             .where(`${SchedulerTableName}.saved_chart_uuid`, savedChartUuid);
-        return this.getSchedulersWithTargets(schedulers);
+        return this.getSchedulersWithTargets(await schedulers);
     }
 
     async getDashboardSchedulers(
@@ -154,7 +150,7 @@ export class SchedulerModel {
         const schedulers = this.database(SchedulerTableName)
             .select()
             .where(`${SchedulerTableName}.dashboard_uuid`, dashboardUuid);
-        return this.getSchedulersWithTargets(schedulers);
+        return this.getSchedulersWithTargets(await schedulers);
     }
 
     async getScheduler(schedulerUuid: string): Promise<Scheduler> {
@@ -402,9 +398,9 @@ export class SchedulerModel {
             .where(`${ProjectTableName}.project_uuid`, projectUuid);
 
         const schedulerDashboardWithTargets =
-            await this.getSchedulersWithTargets(schedulerDashboards);
+            await this.getSchedulersWithTargets(await schedulerDashboards);
         const schedulerChartWithTargets = await this.getSchedulersWithTargets(
-            schedulerCharts,
+            await schedulerCharts,
         );
 
         return [...schedulerChartWithTargets, ...schedulerDashboardWithTargets];
