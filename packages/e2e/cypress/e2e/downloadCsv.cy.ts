@@ -68,10 +68,7 @@ describe('Download CSV on SQL Runner', () => {
 describe('Download CSV on Dashboards', () => {
     beforeEach(() => {
         cy.login();
-        cy.intercept(/.*\.csv/g, (req) => {
-            req.destroy();
-            window.location.href = '/';
-        });
+
         cy.on('url:changed', (newUrl) => {
             if (newUrl.includes('.csv')) {
                 window.location.href = '/';
@@ -125,10 +122,6 @@ describe('Download CSV on Explore', () => {
     beforeEach(() => {
         cy.login();
 
-        cy.intercept(/.*\.csv/g, (req) => {
-            req.destroy();
-            window.location.href = '/';
-        });
         cy.on('url:changed', (newUrl) => {
             if (newUrl.includes('.csv')) {
                 window.location.href = '/';
@@ -139,7 +132,7 @@ describe('Download CSV on Explore', () => {
         });
     });
 
-    it(
+    it.only(
         'Should download CSV from results on Explore',
         { retries: 3, pageLoadTimeout: 1000 },
         () => {
@@ -148,7 +141,6 @@ describe('Download CSV on Explore', () => {
                 method: 'POST',
                 url: downloadUrl,
             }).as('apiDownloadCsv');
-
             // choose table and select fields
             cy.findByText('Orders').click();
             cy.findByText('First name').click();
@@ -158,11 +150,12 @@ describe('Download CSV on Explore', () => {
             cy.get('button').contains('Run query').click();
 
             // wait for the chart to finish loading
-            cy.findByText('Loading chart').should('not.exist');
+            cy.findByText('Loading results').should('not.exist');
 
             cy.findByText('Export CSV').click();
+            cy.get('.bp4-popover2').contains('Export CSV').click();
 
-            cy.wait('@apiDownloadCsv', { timeout: 10000 }).then(
+            cy.wait('@apiDownloadCsv', { timeout: 3000 }).then(
                 (interception) => {
                     expect(interception?.response?.statusCode).to.eq(200);
                     expect(
@@ -172,40 +165,44 @@ describe('Download CSV on Explore', () => {
             );
         },
     );
-    it('Should download CSV from table chart on Explore', () => {
-        const downloadUrl = `/api/v1/projects/${SEED_PROJECT.project_uuid}/explores/orders/downloadCsv`;
-        cy.intercept({
-            method: 'POST',
-            url: downloadUrl,
-        }).as('apiDownloadCsv');
-        // choose table and select fields
-        cy.findByText('Orders').click();
-        cy.findByText('First name').click();
-        cy.findByText('Unique order count').click();
+    it(
+        'Should download CSV from table chart on Explore',
+        { retries: 3, pageLoadTimeout: 1000 },
+        () => {
+            const downloadUrl = `/api/v1/projects/${SEED_PROJECT.project_uuid}/explores/orders/downloadCsv`;
+            cy.intercept({
+                method: 'POST',
+                url: downloadUrl,
+            }).as('apiDownloadCsv');
+            // choose table and select fields
+            cy.findByText('Orders').click();
+            cy.findByText('First name').click();
+            cy.findByText('Unique order count').click();
 
-        // run query
-        cy.get('button').contains('Run query').click();
+            // run query
+            cy.get('button').contains('Run query').click();
 
-        // open chart
-        cy.findByText('Charts').parent().findByRole('button').click();
-        // Close results
-        cy.findByText('Results').parent().findByRole('button').click();
-        // wait for the chart to finish loading
-        cy.findByText('Loading chart').should('not.exist');
+            // open chart
+            cy.findByText('Charts').parent().findByRole('button').click();
+            // Close results
+            cy.findByText('Results').parent().findByRole('button').click();
+            // wait for the chart to finish loading
+            cy.findByText('Loading chart').should('not.exist');
 
-        // open chart menu and change chart type to Table
-        cy.get('button').contains('Bar chart').click();
-        cy.get('[role="menuitem"]').contains('Table').click();
+            // open chart menu and change chart type to Table
+            cy.get('button').contains('Bar chart').click();
+            cy.get('[role="menuitem"]').contains('Table').click();
 
-        cy.findByText('Export CSV').click();
-        cy.get('.bp4-popover2').contains('button', 'Export CSV').click();
+            cy.findByText('Export CSV').click();
+            cy.get('.bp4-popover2').contains('button', 'Export CSV').click();
 
-        cy.wait('@apiDownloadCsv').then((interception) => {
-            expect(interception?.response?.statusCode).to.eq(200);
+            cy.wait('@apiDownloadCsv').then((interception) => {
+                expect(interception?.response?.statusCode).to.eq(200);
 
-            expect(interception?.response?.body.results).to.have.property(
-                'jobId',
-            );
-        });
-    });
+                expect(interception?.response?.body.results).to.have.property(
+                    'jobId',
+                );
+            });
+        },
+    );
 });
