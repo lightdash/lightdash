@@ -41,23 +41,24 @@ const GlobalBlueprintStyles = createGlobalStyle`
         color: ${Colors.GRAY3};
     }
 
-    .disabled-filter input,
-    .disabled-filter > .bp4-input,
-    .disabled-filter.bp4-input {
-        background: none !important;
-        color: ${Colors.DARK_GRAY1} !important;
-    }
+    // TODO: remove disabled filter
+    // .disabled-filter input,
+    // .disabled-filter > .bp4-input,
+    // .disabled-filter.bp4-input {
+    //     background: none !important;
+    //     color: ${Colors.DARK_GRAY1} !important;
+    // }
 
-    .disabled-filter > select,
-    .disabled-filter > button {
-        background-color: ${Colors.LIGHT_GRAY5} !important;
-        color: ${Colors.DARK_GRAY1} !important;
-    }
-    .disabled-filter > .bp4-icon-caret-down,
-    .disabled-filter > .bp4-icon-double-caret-vertical,
-    .disabled-filter > .bp4-button-group {
-        display: none; /* Remove select arrow */
-    }
+    // .disabled-filter > select,
+    // .disabled-filter > button {
+    //     background-color: ${Colors.LIGHT_GRAY5} !important;
+    //     color: ${Colors.DARK_GRAY1} !important;
+    // }
+    // .disabled-filter > .bp4-icon-caret-down,
+    // .disabled-filter > .bp4-icon-double-caret-vertical,
+    // .disabled-filter > .bp4-button-group {
+    //     display: none; /* Remove select arrow */
+    // }
 
     .bp4-multi-select-tag-input-input::placeholder {
         color: ${Colors.GRAY3};
