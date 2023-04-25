@@ -8,6 +8,7 @@ import {
     parseDate,
     WeekDay,
 } from '@lightdash/common';
+import { Group, Text } from '@mantine/core';
 import moment from 'moment';
 import { FC, useState } from 'react';
 import { createGlobalStyle } from 'styled-components';
@@ -65,14 +66,20 @@ function getWeekDays(weekStart: Date): Date[] {
 }
 
 // from 0 (Monday) to 6 (Sunday) to 0 (Sunday) to 6 (Saturday)
-export const convertWeekDayToDayPickerWeekDay = (weekDay: WeekDay) => {
+type WeekDayIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+export const convertWeekDayToDayPickerWeekDay = (
+    weekDay: WeekDay,
+): WeekDayIndex => {
     const converted = weekDay + 1;
-    return converted <= 6 ? converted : 0;
+    return (converted <= 6 ? converted : 0) as WeekDayIndex;
 };
 
 // from 0 (Monday) to 6 (Sunday) to 1 (Monday) to 7 (Sunday)
-const convertWeekDayToMomentWeekDay = (weekDay: WeekDay) => {
-    return weekDay + 1;
+type WeekDayIndexMoment = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+const convertWeekDayToMomentWeekDay = (
+    weekDay: WeekDay,
+): WeekDayIndexMoment => {
+    return (weekDay + 1) as WeekDayIndexMoment;
 };
 
 type WeekRange = { from: Date; to: Date };
@@ -147,41 +154,47 @@ const WeekPicker: FC<Props> = ({
     return (
         <>
             <SelectedWeekStyles />
-            <DateInput2
-                fill
-                className={disabled ? 'disabled-filter' : ''}
-                disabled={disabled}
-                defaultTimezone="UTC"
-                showTimezoneSelect={false}
-                value={formattedDate}
-                formatDate={formatDate}
-                parseDate={parseDate}
-                defaultValue={getWeekRange(
-                    new Date(),
-                    startOfWeek,
-                ).from.toString()}
-                onChange={(pickedDate: string | null) => {
-                    onChange(
-                        getWeekRange(new Date(pickedDate || value), startOfWeek)
-                            .from,
-                    );
-                }}
-                dayPickerProps={{
-                    firstDayOfWeek: isWeekDay(startOfWeek)
-                        ? convertWeekDayToDayPickerWeekDay(startOfWeek)
-                        : undefined,
-                    selectedDays,
-                    showOutsideDays: true,
-                    modifiers: modifiers as any,
-                    onDayMouseEnter,
-                    onDayMouseLeave,
-                }}
-                popoverProps={{
-                    popoverClassName: 'WeekPicker',
-                    placement: 'bottom',
-                    ...popoverProps,
-                }}
-            />
+
+            <Group grow>
+                <Text>week commencing</Text>
+
+                <DateInput2
+                    className={disabled ? 'disabled-filter' : ''}
+                    disabled={disabled}
+                    defaultTimezone="UTC"
+                    showTimezoneSelect={false}
+                    value={formattedDate}
+                    formatDate={formatDate}
+                    parseDate={parseDate}
+                    defaultValue={getWeekRange(
+                        new Date(),
+                        startOfWeek,
+                    ).from.toString()}
+                    onChange={(pickedDate: string | null) => {
+                        onChange(
+                            getWeekRange(
+                                new Date(pickedDate || value),
+                                startOfWeek,
+                            ).from,
+                        );
+                    }}
+                    dayPickerProps={{
+                        firstDayOfWeek: isWeekDay(startOfWeek)
+                            ? convertWeekDayToDayPickerWeekDay(startOfWeek)
+                            : undefined,
+                        selectedDays,
+                        showOutsideDays: true,
+                        modifiers: modifiers as any,
+                        onDayMouseEnter,
+                        onDayMouseLeave,
+                    }}
+                    popoverProps={{
+                        popoverClassName: 'WeekPicker',
+                        placement: 'bottom',
+                        ...popoverProps,
+                    }}
+                />
+            </Group>
         </>
     );
 };
