@@ -11,6 +11,7 @@ const BooleanFilterInputs = <T extends ConditionalRule>(
         case FilterOperator.EQUALS: {
             return (
                 <Select
+                    sx={{ flex: 1 }}
                     disabled={disabled}
                     onChange={(value) =>
                         onChange({

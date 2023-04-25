@@ -99,7 +99,6 @@ const MultiAutoComplete: FC<Props> = ({
         <MultiSelect2
             className={disabled ? 'disabled-filter' : ''}
             disabled={disabled}
-            fill
             query={search}
             items={results || []}
             selectedItems={values}
