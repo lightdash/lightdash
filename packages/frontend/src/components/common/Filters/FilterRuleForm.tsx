@@ -9,7 +9,7 @@ import {
     getFilterTypeFromItem,
     isField,
 } from '@lightdash/common';
-import { ActionIcon, Group, Select, Text } from '@mantine/core';
+import { ActionIcon, Flex, Select, Text } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
 import { FC, useCallback, useMemo } from 'react';
 import MantineIcon from '../MantineIcon';
@@ -65,7 +65,7 @@ const FilterRuleForm: FC<Props> = ({
     );
 
     return (
-        <Group spacing="md">
+        <Flex gap="md">
             {activeField ? (
                 <>
                     <FieldAutoComplete
@@ -126,7 +126,7 @@ const FilterRuleForm: FC<Props> = ({
                     <MantineIcon size="md" icon={IconX} />
                 </ActionIcon>
             )}
-        </Group>
+        </Flex>
     );
 };
 

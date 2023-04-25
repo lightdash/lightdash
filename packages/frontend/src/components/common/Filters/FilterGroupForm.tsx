@@ -1,4 +1,3 @@
-import { Button, HTMLSelect } from '@blueprintjs/core';
 import {
     createFilterRuleFromField,
     FilterableField,
@@ -10,12 +9,10 @@ import {
     isAndFilterGroup,
     isFilterGroup,
 } from '@lightdash/common';
+import { Button, Group, Select, Stack, Text } from '@mantine/core';
+import { IconPlus } from '@tabler/icons-react';
 import React, { FC, useCallback } from 'react';
-import {
-    FilterGroupHeader,
-    FilterGroupItemsWrapper,
-    FilterGroupWrapper,
-} from './FilterGroupForm.styles';
+import MantineIcon from '../MantineIcon';
 import FilterRuleForm from './FilterRuleForm';
 
 type Props = {
@@ -93,14 +90,13 @@ const FilterGroupForm: FC<Props> = ({
     );
 
     return (
-        <FilterGroupWrapper>
-            <FilterGroupHeader>
-                <HTMLSelect
+        <Stack spacing="lg" sx={{ flex: 1 }}>
+            <Group>
+                <Select
+                    w="6xl"
                     className={!isEditMode ? 'disabled-filter' : ''}
-                    fill={false}
                     disabled={!isEditMode}
-                    iconProps={{ icon: 'caret-down' }}
-                    options={[
+                    data={[
                         {
                             value: FilterGroupOperator.and,
                             label: 'All',
@@ -115,21 +111,22 @@ const FilterGroupForm: FC<Props> = ({
                             ? FilterGroupOperator.and
                             : FilterGroupOperator.or
                     }
-                    onChange={(e) =>
-                        onChangeOperator(
-                            e.currentTarget.value as FilterGroupOperator,
-                        )
+                    onChange={(value: FilterGroupOperator) =>
+                        onChangeOperator(value)
                     }
                 />
-                <p style={{ marginLeft: 10 }}>
+
+                <Text color="gray">
                     of the following {conditionLabel} conditions match:
-                </p>
-            </FilterGroupHeader>
-            <FilterGroupItemsWrapper>
-                {items.map((item, index) => (
-                    <React.Fragment key={item.id}>
-                        {!isFilterGroup(item) ? (
+                </Text>
+            </Group>
+
+            {items.length > 0 ? (
+                <Stack spacing="sm" pl="4xl">
+                    {items.map((item, index) =>
+                        !isFilterGroup(item) ? (
                             <FilterRuleForm
+                                key={item.id}
                                 filterRule={item}
                                 fields={fields}
                                 isEditMode={isEditMode}
@@ -138,6 +135,7 @@ const FilterGroupForm: FC<Props> = ({
                             />
                         ) : (
                             <FilterGroupForm
+                                key={item.id}
                                 isEditMode={isEditMode}
                                 filterGroup={item}
                                 conditionLabel={conditionLabel}
@@ -145,21 +143,25 @@ const FilterGroupForm: FC<Props> = ({
                                 onChange={(value) => onChangeItem(index, value)}
                                 onDelete={() => onDeleteItem(index)}
                             />
-                        )}
-                    </React.Fragment>
-                ))}
-            </FilterGroupItemsWrapper>
+                        ),
+                    )}
+                </Stack>
+            ) : null}
+
             {!hideButtons && fields.length > 0 && (
                 <Button
-                    minimal
-                    icon="plus"
-                    intent="primary"
+                    w="fit-content"
+                    size="sm"
+                    ml="4xl"
+                    variant="light"
+                    disabled={fields.length <= 0}
+                    leftIcon={<MantineIcon size="md" icon={IconPlus} />}
                     onClick={onAddFilterRule}
                 >
                     Add filter
                 </Button>
             )}
-        </FilterGroupWrapper>
+        </Stack>
     );
 };
 

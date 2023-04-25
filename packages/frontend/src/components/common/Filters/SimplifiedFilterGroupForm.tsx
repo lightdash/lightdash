@@ -38,7 +38,7 @@ const SimplifiedFilterGroupForm: FC<Props> = ({
     );
 
     return (
-        <Stack spacing="sm" p="lg">
+        <Stack spacing="sm">
             <Tooltip
                 withArrow
                 position="top-start"
