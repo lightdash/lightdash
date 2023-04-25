@@ -1,4 +1,3 @@
-import { DateInput2 } from '@blueprintjs/datetime2';
 import {
     ConditionalRule,
     DateFilterRule,
@@ -14,7 +13,7 @@ import {
     UnitOfTime,
 } from '@lightdash/common';
 import { Group, NumberInput } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import { DatePickerInput, DateTimePicker } from '@mantine/dates';
 import moment from 'moment';
 import React from 'react';
 import MonthAndYearInput from '../../MonthAndYearInput';
@@ -22,7 +21,6 @@ import WeekPicker, { convertWeekDayToDayPickerWeekDay } from '../../WeekPicker';
 import YearInput from '../../YearInput';
 import { useFiltersContext } from '../FiltersProvider';
 import DefaultFilterInputs, { FilterInputsProps } from './DefaultFilterInputs';
-import { StyledDateRangeInput } from './FilterInputs.styles';
 import UnitOfTimeAutoComplete from './UnitOfTimeAutoComplete';
 
 const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
@@ -107,43 +105,30 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
 
             if (isTimestamp) {
                 return (
-                    <DateInput2
-                        className={disabled ? 'disabled-filter' : ''}
+                    <DateTimePicker
+                        sx={{ flex: 1 }}
+                        withSeconds
+                        placeholder="Enter date and time"
                         disabled={disabled}
-                        fill
-                        defaultTimezone="UTC"
-                        showTimezoneSelect={false}
                         value={
                             rule.values?.[0]
-                                ? new Date(rule.values?.[0]).toString()
-                                : new Date().toString()
+                                ? new Date(rule.values?.[0])
+                                : new Date()
                         }
-                        timePrecision={'millisecond'}
-                        formatDate={(value: Date) =>
-                            moment(value).format(`YYYY-MM-DD, HH:mm:ss:SSS`)
-                        }
-                        parseDate={(value) =>
-                            moment(value, `YYYY-MM-DD, HH:mm:ss:SSS`).toDate()
-                        }
-                        defaultValue={new Date().toString()}
-                        onChange={(value: string | null) => {
-                            if (value) {
-                                onChange({
-                                    ...rule,
-                                    values: [value],
-                                });
-                            }
+                        // TODO: come back to this
+                        // defaultTimezone="UTC"
+                        onChange={(value) => {
+                            if (!value) return;
+                            onChange({
+                                ...rule,
+                                values: [formatDate(value, undefined, true)],
+                            });
                         }}
-                        popoverProps={{
-                            placement: 'bottom',
-                            // TODO: get rid of it
-                            // ...popoverProps,
-                        }}
-                        dayPickerProps={{
-                            firstDayOfWeek: isWeekDay(startOfWeek)
+                        firstDayOfWeek={
+                            isWeekDay(startOfWeek)
                                 ? convertWeekDayToDayPickerWeekDay(startOfWeek)
-                                : undefined,
-                        }}
+                                : undefined
+                        }
                     />
                 );
             }
@@ -233,58 +218,71 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
         case FilterOperator.IN_BETWEEN:
             if (isTimestamp) {
                 return (
-                    <Group>
-                        <StyledDateRangeInput
-                            allowSingleDayRange
-                            className={disabled ? 'disabled-filter' : ''}
+                    <Group grow sx={{ flex: 1 }}>
+                        <DateTimePicker
                             disabled={disabled}
-                            formatDate={(value: Date) =>
-                                moment(value)
-                                    .format(`YYYY-MM-DD, HH:mm:ss:SSS`)
-                                    .toString()
-                            }
-                            parseDate={(value) =>
-                                moment(
-                                    value,
-                                    `YYYY-MM-DD, HH:mm:ss:SSS`,
-                                ).toDate()
-                            }
-                            value={[
+                            placeholder="Enter start date and time"
+                            withSeconds
+                            value={
                                 rule.values?.[0]
                                     ? new Date(rule.values?.[0])
-                                    : new Date(),
+                                    : new Date()
+                            }
+                            onChange={(value) => {
+                                if (!value) return;
+                                onChange({
+                                    ...rule,
+                                    values: [
+                                        formatDate(value, undefined, true),
+                                        rule.values?.[1],
+                                    ],
+                                });
+                            }}
+                            maxDate={
                                 rule.values?.[1]
                                     ? new Date(rule.values?.[1])
-                                    : moment(rule.values?.[0] || new Date())
-                                          .add(2, 'hours')
-                                          .milliseconds(0)
-                                          .toDate(),
-                            ]}
-                            timePrecision="millisecond"
-                            onChange={(
-                                range: [Date | null, Date | null] | null,
-                            ) => {
-                                if (range && (range[0] || range[1])) {
-                                    onChange({
-                                        ...rule,
-                                        values: [range[0], range[1]],
-                                    });
-                                }
-                            }}
-                            popoverProps={{
-                                placement: 'bottom',
-                                // TODO: get rid of it
-                                // ...popoverProps,
-                            }}
-                            dayPickerProps={{
-                                firstDayOfWeek: isWeekDay(startOfWeek)
+                                    : undefined
+                            }
+                            firstDayOfWeek={
+                                isWeekDay(startOfWeek)
                                     ? convertWeekDayToDayPickerWeekDay(
                                           startOfWeek,
                                       )
-                                    : undefined,
+                                    : undefined
+                            }
+                        />
+
+                        <DateTimePicker
+                            disabled={disabled}
+                            placeholder="Enter end date and time"
+                            withSeconds
+                            value={
+                                rule.values?.[1]
+                                    ? new Date(rule.values?.[1])
+                                    : new Date()
+                            }
+                            onChange={(value) => {
+                                if (!value) return;
+                                onChange({
+                                    ...rule,
+                                    values: [
+                                        rule.values?.[0],
+                                        formatDate(value, undefined, true),
+                                    ],
+                                });
                             }}
-                            closeOnSelection={false}
-                            shortcuts={false}
+                            minDate={
+                                rule.values?.[0]
+                                    ? new Date(rule.values?.[0])
+                                    : undefined
+                            }
+                            firstDayOfWeek={
+                                isWeekDay(startOfWeek)
+                                    ? convertWeekDayToDayPickerWeekDay(
+                                          startOfWeek,
+                                      )
+                                    : undefined
+                            }
                         />
                     </Group>
                 );
@@ -293,6 +291,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                 <DatePickerInput
                     sx={{ flex: 1 }}
                     type="range"
+                    disabled={disabled}
                     placeholder="Pick dates range"
                     value={[
                         rule.values?.[0]
