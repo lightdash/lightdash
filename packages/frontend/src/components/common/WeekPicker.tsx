@@ -1,69 +1,8 @@
-import { Colors } from '@blueprintjs/core';
-import { DateInput2 } from '@blueprintjs/datetime2';
-import { Popover2Props } from '@blueprintjs/popover2';
-import {
-    formatDate,
-    hexToRGB,
-    isWeekDay,
-    parseDate,
-    WeekDay,
-} from '@lightdash/common';
-import { Group, Text } from '@mantine/core';
+import { isMomentInput, isWeekDay, WeekDay } from '@lightdash/common';
+import { Text } from '@mantine/core';
+import { DateInput } from '@mantine/dates';
 import moment from 'moment';
 import { FC, useState } from 'react';
-import { createGlobalStyle } from 'styled-components';
-
-const SelectedWeekStyles = createGlobalStyle`
-  .WeekPicker .DayPicker-Month {
-    border-collapse: separate;
-  }
-
-  .WeekPicker .DayPicker-WeekNumber {
-    outline: none;
-  }
-
-  .WeekPicker .DayPicker-Day {
-    outline: none;
-    border: 1px solid transparent;
-  }
-
-  .WeekPicker .DayPicker-Day--hoverRange {
-    border-radius: 0 !important;
-    background-color: ${hexToRGB(Colors.BLUE3, 0.3)} !important;
-  }
-
-  .WeekPicker .DayPicker-Day--selectedRange {
-    border-radius: 0 !important;
-    background-color: ${hexToRGB(Colors.BLUE3, 0.5)} !important;
-    border-top-color: ${Colors.BLUE3};
-    border-bottom-color: ${Colors.BLUE3};
-    color: ${Colors.WHITE};
-
-    &:hover {
-      color: ${Colors.WHITE};
-    }
-  }
-
-  .WeekPicker .DayPicker-Day--selectedRangeStart {
-    background-color: ${Colors.BLUE3} !important;
-    border-left: 1px solid ${Colors.BLUE3};
-    border-radius: 3px 0 0 3px !important;
-  }
-
-  .WeekPicker .DayPicker-Day--selectedRangeEnd {
-    background-color: ${Colors.BLUE3} !important;
-    border-right: 1px solid ${Colors.BLUE3};
-    border-radius: 0 3px 3px 0 !important;
-  }
-`;
-
-function getWeekDays(weekStart: Date): Date[] {
-    const days = [weekStart];
-    for (let i = 1; i < 7; i += 1) {
-        days.push(moment(weekStart).add(i, 'days').toDate());
-    }
-    return days;
-}
 
 // from 0 (Monday) to 6 (Sunday) to 0 (Sunday) to 6 (Saturday)
 type WeekDayIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6;
@@ -112,10 +51,17 @@ function getWeekRange(date: Date, startOfWeek?: WeekDay | null): WeekRange {
     };
 }
 
+const isInWeekRange = (date: Date, value: Date | null): boolean => {
+    if (!value) return false;
+    const { from, to } = getWeekRange(date);
+    return moment(value).isBetween(from, to, 'day', '[]');
+};
+
 type Props = {
-    value: Date;
+    value: unknown;
     onChange: (value: Date) => void;
-    popoverProps?: Popover2Props;
+    // TODO: remove popoverProps
+    // popoverProps?: Popover2Props;
     disabled?: boolean;
     startOfWeek?: WeekDay | null;
 };
@@ -123,78 +69,52 @@ type Props = {
 const WeekPicker: FC<Props> = ({
     value: dateValue,
     onChange,
-    popoverProps,
+    // TODO: remove popoverProps
+    // popoverProps,
     disabled,
     startOfWeek,
 }) => {
-    const value = moment(dateValue).toDate();
-    //Filtering a dimension returns a date, but filtering on a table returns a string on UTC
-    const formattedDate = formatDate(value);
-    const [hoverRange, setHoverRange] = useState<WeekRange>();
-    const selectedDays = getWeekDays(getWeekRange(value, startOfWeek).from);
+    const [hovered, setHovered] = useState<Date | null>(null);
+    const value = isMomentInput(dateValue) ? moment(dateValue).toDate() : null;
 
-    const daysAreSelected = selectedDays.length > 0;
-    const modifiers = {
-        hoverRange,
-        selectedRange: daysAreSelected && {
-            from: selectedDays[0],
-            to: selectedDays[6],
-        },
-        hoverRangeStart: hoverRange && hoverRange.from,
-        hoverRangeEnd: hoverRange && hoverRange.to,
-        selectedRangeStart: daysAreSelected && selectedDays[0],
-        selectedRangeEnd: daysAreSelected && selectedDays[6],
-    };
-    const onDayMouseEnter = (date: Date) => {
-        setHoverRange(getWeekRange(date, startOfWeek));
-    };
-    const onDayMouseLeave = () => {
-        setHoverRange(undefined);
-    };
     return (
         <>
-            <SelectedWeekStyles />
+            <Text color="gray">week commencing</Text>
 
-            <Group grow>
-                <Text>week commencing</Text>
+            <DateInput
+                sx={{ flex: 1 }}
+                disabled={disabled}
+                getDayProps={(date) => {
+                    const isHovered = isInWeekRange(date, hovered);
+                    const isSelected = isInWeekRange(date, value);
+                    const isInRange = isHovered || isSelected;
+                    const weekRange = getWeekRange(date, startOfWeek);
 
-                <DateInput2
-                    className={disabled ? 'disabled-filter' : ''}
-                    disabled={disabled}
-                    defaultTimezone="UTC"
-                    showTimezoneSelect={false}
-                    value={formattedDate}
-                    formatDate={formatDate}
-                    parseDate={parseDate}
-                    defaultValue={getWeekRange(
-                        new Date(),
-                        startOfWeek,
-                    ).from.toString()}
-                    onChange={(pickedDate: string | null) => {
-                        onChange(
-                            getWeekRange(
-                                new Date(pickedDate || value),
-                                startOfWeek,
-                            ).from,
-                        );
-                    }}
-                    dayPickerProps={{
-                        firstDayOfWeek: isWeekDay(startOfWeek)
-                            ? convertWeekDayToDayPickerWeekDay(startOfWeek)
-                            : undefined,
-                        selectedDays,
-                        showOutsideDays: true,
-                        modifiers: modifiers as any,
-                        onDayMouseEnter,
-                        onDayMouseLeave,
-                    }}
-                    popoverProps={{
-                        popoverClassName: 'WeekPicker',
-                        placement: 'bottom',
-                        ...popoverProps,
-                    }}
-                />
-            </Group>
+                    return {
+                        onMouseEnter: () => setHovered(date),
+                        onMouseLeave: () => setHovered(null),
+                        inRange: isInRange,
+                        firstInRange:
+                            isInRange &&
+                            date.getDate() === weekRange.from.getDate(),
+                        lastInRange:
+                            isInRange &&
+                            date.getDate() === weekRange.to.getDate(),
+                        selected: isSelected,
+                    };
+                }}
+                value={value}
+                onChange={(date) => {
+                    if (!date) return;
+                    console.log(getWeekRange(new Date(date), startOfWeek));
+                    onChange(getWeekRange(new Date(date), startOfWeek).from);
+                }}
+                firstDayOfWeek={
+                    isWeekDay(startOfWeek)
+                        ? convertWeekDayToDayPickerWeekDay(startOfWeek)
+                        : undefined
+                }
+            />
         </>
     );
 };

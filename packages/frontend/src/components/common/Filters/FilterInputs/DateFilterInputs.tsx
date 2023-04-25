@@ -12,7 +12,7 @@ import {
     TimeFrames,
     UnitOfTime,
 } from '@lightdash/common';
-import { Group, NumberInput } from '@mantine/core';
+import { Flex, Group, NumberInput } from '@mantine/core';
 import { DatePickerInput, DateTimePicker } from '@mantine/dates';
 import moment from 'moment';
 import React from 'react';
@@ -46,20 +46,21 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                 switch (field.timeInterval.toUpperCase()) {
                     case TimeFrames.WEEK:
                         return (
-                            // TODO: revisit
-                            <WeekPicker
-                                disabled={disabled}
-                                value={rule.values?.[0] || new Date()}
-                                // TODO: get rid of it
-                                // popoverProps={popoverProps}
-                                startOfWeek={startOfWeek}
-                                onChange={(value: Date) => {
-                                    onChange({
-                                        ...rule,
-                                        values: [moment(value).toDate()],
-                                    });
-                                }}
-                            />
+                            <Flex align="center" sx={{ flex: 1 }} gap="md">
+                                <WeekPicker
+                                    disabled={disabled}
+                                    value={rule.values?.[0] || new Date()}
+                                    // TODO: get rid of it
+                                    // popoverProps={popoverProps}
+                                    startOfWeek={startOfWeek}
+                                    onChange={(value: Date) => {
+                                        onChange({
+                                            ...rule,
+                                            values: [moment(value).toDate()],
+                                        });
+                                    }}
+                                />
+                            </Flex>
                         );
                     case TimeFrames.MONTH:
                         return (
