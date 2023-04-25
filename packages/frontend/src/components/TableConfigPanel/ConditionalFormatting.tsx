@@ -9,6 +9,7 @@ import {
     getItemId,
     Item,
 } from '@lightdash/common';
+import { CloseButton } from '@mantine/core';
 import produce from 'immer';
 import React, { FC, useMemo, useState } from 'react';
 import SeriesColorPicker from '../ChartConfigPanel/Series/SeriesColorPicker';
@@ -159,21 +160,16 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                                 fields={fields}
                                 activeField={field}
                                 onChange={handleChangeField}
-                                popoverProps={{
-                                    lazy: true,
-                                    matchTargetWidth: true,
-                                }}
-                                inputProps={{
-                                    rightElement: field ? (
-                                        <Button
-                                            minimal
-                                            icon="cross"
+                                rightSection={
+                                    field ? (
+                                        // TODO: revisit
+                                        <CloseButton
                                             onClick={() =>
                                                 handleChangeField(undefined)
                                             }
                                         />
-                                    ) : undefined,
-                                }}
+                                    ) : undefined
+                                }
                             />
                         </FormGroup>
 
