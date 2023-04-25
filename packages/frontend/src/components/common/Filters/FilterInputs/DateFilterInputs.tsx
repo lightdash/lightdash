@@ -11,7 +11,6 @@ import {
     isWeekDay,
     parseDate,
     TimeFrames,
-    toDate,
     UnitOfTime,
 } from '@lightdash/common';
 import { Group, NumberInput } from '@mantine/core';
@@ -160,7 +159,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                     }
                     value={
                         rule.values?.[0]
-                            ? toDate(rule.values?.[0], false)
+                            ? parseDate(rule.values?.[0], undefined)
                             : new Date()
                     }
                     onChange={(value) => {
@@ -291,81 +290,53 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                 );
             }
             return (
-                <Group>
-                    <StyledDateRangeInput
-                        className={disabled ? 'disabled-filter' : ''}
-                        disabled={disabled}
-                        formatDate={(value: Date) =>
-                            formatDate(value, undefined, false)
-                        }
-                        parseDate={parseDate}
-                        value={[
-                            rule.values?.[0]
-                                ? parseDate(
-                                      formatDate(
-                                          rule.values?.[0],
-                                          undefined,
-                                          false,
-                                      ),
-                                      TimeFrames.DAY,
-                                  )
-                                : null,
-                            rule.values?.[1]
-                                ? parseDate(
-                                      formatDate(
-                                          rule.values?.[1],
-                                          undefined,
-                                          false,
-                                      ),
-                                      TimeFrames.DAY,
-                                  )
-                                : null,
-                        ]}
-                        onChange={(
-                            range: [Date | null, Date | null] | null,
-                        ) => {
-                            if (range && (range[0] || range[1])) {
-                                onChange({
-                                    ...rule,
-                                    values: [
-                                        formatDate(
-                                            range[0]
-                                                ? range[0]
-                                                : moment(range[1]).add(
-                                                      -1,
-                                                      'days',
-                                                  ),
-                                            undefined,
-                                            false,
-                                        ),
-                                        formatDate(
-                                            range[1]
-                                                ? range[1]
-                                                : moment(range[0]).add(
-                                                      1,
-                                                      'days',
-                                                  ),
-                                            undefined,
-                                            false,
-                                        ),
-                                    ],
-                                });
-                            }
-                        }}
-                        popoverProps={{
-                            placement: 'bottom',
-                            // TODO: get rid of it
-                            // ...popoverProps,
-                        }}
-                        dayPickerProps={{
-                            firstDayOfWeek: isWeekDay(startOfWeek)
-                                ? convertWeekDayToDayPickerWeekDay(startOfWeek)
-                                : undefined,
-                        }}
-                        closeOnSelection={true}
-                        shortcuts={false}
-                    />
-                </Group>
+                <DatePickerInput
+                    sx={{ flex: 1 }}
+                    type="range"
+                    placeholder="Pick dates range"
+                    value={[
+                        rule.values?.[0]
+                            ? parseDate(
+                                  formatDate(
+                                      rule.values?.[0],
+                                      undefined,
+                                      false,
+                                  ),
+                                  TimeFrames.DAY,
+                              )
+                            : null,
+                        rule.values?.[1]
+                            ? parseDate(
+                                  formatDate(
+                                      rule.values?.[1],
+                                      undefined,
+                                      false,
+                                  ),
+                                  TimeFrames.DAY,
+                              )
+                            : null,
+                    ]}
+                    onChange={([date1, date2]) => {
+                        if (!date1 && !date2) return;
+
+                        onChange({
+                            ...rule,
+                            values: [
+                                date1
+                                    ? formatDate(date1, undefined, false)
+                                    : null,
+                                date2
+                                    ? formatDate(date2, undefined, false)
+                                    : null,
+                            ],
+                        });
+                    }}
+                    firstDayOfWeek={
+                        isWeekDay(startOfWeek)
+                            ? convertWeekDayToDayPickerWeekDay(startOfWeek)
+                            : undefined
+                    }
+                />
             );
         default: {
             return <DefaultFilterInputs {...props} />;
