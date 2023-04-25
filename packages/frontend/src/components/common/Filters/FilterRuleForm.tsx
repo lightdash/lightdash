@@ -81,7 +81,6 @@ const FilterRuleForm: FC<Props> = ({
 
                     <Select
                         disabled={!isEditMode}
-                        // TODO: revisit this
                         sx={{ width: 150 }}
                         data={filterConfig.operatorOptions}
                         value={filterRule.operator}

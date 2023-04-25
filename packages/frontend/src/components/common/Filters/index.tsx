@@ -210,7 +210,6 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                     </>
                 ))}
 
-            {/* TODO: fix wrapper */}
             {isOpen && (
                 <>
                     <FieldAutoComplete
