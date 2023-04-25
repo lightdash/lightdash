@@ -14,6 +14,7 @@ import {
     TimeFrames,
     WeekDay,
 } from '@lightdash/common';
+import { Group } from '@mantine/core';
 import debounce from 'lodash/debounce';
 import moment from 'moment';
 import { FC, useCallback, useMemo, useState } from 'react';
@@ -26,11 +27,7 @@ import YearInput from '../../common/YearInput';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import SeriesColorPicker from '../Series/SeriesColorPicker';
 import { SectionTitle } from './Legend.styles';
-import {
-    CollapseWrapper,
-    DeleteButtonTooltip,
-    Flex,
-} from './ReferenceLine.styles';
+import { CollapseWrapper, DeleteButtonTooltip } from './ReferenceLine.styles';
 
 type Props = {
     index: number;
@@ -231,7 +228,7 @@ export const ReferenceLine: FC<Props> = ({
 
     return (
         <>
-            <Flex>
+            <Group>
                 <Button
                     minimal
                     icon={isOpen ? 'chevron-down' : 'chevron-right'}
@@ -249,7 +246,8 @@ export const ReferenceLine: FC<Props> = ({
                         }
                     />
                 </DeleteButtonTooltip>
-            </Flex>
+            </Group>
+
             <CollapseWrapper isOpen={isOpen}>
                 <FormGroup label="Field">
                     <FieldAutoComplete
