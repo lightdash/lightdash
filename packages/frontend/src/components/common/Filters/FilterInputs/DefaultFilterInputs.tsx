@@ -6,7 +6,7 @@ import {
     FilterType,
     isFilterRule,
 } from '@lightdash/common';
-import { Box, MultiSelect, NumberInput } from '@mantine/core';
+import { Box, MultiSelect, NumberInput, PopoverProps } from '@mantine/core';
 import { uniq } from 'lodash-es';
 import isString from 'lodash-es/isString';
 import React from 'react';
@@ -18,8 +18,7 @@ export type FilterInputsProps<T extends ConditionalRule> = {
     field: FilterableItem;
     rule: T;
     onChange: (value: T) => void;
-    // TODO: get rid of popover props?
-    // popoverProps?: Popover2Props;
+    popoverProps?: Pick<PopoverProps, 'onOpen' | 'onClose'>;
     disabled?: boolean;
 };
 
@@ -27,7 +26,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
     field,
     filterType,
     rule,
-    // popoverProps,
+    popoverProps,
     disabled,
     onChange,
 }: React.PropsWithChildren<FilterInputsProps<T>>) => {
@@ -52,8 +51,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
                         field={field}
                         values={(rule.values || []).filter(isString)}
                         suggestions={suggestions || []}
-                        // TODO: mantinify
-                        // popoverProps={popoverProps}
+                        popoverProps={popoverProps}
                         onChange={(values) =>
                             onChange({
                                 ...rule,
@@ -104,6 +102,8 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
                     placeholder={`Enter a ${filterType}`}
                     value={currentValue}
                     onChange={handleChange}
+                    onDropdownOpen={popoverProps?.onOpen}
+                    onDropdownClose={popoverProps?.onClose}
                     onCreate={(query) => {
                         handleChange([...currentValue, query]);
                         return query;
