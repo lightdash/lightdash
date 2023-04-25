@@ -28,6 +28,7 @@ import {
     SavedChart,
     TableCalculation,
 } from '@lightdash/common';
+import { Text } from '@mantine/core';
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
 import { useParams } from 'react-router-dom';
@@ -49,7 +50,6 @@ import { EventName } from '../../types/Events';
 import { Can } from '../common/Authorization';
 import { getConditionalRuleLabel } from '../common/Filters/configs';
 import LinkMenuItem from '../common/LinkMenuItem';
-import { FilterValues } from '../DashboardFilter/ActiveFilters/ActiveFilters.styles';
 import ExportCSVModal from '../ExportCSV/ExportCSVModal';
 import LightdashVisualization from '../LightdashVisualization';
 import VisualizationProvider from '../LightdashVisualization/VisualizationProvider';
@@ -382,9 +382,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                         <Tag minimal style={{ color: 'white' }}>
                             {filterRuleLabels.field}:{' '}
                             {filterRuleLabels.operator}{' '}
-                            <FilterValues>
-                                {filterRuleLabels.value}
-                            </FilterValues>
+                            <Text fw={600}>{filterRuleLabels.value}</Text>
                         </Tag>
                     </div>
                 );
