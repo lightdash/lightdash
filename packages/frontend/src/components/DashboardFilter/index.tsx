@@ -53,17 +53,17 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
             <Group spacing="sm" mb="xs" align="flex-start" noWrap>
                 <Popover
                     opened={isOpen}
-                    onOpen={() => handleOpen()}
-                    onClose={() => handleClose()}
-                    trapFocus
-                    disabled={!hasChartTiles}
-                    closeOnEscape={!isSubmenuOpen}
-                    closeOnClickOutside={!isSubmenuOpen}
                     position="bottom-start"
                     shadow="lg"
                     withArrow
+                    trapFocus
                     arrowSize={14}
                     arrowOffset={10}
+                    onOpen={() => handleOpen()}
+                    onClose={() => handleClose()}
+                    disabled={!hasChartTiles}
+                    closeOnEscape={!isSubmenuOpen}
+                    closeOnClickOutside={!isSubmenuOpen}
                 >
                     <Popover.Dropdown>
                         <FilterSearch

@@ -64,9 +64,11 @@ const ActiveFilter: FC<Props> = ({
     return (
         <Popover
             position="bottom-start"
+            shadow="lg"
             withArrow
-            arrowSize={12}
-            arrowOffset={12}
+            trapFocus
+            arrowSize={14}
+            arrowOffset={10}
         >
             <Popover.Dropdown>
                 <Box w={selectedTabId === FilterTabs.TILES ? 500 : 350} p="xs">
