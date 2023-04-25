@@ -14,13 +14,19 @@ import { EventName } from '../../../types/Events';
 import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
 import FilterConfiguration, { FilterTabs } from '../FilterConfiguration';
 
-type Props = {
+type FilterSearchProps = {
     fields: FilterableField[];
     isEditMode: boolean;
     popoverProps?: Pick<PopoverProps, 'onOpen' | 'onClose'>;
+    onApply: () => void;
 };
 
-const FilterSearch: FC<Props> = ({ fields, isEditMode, popoverProps }) => {
+const FilterSearch: FC<FilterSearchProps> = ({
+    fields,
+    isEditMode,
+    popoverProps,
+    onApply,
+}) => {
     const { track } = useTracking();
     const { dashboardTiles, filterableFieldsByTileUuid } =
         useDashboardContext();
@@ -49,13 +55,10 @@ const FilterSearch: FC<Props> = ({ fields, isEditMode, popoverProps }) => {
     ) => {
         track({
             name: EventName.ADD_FILTER_CLICKED,
-            properties: {
-                mode: isEditMode ? 'edit' : 'viewer',
-            },
+            properties: { mode: isEditMode ? 'edit' : 'viewer' },
         });
-        setSelectedField(undefined);
         addDimensionDashboardFilter(value, !isEditMode);
-        setSelectedTabId(undefined);
+        onApply();
     };
 
     const handleBack = () => {

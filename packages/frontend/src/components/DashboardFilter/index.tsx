@@ -73,6 +73,7 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
                                 onOpen: () => setIsSubmenuOpen(true),
                                 onClose: () => setIsSubmenuOpen(false),
                             }}
+                            onApply={handleClose}
                         />
                     </Popover.Dropdown>
 
