@@ -68,7 +68,7 @@ const TileFilterConfiguration: FC<TileFilterConfigurationProps> = ({
     }, [tilesSortBy, availableTileFilters]);
 
     return (
-        <Stack spacing="sm">
+        <Stack spacing="sm" py="md">
             {sortedTileEntries.map(([tileUuid, filters]) => {
                 if (!filters) return null;
 
