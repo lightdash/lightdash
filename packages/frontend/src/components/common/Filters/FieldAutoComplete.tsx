@@ -6,21 +6,25 @@ import {
     isField,
     TableCalculation,
 } from '@lightdash/common';
-import { Group, Select, SelectItemProps, Text } from '@mantine/core';
+import {
+    Group,
+    PopoverProps,
+    Select,
+    SelectItemProps,
+    SelectProps,
+    Text,
+} from '@mantine/core';
 import { forwardRef, useMemo } from 'react';
 import FieldIcon from './FieldIcon';
 
-type FieldAutoCompleteProps<T> = {
-    id?: string;
-    name?: string;
-    disabled?: boolean;
-    autoFocus?: boolean;
+type FieldAutoCompleteProps<T> = Omit<SelectProps, 'onChange' | 'data'> & {
     activeField?: T;
     placeholder?: string;
     fields: T[];
     onChange: (value: T) => void;
     onClosed?: () => void;
     hasGrouping?: boolean;
+    popoverProps?: Pick<PopoverProps, 'onOpen' | 'onClose'>;
 };
 
 type ItemProps = SelectItemProps & {
@@ -39,16 +43,14 @@ const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
 );
 
 const FieldAutoComplete = <T extends Field | TableCalculation>({
-    id,
-    name,
-    disabled,
-    autoFocus,
     placeholder,
     activeField,
     fields,
     hasGrouping = true,
+    popoverProps,
     onChange,
     onClosed,
+    ...rest
 }: FieldAutoCompleteProps<T>) => {
     const itemData = useMemo(() => {
         return fields
@@ -68,13 +70,8 @@ const FieldAutoComplete = <T extends Field | TableCalculation>({
 
     return (
         <Select
-            // input props
-            id={id}
-            name={name}
-            disabled={disabled}
-            autoFocus={autoFocus}
+            {...rest}
             placeholder={placeholder || 'Search field...'}
-            // component props
             searchable
             nothingFound="No results."
             data={itemData}
@@ -86,7 +83,11 @@ const FieldAutoComplete = <T extends Field | TableCalculation>({
                 const field = fields.find((f) => getItemId(f) === value);
                 if (field) onChange(field);
             }}
-            onDropdownClose={onClosed}
+            onDropdownOpen={popoverProps?.onOpen}
+            onDropdownClose={() => {
+                onClosed?.();
+                popoverProps?.onClose?.();
+            }}
         />
     );
 };
