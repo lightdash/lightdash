@@ -1,4 +1,4 @@
-import { Select } from '@mantine/core';
+import { Box, Select } from '@mantine/core';
 import moment from 'moment';
 import { FC } from 'react';
 import YearInput from './YearInput';
@@ -17,6 +17,7 @@ const MonthAndYearInput: FC<Props> = ({ value, onChange, disabled }) => {
     return (
         <>
             <Select
+                sx={{ flexBasis: 0 }}
                 disabled={disabled}
                 onChange={(month) => {
                     if (month) onChange(moment(value).month(month).toDate());
@@ -28,7 +29,12 @@ const MonthAndYearInput: FC<Props> = ({ value, onChange, disabled }) => {
                 value={monthName}
             />
 
-            <YearInput disabled={disabled} value={value} onChange={onChange} />
+            <YearInput
+                sx={{ flexBasis: 0 }}
+                disabled={disabled}
+                value={value}
+                onChange={onChange}
+            />
         </>
     );
 };
