@@ -1,18 +1,14 @@
-import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { DashboardFilterRule, FilterableField } from '@lightdash/common';
+import { Box, Button, Popover, Text, Tooltip } from '@mantine/core';
+import { IconX } from '@tabler/icons-react';
 import { FC, useState } from 'react';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import {
     getConditionalRuleLabel,
     getFilterRuleTables,
 } from '../../common/Filters/configs';
+import MantineIcon from '../../common/MantineIcon';
 import FilterConfiguration, { FilterTabs } from '../FilterConfiguration';
-import { FilterModalContainer } from '../FilterSearch/FilterSearch.styles';
-import {
-    FilterValues,
-    InvalidFilterTag,
-    TagContainer,
-} from './ActiveFilters.styles';
 
 type Props = {
     isEditMode: boolean;
@@ -38,15 +34,24 @@ const ActiveFilter: FC<Props> = ({
 
     const [selectedTabId, setSelectedTabId] = useState<FilterTabs>();
 
-    if (!filterableFieldsByTileUuid || !allFilterableFields) {
-        return null;
-    }
+    if (!filterableFieldsByTileUuid || !allFilterableFields) return null;
 
     if (!field) {
         return (
-            <InvalidFilterTag onRemove={onRemove}>
-                Tried to reference field with unknown id: {fieldId}
-            </InvalidFilterTag>
+            <Button
+                compact
+                color="red"
+                px="xs"
+                size="xs"
+                rightIcon={
+                    <MantineIcon onClick={onRemove} icon={IconX} size="sm" />
+                }
+            >
+                Tried to reference field with unknown id:{' '}
+                <Text component="span" fw={700}>
+                    {fieldId}
+                </Text>
+            </Button>
         );
     }
     const filterRuleLabels = getConditionalRuleLabel(filterRule, field);
@@ -57,11 +62,14 @@ const ActiveFilter: FC<Props> = ({
     );
 
     return (
-        <Popover2
-            lazy
-            placement="bottom-start"
-            content={
-                <FilterModalContainer $wide={selectedTabId === 'tiles'}>
+        <Popover
+            position="bottom-start"
+            withArrow
+            arrowSize={12}
+            arrowOffset={12}
+        >
+            <Popover.Dropdown>
+                <Box w={selectedTabId === FilterTabs.TILES ? 500 : 350} p="xs">
                     <FilterConfiguration
                         isEditMode={isEditMode}
                         tiles={dashboardTiles}
@@ -72,27 +80,46 @@ const ActiveFilter: FC<Props> = ({
                         filterRule={filterRule}
                         onSave={onUpdate}
                     />
-                </FilterModalContainer>
-            }
-        >
-            <TagContainer interactive onRemove={onRemove} onClick={onClick}>
-                <Tooltip2
-                    interactionKind="hover"
-                    placement="bottom-start"
-                    content={
-                        filterRuleTables.length === 0
-                            ? `Table: ${filterRuleTables[0]}`
-                            : `Tables: ${filterRuleTables.join(', ')}`
+                </Box>
+            </Popover.Dropdown>
+
+            <Popover.Target>
+                <Button
+                    variant="filled"
+                    color="gray.7"
+                    px="xs"
+                    compact
+                    size="xs"
+                    rightIcon={
+                        <MantineIcon
+                            onClick={onRemove}
+                            icon={IconX}
+                            size="sm"
+                        />
                     }
+                    onClick={onClick}
                 >
-                    <>
-                        {filterRule.label || filterRuleLabels.field}:{' '}
-                        {filterRuleLabels.operator}{' '}
-                        <FilterValues>{filterRuleLabels.value}</FilterValues>
-                    </>
-                </Tooltip2>
-            </TagContainer>
-        </Popover2>
+                    <Tooltip
+                        withinPortal
+                        withArrow
+                        position="top-start"
+                        label={
+                            filterRuleTables.length === 0
+                                ? `Table: ${filterRuleTables[0]}`
+                                : `Tables: ${filterRuleTables.join(', ')}`
+                        }
+                    >
+                        <Text component="span">
+                            {filterRule.label || filterRuleLabels.field}:{' '}
+                            {filterRuleLabels.operator}{' '}
+                            <Text component="span" fw={700}>
+                                {filterRuleLabels.value}
+                            </Text>
+                        </Text>
+                    </Tooltip>
+                </Button>
+            </Popover.Target>
+        </Popover>
     );
 };
 

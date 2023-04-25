@@ -1,5 +1,3 @@
-import { FormGroup, HTMLSelect, InputGroup } from '@blueprintjs/core';
-import { Popover2Props } from '@blueprintjs/popover2';
 import {
     DashboardFilterRule,
     FilterableField,
@@ -7,15 +5,15 @@ import {
     FilterType,
     getFilterTypeFromItem,
 } from '@lightdash/common';
+import { PopoverProps, Select, TextInput } from '@mantine/core';
 import { FC, useMemo } from 'react';
 import { FilterTypeConfig } from '../../common/Filters/configs';
-import { BolderLabel } from '../FilterSearch/FilterSearch.styles';
 
 interface FilterSettingsProps {
     isEditMode: boolean;
     field: FilterableField;
     filterRule: DashboardFilterRule;
-    popoverProps?: Popover2Props;
+    popoverProps?: Pick<PopoverProps, 'onOpen' | 'onClose'>;
     onChangeFilterOperator: (value: DashboardFilterRule['operator']) => void;
     onChangeFilterRule: (value: DashboardFilterRule) => void;
 }
@@ -37,45 +35,37 @@ const FilterSettings: FC<FilterSettingsProps> = ({
 
     return (
         <>
-            <FormGroup label={<BolderLabel>Value</BolderLabel>}>
-                <HTMLSelect
-                    fill
-                    onChange={(e) =>
-                        onChangeFilterOperator(
-                            e.target.value as FilterRule['operator'],
-                        )
-                    }
-                    options={filterConfig.operatorOptions}
-                    value={filterRule.operator}
-                />
-            </FormGroup>
+            <Select
+                label="Value"
+                onChange={(value) =>
+                    onChangeFilterOperator(value as FilterRule['operator'])
+                }
+                data={filterConfig.operatorOptions}
+                value={filterRule.operator}
+            />
 
-            <FormGroup>
-                <filterConfig.inputs
-                    popoverProps={popoverProps}
-                    filterType={filterType}
-                    field={field}
-                    rule={filterRule}
-                    onChange={(newFilterRule) =>
-                        onChangeFilterRule(newFilterRule as DashboardFilterRule)
-                    }
-                />
-            </FormGroup>
+            <filterConfig.inputs
+                popoverProps={popoverProps}
+                filterType={filterType}
+                field={field}
+                rule={filterRule}
+                onChange={(newFilterRule) =>
+                    onChangeFilterRule(newFilterRule as DashboardFilterRule)
+                }
+            />
 
             {isEditMode && (
-                <FormGroup label={<BolderLabel>Label</BolderLabel>}>
-                    <InputGroup
-                        fill
-                        onChange={(e) =>
-                            onChangeFilterRule({
-                                ...filterRule,
-                                label: e.target.value || undefined,
-                            })
-                        }
-                        placeholder={`Defaults to "${field.label}"`}
-                        value={filterRule.label || ''}
-                    />
-                </FormGroup>
+                <TextInput
+                    label="Label"
+                    onChange={(e) =>
+                        onChangeFilterRule({
+                            ...filterRule,
+                            label: e.target.value || undefined,
+                        })
+                    }
+                    placeholder={`Defaults to "${field.label}"`}
+                    value={filterRule.label || ''}
+                />
             )}
         </>
     );

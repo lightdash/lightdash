@@ -1,5 +1,3 @@
-import { Checkbox, FormGroup } from '@blueprintjs/core';
-import { Popover2Props } from '@blueprintjs/popover2';
 import {
     DashboardFilterRule,
     DashboardTile,
@@ -9,6 +7,7 @@ import {
     matchFieldByTypeAndName,
     matchFieldExact,
 } from '@lightdash/common';
+import { Box, Checkbox, PopoverProps, Stack } from '@mantine/core';
 import { FC, useCallback, useMemo } from 'react';
 import { FilterActions } from '.';
 import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
@@ -18,7 +17,7 @@ interface TileFilterConfigurationProps {
     availableTileFilters: Record<string, FilterableField[] | undefined>;
     field: FilterableField;
     filterRule: DashboardFilterRule;
-    popoverProps?: Popover2Props;
+    popoverProps?: Pick<PopoverProps, 'onOpen' | 'onClose'>;
     onChange: (
         action: FilterActions,
         tileUuid: string,
@@ -69,7 +68,7 @@ const TileFilterConfiguration: FC<TileFilterConfigurationProps> = ({
     }, [tilesSortBy, availableTileFilters]);
 
     return (
-        <>
+        <Stack spacing="sm">
             {sortedTileEntries.map(([tileUuid, filters]) => {
                 if (!filters) return null;
 
@@ -88,7 +87,7 @@ const TileFilterConfiguration: FC<TileFilterConfigurationProps> = ({
                     .sort((a, b) => itemsSortBy(matchFieldExact, a, b));
 
                 return (
-                    <FormGroup key={tileUuid}>
+                    <Stack key={tileUuid} spacing="xs">
                         <Checkbox
                             label={tile?.properties.title || undefined}
                             disabled={!isAvailable}
@@ -103,15 +102,10 @@ const TileFilterConfiguration: FC<TileFilterConfigurationProps> = ({
                             }}
                         />
 
-                        <div style={{ marginLeft: 24 }}>
+                        <Box ml="xxl">
                             <FieldAutoComplete
                                 disabled={!isAvailable || !isChecked}
-                                popoverProps={{
-                                    lazy: true,
-                                    minimal: true,
-                                    matchTargetWidth: true,
-                                    ...popoverProps,
-                                }}
+                                popoverProps={popoverProps}
                                 fields={sortedFilters}
                                 activeField={filter}
                                 onChange={(newFilter) => {
@@ -122,11 +116,11 @@ const TileFilterConfiguration: FC<TileFilterConfigurationProps> = ({
                                     );
                                 }}
                             />
-                        </div>
-                    </FormGroup>
+                        </Box>
+                    </Stack>
                 );
             })}
-        </>
+        </Stack>
     );
 };
 

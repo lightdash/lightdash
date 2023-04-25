@@ -1,15 +1,13 @@
-import { Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { DashboardTileTypes } from '@lightdash/common';
+import { Button, Group, Popover, Text, Tooltip } from '@mantine/core';
+import { IconFilterPlus } from '@tabler/icons-react';
 import { FC, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useProject } from '../../hooks/useProject';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { FiltersProvider } from '../common/Filters/FiltersProvider';
+import MantineIcon from '../common/MantineIcon';
 import ActiveFilters from './ActiveFilters';
-import {
-    DashboardFilterWrapper,
-    FilterTrigger,
-} from './DashboardFilter.styles';
 import FilterSearch from './FilterSearch';
 
 interface Props {
@@ -34,9 +32,16 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
             (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
         ).length >= 1;
 
-    const handleClose = () => {
+    const handleOpen = () => {
         setIsSubmenuOpen(false);
-        setIsOpen(false);
+        setIsOpen(true);
+    };
+
+    const handleClose = () => {
+        setIsSubmenuOpen((submenuOpenState) => {
+            if (!submenuOpenState) setIsOpen(false);
+            return false;
+        });
     };
 
     return (
@@ -45,53 +50,67 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
             fieldsMap={fieldsWithSuggestions}
             startOfWeek={project.data?.warehouseConnection?.startOfWeek}
         >
-            <DashboardFilterWrapper>
-                <Popover2
-                    lazy
+            <Group spacing="sm" mb="xs" align="flex-start" noWrap>
+                <Popover
+                    opened={isOpen}
+                    onOpen={() => handleOpen()}
+                    onClose={() => handleClose()}
+                    trapFocus
                     disabled={!hasChartTiles}
-                    canEscapeKeyClose={isSubmenuOpen ? false : true}
-                    interactionKind={isSubmenuOpen ? 'click-target' : 'click'}
-                    placement="bottom-start"
-                    onOpened={() => setIsOpen(true)}
-                    onClose={handleClose}
-                    content={
+                    closeOnEscape={!isSubmenuOpen}
+                    closeOnClickOutside={!isSubmenuOpen}
+                    position="bottom-start"
+                    shadow="lg"
+                    withArrow
+                    arrowSize={14}
+                    arrowOffset={10}
+                >
+                    <Popover.Dropdown>
                         <FilterSearch
                             isEditMode={isEditMode}
                             fields={allFilterableFields || []}
                             popoverProps={{
-                                onOpened: () => setIsSubmenuOpen(true),
-                                onOpening: () => setIsSubmenuOpen(true),
+                                onOpen: () => setIsSubmenuOpen(true),
                                 onClose: () => setIsSubmenuOpen(false),
-                                onClosing: () => setIsSubmenuOpen(false),
                             }}
-                            onClose={handleClose}
-                            onSelectField={handleClose}
                         />
-                    }
-                >
-                    <Tooltip2
-                        disabled={isOpen || isEditMode}
-                        placement="bottom-start"
-                        interactionKind="hover"
-                        content={
-                            <>
-                                Only filters added in <b>'edit'</b> mode will be
-                                saved
-                            </>
-                        }
-                    >
-                        <FilterTrigger
-                            minimal
-                            icon="filter-list"
-                            disabled={!hasChartTiles}
+                    </Popover.Dropdown>
+
+                    <Popover.Target>
+                        <Tooltip
+                            disabled={isOpen || isEditMode}
+                            withArrow
+                            position="top-start"
+                            label={
+                                <>
+                                    Only filters added in{' '}
+                                    <Text component="span" w="600">
+                                        'edit'
+                                    </Text>{' '}
+                                    mode will be saved
+                                </>
+                            }
                         >
-                            Add filter
-                        </FilterTrigger>
-                    </Tooltip2>
-                </Popover2>
+                            <Button
+                                variant="subtle"
+                                compact
+                                onClick={() => setIsOpen((value) => !value)}
+                                leftIcon={
+                                    <MantineIcon
+                                        icon={IconFilterPlus}
+                                        size="md"
+                                    />
+                                }
+                                disabled={!hasChartTiles}
+                            >
+                                Add filter
+                            </Button>
+                        </Tooltip>
+                    </Popover.Target>
+                </Popover>
 
                 {dashboardFilters && <ActiveFilters isEditMode={isEditMode} />}
-            </DashboardFilterWrapper>
+            </Group>
         </FiltersProvider>
     );
 };
