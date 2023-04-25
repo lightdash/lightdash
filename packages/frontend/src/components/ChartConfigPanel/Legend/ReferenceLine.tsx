@@ -82,21 +82,18 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
                     );
                 case TimeFrames.MONTH:
                     return (
-                        <Flex>
-                            {' '}
-                            <MonthAndYearInput
-                                value={moment(value).toDate()}
-                                onChange={(dateValue: Date) => {
-                                    onChange(
-                                        formatDate(
-                                            dateValue,
-                                            TimeFrames.MONTH,
-                                            false,
-                                        ),
-                                    );
-                                }}
-                            />
-                        </Flex>
+                        <MonthAndYearInput
+                            value={moment(value).toDate()}
+                            onChange={(dateValue: Date) => {
+                                onChange(
+                                    formatDate(
+                                        dateValue,
+                                        TimeFrames.MONTH,
+                                        false,
+                                    ),
+                                );
+                            }}
+                        />
                     );
 
                 case TimeFrames.YEAR:

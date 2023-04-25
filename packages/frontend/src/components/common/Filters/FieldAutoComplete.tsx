@@ -7,6 +7,8 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import {
+    Box,
+    Flex,
     Group,
     PopoverProps,
     Select,
@@ -34,11 +36,11 @@ type ItemProps = SelectItemProps & {
 };
 
 const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
-    ({ label, item, ...others }: ItemProps, ref) => (
-        <Group noWrap ref={ref} {...others}>
-            <FieldIcon item={item} />
+    ({ label, item, ...rest }: ItemProps, ref) => (
+        <Flex ref={ref} wrap="nowrap" align="center" gap="xs" {...rest}>
+            <FieldIcon item={item} style={{ flexShrink: 0 }} />
             <Text>{label}</Text>
-        </Group>
+        </Flex>
     ),
 );
 
