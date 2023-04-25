@@ -11,9 +11,11 @@ import {
     isWeekDay,
     parseDate,
     TimeFrames,
+    toDate,
     UnitOfTime,
 } from '@lightdash/common';
 import { Group, NumberInput } from '@mantine/core';
+import { DatePickerInput } from '@mantine/dates';
 import moment from 'moment';
 import React from 'react';
 import MonthAndYearInput from '../../MonthAndYearInput';
@@ -146,38 +148,27 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                     />
                 );
             }
+
             return (
-                <DateInput2
-                    className={disabled ? 'disabled-filter' : ''}
+                <DatePickerInput
+                    sx={{ flex: 1 }}
                     disabled={disabled}
-                    fill
+                    firstDayOfWeek={
+                        isWeekDay(startOfWeek)
+                            ? convertWeekDayToDayPickerWeekDay(startOfWeek)
+                            : undefined
+                    }
                     value={
                         rule.values?.[0]
-                            ? formatDate(rule.values?.[0], undefined, false)
-                            : new Date().toString()
+                            ? toDate(rule.values?.[0], false)
+                            : new Date()
                     }
-                    formatDate={(value: Date) =>
-                        formatDate(value, undefined, false)
-                    }
-                    parseDate={parseDate}
-                    defaultValue={new Date().toString()}
-                    onChange={(value: string | null) => {
-                        if (value) {
-                            onChange({
-                                ...rule,
-                                values: [formatDate(value, undefined, false)],
-                            });
-                        }
-                    }}
-                    popoverProps={{
-                        placement: 'bottom',
-                        // TODO: get rid of it
-                        // ...popoverProps,
-                    }}
-                    dayPickerProps={{
-                        firstDayOfWeek: isWeekDay(startOfWeek)
-                            ? convertWeekDayToDayPickerWeekDay(startOfWeek)
-                            : undefined,
+                    onChange={(value) => {
+                        if (!value) return;
+                        onChange({
+                            ...rule,
+                            values: [formatDate(value, undefined, false)],
+                        });
                     }}
                 />
             );
