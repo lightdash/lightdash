@@ -1,4 +1,3 @@
-import { NumericInput } from '@blueprintjs/core';
 import { DateInput2 } from '@blueprintjs/datetime2';
 import {
     ConditionalRule,
@@ -14,6 +13,7 @@ import {
     TimeFrames,
     UnitOfTime,
 } from '@lightdash/common';
+import { Group, NumberInput } from '@mantine/core';
 import moment from 'moment';
 import React from 'react';
 import MonthAndYearInput from '../../MonthAndYearInput';
@@ -21,16 +21,13 @@ import WeekPicker, { convertWeekDayToDayPickerWeekDay } from '../../WeekPicker';
 import YearInput from '../../YearInput';
 import { useFiltersContext } from '../FiltersProvider';
 import DefaultFilterInputs, { FilterInputsProps } from './DefaultFilterInputs';
-import {
-    MultipleInputsWrapper,
-    StyledDateRangeInput,
-} from './FilterInputs.styles';
+import { StyledDateRangeInput } from './FilterInputs.styles';
 import UnitOfTimeAutoComplete from './UnitOfTimeAutoComplete';
 
 const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
     props: React.PropsWithChildren<FilterInputsProps<T>>,
 ) => {
-    const { field, rule, onChange, popoverProps, disabled } = props;
+    const { field, rule, onChange, disabled } = props;
     const { startOfWeek } = useFiltersContext();
     const isTimestamp =
         isField(field) && field.type === DimensionType.TIMESTAMP;
@@ -50,44 +47,44 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                 switch (field.timeInterval.toUpperCase()) {
                     case TimeFrames.WEEK:
                         return (
-                            <>
-                                <span style={{ whiteSpace: 'nowrap' }}>
-                                    week commencing
-                                </span>
-                                <WeekPicker
-                                    disabled={disabled}
-                                    value={rule.values?.[0] || new Date()}
-                                    popoverProps={popoverProps}
-                                    startOfWeek={startOfWeek}
-                                    onChange={(value: Date) => {
-                                        onChange({
-                                            ...rule,
-                                            values: [moment(value).toDate()],
-                                        });
-                                    }}
-                                />
-                            </>
-                        );
-                    case TimeFrames.MONTH:
-                        return (
-                            <MonthAndYearInput
+                            // TODO: revisit
+                            <WeekPicker
                                 disabled={disabled}
                                 value={rule.values?.[0] || new Date()}
+                                // TODO: get rid of it
+                                // popoverProps={popoverProps}
+                                startOfWeek={startOfWeek}
                                 onChange={(value: Date) => {
                                     onChange({
                                         ...rule,
-                                        values: [
-                                            moment(value)
-                                                .startOf('month')
-                                                .toDate(),
-                                        ],
+                                        values: [moment(value).toDate()],
                                     });
                                 }}
                             />
                         );
+                    case TimeFrames.MONTH:
+                        return (
+                            <Group grow sx={{ flex: 1 }}>
+                                <MonthAndYearInput
+                                    disabled={disabled}
+                                    value={rule.values?.[0] || new Date()}
+                                    onChange={(value: Date) => {
+                                        onChange({
+                                            ...rule,
+                                            values: [
+                                                moment(value)
+                                                    .startOf('month')
+                                                    .toDate(),
+                                            ],
+                                        });
+                                    }}
+                                />
+                            </Group>
+                        );
                     case TimeFrames.YEAR:
                         return (
                             <YearInput
+                                sx={{ flex: 1 }}
                                 disabled={disabled}
                                 value={rule.values?.[0] || new Date()}
                                 onChange={(value: Date) => {
@@ -138,7 +135,8 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         }}
                         popoverProps={{
                             placement: 'bottom',
-                            ...popoverProps,
+                            // TODO: get rid of it
+                            // ...popoverProps,
                         }}
                         dayPickerProps={{
                             firstDayOfWeek: isWeekDay(startOfWeek)
@@ -173,7 +171,8 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                     }}
                     popoverProps={{
                         placement: 'bottom',
-                        ...popoverProps,
+                        // TODO: get rid of it
+                        // ...popoverProps,
                     }}
                     dayPickerProps={{
                         firstDayOfWeek: isWeekDay(startOfWeek)
@@ -186,28 +185,24 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
         case FilterOperator.IN_THE_NEXT:
             const parsedValue = parseInt(rule.values?.[0], 10);
             return (
-                <MultipleInputsWrapper>
-                    <NumericInput
-                        className={disabled ? 'disabled-filter' : ''}
-                        fill
+                <Group grow sx={{ flex: 1 }}>
+                    <NumberInput
                         disabled={disabled}
-                        value={isNaN(parsedValue) ? undefined : parsedValue}
                         min={0}
-                        onValueChange={(value) =>
-                            onChange({
-                                ...rule,
-                                values: [value],
-                            })
+                        value={isNaN(parsedValue) ? undefined : parsedValue}
+                        onChange={(value) =>
+                            onChange({ ...rule, values: [value] })
                         }
                     />
                     <UnitOfTimeAutoComplete
                         disabled={disabled}
                         isTimestamp={isTimestamp}
-                        unitOfTime={
-                            rule.settings?.unitOfTime || UnitOfTime.days
-                        }
+                        value={rule.settings?.unitOfTime || UnitOfTime.days}
                         completed={rule.settings?.completed || false}
-                        popoverProps={popoverProps}
+                        searchable
+                        nothingFound="No results..."
+                        // TODO: revisit this
+                        // popoverProps={popoverProps}
                         onChange={(value) =>
                             onChange({
                                 ...rule,
@@ -218,37 +213,37 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                             })
                         }
                     />
-                </MultipleInputsWrapper>
+                </Group>
             );
         case FilterOperator.IN_THE_CURRENT:
             return (
-                <MultipleInputsWrapper>
-                    <UnitOfTimeAutoComplete
-                        disabled={disabled}
-                        isTimestamp={isTimestamp}
-                        unitOfTime={
-                            rule.settings?.unitOfTime || UnitOfTime.days
-                        }
-                        showOptionsInPlural={false}
-                        showCompletedOptions={false}
-                        completed={false}
-                        popoverProps={popoverProps}
-                        onChange={(value) =>
-                            onChange({
-                                ...rule,
-                                settings: {
-                                    unitOfTime: value.unitOfTime,
-                                    completed: false,
-                                },
-                            })
-                        }
-                    />
-                </MultipleInputsWrapper>
+                <UnitOfTimeAutoComplete
+                    sx={{ flex: 1 }}
+                    disabled={disabled}
+                    isTimestamp={isTimestamp}
+                    value={rule.settings?.unitOfTime || UnitOfTime.days}
+                    showOptionsInPlural={false}
+                    showCompletedOptions={false}
+                    completed={false}
+                    searchable
+                    nothingFound="No results..."
+                    // TODO: revisit this
+                    // popoverProps={popoverProps}
+                    onChange={(value) =>
+                        onChange({
+                            ...rule,
+                            settings: {
+                                unitOfTime: value.unitOfTime,
+                                completed: false,
+                            },
+                        })
+                    }
+                />
             );
         case FilterOperator.IN_BETWEEN:
             if (isTimestamp) {
                 return (
-                    <MultipleInputsWrapper>
+                    <Group>
                         <StyledDateRangeInput
                             allowSingleDayRange
                             className={disabled ? 'disabled-filter' : ''}
@@ -288,7 +283,8 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                             }}
                             popoverProps={{
                                 placement: 'bottom',
-                                ...popoverProps,
+                                // TODO: get rid of it
+                                // ...popoverProps,
                             }}
                             dayPickerProps={{
                                 firstDayOfWeek: isWeekDay(startOfWeek)
@@ -300,11 +296,11 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                             closeOnSelection={false}
                             shortcuts={false}
                         />
-                    </MultipleInputsWrapper>
+                    </Group>
                 );
             }
             return (
-                <MultipleInputsWrapper>
+                <Group>
                     <StyledDateRangeInput
                         className={disabled ? 'disabled-filter' : ''}
                         disabled={disabled}
@@ -367,7 +363,8 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         }}
                         popoverProps={{
                             placement: 'bottom',
-                            ...popoverProps,
+                            // TODO: get rid of it
+                            // ...popoverProps,
                         }}
                         dayPickerProps={{
                             firstDayOfWeek: isWeekDay(startOfWeek)
@@ -377,7 +374,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         closeOnSelection={true}
                         shortcuts={false}
                     />
-                </MultipleInputsWrapper>
+                </Group>
             );
         default: {
             return <DefaultFilterInputs {...props} />;
