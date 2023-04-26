@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import { NavLink, Title } from '@mantine/core';
 import {
+    IconBuildingSkyscraper,
     IconDatabase,
     IconKey,
     IconLock,
@@ -11,18 +12,14 @@ import {
 } from '@tabler/icons-react';
 import { FC } from 'react';
 import { Helmet } from 'react-helmet';
-import {
-    NavLink as RouterNavLink,
-    Redirect,
-    Route,
-    Switch,
-} from 'react-router-dom';
+import { Redirect, Route, Switch } from 'react-router-dom';
 import { Can } from '../components/common/Authorization';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import Content from '../components/common/Page/Content';
 import { PageWithSidebar } from '../components/common/Page/Page.styles';
 import Sidebar from '../components/common/Page/Sidebar';
+import RouterNavLink from '../components/common/RouterNavLink';
 import PageSpinner from '../components/PageSpinner';
 import AccessTokensPanel from '../components/UserSettings/AccessTokensPanel';
 import AllowedDomainsPanel from '../components/UserSettings/AllowedDomainsPanel';
@@ -93,9 +90,8 @@ const Settings: FC = () => {
             </Helmet>
 
             <Sidebar title="Settings">
-                <NavLink label="Your settings" defaultOpened>
-                    <NavLink
-                        component={RouterNavLink}
+                <NavLink label="Your settings" defaultOpened childrenOffset={0}>
+                    <RouterNavLink
                         exact
                         to={basePath}
                         label="Profile"
@@ -103,8 +99,7 @@ const Settings: FC = () => {
                     />
 
                     {allowPasswordAuthentication && (
-                        <NavLink
-                            component={RouterNavLink}
+                        <RouterNavLink
                             label={
                                 hasSocialLogin
                                     ? 'Password & Social Logins'
@@ -116,8 +111,7 @@ const Settings: FC = () => {
                         />
                     )}
 
-                    <NavLink
-                        component={RouterNavLink}
+                    <RouterNavLink
                         label="Personal access tokens"
                         exact
                         to={`${basePath}/personalAccessTokens`}
@@ -131,14 +125,21 @@ const Settings: FC = () => {
                         organizationUuid: organization.organizationUuid,
                     })}
                 >
-                    <NavLink label="Organization settings" defaultOpened>
+                    <NavLink
+                        label="Organization settings"
+                        defaultOpened
+                        childrenOffset={0}
+                    >
                         {user.ability.can('manage', 'Organization') && (
-                            <NavLink
-                                component={RouterNavLink}
+                            <RouterNavLink
                                 label="General"
                                 exact
                                 to={`${basePath}/organization`}
-                                icon={<MantineIcon icon={IconUserCircle} />}
+                                icon={
+                                    <MantineIcon
+                                        icon={IconBuildingSkyscraper}
+                                    />
+                                }
                             />
                         )}
 
@@ -146,8 +147,7 @@ const Settings: FC = () => {
                             'view',
                             'OrganizationMemberProfile',
                         ) && (
-                            <NavLink
-                                component={RouterNavLink}
+                            <RouterNavLink
                                 label="User management"
                                 to={`${basePath}/userManagement`}
                                 icon={<MantineIcon icon={IconUserPlus} />}
@@ -157,16 +157,14 @@ const Settings: FC = () => {
                         {organization &&
                             !organization.needsProject &&
                             user.ability.can('view', 'Project') && (
-                                <NavLink
-                                    component={RouterNavLink}
+                                <RouterNavLink
                                     label="Projects"
                                     to={`${basePath}/projectManagement`}
                                     icon={<MantineIcon icon={IconDatabase} />}
                                 />
                             )}
 
-                        <NavLink
-                            component={RouterNavLink}
+                        <RouterNavLink
                             label="Appearance"
                             exact
                             to={`${basePath}/appearance`}
@@ -175,8 +173,7 @@ const Settings: FC = () => {
 
                         {health.hasSlack &&
                             user.ability.can('manage', 'Organization') && (
-                                <NavLink
-                                    component={RouterNavLink}
+                                <RouterNavLink
                                     label="Integrations"
                                     exact
                                     to={`${basePath}/integrations/slack`}
