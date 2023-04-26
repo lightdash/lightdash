@@ -7,35 +7,31 @@ import {
     IconLayoutDashboard,
     IconTable,
 } from '@tabler/icons-react';
-import { CSSProperties, FC } from 'react';
+import { FC } from 'react';
+import MantineIcon, { MantineIconProps } from '../../common/MantineIcon';
 import { SearchItem } from './hooks';
 
-export const SearchIcon: FC<{
+type SearchIconProps = Omit<MantineIconProps, 'icon'> & {
     item: SearchItem;
-    color?: string | undefined;
-    size?: number | undefined;
-    style?: CSSProperties | undefined;
-}> = ({ item, color, size, style }) => {
+};
+
+export const SearchIcon: FC<SearchIconProps> = ({ item, ...iconProps }) => {
     switch (item.type) {
         case 'field':
             return item.typeLabel.toLowerCase() === 'dimension' ? (
-                <IconAbc color={color} size={size} style={style} />
+                <MantineIcon icon={IconAbc} {...iconProps} />
             ) : (
-                <Icon123 color={color} size={size} style={style} />
+                <MantineIcon icon={Icon123} {...iconProps} />
             );
         case 'dashboard':
-            return (
-                <IconLayoutDashboard color={color} size={size} style={style} />
-            );
+            return <MantineIcon icon={IconLayoutDashboard} {...iconProps} />;
         case 'saved_chart':
-            return (
-                <IconChartAreaLine color={color} size={size} style={style} />
-            );
+            return <MantineIcon icon={IconChartAreaLine} {...iconProps} />;
         case 'space':
-            return <IconFolder color={color} size={size} style={style} />;
+            return <MantineIcon icon={IconFolder} {...iconProps} />;
         case 'table':
-            return <IconTable color={color} size={size} style={style} />;
+            return <MantineIcon icon={IconTable} {...iconProps} />;
         case 'page':
-            return <IconAppWindow color={color} size={size} style={style} />;
+            return <MantineIcon icon={IconAppWindow} {...iconProps} />;
     }
 };

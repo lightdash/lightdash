@@ -6,7 +6,7 @@ import {
 import { TablerIconsProps } from '@tabler/icons-react';
 import { FC } from 'react';
 
-interface MantineIconProps extends TablerIconsProps {
+export interface MantineIconProps extends TablerIconsProps {
     icon: (props: TablerIconsProps) => JSX.Element;
     size?: MantineNumberSize;
     stroke?: MantineNumberSize;
