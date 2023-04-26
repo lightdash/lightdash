@@ -1,16 +1,7 @@
-import {
-    Button,
-    Colors,
-    Icon,
-    Menu,
-    PopoverInteractionKind,
-    Position,
-} from '@blueprintjs/core';
-import { Popover2 } from '@blueprintjs/popover2';
+import { ActionIcon, Button, Menu } from '@mantine/core';
 import {
     IconBell,
     IconBook,
-    IconFlag,
     IconHelp,
     IconMessageCircle2,
     IconMessages,
@@ -22,12 +13,8 @@ import { useIntercom } from 'react-use-intercom';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
-import {
-    LargeMenuItem,
-    LargeMenuItemIconWrapper,
-    LargeMenuItemSubText,
-    LargeMenuItemText,
-} from '../ExploreMenu/ExploreMenu.styles';
+import LargeMenuItem from '../../common/LargeMenuItem';
+import MantineIcon from '../../common/MantineIcon';
 import { NotificationWidget, NotificationWrapper } from './HelpMenu.styles';
 
 const HelpMenu: FC = () => {
@@ -76,113 +63,60 @@ const HelpMenu: FC = () => {
     return (
         <>
             <NotificationWrapper>
-                <Button
-                    minimal
-                    icon={<IconBell size={20} color={Colors.GRAY4} />}
-                />
+                <ActionIcon>
+                    <MantineIcon icon={IconBell} size="lg" />
+                </ActionIcon>
                 <NotificationWidget id="headway-badge" />
             </NotificationWrapper>
-            <Popover2
-                interactionKind={PopoverInteractionKind.CLICK}
-                content={
-                    <Menu large>
-                        <LargeMenuItem
-                            onClick={() => showIntercom()}
-                            icon={
-                                <LargeMenuItemIconWrapper>
-                                    <IconMessages
-                                        size={22}
-                                        color={Colors.WHITE}
-                                    />
-                                </LargeMenuItemIconWrapper>
-                            }
-                            text={
-                                <>
-                                    <LargeMenuItemText>
-                                        Contact support
-                                    </LargeMenuItemText>
-                                    <LargeMenuItemSubText>
-                                        Drop us a message and we’ll get back to
-                                        you asap!
-                                    </LargeMenuItemSubText>
-                                </>
-                            }
-                        />
 
-                        <LargeMenuItem
-                            href="https://docs.lightdash.com/"
-                            target="_blank"
-                            icon={
-                                <LargeMenuItemIconWrapper>
-                                    <IconBook size={22} color={Colors.WHITE} />
-                                </LargeMenuItemIconWrapper>
-                            }
-                            text={
-                                <>
-                                    <LargeMenuItemText>
-                                        View Docs
-                                    </LargeMenuItemText>
-                                    <LargeMenuItemSubText>
-                                        Learn how to deploy, use, contribute to
-                                        Lightdash.
-                                    </LargeMenuItemSubText>
-                                </>
-                            }
-                        />
-
-                        <LargeMenuItem
-                            href="https://join.slack.com/t/lightdash-community/shared_invite/zt-16q953ork-NZr1qdEqxSwB17E2ckUe7A"
-                            target="_blank"
-                            icon={
-                                <LargeMenuItemIconWrapper>
-                                    <IconUsers size={22} color={Colors.WHITE} />
-                                </LargeMenuItemIconWrapper>
-                            }
-                            text={
-                                <>
-                                    <LargeMenuItemText>
-                                        Join Slack community
-                                    </LargeMenuItemText>
-                                    <LargeMenuItemSubText>
-                                        Get advice share best practices with
-                                        other users.
-                                    </LargeMenuItemSubText>
-                                </>
-                            }
-                        />
-
-                        <LargeMenuItem
-                            href="https://github.com/lightdash/lightdash/issues/new/choose"
-                            target="_blank"
-                            icon={
-                                <LargeMenuItemIconWrapper>
-                                    <IconMessageCircle2
-                                        size={22}
-                                        color={Colors.WHITE}
-                                    />
-                                </LargeMenuItemIconWrapper>
-                            }
-                            text={
-                                <>
-                                    <LargeMenuItemText>
-                                        Feedback on Lightdash
-                                    </LargeMenuItemText>
-                                    <LargeMenuItemSubText>
-                                        Submit a feature request or bug report
-                                        to improve Lightdash.
-                                    </LargeMenuItemSubText>
-                                </>
-                            }
-                        />
-                    </Menu>
-                }
-                position={Position.BOTTOM_LEFT}
+            <Menu
+                withArrow
+                shadow="lg"
+                position="bottom-end"
+                arrowOffset={16}
+                offset={-2}
             >
-                <Button
-                    minimal
-                    icon={<IconHelp size={20} color={Colors.GRAY4} />}
-                />
-            </Popover2>
+                <Menu.Target>
+                    <ActionIcon>
+                        <IconHelp size={20} />
+                    </ActionIcon>
+                </Menu.Target>
+
+                <Menu.Dropdown>
+                    <LargeMenuItem
+                        onClick={() => showIntercom()}
+                        title="Contact support"
+                        description="Drop us a message and we’ll get back to you asap!"
+                        icon={<MantineIcon icon={IconMessages} size="lg" />}
+                    />
+
+                    <LargeMenuItem
+                        // href="https://docs.lightdash.com/"
+                        // target="_blank"
+                        title="View Docs"
+                        description="Learn how to deploy, use, contribute to Lightdash."
+                        icon={<MantineIcon icon={IconBook} size="lg" />}
+                    />
+
+                    <LargeMenuItem
+                        // href="https://join.slack.com/t/lightdash-community/shared_invite/zt-16q953ork-NZr1qdEqxSwB17E2ckUe7A"
+                        // target="_blank"
+                        title="Join Slack community"
+                        description="Get advice share best practices with other users."
+                        icon={<MantineIcon icon={IconUsers} size="lg" />}
+                    />
+
+                    <LargeMenuItem
+                        // href="https://github.com/lightdash/lightdash/issues/new/choose"
+                        // target="_blank"
+                        title="Feedback on Lightdash"
+                        description="Submit a feature request or bug report to improve Lightdash."
+                        icon={
+                            <MantineIcon icon={IconMessageCircle2} size="lg" />
+                        }
+                    />
+                </Menu.Dropdown>
+            </Menu>
         </>
     );
 };

@@ -1,13 +1,5 @@
-import {
-    Button,
-    Colors,
-    Icon,
-    Menu,
-    PopoverInteractionKind,
-    Position,
-} from '@blueprintjs/core';
-import { Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
+import { Button, Menu } from '@mantine/core';
 import {
     IconFolder,
     IconLayoutDashboard,
@@ -19,19 +11,14 @@ import { FC, memo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
 import { useApp } from '../../../providers/AppProvider';
 import { Can } from '../../common/Authorization';
+import LargeMenuItem from '../../common/LargeMenuItem';
 import MantineIcon from '../../common/MantineIcon';
 import DashboardCreateModal from '../../common/modal/DashboardCreateModal';
 import SpaceActionModal, { ActionType } from '../../common/SpaceActionModal';
-import {
-    LargeMenuItem,
-    LargeMenuItemIconWrapper,
-    LargeMenuItemSubText,
-    LargeMenuItemText,
-} from './ExploreMenu.styles';
 
-interface Props {
+type Props = {
     projectUuid: string;
-}
+};
 
 const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
     const { user } = useApp();
@@ -44,7 +31,6 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
 
     return (
         <>
-            {' '}
             <Can
                 I="manage"
                 this={subject('Explore', {
@@ -52,158 +38,111 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                     projectUuid,
                 })}
             >
-                <Popover2
-                    isOpen={isOpen}
-                    interactionKind={PopoverInteractionKind.CLICK}
-                    onClose={() => setIsOpen(false)}
-                    content={
-                        <Menu large>
-                            <LargeMenuItem
-                                icon={
-                                    <LargeMenuItemIconWrapper>
-                                        <MantineIcon
-                                            icon={IconTable}
-                                            size={22}
-                                            color="gray.0"
-                                        />
-                                    </LargeMenuItemIconWrapper>
-                                }
-                                href={`/projects/${projectUuid}/tables`}
-                                text={
-                                    <>
-                                        <LargeMenuItemText>
-                                            Query from tables
-                                        </LargeMenuItemText>
-                                        <LargeMenuItemSubText>
-                                            Build queries and save them as
-                                            charts.
-                                        </LargeMenuItemSubText>
-                                    </>
-                                }
-                            />
-                            <Can
-                                I="manage"
-                                this={subject('SqlRunner', {
-                                    organizationUuid:
-                                        user.data?.organizationUuid,
-                                    projectUuid,
-                                })}
-                            >
-                                <LargeMenuItem
-                                    icon={
-                                        <LargeMenuItemIconWrapper>
-                                            <MantineIcon
-                                                icon={IconTerminal2}
-                                                size={22}
-                                                color="gray.0"
-                                            />
-                                        </LargeMenuItemIconWrapper>
-                                    }
-                                    href={`/projects/${projectUuid}/sqlRunner`}
-                                    onClick={() => setIsOpen(false)}
-                                    text={
-                                        <>
-                                            <LargeMenuItemText>
-                                                Query using SQL runner
-                                            </LargeMenuItemText>
-                                            <LargeMenuItemSubText>
-                                                Access your database to run
-                                                ad-hoc queries.
-                                            </LargeMenuItemSubText>
-                                        </>
-                                    }
-                                />
-                            </Can>
-                            <Can
-                                I="manage"
-                                this={subject('Dashboard', {
-                                    organizationUuid:
-                                        user.data?.organizationUuid,
-                                    projectUuid,
-                                })}
-                            >
-                                <LargeMenuItem
-                                    icon={
-                                        <LargeMenuItemIconWrapper>
-                                            <MantineIcon
-                                                icon={IconLayoutDashboard}
-                                                size={22}
-                                                color="gray.0"
-                                            />
-                                        </LargeMenuItemIconWrapper>
-                                    }
-                                    onClick={() => {
-                                        setIsOpen(false);
-                                        setIsCreateDashboardOpen(true);
-                                    }}
-                                    text={
-                                        <>
-                                            <LargeMenuItemText>
-                                                Dashboard
-                                            </LargeMenuItemText>
-                                            <LargeMenuItemSubText>
-                                                Arrange multiple charts into a
-                                                single view.
-                                            </LargeMenuItemSubText>
-                                        </>
-                                    }
-                                />
-                            </Can>
-                            <Can
-                                I="manage"
-                                this={subject('Space', {
-                                    organizationUuid:
-                                        user.data?.organizationUuid,
-                                    projectUuid,
-                                })}
-                            >
-                                <LargeMenuItem
-                                    icon={
-                                        <LargeMenuItemIconWrapper>
-                                            <MantineIcon
-                                                icon={IconFolder}
-                                                size={22}
-                                                color="gray.0"
-                                            />
-                                        </LargeMenuItemIconWrapper>
-                                    }
-                                    onClick={() => {
-                                        setIsOpen(false);
-                                        setIsCreateSpaceOpen(true);
-                                    }}
-                                    text={
-                                        <>
-                                            <LargeMenuItemText>
-                                                Space
-                                            </LargeMenuItemText>
-                                            <LargeMenuItemSubText>
-                                                Organize your saved charts and
-                                                dashboards.
-                                            </LargeMenuItemSubText>
-                                        </>
-                                    }
-                                />
-                            </Can>
-                        </Menu>
-                    }
-                    position={Position.BOTTOM_RIGHT}
+                <Menu
+                    withArrow
+                    shadow="lg"
+                    position="bottom-start"
+                    arrowOffset={16}
+                    offset={-2}
                 >
-                    <Button
-                        minimal
-                        icon={
-                            <MantineIcon
-                                icon={IconSquareRoundedPlus}
-                                size={20}
-                                color="gray.5"
-                                style={{ marginRight: '6px' }}
+                    <Menu.Target>
+                        <Button
+                            color="gray"
+                            variant="light"
+                            size="xs"
+                            fz="sm"
+                            leftIcon={
+                                <MantineIcon
+                                    icon={IconSquareRoundedPlus}
+                                    size="lg"
+                                />
+                            }
+                            onClick={() => setIsOpen(!isOpen)}
+                        >
+                            New
+                        </Button>
+                    </Menu.Target>
+
+                    <Menu.Dropdown>
+                        <LargeMenuItem
+                            title="Query from tables"
+                            description="Build queries and save them as charts."
+                            to={`/projects/${projectUuid}/tables`}
+                            icon={
+                                <MantineIcon
+                                    icon={IconTable}
+                                    size={22}
+                                    color="gray.0"
+                                />
+                            }
+                        />
+
+                        <Can
+                            I="manage"
+                            this={subject('SqlRunner', {
+                                organizationUuid: user.data?.organizationUuid,
+                                projectUuid,
+                            })}
+                        >
+                            <LargeMenuItem
+                                title="Query using SQL runner"
+                                description="Access your database to run ad-hoc queries."
+                                to={`/projects/${projectUuid}/sqlRunner`}
+                                icon={
+                                    <MantineIcon
+                                        icon={IconTerminal2}
+                                        size={22}
+                                        color="gray.0"
+                                    />
+                                }
                             />
-                        }
-                        onClick={() => setIsOpen(!isOpen)}
-                    >
-                        New
-                    </Button>
-                </Popover2>
+                        </Can>
+
+                        <Can
+                            I="manage"
+                            this={subject('Dashboard', {
+                                organizationUuid: user.data?.organizationUuid,
+                                projectUuid,
+                            })}
+                        >
+                            <LargeMenuItem
+                                title="Dashboard"
+                                description="Arrange multiple charts into a single view."
+                                onClick={() => setIsCreateDashboardOpen(true)}
+                                icon={
+                                    <MantineIcon
+                                        icon={IconLayoutDashboard}
+                                        size={22}
+                                        color="gray.0"
+                                    />
+                                }
+                            />
+                        </Can>
+
+                        <Can
+                            I="manage"
+                            this={subject('Space', {
+                                organizationUuid: user.data?.organizationUuid,
+                                projectUuid,
+                            })}
+                        >
+                            <LargeMenuItem
+                                title="Space"
+                                description="Organize your saved charts and dashboards."
+                                onClick={() => setIsCreateSpaceOpen(true)}
+                                icon={
+                                    <MantineIcon
+                                        icon={IconFolder}
+                                        size={22}
+                                        color="gray.0"
+                                    />
+                                }
+                            />
+                        </Can>
+                    </Menu.Dropdown>
+                </Menu>
             </Can>
+
             {isCreateSpaceOpen && (
                 <SpaceActionModal
                     projectUuid={projectUuid}
@@ -220,6 +159,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                     }}
                 />
             )}
+
             <DashboardCreateModal
                 projectUuid={projectUuid}
                 isOpen={isCreateDashboardOpen}
