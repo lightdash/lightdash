@@ -11,7 +11,6 @@ import {
     Text,
     TextInput,
     UnstyledButton,
-    useMantineTheme,
 } from '@mantine/core';
 import { useHotkeys } from '@mantine/hooks';
 import {
@@ -81,6 +80,7 @@ const SpotlightItem: FC<SpotlightActionProps> = ({
             <Group noWrap>
                 <Box sx={{ flexShrink: 0 }}>{action.icon}</Box>
 
+                {/* FIXME: uses hardcode width to fix text truncation */}
                 <Stack spacing="xxs" sx={{ flexGrow: 1, maxWidth: 530 }}>
                     <Text>
                         <span>{item.prefix}</span>
@@ -127,7 +127,6 @@ const GlobalSearch: FC<GlobalSearchProps> = ({ projectUuid }) => {
     const location = useLocation();
     const { track } = useTracking();
     const project = useProject(projectUuid);
-    const theme = useMantineTheme();
 
     const [query, setQuery] = useState<string>();
 
@@ -179,7 +178,7 @@ const GlobalSearch: FC<GlobalSearchProps> = ({ projectUuid }) => {
                 }
             },
         }));
-    }, [items, history, location.pathname, track, theme]);
+    }, [items, history, location.pathname, track]);
 
     return (
         <>
@@ -218,7 +217,6 @@ const GlobalSearch: FC<GlobalSearchProps> = ({ projectUuid }) => {
                 closeOnActionTrigger
                 searchPlaceholder={`Search ${project.data?.name}...`}
                 onQueryChange={setQuery}
-                shortcut="mod + k"
                 nothingFoundMessage={
                     !query
                         ? 'Start typing to search everything in the project'
