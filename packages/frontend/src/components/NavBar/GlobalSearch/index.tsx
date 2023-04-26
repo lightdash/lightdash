@@ -1,17 +1,17 @@
-import { Button, Colors } from '@blueprintjs/core';
 import { getSearchResultId } from '@lightdash/common';
 import {
     Box,
     createStyles,
     Group,
     Highlight,
-    Input,
     Kbd,
     Loader,
-    rem,
+    MantineProvider,
     Stack,
     Text,
+    TextInput,
     UnstyledButton,
+    useMantineTheme,
 } from '@mantine/core';
 import { useHotkeys } from '@mantine/hooks';
 import {
@@ -34,7 +34,7 @@ import { SearchIcon } from './SearchIcon';
 const useStyles = createStyles<string, null>((theme) => ({
     action: {
         width: '100%',
-        padding: `${rem(10)} ${rem(12)}`,
+        padding: `${theme.spacing.xs} ${theme.spacing.md}`,
         borderRadius: theme.radius.sm,
         ...theme.fn.hover({
             backgroundColor:
@@ -79,9 +79,7 @@ const SpotlightItem: FC<SpotlightActionProps> = ({
             onClick={onTrigger}
         >
             <Group noWrap>
-                <Box sx={{ flexShrink: 0 }}>
-                    <SearchIcon item={item} color={Colors.GRAY1} />
-                </Box>
+                <Box sx={{ flexShrink: 0 }}>{action.icon}</Box>
 
                 <Stack spacing="xxs" sx={{ flexGrow: 1, maxWidth: 530 }}>
                     <Text>
@@ -129,6 +127,7 @@ const GlobalSearch: FC<GlobalSearchProps> = ({ projectUuid }) => {
     const location = useLocation();
     const { track } = useTracking();
     const project = useProject(projectUuid);
+    const theme = useMantineTheme();
 
     const [query, setQuery] = useState<string>();
 
@@ -151,7 +150,7 @@ const GlobalSearch: FC<GlobalSearchProps> = ({ projectUuid }) => {
     const searchItems = useMemo(() => {
         return items.map<SpotlightAction>((item) => ({
             item,
-            icon: <SearchIcon item={item} color={Colors.GRAY1} />,
+            icon: <SearchIcon item={item} color="gray.6" />,
             title: item.title,
             description: item.description,
             onTrigger: () => {
@@ -180,31 +179,30 @@ const GlobalSearch: FC<GlobalSearchProps> = ({ projectUuid }) => {
                 }
             },
         }));
-    }, [items, history, location.pathname, track]);
+    }, [items, history, location.pathname, track, theme]);
 
     return (
         <>
-            <Input
-                size="xs"
-                icon={<MantineIcon icon={IconSearch} />}
-                placeholder="Search..."
-                onClick={() => {
-                    track({
-                        name: EventName.GLOBAL_SEARCH_OPEN,
-                        properties: {
-                            action: 'input_click',
-                        },
-                    });
-                    spotlight.open();
-                }}
-                rightSection={
-                    query ? (
-                        <Button icon="cross" onClick={() => setQuery('')} />
-                    ) : (
-                        <Kbd>mod+k</Kbd>
-                    )
-                }
-            />
+            <MantineProvider theme={{ colorScheme: 'dark' }}>
+                <TextInput
+                    mx="md"
+                    placeholder="Search..."
+                    icon={<MantineIcon icon={IconSearch} />}
+                    rightSection={<Kbd mx={4}>mod+k</Kbd>}
+                    rightSectionWidth="auto"
+                    onClick={(e) => {
+                        e.currentTarget.blur();
+
+                        track({
+                            name: EventName.GLOBAL_SEARCH_OPEN,
+                            properties: {
+                                action: 'input_click',
+                            },
+                        });
+                        spotlight.open();
+                    }}
+                />
+            </MantineProvider>
 
             <SpotlightProvider
                 actions={query && query.length > 2 ? searchItems : []}
