@@ -85,7 +85,7 @@ const PinnedItemsPanel: FC<Props> = ({
                 <Group position="center" spacing="xxs" my="xs" ml="xs">
                     <MantineIcon
                         icon={IconPin}
-                        size={20}
+                        size="lg"
                         color="gray.7"
                         fill="gray.1"
                     />

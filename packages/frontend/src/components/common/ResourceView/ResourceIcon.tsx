@@ -50,6 +50,7 @@ const IconBox: FC<IconBoxProps> = ({
             color={color}
             fill={color}
             fillOpacity={0.1}
+            size="lg"
             {...tablerIconProps}
         />
     </Paper>

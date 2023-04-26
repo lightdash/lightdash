@@ -1,6 +1,7 @@
-import { Menu } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
+import { NavLink, Title } from '@mantine/core';
 import {
+    IconBuildingSkyscraper,
     IconDatabase,
     IconKey,
     IconLock,
@@ -14,10 +15,11 @@ import { Helmet } from 'react-helmet';
 import { Redirect, Route, Switch } from 'react-router-dom';
 import { Can } from '../components/common/Authorization';
 import ErrorState from '../components/common/ErrorState';
+import MantineIcon from '../components/common/MantineIcon';
 import Content from '../components/common/Page/Content';
 import { PageWithSidebar } from '../components/common/Page/Page.styles';
 import Sidebar from '../components/common/Page/Sidebar';
-import RouterMenuItem from '../components/common/RouterMenuItem';
+import RouterNavLink from '../components/common/RouterNavLink';
 import PageSpinner from '../components/PageSpinner';
 import AccessTokensPanel from '../components/UserSettings/AccessTokensPanel';
 import AllowedDomainsPanel from '../components/UserSettings/AllowedDomainsPanel';
@@ -36,13 +38,7 @@ import { useApp } from '../providers/AppProvider';
 import { TrackPage } from '../providers/TrackingProvider';
 import { PageName } from '../types/Events';
 import ProjectSettings from './ProjectSettings';
-import {
-    CardContainer,
-    ContentWrapper,
-    MenuHeader,
-    MenuWrapper,
-    Title,
-} from './Settings.styles';
+import { CardContainer, ContentWrapper } from './Settings.styles';
 
 const Settings: FC = () => {
     const {
@@ -92,39 +88,36 @@ const Settings: FC = () => {
             <Helmet>
                 <title>Settings - Lightdash</title>
             </Helmet>
+
             <Sidebar title="Settings">
-                <MenuWrapper>
-                    <MenuHeader>Your settings</MenuHeader>
+                <NavLink label="Your settings" defaultOpened childrenOffset={0}>
+                    <RouterNavLink
+                        exact
+                        to={basePath}
+                        label="Profile"
+                        icon={<MantineIcon icon={IconUserCircle} />}
+                    />
 
-                    <Menu>
-                        <RouterMenuItem
-                            text="Profile"
+                    {allowPasswordAuthentication && (
+                        <RouterNavLink
+                            label={
+                                hasSocialLogin
+                                    ? 'Password & Social Logins'
+                                    : 'Password'
+                            }
                             exact
-                            to={basePath}
-                            icon={<IconUserCircle size={17} />}
+                            to={`${basePath}/password`}
+                            icon={<MantineIcon icon={IconLock} />}
                         />
+                    )}
 
-                        {allowPasswordAuthentication && (
-                            <RouterMenuItem
-                                text={
-                                    hasSocialLogin
-                                        ? 'Password & Social Logins'
-                                        : 'Password'
-                                }
-                                exact
-                                to={`${basePath}/password`}
-                                icon={<IconLock size={17} />}
-                            />
-                        )}
-
-                        <RouterMenuItem
-                            text="Personal access tokens"
-                            exact
-                            to={`${basePath}/personalAccessTokens`}
-                            icon={<IconKey size={17} />}
-                        />
-                    </Menu>
-                </MenuWrapper>
+                    <RouterNavLink
+                        label="Personal access tokens"
+                        exact
+                        to={`${basePath}/personalAccessTokens`}
+                        icon={<MantineIcon icon={IconKey} />}
+                    />
+                </NavLink>
 
                 <Can
                     I="create"
@@ -132,57 +125,62 @@ const Settings: FC = () => {
                         organizationUuid: organization.organizationUuid,
                     })}
                 >
-                    <MenuWrapper>
-                        <MenuHeader>Organization settings</MenuHeader>
-
-                        <Menu>
-                            {user.ability.can('manage', 'Organization') && (
-                                <RouterMenuItem
-                                    text="General"
-                                    exact
-                                    to={`${basePath}/organization`}
-                                    icon={<IconUserCircle size={17} />}
-                                />
-                            )}
-
-                            {user.ability.can(
-                                'view',
-                                'OrganizationMemberProfile',
-                            ) && (
-                                <RouterMenuItem
-                                    text="User management"
-                                    to={`${basePath}/userManagement`}
-                                    icon={<IconUserPlus size={17} />}
-                                />
-                            )}
-
-                            {organization &&
-                                !organization.needsProject &&
-                                user.ability.can('view', 'Project') && (
-                                    <RouterMenuItem
-                                        text="Projects"
-                                        to={`${basePath}/projectManagement`}
-                                        icon={<IconDatabase size={17} />}
-                                    />
-                                )}
-
-                            <RouterMenuItem
-                                text="Appearance"
+                    <NavLink
+                        label="Organization settings"
+                        defaultOpened
+                        childrenOffset={0}
+                    >
+                        {user.ability.can('manage', 'Organization') && (
+                            <RouterNavLink
+                                label="General"
                                 exact
-                                to={`${basePath}/appearance`}
-                                icon={<IconPalette size={17} />}
-                            />
-                            {health.hasSlack &&
-                                user.ability.can('manage', 'Organization') && (
-                                    <RouterMenuItem
-                                        text="Integrations"
-                                        exact
-                                        to={`${basePath}/integrations/slack`}
-                                        icon={<IconPlug size={17} />}
+                                to={`${basePath}/organization`}
+                                icon={
+                                    <MantineIcon
+                                        icon={IconBuildingSkyscraper}
                                     />
-                                )}
-                        </Menu>
-                    </MenuWrapper>
+                                }
+                            />
+                        )}
+
+                        {user.ability.can(
+                            'view',
+                            'OrganizationMemberProfile',
+                        ) && (
+                            <RouterNavLink
+                                label="User management"
+                                to={`${basePath}/userManagement`}
+                                icon={<MantineIcon icon={IconUserPlus} />}
+                            />
+                        )}
+
+                        {organization &&
+                            !organization.needsProject &&
+                            user.ability.can('view', 'Project') && (
+                                <RouterNavLink
+                                    label="Projects"
+                                    to={`${basePath}/projectManagement`}
+                                    icon={<MantineIcon icon={IconDatabase} />}
+                                />
+                            )}
+
+                        <RouterNavLink
+                            label="Appearance"
+                            exact
+                            to={`${basePath}/appearance`}
+                            icon={<MantineIcon icon={IconPalette} />}
+                        />
+
+                        {health.hasSlack &&
+                            user.ability.can('manage', 'Organization') && (
+                                <RouterNavLink
+                                    label="Integrations"
+                                    exact
+                                    to={`${basePath}/integrations/slack`}
+                                    icon={<MantineIcon icon={IconPlug} />}
+                                />
+                            )}
+                    </NavLink>
                 </Can>
             </Sidebar>
 
@@ -191,12 +189,12 @@ const Settings: FC = () => {
                     <Route exact path={`/generalSettings/password`}>
                         <Content>
                             <CardContainer>
-                                <Title>Password settings</Title>
+                                <Title order={4}>Password settings</Title>
                                 <PasswordPanel />
                             </CardContainer>
                             {hasSocialLogin && (
                                 <CardContainer>
-                                    <Title>Social logins</Title>
+                                    <Title order={4}>Social logins</Title>
                                     <SocialLoginsPanel />
                                 </CardContainer>
                             )}
@@ -208,12 +206,14 @@ const Settings: FC = () => {
                     <Route exact path={`/generalSettings/organization`}>
                         <Content>
                             <CardContainer>
-                                <Title>General</Title>
+                                <Title order={4}>General</Title>
                                 <OrganizationPanel />
                             </CardContainer>
                             <CardContainer>
                                 <div>
-                                    <Title>Allowed email domains</Title>
+                                    <Title order={4}>
+                                        Allowed email domains
+                                    </Title>
                                     <Description>
                                         Anyone with email addresses at these
                                         domains can automatically join the
@@ -275,7 +275,7 @@ const Settings: FC = () => {
                 <Route exact path={`/generalSettings/appearance`}>
                     <Content>
                         <CardContainer>
-                            <Title>Appearance settings</Title>
+                            <Title order={4}>Appearance settings</Title>
                             <AppearancePanel />
                         </CardContainer>
                     </Content>
@@ -300,7 +300,7 @@ const Settings: FC = () => {
                 <Route exact path={`/generalSettings`}>
                     <Content>
                         <CardContainer>
-                            <Title>Profile settings</Title>
+                            <Title order={4}>Profile settings</Title>
                             <ProfilePanel />
                         </CardContainer>
                     </Content>
