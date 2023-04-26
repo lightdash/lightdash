@@ -35,17 +35,14 @@ const useStyles = createStyles<string, null>((theme) => ({
         width: '100%',
         padding: `${theme.spacing.xs} ${theme.spacing.md}`,
         borderRadius: theme.radius.sm,
-        ...theme.fn.hover({
-            backgroundColor:
-                theme.colorScheme === 'dark'
-                    ? theme.colors.dark[4]
-                    : theme.colors.gray[1],
-        }),
         '&[data-hovered]': {
-            backgroundColor:
-                theme.colorScheme === 'dark'
-                    ? theme.colors.dark[4]
-                    : theme.colors.gray[1],
+            backgroundColor: theme.colors.gray[0],
+        },
+        '&:hover': {
+            backgroundColor: theme.colors.gray[1],
+        },
+        '&:active': {
+            backgroundColor: theme.colors.gray[2],
         },
     },
 }));
@@ -237,6 +234,7 @@ const GlobalSearch: FC<GlobalSearchProps> = ({ projectUuid }) => {
                 }
                 actionComponent={SpotlightItem}
                 closeOnActionTrigger
+                cleanQueryOnClose
                 searchPlaceholder={`Search ${project.data?.name}...`}
                 onQueryChange={setQuery}
                 nothingFoundMessage={
