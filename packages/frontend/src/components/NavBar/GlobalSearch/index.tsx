@@ -1,104 +1,193 @@
-import {
-    Button,
-    Classes,
-    Colors,
-    KeyCombo,
-    Spinner,
-    Tag,
-} from '@blueprintjs/core';
-import { MenuItem2 } from '@blueprintjs/popover2';
-import { ItemPredicate, ItemRenderer } from '@blueprintjs/select';
+import { Button, Colors } from '@blueprintjs/core';
 import { getSearchResultId } from '@lightdash/common';
-import React, { FC, useState } from 'react';
+import {
+    Box,
+    createStyles,
+    Group,
+    Highlight,
+    Input,
+    Kbd,
+    Loader,
+    rem,
+    Stack,
+    Text,
+    UnstyledButton,
+} from '@mantine/core';
+import { useHotkeys } from '@mantine/hooks';
+import {
+    spotlight,
+    SpotlightAction,
+    SpotlightActionProps,
+    SpotlightProvider,
+} from '@mantine/spotlight';
+import { IconSearch } from '@tabler/icons-react';
+import { FC, useMemo, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
-import { useToggle } from 'react-use';
+
 import { useProject } from '../../../hooks/useProject';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
-import FieldIcon from '../../common/Filters/FieldIcon';
-import HighlightedText from '../../common/HighlightedText';
-import {
-    FirstLine,
-    Hightlighed,
-    ResultContent,
-    SearchInput,
-    SearchOmnibar,
-    SecondLine,
-} from './globalSearch.styles';
-import {
-    SearchItem,
-    useDebouncedSearch,
-    useGlobalSearchHotKeys,
-} from './hooks';
+import MantineIcon from '../../common/MantineIcon';
+import { SearchItem, useDebouncedSearch } from './hooks';
 import { SearchIcon } from './SearchIcon';
 
-const renderItem: ItemRenderer<SearchItem> = (
-    field,
-    { modifiers, handleClick, query },
-) => {
-    if (!modifiers.matchesPredicate) {
-        return null;
-    }
+const useStyles = createStyles<string, null>((theme) => ({
+    action: {
+        width: '100%',
+        padding: `${rem(10)} ${rem(12)}`,
+        borderRadius: theme.radius.sm,
+        ...theme.fn.hover({
+            backgroundColor:
+                theme.colorScheme === 'dark'
+                    ? theme.colors.dark[4]
+                    : theme.colors.gray[1],
+        }),
+        '&[data-hovered]': {
+            backgroundColor:
+                theme.colorScheme === 'dark'
+                    ? theme.colors.dark[4]
+                    : theme.colors.gray[1],
+        },
+    },
+}));
+
+const SpotlightItem: FC<SpotlightActionProps> = ({
+    action,
+    styles,
+    classNames,
+    hovered,
+    onTrigger,
+    query,
+    // radius,
+    // highlightColor,
+    // highlightQuery,
+}) => {
+    const { classes } = useStyles(null, {
+        styles,
+        classNames,
+        name: 'SpotlightItem',
+    });
+
+    const item = action.item as SearchItem;
+
     return (
-        <MenuItem2
-            key={getSearchResultId(field.meta)}
-            selected={modifiers.active}
-            disabled={modifiers.disabled}
-            icon={<SearchIcon item={field} color={Colors.GRAY1} />}
-            text={
-                <ResultContent>
-                    <FirstLine>
-                        <span>{field.prefix}</span>
-                        <b>
-                            <HighlightedText
-                                text={field.name}
-                                query={query}
-                                highlightElement={Hightlighed}
-                            />
-                        </b>
-                    </FirstLine>
-                    <SecondLine className={Classes.TEXT_OVERFLOW_ELLIPSIS}>
-                        <b>{field.typeLabel}</b>
-                        {field.description ? (
-                            <>
-                                {' '}
-                                •{' '}
-                                <HighlightedText
-                                    text={field.description}
-                                    query={query}
-                                    highlightElement={Hightlighed}
-                                />
-                            </>
-                        ) : null}
-                    </SecondLine>
-                </ResultContent>
-            }
-            onClick={handleClick}
-        />
+        <UnstyledButton
+            className={classes.action}
+            data-hovered={hovered || undefined}
+            tabIndex={-1}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={onTrigger}
+        >
+            <Group noWrap>
+                <Box sx={{ flexShrink: 0 }}>
+                    <SearchIcon item={item} color={Colors.GRAY1} />
+                </Box>
+
+                <Stack spacing="xxs" sx={{ flexGrow: 1, maxWidth: 530 }}>
+                    <Text>
+                        <span>{item.prefix}</span>
+
+                        <Highlight
+                            component="span"
+                            fw={500}
+                            highlight={query}
+                            truncate
+                        >
+                            {action.title}
+                        </Highlight>
+                    </Text>
+
+                    {item.description || item.typeLabel ? (
+                        <Text color="dimmed" size="sm" truncate>
+                            <Text component="span" fw={500}>
+                                {item.typeLabel}
+                            </Text>
+
+                            {item.description && item.typeLabel ? (
+                                <Text component="span"> · </Text>
+                            ) : null}
+
+                            {action.description ? (
+                                <Highlight component="span" highlight={query}>
+                                    {action.description}
+                                </Highlight>
+                            ) : null}
+                        </Text>
+                    ) : null}
+                </Stack>
+            </Group>
+        </UnstyledButton>
     );
 };
 
-const filterSearch: ItemPredicate<SearchItem> = (query, item) => {
-    return (
-        `${item.name.toLowerCase()} ${item.description?.toLowerCase()}`.indexOf(
-            query.toLowerCase(),
-        ) >= 0
-    );
-};
+interface GlobalSearchProps {
+    projectUuid: string;
+}
 
-const GlobalSearch: FC<{ projectUuid: string }> = ({ projectUuid }) => {
+const GlobalSearch: FC<GlobalSearchProps> = ({ projectUuid }) => {
     const history = useHistory();
     const location = useLocation();
     const { track } = useTracking();
-    const [isSearchOpen, toggleSearchOpen] = useToggle(false);
-    const [query, setQuery] = useState<string>();
     const project = useProject(projectUuid);
-    useGlobalSearchHotKeys(toggleSearchOpen);
+
+    const [query, setQuery] = useState<string>();
+
+    const handleSpotlightOpen = () => {
+        track({
+            name: EventName.GLOBAL_SEARCH_OPEN,
+            properties: {
+                action: 'hotkeys',
+            },
+        });
+        spotlight.open();
+    };
+
+    useHotkeys([
+        ['mod + k', () => handleSpotlightOpen, { preventDefault: true }],
+    ]);
+
     const { items, isSearching } = useDebouncedSearch(projectUuid, query);
+
+    const searchItems = useMemo(() => {
+        return items.map<SpotlightAction>((item) => ({
+            item,
+            icon: <SearchIcon item={item} color={Colors.GRAY1} />,
+            title: item.title,
+            description: item.description,
+            onTrigger: () => {
+                track({
+                    name: EventName.SEARCH_RESULT_CLICKED,
+                    properties: {
+                        type: item.type,
+                        id: getSearchResultId(item.item),
+                    },
+                });
+                track({
+                    name: EventName.GLOBAL_SEARCH_CLOSED,
+                    properties: {
+                        action: 'result_click',
+                    },
+                });
+
+                history.push(item.location);
+                if (
+                    (item.location.pathname.includes('/tables/') &&
+                        location.pathname.includes('/tables/')) ||
+                    (item.location.pathname.includes('/saved/') &&
+                        location.pathname.includes('/saved/'))
+                ) {
+                    history.go(0); // force page refresh so explore page can pick up the new url params
+                }
+            },
+        }));
+    }, [items, history, location.pathname, track]);
+
     return (
         <>
-            <SearchInput
-                leftIcon="search"
+            <Input
+                size="xs"
+                icon={<MantineIcon icon={IconSearch} />}
+                placeholder="Search..."
                 onClick={() => {
                     track({
                         name: EventName.GLOBAL_SEARCH_OPEN,
@@ -106,93 +195,49 @@ const GlobalSearch: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                             action: 'input_click',
                         },
                     });
-                    toggleSearchOpen(true);
+                    spotlight.open();
                 }}
-                placeholder="Search..."
-                value={query}
-                rightElement={
+                rightSection={
                     query ? (
                         <Button icon="cross" onClick={() => setQuery('')} />
                     ) : (
-                        <Tag minimal>
-                            <KeyCombo combo="mod+k" minimal />
-                        </Tag>
+                        <Kbd>mod+k</Kbd>
                     )
                 }
             />
-            <SearchOmnibar
-                inputProps={{
-                    placeholder: `Search ${project.data?.name}...`,
-                    leftElement: isSearching ? (
-                        <Spinner size={16} style={{ margin: 12 }} />
-                    ) : undefined,
-                }}
-                isOpen={isSearchOpen}
-                itemRenderer={renderItem}
-                query={query}
-                items={query && query.length > 2 ? items : []}
-                itemsEqual={(a, b) =>
-                    getSearchResultId(a.meta) === getSearchResultId(b.meta)
+
+            <SpotlightProvider
+                actions={query && query.length > 2 ? searchItems : []}
+                highlightQuery
+                searchIcon={
+                    isSearching ? (
+                        <Loader size="xs" color="gray" />
+                    ) : (
+                        <MantineIcon icon={IconSearch} />
+                    )
                 }
-                initialContent={
-                    <MenuItem2
-                        disabled={true}
-                        text={`${
-                            !query ? 'Start' : 'Keep'
-                        } typing to search by a space, dashboard, chart, table or field in this project`}
-                    />
+                actionComponent={SpotlightItem}
+                closeOnActionTrigger
+                searchPlaceholder={`Search ${project.data?.name}...`}
+                onQueryChange={setQuery}
+                shortcut="mod + k"
+                nothingFoundMessage={
+                    !query
+                        ? 'Start typing to search everything in the project'
+                        : query.length < 3
+                        ? 'Keep typing to search everything in the project'
+                        : isSearching
+                        ? 'Searching...'
+                        : 'No results.'
                 }
-                noResults={
-                    <MenuItem2
-                        disabled={true}
-                        text={
-                            !query || query.length < 3
-                                ? `${
-                                      !query ? 'Start' : 'Keep'
-                                  } typing to search everything in the project`
-                                : isSearching
-                                ? 'Searching...'
-                                : 'No results.'
-                        }
-                    />
-                }
-                onItemSelect={(item: SearchItem) => {
-                    track({
-                        name: EventName.SEARCH_RESULT_CLICKED,
-                        properties: {
-                            type: item.type,
-                            id: getSearchResultId(item.meta),
-                        },
-                    });
-                    track({
-                        name: EventName.GLOBAL_SEARCH_CLOSED,
-                        properties: {
-                            action: 'result_click',
-                        },
-                    });
-                    toggleSearchOpen(false);
-                    history.push(item.location);
-                    if (
-                        (item.location.pathname.includes('/tables/') &&
-                            location.pathname.includes('/tables/')) ||
-                        (item.location.pathname.includes('/saved/') &&
-                            location.pathname.includes('/saved/'))
-                    ) {
-                        history.go(0); // force page refresh so explore page can pick up the new url params
-                    }
-                }}
-                onClose={() => {
+                onSpotlightClose={() => {
                     track({
                         name: EventName.GLOBAL_SEARCH_CLOSED,
                         properties: {
                             action: 'default',
                         },
                     });
-                    toggleSearchOpen(false);
                 }}
-                resetOnSelect={true}
-                onQueryChange={(value) => setQuery(value)}
-                itemPredicate={filterSearch}
             />
         </>
     );
