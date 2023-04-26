@@ -1,6 +1,6 @@
 import { HTMLSelect } from '@blueprintjs/core';
 import moment from 'moment';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import YearInput from './YearInput';
 
 type Props = {

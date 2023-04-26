@@ -1,4 +1,4 @@
-import { Menu, Spinner } from '@blueprintjs/core';
+import { Colors, Menu, Spinner } from '@blueprintjs/core';
 import { MenuItem2, Popover2Props } from '@blueprintjs/popover2';
 import { MultiSelect2 } from '@blueprintjs/select';
 import { FilterableItem } from '@lightdash/common';
@@ -9,7 +9,6 @@ import {
     MAX_AUTOCOMPLETE_RESULTS,
     useFieldValues,
 } from '../../../../../hooks/useFieldValues';
-import { Hightlighed } from '../../../../NavBar/GlobalSearch/globalSearch.styles';
 import HighlightedText from '../../../HighlightedText';
 import { useFiltersContext } from '../../FiltersProvider';
 import {
@@ -31,6 +30,10 @@ const PaddedMenuItem = styled(MenuItem2)`
     .bp4-text-overflow-ellipsis {
         padding: 0 24px;
     }
+`;
+
+export const Hightlighed = styled.span`
+    color: ${Colors.BLUE3};
 `;
 
 const MultiAutoComplete: FC<Props> = ({

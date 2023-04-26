@@ -1,11 +1,15 @@
-import { Button } from '@blueprintjs/core';
+import { Button, Colors } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import { ItemRenderer, Select2 as BlueprintSelect2 } from '@blueprintjs/select';
-import React, { FC, useCallback } from 'react';
+import { FC, useCallback } from 'react';
 import { ControllerRenderProps, FieldValues } from 'react-hook-form';
+import styled from 'styled-components';
 import HighlightedText from '../common/HighlightedText';
-import { Hightlighed } from '../NavBar/GlobalSearch/globalSearch.styles';
 import InputWrapper, { InputWrapperProps } from './InputWrapper';
+
+export const Hightlighed = styled.span`
+    color: ${Colors.BLUE3};
+`;
 
 type Item = {
     value: unknown;

@@ -1,8 +1,10 @@
 import { SEED_PROJECT } from '@lightdash/common';
 
 function search(query: string) {
-    cy.findByPlaceholderText('Search...').click();
-    cy.get('.bp4-omnibar').find('input').clear().type(query);
+    cy.findByRole('search').click();
+    cy.findByRole('dialog')
+        .findByPlaceholderText(/Search/)
+        .type(query);
 }
 
 describe('Global search', () => {
@@ -15,7 +17,7 @@ describe('Global search', () => {
 
         // search and select space
         search('jaffle');
-        cy.get('.bp4-omnibar')
+        cy.findByRole('dialog')
             .findByRole('menuitem', { name: 'Jaffle shop Space' })
             .click();
         cy.url().should(
@@ -25,7 +27,7 @@ describe('Global search', () => {
 
         // search and select dashboard
         search('jaffle');
-        cy.get('.bp4-omnibar')
+        cy.findByRole('dialog')
             .findByRole('menuitem', { name: /Jaffle dashboard Dashboard/ })
             .click();
         cy.url().should(
@@ -35,9 +37,9 @@ describe('Global search', () => {
 
         // search and select saved chart
         search('Which');
-        cy.get('.bp4-omnibar')
+        cy.findByRole('dialog')
             .findByRole('menuitem', {
-                name: 'Which customers have not recently ordered an item? Chart • A table of the 20 customers that least recently placed an order with us',
+                name: 'Which customers have not recently ordered an item? Chart · A table of the 20 customers that least recently placed an order with us',
             })
             .click();
         cy.url().should(
@@ -47,9 +49,9 @@ describe('Global search', () => {
 
         // search and select table
         search('Customers');
-        cy.get('.bp4-omnibar')
+        cy.findByRole('dialog')
             .findByRole('menuitem', {
-                name: "Customers Table • This table has basic information about a customer, as well as some derived facts based on a customer's orders",
+                name: "Customers Table · This table has basic information about a customer, as well as some derived facts based on a customer's orders",
             })
             .click();
         cy.url().should(
@@ -59,9 +61,9 @@ describe('Global search', () => {
 
         // search and select field
         search('First order');
-        cy.get('.bp4-omnibar')
+        cy.findByRole('dialog')
             .findByRole('menuitem', {
-                name: 'Payments - Orders - Date of first order Metric • Min of Order date',
+                name: 'Payments - Orders - Date of first order Metric · Min of Order date',
                 exact: false,
             })
             .click();
