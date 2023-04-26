@@ -7,7 +7,6 @@ const MantineProvider: FC = ({ children }) => {
         <MantineProviderBase
             withGlobalStyles
             withNormalizeCSS
-            inherit
             withCSSVariables
             theme={getMantineThemeOverride()}
         >

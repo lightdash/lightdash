@@ -12,7 +12,7 @@ import {
     TextInput,
     UnstyledButton,
 } from '@mantine/core';
-import { useHotkeys } from '@mantine/hooks';
+import { useHotkeys, useOs } from '@mantine/hooks';
 import {
     spotlight,
     SpotlightAction,
@@ -57,9 +57,9 @@ const SpotlightItem: FC<SpotlightActionProps> = ({
     hovered,
     onTrigger,
     query,
-    // radius,
-    // highlightColor,
-    // highlightQuery,
+    radius,
+    highlightColor,
+    highlightQuery,
 }) => {
     const { classes } = useStyles(null, {
         styles,
@@ -76,6 +76,7 @@ const SpotlightItem: FC<SpotlightActionProps> = ({
             tabIndex={-1}
             onMouseDown={(event) => event.preventDefault()}
             onClick={onTrigger}
+            sx={{ radius }}
         >
             <Group noWrap>
                 <Box sx={{ flexShrink: 0 }}>{action.icon}</Box>
@@ -88,7 +89,8 @@ const SpotlightItem: FC<SpotlightActionProps> = ({
                         <Highlight
                             component="span"
                             fw={500}
-                            highlight={query}
+                            highlight={highlightQuery ? query : ''}
+                            highlightColor={highlightColor}
                             truncate
                         >
                             {action.title}
@@ -106,7 +108,11 @@ const SpotlightItem: FC<SpotlightActionProps> = ({
                             ) : null}
 
                             {action.description ? (
-                                <Highlight component="span" highlight={query}>
+                                <Highlight
+                                    component="span"
+                                    highlight={highlightQuery ? query : ''}
+                                    highlightColor={highlightColor}
+                                >
                                     {action.description}
                                 </Highlight>
                             ) : null}
@@ -180,14 +186,28 @@ const GlobalSearch: FC<GlobalSearchProps> = ({ projectUuid }) => {
         }));
     }, [items, history, location.pathname, track]);
 
+    const os = useOs();
+
     return (
         <>
-            <MantineProvider theme={{ colorScheme: 'dark' }}>
+            <MantineProvider inherit theme={{ colorScheme: 'dark' }}>
                 <TextInput
                     mx="md"
                     placeholder="Search..."
                     icon={<MantineIcon icon={IconSearch} />}
-                    rightSection={<Kbd mx={4}>mod+k</Kbd>}
+                    rightSection={
+                        <Group mr="xs" spacing="xxs">
+                            <Kbd fw={600}>
+                                {os === 'macos' || os === 'ios' ? '⌘' : 'ctrl'}
+                            </Kbd>
+
+                            <Text color="dimmed" fw={600}>
+                                +
+                            </Text>
+
+                            <Kbd fw={600}>k</Kbd>
+                        </Group>
+                    }
                     rightSectionWidth="auto"
                     onClick={(e) => {
                         e.currentTarget.blur();
