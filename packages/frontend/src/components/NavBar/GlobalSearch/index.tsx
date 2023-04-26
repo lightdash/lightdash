@@ -72,7 +72,6 @@ const SpotlightItem: FC<SpotlightActionProps> = ({
             className={classes.action}
             data-hovered={hovered || undefined}
             tabIndex={-1}
-            onMouseDown={(event) => event.preventDefault()}
             onClick={onTrigger}
             sx={{ radius }}
         >
