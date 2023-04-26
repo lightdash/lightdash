@@ -1,13 +1,4 @@
-import {
-    Button,
-    Colors,
-    Menu,
-    MenuDivider,
-    PopoverInteractionKind,
-    Position,
-    Spinner,
-} from '@blueprintjs/core';
-import { Popover2 } from '@blueprintjs/popover2';
+import { Button, Center, Loader, Menu } from '@mantine/core';
 import {
     IconCategory,
     IconChartAreaLine,
@@ -16,9 +7,10 @@ import {
     IconLayoutDashboard,
 } from '@tabler/icons-react';
 import { FC } from 'react';
+import { Link } from 'react-router-dom';
+
 import { useSpaces } from '../../../hooks/useSpaces';
-import NavLink from '../../NavLink';
-import { NavbarMenuItem, SpinnerWrapper } from '../NavBar.styles';
+import MantineIcon from '../../common/MantineIcon';
 
 interface Props {
     projectUuid: string;
@@ -26,82 +18,79 @@ interface Props {
 
 const BrowseMenu: FC<Props> = ({ projectUuid }) => {
     const { data: spaces, isLoading } = useSpaces(projectUuid);
+
     return (
-        <Popover2
-            interactionKind={PopoverInteractionKind.CLICK}
-            content={
-                !projectUuid || isLoading ? (
-                    <SpinnerWrapper>
-                        <Spinner size={17} />
-                    </SpinnerWrapper>
-                ) : (
-                    <Menu>
-                        <NavLink to={`/projects/${projectUuid}/spaces`}>
-                            <NavbarMenuItem
-                                role="menuitem"
-                                text="All spaces"
-                                icon={<IconFolders size={17} />}
-                            />
-                        </NavLink>
-
-                        <NavLink to={`/projects/${projectUuid}/dashboards`}>
-                            <NavbarMenuItem
-                                role="menuitem"
-                                text="All dashboards"
-                                icon={<IconLayoutDashboard size={17} />}
-                            />
-                        </NavLink>
-
-                        <NavLink to={`/projects/${projectUuid}/saved`}>
-                            <NavbarMenuItem
-                                roleStructure="menuitem"
-                                icon={<IconChartAreaLine size={17} />}
-                                text="All saved charts"
-                            />
-                        </NavLink>
-
-                        {spaces && spaces.length > 0 && (
-                            <>
-                                <MenuDivider />
-
-                                {spaces
-                                    .sort((a, b) =>
-                                        a.name.toLowerCase() >
-                                        b.name.toLowerCase()
-                                            ? 1
-                                            : -1,
-                                    )
-                                    .map((space) => (
-                                        <NavLink
-                                            key={space.uuid}
-                                            to={`/projects/${projectUuid}/spaces/${space.uuid}`}
-                                        >
-                                            <NavbarMenuItem
-                                                roleStructure="menuitem"
-                                                icon={<IconFolder size={17} />}
-                                                text={space.name}
-                                            />
-                                        </NavLink>
-                                    ))}
-                            </>
-                        )}
-                    </Menu>
-                )
-            }
-            position={Position.BOTTOM_LEFT}
+        <Menu
+            withArrow
+            shadow="lg"
+            position="bottom-start"
+            arrowOffset={16}
+            offset={-2}
         >
-            <Button
-                minimal
-                icon={
-                    <IconCategory
-                        size={20}
-                        color={Colors.GRAY4}
-                        style={{ marginRight: '6px' }}
-                    />
-                }
-                text="Browse"
-            />
-        </Popover2>
+            <Menu.Target>
+                <Button
+                    color="gray"
+                    variant="light"
+                    size="xs"
+                    fz="sm"
+                    leftIcon={<MantineIcon icon={IconCategory} size="lg" />}
+                >
+                    Browse
+                </Button>
+            </Menu.Target>
+
+            <Menu.Dropdown>
+                <Menu.Item
+                    component={Link}
+                    to={`/projects/${projectUuid}/spaces`}
+                    icon={<MantineIcon icon={IconFolders} />}
+                >
+                    All Spaces
+                </Menu.Item>
+
+                <Menu.Item
+                    component={Link}
+                    to={`/projects/${projectUuid}/dashboards`}
+                    icon={<MantineIcon icon={IconLayoutDashboard} />}
+                >
+                    All dashboards
+                </Menu.Item>
+
+                <Menu.Item
+                    component={Link}
+                    to={`/projects/${projectUuid}/saved`}
+                    icon={<MantineIcon icon={IconChartAreaLine} />}
+                >
+                    All saved charts
+                </Menu.Item>
+
+                {isLoading || (spaces && spaces.length > 0) ? (
+                    <>
+                        <Menu.Divider />
+                        <Menu.Label>Spaces</Menu.Label>
+
+                        {isLoading ? (
+                            <Center my="sm">
+                                <Loader size="sm" color="gray" />
+                            </Center>
+                        ) : null}
+                    </>
+                ) : null}
+
+                {spaces
+                    ?.sort((a, b) => a.name.localeCompare(b.name))
+                    .map((space) => (
+                        <Menu.Item
+                            key={space.uuid}
+                            component={Link}
+                            to={`/projects/${projectUuid}/spaces/${space.uuid}`}
+                            icon={<MantineIcon icon={IconFolder} />}
+                        >
+                            {space.name}
+                        </Menu.Item>
+                    ))}
+            </Menu.Dropdown>
+        </Menu>
     );
 };
 export default BrowseMenu;

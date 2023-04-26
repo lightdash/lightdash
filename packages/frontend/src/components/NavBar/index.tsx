@@ -1,7 +1,9 @@
 import { Alignment, Classes, NavbarGroup } from '@blueprintjs/core';
 import { ProjectType } from '@lightdash/common';
+import { Divider, MantineProvider } from '@mantine/core';
 import { memo } from 'react';
 import { useHistory } from 'react-router-dom';
+
 import useToaster from '../../hooks/toaster/useToaster';
 import { useActiveProjectUuid } from '../../hooks/useProject';
 import { setLastProject, useProjects } from '../../hooks/useProjects';
@@ -13,12 +15,7 @@ import BrowseMenu from './BrowseMenu';
 import ExploreMenu from './ExploreMenu';
 import GlobalSearch from './GlobalSearch';
 import HelpMenu from './HelpMenu';
-import {
-    Divider,
-    LogoContainer,
-    NavBarWrapper,
-    ProjectDropdown,
-} from './NavBar.styles';
+import { LogoContainer, NavBarWrapper, ProjectDropdown } from './NavBar.styles';
 import SettingsMenu from './SettingsMenu';
 import UserMenu from './UserMenu';
 
@@ -35,7 +32,7 @@ const NavBar = memo(() => {
         : '/';
 
     return (
-        <>
+        <MantineProvider inherit theme={{ colorScheme: 'dark' }}>
             <NavBarWrapper className={Classes.DARK}>
                 <NavbarGroup align={Alignment.LEFT}>
                     <NavLink
@@ -59,7 +56,14 @@ const NavBar = memo(() => {
                     />
                     <SettingsMenu />
                     <HelpMenu />
-                    <Divider />
+
+                    <Divider
+                        orientation="vertical"
+                        mx="sm"
+                        my="sm"
+                        color="gray.7"
+                    />
+
                     {activeProjectUuid && (
                         <ProjectDropdown
                             disabled={isLoading || (projects || []).length <= 0}
@@ -95,7 +99,7 @@ const NavBar = memo(() => {
             </NavBarWrapper>
 
             <ErrorLogsDrawer />
-        </>
+        </MantineProvider>
     );
 });
 

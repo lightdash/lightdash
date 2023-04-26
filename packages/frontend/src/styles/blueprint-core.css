@@ -2651,20 +2651,7 @@ h6.bp4-heading {
 .bp4-dark .bp4-running-text hr {
     border-color: rgba(255, 255, 255, 0.2);
 }
-.bp4-dark a {
-    color: #8abbff;
-}
-.bp4-dark a:hover {
-    color: #8abbff;
-}
-.bp4-dark a .bp4-icon,
-.bp4-dark a .bp4-icon-standard,
-.bp4-dark a .bp4-icon-large {
-    color: inherit;
-}
-.bp4-dark a code {
-    color: inherit;
-}
+
 .bp4-dark .bp4-code,
 .bp4-dark .bp4-running-text code {
     background: rgba(17, 20, 24, 0.3);
@@ -2672,10 +2659,7 @@ h6.bp4-heading {
     box-shadow: inset 0 0 0 1px rgba(17, 20, 24, 0.4);
     color: #abb3bf;
 }
-a > .bp4-dark .bp4-code,
-a > .bp4-dark .bp4-running-text code {
-    color: inherit;
-}
+
 .bp4-dark .bp4-code-block,
 .bp4-dark .bp4-running-text pre {
     background: rgba(17, 20, 24, 0.3);
