@@ -2,6 +2,7 @@ import { Colors, Menu, Spinner } from '@blueprintjs/core';
 import { MenuItem2, Popover2Props } from '@blueprintjs/popover2';
 import { MultiSelect2 } from '@blueprintjs/select';
 import { FilterableItem } from '@lightdash/common';
+import { Highlight } from '@mantine/core';
 import Fuse from 'fuse.js';
 import React, { FC, useCallback, useMemo, useRef, useState } from 'react';
 import styled from 'styled-components';
@@ -9,7 +10,6 @@ import {
     MAX_AUTOCOMPLETE_RESULTS,
     useFieldValues,
 } from '../../../../../hooks/useFieldValues';
-import HighlightedText from '../../../HighlightedText';
 import { useFiltersContext } from '../../FiltersProvider';
 import {
     isMatch,
@@ -30,10 +30,6 @@ const PaddedMenuItem = styled(MenuItem2)`
     .bp4-text-overflow-ellipsis {
         padding: 0 24px;
     }
-`;
-
-export const Hightlighed = styled.span`
-    color: ${Colors.BLUE3};
 `;
 
 const MultiAutoComplete: FC<Props> = ({
@@ -145,13 +141,7 @@ const MultiAutoComplete: FC<Props> = ({
                         active={modifiers.active}
                         icon={values.includes(name) ? 'tick' : 'blank'}
                         key={name}
-                        text={
-                            <HighlightedText
-                                text={name}
-                                query={query}
-                                highlightElement={Hightlighed}
-                            />
-                        }
+                        text={<Highlight highlight={query}>{name}</Highlight>}
                         onClick={handleClick}
                         shouldDismissPopover={false}
                     />
