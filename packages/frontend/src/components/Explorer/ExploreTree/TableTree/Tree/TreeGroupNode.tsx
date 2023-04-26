@@ -1,10 +1,10 @@
 import { Collapse, Intent, Tag, Text } from '@blueprintjs/core';
 import { hasIntersection } from '@lightdash/common';
+import { Highlight } from '@mantine/core';
 import intersectionBy from 'lodash-es/intersectionBy';
 import { FC } from 'react';
 import { useToggle } from 'react-use';
-import HighlightedText from '../../../../common/HighlightedText';
-import { Highlighted, Row, RowIcon } from '../TableTree.styles';
+import { Row, RowIcon } from '../TableTree.styles';
 import TreeNodes from './TreeNodes';
 import { GroupNode, Node, useTableTreeContext } from './TreeProvider';
 
@@ -50,11 +50,9 @@ const TreeGroupNode: FC<{ node: GroupNode; depth: number }> = ({
                     size={16}
                 />
                 <Text ellipsize>
-                    <HighlightedText
-                        text={node.label}
-                        query={searchQuery || ''}
-                        highlightElement={Highlighted}
-                    />
+                    <Highlight highlight={searchQuery || ''}>
+                        {node.label}
+                    </Highlight>
                 </Text>
                 {!isOpen && hasSelectedChildren && (
                     <Tag

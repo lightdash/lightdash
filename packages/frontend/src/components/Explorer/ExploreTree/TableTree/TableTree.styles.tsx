@@ -78,8 +78,6 @@ export const CustomMetricsSectionRow = styled(Row)`
     margin-bottom: 10px;
 `;
 
-export const Highlighted = styled.b``;
-
 export const TagCount = styled(Tag)`
     margin-left: 10px;
 `;

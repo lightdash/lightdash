@@ -8,12 +8,12 @@ import {
     MetricType,
     timeFrameConfigs,
 } from '@lightdash/common';
-import React, { FC } from 'react';
+import { Highlight } from '@mantine/core';
+import { FC } from 'react';
 import { useToggle } from 'react-use';
 import { getItemBgColor } from '../../../../../hooks/useColumns';
 import FieldIcon from '../../../../common/Filters/FieldIcon';
-import HighlightedText from '../../../../common/HighlightedText';
-import { Highlighted, Row, RowIcon, SpanFlex } from '../TableTree.styles';
+import { Row, SpanFlex } from '../TableTree.styles';
 import CustomMetricButtons from './CustomMetricButtons';
 import FieldButtons from './FieldButtons';
 import { Node, useTableTreeContext } from './TreeProvider';
@@ -75,20 +75,19 @@ const TreeSingleNode: FC<{ node: Node; depth: number }> = ({ node, depth }) => {
                 size={16}
                 style={{ marginRight: '8px' }}
             />
+
             <Tooltip2
                 lazy
                 content={item.description}
                 className={Classes.TEXT_OVERFLOW_ELLIPSIS}
             >
                 <Text ellipsize>
-                    <HighlightedText
-                        text={label}
-                        query={searchQuery || ''}
-                        highlightElement={Highlighted}
-                    />
+                    <Highlight highlight={searchQuery || ''}>{label}</Highlight>
                 </Text>
             </Tooltip2>
+
             <SpanFlex />
+
             {isAdditionalMetric(item) ? (
                 <CustomMetricButtons
                     node={item}

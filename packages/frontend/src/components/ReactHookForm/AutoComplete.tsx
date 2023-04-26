@@ -1,4 +1,4 @@
-import { Button, Colors, Menu, MenuDivider, Spinner } from '@blueprintjs/core';
+import { Button, Menu, MenuDivider, Spinner } from '@blueprintjs/core';
 import { MenuItem2 } from '@blueprintjs/popover2';
 import {
     ItemListRenderer,
@@ -6,15 +6,10 @@ import {
     ItemRenderer,
     Suggest2,
 } from '@blueprintjs/select';
+import { Highlight } from '@mantine/core';
 import React, { FC, useCallback } from 'react';
 import { ControllerRenderProps, FieldValues } from 'react-hook-form';
-import styled from 'styled-components';
-import HighlightedText from '../common/HighlightedText';
 import InputWrapper, { InputWrapperProps } from './InputWrapper';
-
-export const Hightlighed = styled.span`
-    color: ${Colors.BLUE3};
-`;
 
 type Item = {
     value: unknown;
@@ -55,20 +50,12 @@ const renderItem: ItemRenderer<Item> = (
 
     const text = item.subLabel ? (
         <>
-            <HighlightedText
-                text={label}
-                query={query}
-                highlightElement={Hightlighed}
-            />
+            <Highlight highlight={query}>{label}</Highlight>
             <br />
             {item.subLabel}
         </>
     ) : (
-        <HighlightedText
-            text={label}
-            query={query}
-            highlightElement={Hightlighed}
-        />
+        <Highlight highlight={query}>{label}</Highlight>
     );
     return (
         <MenuItem2
