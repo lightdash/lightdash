@@ -1,7 +1,8 @@
 import { Intent } from '@blueprintjs/core';
-import React, { FC } from 'react';
+import { Anchor, Center } from '@mantine/core';
+import { FC } from 'react';
 import { useForm } from 'react-hook-form';
-import { useHistory, useParams } from 'react-router-dom';
+import { Link, useHistory, useParams } from 'react-router-dom';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
@@ -14,7 +15,6 @@ import { useApp } from '../providers/AppProvider';
 import LightdashLogo from '../svgs/lightdash-black.svg';
 import {
     CardWrapper,
-    FormLink,
     FormWrapper,
     Logo,
     LogoWrapper,
@@ -82,9 +82,15 @@ const PasswordReset: FC = () => {
                                             text="Save"
                                             loading={resetMutation.isLoading}
                                         />
-                                        <FormLink href="/login">
-                                            Cancel
-                                        </FormLink>
+
+                                        <Center mt="lg">
+                                            <Anchor
+                                                component={Link}
+                                                to="/login"
+                                            >
+                                                Cancel
+                                            </Anchor>
+                                        </Center>
                                     </Form>
                                 </>
                             ) : (
@@ -95,6 +101,7 @@ const PasswordReset: FC = () => {
                                         updated.
                                         <br /> Use your new password to sign in.
                                     </Subtitle>
+
                                     <SubmitButton
                                         onClick={() => history.push('/login')}
                                         text="Log in"

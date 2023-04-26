@@ -1,12 +1,11 @@
-import { Intent } from '@blueprintjs/core';
-import React, { FC } from 'react';
+import { Anchor, Center } from '@mantine/core';
+import { FC } from 'react';
 import { useForm } from 'react-hook-form';
-import AnchorLink from '../components/common/AnchorLink';
+import { Link } from 'react-router-dom';
 import Form from '../components/ReactHookForm/Form';
 import { usePasswordResetLinkMutation } from '../hooks/usePasswordReset';
 import { useApp } from '../providers/AppProvider';
 import {
-    FormLink,
     InputField,
     List,
     ListItem,
@@ -56,12 +55,16 @@ export const PasswordRecoveryForm: FC = () => {
 
                         <SubmitButton
                             type="submit"
-                            intent={Intent.PRIMARY}
+                            intent="primary"
                             text="Send reset email"
                             loading={isLoading}
                         />
                         {!health.data?.isAuthenticated && (
-                            <FormLink href="/login">Back to sign in</FormLink>
+                            <Center mt="lg">
+                                <Anchor component={Link} to="/login">
+                                    Back to sign in
+                                </Anchor>
+                            </Center>
                         )}
                     </Form>
                 </>
@@ -77,17 +80,23 @@ export const PasswordRecoveryForm: FC = () => {
                         <ListItem>Try checking your spam folder</ListItem>
                         <ListItem>
                             Try{' '}
-                            <AnchorLink
-                                href="/recover-password"
+                            <Anchor
+                                component={Link}
+                                to="/recover-password"
                                 onClick={reset}
                             >
                                 resubmitting a password reset
-                            </AnchorLink>{' '}
+                            </Anchor>{' '}
                             request,
                             <br /> ensuring that there are no typos!
                         </ListItem>
                     </List>
-                    <FormLink href="/login">Back to sign in</FormLink>
+
+                    <Center mt="lg">
+                        <Anchor component={Link} to="/login">
+                            Back to sign in
+                        </Anchor>
+                    </Center>
                 </>
             )}
         </div>
