@@ -1,3 +1,10 @@
+# [0.522.0](https://github.com/lightdash/lightdash/compare/0.521.0...0.522.0) (2023-04-26)
+
+
+### Features
+
+* mantine settings navbar ([#5208](https://github.com/lightdash/lightdash/issues/5208)) ([e48ec5c](https://github.com/lightdash/lightdash/commit/e48ec5cb8ee9512a8bb9431c474c26668cd86e92))
+
 # [0.521.0](https://github.com/lightdash/lightdash/compare/0.520.0...0.521.0) (2023-04-26)
 
 
