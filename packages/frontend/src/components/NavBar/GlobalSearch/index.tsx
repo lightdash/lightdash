@@ -71,6 +71,7 @@ const SpotlightItem: FC<SpotlightActionProps> = ({
 
     return (
         <UnstyledButton
+            role="menuitem"
             className={classes.action}
             data-hovered={hovered || undefined}
             tabIndex={-1}
@@ -192,6 +193,7 @@ const GlobalSearch: FC<GlobalSearchProps> = ({ projectUuid }) => {
         <>
             <MantineProvider inherit theme={{ colorScheme: 'dark' }}>
                 <TextInput
+                    role="search"
                     mx="md"
                     placeholder="Search..."
                     icon={<MantineIcon icon={IconSearch} />}
