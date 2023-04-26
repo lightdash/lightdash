@@ -8,6 +8,7 @@ import {
     ProjectType,
     WarehouseTypes,
 } from '@lightdash/common';
+import { Anchor } from '@mantine/core';
 import { FC, useEffect, useMemo, useState } from 'react';
 import { FieldErrors, useForm } from 'react-hook-form';
 import { SubmitErrorHandler } from 'react-hook-form/dist/types/form';
@@ -123,13 +124,13 @@ const ProjectForm: FC<Props> = ({
 
                     <LeftPanelMessage>
                         Your dbt project must be compatible with{' '}
-                        <a
+                        <Anchor
                             href="https://docs.getdbt.com/docs/guides/migration-guide/upgrading-to-1-0-0"
                             target="_blank"
                             rel="noreferrer"
                         >
                             dbt version <b>1.4.1</b>
-                        </a>
+                        </Anchor>
                     </LeftPanelMessage>
                 </LeftPanel>
                 <RightPanel>
@@ -236,13 +237,13 @@ export const UpdateProjectConnection: FC<{
                     settings cannot be changed.
                 </p>
                 Read docs{' '}
-                <a
+                <Anchor
                     href="https://docs.lightdash.com/guides/cli/how-to-use-lightdash-preview"
                     target="_blank"
                     rel="noreferrer"
                 >
                     here
-                </a>{' '}
+                </Anchor>{' '}
                 to know more.
             </Callout>
         );

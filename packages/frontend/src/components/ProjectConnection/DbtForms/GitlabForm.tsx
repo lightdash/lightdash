@@ -1,5 +1,6 @@
 import { DbtProjectType } from '@lightdash/common';
-import React, { FC } from 'react';
+import { Anchor } from '@mantine/core';
+import { FC } from 'react';
 import {
     hasNoWhiteSpaces,
     isGitRepository,
@@ -22,14 +23,14 @@ const GitlabForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                     <>
                         <p>
                             This is used to access your repo. See the{' '}
-                            <a
+                            <Anchor
                                 target="_blank"
                                 href="https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html"
                                 rel="noreferrer"
                             >
                                 instructions for creating a personal access
                                 token here
-                            </a>
+                            </Anchor>
                             .
                         </p>
                         <p>
@@ -142,14 +143,14 @@ const GitlabForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                         If you’ve customized the domain for your GitLab pages,
                         you can add the custom domain for your project in here.
                         By default, this is
-                        <a
+                        <Anchor
                             href="http://gitlab.io/"
                             target="_blank"
                             rel="noreferrer"
                         >
                             {' '}
                             gitlab.io
-                        </a>
+                        </Anchor>
                         .
                     </p>
                 }

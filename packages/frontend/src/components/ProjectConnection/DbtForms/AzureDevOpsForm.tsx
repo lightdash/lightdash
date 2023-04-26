@@ -1,5 +1,6 @@
 import { DbtProjectType } from '@lightdash/common';
-import React, { FC } from 'react';
+import { Anchor } from '@mantine/core';
+import { FC } from 'react';
 import {
     hasNoWhiteSpaces,
     startWithSlash,
@@ -22,14 +23,14 @@ const AzureDevOpsForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                         <p>
                             This is your secret token used to access Azure
                             Devops. See the
-                            <a
+                            <Anchor
                                 href="https://docs.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate?view=azure-devops&tabs=Windows"
                                 target="_blank"
                                 rel="noreferrer"
                             >
                                 {' '}
                                 instructions to create a personal access token{' '}
-                            </a>
+                            </Anchor>
                             you can add the custom domain for your project in
                             here.
                         </p>

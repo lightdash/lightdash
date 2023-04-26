@@ -1,4 +1,5 @@
 import { DbtProjectType } from '@lightdash/common';
+import { Anchor } from '@mantine/core';
 import React, { FC } from 'react';
 import {
     hasNoWhiteSpaces,
@@ -35,18 +36,18 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                     <>
                         <p>
                             Bitbucket Cloud users should
-                            <a
+                            <Anchor
                                 href="https://support.atlassian.com/bitbucket-cloud/docs/create-an-app-password/"
                                 target="_blank"
                                 rel="noreferrer"
                             >
                                 {' '}
                                 follow instructions for creating an App Password
-                            </a>
+                            </Anchor>
                         </p>
                         <p>
                             Bitbucket Server users should
-                            <a
+                            <Anchor
                                 href="https://confluence.atlassian.com/bitbucketserver/http-access-tokens-939515499.html"
                                 target="_blank"
                                 rel="noreferrer"
@@ -54,7 +55,7 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                                 {' '}
                                 follow instructions for creating a HTTP Access
                                 Token
-                            </a>
+                            </Anchor>
                         </p>
                         <p>
                             Select <b>Project read</b> and{' '}
@@ -164,14 +165,14 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 labelHelp={
                     <p>
                         If you've
-                        <a
+                        <Anchor
                             href="https://confluence.atlassian.com/bitbucketserver/specify-the-bitbucket-base-url-776640392.html"
                             target="_blank"
                             rel="noreferrer"
                         >
                             {' '}
                             customized the domain for your Bitbucket server{' '}
-                        </a>
+                        </Anchor>
                         you can add the custom domain for your project in here.
                     </p>
                 }

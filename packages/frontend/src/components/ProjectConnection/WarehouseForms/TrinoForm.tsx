@@ -1,4 +1,5 @@
 import { WarehouseTypes } from '@lightdash/common';
+import { Anchor } from '@mantine/core';
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
@@ -112,13 +113,13 @@ const TrinoForm: FC<{
                         <p>
                             This controls how dbt connects to Trino database
                             using SSL. You can see more details in
-                            <a
+                            <Anchor
                                 target="_blank"
                                 href="https://docs.getdbt.com/reference/warehouse-setups/trino-setup#configuration"
                                 rel="noreferrer"
                             >
                                 dbt documentation
-                            </a>
+                            </Anchor>
                             .
                         </p>
                     }

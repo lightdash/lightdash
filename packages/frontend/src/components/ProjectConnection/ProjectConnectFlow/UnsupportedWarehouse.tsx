@@ -1,5 +1,6 @@
 import { H6, Intent, NonIdealState } from '@blueprintjs/core';
-import React, { FC } from 'react';
+import { Anchor } from '@mantine/core';
+import { FC } from 'react';
 import { FloatingBackButton } from '../../../pages/CreateProject.styles';
 import { EventName } from '../../../types/Events';
 import LinkButton from '../../common/LinkButton';
@@ -25,26 +26,26 @@ const UnsupportedWarehouse: FC<UnsupportedWarehouseProps> = ({ onBack }) => {
                     title={
                         <H6>
                             We only support warehouses that have{' '}
-                            <a
+                            <Anchor
                                 href="https://docs.getdbt.com/docs/supported-data-platforms#verified-adapters"
                                 target="_blank"
                                 rel="noreferrer"
                             >
                                 verified dbt adapters
-                            </a>{' '}
+                            </Anchor>{' '}
                             for now
                         </H6>
                     }
                     description={
                         <>
                             You can vote on your warehouse in our{' '}
-                            <a
+                            <Anchor
                                 href="https://github.com/lightdash/lightdash/issues"
                                 target="_blank"
                                 rel="noreferrer"
                             >
                                 GitHub issues
-                            </a>{' '}
+                            </Anchor>{' '}
                             or create a new issue if you can't see yours there.
                         </>
                     }

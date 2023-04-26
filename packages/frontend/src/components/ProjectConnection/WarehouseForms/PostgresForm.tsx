@@ -1,4 +1,5 @@
 import { WarehouseTypes } from '@lightdash/common';
+import { Anchor } from '@mantine/core';
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
@@ -114,13 +115,13 @@ const PostgresForm: FC<{
                             activity after which the operating system should
                             send a TCP keepalive message to the client. You can
                             see more details in{' '}
-                            <a
+                            <Anchor
                                 target="_blank"
                                 href="https://postgresqlco.nf/doc/en/param/tcp_keepalives_idle/"
                                 rel="noreferrer"
                             >
                                 postgresqlco documentation
-                            </a>
+                            </Anchor>
                             .
                         </p>
                     }
@@ -137,13 +138,13 @@ const PostgresForm: FC<{
                         <p>
                             This controls the Postgres "search path". You can
                             see more details in{' '}
-                            <a
+                            <Anchor
                                 target="_blank"
                                 href="https://docs.getdbt.com/reference/warehouse-profiles/postgres-profile#search_path"
                                 rel="noreferrer"
                             >
                                 dbt documentation
-                            </a>
+                            </Anchor>
                             .
                         </p>
                     }
@@ -156,13 +157,13 @@ const PostgresForm: FC<{
                         <p>
                             This controls how dbt connects to Postgres databases
                             using SSL. You can see more details in
-                            <a
+                            <Anchor
                                 target="_blank"
                                 href="https://docs.getdbt.com/reference/warehouse-profiles/postgres-profile#sslmode"
                                 rel="noreferrer"
                             >
                                 dbt documentation
-                            </a>
+                            </Anchor>
                             .
                         </p>
                     }

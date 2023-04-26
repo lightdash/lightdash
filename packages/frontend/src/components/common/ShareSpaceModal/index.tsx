@@ -1,6 +1,6 @@
 import { Dialog } from '@blueprintjs/core';
 import { Space } from '@lightdash/common';
-import { Button } from '@mantine/core';
+import { Anchor, Button } from '@mantine/core';
 import { IconLock, IconUsers } from '@tabler/icons-react';
 import { FC, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -100,13 +100,13 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                     ) : (
                         <>
                             Learn more about permissions in our{' '}
-                            <a
+                            <Anchor
                                 href="https://docs.lightdash.com/references/roles"
                                 target="_blank"
                                 rel="noreferrer"
                             >
                                 docs
-                            </a>
+                            </Anchor>
                             .
                         </>
                     )}

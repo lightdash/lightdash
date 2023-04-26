@@ -4,6 +4,7 @@ import {
     snakeCaseName,
     TableCalculation,
 } from '@lightdash/common';
+import { Anchor } from '@mantine/core';
 import React, { FC } from 'react';
 import { useForm } from 'react-hook-form';
 import { useToggle } from 'react-use';
@@ -190,13 +191,13 @@ const TableCalculationModal: FC<Props> = ({
                     <Callout intent="none" icon="clean">
                         <p>
                             Need inspiration?{' '}
-                            <a
+                            <Anchor
                                 target="_blank"
                                 href="https://docs.lightdash.com/guides/table-calculations/sql-templates"
                                 rel="noreferrer"
                             >
                                 Check out our templates!
-                            </a>
+                            </Anchor>
                         </p>
                     </Callout>
                 </DialogBody>

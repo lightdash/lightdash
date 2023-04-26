@@ -1,6 +1,7 @@
 import { Colors, Icon, Intent, Position } from '@blueprintjs/core';
 import { MenuItem2, Tooltip2 } from '@blueprintjs/popover2';
 import { InlineErrorType, SummaryExplore } from '@lightdash/common';
+import { Anchor } from '@mantine/core';
 import { IconTable } from '@tabler/icons-react';
 import React from 'react';
 import styled from 'styled-components';
@@ -29,7 +30,7 @@ type ExploreMenuItemProps = {
 };
 
 const NoDimensionsIcon = () => (
-    <a
+    <Anchor
         role="button"
         href="https://docs.lightdash.com/guides/how-to-create-dimensions"
         target="_blank"
@@ -37,7 +38,7 @@ const NoDimensionsIcon = () => (
         style={{ color: Colors.GRAY5 }}
     >
         <Icon icon="info-sign" />
-    </a>
+    </Anchor>
 );
 
 export const ExploreMenuItem: React.FC<ExploreMenuItemProps> = ({
