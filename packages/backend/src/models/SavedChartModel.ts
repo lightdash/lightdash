@@ -11,6 +11,7 @@ import {
     UpdateMultipleSavedChart,
     UpdateSavedChart,
 } from '@lightdash/common';
+import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
 import { AnalyticsChartViewsTableName } from '../database/entities/analytics';
 import { OrganizationTableName } from '../database/entities/organizations';
@@ -316,203 +317,234 @@ export class SavedChartModel {
     }
 
     async get(savedChartUuid: string): Promise<SavedChart> {
-        const [savedQuery] = await this.database<DbSavedChartDetails>(
-            SavedChartsTableName,
-        )
-            .innerJoin(
-                SpaceTableName,
-                `${SavedChartsTableName}.space_id`,
-                `${SpaceTableName}.space_id`,
-            )
-            .innerJoin(
-                ProjectTableName,
-                `${SpaceTableName}.project_id`,
-                `${ProjectTableName}.project_id`,
-            )
-            .innerJoin(
-                OrganizationTableName,
-                `${OrganizationTableName}.organization_id`,
-                `${ProjectTableName}.organization_id`,
-            )
-            .innerJoin(
-                'saved_queries_versions',
-                `${SavedChartsTableName}.saved_query_id`,
-                'saved_queries_versions.saved_query_id',
-            )
-            .leftJoin(
-                UserTableName,
-                'saved_queries_versions.updated_by_user_uuid',
-                `${UserTableName}.user_uuid`,
-            )
-            .leftJoin(
-                PinnedChartTableName,
-                `${PinnedChartTableName}.saved_chart_uuid`,
-                `${SavedChartsTableName}.saved_query_uuid`,
-            )
-            .leftJoin(
-                PinnedListTableName,
-                `${PinnedListTableName}.pinned_list_uuid`,
-                `${PinnedChartTableName}.pinned_list_uuid`,
-            )
-            .select<
-                (DbSavedChartDetails & {
-                    space_uuid: string;
-                    spaceName: string;
-                    views: string;
-                    first_viewed_at: Date | null;
-                })[]
-            >([
-                `${ProjectTableName}.project_uuid`,
-                `${SavedChartsTableName}.saved_query_id`,
-                `${SavedChartsTableName}.saved_query_uuid`,
-                `${SavedChartsTableName}.name`,
-                `${SavedChartsTableName}.description`,
-                'saved_queries_versions.saved_queries_version_id',
-                'saved_queries_versions.explore_name',
-                'saved_queries_versions.filters',
-                'saved_queries_versions.row_limit',
-                'saved_queries_versions.chart_type',
-                'saved_queries_versions.created_at',
-                'saved_queries_versions.chart_config',
-                'saved_queries_versions.pivot_dimensions',
-                `${OrganizationTableName}.organization_uuid`,
-                `${UserTableName}.user_uuid`,
-                `${UserTableName}.first_name`,
-                `${UserTableName}.last_name`,
-                `${SpaceTableName}.space_uuid`,
-                `${SpaceTableName}.name as spaceName`,
-                `${PinnedListTableName}.pinned_list_uuid`,
-                this.database.raw(
-                    `(SELECT COUNT('${AnalyticsChartViewsTableName}.chart_uuid') FROM ${AnalyticsChartViewsTableName} WHERE ${AnalyticsChartViewsTableName}.chart_uuid = ?) as views`,
+        const transaction = Sentry.getCurrentHub()
+            ?.getScope()
+            ?.getTransaction();
+        const span = transaction?.startChild({
+            op: 'SavedChartModel.get',
+            description: 'Gets a single chart including statistics',
+        });
+        try {
+            const [savedQuery] = await this.database
+                .with('view_stats', (qb) => {
+                    qb.count({ views: '*' })
+                        .min({
+                            first_viewed_at: 'timestamp',
+                        })
+                        .select('chart_uuid')
+                        .groupBy('chart_uuid')
+                        .from('analytics_chart_views')
+                        .where('chart_uuid', savedChartUuid);
+                })
+                .from<DbSavedChartDetails>(SavedChartsTableName)
+                .innerJoin(
+                    SpaceTableName,
+                    `${SavedChartsTableName}.space_id`,
+                    `${SpaceTableName}.space_id`,
+                )
+                .innerJoin(
+                    ProjectTableName,
+                    `${SpaceTableName}.project_id`,
+                    `${ProjectTableName}.project_id`,
+                )
+                .innerJoin(
+                    OrganizationTableName,
+                    `${OrganizationTableName}.organization_id`,
+                    `${ProjectTableName}.organization_id`,
+                )
+                .innerJoin(
+                    'saved_queries_versions',
+                    `${SavedChartsTableName}.saved_query_id`,
+                    'saved_queries_versions.saved_query_id',
+                )
+                .leftJoin(
+                    UserTableName,
+                    'saved_queries_versions.updated_by_user_uuid',
+                    `${UserTableName}.user_uuid`,
+                )
+                .leftJoin(
+                    PinnedChartTableName,
+                    `${PinnedChartTableName}.saved_chart_uuid`,
+                    `${SavedChartsTableName}.saved_query_uuid`,
+                )
+                .leftJoin(
+                    PinnedListTableName,
+                    `${PinnedListTableName}.pinned_list_uuid`,
+                    `${PinnedChartTableName}.pinned_list_uuid`,
+                )
+                .leftJoin(
+                    'view_stats',
+                    'view_stats.chart_uuid',
+                    'saved_queries.saved_query_uuid',
+                )
+                .select<
+                    (DbSavedChartDetails & {
+                        space_uuid: string;
+                        spaceName: string;
+                        views: string;
+                        first_viewed_at: Date | null;
+                    })[]
+                >([
+                    `${ProjectTableName}.project_uuid`,
+                    `${SavedChartsTableName}.saved_query_id`,
+                    `${SavedChartsTableName}.saved_query_uuid`,
+                    `${SavedChartsTableName}.name`,
+                    `${SavedChartsTableName}.description`,
+                    'saved_queries_versions.saved_queries_version_id',
+                    'saved_queries_versions.explore_name',
+                    'saved_queries_versions.filters',
+                    'saved_queries_versions.row_limit',
+                    'saved_queries_versions.chart_type',
+                    'saved_queries_versions.created_at',
+                    'saved_queries_versions.chart_config',
+                    'saved_queries_versions.pivot_dimensions',
+                    `${OrganizationTableName}.organization_uuid`,
+                    `${UserTableName}.user_uuid`,
+                    `${UserTableName}.first_name`,
+                    `${UserTableName}.last_name`,
+                    `${SpaceTableName}.space_uuid`,
+                    `${SpaceTableName}.name as spaceName`,
+                    `${PinnedListTableName}.pinned_list_uuid`,
+                    `view_stats.views`,
+                    `view_stats.first_viewed_at`,
+                ])
+                .where(
+                    `${SavedChartsTableName}.saved_query_uuid`,
                     savedChartUuid,
-                ),
-                this.database.raw(
-                    `(SELECT ${AnalyticsChartViewsTableName}.timestamp FROM ${AnalyticsChartViewsTableName} WHERE ${AnalyticsChartViewsTableName}.chart_uuid = ? ORDER BY ${AnalyticsChartViewsTableName}.timestamp ASC LIMIT 1) as first_viewed_at`,
-                    savedChartUuid,
-                ),
-            ])
-            .where(`${SavedChartsTableName}.saved_query_uuid`, savedChartUuid)
-            .orderBy('saved_queries_versions.created_at', 'desc')
-            .limit(1);
-        if (savedQuery === undefined) {
-            throw new NotFoundError('Saved query not found');
+                )
+                .orderBy('saved_queries_versions.created_at', 'desc')
+                .limit(1);
+            if (savedQuery === undefined) {
+                throw new NotFoundError('Saved query not found');
+            }
+            const fields = await this.database('saved_queries_version_fields')
+                .select(['name', 'field_type', 'order'])
+                .where(
+                    'saved_queries_version_id',
+                    savedQuery.saved_queries_version_id,
+                )
+                .orderBy('order', 'asc');
+            const sorts = await this.database('saved_queries_version_sorts')
+                .select(['field_name', 'descending'])
+                .where(
+                    'saved_queries_version_id',
+                    savedQuery.saved_queries_version_id,
+                )
+                .orderBy('order', 'asc');
+            const tableCalculations = await this.database(
+                'saved_queries_version_table_calculations',
+            )
+                .select([
+                    'name',
+                    'display_name',
+                    'calculation_raw_sql',
+                    'order',
+                ])
+                .where(
+                    'saved_queries_version_id',
+                    savedQuery.saved_queries_version_id,
+                );
+            const additionalMetrics = await this.database(
+                SavedChartAdditionalMetricTableName,
+            )
+                .select([
+                    'table',
+                    'name',
+                    'type',
+                    'label',
+                    'description',
+                    'sql',
+                    'hidden',
+                    'round',
+                    'format',
+                ])
+                .where(
+                    'saved_queries_version_id',
+                    savedQuery.saved_queries_version_id,
+                );
+
+            // Filters out "null" fields
+            const additionalMetricsFiltered = additionalMetrics.map(
+                (addMetric) =>
+                    Object.keys(addMetric).reduce(
+                        (acc, key) => ({
+                            ...acc,
+                            [key]:
+                                addMetric[key] !== null
+                                    ? addMetric[key]
+                                    : undefined,
+                        }),
+                        { ...addMetric },
+                    ),
+            );
+
+            const [dimensions, metrics]: [string[], string[]] = fields.reduce<
+                [string[], string[]]
+            >(
+                (result, field) => {
+                    result[
+                        field.field_type === DBFieldTypes.DIMENSION ? 0 : 1
+                    ].push(field.name);
+                    return result;
+                },
+                [[], []],
+            );
+
+            const columnOrder: string[] = [...fields, ...tableCalculations]
+                .sort((a, b) => a.order - b.order)
+                .map((x) => x.name);
+
+            const chartConfig = {
+                type: savedQuery.chart_type,
+                config: savedQuery.chart_config,
+            } as ChartConfig;
+
+            return {
+                uuid: savedQuery.saved_query_uuid,
+                projectUuid: savedQuery.project_uuid,
+                name: savedQuery.name,
+                description: savedQuery.description,
+                tableName: savedQuery.explore_name,
+                updatedAt: savedQuery.created_at,
+                updatedByUser: {
+                    userUuid: savedQuery.user_uuid,
+                    firstName: savedQuery.first_name,
+                    lastName: savedQuery.last_name,
+                },
+                metricQuery: {
+                    dimensions,
+                    metrics,
+                    filters: savedQuery.filters,
+                    sorts: sorts.map<SortField>((sort) => ({
+                        fieldId: sort.field_name,
+                        descending: sort.descending,
+                    })),
+                    limit: savedQuery.row_limit,
+                    tableCalculations: tableCalculations.map(
+                        (tableCalculation) => ({
+                            name: tableCalculation.name,
+                            displayName: tableCalculation.display_name,
+                            sql: tableCalculation.calculation_raw_sql,
+                        }),
+                    ),
+                    additionalMetrics: additionalMetricsFiltered,
+                },
+                chartConfig,
+                tableConfig: {
+                    columnOrder,
+                },
+                organizationUuid: savedQuery.organization_uuid,
+                ...(savedQuery.pivot_dimensions
+                    ? { pivotConfig: { columns: savedQuery.pivot_dimensions } }
+                    : {}),
+                spaceUuid: savedQuery.space_uuid,
+                spaceName: savedQuery.spaceName,
+                pinnedListUuid: savedQuery.pinned_list_uuid,
+                views: parseInt(savedQuery.views, 10) || 0,
+                firstViewedAt: savedQuery.first_viewed_at,
+            };
+        } finally {
+            span?.finish();
         }
-        const fields = await this.database('saved_queries_version_fields')
-            .select(['name', 'field_type', 'order'])
-            .where(
-                'saved_queries_version_id',
-                savedQuery.saved_queries_version_id,
-            )
-            .orderBy('order', 'asc');
-        const sorts = await this.database('saved_queries_version_sorts')
-            .select(['field_name', 'descending'])
-            .where(
-                'saved_queries_version_id',
-                savedQuery.saved_queries_version_id,
-            )
-            .orderBy('order', 'asc');
-        const tableCalculations = await this.database(
-            'saved_queries_version_table_calculations',
-        )
-            .select(['name', 'display_name', 'calculation_raw_sql', 'order'])
-            .where(
-                'saved_queries_version_id',
-                savedQuery.saved_queries_version_id,
-            );
-        const additionalMetrics = await this.database(
-            SavedChartAdditionalMetricTableName,
-        )
-            .select([
-                'table',
-                'name',
-                'type',
-                'label',
-                'description',
-                'sql',
-                'hidden',
-                'round',
-                'format',
-            ])
-            .where(
-                'saved_queries_version_id',
-                savedQuery.saved_queries_version_id,
-            );
-
-        // Filters out "null" fields
-        const additionalMetricsFiltered = additionalMetrics.map((addMetric) =>
-            Object.keys(addMetric).reduce(
-                (acc, key) => ({
-                    ...acc,
-                    [key]: addMetric[key] !== null ? addMetric[key] : undefined,
-                }),
-                { ...addMetric },
-            ),
-        );
-
-        const [dimensions, metrics]: [string[], string[]] = fields.reduce<
-            [string[], string[]]
-        >(
-            (result, field) => {
-                result[
-                    field.field_type === DBFieldTypes.DIMENSION ? 0 : 1
-                ].push(field.name);
-                return result;
-            },
-            [[], []],
-        );
-
-        const columnOrder: string[] = [...fields, ...tableCalculations]
-            .sort((a, b) => a.order - b.order)
-            .map((x) => x.name);
-
-        const chartConfig = {
-            type: savedQuery.chart_type,
-            config: savedQuery.chart_config,
-        } as ChartConfig;
-
-        return {
-            uuid: savedQuery.saved_query_uuid,
-            projectUuid: savedQuery.project_uuid,
-            name: savedQuery.name,
-            description: savedQuery.description,
-            tableName: savedQuery.explore_name,
-            updatedAt: savedQuery.created_at,
-            updatedByUser: {
-                userUuid: savedQuery.user_uuid,
-                firstName: savedQuery.first_name,
-                lastName: savedQuery.last_name,
-            },
-            metricQuery: {
-                dimensions,
-                metrics,
-                filters: savedQuery.filters,
-                sorts: sorts.map<SortField>((sort) => ({
-                    fieldId: sort.field_name,
-                    descending: sort.descending,
-                })),
-                limit: savedQuery.row_limit,
-                tableCalculations: tableCalculations.map(
-                    (tableCalculation) => ({
-                        name: tableCalculation.name,
-                        displayName: tableCalculation.display_name,
-                        sql: tableCalculation.calculation_raw_sql,
-                    }),
-                ),
-                additionalMetrics: additionalMetricsFiltered,
-            },
-            chartConfig,
-            tableConfig: {
-                columnOrder,
-            },
-            organizationUuid: savedQuery.organization_uuid,
-            ...(savedQuery.pivot_dimensions
-                ? { pivotConfig: { columns: savedQuery.pivot_dimensions } }
-                : {}),
-            spaceUuid: savedQuery.space_uuid,
-            spaceName: savedQuery.spaceName,
-            pinnedListUuid: savedQuery.pinned_list_uuid,
-            views: parseInt(savedQuery.views, 10) || 0,
-            firstViewedAt: savedQuery.first_viewed_at,
-        };
     }
 }
