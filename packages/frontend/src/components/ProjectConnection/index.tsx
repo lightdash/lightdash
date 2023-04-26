@@ -94,7 +94,7 @@ const ProjectForm: FC<Props> = ({
                     {hasWarehouse && getWarehouseLabel(hasWarehouse).icon}
                     <LeftPanelTitle>
                         <H5>Warehouse connection</H5>
-                        <DocumentationHelpButton url="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse-connection" />
+                        <DocumentationHelpButton href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse-connection" />
                     </LeftPanelTitle>
 
                     {health.data?.staticIp && (
@@ -118,7 +118,7 @@ const ProjectForm: FC<Props> = ({
                     <WarehouseIcon src={DbtLogo} alt="dbt icon" />
                     <LeftPanelTitle>
                         <H5>dbt connection</H5>
-                        <DocumentationHelpButton url="https://docs.lightdash.com/get-started/setup-lightdash/connect-project" />
+                        <DocumentationHelpButton href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project" />
                     </LeftPanelTitle>
 
                     <LeftPanelMessage>

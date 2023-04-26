@@ -1,5 +1,6 @@
 import { Colors } from '@blueprintjs/core';
 import { AdditionalMetric, CompiledTable, getItemId } from '@lightdash/common';
+import { Text } from '@mantine/core';
 import { FC, useMemo } from 'react';
 import DocumentationHelpButton from '../../../DocumentationHelpButton';
 import {
@@ -8,7 +9,6 @@ import {
     EmptyState,
     MetricsSectionRow,
     SpanFlex,
-    TooltipContent,
 } from './TableTree.styles';
 import { getSearchResults, TreeProvider } from './Tree/TreeProvider';
 import TreeRoot from './Tree/TreeRoot';
@@ -92,18 +92,21 @@ const TableTreeSections: FC<Props> = ({
                     <SpanFlex />
                     {hasNoMetrics && (
                         <DocumentationHelpButton
-                            url={
-                                'https://docs.lightdash.com/guides/how-to-create-metrics'
-                            }
+                            href="https://docs.lightdash.com/guides/how-to-create-metrics"
                             tooltipProps={{
-                                content: (
-                                    <TooltipContent>
+                                label: (
+                                    <>
                                         No metrics defined in your dbt project.
                                         <br />
-                                        Click to <b>view docs</b> and learn how
-                                        to add a metric to your project.
-                                    </TooltipContent>
+                                        Click to{' '}
+                                        <Text component="p" fw={600}>
+                                            view docs
+                                        </Text>{' '}
+                                        and learn how to add a metric to your
+                                        project.
+                                    </>
                                 ),
+                                multiline: true,
                             }}
                             iconProps={{
                                 style: {
@@ -135,18 +138,19 @@ const TableTreeSections: FC<Props> = ({
                     Custom metrics
                     <SpanFlex />
                     <DocumentationHelpButton
-                        url={
-                            'https://docs.lightdash.com/guides/how-to-create-metrics#-adding-custom-metrics-in-the-explore-view'
-                        }
+                        href="https://docs.lightdash.com/guides/how-to-create-metrics#-adding-custom-metrics-in-the-explore-view"
                         tooltipProps={{
-                            content: (
-                                <TooltipContent>
+                            label: (
+                                <>
                                     Add custom metrics by hovering over the
                                     dimension of your choice & selecting the
                                     three-dot Action Menu.{' '}
-                                    <b>Click to view docs.</b>
-                                </TooltipContent>
+                                    <Text component="span" fw={600}>
+                                        Click to view docs.
+                                    </Text>
+                                </>
                             ),
+                            multiline: true,
                         }}
                         iconProps={{
                             style: {

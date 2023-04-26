@@ -214,7 +214,7 @@ const ProjectTablesConfiguration: FC<{
                             labelElement={
                                 <>
                                     Show models with any of these tags{' '}
-                                    <DocumentationHelpButton url="https://docs.getdbt.com/reference/resource-configs/tags#examples" />
+                                    <DocumentationHelpButton href="https://docs.getdbt.com/reference/resource-configs/tags#examples" />
                                 </>
                             }
                             value={TableSelectionType.WITH_TAGS}
