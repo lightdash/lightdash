@@ -1,3 +1,10 @@
+# [0.520.0](https://github.com/lightdash/lightdash/compare/0.519.0...0.520.0) (2023-04-26)
+
+
+### Features
+
+* mantine spotlight ([#5204](https://github.com/lightdash/lightdash/issues/5204)) ([4d759ac](https://github.com/lightdash/lightdash/commit/4d759ac1b1345fbb14e92fbc6ff714ee5c9a2c00))
+
 # [0.519.0](https://github.com/lightdash/lightdash/compare/0.518.0...0.519.0) (2023-04-24)
 
 
