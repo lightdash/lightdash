@@ -1,3 +1,10 @@
+# [0.521.0](https://github.com/lightdash/lightdash/compare/0.520.0...0.521.0) (2023-04-26)
+
+
+### Features
+
+* migrate HighlightedText to mantine ([#5206](https://github.com/lightdash/lightdash/issues/5206)) ([2165af4](https://github.com/lightdash/lightdash/commit/2165af433e70784dbe11b3728e023fb386b2b1da))
+
 # [0.520.0](https://github.com/lightdash/lightdash/compare/0.519.0...0.520.0) (2023-04-26)
 
 
