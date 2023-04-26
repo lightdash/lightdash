@@ -155,7 +155,7 @@ const GlobalSearch: FC<GlobalSearchProps> = ({ projectUuid }) => {
     const searchItems = useMemo(() => {
         return items.map<SpotlightAction>((item) => ({
             item,
-            icon: <SearchIcon item={item} color="gray.6" />,
+            icon: <SearchIcon item={item} color="gray.7" />,
             title: item.title,
             description: item.description,
             onTrigger: () => {
