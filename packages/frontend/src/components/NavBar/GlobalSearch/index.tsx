@@ -228,7 +228,7 @@ const GlobalSearch: FC<GlobalSearchProps> = ({ projectUuid }) => {
                     isSearching ? (
                         <Loader size="xs" color="gray" />
                     ) : (
-                        <MantineIcon icon={IconSearch} />
+                        <MantineIcon icon={IconSearch} size="lg" />
                     )
                 }
                 actionComponent={SpotlightItem}
