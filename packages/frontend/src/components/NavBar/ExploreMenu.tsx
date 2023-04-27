@@ -8,7 +8,7 @@ import {
     IconTerminal2,
 } from '@tabler/icons-react';
 import { FC, memo, useState } from 'react';
-import { useHistory } from 'react-router-dom';
+import { Link, useHistory } from 'react-router-dom';
 import { useApp } from '../../providers/AppProvider';
 import { Can } from '../common/Authorization';
 import LargeMenuItem from '../common/LargeMenuItem';
@@ -64,6 +64,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
 
                     <Menu.Dropdown>
                         <LargeMenuItem
+                            component={Link}
                             title="Query from tables"
                             description="Build queries and save them as charts."
                             to={`/projects/${projectUuid}/tables`}
@@ -78,6 +79,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                             })}
                         >
                             <LargeMenuItem
+                                component={Link}
                                 title="Query using SQL runner"
                                 description="Access your database to run ad-hoc queries."
                                 to={`/projects/${projectUuid}/sqlRunner`}

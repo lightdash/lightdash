@@ -9,6 +9,7 @@ import {
 import { FC } from 'react';
 import { useIntercom } from 'react-use-intercom';
 
+import { Link } from 'react-router-dom';
 import LargeMenuItem from '../common/LargeMenuItem';
 import MantineIcon from '../common/MantineIcon';
 
@@ -38,7 +39,8 @@ const HelpMenu: FC = () => {
                 />
 
                 <LargeMenuItem
-                    href="https://docs.lightdash.com/"
+                    component={Link}
+                    to="https://docs.lightdash.com/"
                     target="_blank"
                     title="View Docs"
                     description="Learn how to deploy, use, contribute to Lightdash."
@@ -46,7 +48,8 @@ const HelpMenu: FC = () => {
                 />
 
                 <LargeMenuItem
-                    href="https://join.slack.com/t/lightdash-community/shared_invite/zt-16q953ork-NZr1qdEqxSwB17E2ckUe7A"
+                    component={Link}
+                    to="https://join.slack.com/t/lightdash-community/shared_invite/zt-16q953ork-NZr1qdEqxSwB17E2ckUe7A"
                     target="_blank"
                     title="Join Slack community"
                     description="Get advice share best practices with other users."
@@ -54,7 +57,8 @@ const HelpMenu: FC = () => {
                 />
 
                 <LargeMenuItem
-                    href="https://github.com/lightdash/lightdash/issues/new/choose"
+                    component={Link}
+                    to="https://github.com/lightdash/lightdash/issues/new/choose"
                     target="_blank"
                     title="Feedback on Lightdash"
                     description="Submit a feature request or bug report to improve Lightdash."
