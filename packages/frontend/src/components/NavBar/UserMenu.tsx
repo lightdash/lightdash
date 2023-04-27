@@ -6,9 +6,9 @@ import {
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { FC } from 'react';
 import { useHistory } from 'react-router-dom';
-import useLogoutMutation from '../../../hooks/user/useUserLogoutMutation';
-import { useApp } from '../../../providers/AppProvider';
-import { UserAvatar } from '../../Avatar';
+import useLogoutMutation from '../../hooks/user/useUserLogoutMutation';
+import { useApp } from '../../providers/AppProvider';
+import { UserAvatar } from '../Avatar';
 
 const UserMenu: FC = () => {
     const { user } = useApp();

@@ -14,6 +14,7 @@ import { ShowErrorsButton } from '../ShowErrorsButton';
 import BrowseMenu from './BrowseMenu';
 import ExploreMenu from './ExploreMenu';
 import GlobalSearch from './GlobalSearch';
+import HeadwayMenuItem from './HeadwayMenuItem';
 import HelpMenu from './HelpMenu';
 import { LogoContainer, NavBarWrapper, ProjectDropdown } from './NavBar.styles';
 import SettingsMenu from './SettingsMenu';
@@ -54,7 +55,11 @@ const NavBar = memo(() => {
                         errorLogs={errorLogs}
                         setErrorLogsVisible={setErrorLogsVisible}
                     />
+
                     <SettingsMenu />
+
+                    <HeadwayMenuItem />
+
                     <HelpMenu />
 
                     <Divider

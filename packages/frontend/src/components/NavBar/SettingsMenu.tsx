@@ -7,9 +7,9 @@ import {
     IconSettings,
 } from '@tabler/icons-react';
 import { FC } from 'react';
-import { useActiveProjectUuid } from '../../../hooks/useProject';
-import { useApp } from '../../../providers/AppProvider';
-import LinkMenuItem from '../../common/LinkMenuItem';
+import { useActiveProjectUuid } from '../../hooks/useProject';
+import { useApp } from '../../providers/AppProvider';
+import LinkMenuItem from '../common/LinkMenuItem';
 
 const SettingsMenu: FC = () => {
     const {

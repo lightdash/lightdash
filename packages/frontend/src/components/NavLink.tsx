@@ -1,6 +1,5 @@
 import React, { CSSProperties, FC } from 'react';
-import { Route } from 'react-router-dom';
-import { StyledNavLink } from './NavLink.styles';
+import { Link, Route } from 'react-router-dom';
 
 interface Props {
     to: string;
@@ -17,7 +16,7 @@ const NavLink: FC<Props> = ({ to, style, exact, children }) => (
             const isActive = match?.isExact;
 
             return (
-                <StyledNavLink to={to} style={style}>
+                <Link to={to} style={style}>
                     {typeof children === 'function'
                         ? children(isActive)
                         : React.Children.map(children, (child) => {
@@ -31,7 +30,7 @@ const NavLink: FC<Props> = ({ to, style, exact, children }) => (
                               }
                               return child;
                           })}
-                </StyledNavLink>
+                </Link>
             );
         }}
     />

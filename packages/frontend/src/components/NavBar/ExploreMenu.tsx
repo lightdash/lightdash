@@ -9,12 +9,12 @@ import {
 } from '@tabler/icons-react';
 import { FC, memo, useState } from 'react';
 import { useHistory } from 'react-router-dom';
-import { useApp } from '../../../providers/AppProvider';
-import { Can } from '../../common/Authorization';
-import LargeMenuItem from '../../common/LargeMenuItem';
-import MantineIcon from '../../common/MantineIcon';
-import DashboardCreateModal from '../../common/modal/DashboardCreateModal';
-import SpaceActionModal, { ActionType } from '../../common/SpaceActionModal';
+import { useApp } from '../../providers/AppProvider';
+import { Can } from '../common/Authorization';
+import LargeMenuItem from '../common/LargeMenuItem';
+import MantineIcon from '../common/MantineIcon';
+import DashboardCreateModal from '../common/modal/DashboardCreateModal';
+import SpaceActionModal, { ActionType } from '../common/SpaceActionModal';
 
 type Props = {
     projectUuid: string;
@@ -55,6 +55,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                 <MantineIcon
                                     icon={IconSquareRoundedPlus}
                                     size="lg"
+                                    color="dark.0"
                                 />
                             }
                             onClick={() => setIsOpen(!isOpen)}
@@ -68,13 +69,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                             title="Query from tables"
                             description="Build queries and save them as charts."
                             to={`/projects/${projectUuid}/tables`}
-                            icon={
-                                <MantineIcon
-                                    icon={IconTable}
-                                    size={22}
-                                    color="gray.0"
-                                />
-                            }
+                            icon={IconTable}
                         />
 
                         <Can
@@ -88,13 +83,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                 title="Query using SQL runner"
                                 description="Access your database to run ad-hoc queries."
                                 to={`/projects/${projectUuid}/sqlRunner`}
-                                icon={
-                                    <MantineIcon
-                                        icon={IconTerminal2}
-                                        size={22}
-                                        color="gray.0"
-                                    />
-                                }
+                                icon={IconTerminal2}
                             />
                         </Can>
 
@@ -109,13 +98,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                 title="Dashboard"
                                 description="Arrange multiple charts into a single view."
                                 onClick={() => setIsCreateDashboardOpen(true)}
-                                icon={
-                                    <MantineIcon
-                                        icon={IconLayoutDashboard}
-                                        size={22}
-                                        color="gray.0"
-                                    />
-                                }
+                                icon={IconLayoutDashboard}
                             />
                         </Can>
 
@@ -130,13 +113,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                 title="Space"
                                 description="Organize your saved charts and dashboards."
                                 onClick={() => setIsCreateSpaceOpen(true)}
-                                icon={
-                                    <MantineIcon
-                                        icon={IconFolder}
-                                        size={22}
-                                        color="gray.0"
-                                    />
-                                }
+                                icon={IconFolder}
                             />
                         </Can>
                     </Menu.Dropdown>

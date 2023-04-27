@@ -9,8 +9,8 @@ import {
 import { FC } from 'react';
 import { Link } from 'react-router-dom';
 
-import { useSpaces } from '../../../hooks/useSpaces';
-import MantineIcon from '../../common/MantineIcon';
+import { useSpaces } from '../../hooks/useSpaces';
+import MantineIcon from '../common/MantineIcon';
 
 interface Props {
     projectUuid: string;
@@ -33,7 +33,13 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                     variant="light"
                     size="xs"
                     fz="sm"
-                    leftIcon={<MantineIcon icon={IconCategory} size="lg" />}
+                    leftIcon={
+                        <MantineIcon
+                            icon={IconCategory}
+                            size="lg"
+                            color="dark.0"
+                        />
+                    }
                 >
                     Browse
                 </Button>
