@@ -72,6 +72,7 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
             </Tooltip>
         );
     }
+
     return (
         <NavLink
             role="listitem"
