@@ -58,7 +58,7 @@ const HeadwayMenuItem: FC<Props> = ({ projectUuid }) => {
     if (!projectUuid) return null;
 
     return (
-        <Button variant="default" compact pos="relative" id="headway-trigger">
+        <Button variant="default" size="xs" pos="relative" id="headway-trigger">
             <MantineIcon icon={IconBell} />
             <Box
                 id="headway-badge"

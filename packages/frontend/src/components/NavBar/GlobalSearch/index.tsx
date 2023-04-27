@@ -20,7 +20,7 @@ import {
     SpotlightProvider,
 } from '@mantine/spotlight';
 import { IconSearch } from '@tabler/icons-react';
-import { FC, useMemo, useState } from 'react';
+import { FC, MouseEventHandler, useMemo, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 
 import { useProject } from '../../../hooks/useProject';
@@ -133,7 +133,21 @@ const GlobalSearch: FC<GlobalSearchProps> = ({ projectUuid }) => {
 
     const [query, setQuery] = useState<string>();
 
-    const handleSpotlightOpen = () => {
+    const handleSpotlightOpenInputClick: MouseEventHandler<HTMLInputElement> = (
+        e,
+    ) => {
+        e.currentTarget.blur();
+
+        track({
+            name: EventName.GLOBAL_SEARCH_OPEN,
+            properties: {
+                action: 'input_click',
+            },
+        });
+        spotlight.open();
+    };
+
+    const handleSpotlightOpenHotkey = () => {
         track({
             name: EventName.GLOBAL_SEARCH_OPEN,
             properties: {
@@ -144,7 +158,7 @@ const GlobalSearch: FC<GlobalSearchProps> = ({ projectUuid }) => {
     };
 
     useHotkeys([
-        ['mod + k', () => handleSpotlightOpen, { preventDefault: true }],
+        ['mod + k', () => handleSpotlightOpenHotkey, { preventDefault: true }],
     ]);
 
     const { items, isSearching } = useDebouncedSearch(projectUuid, query);
@@ -189,8 +203,10 @@ const GlobalSearch: FC<GlobalSearchProps> = ({ projectUuid }) => {
         <>
             <TextInput
                 role="search"
+                size="xs"
+                w={250}
                 placeholder="Search..."
-                icon={<MantineIcon icon={IconSearch} />}
+                icon={<MantineIcon icon={IconSearch} color="gray.1" />}
                 rightSection={
                     <Group mr="xs" spacing="xxs">
                         <Kbd fw={600}>
@@ -205,17 +221,7 @@ const GlobalSearch: FC<GlobalSearchProps> = ({ projectUuid }) => {
                     </Group>
                 }
                 rightSectionWidth="auto"
-                onClick={(e) => {
-                    e.currentTarget.blur();
-
-                    track({
-                        name: EventName.GLOBAL_SEARCH_OPEN,
-                        properties: {
-                            action: 'input_click',
-                        },
-                    });
-                    spotlight.open();
-                }}
+                onClick={handleSpotlightOpenInputClick}
             />
 
             <MantineProvider inherit theme={{ colorScheme: 'light' }}>

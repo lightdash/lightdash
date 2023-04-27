@@ -102,6 +102,8 @@ const NavBar = memo(() => {
 
                     {activeProjectUuid && (
                         <Select
+                            size="xs"
+                            w={200}
                             disabled={isLoading || (projects || []).length <= 0}
                             data={
                                 projects?.map((item) => ({
