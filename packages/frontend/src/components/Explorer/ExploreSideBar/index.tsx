@@ -15,15 +15,11 @@ import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import { SidebarDivider } from '../../common/Page/Sidebar';
+import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import { ExploreMenuItem } from '../../ExploreMenuItem';
 import { ShowErrorsButton } from '../../ShowErrorsButton';
 import ExplorePanel from '../ExplorePanel';
-import {
-    FooterWrapper,
-    FormField,
-    MenuWrapper,
-    StyledBreadcrumb,
-} from './ExploreSideBar.styles';
+import { FooterWrapper, FormField, MenuWrapper } from './ExploreSideBar.styles';
 
 const SideBarLoadingState = () => (
     <Menu large style={{ flex: 1 }}>
@@ -62,7 +58,10 @@ const BasePanel = () => {
     if (exploresResult.data) {
         return (
             <>
-                <StyledBreadcrumb items={[{ text: 'Tables' }]} />
+                <PageBreadcrumbs
+                    size="md"
+                    items={[{ title: 'Tables', active: true }]}
+                />
 
                 <SidebarDivider />
 

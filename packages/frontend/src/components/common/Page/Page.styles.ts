@@ -45,20 +45,6 @@ export const PageHeader = styled.div`
     padding-top: 10px;
 `;
 
-export const PageBreadcrumbsWrapper = styled.div`
-    .bp4-breadcrumb {
-        font-size: 18px;
-        font-weight: 500;
-    }
-    .home-breadcrumb {
-        color: #5c7080;
-    }
-
-    .bp4-breadcrumbs > li::after {
-        margin-top: 5px;
-    }
-`;
-
 export const WidthHack = styled.div<{ $state: string }>`
     transition: ${({ $state }) =>
         ['entering', 'exiting'].includes($state)

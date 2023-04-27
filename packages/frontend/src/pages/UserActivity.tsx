@@ -1,16 +1,17 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
-import { Breadcrumbs2 } from '@blueprintjs/popover2';
 import {
     UserActivity as UserActivityResponse,
     UserWithCount,
 } from '@lightdash/common';
+import { Group } from '@mantine/core';
 import { IconUsers } from '@tabler/icons-react';
 import EChartsReact from 'echarts-for-react';
 import { FC } from 'react';
 import { Helmet } from 'react-helmet';
 import { useHistory, useParams } from 'react-router-dom';
+import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
-import { PageBreadcrumbsWrapper } from '../components/common/Page/Page.styles';
+import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import { Table } from '../components/common/Table/Table.styles';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useUserActivity } from '../hooks/analytics/useUserActivity';
@@ -149,35 +150,32 @@ const UserActivity: FC = () => {
             </Helmet>
             <Page>
                 <UserAnalyticsPageHeader>
-                    <PageBreadcrumbsWrapper>
-                        <Breadcrumbs2
-                            items={[
-                                {
-                                    text: 'Usage analytics',
-                                    className: 'home-breadcrumb',
-                                    onClick: (e) => {
-                                        history.push(
-                                            `/generalSettings/projectManagement/${params.projectUuid}/usageAnalytics`,
-                                        );
-                                    },
-                                },
-                                {
-                                    text: (
-                                        <div
-                                            style={{
-                                                display: 'flex',
-                                                gap: 6,
-                                                alignItems: 'center',
-                                            }}
-                                        >
-                                            <IconUsers size={20} /> User
-                                            activity for {project?.name}
-                                        </div>
-                                    ),
-                                },
-                            ]}
-                        />
-                    </PageBreadcrumbsWrapper>
+                    <PageBreadcrumbs
+                        items={[
+                            {
+                                title: 'Usage analytics',
+                                to: `/generalSettings/projectManagement/${params.projectUuid}/usageAnalytics`,
+                            },
+                            {
+                                title: (
+                                    <Group
+                                        style={{
+                                            display: 'flex',
+                                            gap: 6,
+                                            alignItems: 'center',
+                                        }}
+                                    >
+                                        <MantineIcon
+                                            icon={IconUsers}
+                                            size={20}
+                                        />{' '}
+                                        User activity for {project?.name}
+                                    </Group>
+                                ),
+                                active: true,
+                            },
+                        ]}
+                    />
                 </UserAnalyticsPageHeader>
                 <Container>
                     <ActivityCard grid="total-users">

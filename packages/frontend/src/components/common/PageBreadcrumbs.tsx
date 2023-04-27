@@ -1,38 +1,54 @@
-import { Anchor, Breadcrumbs, BreadcrumbsProps, Text } from '@mantine/core';
-import React, { FC } from 'react';
+import {
+    Anchor,
+    Breadcrumbs,
+    BreadcrumbsProps,
+    MantineSize,
+    Text,
+} from '@mantine/core';
+import { FC } from 'react';
+import { Link } from 'react-router-dom';
 
 type BreadCrumbItem = {
-    title: string;
-    href: string;
+    title: React.ReactNode;
+    to?: string;
+    onClick?: () => void;
+    active?: boolean;
 };
 
-export interface PageBreadcrumbsProps extends BreadcrumbsProps {
+export interface PageBreadcrumbsProps
+    extends Omit<BreadcrumbsProps, 'children'> {
+    size?: MantineSize;
     items: BreadCrumbItem[];
 }
 
 const PageBreadcrumbs: FC<PageBreadcrumbsProps> = ({
     items,
-    separator,
-    children,
+    size = 'lg',
     ...rest
 }) => {
     return (
-        <Breadcrumbs separator={separator ? separator : '/'} mt="xs" {...rest}>
-            {items.map((item, index) => (
-                <Anchor
-                    href={item.href}
-                    key={index}
-                    color="gray.7"
-                    underline={false}
-                >
-                    <Text fw={500} fz="lg" color="gray.7">
+        <Breadcrumbs {...rest}>
+            {items.map((item, index) => {
+                const commonProps = {
+                    key: index,
+                    size: size,
+                    fw: item.active ? 600 : 500,
+                    color: item.active ? 'gray.7' : 'gray.6',
+                };
+
+                return item.to || item.onClick ? (
+                    <Anchor
+                        component={Link}
+                        to={item.to ?? ''}
+                        onClick={item.onClick}
+                        {...commonProps}
+                    >
                         {item.title}
-                    </Text>
-                </Anchor>
-            ))}
-            <Text fw={500} fz="lg">
-                {children}
-            </Text>
+                    </Anchor>
+                ) : (
+                    <Text {...commonProps}>{item.title}</Text>
+                );
+            })}
         </Breadcrumbs>
     );
 };

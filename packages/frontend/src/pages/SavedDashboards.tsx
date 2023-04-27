@@ -70,15 +70,17 @@ const SavedDashboards = () => {
             <Helmet>
                 <title>Dashboards - Lightdash</title>
             </Helmet>
+
             {/* FIXME: use Mantine sizes for width */}
             <Stack spacing="xl" w={900}>
                 <Group position="apart" mt="xs">
                     <PageBreadcrumbs
-                        items={[{ href: '/home', title: 'Home' }]}
                         mt="xs"
-                    >
-                        All dashboards
-                    </PageBreadcrumbs>
+                        items={[
+                            { title: 'Home', to: '/home' },
+                            { title: 'All dashboards', active: true },
+                        ]}
+                    />
 
                     {dashboards.length > 0 &&
                         userCanManageDashboards &&

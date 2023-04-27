@@ -48,14 +48,16 @@ const SavedQueries: FC = () => {
                 <title>Saved charts - Lightdash</title>
             </Helmet>
             {/* FIXME: use Mantine sizes for width */}
+
             <Stack spacing="xl" w={900}>
                 <Group position="apart" mt="xs">
                     <PageBreadcrumbs
-                        items={[{ href: '/home', title: 'Home' }]}
+                        items={[
+                            { title: 'Home', to: '/home' },
+                            { title: 'All saved charts', active: true },
+                        ]}
                         mt="xs"
-                    >
-                        All saved charts
-                    </PageBreadcrumbs>
+                    />
 
                     {savedQueries.length > 0 &&
                     !isDemo &&
