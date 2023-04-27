@@ -9,7 +9,7 @@ import { FC } from 'react';
 import { Link } from 'react-router-dom';
 
 type BreadCrumbItem = {
-    title: string;
+    title: React.ReactNode;
     to?: string;
     active?: boolean;
 };
