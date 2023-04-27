@@ -1,4 +1,3 @@
-import { AnchorButton } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import {
     LightdashMode,
@@ -68,11 +67,13 @@ const Spaces: FC = () => {
             <Stack spacing="xl" w={900}>
                 <Group position="apart" mt="xs">
                     <PageBreadcrumbs
-                        items={[{ href: '/home', title: 'Home' }]}
                         mt="xs"
-                    >
-                        All Spaces
-                    </PageBreadcrumbs>
+                        items={[
+                            { to: '/home', title: 'Home' },
+                            { title: 'All Spaces', active: true },
+                        ]}
+                    />
+
                     {!isDemo && userCanManageSpace && hasSpaces && (
                         <Button
                             leftIcon={<IconPlus size={18} />}

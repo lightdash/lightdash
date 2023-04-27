@@ -1,9 +1,10 @@
 import { NonIdealState, Spinner, Tab, Tabs } from '@blueprintjs/core';
-import { Breadcrumbs2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
+import { Anchor, Breadcrumbs, Text } from '@mantine/core';
 import { FC } from 'react';
 import { Helmet } from 'react-helmet';
 import {
+    Link,
     Redirect,
     Route,
     Switch,
@@ -12,6 +13,7 @@ import {
 } from 'react-router-dom';
 import { Can } from '../components/common/Authorization';
 import ErrorState from '../components/common/ErrorState';
+import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import DbtCloudSettings from '../components/DbtCloudSettings';
 import ProjectUserAccess from '../components/ProjectAccess';
 import { UpdateProjectConnection } from '../components/ProjectConnection';
@@ -83,15 +85,16 @@ const ProjectSettings: FC = () => {
             <Helmet>
                 <title>Project Settings - Lightdash</title>
             </Helmet>
-            <Breadcrumbs2
+
+            <PageBreadcrumbs
                 items={[
                     {
-                        text: 'All projects',
-                        onClick: () =>
-                            history.push('/generalSettings/projectManagement'),
+                        title: 'All projects',
+                        to: '/generalSettings/projectManagement',
                     },
                     {
-                        text: project.name,
+                        title: project.name,
+                        active: true,
                     },
                 ]}
             />

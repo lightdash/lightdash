@@ -1,5 +1,4 @@
 import {
-    Button,
     Intent,
     Menu,
     NonIdealState,
@@ -19,7 +18,7 @@ import {
     IconLayoutDashboard,
     IconPlus,
 } from '@tabler/icons-react';
-import React, { FC, useCallback, useState } from 'react';
+import { FC, useCallback, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { Can } from '../components/common/Authorization';
@@ -129,16 +128,19 @@ const Space: FC = () => {
                 <Stack spacing="xl" w={900}>
                     <Group position="apart" mt="xs">
                         <PageBreadcrumbs
+                            mt="xs"
                             items={[
                                 {
-                                    href: `/projects/${projectUuid}/spaces`,
                                     title: 'Spaces',
+                                    to: `/projects/${projectUuid}/spaces`,
+                                },
+                                {
+                                    title: space.name,
+                                    active: true,
                                 },
                             ]}
-                            mt="xs"
-                        >
-                            {space.name}
-                        </PageBreadcrumbs>
+                        />
+
                         <Group spacing="xs">
                             <Can
                                 I="manage"
