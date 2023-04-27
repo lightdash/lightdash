@@ -1,11 +1,12 @@
 import { MenuDivider } from '@blueprintjs/core';
-import { MenuItem2, Tooltip2 } from '@blueprintjs/popover2';
+import { MenuItem2 } from '@blueprintjs/popover2';
 
+import { Text, Tooltip } from '@mantine/core';
 import React, { FC, memo } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { SidebarDivider } from '../../common/Page/Sidebar';
-import { StyledBreadcrumb } from '../ExploreSideBar/ExploreSideBar.styles';
+import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import ExploreTree from '../ExploreTree';
 import { LoadingStateWrapper } from './ExplorePanel.styles';
 
@@ -45,49 +46,54 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         return <SideBarLoadingState />;
     }
 
-    if (data) {
-        const tableBreadcrumbItem = {
-            children: (
-                <Tooltip2 content={data.tables[data.baseTable].description}>
-                    {data.label}
-                </Tooltip2>
-            ),
-        };
-
-        return (
-            <>
-                <StyledBreadcrumb
-                    items={
-                        onBack
-                            ? [
-                                  {
-                                      text: 'Tables',
-                                      onClick: onBack,
-                                  },
-                                  tableBreadcrumbItem,
-                              ]
-                            : [tableBreadcrumbItem]
-                    }
-                />
-
-                <SidebarDivider />
-
-                <ExploreTree
-                    explore={data}
-                    additionalMetrics={additionalMetrics || []}
-                    selectedNodes={activeFields}
-                    onSelectedFieldChange={toggleActiveField}
-                />
-            </>
-        );
-    }
+    if (!data) return null;
 
     if (status === 'error') {
         if (onBack) onBack();
         return null;
     }
 
-    return <span>Cannot load explore</span>;
+    return (
+        <>
+            <PageBreadcrumbs
+                size="md"
+                items={[
+                    ...(onBack
+                        ? [
+                              {
+                                  title: 'Tables',
+                                  onClick: onBack,
+                              },
+                          ]
+                        : []),
+                    {
+                        title: (
+                            <Tooltip
+                                withArrow
+                                withinPortal
+                                disabled={
+                                    !data.tables[data.baseTable].description
+                                }
+                                label={data.tables[data.baseTable].description}
+                            >
+                                <Text component="span">{data.label}</Text>
+                            </Tooltip>
+                        ),
+                        active: true,
+                    },
+                ]}
+            />
+
+            <SidebarDivider />
+
+            <ExploreTree
+                explore={data}
+                additionalMetrics={additionalMetrics || []}
+                selectedNodes={activeFields}
+                onSelectedFieldChange={toggleActiveField}
+            />
+        </>
+    );
 });
 
 export default ExplorePanel;

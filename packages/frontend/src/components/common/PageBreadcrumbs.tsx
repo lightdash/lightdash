@@ -11,6 +11,7 @@ import { Link } from 'react-router-dom';
 type BreadCrumbItem = {
     title: React.ReactNode;
     to?: string;
+    onClick?: () => void;
     active?: boolean;
 };
 
@@ -35,8 +36,13 @@ const PageBreadcrumbs: FC<PageBreadcrumbsProps> = ({
                     color: item.active ? 'gray.7' : 'gray.6',
                 };
 
-                return item.to ? (
-                    <Anchor component={Link} to={item.to} {...commonProps}>
+                return item.to || item.onClick ? (
+                    <Anchor
+                        component={Link}
+                        to={item.to ?? ''}
+                        onClick={item.onClick}
+                        {...commonProps}
+                    >
                         {item.title}
                     </Anchor>
                 ) : (

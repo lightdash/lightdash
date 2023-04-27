@@ -26,12 +26,11 @@ import {
     PageWithSidebar,
 } from '../components/common/Page/Page.styles';
 import Sidebar, { SidebarDivider } from '../components/common/Page/Sidebar';
+import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ShareShortLinkButton from '../components/common/ShareShortLinkButton';
 import SideBarLoadingState from '../components/common/SideBarLoadingState';
 import { Tree } from '../components/common/Tree';
-import DownloadCsvButton from '../components/DownloadCsvButton';
 import DownloadSqlCsvButton from '../components/DownloadSqlCsvButton';
-import { StyledBreadcrumb } from '../components/Explorer/ExploreSideBar/ExploreSideBar.styles';
 import VisualizationConfigPanel from '../components/Explorer/VisualizationCard/VisualizationConfigPanel';
 import VisualizationCardOptions from '../components/Explorer/VisualizationCardOptions';
 import ForbiddenPanel from '../components/ForbiddenPanel';
@@ -232,7 +231,9 @@ const SqlRunnerPage = () => {
                 <title>SQL Runner - Lightdash</title>
             </Helmet>
             <Sidebar>
-                <StyledBreadcrumb items={[{ text: 'SQL Runner' }]} />
+                <PageBreadcrumbs
+                    items={[{ title: 'SQL Runner', active: true }]}
+                />
 
                 <SidebarDivider />
 
