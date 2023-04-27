@@ -19,12 +19,7 @@ import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import { ExploreMenuItem } from '../../ExploreMenuItem';
 import { ShowErrorsButton } from '../../ShowErrorsButton';
 import ExplorePanel from '../ExplorePanel';
-import {
-    FooterWrapper,
-    FormField,
-    MenuWrapper,
-    StyledBreadcrumb,
-} from './ExploreSideBar.styles';
+import { FooterWrapper, FormField, MenuWrapper } from './ExploreSideBar.styles';
 
 const SideBarLoadingState = () => (
     <Menu large style={{ flex: 1 }}>
