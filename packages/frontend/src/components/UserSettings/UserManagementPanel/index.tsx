@@ -12,6 +12,7 @@ import {
     OrganizationMemberProfile,
     OrganizationMemberRole,
 } from '@lightdash/common';
+import { Anchor } from '@mantine/core';
 import { FC, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
@@ -217,7 +218,7 @@ const UserManagementPanel: FC = () => {
                 <HeaderWrapper>
                     <TitleWrapper>
                         <PanelTitle>User management settings</PanelTitle>
-                        <a
+                        <Anchor
                             role="button"
                             href="https://docs.lightdash.com/references/roles"
                             target="_blank"
@@ -225,7 +226,7 @@ const UserManagementPanel: FC = () => {
                             style={{ color: Colors.GRAY5 }}
                         >
                             <Icon icon="info-sign" />
-                        </a>
+                        </Anchor>
                     </TitleWrapper>
                     <AddUserButton
                         intent="primary"

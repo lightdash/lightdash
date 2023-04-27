@@ -30,7 +30,7 @@ const CreateProjectSettings: FC = () => {
                 style={{
                     display: 'flex',
                     flexDirection: 'column',
-                    width: '800px',
+                    width: '900px',
                     paddingTop: 60,
                 }}
             >

@@ -4,7 +4,7 @@ import { SIDEBAR_WIDTH, SIDEBAR_Z_INDEX } from '../common/Page/Sidebar';
 import SimpleButton from '../common/SimpleButton';
 import Form from '../ReactHookForm/Form';
 
-const CONTENT_WIDTH = 800;
+const CONTENT_WIDTH = 900;
 const BIG_BUTTON_HEIGHT = 40;
 const CARD_PADDING = 20;
 const CARD_GAP = 20;

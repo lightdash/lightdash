@@ -2,11 +2,6 @@ import { Colors, Icon, Tag } from '@blueprintjs/core';
 import { hexToRGB } from '@lightdash/common';
 import styled from 'styled-components';
 
-export const TooltipContent = styled.p`
-    margin: 0;
-    max-width: 360px;
-`;
-
 export const ItemOptions = styled.div`
     display: flex;
     gap: 10px;

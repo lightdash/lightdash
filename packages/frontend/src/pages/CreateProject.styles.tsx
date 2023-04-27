@@ -10,7 +10,7 @@ export const CreateProjectWrapper = styled.div`
 `;
 
 export const CreateHeaderWrapper = styled.div`
-    width: 800px;
+    width: 900px;
     margin: 40px auto 0;
 `;
 
@@ -38,8 +38,4 @@ export const BackButton = styled(SimpleButton)`
 export const FloatingBackButton = styled(BackButton)`
     position: absolute;
     top: -40px;
-`;
-
-export const ExternalLink = styled.a`
-    color: ${Colors.BLUE3};
 `;

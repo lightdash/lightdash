@@ -29,6 +29,7 @@ const MantineIcon: FC<MantineIconProps> = ({
         stroke: typeof stroke === 'string' ? theme.spacing[stroke] : stroke,
         color: color ? theme.fn.themeColor(color) : undefined,
         fill: fill ? theme.fn.themeColor(fill) : 'none',
+        display: 'block',
     };
 
     return <TablerIcon {...mantineOverridedProps} {...rest} />;

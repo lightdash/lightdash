@@ -1,6 +1,5 @@
 import { Card, Colors, H3 } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
-import AnchorLink from '../components/common/AnchorLink';
 import { BigButton } from '../components/common/BigButton';
 import Input from '../components/ReactHookForm/Input';
 import PasswordInput from '../components/ReactHookForm/PasswordInput';
@@ -62,12 +61,6 @@ export const Subtitle = styled.p`
 
 export const SubmitButton = styled(BigButton)`
     width: 100%;
-`;
-
-export const FormLink = styled(AnchorLink)`
-    text-align: center;
-    display: block;
-    margin-top: 20px;
 `;
 
 export const List = styled.ul`

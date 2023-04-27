@@ -1,31 +1,30 @@
-import { Tag } from '@blueprintjs/core';
-import React from 'react';
+import { Avatar, AvatarProps, useMantineTheme } from '@mantine/core';
+import { forwardRef } from 'react';
+
 import { useApp } from '../providers/AppProvider';
 
-type AvatarProps = {
-    initials: string;
-};
+export const UserAvatar = forwardRef<HTMLDivElement, AvatarProps>(
+    (props, ref) => {
+        const { user } = useApp();
+        const theme = useMantineTheme();
+        const initials = user.data
+            ? `${user.data.firstName[0]}${user.data.lastName[0]}`.trim()
+            : '';
 
-export const Avatar: React.FC<AvatarProps> = ({ initials }) => (
-    <Tag
-        round
-        large
-        interactive
-        style={{
-            width: '30px',
-            padding: '5px 0px',
-            textAlign: 'center',
-        }}
-        data-testid="user-avatar"
-    >
-        {initials.substr(0, 2)}
-    </Tag>
+        return (
+            <Avatar
+                data-testid="user-avatar"
+                ref={ref}
+                variant="light"
+                size={theme.spacing.xxl}
+                radius="xl"
+                color="gray.8"
+                bg="gray.3"
+                sx={{ cursor: 'pointer' }}
+                {...props}
+            >
+                {initials}
+            </Avatar>
+        );
+    },
 );
-
-export const UserAvatar: React.FC = () => {
-    const { user } = useApp();
-    const initials = user.data
-        ? user.data.firstName.substr(0, 1) + user.data.lastName.substr(0, 1)
-        : '';
-    return <Avatar initials={initials} />;
-};

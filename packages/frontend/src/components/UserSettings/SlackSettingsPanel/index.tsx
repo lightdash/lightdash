@@ -1,5 +1,6 @@
 import { AnchorButton, Button, Spinner } from '@blueprintjs/core';
 import { slackRequiredScopes, SlackSettings } from '@lightdash/common';
+import { Anchor } from '@mantine/core';
 import intersection from 'lodash-es/intersection';
 import React, { FC } from 'react';
 import { useDeleteSlack, useGetSlack } from '../../../hooks/useSlack';
@@ -48,9 +49,9 @@ const SlackSettingsPanel: FC = () => {
                 <Description>
                     Sharing in Slack allows you to unfurl Lightdash URLs in your
                     workspace.{' '}
-                    <a href="https://docs.lightdash.com/guides/sharing-in-slack">
+                    <Anchor href="https://docs.lightdash.com/guides/sharing-in-slack">
                         View docs
-                    </a>
+                    </Anchor>
                 </Description>
             </AppearancePanelWrapper>
             {isValidSlack ? (

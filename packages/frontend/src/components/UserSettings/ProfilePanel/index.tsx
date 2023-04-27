@@ -2,6 +2,7 @@ import {
     Button,
     Colors,
     FormGroup,
+    Icon,
     InputGroup,
     Intent,
 } from '@blueprintjs/core';
@@ -12,6 +13,7 @@ import {
     UpdateUserArgs,
     validateEmail,
 } from '@lightdash/common';
+import { Anchor, Box, Text } from '@mantine/core';
 import { FC, useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from 'react-query';
 import { lightdashApi } from '../../../api';
@@ -23,11 +25,6 @@ import {
 import { VerifyEmailModal } from '../../../pages/VerifyEmail';
 import { useApp } from '../../../providers/AppProvider';
 import { useErrorLogs } from '../../../providers/ErrorLogsProvider';
-import {
-    EmailVerificationCTA,
-    EmailVerificationCTALink,
-    EmailVerificationIcon,
-} from './ProfilePanel.styles';
 
 const updateUserQuery = async (data: Partial<UpdateUserArgs>) =>
     lightdashApi<LightdashUser>({
@@ -174,23 +171,25 @@ const ProfilePanel: FC = () => {
                     rightElement={
                         isEmailServerConfigured && data?.isVerified ? (
                             <Tooltip2 content="This e-mail has been verified">
-                                <EmailVerificationIcon
-                                    icon="tick-circle"
-                                    color={Colors.GREEN4}
-                                />
+                                <Box p={6}>
+                                    <Icon
+                                        icon="tick-circle"
+                                        color={Colors.GREEN4}
+                                    />
+                                </Box>
                             </Tooltip2>
                         ) : isEmailServerConfigured && !data?.isVerified ? (
-                            <EmailVerificationIcon
-                                icon="issue"
-                                color={Colors.GRAY3}
-                            />
+                            <Box p={6}>
+                                <Icon icon="issue" color={Colors.GRAY3} />
+                            </Box>
                         ) : undefined
                     }
                 />
                 {isEmailServerConfigured && !data?.isVerified ? (
-                    <EmailVerificationCTA>
+                    <Text color="dimmed" mt="sm">
                         This email has not been verified.{' '}
-                        <EmailVerificationCTALink
+                        <Anchor
+                            component="span"
                             onClick={() => {
                                 if (!data?.otp) {
                                     sendVerificationEmail();
@@ -198,14 +197,15 @@ const ProfilePanel: FC = () => {
                                 setShowVerifyEmailModal(true);
                             }}
                         >
-                            Click here to verify it.
-                        </EmailVerificationCTALink>
-                    </EmailVerificationCTA>
-                ) : (
-                    <></>
-                )}
+                            Click here to verify it
+                        </Anchor>
+                        .
+                    </Text>
+                ) : null}
             </FormGroup>
+
             <div style={{ flex: 1 }} />
+
             <Button
                 style={{ alignSelf: 'flex-end', marginTop: 20 }}
                 intent={Intent.PRIMARY}

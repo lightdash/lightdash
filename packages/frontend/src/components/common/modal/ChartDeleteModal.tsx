@@ -5,6 +5,7 @@ import {
     DialogFooter,
     DialogProps,
 } from '@blueprintjs/core';
+import { Anchor } from '@mantine/core';
 import { FC } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useDashboardsContainingChart } from '../../../hooks/dashboard/useDashboards';
@@ -63,12 +64,13 @@ const ChartDeleteModal: FC<ChartDeleteModalProps> = ({
                         <ul>
                             {relatedDashboards.map((dashboard) => (
                                 <li key={dashboard.uuid}>
-                                    <Link
+                                    <Anchor
+                                        component={Link}
                                         target="_blank"
                                         to={`/projects/${projectUuid}/dashboards/${dashboard.uuid}`}
                                     >
                                         {dashboard.name}
-                                    </Link>
+                                    </Anchor>
                                 </li>
                             ))}
                         </ul>

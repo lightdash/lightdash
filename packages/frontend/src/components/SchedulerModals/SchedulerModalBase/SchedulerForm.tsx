@@ -9,6 +9,7 @@ import {
 } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import { CreateSchedulerAndTargetsWithoutIds } from '@lightdash/common';
+import { Anchor } from '@mantine/core';
 import React, { FC, useEffect, useMemo, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import useHealth from '../../../hooks/health/useHealth';
@@ -69,10 +70,10 @@ const SlackErrorContent: FC<{ slackState: SlackStates }> = ({
                 <p>No Slack integration found</p>
                 <p>
                     To create a slack scheduled delivery, you need to
-                    <a href="https://docs.lightdash.com/self-host/customize-deployment/configure-a-slack-app-for-lightdash">
+                    <Anchor href="https://docs.lightdash.com/self-host/customize-deployment/configure-a-slack-app-for-lightdash">
                         {' '}
                         setup Slack{' '}
-                    </a>
+                    </Anchor>
                     for your Lightdash instance
                 </p>
             </>
@@ -83,10 +84,10 @@ const SlackErrorContent: FC<{ slackState: SlackStates }> = ({
                 <p>Slack integration needs to be reinstalled</p>
                 <p>
                     To create a slack scheduled delivery, you need to
-                    <a href="/generalSettings/integrations/slack">
+                    <Anchor href="/generalSettings/integrations/slack">
                         {' '}
                         reinstall the Slack integration{' '}
-                    </a>
+                    </Anchor>
                     for your organization
                 </p>
             </>
@@ -287,10 +288,10 @@ const SchedulerForm: FC<{
                                 content={
                                     <p>
                                         You must enable the
-                                        <a href="https://docs.lightdash.com/self-host/customize-deployment/enable-headless-browser-for-lightdash">
+                                        <Anchor href="https://docs.lightdash.com/self-host/customize-deployment/enable-headless-browser-for-lightdash">
                                             {' '}
                                             headless browser{' '}
-                                        </a>
+                                        </Anchor>
                                         for sending images.
                                     </p>
                                 }
@@ -446,11 +447,11 @@ const SchedulerForm: FC<{
                                                 <p>
                                                     To create an email scheduled
                                                     delivery, you need to add
-                                                    <a href="https://docs.lightdash.com/references/environmentVariables">
+                                                    <Anchor href="https://docs.lightdash.com/references/environmentVariables">
                                                         {' '}
                                                         SMTP environment
                                                         variables{' '}
-                                                    </a>
+                                                    </Anchor>
                                                     for your Lightdash instance
                                                 </p>
                                             </>

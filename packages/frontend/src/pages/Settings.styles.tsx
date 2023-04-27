@@ -2,7 +2,7 @@ import { Card, H5 } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
 
 const Layout = css`
-    width: 800px;
+    width: 900px;
     margin: auto;
 `;
 

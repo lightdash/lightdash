@@ -1,4 +1,5 @@
 import { subject } from '@casl/ability';
+import { Anchor } from '@mantine/core';
 import { FC, useState } from 'react';
 import { Subtitle, SubtitleWrapper } from '../../pages/ProjectSettings.styles';
 import { useApp } from '../../providers/AppProvider';
@@ -30,14 +31,14 @@ const ProjectUserAccess: FC<ProjectUserAccessProps> = ({ projectUuid }) => {
                     <SubtitleWrapper>
                         <Subtitle>
                             Learn more about permissions in our{' '}
-                            <a
+                            <Anchor
                                 role="button"
                                 href="https://docs.lightdash.com/references/roles"
                                 target="_blank"
                                 rel="noreferrer"
                             >
                                 docs
-                            </a>
+                            </Anchor>
                         </Subtitle>
                         {!showProjectAccessCreate && (
                             <Can
