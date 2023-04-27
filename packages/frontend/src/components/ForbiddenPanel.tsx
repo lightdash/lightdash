@@ -1,4 +1,5 @@
 import { NonIdealState } from '@blueprintjs/core';
+import { Anchor } from '@mantine/core';
 import { FC } from 'react';
 import { Link } from 'react-router-dom';
 import styled from 'styled-components';
@@ -23,9 +24,12 @@ const ForbiddenPanel: FC<{ subject?: string }> = ({ subject }) => {
                             {(isAllowed) => {
                                 return (
                                     isAllowed && (
-                                        <Link to="/createProject">
+                                        <Anchor
+                                            component={Link}
+                                            to="/createProject"
+                                        >
                                             Or create a new project.
-                                        </Link>
+                                        </Anchor>
                                     )
                                 );
                             }}

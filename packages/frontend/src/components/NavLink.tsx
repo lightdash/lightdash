@@ -1,3 +1,4 @@
+import { Anchor } from '@mantine/core';
 import React, { CSSProperties, FC } from 'react';
 import { Link, Route } from 'react-router-dom';
 
@@ -16,7 +17,7 @@ const NavLink: FC<Props> = ({ to, style, exact, children }) => (
             const isActive = match?.isExact;
 
             return (
-                <Link to={to} style={style}>
+                <Anchor component={Link} to={to} style={style}>
                     {typeof children === 'function'
                         ? children(isActive)
                         : React.Children.map(children, (child) => {
@@ -30,7 +31,7 @@ const NavLink: FC<Props> = ({ to, style, exact, children }) => (
                               }
                               return child;
                           })}
-                </Link>
+                </Anchor>
             );
         }}
     />

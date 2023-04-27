@@ -10,7 +10,7 @@ import {
     Select,
 } from '@mantine/core';
 import { memo } from 'react';
-import { useHistory } from 'react-router-dom';
+import { Link, useHistory } from 'react-router-dom';
 
 import useToaster from '../../hooks/toaster/useToaster';
 import { useActiveProjectUuid } from '../../hooks/useProject';
@@ -59,11 +59,14 @@ const NavBar = memo(() => {
             >
                 {/* Header content */}
                 <Group align="center" sx={{ flexShrink: 0 }}>
-                    <NavLink to={homeUrl}>
-                        <ActionIcon title="Home" size="lg">
-                            <Logo />
-                        </ActionIcon>
-                    </NavLink>
+                    <ActionIcon
+                        component={Link}
+                        to={homeUrl}
+                        title="Home"
+                        size="lg"
+                    >
+                        <Logo />
+                    </ActionIcon>
 
                     {!!activeProjectUuid && (
                         <>

@@ -38,24 +38,24 @@ const HelpMenu: FC = () => {
                 />
 
                 <LargeMenuItem
-                    // href="https://docs.lightdash.com/"
-                    // target="_blank"
+                    href="https://docs.lightdash.com/"
+                    target="_blank"
                     title="View Docs"
                     description="Learn how to deploy, use, contribute to Lightdash."
                     icon={IconBook}
                 />
 
                 <LargeMenuItem
-                    // href="https://join.slack.com/t/lightdash-community/shared_invite/zt-16q953ork-NZr1qdEqxSwB17E2ckUe7A"
-                    // target="_blank"
+                    href="https://join.slack.com/t/lightdash-community/shared_invite/zt-16q953ork-NZr1qdEqxSwB17E2ckUe7A"
+                    target="_blank"
                     title="Join Slack community"
                     description="Get advice share best practices with other users."
                     icon={IconUsers}
                 />
 
                 <LargeMenuItem
-                    // href="https://github.com/lightdash/lightdash/issues/new/choose"
-                    // target="_blank"
+                    href="https://github.com/lightdash/lightdash/issues/new/choose"
+                    target="_blank"
                     title="Feedback on Lightdash"
                     description="Submit a feature request or bug report to improve Lightdash."
                     icon={IconMessageCircle2}

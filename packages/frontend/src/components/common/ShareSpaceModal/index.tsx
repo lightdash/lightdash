@@ -90,11 +90,12 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                     sessionUser.data?.ability?.can('create', 'InviteLink') ? (
                         <>
                             Can’t find a user? Spaces can only be shared with{' '}
-                            <Link
+                            <Anchor
+                                component={Link}
                                 to={`/generalSettings/projectManagement/${projectUuid}/projectAccess`}
                             >
                                 existing project members
-                            </Link>
+                            </Anchor>
                             .
                         </>
                     ) : (
