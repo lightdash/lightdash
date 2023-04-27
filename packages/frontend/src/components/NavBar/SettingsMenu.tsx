@@ -47,7 +47,7 @@ const SettingsMenu: FC = () => {
             offset={-2}
         >
             <Menu.Target>
-                <Button variant="default" size="xs">
+                <Button variant="default" size="xs" data-testid="settings-menu">
                     <MantineIcon icon={IconSettings} />
                 </Button>
             </Menu.Target>
