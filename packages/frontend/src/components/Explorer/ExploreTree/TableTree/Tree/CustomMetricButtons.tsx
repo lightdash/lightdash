@@ -1,10 +1,13 @@
-import { Button, Menu, PopoverPosition } from '@blueprintjs/core';
-import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
+import { Menu, PopoverPosition } from '@blueprintjs/core';
+import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { AdditionalMetric, fieldId } from '@lightdash/common';
-import React, { FC, ReactNode, useMemo } from 'react';
+import { ActionIcon, Tooltip } from '@mantine/core';
+import { IconDots } from '@tabler/icons-react';
+import { FC, ReactNode, useMemo } from 'react';
 import { useExplorerContext } from '../../../../../providers/ExplorerProvider';
 import { useTracking } from '../../../../../providers/TrackingProvider';
 import { EventName } from '../../../../../types/Events';
+import MantineIcon from '../../../../common/MantineIcon';
 import { ItemOptions } from '../TableTree.styles';
 
 const CustomMetricButtons: FC<{
@@ -45,18 +48,18 @@ const CustomMetricButtons: FC<{
                     lazy
                     interactionKind="click"
                     renderTarget={({ isOpen, ref, ...targetProps }) => (
-                        <Tooltip2 content="View options">
-                            <Button
+                        <Tooltip label="View options">
+                            <ActionIcon
                                 {...targetProps}
-                                elementRef={ref === null ? undefined : ref}
-                                icon="more"
-                                minimal
+                                ref={ref}
                                 onClick={(e) => {
                                     (targetProps as any).onClick(e);
                                     e.stopPropagation();
                                 }}
-                            />
-                        </Tooltip2>
+                            >
+                                <MantineIcon icon={IconDots} />
+                            </ActionIcon>
+                        </Tooltip>
                     )}
                 />
             )}

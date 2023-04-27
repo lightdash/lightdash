@@ -41,10 +41,7 @@ const sortNodes =
         }
     };
 
-const TreeNodes: FC<{ nodeMap: NodeMap; depth: number }> = ({
-    nodeMap,
-    depth,
-}) => {
+const TreeNodes: FC<{ nodeMap: NodeMap }> = ({ nodeMap }) => {
     const { itemsMap, orderFieldsBy } = useTableTreeContext();
     const sortedItems = useMemo(() => {
         return Object.values(nodeMap).sort(
@@ -56,9 +53,9 @@ const TreeNodes: FC<{ nodeMap: NodeMap; depth: number }> = ({
         <div>
             {sortedItems.map((node) =>
                 isGroupNode(node) ? (
-                    <TreeGroupNode key={node.key} node={node} depth={depth} />
+                    <TreeGroupNode key={node.key} node={node} />
                 ) : (
-                    <TreeSingleNode key={node.key} node={node} depth={depth} />
+                    <TreeSingleNode key={node.key} node={node} />
                 ),
             )}
         </div>

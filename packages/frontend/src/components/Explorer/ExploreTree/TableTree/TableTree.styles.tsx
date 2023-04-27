@@ -18,12 +18,10 @@ export const WarningIcon = styled(Icon)`
 `;
 
 export const Row = styled.div<{
-    depth: number;
     selected?: boolean;
     bgColor?: string;
     onClick?: () => void;
 }>`
-    padding-left: ${({ depth }) => depth * 24}px;
     padding-right: 10px;
     height: 30px;
     display: flex;
@@ -53,24 +51,6 @@ export const TableRow = styled(Row)`
 
 export const RowIcon = styled(Icon)`
     margin-right: 8px;
-`;
-
-export const DimensionsSectionRow = styled(Row)`
-    font-weight: 600;
-    color: ${Colors.BLUE1};
-`;
-
-export const MetricsSectionRow = styled(Row)`
-    font-weight: 600;
-    color: ${Colors.ORANGE1};
-    margin-top: 10px;
-`;
-
-export const CustomMetricsSectionRow = styled(Row)`
-    font-weight: 600;
-    color: ${Colors.ORANGE1};
-    margin-top: 10px;
-    margin-bottom: 10px;
 `;
 
 export const TagCount = styled(Tag)`

@@ -1,10 +1,9 @@
-import { Collapse, Intent, Tag, Text } from '@blueprintjs/core';
+import { Intent, Tag } from '@blueprintjs/core';
 import { hasIntersection } from '@lightdash/common';
-import { Highlight } from '@mantine/core';
+import { Group, Highlight, NavLink, Text } from '@mantine/core';
 import intersectionBy from 'lodash-es/intersectionBy';
 import { FC } from 'react';
 import { useToggle } from 'react-use';
-import { Row, RowIcon } from '../TableTree.styles';
 import TreeNodes from './TreeNodes';
 import { GroupNode, Node, useTableTreeContext } from './TreeProvider';
 
@@ -15,13 +14,15 @@ const getAllChildrenKeys = (nodes: Node[]): string[] => {
     });
 };
 
-const TreeGroupNode: FC<{ node: GroupNode; depth: number }> = ({
-    node,
-    depth,
-}) => {
+type Props = {
+    node: GroupNode;
+};
+
+const TreeGroupNode: FC<Props> = ({ node }) => {
     const { selectedItems, isSearching, searchQuery, searchResults } =
         useTableTreeContext();
-    const [isOpen, toggle] = useToggle(false);
+    const [isOpen, toggleOpen] = useToggle(false);
+
     const allChildrenKeys: string[] = getAllChildrenKeys([node]);
     const hasSelectedChildren = hasIntersection(
         allChildrenKeys,
@@ -41,35 +42,34 @@ const TreeGroupNode: FC<{ node: GroupNode; depth: number }> = ({
     }
 
     return (
-        <>
-            <Row depth={depth} onClick={toggle}>
-                <RowIcon
-                    icon={
-                        isOpen || forceOpen ? 'chevron-down' : 'chevron-right'
-                    }
-                    size={16}
-                />
-                <Text ellipsize>
-                    <Highlight highlight={searchQuery || ''}>
+        <NavLink
+            opened={forceOpen || isOpen}
+            onClick={toggleOpen}
+            label={
+                <Group>
+                    <Highlight
+                        component={Text}
+                        truncate
+                        highlight={searchQuery || ''}
+                    >
                         {node.label}
                     </Highlight>
-                </Text>
-                {!isOpen && hasSelectedChildren && (
-                    <Tag
-                        round
-                        minimal
-                        intent={Intent.PRIMARY}
-                        style={{ marginLeft: '10px' }}
-                    >
-                        {selectedChildrenCount}
-                    </Tag>
-                )}
-            </Row>
 
-            <Collapse isOpen={isOpen || forceOpen}>
-                <TreeNodes nodeMap={node.children} depth={depth + 1} />
-            </Collapse>
-        </>
+                    {!isOpen && hasSelectedChildren && (
+                        <Tag
+                            round
+                            minimal
+                            intent={Intent.PRIMARY}
+                            style={{ marginLeft: '10px' }}
+                        >
+                            {selectedChildrenCount}
+                        </Tag>
+                    )}
+                </Group>
+            }
+        >
+            <TreeNodes nodeMap={node.children} />
+        </NavLink>
     );
 };
 

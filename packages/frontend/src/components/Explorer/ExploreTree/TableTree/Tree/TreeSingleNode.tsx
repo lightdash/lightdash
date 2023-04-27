@@ -1,4 +1,4 @@
-import { Classes, Colors, Text } from '@blueprintjs/core';
+import { Classes, Colors } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import {
     DimensionType,
@@ -8,7 +8,7 @@ import {
     MetricType,
     timeFrameConfigs,
 } from '@lightdash/common';
-import { Highlight } from '@mantine/core';
+import { Highlight, NavLink, Text, Tooltip } from '@mantine/core';
 import { FC } from 'react';
 import { useToggle } from 'react-use';
 import { getItemBgColor } from '../../../../../hooks/useColumns';
@@ -35,7 +35,7 @@ export const getItemIconName = (type: DimensionType | MetricType) => {
     }
 };
 
-const TreeSingleNode: FC<{ node: Node; depth: number }> = ({ node, depth }) => {
+const TreeSingleNode: FC<{ node: Node }> = ({ node }) => {
     const [isHover, toggle] = useToggle(false);
     const {
         itemsMap,
@@ -61,48 +61,50 @@ const TreeSingleNode: FC<{ node: Node; depth: number }> = ({ node, depth }) => {
             : undefined;
     const label: string = timeIntervalLabel || item.label || item.name;
     return (
-        <Row
-            depth={depth}
-            selected={isSelected}
-            bgColor={getItemBgColor(item)}
+        <NavLink
+            active={isSelected}
+            // TODO: check if I can support this...
+            // bgColor={getItemBgColor(item)}
+            icon={
+                <FieldIcon
+                    item={item}
+                    color={isDimension(item) ? Colors.BLUE1 : Colors.ORANGE1}
+                    size={16}
+                />
+            }
             onClick={() => onItemClick(node.key, item)}
             onMouseEnter={() => toggle(true)}
             onMouseLeave={() => toggle(false)}
-        >
-            <FieldIcon
-                item={item}
-                color={isDimension(item) ? Colors.BLUE1 : Colors.ORANGE1}
-                size={16}
-                style={{ marginRight: '8px' }}
-            />
-
-            <Tooltip2
-                lazy
-                content={item.description}
-                className={Classes.TEXT_OVERFLOW_ELLIPSIS}
-            >
-                <Text ellipsize>
-                    <Highlight highlight={searchQuery || ''}>{label}</Highlight>
-                </Text>
-            </Tooltip2>
-
-            <SpanFlex />
-
-            {isAdditionalMetric(item) ? (
-                <CustomMetricButtons
-                    node={item}
-                    isHovered={isHover}
-                    isSelected={isSelected}
-                />
-            ) : (
-                <FieldButtons
-                    node={item}
-                    onOpenSourceDialog={() => undefined}
-                    isHovered={isHover}
-                    isSelected={isSelected}
-                />
-            )}
-        </Row>
+            label={
+                <Tooltip
+                    withArrow
+                    label={item.description}
+                    position="top-start"
+                    // TODO: fix this...
+                    // className={Classes.TEXT_OVERFLOW_ELLIPSIS}
+                >
+                    <Highlight component={Text} highlight={searchQuery || ''}>
+                        {label}
+                    </Highlight>
+                </Tooltip>
+            }
+            rightSection={
+                isAdditionalMetric(item) ? (
+                    <CustomMetricButtons
+                        node={item}
+                        isHovered={isHover}
+                        isSelected={isSelected}
+                    />
+                ) : (
+                    <FieldButtons
+                        node={item}
+                        onOpenSourceDialog={() => undefined}
+                        isHovered={isHover}
+                        isSelected={isSelected}
+                    />
+                )
+            }
+        ></NavLink>
     );
 };
 
