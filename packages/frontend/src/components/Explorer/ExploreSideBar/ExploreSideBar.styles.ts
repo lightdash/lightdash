@@ -1,4 +1,4 @@
-import { Menu, Switch } from '@blueprintjs/core';
+import { Switch } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const FormField = styled.div`
@@ -7,12 +7,6 @@ export const FormField = styled.div`
 
 export const SwitchFilter = styled(Switch)`
     width: fit-content;
-`;
-
-export const MenuWrapper = styled(Menu)`
-    flex: 1;
-    overflow: auto;
-    padding: 0;
 `;
 
 export const FooterWrapper = styled.div`

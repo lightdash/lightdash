@@ -4,7 +4,7 @@ import {
     useMantineTheme,
 } from '@mantine/core';
 import { TablerIconsProps } from '@tabler/icons-react';
-import { FC } from 'react';
+import { forwardRef } from 'react';
 
 export interface MantineIconProps extends TablerIconsProps {
     icon: (props: TablerIconsProps) => JSX.Element;
@@ -14,25 +14,20 @@ export interface MantineIconProps extends TablerIconsProps {
     fill?: MantineColor;
 }
 
-const MantineIcon: FC<MantineIconProps> = ({
-    icon: TablerIcon,
-    size = 'md',
-    stroke,
-    color,
-    fill,
-    ...rest
-}) => {
-    const theme = useMantineTheme();
+const MantineIcon = forwardRef<SVGSVGElement, MantineIconProps>(
+    ({ icon: TablerIcon, size = 'md', stroke, color, fill, ...rest }, ref) => {
+        const theme = useMantineTheme();
 
-    const mantineOverridedProps = {
-        size: typeof size === 'string' ? theme.spacing[size] : size,
-        stroke: typeof stroke === 'string' ? theme.spacing[stroke] : stroke,
-        color: color ? theme.fn.themeColor(color) : undefined,
-        fill: fill ? theme.fn.themeColor(fill) : 'none',
-        display: 'block',
-    };
+        const mantineOverridedProps = {
+            size: typeof size === 'string' ? theme.spacing[size] : size,
+            stroke: typeof stroke === 'string' ? theme.spacing[stroke] : stroke,
+            color: color ? theme.fn.themeColor(color) : undefined,
+            fill: fill ? theme.fn.themeColor(fill) : 'none',
+            display: 'block',
+        };
 
-    return <TablerIcon {...mantineOverridedProps} {...rest} />;
-};
+        return <TablerIcon ref={ref} {...mantineOverridedProps} {...rest} />;
+    },
+);
 
 export default MantineIcon;
