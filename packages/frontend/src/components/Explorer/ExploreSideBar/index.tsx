@@ -126,19 +126,24 @@ const ExploreSideBar = memo(() => {
     const tableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
-    const clear = useExplorerContext((context) => context.actions.clear);
+
+    const clearExplore = useExplorerContext((context) => context.actions.clear);
     const history = useHistory();
 
-    const onBack = useCallback(() => {
-        clear();
+    const handleBack = useCallback(() => {
+        clearExplore();
         history.push(`/projects/${projectUuid}/tables`);
-    }, [clear, history, projectUuid]);
+    }, [clearExplore, history, projectUuid]);
 
     return (
         <TrackSection name={SectionName.SIDEBAR}>
-            <Flex h="100%" direction="column">
-                {!tableName ? <BasePanel /> : <ExplorePanel onBack={onBack} />}
-            </Flex>
+            <Stack h="100%" sx={{ flexDirection: 'column' }}>
+                {!tableName ? (
+                    <BasePanel />
+                ) : (
+                    <ExplorePanel onBack={handleBack} />
+                )}
+            </Stack>
         </TrackSection>
     );
 });

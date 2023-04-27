@@ -67,24 +67,17 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                           ]
                         : []),
                     {
-                        title: (
-                            <Tooltip
-                                withArrow
-                                withinPortal
-                                disabled={
-                                    !data.tables[data.baseTable].description
-                                }
-                                label={data.tables[data.baseTable].description}
-                            >
-                                <Text component="span">{data.label}</Text>
-                            </Tooltip>
-                        ),
+                        title: data.label,
                         active: true,
+                        tooltipProps: {
+                            withArrow: true,
+                            withinPortal: true,
+                            disabled: !data.tables[data.baseTable].description,
+                            label: data.tables[data.baseTable].description,
+                        },
                     },
                 ]}
             />
-
-            <SidebarDivider />
 
             <ExploreTree
                 explore={data}
