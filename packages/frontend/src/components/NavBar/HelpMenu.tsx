@@ -1,4 +1,4 @@
-import { ActionIcon, Menu } from '@mantine/core';
+import { Button, Menu } from '@mantine/core';
 import {
     IconBook,
     IconHelp,
@@ -68,9 +68,9 @@ const HelpMenu: FC = () => {
             offset={-2}
         >
             <Menu.Target>
-                <ActionIcon color="gray" variant="light">
+                <Button variant="default" compact>
                     <MantineIcon icon={IconHelp} />
-                </ActionIcon>
+                </Button>
             </Menu.Target>
 
             <Menu.Dropdown>

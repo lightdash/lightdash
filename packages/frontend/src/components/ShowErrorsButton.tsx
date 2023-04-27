@@ -17,8 +17,7 @@ export const ShowErrorsButton: React.FC<Props> = ({
 
     return unreadLogs.length === 0 ? (
         <Button
-            color="gray"
-            variant="light"
+            variant="default"
             size="xs"
             fz="sm"
             leftIcon={<MantineIcon icon={IconTerminal2} />}
@@ -28,8 +27,7 @@ export const ShowErrorsButton: React.FC<Props> = ({
         </Button>
     ) : (
         <Button
-            color="gray"
-            variant="light"
+            variant="default"
             size="xs"
             fz="sm"
             leftIcon={<MantineIcon icon={IconExclamationCircle} />}

@@ -6,7 +6,7 @@ import {
 } from '@tabler/icons-react';
 import { FC } from 'react';
 
-import { ActionIcon, Menu } from '@mantine/core';
+import { Button, Menu } from '@mantine/core';
 import { Link } from 'react-router-dom';
 import { useActiveProjectUuid } from '../../hooks/useProject';
 import { useApp } from '../../providers/AppProvider';
@@ -47,9 +47,9 @@ const SettingsMenu: FC = () => {
             offset={-2}
         >
             <Menu.Target>
-                <ActionIcon color="gray" variant="light">
+                <Button variant="default" compact>
                     <MantineIcon icon={IconSettings} />
-                </ActionIcon>
+                </Button>
             </Menu.Target>
 
             <Menu.Dropdown>

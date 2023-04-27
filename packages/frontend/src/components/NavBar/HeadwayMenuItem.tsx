@@ -1,14 +1,11 @@
-import { ActionIcon, Box } from '@mantine/core';
+import { Box, Button } from '@mantine/core';
 import { IconBell } from '@tabler/icons-react';
 import MantineIcon from '../common/MantineIcon';
 
 const HeadwayMenuItem = () => {
     return (
-        <Box pos="relative">
-            <ActionIcon color="gray" variant="light">
-                <MantineIcon icon={IconBell} />
-            </ActionIcon>
-
+        <Button variant="default" compact pos="relative">
+            <MantineIcon icon={IconBell} />
             <Box
                 id="headway-badge"
                 pos="absolute"
@@ -20,7 +17,7 @@ const HeadwayMenuItem = () => {
                     },
                 }}
             />
-        </Box>
+        </Button>
     );
 };
 

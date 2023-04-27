@@ -47,8 +47,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                 >
                     <Menu.Target>
                         <Button
-                            color="gray"
-                            variant="light"
+                            variant="default"
                             size="xs"
                             fz="sm"
                             leftIcon={

@@ -19,6 +19,7 @@ export const UserAvatar = forwardRef<HTMLDivElement, AvatarProps>(
                 radius="xl"
                 color="gray.8"
                 bg="gray.3"
+                sx={{ cursor: 'pointer' }}
                 {...props}
             >
                 {initials}

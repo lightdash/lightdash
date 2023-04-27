@@ -1,6 +1,6 @@
 import { Card, Colors } from '@blueprintjs/core';
 import styled from 'styled-components';
-import { NAVBAR_HEIGHT } from '../../NavBar/NavBar.styles';
+import { NAVBAR_HEIGHT } from '../../NavBar';
 import { PAGE_HEADER_HEIGHT } from '../PageHeader';
 
 interface PageWithSidebarProps {

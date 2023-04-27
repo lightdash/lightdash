@@ -29,8 +29,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
         >
             <Menu.Target>
                 <Button
-                    color="gray"
-                    variant="light"
+                    variant="default"
                     size="xs"
                     fz="sm"
                     leftIcon={
