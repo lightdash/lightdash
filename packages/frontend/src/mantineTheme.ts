@@ -115,18 +115,6 @@ export const getMantineThemeOverride = (overrides?: {
             fontWeight: 600,
         },
 
-        // FIXME: remove this after we before we merge this branch
-        // a: {
-        //     cursor: 'pointer',
-        //     color: Colors.BLUE2,
-        //     textDecoration: 'none',
-
-        //     ':hover': {
-        //         color: Colors.BLUE2,
-        //         textDecoration: 'underline',
-        //     },
-        // },
-
         ':focus': {
             outline: 'rgba(45, 114, 210, 0.6) solid 2px',
             outlineOffset: '2px',
