@@ -13,6 +13,7 @@ export const UserAvatar = forwardRef<HTMLDivElement, AvatarProps>(
 
         return (
             <Avatar
+                data-testid="user-avatar"
                 ref={ref}
                 variant="light"
                 size={theme.spacing.xxl}
