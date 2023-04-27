@@ -13,7 +13,7 @@ export const Description = styled.p`
 `;
 
 const Layout = css`
-    width: 800px;
+    width: 900px;
     margin: auto;
 `;
 

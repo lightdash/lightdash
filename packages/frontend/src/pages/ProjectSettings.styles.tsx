@@ -3,7 +3,7 @@ import styled from 'styled-components';
 import { BigButton } from '../components/common/BigButton';
 
 export const ContentContainer = styled.div`
-    width: 800px;
+    width: 900px;
     margin: 0 auto;
 `;
 

@@ -10,7 +10,7 @@ export const CreateProjectWrapper = styled.div`
 `;
 
 export const CreateHeaderWrapper = styled.div`
-    width: 800px;
+    width: 900px;
     margin: 40px auto 0;
 `;
 
