@@ -1,4 +1,3 @@
-import { Button, InputGroup, NonIdealState } from '@blueprintjs/core';
 import {
     AdditionalMetric,
     CompiledTable,
@@ -7,8 +6,10 @@ import {
     getItemId,
     Metric,
 } from '@lightdash/common';
-import { FC, useState } from 'react';
-import { FormField } from '../ExploreSideBar/ExploreSideBar.styles';
+import { ActionIcon, Box, Center, Stack, Text, TextInput } from '@mantine/core';
+import { IconSearch, IconX } from '@tabler/icons-react';
+import { FC, useCallback, useMemo, useState } from 'react';
+import MantineIcon from '../../common/MantineIcon';
 import NewTableTree from './TableTree';
 import { getSearchResults } from './TableTree/Tree/TreeProvider';
 
@@ -19,6 +20,8 @@ type ExploreTreeProps = {
     selectedNodes: Set<string>;
 };
 
+type Records = Record<string, AdditionalMetric | Dimension | Metric>;
+
 const ExploreTree: FC<ExploreTreeProps> = ({
     explore,
     additionalMetrics,
@@ -26,70 +29,72 @@ const ExploreTree: FC<ExploreTreeProps> = ({
     onSelectedFieldChange,
 }) => {
     const [search, setSearch] = useState<string>('');
-
     const isSearching = !!search && search !== '';
-    const searchHasResults = (table: CompiledTable) => {
-        const allValues = Object.values({
-            ...table.dimensions,
-            ...table.metrics,
-        });
-        const allFields = [...allValues, ...additionalMetrics].reduce<
-            Record<string, AdditionalMetric | Dimension | Metric>
-        >((acc, item) => ({ ...acc, [getItemId(item)]: item }), {});
 
-        return getSearchResults(allFields, search).size > 0;
-    };
+    const searchHasResults = useCallback(
+        (table: CompiledTable) => {
+            const allValues = Object.values({
+                ...table.dimensions,
+                ...table.metrics,
+            });
+            const allFields = [
+                ...allValues,
+                ...additionalMetrics,
+            ].reduce<Records>((acc, item) => {
+                return { ...acc, [getItemId(item)]: item };
+            }, {});
 
-    const tableTrees = Object.values(explore.tables)
-        .sort((tableA) => (tableA.name === explore.baseTable ? -1 : 1))
-        .filter((table) => !(isSearching && !searchHasResults(table)))
-        .map((table) => (
-            <NewTableTree
-                key={table.name}
-                searchQuery={search}
-                showTableLabel={Object.keys(explore.tables).length > 1}
-                table={table}
-                additionalMetrics={additionalMetrics?.filter(
-                    (metric) => metric.table === table.name,
-                )}
-                selectedItems={selectedNodes}
-                onSelectedNodeChange={onSelectedFieldChange}
-            />
-        ));
+            return getSearchResults(allFields, search).size > 0;
+        },
+        [additionalMetrics, search],
+    );
+
+    const tableTrees = useMemo(() => {
+        return Object.values(explore.tables)
+            .sort((tableA) => (tableA.name === explore.baseTable ? -1 : 1))
+            .filter((table) => !(isSearching && !searchHasResults(table)));
+    }, [explore, searchHasResults, isSearching]);
 
     return (
-        <div
-            style={{
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                overflow: 'hidden',
-            }}
-        >
-            <FormField>
-                <InputGroup
-                    leftIcon="search"
-                    rightElement={
-                        <Button
-                            minimal
-                            icon="cross"
-                            onClick={() => setSearch('')}
-                        />
-                    }
-                    placeholder="Search metrics + dimensions"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                />
-            </FormField>
+        <Stack h="100%" sx={{ overflow: 'hidden' }}>
+            <TextInput
+                icon={<MantineIcon icon={IconSearch} />}
+                rightSection={
+                    search ? (
+                        <ActionIcon onClick={() => setSearch('')}>
+                            <MantineIcon icon={IconX} />
+                        </ActionIcon>
+                    ) : null
+                }
+                placeholder="Search metrics + dimensions"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+            />
 
-            <div style={{ overflowY: 'auto' }}>
+            <Box style={{ overflowY: 'auto' }}>
                 {tableTrees.length > 0 ? (
-                    tableTrees
+                    tableTrees.map((table) => (
+                        <NewTableTree
+                            key={table.name}
+                            searchQuery={search}
+                            showTableLabel={
+                                Object.keys(explore.tables).length > 1
+                            }
+                            table={table}
+                            additionalMetrics={additionalMetrics?.filter(
+                                (metric) => metric.table === table.name,
+                            )}
+                            selectedItems={selectedNodes}
+                            onSelectedNodeChange={onSelectedFieldChange}
+                        />
+                    ))
                 ) : (
-                    <NonIdealState>No fields found</NonIdealState>
+                    <Center>
+                        <Text color="dimmed">No fields found...</Text>
+                    </Center>
                 )}
-            </div>
-        </div>
+            </Box>
+        </Stack>
     );
 };
 

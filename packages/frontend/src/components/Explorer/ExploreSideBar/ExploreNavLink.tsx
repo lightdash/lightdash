@@ -2,7 +2,6 @@ import { InlineErrorType, SummaryExplore } from '@lightdash/common';
 import { Anchor, Box, Highlight, NavLink, Tooltip } from '@mantine/core';
 import {
     IconAlertTriangle,
-    IconExclamationMark,
     IconInfoCircle,
     IconTable,
 } from '@tabler/icons-react';

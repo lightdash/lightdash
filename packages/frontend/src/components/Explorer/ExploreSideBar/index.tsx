@@ -1,5 +1,5 @@
 import { NonIdealState } from '@blueprintjs/core';
-import { ActionIcon, Skeleton, Stack, TextInput } from '@mantine/core';
+import { ActionIcon, Flex, Skeleton, Stack, TextInput } from '@mantine/core';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
 import { memo, useCallback, useMemo, useState } from 'react';
@@ -15,7 +15,6 @@ import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import { ShowErrorsButton } from '../../ShowErrorsButton';
 import ExplorePanel from '../ExplorePanel';
 import ExploreNavLink from './ExploreNavLink';
-import { FooterWrapper } from './ExploreSideBar.styles';
 
 const SideBarLoadingState = () => (
     <Stack>
@@ -137,9 +136,9 @@ const ExploreSideBar = memo(() => {
 
     return (
         <TrackSection name={SectionName.SIDEBAR}>
-            <FooterWrapper>
+            <Flex h="100%" direction="column">
                 {!tableName ? <BasePanel /> : <ExplorePanel onBack={onBack} />}
-            </FooterWrapper>
+            </Flex>
         </TrackSection>
     );
 });
