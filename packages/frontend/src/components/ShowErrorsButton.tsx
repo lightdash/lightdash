@@ -1,39 +1,41 @@
-import { Button } from '@blueprintjs/core';
+import { IconExclamationCircle, IconTerminal2 } from '@tabler/icons-react';
 import React from 'react';
-import styled from 'styled-components';
+
+import { Button } from '@mantine/core';
 import { ErrorLogs } from '../providers/ErrorLogsProvider';
+import MantineIcon from './common/MantineIcon';
 
-const ErrorsButton = styled(Button)`
-    margin-right: 20px;
-    white-space: nowrap;
-    min-width: auto;
-`;
+type Props = Pick<ErrorLogs, 'errorLogs' | 'setErrorLogsVisible'>;
 
-export const ShowErrorsButton: React.FC<
-    Pick<ErrorLogs, 'errorLogs' | 'setErrorLogsVisible'>
-> = ({ errorLogs, setErrorLogsVisible }) => {
-    if (errorLogs.length === 0) {
-        return null;
-    }
+export const ShowErrorsButton: React.FC<Props> = ({
+    errorLogs,
+    setErrorLogsVisible,
+}) => {
+    if (errorLogs.length === 0) return null;
+
     const unreadLogs = errorLogs.filter((log) => log.isUnread);
-    if (unreadLogs.length === 0) {
-        return (
-            <ErrorsButton
-                minimal
-                icon="application"
-                text="Show error logs"
-                onClick={() => setErrorLogsVisible(true)}
-            />
-        );
-    }
-    return (
-        <ErrorsButton
-            minimal
-            icon="error"
-            text={`${unreadLogs.length} ${
-                unreadLogs.length === 1 ? 'error' : 'errors'
-            }`}
+
+    return unreadLogs.length === 0 ? (
+        <Button
+            color="gray"
+            variant="light"
+            size="xs"
+            fz="sm"
+            leftIcon={<MantineIcon icon={IconTerminal2} />}
             onClick={() => setErrorLogsVisible(true)}
-        />
+        >
+            Show error logs
+        </Button>
+    ) : (
+        <Button
+            color="gray"
+            variant="light"
+            size="xs"
+            fz="sm"
+            leftIcon={<MantineIcon icon={IconExclamationCircle} />}
+            onClick={() => setErrorLogsVisible(true)}
+        >
+            {unreadLogs.length} {unreadLogs.length === 1 ? 'error' : 'errors'}
+        </Button>
     );
 };
