@@ -94,7 +94,7 @@ const NavBar = memo(() => {
 
                     <Button.Group>
                         <SettingsMenu />
-                        <HeadwayMenuItem />
+                        <HeadwayMenuItem projectUuid={activeProjectUuid} />
                         <HelpMenu />
                     </Button.Group>
 

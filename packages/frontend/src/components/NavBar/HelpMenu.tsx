@@ -6,58 +6,14 @@ import {
     IconMessages,
     IconUsers,
 } from '@tabler/icons-react';
-import { FC, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { FC } from 'react';
 import { useIntercom } from 'react-use-intercom';
 
-import { useApp } from '../../providers/AppProvider';
-import { useTracking } from '../../providers/TrackingProvider';
-import { EventName } from '../../types/Events';
 import LargeMenuItem from '../common/LargeMenuItem';
 import MantineIcon from '../common/MantineIcon';
 
 const HelpMenu: FC = () => {
     const { show: showIntercom } = useIntercom();
-    const { track } = useTracking();
-    const { user } = useApp();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
-
-    useEffect(() => {
-        const trackNotifications = {
-            user_id: user.data?.userUuid,
-            project_id: projectUuid,
-            organization_id: user.data?.organizationUuid,
-        };
-        if ((window as any) && (window as any).Headway) {
-            (window as any).Headway.init({
-                selector: '#headway-badge',
-                account: '7L3Bzx',
-                callbacks: {
-                    onShowWidget: () => {
-                        track({
-                            name: EventName.NOTIFICATIONS_CLICKED,
-                            properties: { ...trackNotifications },
-                        });
-                    },
-                    onShowDetails: (changelog: any) => {
-                        track({
-                            name: EventName.NOTIFICATIONS_ITEM_CLICKED,
-                            properties: {
-                                ...trackNotifications,
-                                item: changelog.title,
-                            },
-                        });
-                    },
-                    onReadMore: () => {
-                        track({
-                            name: EventName.NOTIFICATIONS_CLICKED,
-                            properties: { ...trackNotifications },
-                        });
-                    },
-                },
-            });
-        }
-    }, [track, projectUuid, user.data?.organizationUuid, user.data?.userUuid]);
 
     return (
         <Menu
