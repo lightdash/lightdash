@@ -90,6 +90,7 @@ export const TileTitleLink = styled.a<TileTitleProps>`
 
     :hover {
         color: ${Colors.DARK_GRAY1} !important;
+        text-decoration: underline;
     }
 
     ${({ $hovered }) =>
