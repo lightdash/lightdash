@@ -1,5 +1,3 @@
-import { Button, Colors, Menu, PopoverPosition } from '@blueprintjs/core';
-import { Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import {
     IconBuildingBank,
@@ -7,9 +5,12 @@ import {
     IconSettings,
 } from '@tabler/icons-react';
 import { FC } from 'react';
+
+import { ActionIcon, Menu } from '@mantine/core';
+import { Link } from 'react-router-dom';
 import { useActiveProjectUuid } from '../../hooks/useProject';
 import { useApp } from '../../providers/AppProvider';
-import LinkMenuItem from '../common/LinkMenuItem';
+import MantineIcon from '../common/MantineIcon';
 
 const SettingsMenu: FC = () => {
     const {
@@ -38,35 +39,41 @@ const SettingsMenu: FC = () => {
     }
 
     return (
-        <Popover2
-            captureDismiss
-            position={PopoverPosition.BOTTOM_RIGHT}
-            content={
-                <Menu>
-                    {activeProjectUuid && userCanCreateProject && (
-                        <LinkMenuItem
-                            text="Project settings"
-                            icon={<IconDatabase size={17} />}
-                            href={`/generalSettings/projectManagement/${activeProjectUuid}`}
-                        />
-                    )}
-
-                    {userCanViewOrganization && (
-                        <LinkMenuItem
-                            text="Organization settings"
-                            icon={<IconBuildingBank size={17} />}
-                            href={`/generalSettings/organization`}
-                        />
-                    )}
-                </Menu>
-            }
+        <Menu
+            withArrow
+            shadow="lg"
+            position="bottom-end"
+            arrowOffset={16}
+            offset={-2}
         >
-            <Button
-                minimal
-                icon={<IconSettings size={20} color={Colors.GRAY4} />}
-                data-testid="settings-menu"
-            />
-        </Popover2>
+            <Menu.Target>
+                <ActionIcon color="gray" variant="light">
+                    <MantineIcon icon={IconSettings} />
+                </ActionIcon>
+            </Menu.Target>
+
+            <Menu.Dropdown>
+                {activeProjectUuid && userCanCreateProject && (
+                    <Menu.Item
+                        component={Link}
+                        icon={<MantineIcon icon={IconDatabase} />}
+                        to={`/generalSettings/projectManagement/${activeProjectUuid}`}
+                    >
+                        Project settings
+                    </Menu.Item>
+                )}
+
+                {userCanViewOrganization && (
+                    <Menu.Item
+                        component={Link}
+                        icon={<MantineIcon icon={IconBuildingBank} />}
+                        to={`/generalSettings/organization`}
+                    >
+                        Organization settings
+                    </Menu.Item>
+                )}
+            </Menu.Dropdown>
+        </Menu>
     );
 };
 
