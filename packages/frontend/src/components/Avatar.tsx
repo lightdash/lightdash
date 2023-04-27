@@ -1,31 +1,24 @@
-import { Tag } from '@blueprintjs/core';
 import React from 'react';
+
+import { Avatar, useMantineTheme } from '@mantine/core';
 import { useApp } from '../providers/AppProvider';
-
-type AvatarProps = {
-    initials: string;
-};
-
-export const Avatar: React.FC<AvatarProps> = ({ initials }) => (
-    <Tag
-        round
-        large
-        interactive
-        style={{
-            width: '30px',
-            padding: '5px 0px',
-            textAlign: 'center',
-        }}
-        data-testid="user-avatar"
-    >
-        {initials.substr(0, 2)}
-    </Tag>
-);
 
 export const UserAvatar: React.FC = () => {
     const { user } = useApp();
+    const theme = useMantineTheme();
     const initials = user.data
-        ? user.data.firstName.substr(0, 1) + user.data.lastName.substr(0, 1)
+        ? `${user.data.firstName[0]}${user.data.lastName[0]}`.trim()
         : '';
-    return <Avatar initials={initials} />;
+
+    return (
+        <Avatar
+            variant="light"
+            size={theme.spacing.xxl}
+            radius="xl"
+            color="gray.8"
+            bg="gray.3"
+        >
+            {initials}
+        </Avatar>
+    );
 };
