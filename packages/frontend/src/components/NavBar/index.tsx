@@ -1,6 +1,6 @@
 import { Alignment, Classes, NavbarGroup } from '@blueprintjs/core';
 import { ProjectType } from '@lightdash/common';
-import { Divider, MantineProvider } from '@mantine/core';
+import { Divider, MantineProvider, Select } from '@mantine/core';
 import { memo } from 'react';
 import { useHistory } from 'react-router-dom';
 
@@ -70,32 +70,32 @@ const NavBar = memo(() => {
                     />
 
                     {activeProjectUuid && (
-                        <ProjectDropdown
+                        <Select
                             disabled={isLoading || (projects || []).length <= 0}
-                            options={projects?.map((item) => ({
-                                value: item.projectUuid,
-                                label: `${
-                                    item.type === ProjectType.PREVIEW
-                                        ? '[Preview] '
-                                        : ''
-                                }${item.name}`,
-                            }))}
-                            fill
+                            data={
+                                projects?.map((item) => ({
+                                    value: item.projectUuid,
+                                    label: `${
+                                        item.type === ProjectType.PREVIEW
+                                            ? '[Preview] '
+                                            : ''
+                                    }${item.name}`,
+                                })) ?? []
+                            }
                             value={activeProjectUuid}
-                            onChange={(e) => {
-                                setLastProject(e.target.value);
+                            onChange={(newUuid) => {
+                                if (!newUuid) return;
+
+                                setLastProject(newUuid);
                                 showToastSuccess({
                                     icon: 'tick',
                                     title: `You are now viewing ${
                                         projects?.find(
-                                            ({ projectUuid }) =>
-                                                projectUuid === e.target.value,
+                                            (p) => p.projectUuid === newUuid,
                                         )?.name
                                     }`,
                                 });
-                                history.push(
-                                    `/projects/${e.target.value}/home`,
-                                );
+                                history.push(`/projects/${newUuid}/home`);
                             }}
                         />
                     )}
