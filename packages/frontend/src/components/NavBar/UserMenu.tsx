@@ -1,57 +1,59 @@
-import {
-    Menu,
-    PopoverInteractionKind,
-    PopoverPosition,
-} from '@blueprintjs/core';
-import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
+import { Menu } from '@mantine/core';
+import { IconLogout, IconUserCircle, IconUserPlus } from '@tabler/icons-react';
 import { FC } from 'react';
-import { useHistory } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+
 import useLogoutMutation from '../../hooks/user/useUserLogoutMutation';
 import { useApp } from '../../providers/AppProvider';
 import { UserAvatar } from '../Avatar';
+import MantineIcon from '../common/MantineIcon';
 
 const UserMenu: FC = () => {
     const { user } = useApp();
-    const { mutate } = useLogoutMutation();
-    const history = useHistory();
+    const { mutate: logout } = useLogoutMutation();
 
     return (
-        <Popover2
-            interactionKind={PopoverInteractionKind.CLICK}
-            content={
-                <Menu>
-                    <MenuItem2
-                        role="menuitem"
-                        onClick={() => {
-                            history.push('/generalSettings');
-                        }}
-                        icon="settings"
-                        text="User settings"
-                    />
-                    {user.data?.ability?.can('create', 'InviteLink') ? (
-                        <MenuItem2
-                            role="menuitem"
-                            onClick={() => {
-                                history.push(
-                                    '/generalSettings/userManagement?to=invite',
-                                );
-                            }}
-                            icon="new-person"
-                            text="Invite user"
-                        />
-                    ) : null}
-                    <MenuItem2
-                        role="menuitem"
-                        icon="log-out"
-                        text="Logout"
-                        onClick={() => mutate()}
-                    />
-                </Menu>
-            }
-            position={PopoverPosition.BOTTOM_LEFT}
+        <Menu
+            withArrow
+            shadow="lg"
+            position="bottom-end"
+            arrowOffset={16}
+            offset={-2}
         >
-            <UserAvatar />
-        </Popover2>
+            <Menu.Target>
+                <UserAvatar />
+            </Menu.Target>
+
+            <Menu.Dropdown>
+                <Menu.Item
+                    role="menuitem"
+                    component={Link}
+                    to="/generalSettings"
+                    icon={<MantineIcon icon={IconUserCircle} />}
+                >
+                    User settings
+                </Menu.Item>
+
+                {user.data?.ability?.can('create', 'InviteLink') ? (
+                    <Menu.Item
+                        role="menuitem"
+                        component={Link}
+                        to="/generalSettings/userManagement?to=invite"
+                        icon={<MantineIcon icon={IconUserPlus} />}
+                    >
+                        Invite user
+                    </Menu.Item>
+                ) : null}
+
+                <Menu.Item
+                    role="menuitem"
+                    onClick={() => logout()}
+                    icon={<MantineIcon icon={IconLogout} />}
+                >
+                    Logout
+                </Menu.Item>
+            </Menu.Dropdown>
+        </Menu>
     );
 };
 
