@@ -1,3 +1,10 @@
+# [0.524.0](https://github.com/lightdash/lightdash/compare/0.523.0...0.524.0) (2023-04-27)
+
+
+### Features
+
+* mantine breadcrumbs ([#5262](https://github.com/lightdash/lightdash/issues/5262)) ([6809f24](https://github.com/lightdash/lightdash/commit/6809f244993c10697eaf5f1c6d57927da74f31b4))
+
 # [0.523.0](https://github.com/lightdash/lightdash/compare/0.522.0...0.523.0) (2023-04-27)
 
 
