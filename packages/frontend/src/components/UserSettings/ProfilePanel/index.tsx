@@ -13,7 +13,7 @@ import {
     UpdateUserArgs,
     validateEmail,
 } from '@lightdash/common';
-import { Box, Text } from '@mantine/core';
+import { Anchor, Box, Text } from '@mantine/core';
 import { FC, useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from 'react-query';
 import { lightdashApi } from '../../../api';
@@ -188,11 +188,8 @@ const ProfilePanel: FC = () => {
                 {isEmailServerConfigured && !data?.isVerified ? (
                     <Text color="dimmed" mt="sm">
                         This email has not been verified.{' '}
-                        <Text
+                        <Anchor
                             component="span"
-                            color="blue"
-                            td="underline"
-                            sx={{ cursor: 'pointer' }}
                             onClick={() => {
                                 if (!data?.otp) {
                                     sendVerificationEmail();
@@ -201,7 +198,7 @@ const ProfilePanel: FC = () => {
                             }}
                         >
                             Click here to verify it
-                        </Text>
+                        </Anchor>
                         .
                     </Text>
                 ) : null}
