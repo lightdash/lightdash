@@ -1,3 +1,10 @@
+# [0.523.0](https://github.com/lightdash/lightdash/compare/0.522.0...0.523.0) (2023-04-27)
+
+
+### Features
+
+* mantine navbar and link migrations ([#5211](https://github.com/lightdash/lightdash/issues/5211)) ([f96dca6](https://github.com/lightdash/lightdash/commit/f96dca62dd8973dac27b690b860705f86ce15fe2))
+
 # [0.522.0](https://github.com/lightdash/lightdash/compare/0.521.0...0.522.0) (2023-04-26)
 
 
