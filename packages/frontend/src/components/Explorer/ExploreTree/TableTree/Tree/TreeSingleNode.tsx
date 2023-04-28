@@ -107,7 +107,7 @@ const TreeSingleNode: FC<{ node: Node }> = ({ node }) => {
                     isSelected={isSelected}
                 />
             }
-        ></NavLink>
+        />
     );
 };
 

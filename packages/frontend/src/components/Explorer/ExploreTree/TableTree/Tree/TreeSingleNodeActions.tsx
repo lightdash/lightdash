@@ -205,12 +205,19 @@ const TreeSingleNodeActions: FC<Props> = ({ node, isHovered, isSelected }) => {
             )}
 
             {menuItems.length > 0 && (isHovered || isSelected) && (
-                <Menu withArrow withinPortal shadow="lg" position="bottom-end">
+                <Menu
+                    withArrow
+                    withinPortal
+                    shadow="lg"
+                    position="bottom-end"
+                    arrowOffset={12}
+                    offset={-8}
+                >
                     <Menu.Dropdown>{menuItems}</Menu.Dropdown>
 
                     <Menu.Target>
                         <Tooltip withArrow openDelay={500} label="View options">
-                            <ActionIcon variant="light">
+                            <ActionIcon size="lg" variant="transparent">
                                 <MantineIcon icon={IconDots} />
                             </ActionIcon>
                         </Tooltip>
