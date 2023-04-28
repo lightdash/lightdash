@@ -139,7 +139,7 @@ const TableTreeSections: FC<Props> = ({
                 <NavLink
                     defaultOpened
                     label={
-                        <Text fw={600} color="orange.9">
+                        <Text fw={600} color="yellow.9">
                             Custom metrics
                         </Text>
                     }

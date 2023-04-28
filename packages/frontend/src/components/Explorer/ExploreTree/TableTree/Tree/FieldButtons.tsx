@@ -2,6 +2,7 @@ import {
     Dimension,
     DimensionType,
     friendlyName,
+    isDimension,
     isFilterableField,
     Metric,
     MetricType,
@@ -111,23 +112,22 @@ const FieldButtons: FC<{
 
     const menuItems = useMemo<ReactNode[]>(() => {
         const items: ReactNode[] = [];
+
         if (node.source) {
             items.push(
                 <Menu.Item
                     key="source"
                     icon={<MantineIcon icon={IconTerminal} />}
                     onClick={(e) => {
-                        if (node.source === undefined) {
-                            return;
-                        }
                         e.stopPropagation();
-                        onOpenSourceDialog(node.source);
+                        if (node.source) onOpenSourceDialog(node.source);
                     }}
                 >
                     Source
                 </Menu.Item>,
             );
         }
+
         if (isFilterableField(node)) {
             items.push(
                 <Menu.Item
@@ -146,33 +146,35 @@ const FieldButtons: FC<{
             );
         }
 
-        if (
-            node.fieldType === 'dimension' &&
-            getCustomMetricType(node.type).length > 0
-        ) {
-            items.push(
-                <Menu.Divider key="custom-metrics-divider" />,
-                <Menu.Label key="custom-metrics-label">
-                    <MantineIcon icon={IconSparkles} /> Add custom metrics
-                </Menu.Label>,
+        if (isDimension(node)) {
+            const customMetrics = getCustomMetricType(node.type);
 
-                // icon={}
+            if (customMetrics.length > 0) {
+                items.push(
+                    <Menu.Divider key="custom-metrics-divider" />,
+                    <Menu.Label key="custom-metrics-label">
+                        <Group spacing="xs">
+                            <MantineIcon icon={IconSparkles} /> Add custom
+                            metrics
+                        </Group>
+                    </Menu.Label>,
 
-                ...(getCustomMetricType(node.type)?.map((metric) => (
-                    <Menu.Item
-                        key={metric}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            track({
-                                name: EventName.ADD_CUSTOM_METRIC_CLICKED,
-                            });
-                            createCustomMetric(node, metric);
-                        }}
-                    >
-                        {friendlyName(metric)}
-                    </Menu.Item>
-                )) || []),
-            );
+                    ...customMetrics.map((metric) => (
+                        <Menu.Item
+                            key={metric}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                track({
+                                    name: EventName.ADD_CUSTOM_METRIC_CLICKED,
+                                });
+                                createCustomMetric(node, metric);
+                            }}
+                        >
+                            {friendlyName(metric)}
+                        </Menu.Item>
+                    )),
+                );
+            }
         }
         return items;
     }, [addFilter, createCustomMetric, node, onOpenSourceDialog, track]);
@@ -191,7 +193,7 @@ const FieldButtons: FC<{
             )}
 
             {menuItems.length > 0 && (isHovered || isSelected) && (
-                <Menu position="bottom-end">
+                <Menu withArrow shadow="lg" position="bottom-end">
                     <Menu.Dropdown>{menuItems}</Menu.Dropdown>
 
                     <Menu.Target>
@@ -203,11 +205,6 @@ const FieldButtons: FC<{
                     </Menu.Target>
                 </Menu>
             )}
-
-            {/* {isFiltered && !isHovered && !isSelected && !isMenuOpen && ( */}
-            {/* // FIXME: revisit this */}
-            {/* <Box w={30} /> */}
-            {/* )} */}
         </Group>
     );
 };
