@@ -18,11 +18,11 @@ const MantineIcon = forwardRef<SVGSVGElement, MantineIconProps>(
     ({ icon: TablerIcon, size = 'md', stroke, color, fill, ...rest }, ref) => {
         const theme = useMantineTheme();
 
-        const mantineOverridedProps = {
+        const mantineOverridedProps: TablerIconsProps = {
             size: typeof size === 'string' ? theme.spacing[size] : size,
             stroke: typeof stroke === 'string' ? theme.spacing[stroke] : stroke,
-            color: color ? theme.fn.themeColor(color) : undefined,
-            fill: fill ? theme.fn.themeColor(fill) : 'none',
+            color: color ? theme.fn.themeColor(color, undefined, false) : color,
+            fill: fill ? theme.fn.themeColor(fill, undefined, false) : 'none',
             display: 'block',
         };
 
