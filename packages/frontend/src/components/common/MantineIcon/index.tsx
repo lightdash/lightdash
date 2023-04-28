@@ -3,11 +3,11 @@ import {
     MantineNumberSize,
     useMantineTheme,
 } from '@mantine/core';
-import { TablerIconsProps } from '@tabler/icons-react';
+import { Icon as TablerIconType, TablerIconsProps } from '@tabler/icons-react';
 import { forwardRef } from 'react';
 
-export interface MantineIconProps extends TablerIconsProps {
-    icon: (props: TablerIconsProps) => JSX.Element;
+export interface MantineIconProps extends Omit<TablerIconsProps, 'ref'> {
+    icon: TablerIconType;
     size?: MantineNumberSize;
     stroke?: MantineNumberSize;
     color?: MantineColor;
