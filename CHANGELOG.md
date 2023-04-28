@@ -1,3 +1,10 @@
+# [0.525.0](https://github.com/lightdash/lightdash/compare/0.524.0...0.525.0) (2023-04-28)
+
+
+### Features
+
+* mantine explore navigation sidebar ([#5284](https://github.com/lightdash/lightdash/issues/5284)) ([cbccf97](https://github.com/lightdash/lightdash/commit/cbccf97f1dce8084dc7066207333fffbaf01db97))
+
 # [0.524.0](https://github.com/lightdash/lightdash/compare/0.523.0...0.524.0) (2023-04-27)
 
 
