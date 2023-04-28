@@ -11,9 +11,15 @@ import {
     Metric,
     MetricType,
 } from '@lightdash/common';
-import { ActionIcon, Group, Menu, Tooltip } from '@mantine/core';
 import {
-    IconAlertTriangle,
+    ActionIcon,
+    Box,
+    Group,
+    Menu,
+    MenuProps,
+    Tooltip,
+} from '@mantine/core';
+import {
     IconDots,
     IconFilter,
     IconSparkles,
@@ -58,14 +64,21 @@ const getCustomMetricType = (type: DimensionType): MetricType[] => {
 };
 
 type Props = {
-    node: Metric | Dimension | AdditionalMetric;
+    item: Metric | Dimension | AdditionalMetric;
     isHovered: boolean;
     isSelected: boolean;
+    isMenuOpen: MenuProps['opened'];
+    onMenuChange: MenuProps['onChange'];
 };
 
-const TreeSingleNodeActions: FC<Props> = ({ node, isHovered, isSelected }) => {
-    const { isFilteredField, addFilter } = useFilters();
-    const isFiltered = isField(node) && isFilteredField(node);
+const TreeSingleNodeActions: FC<Props> = ({
+    item,
+    isHovered,
+    isSelected,
+    isMenuOpen,
+    onMenuChange,
+}) => {
+    const { addFilter } = useFilters();
     const { track } = useTracking();
 
     const addAdditionalMetric = useExplorerContext(
@@ -120,112 +133,101 @@ const TreeSingleNodeActions: FC<Props> = ({ node, isHovered, isSelected }) => {
     );
 
     const customMetrics = useMemo(
-        () => (isDimension(node) ? getCustomMetricType(node.type) : []),
-        [node],
+        () => (isDimension(item) ? getCustomMetricType(item.type) : []),
+        [item],
     );
 
-    return (
-        <Group spacing="xs">
-            {isFiltered && (
-                <Tooltip withArrow label="This field is filtered">
-                    <MantineIcon icon={IconFilter} color="gray.7" />
-                </Tooltip>
-            )}
+    return isHovered || isSelected || isMenuOpen ? (
+        <Menu
+            withArrow
+            withinPortal
+            shadow="lg"
+            position="bottom-end"
+            arrowOffset={12}
+            offset={-4}
+            opened={isMenuOpen}
+            onChange={onMenuChange}
+        >
+            <Menu.Dropdown>
+                {isField(item) && isFilterableField(item) ? (
+                    <Menu.Item
+                        icon={<MantineIcon icon={IconFilter} />}
+                        onClick={(e) => {
+                            track({
+                                name: EventName.ADD_FILTER_CLICKED,
+                            });
+                            e.stopPropagation();
+                            addFilter(item, undefined);
+                        }}
+                    >
+                        Add filter
+                    </Menu.Item>
+                ) : null}
 
-            {node.hidden && (
-                <Tooltip
-                    withArrow
-                    label="This field has been hidden in the dbt project. It's recommend to remove it from the query"
-                >
-                    <MantineIcon icon={IconAlertTriangle} color="yellow.9" />
-                </Tooltip>
-            )}
+                {isAdditionalMetric(item) ? (
+                    <Menu.Item
+                        color="red"
+                        key="custommetric"
+                        icon={<MantineIcon icon={IconTrash} />}
+                        onClick={() => {
+                            // e.stopPropagation();
+                            track({
+                                name: EventName.REMOVE_CUSTOM_METRIC_CLICKED,
+                            });
+                            removeAdditionalMetric(fieldId(item));
+                        }}
+                    >
+                        Remove custom metric
+                    </Menu.Item>
+                ) : null}
 
-            {isHovered || isSelected ? (
-                <Menu
-                    withArrow
-                    withinPortal
-                    shadow="lg"
-                    position="bottom-end"
-                    arrowOffset={12}
-                    offset={-4}
-                >
-                    <Menu.Dropdown>
-                        {isField(node) && isFilterableField(node) ? (
+                {customMetrics.length > 0 && isDimension(item) ? (
+                    <>
+                        <Menu.Divider key="custom-metrics-divider" />
+                        <Menu.Label key="custom-metrics-label">
+                            <Group spacing="xs">
+                                <MantineIcon icon={IconSparkles} /> Add custom
+                                metrics
+                            </Group>
+                        </Menu.Label>
+
+                        {customMetrics.map((metric) => (
                             <Menu.Item
-                                icon={<MantineIcon icon={IconFilter} />}
+                                key={metric}
                                 onClick={(e) => {
-                                    track({
-                                        name: EventName.ADD_FILTER_CLICKED,
-                                    });
                                     e.stopPropagation();
-                                    addFilter(node, undefined);
-                                }}
-                            >
-                                Add filter
-                            </Menu.Item>
-                        ) : null}
-
-                        {isAdditionalMetric(node) ? (
-                            <Menu.Item
-                                color="red"
-                                key="custommetric"
-                                icon={<MantineIcon icon={IconTrash} />}
-                                onClick={() => {
-                                    // e.stopPropagation();
                                     track({
-                                        name: EventName.REMOVE_CUSTOM_METRIC_CLICKED,
+                                        name: EventName.ADD_CUSTOM_METRIC_CLICKED,
                                     });
-                                    removeAdditionalMetric(fieldId(node));
+                                    createCustomMetric(item, metric);
                                 }}
                             >
-                                Remove custom metric
+                                {friendlyName(metric)}
                             </Menu.Item>
-                        ) : null}
+                        ))}
+                    </>
+                ) : null}
+            </Menu.Dropdown>
 
-                        {customMetrics.length > 0 && isDimension(node) ? (
-                            <>
-                                <Menu.Divider key="custom-metrics-divider" />
-                                <Menu.Label key="custom-metrics-label">
-                                    <Group spacing="xs">
-                                        <MantineIcon icon={IconSparkles} /> Add
-                                        custom metrics
-                                    </Group>
-                                </Menu.Label>
-
-                                {customMetrics.map((metric) => (
-                                    <Menu.Item
-                                        key={metric}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            track({
-                                                name: EventName.ADD_CUSTOM_METRIC_CLICKED,
-                                            });
-                                            createCustomMetric(node, metric);
-                                        }}
-                                    >
-                                        {friendlyName(metric)}
-                                    </Menu.Item>
-                                ))}
-                            </>
-                        ) : null}
-                    </Menu.Dropdown>
-
-                    <Menu.Target>
-                        <Tooltip
-                            withArrow
-                            openDelay={500}
-                            position="right"
-                            label="View options"
-                        >
-                            <ActionIcon radius="none" variant="transparent">
-                                <MantineIcon icon={IconDots} />
-                            </ActionIcon>
-                        </Tooltip>
-                    </Menu.Target>
-                </Menu>
-            ) : null}
-        </Group>
+            {/* prevents bubbling of click event to NavLink */}
+            <Box onClick={(e) => e.stopPropagation()}>
+                <Menu.Target>
+                    <Tooltip
+                        withArrow
+                        openDelay={500}
+                        position="top"
+                        label="View options"
+                        disabled={isMenuOpen}
+                    >
+                        <ActionIcon radius="none" variant="transparent">
+                            <MantineIcon icon={IconDots} />
+                        </ActionIcon>
+                    </Tooltip>
+                </Menu.Target>
+            </Box>
+        </Menu>
+    ) : (
+        <Box w={28} />
     );
 };
 

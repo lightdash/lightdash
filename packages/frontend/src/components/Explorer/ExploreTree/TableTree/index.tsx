@@ -83,6 +83,9 @@ const themeOverride: MantineThemeOverride = {
                     height: theme.spacing.xxl,
                     padding: `0 ${theme.spacing.sm}`,
                 },
+                rightSection: {
+                    marginLeft: theme.spacing.xxs,
+                },
             }),
         },
     },

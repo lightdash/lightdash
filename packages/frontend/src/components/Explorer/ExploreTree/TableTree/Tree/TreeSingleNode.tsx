@@ -1,17 +1,21 @@
 import {
     DimensionType,
     isDimension,
+    isField,
     isTimeInterval,
     MetricType,
     timeFrameConfigs,
 } from '@lightdash/common';
-import { Highlight, NavLink, Text, Tooltip } from '@mantine/core';
+import { Group, Highlight, NavLink, Text, Tooltip } from '@mantine/core';
 import { darken, lighten } from 'polished';
 import { FC } from 'react';
 import { useToggle } from 'react-use';
 
+import { IconAlertTriangle, IconFilter } from '@tabler/icons-react';
 import { getItemBgColor } from '../../../../../hooks/useColumns';
+import { useFilters } from '../../../../../hooks/useFilters';
 import FieldIcon from '../../../../common/Filters/FieldIcon';
+import MantineIcon from '../../../../common/MantineIcon';
 import { Node, useTableTreeContext } from './TreeProvider';
 import TreeSingleNodeActions from './TreeSingleNodeActions';
 
@@ -33,7 +37,10 @@ export const getItemIconName = (type: DimensionType | MetricType) => {
 };
 
 const TreeSingleNode: FC<{ node: Node }> = ({ node }) => {
+    const { isFilteredField } = useFilters();
+
     const [isHover, toggle] = useToggle(false);
+    const [isMenuOpen, toggleMenu] = useToggle(false);
     const {
         itemsMap,
         selectedItems,
@@ -55,6 +62,8 @@ const TreeSingleNode: FC<{ node: Node }> = ({ node }) => {
         isTimeInterval(item.timeInterval)
             ? timeFrameConfigs[item.timeInterval].getLabel()
             : undefined;
+
+    const isFiltered = isField(item) && isFilteredField(item);
 
     const label = timeIntervalLabel || item.label || item.name;
 
@@ -82,29 +91,53 @@ const TreeSingleNode: FC<{ node: Node }> = ({ node }) => {
             onMouseLeave={() => toggle(false)}
             noWrap
             label={
-                <Tooltip
-                    withArrow
-                    inline
-                    openDelay={500}
-                    disabled={!item.description}
-                    label={<Text truncate>{item.description}</Text>}
-                    position="top-start"
-                    maw={350}
-                >
-                    <Highlight
-                        component={Text}
-                        highlight={searchQuery || ''}
-                        truncate
+                <Group position="apart">
+                    <Tooltip
+                        withArrow
+                        inline
+                        openDelay={500}
+                        disabled={!item.description}
+                        label={<Text truncate>{item.description}</Text>}
+                        position="top-start"
+                        maw={350}
                     >
-                        {label}
-                    </Highlight>
-                </Tooltip>
+                        <Highlight
+                            component={Text}
+                            highlight={searchQuery || ''}
+                            truncate
+                        >
+                            {label}
+                        </Highlight>
+                    </Tooltip>
+
+                    <Group spacing="xs">
+                        {isFiltered && (
+                            <Tooltip withArrow label="This field is filtered">
+                                <MantineIcon icon={IconFilter} color="gray.7" />
+                            </Tooltip>
+                        )}
+
+                        {item.hidden && (
+                            <Tooltip
+                                withArrow
+                                label="This field has been hidden in the dbt project. It's recommend to remove it from the query"
+                            >
+                                <MantineIcon
+                                    icon={IconAlertTriangle}
+                                    color="yellow.9"
+                                />
+                            </Tooltip>
+                        )}
+                    </Group>
+                </Group>
             }
             rightSection={
                 <TreeSingleNodeActions
-                    node={item}
+                    item={item}
                     isHovered={isHover}
                     isSelected={isSelected}
+                    isMenuOpen={isMenuOpen}
+                    onMenuChange={toggleMenu}
                 />
             }
         />
