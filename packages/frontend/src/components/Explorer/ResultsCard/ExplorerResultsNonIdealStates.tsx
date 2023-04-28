@@ -82,7 +82,7 @@ export const EmptyStateNoColumns = () => (
                 <DocumentationHelpButton
                     href={ExploreDocumentationUrl}
                     iconProps={{
-                        iconSize: 18,
+                        size: 18,
                         style: { height: 21, width: 18, paddingTop: 1 },
                     }}
                 />
