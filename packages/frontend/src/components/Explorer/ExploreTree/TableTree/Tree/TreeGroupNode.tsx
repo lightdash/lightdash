@@ -1,8 +1,10 @@
 import { hasIntersection } from '@lightdash/common';
 import { Badge, Group, Highlight, NavLink, Text } from '@mantine/core';
+import { IconChevronRight } from '@tabler/icons-react';
 import intersectionBy from 'lodash-es/intersectionBy';
 import { FC } from 'react';
 import { useToggle } from 'react-use';
+import MantineIcon from '../../../../common/MantineIcon';
 import TreeNodes from './TreeNodes';
 import { GroupNode, Node, useTableTreeContext } from './TreeProvider';
 
@@ -40,10 +42,28 @@ const TreeGroupNode: FC<Props> = ({ node }) => {
         return null;
     }
 
+    const isNavLinkOpen = forceOpen || isOpen;
+
     return (
         <NavLink
-            opened={forceOpen || isOpen}
+            opened={isNavLinkOpen}
             onClick={toggleOpen}
+            // --start moves chevron to the left
+            // mostly hardcoded, to match mantine's internal sizes
+            disableRightSectionRotation
+            rightSection={<></>}
+            icon={
+                <MantineIcon
+                    icon={IconChevronRight}
+                    size={14}
+                    style={{
+                        margin: 1,
+                        transition: 'transform 200ms ease',
+                        transform: isNavLinkOpen ? 'rotate(90deg)' : undefined,
+                    }}
+                />
+            }
+            // --end
             label={
                 <Group>
                     <Highlight
