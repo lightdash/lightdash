@@ -1,6 +1,5 @@
-import { Colors } from '@blueprintjs/core';
 import { AdditionalMetric, CompiledTable, getItemId } from '@lightdash/common';
-import { Box, Center, Group, NavLink, Stack, Text } from '@mantine/core';
+import { Center, Group, Text } from '@mantine/core';
 import { FC, useMemo } from 'react';
 import DocumentationHelpButton from '../../../DocumentationHelpButton';
 import { getSearchResults, TreeProvider } from './Tree/TreeProvider';
@@ -81,7 +80,7 @@ const TableTreeSections: FC<Props> = ({
             {isSearching &&
             getSearchResults(metrics, searchQuery).size === 0 ? null : (
                 <>
-                    <Group position="apart" h="xxl">
+                    <Group position="apart" h="xxl" pr="sm">
                         <Text fw={600} color="yellow.9">
                             Metrics
                         </Text>
@@ -104,11 +103,6 @@ const TableTreeSections: FC<Props> = ({
                                         </>
                                     ),
                                     multiline: true,
-                                }}
-                                iconProps={{
-                                    style: {
-                                        color: Colors.GRAY3,
-                                    },
                                 }}
                             />
                         ) : null}
@@ -133,7 +127,7 @@ const TableTreeSections: FC<Props> = ({
             {isSearching &&
             getSearchResults(customMetrics, searchQuery).size === 0 ? null : (
                 <>
-                    <Group position="apart" h="xxl">
+                    <Group position="apart" h="xxl" pr="sm">
                         <Text fw={600} color="yellow.9">
                             Custom metrics
                         </Text>
@@ -152,11 +146,6 @@ const TableTreeSections: FC<Props> = ({
                                     </>
                                 ),
                                 multiline: true,
-                            }}
-                            iconProps={{
-                                style: {
-                                    color: Colors.GRAY3,
-                                },
                             }}
                         />
                     </Group>

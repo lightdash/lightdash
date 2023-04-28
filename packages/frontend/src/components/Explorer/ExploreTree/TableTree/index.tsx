@@ -45,8 +45,9 @@ const CollapsibleTableTree: FC<CollapsibleTableTreeProps> = ({
             label={
                 <Tooltip
                     withArrow
+                    label={<Text truncate>{table.description}</Text>}
                     position="top-start"
-                    label={table.description}
+                    maw={350}
                 >
                     <Group>
                         <Text truncate fw={600}>

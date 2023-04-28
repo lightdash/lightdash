@@ -1,5 +1,3 @@
-import { Classes, Colors } from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
 import {
     DimensionType,
     isAdditionalMetric,
@@ -64,8 +62,8 @@ const TreeSingleNode: FC<{ node: Node }> = ({ node }) => {
             icon={
                 <FieldIcon
                     item={item}
-                    color={isDimension(item) ? Colors.BLUE1 : Colors.ORANGE1}
-                    size={16}
+                    color={isDimension(item) ? 'blue.9' : 'yellow.9'}
+                    size="md"
                 />
             }
             onClick={() => onItemClick(node.key, item)}
@@ -74,9 +72,11 @@ const TreeSingleNode: FC<{ node: Node }> = ({ node }) => {
             label={
                 <Tooltip
                     withArrow
+                    inline
                     disabled={!item.description}
-                    label={item.description}
+                    label={<Text truncate>{item.description}</Text>}
                     position="top-start"
+                    maw={350}
                 >
                     <Highlight
                         component={Text}

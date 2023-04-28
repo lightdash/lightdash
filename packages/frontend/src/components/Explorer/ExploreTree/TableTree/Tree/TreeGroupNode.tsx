@@ -48,8 +48,8 @@ const TreeGroupNode: FC<Props> = ({ node }) => {
                 <Group>
                     <Highlight
                         component={Text}
-                        truncate
                         highlight={searchQuery || ''}
+                        truncate
                     >
                         {node.label}
                     </Highlight>
