@@ -8,7 +8,7 @@ import {
     MetricType,
     Source,
 } from '@lightdash/common';
-import { ActionIcon, Box, Group, Menu, Tooltip } from '@mantine/core';
+import { ActionIcon, Group, Menu, Tooltip } from '@mantine/core';
 import {
     IconAlertTriangle,
     IconDots,
@@ -16,7 +16,7 @@ import {
     IconSparkles,
     IconTerminal,
 } from '@tabler/icons-react';
-import { FC, ReactNode, useCallback, useMemo, useState } from 'react';
+import { FC, ReactNode, useCallback, useMemo } from 'react';
 
 import { useFilters } from '../../../../../hooks/useFilters';
 import { useExplorerContext } from '../../../../../providers/ExplorerProvider';
