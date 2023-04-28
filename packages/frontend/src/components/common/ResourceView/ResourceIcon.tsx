@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { Center, Paper } from '@mantine/core';
 import {
+    Icon as TablerIconType,
     IconChartArea,
     IconChartAreaLine,
     IconChartBar,
@@ -15,25 +16,24 @@ import {
     IconLayoutDashboard,
     IconSquareNumber1,
     IconTable,
-    TablerIconsProps,
 } from '@tabler/icons-react';
 import { FC } from 'react';
-import MantineIcon from '../MantineIcon';
+import MantineIcon, { MantineIconProps } from '../MantineIcon';
 
 interface ResourceIconProps {
     item: ResourceViewItem;
 }
 
-interface IconBoxProps extends TablerIconsProps {
+interface IconBoxProps extends MantineIconProps {
     color: string;
-    icon: (props: TablerIconsProps) => JSX.Element;
+    icon: TablerIconType;
 }
 
 const IconBox: FC<IconBoxProps> = ({
     color,
     icon,
     size = 'xl',
-    ...tablerIconProps
+    ...mantineIconProps
 }) => (
     <Paper
         display="flex"
@@ -51,7 +51,7 @@ const IconBox: FC<IconBoxProps> = ({
             fill={color}
             fillOpacity={0.1}
             size="lg"
-            {...tablerIconProps}
+            {...mantineIconProps}
         />
     </Paper>
 );

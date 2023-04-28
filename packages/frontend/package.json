@@ -20,7 +20,7 @@
         "@mantine/spotlight": "^6.0.9",
         "@sentry/react": "^7.37.2",
         "@sentry/tracing": "^7.37.2",
-        "@tabler/icons-react": "^2.11.0",
+        "@tabler/icons-react": "^2.17.0",
         "@tanstack/react-table": "^8.5.11",
         "@tanstack/react-virtual": "^3.0.0-alpha.0",
         "@testing-library/jest-dom": "^5.16.2",

@@ -1,36 +1,35 @@
-import {
-    Button,
-    InputGroup,
-    Menu,
-    MenuDivider,
-    NonIdealState,
-} from '@blueprintjs/core';
-import { MenuItem2 } from '@blueprintjs/popover2';
+import { NonIdealState } from '@blueprintjs/core';
+import { ActionIcon, Flex, Skeleton, Stack, TextInput } from '@mantine/core';
+import { IconSearch, IconX } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
-import React, { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
+
 import { useExplores } from '../../../hooks/useExplores';
 import { useErrorLogs } from '../../../providers/ErrorLogsProvider';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
-import { SidebarDivider } from '../../common/Page/Sidebar';
+import MantineIcon from '../../common/MantineIcon';
 import PageBreadcrumbs from '../../common/PageBreadcrumbs';
-import { ExploreMenuItem } from '../../ExploreMenuItem';
 import { ShowErrorsButton } from '../../ShowErrorsButton';
 import ExplorePanel from '../ExplorePanel';
-import { FooterWrapper, FormField, MenuWrapper } from './ExploreSideBar.styles';
+import ExploreNavLink from './ExploreNavLink';
 
 const SideBarLoadingState = () => (
-    <Menu large style={{ flex: 1 }}>
-        {[0, 1, 2, 3, 4].map((idx) => (
-            <React.Fragment key={idx}>
-                <MenuItem2 className="bp4-skeleton" />
-                <MenuDivider />
-            </React.Fragment>
-        ))}
-    </Menu>
+    <Stack>
+        <Skeleton h="md" />
+
+        <Skeleton h="xxl" />
+
+        <Stack spacing="xxs">
+            {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((index) => (
+                <Skeleton key={index} h="xxl" />
+            ))}
+        </Stack>
+    </Stack>
 );
+
 const BasePanel = () => {
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -55,58 +54,10 @@ const BasePanel = () => {
         return [];
     }, [exploresResult.data, search]);
 
-    if (exploresResult.data) {
-        return (
-            <>
-                <PageBreadcrumbs
-                    size="md"
-                    items={[{ title: 'Tables', active: true }]}
-                />
-
-                <SidebarDivider />
-
-                <FormField>
-                    <InputGroup
-                        leftIcon="search"
-                        rightElement={
-                            <Button
-                                minimal
-                                icon="cross"
-                                onClick={() => setSearch('')}
-                            />
-                        }
-                        placeholder="Search tables"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                    />
-                </FormField>
-
-                <MenuWrapper>
-                    <MenuDivider />
-
-                    {filteredTables
-                        .sort((a, b) => a.label.localeCompare(b.label))
-                        .map((explore) => (
-                            <React.Fragment key={explore.name}>
-                                <ExploreMenuItem
-                                    explore={explore}
-                                    onClick={() => {
-                                        history.push(
-                                            `/projects/${projectUuid}/tables/${explore.name}`,
-                                        );
-                                    }}
-                                />
-
-                                <MenuDivider />
-                            </React.Fragment>
-                        ))}
-                </MenuWrapper>
-            </>
-        );
-    }
     if (exploresResult.status === 'loading') {
         return <SideBarLoadingState />;
     }
+
     if (exploresResult.status === 'error') {
         return (
             <NonIdealState
@@ -122,6 +73,49 @@ const BasePanel = () => {
             />
         );
     }
+
+    if (exploresResult.data) {
+        return (
+            <Stack>
+                <PageBreadcrumbs
+                    size="md"
+                    items={[{ title: 'Tables', active: true }]}
+                />
+
+                <TextInput
+                    icon={<MantineIcon icon={IconSearch} />}
+                    rightSection={
+                        search ? (
+                            <ActionIcon onClick={() => setSearch('')}>
+                                <MantineIcon icon={IconX} />
+                            </ActionIcon>
+                        ) : null
+                    }
+                    placeholder="Search tables"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                />
+
+                <Stack spacing="xxs">
+                    {filteredTables
+                        .sort((a, b) => a.label.localeCompare(b.label))
+                        .map((explore) => (
+                            <ExploreNavLink
+                                key={explore.name}
+                                explore={explore}
+                                query={search}
+                                onClick={() => {
+                                    history.push(
+                                        `/projects/${projectUuid}/tables/${explore.name}`,
+                                    );
+                                }}
+                            />
+                        ))}
+                </Stack>
+            </Stack>
+        );
+    }
+
     return (
         <NonIdealState icon="warning-sign" title="Could not load explores" />
     );
@@ -132,19 +126,24 @@ const ExploreSideBar = memo(() => {
     const tableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
-    const clear = useExplorerContext((context) => context.actions.clear);
+
+    const clearExplore = useExplorerContext((context) => context.actions.clear);
     const history = useHistory();
 
-    const onBack = useCallback(() => {
-        clear();
+    const handleBack = useCallback(() => {
+        clearExplore();
         history.push(`/projects/${projectUuid}/tables`);
-    }, [clear, history, projectUuid]);
+    }, [clearExplore, history, projectUuid]);
 
     return (
         <TrackSection name={SectionName.SIDEBAR}>
-            <FooterWrapper>
-                {!tableName ? <BasePanel /> : <ExplorePanel onBack={onBack} />}
-            </FooterWrapper>
+            <Stack h="100%" sx={{ flexDirection: 'column' }}>
+                {!tableName ? (
+                    <BasePanel />
+                ) : (
+                    <ExplorePanel onBack={handleBack} />
+                )}
+            </Stack>
         </TrackSection>
     );
 });

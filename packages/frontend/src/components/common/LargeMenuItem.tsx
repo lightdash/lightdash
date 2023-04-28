@@ -6,12 +6,12 @@ import {
     Stack,
     Text,
 } from '@mantine/core';
-import { TablerIconsProps } from '@tabler/icons-react';
+import { Icon as TablerIconType } from '@tabler/icons-react';
 import { forwardRef } from 'react';
 import MantineIcon from './MantineIcon';
 
 interface LargeMenuItemProps extends MenuItemProps {
-    icon: (props: TablerIconsProps) => JSX.Element;
+    icon: TablerIconType;
     title: string;
     description: string;
 }

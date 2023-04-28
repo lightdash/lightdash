@@ -4,6 +4,8 @@ import {
     BreadcrumbsProps,
     MantineSize,
     Text,
+    Tooltip,
+    TooltipProps,
 } from '@mantine/core';
 import { FC } from 'react';
 import { Link } from 'react-router-dom';
@@ -11,8 +13,10 @@ import { Link } from 'react-router-dom';
 type BreadCrumbItem = {
     title: React.ReactNode;
     to?: string;
+    href?: string;
     onClick?: () => void;
     active?: boolean;
+    tooltipProps?: Omit<TooltipProps, 'children'>;
 };
 
 export interface PageBreadcrumbsProps
@@ -34,19 +38,30 @@ const PageBreadcrumbs: FC<PageBreadcrumbsProps> = ({
                     size: size,
                     fw: item.active ? 600 : 500,
                     color: item.active ? 'gray.7' : 'gray.6',
+                    onClick: item.onClick,
+                    sx:
+                        item.onClick || item.to
+                            ? { cursor: 'pointer' }
+                            : {
+                                  cursor: 'text',
+                                  '&:hover': {
+                                      textDecoration: 'none',
+                                  },
+                              },
                 };
 
-                return item.to || item.onClick ? (
-                    <Anchor
-                        component={Link}
-                        to={item.to ?? ''}
-                        onClick={item.onClick}
-                        {...commonProps}
-                    >
+                const anchor = item.to ? (
+                    <Anchor component={Link} to={item.to} {...commonProps}>
                         {item.title}
                     </Anchor>
                 ) : (
-                    <Text {...commonProps}>{item.title}</Text>
+                    <Anchor {...commonProps}>{item.title}</Anchor>
+                );
+
+                return item.tooltipProps ? (
+                    <Tooltip {...item.tooltipProps}>{anchor}</Tooltip>
+                ) : (
+                    anchor
                 );
             })}
         </Breadcrumbs>
