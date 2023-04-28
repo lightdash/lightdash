@@ -1,6 +1,6 @@
 import { Colors } from '@blueprintjs/core';
 import { AdditionalMetric, CompiledTable, getItemId } from '@lightdash/common';
-import { Center, NavLink, Text } from '@mantine/core';
+import { Box, Center, Group, NavLink, Stack, Text } from '@mantine/core';
 import { FC, useMemo } from 'react';
 import DocumentationHelpButton from '../../../DocumentationHelpButton';
 import { getSearchResults, TreeProvider } from './Tree/TreeProvider';
@@ -49,14 +49,13 @@ const TableTreeSections: FC<Props> = ({
         <>
             {isSearching &&
             getSearchResults(dimensions, searchQuery).size === 0 ? null : (
-                <NavLink
-                    defaultOpened
-                    label={
+                <>
+                    <Group h="xxl">
                         <Text fw={600} color="blue.9">
                             Dimensions
                         </Text>
-                    }
-                >
+                    </Group>
+
                     {Object.keys(table.dimensions).length <= 0 ? (
                         <Center>
                             <Text color="dimmed">
@@ -76,21 +75,18 @@ const TableTreeSections: FC<Props> = ({
                             <TreeRoot />
                         </TreeProvider>
                     )}
-                </NavLink>
+                </>
             )}
 
             {isSearching &&
             getSearchResults(metrics, searchQuery).size === 0 ? null : (
-                <NavLink
-                    defaultOpened
-                    label={
+                <>
+                    <Group position="apart" h="xxl">
                         <Text fw={600} color="yellow.9">
                             Metrics
                         </Text>
-                    }
-                    disableRightSectionRotation={hasNoMetrics}
-                    rightSection={
-                        hasNoMetrics ? (
+
+                        {hasNoMetrics ? (
                             <DocumentationHelpButton
                                 href="https://docs.lightdash.com/guides/how-to-create-metrics"
                                 tooltipProps={{
@@ -115,10 +111,10 @@ const TableTreeSections: FC<Props> = ({
                                     },
                                 }}
                             />
-                        ) : undefined
-                    }
-                >
-                    {hasNoMetrics ? undefined : (
+                        ) : null}
+                    </Group>
+
+                    {hasNoMetrics ? null : (
                         <TreeProvider
                             orderFieldsBy={table.orderFieldsBy}
                             searchQuery={searchQuery}
@@ -131,19 +127,17 @@ const TableTreeSections: FC<Props> = ({
                             <TreeRoot />
                         </TreeProvider>
                     )}
-                </NavLink>
+                </>
             )}
 
             {isSearching &&
             getSearchResults(customMetrics, searchQuery).size === 0 ? null : (
-                <NavLink
-                    defaultOpened
-                    label={
+                <>
+                    <Group position="apart" h="xxl">
                         <Text fw={600} color="yellow.9">
                             Custom metrics
                         </Text>
-                    }
-                    rightSection={
+
                         <DocumentationHelpButton
                             href="https://docs.lightdash.com/guides/how-to-create-metrics#-adding-custom-metrics-in-the-explore-view"
                             tooltipProps={{
@@ -165,8 +159,8 @@ const TableTreeSections: FC<Props> = ({
                                 },
                             }}
                         />
-                    }
-                >
+                    </Group>
+
                     {hasNoMetrics || additionalMetrics.length > 0 ? (
                         <TreeProvider
                             orderFieldsBy={table.orderFieldsBy}
@@ -180,7 +174,7 @@ const TableTreeSections: FC<Props> = ({
                             <TreeRoot />
                         </TreeProvider>
                     ) : null}
-                </NavLink>
+                </>
             )}
         </>
     );
