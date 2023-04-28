@@ -1,12 +1,15 @@
 import {
+    AdditionalMetric,
     Dimension,
     DimensionType,
+    fieldId,
     friendlyName,
+    isAdditionalMetric,
     isDimension,
+    isField,
     isFilterableField,
     Metric,
     MetricType,
-    Source,
 } from '@lightdash/common';
 import { ActionIcon, Group, Menu, Tooltip } from '@mantine/core';
 import {
@@ -14,7 +17,7 @@ import {
     IconDots,
     IconFilter,
     IconSparkles,
-    IconTerminal,
+    IconTrash,
 } from '@tabler/icons-react';
 import { FC, ReactNode, useCallback, useMemo } from 'react';
 
@@ -54,17 +57,23 @@ const getCustomMetricType = (type: DimensionType): MetricType[] => {
     }
 };
 
-const FieldButtons: FC<{
-    node: Metric | Dimension;
-    onOpenSourceDialog: (source: Source) => void;
+type Props = {
+    node: Metric | Dimension | AdditionalMetric;
     isHovered: boolean;
     isSelected: boolean;
-}> = ({ node, onOpenSourceDialog, isHovered, isSelected }) => {
+};
+
+const TreeSingleNodeActions: FC<Props> = ({ node, isHovered, isSelected }) => {
     const { isFilteredField, addFilter } = useFilters();
-    const isFiltered = isFilteredField(node);
+    const isFiltered = isField(node) && isFilteredField(node);
     const { track } = useTracking();
+
     const addAdditionalMetric = useExplorerContext(
         (context) => context.actions.addAdditionalMetric,
+    );
+
+    const removeAdditionalMetric = useExplorerContext(
+        (context) => context.actions.removeAdditionalMetric,
     );
 
     const createCustomMetric = useCallback(
@@ -113,22 +122,7 @@ const FieldButtons: FC<{
     const menuItems = useMemo<ReactNode[]>(() => {
         const items: ReactNode[] = [];
 
-        if (node.source) {
-            items.push(
-                <Menu.Item
-                    key="source"
-                    icon={<MantineIcon icon={IconTerminal} />}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        if (node.source) onOpenSourceDialog(node.source);
-                    }}
-                >
-                    Source
-                </Menu.Item>,
-            );
-        }
-
-        if (isFilterableField(node)) {
+        if (isField(node) && isFilterableField(node)) {
             items.push(
                 <Menu.Item
                     key="filter"
@@ -142,6 +136,24 @@ const FieldButtons: FC<{
                     }}
                 >
                     Add filter
+                </Menu.Item>,
+            );
+        }
+        if (isAdditionalMetric(node)) {
+            items.push(
+                <Menu.Item
+                    color="red"
+                    key="custommetric"
+                    icon={<MantineIcon icon={IconTrash} />}
+                    onClick={() => {
+                        // e.stopPropagation();
+                        track({
+                            name: EventName.REMOVE_CUSTOM_METRIC_CLICKED,
+                        });
+                        removeAdditionalMetric(fieldId(node));
+                    }}
+                >
+                    Remove custom metric
                 </Menu.Item>,
             );
         }
@@ -177,7 +189,7 @@ const FieldButtons: FC<{
             }
         }
         return items;
-    }, [addFilter, createCustomMetric, node, onOpenSourceDialog, track]);
+    }, [addFilter, createCustomMetric, removeAdditionalMetric, node, track]);
 
     return (
         <Group spacing="xs">
@@ -193,7 +205,7 @@ const FieldButtons: FC<{
             )}
 
             {menuItems.length > 0 && (isHovered || isSelected) && (
-                <Menu withArrow shadow="lg" position="bottom-end">
+                <Menu withArrow withinPortal shadow="lg" position="bottom-end">
                     <Menu.Dropdown>{menuItems}</Menu.Dropdown>
 
                     <Menu.Target>
@@ -209,4 +221,4 @@ const FieldButtons: FC<{
     );
 };
 
-export default FieldButtons;
+export default TreeSingleNodeActions;

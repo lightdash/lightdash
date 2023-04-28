@@ -11,9 +11,8 @@ import { FC } from 'react';
 import { useToggle } from 'react-use';
 import { getItemBgColor } from '../../../../../hooks/useColumns';
 import FieldIcon from '../../../../common/Filters/FieldIcon';
-import CustomMetricButtons from './CustomMetricButtons';
-import FieldButtons from './FieldButtons';
 import { Node, useTableTreeContext } from './TreeProvider';
+import TreeSingleNodeActions from './TreeSingleNodeActions';
 
 export const getItemIconName = (type: DimensionType | MetricType) => {
     switch (type) {
@@ -88,20 +87,11 @@ const TreeSingleNode: FC<{ node: Node }> = ({ node }) => {
                 </Tooltip>
             }
             rightSection={
-                isAdditionalMetric(item) ? (
-                    <CustomMetricButtons
-                        node={item}
-                        isHovered={isHover}
-                        isSelected={isSelected}
-                    />
-                ) : (
-                    <FieldButtons
-                        node={item}
-                        onOpenSourceDialog={() => undefined}
-                        isHovered={isHover}
-                        isSelected={isSelected}
-                    />
-                )
+                <TreeSingleNodeActions
+                    node={item}
+                    isHovered={isHover}
+                    isSelected={isSelected}
+                />
             }
         ></NavLink>
     );
