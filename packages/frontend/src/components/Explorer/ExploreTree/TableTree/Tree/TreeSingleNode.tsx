@@ -77,8 +77,6 @@ const TreeSingleNode: FC<{ node: Node }> = ({ node }) => {
                     disabled={!item.description}
                     label={item.description}
                     position="top-start"
-                    // TODO: fix this...
-                    // className={Classes.TEXT_OVERFLOW_ELLIPSIS}
                 >
                     <Highlight
                         component={Text}

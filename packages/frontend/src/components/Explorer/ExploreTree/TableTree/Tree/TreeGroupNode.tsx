@@ -1,6 +1,5 @@
-import { Intent, Tag } from '@blueprintjs/core';
 import { hasIntersection } from '@lightdash/common';
-import { Group, Highlight, NavLink, Text } from '@mantine/core';
+import { Badge, Group, Highlight, NavLink, Text } from '@mantine/core';
 import intersectionBy from 'lodash-es/intersectionBy';
 import { FC } from 'react';
 import { useToggle } from 'react-use';
@@ -56,14 +55,7 @@ const TreeGroupNode: FC<Props> = ({ node }) => {
                     </Highlight>
 
                     {!isOpen && hasSelectedChildren && (
-                        <Tag
-                            round
-                            minimal
-                            intent={Intent.PRIMARY}
-                            style={{ marginLeft: '10px' }}
-                        >
-                            {selectedChildrenCount}
-                        </Tag>
+                        <Badge>{selectedChildrenCount}</Badge>
                     )}
                 </Group>
             }

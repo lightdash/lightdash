@@ -47,19 +47,13 @@ const CollapsibleTableTree: FC<CollapsibleTableTreeProps> = ({
                     withArrow
                     position="top-start"
                     label={table.description}
-                    // FIXME: overflowing...
-                    // className={Classes.TEXT_OVERFLOW_ELLIPSIS}
                 >
                     <Group>
                         <Text truncate fw={600}>
                             {table.label}
                         </Text>
 
-                        {!isOpen && (
-                            <Badge color="gray.8" bg="gray.2">
-                                {tableItemsCount}
-                            </Badge>
-                        )}
+                        {!isOpen && <Badge>{tableItemsCount}</Badge>}
                     </Group>
                 </Tooltip>
             }
