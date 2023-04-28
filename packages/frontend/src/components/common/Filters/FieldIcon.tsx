@@ -17,8 +17,9 @@ import {
     IconTag,
     IconToggleLeft,
 } from '@tabler/icons-react';
-import { CSSProperties, FC } from 'react';
+import { forwardRef } from 'react';
 import { getItemIconName } from '../../Explorer/ExploreTree/TableTree/Tree/TreeSingleNode';
+import MantineIcon, { MantineIconProps } from '../MantineIcon';
 
 const getFieldIcon = (field: Field | TableCalculation | AdditionalMetric) => {
     if (isField(field) && (isDimension(field) || isMetric(field))) {
@@ -27,51 +28,37 @@ const getFieldIcon = (field: Field | TableCalculation | AdditionalMetric) => {
     return getItemIcon(field);
 };
 
-const FieldIcon: FC<{
+type Props = Omit<MantineIconProps, 'icon'> & {
     item: Field | TableCalculation | AdditionalMetric;
-    color?: string | undefined;
-    size?: number | undefined;
-    style?: CSSProperties | undefined;
-}> = ({ item, color, size, style }) => {
-    const iconColor = color ? color : getItemColor(item);
-    const iconSize = size ? size : 20;
-
-    switch (getFieldIcon(item)) {
-        case 'citation':
-            return <IconAbc color={iconColor} size={iconSize} style={style} />;
-        case 'numerical':
-            return <Icon123 color={iconColor} size={iconSize} style={style} />;
-        case 'calendar':
-            return (
-                <IconCalendar color={iconColor} size={iconSize} style={style} />
-            );
-        case 'time':
-            return (
-                <IconClockHour4
-                    color={iconColor}
-                    size={iconSize}
-                    style={style}
-                />
-            );
-        case 'segmented-control':
-            return (
-                <IconToggleLeft
-                    color={iconColor}
-                    size={iconSize}
-                    style={style}
-                />
-            );
-        case 'function':
-            return (
-                <IconMathFunction
-                    color={iconColor}
-                    size={iconSize}
-                    style={style}
-                />
-            );
-        case 'tag':
-            return <IconTag color={iconColor} size={iconSize} style={style} />;
-    }
 };
+
+const FieldIcon = forwardRef<SVGSVGElement, Props>(
+    ({ item, size = 'lg', ...iconProps }, ref) => {
+        const iconColor = iconProps.color ?? getItemColor(item);
+        const props = {
+            ...iconProps,
+            ref,
+            size,
+            color: iconColor,
+        };
+
+        switch (getFieldIcon(item)) {
+            case 'citation':
+                return <MantineIcon icon={IconAbc} {...props} />;
+            case 'numerical':
+                return <MantineIcon icon={Icon123} {...props} />;
+            case 'calendar':
+                return <MantineIcon icon={IconCalendar} {...props} />;
+            case 'time':
+                return <MantineIcon icon={IconClockHour4} {...props} />;
+            case 'segmented-control':
+                return <MantineIcon icon={IconToggleLeft} {...props} />;
+            case 'function':
+                return <MantineIcon icon={IconMathFunction} {...props} />;
+            case 'tag':
+                return <MantineIcon icon={IconTag} {...props} />;
+        }
+    },
+);
 
 export default FieldIcon;
