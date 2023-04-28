@@ -1,14 +1,15 @@
 import {
     DimensionType,
-    isAdditionalMetric,
     isDimension,
     isTimeInterval,
     MetricType,
     timeFrameConfigs,
 } from '@lightdash/common';
 import { Highlight, NavLink, Text, Tooltip } from '@mantine/core';
+import { darken, lighten } from 'polished';
 import { FC } from 'react';
 import { useToggle } from 'react-use';
+
 import { getItemBgColor } from '../../../../../hooks/useColumns';
 import FieldIcon from '../../../../common/Filters/FieldIcon';
 import { Node, useTableTreeContext } from './TreeProvider';
@@ -41,6 +42,7 @@ const TreeSingleNode: FC<{ node: Node }> = ({ node }) => {
         searchQuery,
         onItemClick,
     } = useTableTreeContext();
+
     const isSelected = selectedItems.has(node.key);
     const isVisible = !isSearching || searchResults.has(node.key);
     const item = itemsMap[node.key];
@@ -53,11 +55,21 @@ const TreeSingleNode: FC<{ node: Node }> = ({ node }) => {
         isTimeInterval(item.timeInterval)
             ? timeFrameConfigs[item.timeInterval].getLabel()
             : undefined;
-    const label: string = timeIntervalLabel || item.label || item.name;
+
+    const label = timeIntervalLabel || item.label || item.name;
+
+    const bgColor = getItemBgColor(item);
+
     return (
         <NavLink
-            bg={isSelected ? getItemBgColor(item) : undefined}
-            noWrap
+            sx={{
+                backgroundColor: isSelected ? bgColor : undefined,
+                '&:hover': {
+                    backgroundColor: isSelected
+                        ? darken(0.02, bgColor)
+                        : lighten(0.1, bgColor),
+                },
+            }}
             icon={
                 <FieldIcon
                     item={item}
@@ -68,10 +80,12 @@ const TreeSingleNode: FC<{ node: Node }> = ({ node }) => {
             onClick={() => onItemClick(node.key, item)}
             onMouseEnter={() => toggle(true)}
             onMouseLeave={() => toggle(false)}
+            noWrap
             label={
                 <Tooltip
                     withArrow
                     inline
+                    openDelay={500}
                     disabled={!item.description}
                     label={<Text truncate>{item.description}</Text>}
                     position="top-start"

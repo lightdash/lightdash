@@ -210,7 +210,7 @@ const TreeSingleNodeActions: FC<Props> = ({ node, isHovered, isSelected }) => {
 
                     <Menu.Target>
                         <Tooltip withArrow openDelay={500} label="View options">
-                            <ActionIcon size="sm" h="md" variant="transparent">
+                            <ActionIcon variant="light">
                                 <MantineIcon icon={IconDots} />
                             </ActionIcon>
                         </Tooltip>
