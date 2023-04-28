@@ -19,7 +19,7 @@ const DocumentationHelpButton: FC<Props> = ({
         withinPortal
         label="Open documentation"
         position="top"
-        width={350}
+        maw={350}
         {...tooltipProps}
     >
         <Anchor
