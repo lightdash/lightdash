@@ -19,7 +19,7 @@ import {
     IconSparkles,
     IconTrash,
 } from '@tabler/icons-react';
-import { FC, ReactNode, useCallback, useMemo } from 'react';
+import { FC, useCallback, useMemo } from 'react';
 
 import { useFilters } from '../../../../../hooks/useFilters';
 import { useExplorerContext } from '../../../../../providers/ExplorerProvider';
@@ -119,81 +119,18 @@ const TreeSingleNodeActions: FC<Props> = ({ node, isHovered, isSelected }) => {
         [addAdditionalMetric],
     );
 
-    const menuItems = useMemo<ReactNode[]>(() => {
-        const items: ReactNode[] = [];
-
-        if (isField(node) && isFilterableField(node)) {
-            items.push(
-                <Menu.Item
-                    key="filter"
-                    icon={<MantineIcon icon={IconFilter} />}
-                    onClick={(e) => {
-                        track({
-                            name: EventName.ADD_FILTER_CLICKED,
-                        });
-                        e.stopPropagation();
-                        addFilter(node, undefined);
-                    }}
-                >
-                    Add filter
-                </Menu.Item>,
-            );
-        }
-        if (isAdditionalMetric(node)) {
-            items.push(
-                <Menu.Item
-                    color="red"
-                    key="custommetric"
-                    icon={<MantineIcon icon={IconTrash} />}
-                    onClick={() => {
-                        // e.stopPropagation();
-                        track({
-                            name: EventName.REMOVE_CUSTOM_METRIC_CLICKED,
-                        });
-                        removeAdditionalMetric(fieldId(node));
-                    }}
-                >
-                    Remove custom metric
-                </Menu.Item>,
-            );
-        }
-
-        if (isDimension(node)) {
-            const customMetrics = getCustomMetricType(node.type);
-
-            if (customMetrics.length > 0) {
-                items.push(
-                    <Menu.Divider key="custom-metrics-divider" />,
-                    <Menu.Label key="custom-metrics-label">
-                        <Group spacing="xs">
-                            <MantineIcon icon={IconSparkles} /> Add custom
-                            metrics
-                        </Group>
-                    </Menu.Label>,
-
-                    ...customMetrics.map((metric) => (
-                        <Menu.Item
-                            key={metric}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                track({
-                                    name: EventName.ADD_CUSTOM_METRIC_CLICKED,
-                                });
-                                createCustomMetric(node, metric);
-                            }}
-                        >
-                            {friendlyName(metric)}
-                        </Menu.Item>
-                    )),
-                );
-            }
-        }
-        return items;
-    }, [addFilter, createCustomMetric, removeAdditionalMetric, node, track]);
+    const customMetrics = useMemo(
+        () => (isDimension(node) ? getCustomMetricType(node.type) : []),
+        [node],
+    );
 
     return (
         <Group spacing="xs">
-            {isFiltered && <MantineIcon icon={IconFilter} />}
+            {isFiltered && (
+                <Tooltip withArrow label="This field is filtered">
+                    <MantineIcon icon={IconFilter} color="gray.7" />
+                </Tooltip>
+            )}
 
             {node.hidden && (
                 <Tooltip
@@ -204,16 +141,75 @@ const TreeSingleNodeActions: FC<Props> = ({ node, isHovered, isSelected }) => {
                 </Tooltip>
             )}
 
-            {menuItems.length > 0 && (isHovered || isSelected) && (
+            {isHovered || isSelected ? (
                 <Menu
                     withArrow
                     withinPortal
                     shadow="lg"
                     position="bottom-end"
                     arrowOffset={12}
-                    offset={-8}
+                    offset={-4}
                 >
-                    <Menu.Dropdown>{menuItems}</Menu.Dropdown>
+                    <Menu.Dropdown>
+                        {isField(node) && isFilterableField(node) ? (
+                            <Menu.Item
+                                icon={<MantineIcon icon={IconFilter} />}
+                                onClick={(e) => {
+                                    track({
+                                        name: EventName.ADD_FILTER_CLICKED,
+                                    });
+                                    e.stopPropagation();
+                                    addFilter(node, undefined);
+                                }}
+                            >
+                                Add filter
+                            </Menu.Item>
+                        ) : null}
+
+                        {isAdditionalMetric(node) ? (
+                            <Menu.Item
+                                color="red"
+                                key="custommetric"
+                                icon={<MantineIcon icon={IconTrash} />}
+                                onClick={() => {
+                                    // e.stopPropagation();
+                                    track({
+                                        name: EventName.REMOVE_CUSTOM_METRIC_CLICKED,
+                                    });
+                                    removeAdditionalMetric(fieldId(node));
+                                }}
+                            >
+                                Remove custom metric
+                            </Menu.Item>
+                        ) : null}
+
+                        {customMetrics.length > 0 && isDimension(node) ? (
+                            <>
+                                <Menu.Divider key="custom-metrics-divider" />
+                                <Menu.Label key="custom-metrics-label">
+                                    <Group spacing="xs">
+                                        <MantineIcon icon={IconSparkles} /> Add
+                                        custom metrics
+                                    </Group>
+                                </Menu.Label>
+
+                                {customMetrics.map((metric) => (
+                                    <Menu.Item
+                                        key={metric}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            track({
+                                                name: EventName.ADD_CUSTOM_METRIC_CLICKED,
+                                            });
+                                            createCustomMetric(node, metric);
+                                        }}
+                                    >
+                                        {friendlyName(metric)}
+                                    </Menu.Item>
+                                ))}
+                            </>
+                        ) : null}
+                    </Menu.Dropdown>
 
                     <Menu.Target>
                         <Tooltip
@@ -228,7 +224,7 @@ const TreeSingleNodeActions: FC<Props> = ({ node, isHovered, isSelected }) => {
                         </Tooltip>
                     </Menu.Target>
                 </Menu>
-            )}
+            ) : null}
         </Group>
     );
 };
