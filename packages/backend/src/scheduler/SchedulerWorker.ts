@@ -11,6 +11,7 @@ import { schedulerClient } from '../clients/clients';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logger';
 import { schedulerService } from '../services/services';
+import { tryJobOrTimeout } from './SchedulerJobTimeout';
 import {
     downloadCsv,
     handleScheduledDelivery,
@@ -94,29 +95,41 @@ export class SchedulerWorker {
                     payload: any,
                     helpers: JobHelpers,
                 ) => {
-                    await handleScheduledDelivery(
-                        helpers.job.id,
-                        helpers.job.run_at,
-                        payload,
+                    await tryJobOrTimeout(
+                        handleScheduledDelivery(
+                            helpers.job.id,
+                            helpers.job.run_at,
+                            payload,
+                        ),
+                        helpers.job,
                     );
                 },
                 sendSlackNotification: async (
                     payload: any,
                     helpers: JobHelpers,
                 ) => {
-                    await sendSlackNotification(helpers.job.id, payload);
+                    await tryJobOrTimeout(
+                        sendSlackNotification(helpers.job.id, payload),
+                        helpers.job,
+                    );
                 },
                 sendEmailNotification: async (
                     payload: any,
                     helpers: JobHelpers,
                 ) => {
-                    await sendEmailNotification(helpers.job.id, payload);
+                    await tryJobOrTimeout(
+                        sendEmailNotification(helpers.job.id, payload),
+                        helpers.job,
+                    );
                 },
                 downloadCsv: async (payload: any, helpers: JobHelpers) => {
-                    await downloadCsv(
-                        helpers.job.id,
-                        helpers.job.run_at,
-                        payload,
+                    await tryJobOrTimeout(
+                        downloadCsv(
+                            helpers.job.id,
+                            helpers.job.run_at,
+                            payload,
+                        ),
+                        helpers.job,
                     );
                 },
             },
