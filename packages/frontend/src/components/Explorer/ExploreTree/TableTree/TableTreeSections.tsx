@@ -1,9 +1,8 @@
 import { Colors } from '@blueprintjs/core';
 import { AdditionalMetric, CompiledTable, getItemId } from '@lightdash/common';
-import { NavLink, Text } from '@mantine/core';
+import { Center, NavLink, Text } from '@mantine/core';
 import { FC, useMemo } from 'react';
 import DocumentationHelpButton from '../../../DocumentationHelpButton';
-import { EmptyState } from './TableTree.styles';
 import { getSearchResults, TreeProvider } from './Tree/TreeProvider';
 import TreeRoot from './Tree/TreeRoot';
 
@@ -21,9 +20,9 @@ const TableTreeSections: FC<Props> = ({
     selectedItems,
     onSelectedNodeChange,
 }) => {
-    const hasNoMetrics = Object.keys(table.metrics).length <= 0;
-
     const isSearching = !!searchQuery && searchQuery !== '';
+
+    const hasNoMetrics = Object.keys(table.metrics).length === 0;
 
     const dimensions = useMemo(() => {
         return Object.values(table.dimensions).reduce(
@@ -59,9 +58,11 @@ const TableTreeSections: FC<Props> = ({
                     }
                 >
                     {Object.keys(table.dimensions).length <= 0 ? (
-                        <EmptyState>
-                            No dimensions defined in your dbt project
-                        </EmptyState>
+                        <Center>
+                            <Text color="dimmed">
+                                No dimensions defined in your dbt project
+                            </Text>
+                        </Center>
                     ) : (
                         <TreeProvider
                             orderFieldsBy={table.orderFieldsBy}
@@ -87,8 +88,9 @@ const TableTreeSections: FC<Props> = ({
                             Metrics
                         </Text>
                     }
+                    disableRightSectionRotation={hasNoMetrics}
                     rightSection={
-                        !hasNoMetrics && (
+                        hasNoMetrics ? (
                             <DocumentationHelpButton
                                 href="https://docs.lightdash.com/guides/how-to-create-metrics"
                                 tooltipProps={{
@@ -113,10 +115,10 @@ const TableTreeSections: FC<Props> = ({
                                     },
                                 }}
                             />
-                        )
+                        ) : undefined
                     }
                 >
-                    {!hasNoMetrics && (
+                    {hasNoMetrics ? undefined : (
                         <TreeProvider
                             orderFieldsBy={table.orderFieldsBy}
                             searchQuery={searchQuery}

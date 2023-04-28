@@ -13,7 +13,6 @@ import { FC } from 'react';
 import { useToggle } from 'react-use';
 import { getItemBgColor } from '../../../../../hooks/useColumns';
 import FieldIcon from '../../../../common/Filters/FieldIcon';
-import { Row, SpanFlex } from '../TableTree.styles';
 import CustomMetricButtons from './CustomMetricButtons';
 import FieldButtons from './FieldButtons';
 import { Node, useTableTreeContext } from './TreeProvider';
@@ -49,9 +48,7 @@ const TreeSingleNode: FC<{ node: Node }> = ({ node }) => {
     const isVisible = !isSearching || searchResults.has(node.key);
     const item = itemsMap[node.key];
 
-    if (!item || !isVisible) {
-        return null;
-    }
+    if (!item || !isVisible) return null;
 
     const timeIntervalLabel =
         isDimension(item) &&
@@ -62,9 +59,8 @@ const TreeSingleNode: FC<{ node: Node }> = ({ node }) => {
     const label: string = timeIntervalLabel || item.label || item.name;
     return (
         <NavLink
-            active={isSelected}
-            // TODO: check if I can support this...
-            // bgColor={getItemBgColor(item)}
+            bg={isSelected ? getItemBgColor(item) : undefined}
+            noWrap
             icon={
                 <FieldIcon
                     item={item}
@@ -78,12 +74,17 @@ const TreeSingleNode: FC<{ node: Node }> = ({ node }) => {
             label={
                 <Tooltip
                     withArrow
+                    disabled={!item.description}
                     label={item.description}
                     position="top-start"
                     // TODO: fix this...
                     // className={Classes.TEXT_OVERFLOW_ELLIPSIS}
                 >
-                    <Highlight component={Text} highlight={searchQuery || ''}>
+                    <Highlight
+                        component={Text}
+                        highlight={searchQuery || ''}
+                        truncate
+                    >
                         {label}
                     </Highlight>
                 </Tooltip>

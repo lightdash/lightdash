@@ -1,5 +1,3 @@
-import { Button, Icon, Menu, PopoverPosition } from '@blueprintjs/core';
-import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import {
     Dimension,
     DimensionType,
@@ -9,12 +7,21 @@ import {
     MetricType,
     Source,
 } from '@lightdash/common';
-import React, { FC, ReactNode, useCallback, useMemo, useState } from 'react';
+import { ActionIcon, Box, Group, Menu, Tooltip } from '@mantine/core';
+import {
+    IconAlertTriangle,
+    IconDots,
+    IconFilter,
+    IconSparkles,
+    IconTerminal,
+} from '@tabler/icons-react';
+import { FC, ReactNode, useCallback, useMemo, useState } from 'react';
+
 import { useFilters } from '../../../../../hooks/useFilters';
 import { useExplorerContext } from '../../../../../providers/ExplorerProvider';
 import { useTracking } from '../../../../../providers/TrackingProvider';
 import { EventName } from '../../../../../types/Events';
-import { ItemOptions, Placeholder, WarningIcon } from '../TableTree.styles';
+import MantineIcon from '../../../../common/MantineIcon';
 
 const getCustomMetricType = (type: DimensionType): MetricType[] => {
     switch (type) {
@@ -106,10 +113,9 @@ const FieldButtons: FC<{
         const items: ReactNode[] = [];
         if (node.source) {
             items.push(
-                <MenuItem2
+                <Menu.Item
                     key="source"
-                    icon={<Icon icon="console" />}
-                    text="Source"
+                    icon={<MantineIcon icon={IconTerminal} />}
                     onClick={(e) => {
                         if (node.source === undefined) {
                             return;
@@ -117,15 +123,16 @@ const FieldButtons: FC<{
                         e.stopPropagation();
                         onOpenSourceDialog(node.source);
                     }}
-                />,
+                >
+                    Source
+                </Menu.Item>,
             );
         }
         if (isFilterableField(node)) {
             items.push(
-                <MenuItem2
+                <Menu.Item
                     key="filter"
-                    icon="filter"
-                    text="Add filter"
+                    icon={<MantineIcon icon={IconFilter} />}
                     onClick={(e) => {
                         track({
                             name: EventName.ADD_FILTER_CLICKED,
@@ -133,7 +140,9 @@ const FieldButtons: FC<{
                         e.stopPropagation();
                         addFilter(node, undefined);
                     }}
-                />,
+                >
+                    Add filter
+                </Menu.Item>,
             );
         }
 
@@ -142,74 +151,64 @@ const FieldButtons: FC<{
             getCustomMetricType(node.type).length > 0
         ) {
             items.push(
-                <MenuItem2
-                    key="custommetric"
-                    icon="clean"
-                    text="Add custom metric"
-                >
-                    {getCustomMetricType(node.type)?.map((metric) => (
-                        <MenuItem2
-                            key={metric}
-                            text={friendlyName(metric)}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                track({
-                                    name: EventName.ADD_CUSTOM_METRIC_CLICKED,
-                                });
-                                createCustomMetric(node, metric);
-                            }}
-                        />
-                    ))}
-                </MenuItem2>,
+                <Menu.Divider key="custom-metrics-divider" />,
+                <Menu.Label key="custom-metrics-label">
+                    <MantineIcon icon={IconSparkles} /> Add custom metrics
+                </Menu.Label>,
+
+                // icon={}
+
+                ...(getCustomMetricType(node.type)?.map((metric) => (
+                    <Menu.Item
+                        key={metric}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            track({
+                                name: EventName.ADD_CUSTOM_METRIC_CLICKED,
+                            });
+                            createCustomMetric(node, metric);
+                        }}
+                    >
+                        {friendlyName(metric)}
+                    </Menu.Item>
+                )) || []),
             );
         }
         return items;
     }, [addFilter, createCustomMetric, node, onOpenSourceDialog, track]);
 
-    const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
-
     return (
-        <ItemOptions>
-            {isFiltered && <Icon icon="filter" />}
+        <Group spacing="xs">
+            {isFiltered && <MantineIcon icon={IconFilter} />}
+
             {node.hidden && (
-                <Tooltip2 content="This field has been hidden in the dbt project. It's recommend to remove it from the query">
-                    <WarningIcon icon={'warning-sign'} intent="warning" />
-                </Tooltip2>
-            )}
-            {menuItems.length > 0 && (isHovered || isSelected || isMenuOpen) && (
-                <Popover2
-                    content={<Menu>{menuItems}</Menu>}
-                    autoFocus={false}
-                    position={PopoverPosition.BOTTOM_RIGHT}
-                    minimal
-                    lazy
-                    interactionKind="click"
-                    renderTarget={({ isOpen, ref, ...targetProps }) => (
-                        <Tooltip2
-                            content="View options"
-                            hoverCloseDelay={500}
-                            onClosed={(e) => setIsMenuOpen(false)}
-                        >
-                            <Button
-                                {...targetProps}
-                                elementRef={ref === null ? undefined : ref}
-                                icon="more"
-                                minimal
-                                onClick={(e) => {
-                                    (targetProps as any).onClick(e);
-                                    e.stopPropagation();
-                                    setIsMenuOpen(true);
-                                }}
-                            />
-                        </Tooltip2>
-                    )}
-                />
+                <Tooltip
+                    withArrow
+                    label="This field has been hidden in the dbt project. It's recommend to remove it from the query"
+                >
+                    <MantineIcon icon={IconAlertTriangle} color="yellow.9" />
+                </Tooltip>
             )}
 
-            {isFiltered && !isHovered && !isSelected && !isMenuOpen && (
-                <Placeholder />
+            {menuItems.length > 0 && (isHovered || isSelected) && (
+                <Menu position="bottom-end">
+                    <Menu.Dropdown>{menuItems}</Menu.Dropdown>
+
+                    <Menu.Target>
+                        <Tooltip withArrow openDelay={500} label="View options">
+                            <ActionIcon size="sm" h="md" variant="transparent">
+                                <MantineIcon icon={IconDots} />
+                            </ActionIcon>
+                        </Tooltip>
+                    </Menu.Target>
+                </Menu>
             )}
-        </ItemOptions>
+
+            {/* {isFiltered && !isHovered && !isSelected && !isMenuOpen && ( */}
+            {/* // FIXME: revisit this */}
+            {/* <Box w={30} /> */}
+            {/* )} */}
+        </Group>
     );
 };
 

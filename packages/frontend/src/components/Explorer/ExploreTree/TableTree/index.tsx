@@ -1,5 +1,13 @@
 import { AdditionalMetric, CompiledTable } from '@lightdash/common';
-import { Badge, Group, NavLink, Text, Tooltip } from '@mantine/core';
+import {
+    Badge,
+    Group,
+    MantineProvider,
+    MantineThemeOverride,
+    NavLink,
+    Text,
+    Tooltip,
+} from '@mantine/core';
 import { IconTable } from '@tabler/icons-react';
 import { FC, useMemo } from 'react';
 import { useToggle } from 'react-use';
@@ -72,6 +80,19 @@ type Props = {
 
 const EmptyWrapper: FC = ({ children }) => <>{children}</>;
 
+const themeOverride: MantineThemeOverride = {
+    components: {
+        NavLink: {
+            styles: (theme, _params) => ({
+                root: {
+                    height: theme.spacing.xxl,
+                    padding: `0 ${theme.spacing.sm}`,
+                },
+            }),
+        },
+    },
+};
+
 const TableTree: FC<Props> = ({
     showTableLabel,
     table,
@@ -81,13 +102,15 @@ const TableTree: FC<Props> = ({
     const Wrapper = showTableLabel ? CollapsibleTableTree : EmptyWrapper;
     return (
         <TrackSection name={SectionName.SIDEBAR}>
-            <Wrapper table={table} additionalMetrics={additionalMetrics}>
-                <TableTreeSections
-                    table={table}
-                    additionalMetrics={additionalMetrics}
-                    {...rest}
-                />
-            </Wrapper>
+            <MantineProvider inherit theme={themeOverride}>
+                <Wrapper table={table} additionalMetrics={additionalMetrics}>
+                    <TableTreeSections
+                        table={table}
+                        additionalMetrics={additionalMetrics}
+                        {...rest}
+                    />
+                </Wrapper>
+            </MantineProvider>
         </TrackSection>
     );
 };
