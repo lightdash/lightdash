@@ -216,8 +216,13 @@ const TreeSingleNodeActions: FC<Props> = ({ node, isHovered, isSelected }) => {
                     <Menu.Dropdown>{menuItems}</Menu.Dropdown>
 
                     <Menu.Target>
-                        <Tooltip withArrow openDelay={500} label="View options">
-                            <ActionIcon size="lg" variant="transparent">
+                        <Tooltip
+                            withArrow
+                            openDelay={500}
+                            position="right"
+                            label="View options"
+                        >
+                            <ActionIcon radius="none" variant="transparent">
                                 <MantineIcon icon={IconDots} />
                             </ActionIcon>
                         </Tooltip>
