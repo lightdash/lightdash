@@ -236,6 +236,7 @@ export const EmptyStateNoTableData: FC<{ description: React.ReactNode }> = ({
 
 export const NoTableSelected = () => (
     <EmptyState
+        maw={500}
         icon={<NoTableIcon />}
         title="Select a table"
         description={
