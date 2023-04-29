@@ -1,5 +1,13 @@
 import { InlineErrorType, SummaryExplore } from '@lightdash/common';
-import { Anchor, Box, Highlight, NavLink, Tooltip } from '@mantine/core';
+import {
+    Anchor,
+    Box,
+    Highlight,
+    NavLink,
+    Tooltip,
+    Transition,
+} from '@mantine/core';
+import { useHover } from '@mantine/hooks';
 import {
     IconAlertTriangle,
     IconInfoCircle,
@@ -19,6 +27,8 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
     query,
     onClick,
 }: ExploreNavLinkProps) => {
+    const { ref, hovered } = useHover<HTMLButtonElement>();
+
     if ('errors' in explore) {
         const showNoDimensionsIcon = explore.errors.every(
             (error) => error.type === InlineErrorType.NO_DIMENSIONS_FOUND,
@@ -74,6 +84,7 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
 
     return (
         <NavLink
+            ref={ref}
             role="listitem"
             icon={<MantineIcon icon={IconTable} size="lg" color="gray.7" />}
             onClick={onClick}
@@ -81,18 +92,23 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
                 <Highlight highlight={query ?? ''}>{explore.label}</Highlight>
             }
             rightSection={
-                <Tooltip
-                    withArrow
-                    withinPortal
-                    position="right"
-                    label={explore.description}
-                >
-                    <MantineIcon
-                        icon={IconInfoCircle}
-                        color="gray.6"
-                        size="lg"
-                    />
-                </Tooltip>
+                <Transition mounted={hovered} transition="fade">
+                    {(styles) => (
+                        <Tooltip
+                            withArrow
+                            withinPortal
+                            position="right"
+                            label={explore.description}
+                        >
+                            <MantineIcon
+                                icon={IconInfoCircle}
+                                color="gray.6"
+                                size="lg"
+                                style={styles}
+                            />
+                        </Tooltip>
+                    )}
+                </Transition>
             }
         />
     );
