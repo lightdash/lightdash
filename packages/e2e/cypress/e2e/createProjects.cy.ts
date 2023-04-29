@@ -213,7 +213,7 @@ const testPercentile = (rowValues = percentileRowValues) => {
 
     cy.contains('Events').click();
     cy.findByText('Timestamp tz').click();
-    cy.findByText('Day').click();
+    cy.findByRole('button', { name: 'Day' }).click();
 
     cy.findByText('Median').click();
     cy.findByText('Percentile 25').click();
