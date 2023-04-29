@@ -152,11 +152,10 @@ const TreeSingleNodeActions: FC<Props> = ({
                 {isField(item) && isFilterableField(item) ? (
                     <Menu.Item
                         icon={<MantineIcon icon={IconFilter} />}
-                        onClick={(e) => {
+                        onClick={() => {
                             track({
                                 name: EventName.ADD_FILTER_CLICKED,
                             });
-                            e.stopPropagation();
                             addFilter(item, undefined);
                         }}
                     >
@@ -170,7 +169,6 @@ const TreeSingleNodeActions: FC<Props> = ({
                         key="custommetric"
                         icon={<MantineIcon icon={IconTrash} />}
                         onClick={() => {
-                            // e.stopPropagation();
                             track({
                                 name: EventName.REMOVE_CUSTOM_METRIC_CLICKED,
                             });
@@ -194,8 +192,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                         {customMetrics.map((metric) => (
                             <Menu.Item
                                 key={metric}
-                                onClick={(e) => {
-                                    e.stopPropagation();
+                                onClick={() => {
                                     track({
                                         name: EventName.ADD_CUSTOM_METRIC_CLICKED,
                                     });
@@ -210,7 +207,11 @@ const TreeSingleNodeActions: FC<Props> = ({
             </Menu.Dropdown>
 
             {/* prevents bubbling of click event to NavLink */}
-            <Box onClick={(e) => e.stopPropagation()}>
+            <Box
+                onClick={(e: React.MouseEvent<HTMLDivElement, MouseEvent>) =>
+                    e.stopPropagation()
+                }
+            >
                 <Menu.Target>
                     <Tooltip
                         withArrow
