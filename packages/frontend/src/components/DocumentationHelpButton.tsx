@@ -29,7 +29,12 @@ const DocumentationHelpButton: FC<Props> = ({
             color="dimmed"
             {...anchorProps}
         >
-            <MantineIcon icon={IconHelpCircle} size="md" {...iconProps} />
+            <MantineIcon
+                icon={IconHelpCircle}
+                size="md"
+                display="inline"
+                {...iconProps}
+            />
         </Anchor>
     </Tooltip>
 );
