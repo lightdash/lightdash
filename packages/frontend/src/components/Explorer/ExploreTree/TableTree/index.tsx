@@ -82,6 +82,7 @@ const themeOverride: MantineThemeOverride = {
                 root: {
                     height: theme.spacing.xxl,
                     padding: `0 ${theme.spacing.sm}`,
+                    flexGrow: 0,
                 },
                 rightSection: {
                     marginLeft: theme.spacing.xxs,

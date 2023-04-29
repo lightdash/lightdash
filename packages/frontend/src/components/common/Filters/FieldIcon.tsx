@@ -1,11 +1,13 @@
 import {
     AdditionalMetric,
+    DimensionType,
     Field,
     getItemColor,
     getItemIcon,
     isDimension,
     isField,
     isMetric,
+    MetricType,
     TableCalculation,
 } from '@lightdash/common';
 import {
@@ -18,8 +20,24 @@ import {
     IconToggleLeft,
 } from '@tabler/icons-react';
 import { forwardRef } from 'react';
-import { getItemIconName } from '../../Explorer/ExploreTree/TableTree/Tree/TreeSingleNode';
 import MantineIcon, { MantineIconProps } from '../MantineIcon';
+
+const getItemIconName = (type: DimensionType | MetricType) => {
+    switch (type) {
+        case DimensionType.STRING || MetricType.STRING:
+            return 'citation';
+        case DimensionType.NUMBER || MetricType.NUMBER:
+            return 'numerical';
+        case DimensionType.DATE || MetricType.DATE:
+            return 'calendar';
+        case DimensionType.BOOLEAN || MetricType.BOOLEAN:
+            return 'segmented-control';
+        case DimensionType.TIMESTAMP:
+            return 'time';
+        default:
+            return 'numerical';
+    }
+};
 
 const getFieldIcon = (field: Field | TableCalculation | AdditionalMetric) => {
     if (isField(field) && (isDimension(field) || isMetric(field))) {

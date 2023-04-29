@@ -1,9 +1,7 @@
 import {
-    DimensionType,
     isDimension,
     isField,
     isTimeInterval,
-    MetricType,
     timeFrameConfigs,
 } from '@lightdash/common';
 import { Group, Highlight, NavLink, Text, Tooltip } from '@mantine/core';
@@ -19,28 +17,11 @@ import MantineIcon from '../../../../common/MantineIcon';
 import { Node, useTableTreeContext } from './TreeProvider';
 import TreeSingleNodeActions from './TreeSingleNodeActions';
 
-export const getItemIconName = (type: DimensionType | MetricType) => {
-    switch (type) {
-        case DimensionType.STRING || MetricType.STRING:
-            return 'citation';
-        case DimensionType.NUMBER || MetricType.NUMBER:
-            return 'numerical';
-        case DimensionType.DATE || MetricType.DATE:
-            return 'calendar';
-        case DimensionType.BOOLEAN || MetricType.BOOLEAN:
-            return 'segmented-control';
-        case DimensionType.TIMESTAMP:
-            return 'time';
-        default:
-            return 'numerical';
-    }
+type Props = {
+    node: Node;
 };
 
-const TreeSingleNode: FC<{ node: Node }> = ({ node }) => {
-    const { isFilteredField } = useFilters();
-
-    const [isHover, toggle] = useToggle(false);
-    const [isMenuOpen, toggleMenu] = useToggle(false);
+const TreeSingleNode: FC<Props> = ({ node }) => {
     const {
         itemsMap,
         selectedItems,
@@ -49,9 +30,14 @@ const TreeSingleNode: FC<{ node: Node }> = ({ node }) => {
         searchQuery,
         onItemClick,
     } = useTableTreeContext();
+    const { isFilteredField } = useFilters();
+
+    const [isHover, toggle] = useToggle(false);
+    const [isMenuOpen, toggleMenu] = useToggle(false);
 
     const isSelected = selectedItems.has(node.key);
     const isVisible = !isSearching || searchResults.has(node.key);
+
     const item = itemsMap[node.key];
 
     if (!item || !isVisible) return null;
@@ -71,6 +57,7 @@ const TreeSingleNode: FC<{ node: Node }> = ({ node }) => {
 
     return (
         <NavLink
+            noWrap
             sx={{
                 backgroundColor: isSelected ? bgColor : undefined,
                 '&:hover': {
@@ -89,9 +76,8 @@ const TreeSingleNode: FC<{ node: Node }> = ({ node }) => {
             onClick={() => onItemClick(node.key, item)}
             onMouseEnter={() => toggle(true)}
             onMouseLeave={() => toggle(false)}
-            noWrap
             label={
-                <Group position="apart">
+                <Group noWrap>
                     <Tooltip
                         withArrow
                         inline
@@ -103,32 +89,36 @@ const TreeSingleNode: FC<{ node: Node }> = ({ node }) => {
                     >
                         <Highlight
                             component={Text}
-                            highlight={searchQuery || ''}
                             truncate
+                            sx={{ flexGrow: 1 }}
+                            highlight={searchQuery || ''}
                         >
                             {label}
                         </Highlight>
                     </Tooltip>
 
-                    <Group spacing="xs">
-                        {isFiltered && (
-                            <Tooltip withArrow label="This field is filtered">
-                                <MantineIcon icon={IconFilter} color="gray.7" />
-                            </Tooltip>
-                        )}
+                    {isFiltered ? (
+                        <Tooltip withArrow label="This field is filtered">
+                            <MantineIcon
+                                icon={IconFilter}
+                                color="gray.7"
+                                style={{ flexShrink: 0 }}
+                            />
+                        </Tooltip>
+                    ) : null}
 
-                        {item.hidden && (
-                            <Tooltip
-                                withArrow
-                                label="This field has been hidden in the dbt project. It's recommend to remove it from the query"
-                            >
-                                <MantineIcon
-                                    icon={IconAlertTriangle}
-                                    color="yellow.9"
-                                />
-                            </Tooltip>
-                        )}
-                    </Group>
+                    {item.hidden ? (
+                        <Tooltip
+                            withArrow
+                            label="This field has been hidden in the dbt project. It's recommend to remove it from the query"
+                        >
+                            <MantineIcon
+                                icon={IconAlertTriangle}
+                                color="yellow.9"
+                                style={{ flexShrink: 0 }}
+                            />
+                        </Tooltip>
+                    ) : null}
                 </Group>
             }
             rightSection={
@@ -136,7 +126,7 @@ const TreeSingleNode: FC<{ node: Node }> = ({ node }) => {
                     item={item}
                     isHovered={isHover}
                     isSelected={isSelected}
-                    isMenuOpen={isMenuOpen}
+                    isOpened={isMenuOpen}
                     onMenuChange={toggleMenu}
                 />
             }

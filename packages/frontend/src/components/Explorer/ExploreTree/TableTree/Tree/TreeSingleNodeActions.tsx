@@ -67,7 +67,7 @@ type Props = {
     item: Metric | Dimension | AdditionalMetric;
     isHovered: boolean;
     isSelected: boolean;
-    isMenuOpen: MenuProps['opened'];
+    isOpened: MenuProps['opened'];
     onMenuChange: MenuProps['onChange'];
 };
 
@@ -75,7 +75,7 @@ const TreeSingleNodeActions: FC<Props> = ({
     item,
     isHovered,
     isSelected,
-    isMenuOpen,
+    isOpened,
     onMenuChange,
 }) => {
     const { addFilter } = useFilters();
@@ -137,7 +137,7 @@ const TreeSingleNodeActions: FC<Props> = ({
         [item],
     );
 
-    return isHovered || isSelected || isMenuOpen ? (
+    return isHovered || isSelected || isOpened ? (
         <Menu
             withArrow
             withinPortal
@@ -145,7 +145,7 @@ const TreeSingleNodeActions: FC<Props> = ({
             position="bottom-end"
             arrowOffset={12}
             offset={-4}
-            opened={isMenuOpen}
+            opened={isOpened}
             onChange={onMenuChange}
         >
             <Menu.Dropdown>
@@ -217,10 +217,13 @@ const TreeSingleNodeActions: FC<Props> = ({
                         openDelay={500}
                         position="top"
                         label="View options"
-                        disabled={isMenuOpen}
+                        disabled={isOpened}
                     >
-                        <ActionIcon radius="none" variant="transparent">
-                            <MantineIcon icon={IconDots} />
+                        <ActionIcon variant="transparent">
+                            <MantineIcon
+                                icon={IconDots}
+                                color={isOpened ? 'black' : undefined}
+                            />
                         </ActionIcon>
                     </Tooltip>
                 </Menu.Target>
