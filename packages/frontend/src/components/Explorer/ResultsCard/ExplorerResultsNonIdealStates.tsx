@@ -217,7 +217,7 @@ export const EmptyStateNoTableData: FC<{ description: React.ReactNode }> = ({
 }) => (
     <TrackSection name={SectionName.EMPTY_RESULTS_TABLE}>
         <EmptyState
-            maw={450}
+            maw={500}
             description={
                 <>
                     {description}{' '}
