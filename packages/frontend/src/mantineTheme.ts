@@ -75,20 +75,13 @@ export const getMantineThemeOverride = (overrides?: {
             }),
         },
 
-        NavLink: {
-            styles: (theme, params, context) => {
-                // FIXME: this is a hack to fix link color.
-                // remove after Blueprint migration is complete
-                return {
-                    root: {
-                        color: 'unset',
-
-                        '&:hover': {
-                            textDecoration: 'none',
-                        },
-                    },
-                };
-            },
+        Tooltip: {
+            styles: () => ({
+                // FIXME: this is a hack to fix tooltip position. remove after Blueprint migration is complete
+                root: {
+                    zIndex: 20,
+                },
+            }),
         },
     },
 
