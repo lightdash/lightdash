@@ -247,27 +247,27 @@ const testTimeIntervalsResults = (rowValues = defaultRowValues) => {
     cy.url().should('include', '/tables', { timeout: 30000 });
 
     cy.contains('Events').click();
-    cy.findByText('Timestamp tz').click();
+    cy.findByRole('button', { name: 'Timestamp tz' }).click();
 
-    cy.findByText('Raw').click();
-    cy.findByText('Millisecond').click();
-    cy.findByText('Second').click();
-    cy.findByText('Minute').click();
-    cy.findByText('Hour').click();
-    cy.findByText('Day').click();
-    cy.findByText('Day of the week (index)').click();
-    cy.findByText('Day of the week (name)').click();
-    cy.findByText('Day of the month (number)').click();
-    cy.findByText('Day of the year (number)').click();
-    cy.findByText('Week').click();
-    cy.findByText('Month').click();
-    cy.findByText('Month (number)').click();
-    cy.findByText('Month (name)').click();
-    cy.findByText('Quarter').click();
-    cy.findByText('Quarter (number)').click();
-    cy.findByText('Quarter (name)').click();
-    cy.findByText('Year').click();
-    cy.findByText('Year (number)').click();
+    cy.findByRole('button', { name: 'Raw' }).click();
+    cy.findByRole('button', { name: 'Millisecond' }).click();
+    cy.findByRole('button', { name: 'Second' }).click();
+    cy.findByRole('button', { name: 'Minute' }).click();
+    cy.findByRole('button', { name: 'Hour' }).click();
+    cy.findByRole('button', { name: 'Day' }).click();
+    cy.findByRole('button', { name: 'Day of the week (index)' }).click();
+    cy.findByRole('button', { name: 'Day of the week (name)' }).click();
+    cy.findByRole('button', { name: 'Day of the month (number)' }).click();
+    cy.findByRole('button', { name: 'Day of the year (number)' }).click();
+    cy.findByRole('button', { name: 'Week' }).click();
+    cy.findByRole('button', { name: 'Month' }).click();
+    cy.findByRole('button', { name: 'Month (number)' }).click();
+    cy.findByRole('button', { name: 'Month (name)' }).click();
+    cy.findByRole('button', { name: 'Quarter' }).click();
+    cy.findByRole('button', { name: 'Quarter (number)' }).click();
+    cy.findByRole('button', { name: 'Quarter (name)' }).click();
+    cy.findByRole('button', { name: 'Year' }).click();
+    cy.findByRole('button', { name: 'Year (number)' }).click();
 
     // open column menu
     cy.get('th')
