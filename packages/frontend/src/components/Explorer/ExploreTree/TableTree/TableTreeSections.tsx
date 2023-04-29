@@ -19,10 +19,6 @@ const TableTreeSections: FC<Props> = ({
     selectedItems,
     onSelectedNodeChange,
 }) => {
-    const isSearching = !!searchQuery && searchQuery !== '';
-
-    const hasNoMetrics = Object.keys(table.metrics).length === 0;
-
     const dimensions = useMemo(() => {
         return Object.values(table.dimensions).reduce(
             (acc, item) => ({ ...acc, [getItemId(item)]: item }),
@@ -44,24 +40,24 @@ const TableTreeSections: FC<Props> = ({
         );
     }, [additionalMetrics]);
 
+    const isSearching = !!searchQuery && searchQuery !== '';
+
+    const hasMetrics = Object.keys(table.metrics).length > 0;
+    const hasDimensions = Object.keys(table.dimensions).length > 0;
+    const hasCustomMetrics = additionalMetrics.length > 0;
+
     return (
         <>
             {isSearching &&
             getSearchResults(dimensions, searchQuery).size === 0 ? null : (
-                <Group h="xxl">
+                <Group mt="sm" mb="xs">
                     <Text fw={600} color="blue.9">
                         Dimensions
                     </Text>
                 </Group>
             )}
 
-            {Object.keys(table.dimensions).length <= 0 ? (
-                <Center>
-                    <Text color="dimmed">
-                        No dimensions defined in your dbt project
-                    </Text>
-                </Center>
-            ) : (
+            {hasDimensions ? (
                 <TreeProvider
                     orderFieldsBy={table.orderFieldsBy}
                     searchQuery={searchQuery}
@@ -71,16 +67,22 @@ const TableTreeSections: FC<Props> = ({
                 >
                     <TreeRoot />
                 </TreeProvider>
+            ) : (
+                <Center pt="sm" pb="md">
+                    <Text color="dimmed">
+                        No dimensions defined in your dbt project
+                    </Text>
+                </Center>
             )}
 
             {isSearching &&
             getSearchResults(metrics, searchQuery).size === 0 ? null : (
-                <Group position="apart" h="xxl" pr="sm">
+                <Group position="apart" mt="sm" mb="xs" pr="sm">
                     <Text fw={600} color="yellow.9">
                         Metrics
                     </Text>
 
-                    {hasNoMetrics ? (
+                    {hasMetrics ? null : (
                         <DocumentationHelpButton
                             href="https://docs.lightdash.com/guides/how-to-create-metrics"
                             tooltipProps={{
@@ -99,11 +101,11 @@ const TableTreeSections: FC<Props> = ({
                                 multiline: true,
                             }}
                         />
-                    ) : null}
+                    )}
                 </Group>
             )}
 
-            {hasNoMetrics ? null : (
+            {hasMetrics ? (
                 <TreeProvider
                     orderFieldsBy={table.orderFieldsBy}
                     searchQuery={searchQuery}
@@ -113,11 +115,11 @@ const TableTreeSections: FC<Props> = ({
                 >
                     <TreeRoot />
                 </TreeProvider>
-            )}
+            ) : null}
 
             {isSearching &&
             getSearchResults(customMetrics, searchQuery).size === 0 ? null : (
-                <Group position="apart" h="xxl" pr="sm">
+                <Group position="apart" mt="sm" mb="xs" pr="sm">
                     <Text fw={600} color="yellow.9">
                         Custom metrics
                     </Text>
@@ -141,7 +143,7 @@ const TableTreeSections: FC<Props> = ({
                 </Group>
             )}
 
-            {hasNoMetrics || additionalMetrics.length > 0 ? (
+            {!hasMetrics || hasCustomMetrics ? (
                 <TreeProvider
                     orderFieldsBy={table.orderFieldsBy}
                     searchQuery={searchQuery}
