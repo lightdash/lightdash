@@ -1,4 +1,4 @@
-import { HotkeyConfig, TreeNodeInfo, useHotkeys } from '@blueprintjs/core';
+import { TreeNodeInfo } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import {
     ChartType,
@@ -8,6 +8,7 @@ import {
     TableBase,
 } from '@lightdash/common';
 import { Alert, NavLink, Stack, Tabs } from '@mantine/core';
+import { HotkeyItem, useHotkeys } from '@mantine/hooks';
 import { Icon123, IconAlertCircle } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
@@ -129,36 +130,15 @@ const SqlRunnerPage = () => {
     useSqlRunnerRoute(sqlRunnerState);
 
     const onSubmit = useCallback(() => {
-        if (sql) {
-            mutate(sql);
-            setLastSqlRan(sql);
-        }
+        if (!sql) return;
+
+        mutate(sql);
+        setLastSqlRan(sql);
     }, [mutate, sql]);
 
-    useMount(() => {
-        if (sql) {
-            mutate(sql);
-            setLastSqlRan(sql);
-        }
-    });
+    useMount(() => onSubmit());
 
-    const hotkeys: HotkeyConfig[] = useMemo(
-        () => [
-            {
-                combo: 'mod+enter',
-                group: 'SQL runner',
-                label: 'Run SQL query',
-                allowInInput: true,
-                onKeyDown: onSubmit,
-                global: true,
-                preventDefault: true,
-                stopPropagation: true,
-            },
-        ],
-        [onSubmit],
-    );
-
-    useHotkeys(hotkeys);
+    useHotkeys([['mod + enter', onSubmit, { preventDefault: true }]]);
 
     const catalogTree = useProjectCatalogTree(catalogData);
 
@@ -174,8 +154,6 @@ const SqlRunnerPage = () => {
         },
         [setSql],
     );
-
-    console.log({ catalogTree, catalogData });
 
     const cannotManageSqlRunner = user.data?.ability?.cannot(
         'manage',
