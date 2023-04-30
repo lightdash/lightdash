@@ -14,7 +14,7 @@ import {
     NotFoundError,
     TableBase,
 } from '@lightdash/common';
-import { Box } from '@mantine/core';
+import { Box, Stack, Tabs } from '@mantine/core';
 import { Icon123 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
@@ -231,63 +231,73 @@ const SqlRunnerPage = () => {
             <Helmet>
                 <title>SQL Runner - Lightdash</title>
             </Helmet>
+
             <Sidebar>
-                <PageBreadcrumbs
-                    items={[{ title: 'SQL Runner', active: true }]}
-                />
+                <Stack spacing="xl">
+                    <PageBreadcrumbs
+                        items={[{ title: 'SQL Runner', active: true }]}
+                    />
 
-                <Box h="xl" />
+                    <Tabs defaultValue="warehouse-schema">
+                        {metrics.data?.metrics &&
+                        metrics.data.metrics.length === 0 ? (
+                            <Tabs.List mb="lg">
+                                <Tabs.Tab value="warehouse-schema">
+                                    Warehouse schema
+                                </Tabs.Tab>
+                                <Tabs.Tab value="metrics">dbt metrics</Tabs.Tab>
+                            </Tabs.List>
+                        ) : null}
 
-                {!!metrics.data?.metrics.length && (
-                    <StyledTabs
-                        id="sql-runner"
-                        selectedTabId={activeTabId}
-                        onChange={setActiveTabId}
-                    >
-                        <Tab id="warehouse-schema" title="Warehouse Schema" />
-                        <Tab id="metrics" title="dbt metrics" />
-                    </StyledTabs>
-                )}
+                        <SideBarWrapper>
+                            <Tabs.Panel value="warehouse-schema">
+                                {isCatalogLoading ? (
+                                    <SideBarLoadingState />
+                                ) : (
+                                    <>
+                                        <Tree
+                                            setExpandedCards={setExpandedCards}
+                                            contents={catalogTree}
+                                            handleSelect={false}
+                                            onNodeClick={handleNodeClick}
+                                        />
 
-                <SideBarWrapper>
-                    {activeTabId === 'warehouse-schema' &&
-                        (isCatalogLoading ? (
-                            <SideBarLoadingState />
-                        ) : (
-                            <>
-                                <Tree
-                                    setExpandedCards={setExpandedCards}
-                                    contents={catalogTree}
-                                    handleSelect={false}
-                                    onNodeClick={handleNodeClick}
-                                />
-                                <MissingTablesInfo content="Currently we only display tables that are declared in the dbt project.">
-                                    <SqlCallout intent="none" icon="info-sign">
-                                        Tables missing?
-                                    </SqlCallout>
-                                </MissingTablesInfo>
-                            </>
-                        ))}
-                    {activeTabId === 'metrics' &&
-                        !!metrics.data?.metrics.length && (
-                            <Menu>
-                                {metrics.data.metrics.map((metric) => (
-                                    <MenuItem2
-                                        key={metric.uniqueId}
-                                        icon={<Icon123 />}
-                                        text={metric.label}
-                                        onClick={() =>
-                                            setSql(
-                                                generateDefaultDbtMetricQuery(
-                                                    metric,
-                                                ),
-                                            )
-                                        }
-                                    />
-                                ))}
-                            </Menu>
-                        )}
-                </SideBarWrapper>
+                                        <MissingTablesInfo content="Currently we only display tables that are declared in the dbt project.">
+                                            <SqlCallout
+                                                intent="none"
+                                                icon="info-sign"
+                                            >
+                                                Tables missing?
+                                            </SqlCallout>
+                                        </MissingTablesInfo>
+                                    </>
+                                )}
+                            </Tabs.Panel>
+
+                            {metrics.data?.metrics &&
+                            metrics.data.metrics.length > 0 ? (
+                                <Tabs.Panel value="metrics">
+                                    <Menu>
+                                        {metrics.data.metrics.map((metric) => (
+                                            <MenuItem2
+                                                key={metric.uniqueId}
+                                                icon={<Icon123 />}
+                                                text={metric.label}
+                                                onClick={() =>
+                                                    setSql(
+                                                        generateDefaultDbtMetricQuery(
+                                                            metric,
+                                                        ),
+                                                    )
+                                                }
+                                            />
+                                        ))}
+                                    </Menu>
+                                </Tabs.Panel>
+                            ) : null}
+                        </SideBarWrapper>
+                    </Tabs>
+                </Stack>
             </Sidebar>
 
             <PageContentContainer>
