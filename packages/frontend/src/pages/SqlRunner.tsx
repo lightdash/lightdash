@@ -14,6 +14,7 @@ import {
     NotFoundError,
     TableBase,
 } from '@lightdash/common';
+import { Box } from '@mantine/core';
 import { Icon123 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
@@ -25,7 +26,7 @@ import {
     PageContentContainer,
     PageWithSidebar,
 } from '../components/common/Page/Page.styles';
-import Sidebar, { SidebarDivider } from '../components/common/Page/Sidebar';
+import Sidebar from '../components/common/Page/Sidebar';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ShareShortLinkButton from '../components/common/ShareShortLinkButton';
 import SideBarLoadingState from '../components/common/SideBarLoadingState';
@@ -235,7 +236,7 @@ const SqlRunnerPage = () => {
                     items={[{ title: 'SQL Runner', active: true }]}
                 />
 
-                <SidebarDivider />
+                <Box h="xl" />
 
                 {!!metrics.data?.metrics.length && (
                     <StyledTabs

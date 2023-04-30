@@ -50,7 +50,7 @@ const TreeNodes: FC<{ nodeMap: NodeMap }> = ({ nodeMap }) => {
     }, [nodeMap, orderFieldsBy, itemsMap]);
 
     return (
-        <div>
+        <>
             {sortedItems.map((node) =>
                 isGroupNode(node) ? (
                     <TreeGroupNode key={node.key} node={node} />
@@ -58,7 +58,7 @@ const TreeNodes: FC<{ nodeMap: NodeMap }> = ({ nodeMap }) => {
                     <TreeSingleNode key={node.key} node={node} />
                 ),
             )}
-        </div>
+        </>
     );
 };
 
