@@ -1,7 +1,8 @@
-import { Colors, TreeNodeInfo } from '@blueprintjs/core';
+import { TreeNodeInfo } from '@blueprintjs/core';
 import { ProjectCatalog } from '@lightdash/common';
 import { IconBinaryTree2, IconDatabase, IconTable } from '@tabler/icons-react';
 import { useMemo } from 'react';
+import MantineIcon from '../components/common/MantineIcon';
 
 export type ProjectCatalogTreeNode = TreeNodeInfo<
     ProjectCatalog[number][number][number]
@@ -21,13 +22,7 @@ export const useProjectCatalogTree = (
                         id: database,
                         isExpanded: databaseIndex === 0,
                         label: database,
-                        icon: (
-                            <IconDatabase
-                                color={Colors.GRAY1}
-                                size={20}
-                                style={{ marginRight: '7px' }}
-                            />
-                        ),
+                        icon: <MantineIcon icon={IconDatabase} size="lg" />,
                         childNodes: Object.entries(schemas).reduce<
                             ProjectCatalogTreeNode[]
                         >(
@@ -38,10 +33,9 @@ export const useProjectCatalogTree = (
                                     isExpanded: schemaIndex === 0,
                                     label: schema,
                                     icon: (
-                                        <IconBinaryTree2
-                                            color={Colors.GRAY1}
-                                            size={20}
-                                            style={{ marginRight: '7px' }}
+                                        <MantineIcon
+                                            icon={IconBinaryTree2}
+                                            size="lg"
                                         />
                                     ),
                                     childNodes: Object.entries(tables).reduce<
@@ -53,12 +47,9 @@ export const useProjectCatalogTree = (
                                                 id: table,
                                                 label: table,
                                                 icon: (
-                                                    <IconTable
-                                                        color={Colors.GRAY1}
-                                                        size={20}
-                                                        style={{
-                                                            marginRight: '7px',
-                                                        }}
+                                                    <MantineIcon
+                                                        icon={IconTable}
+                                                        size="lg"
                                                     />
                                                 ),
                                                 nodeData,

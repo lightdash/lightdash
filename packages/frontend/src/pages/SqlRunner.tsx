@@ -175,6 +175,8 @@ const SqlRunnerPage = () => {
         [setSql],
     );
 
+    console.log({ catalogTree, catalogData });
+
     const cannotManageSqlRunner = user.data?.ability?.cannot(
         'manage',
         subject('SqlRunner', {
