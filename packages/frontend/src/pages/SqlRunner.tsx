@@ -1,11 +1,4 @@
-import {
-    HotkeyConfig,
-    Menu,
-    Tab,
-    TreeNodeInfo,
-    useHotkeys,
-} from '@blueprintjs/core';
-import { MenuItem2 } from '@blueprintjs/popover2';
+import { HotkeyConfig, TreeNodeInfo, useHotkeys } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import {
     ChartType,
@@ -14,8 +7,8 @@ import {
     NotFoundError,
     TableBase,
 } from '@lightdash/common';
-import { Box, Stack, Tabs } from '@mantine/core';
-import { Icon123 } from '@tabler/icons-react';
+import { Alert, NavLink, Stack, Tabs } from '@mantine/core';
+import { Icon123, IconAlertCircle } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { useParams } from 'react-router-dom';
@@ -54,13 +47,7 @@ import {
 import { useApp } from '../providers/AppProvider';
 import { TrackSection } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
-import {
-    ButtonsWrapper,
-    MissingTablesInfo,
-    SideBarWrapper,
-    SqlCallout,
-    StyledTabs,
-} from './SqlRunner.styles';
+import { ButtonsWrapper, SideBarWrapper } from './SqlRunner.styles';
 
 const generateBasicSqlQuery = (table: string) =>
     `SELECT *
@@ -89,9 +76,6 @@ enum SqlRunnerCards {
 }
 
 const SqlRunnerPage = () => {
-    const [activeTabId, setActiveTabId] = useState<string | number>(
-        'warehouse-schema',
-    );
     const { user } = useApp();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const initialState = useSqlRunnerUrlState();
@@ -254,7 +238,7 @@ const SqlRunnerPage = () => {
                                 {isCatalogLoading ? (
                                     <SideBarLoadingState />
                                 ) : (
-                                    <>
+                                    <Stack>
                                         <Tree
                                             setExpandedCards={setExpandedCards}
                                             contents={catalogTree}
@@ -262,37 +246,36 @@ const SqlRunnerPage = () => {
                                             onNodeClick={handleNodeClick}
                                         />
 
-                                        <MissingTablesInfo content="Currently we only display tables that are declared in the dbt project.">
-                                            <SqlCallout
-                                                intent="none"
-                                                icon="info-sign"
-                                            >
-                                                Tables missing?
-                                            </SqlCallout>
-                                        </MissingTablesInfo>
-                                    </>
+                                        <Alert
+                                            icon={<IconAlertCircle />}
+                                            title="Tables missing?"
+                                            color="blue"
+                                        >
+                                            Currently we only display tables
+                                            that are declared in the dbt
+                                            project.
+                                        </Alert>
+                                    </Stack>
                                 )}
                             </Tabs.Panel>
 
                             {metrics.data?.metrics &&
                             metrics.data.metrics.length > 0 ? (
                                 <Tabs.Panel value="metrics">
-                                    <Menu>
-                                        {metrics.data.metrics.map((metric) => (
-                                            <MenuItem2
-                                                key={metric.uniqueId}
-                                                icon={<Icon123 />}
-                                                text={metric.label}
-                                                onClick={() =>
-                                                    setSql(
-                                                        generateDefaultDbtMetricQuery(
-                                                            metric,
-                                                        ),
-                                                    )
-                                                }
-                                            />
-                                        ))}
-                                    </Menu>
+                                    {metrics.data.metrics.map((metric) => (
+                                        <NavLink
+                                            key={metric.uniqueId}
+                                            icon={<Icon123 />}
+                                            label={metric.label}
+                                            onClick={() =>
+                                                setSql(
+                                                    generateDefaultDbtMetricQuery(
+                                                        metric,
+                                                    ),
+                                                )
+                                            }
+                                        />
+                                    ))}
                                 </Tabs.Panel>
                             ) : null}
                         </SideBarWrapper>
