@@ -1,3 +1,10 @@
+# [0.526.0](https://github.com/lightdash/lightdash/compare/0.525.1...0.526.0) (2023-05-01)
+
+
+### Features
+
+* mantine explore tree ([#5285](https://github.com/lightdash/lightdash/issues/5285)) ([5989b18](https://github.com/lightdash/lightdash/commit/5989b1890a4ae9977578882e8611a8c48d8f6377))
+
 ## [0.525.1](https://github.com/lightdash/lightdash/compare/0.525.0...0.525.1) (2023-05-01)
 
 
