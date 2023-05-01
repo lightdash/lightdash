@@ -101,9 +101,7 @@ const SavedExplorer = () => {
                                             : 0,
                                     }}
                                 >
-                                    <CardContent>
-                                        <ExplorePanel />
-                                    </CardContent>
+                                    <ExplorePanel />
                                 </Drawer>
 
                                 <WidthHack

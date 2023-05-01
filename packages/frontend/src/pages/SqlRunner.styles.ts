@@ -5,10 +5,6 @@ export const Title = styled(H5)`
     padding-left: 10px;
 `;
 
-export const SideBarWrapper = styled.div`
-    overflow-y: auto;
-`;
-
 export const ButtonsWrapper = styled.div`
     height: 60px;
     display: flex;

@@ -5,7 +5,7 @@ import {
     getCustomLabelsFromTableConfig,
     NotFoundError,
 } from '@lightdash/common';
-import { Alert, NavLink, Stack, Tabs } from '@mantine/core';
+import { Alert, Box, NavLink, Stack, Tabs } from '@mantine/core';
 import { useHotkeys } from '@mantine/hooks';
 import { Icon123, IconAlertCircle } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
@@ -14,6 +14,7 @@ import { useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
 import { ChartDownloadMenu } from '../components/ChartDownload';
 import CollapsableCard from '../components/common/CollapsableCard';
+import MantineIcon from '../components/common/MantineIcon';
 import {
     PageContentContainer,
     PageWithSidebar,
@@ -49,7 +50,7 @@ import {
 import { useApp } from '../providers/AppProvider';
 import { TrackSection } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
-import { ButtonsWrapper, SideBarWrapper } from './SqlRunner.styles';
+import { ButtonsWrapper } from './SqlRunner.styles';
 
 const generateBasicSqlQuery = (table: string) =>
     `SELECT *
@@ -196,12 +197,24 @@ const SqlRunnerPage = () => {
             </Helmet>
 
             <Sidebar>
-                <Stack spacing="xl">
+                <Stack
+                    spacing="xl"
+                    mah="100%"
+                    sx={{ overflowY: 'hidden', flex: 1 }}
+                >
                     <PageBreadcrumbs
                         items={[{ title: 'SQL Runner', active: true }]}
                     />
 
-                    <Tabs defaultValue="warehouse-schema">
+                    <Tabs
+                        defaultValue="warehouse-schema"
+                        display="flex"
+                        sx={{
+                            overflowY: 'hidden',
+                            flexGrow: 1,
+                            flexDirection: 'column',
+                        }}
+                    >
                         {metrics.data?.metrics &&
                         metrics.data.metrics.length > 0 ? (
                             <Tabs.List mb="lg">
@@ -212,50 +225,64 @@ const SqlRunnerPage = () => {
                             </Tabs.List>
                         ) : null}
 
-                        <SideBarWrapper>
-                            <Tabs.Panel value="warehouse-schema">
-                                {isCatalogLoading ? (
-                                    <SideBarLoadingState />
-                                ) : (
-                                    <Stack>
+                        <Tabs.Panel
+                            value="warehouse-schema"
+                            display="flex"
+                            sx={{ overflowY: 'hidden', flex: 1 }}
+                        >
+                            {isCatalogLoading ? (
+                                <SideBarLoadingState />
+                            ) : (
+                                <Stack sx={{ overflowY: 'scroll', flex: 1 }}>
+                                    <Box>
                                         <CatalogTree
                                             nodes={catalogTree}
                                             onSelect={handleTableSelect}
                                         />
+                                    </Box>
 
-                                        <Alert
-                                            icon={<IconAlertCircle />}
-                                            title="Tables missing?"
-                                            color="blue"
-                                        >
-                                            Currently we only display tables
-                                            that are declared in the dbt
-                                            project.
-                                        </Alert>
-                                    </Stack>
-                                )}
+                                    <Alert
+                                        icon={<IconAlertCircle />}
+                                        title="Tables missing?"
+                                        color="blue"
+                                        sx={{ flexShrink: 0 }}
+                                    >
+                                        Currently we only display tables that
+                                        are declared in the dbt project.
+                                    </Alert>
+                                </Stack>
+                            )}
+                        </Tabs.Panel>
+
+                        {metrics.data?.metrics &&
+                        metrics.data.metrics.length > 0 ? (
+                            <Tabs.Panel
+                                value="metrics"
+                                sx={{ overflowY: 'scroll', flex: 1 }}
+                            >
+                                {metrics.data.metrics.map((metric) => (
+                                    <NavLink
+                                        key={metric.uniqueId}
+                                        icon={
+                                            <MantineIcon
+                                                icon={Icon123}
+                                                size="lg"
+                                                color="gray.7"
+                                            />
+                                        }
+                                        label={metric.label}
+                                        description={metric.description}
+                                        onClick={() =>
+                                            setSql(
+                                                generateDefaultDbtMetricQuery(
+                                                    metric,
+                                                ),
+                                            )
+                                        }
+                                    />
+                                ))}
                             </Tabs.Panel>
-
-                            {metrics.data?.metrics &&
-                            metrics.data.metrics.length > 0 ? (
-                                <Tabs.Panel value="metrics">
-                                    {metrics.data.metrics.map((metric) => (
-                                        <NavLink
-                                            key={metric.uniqueId}
-                                            icon={<Icon123 />}
-                                            label={metric.label}
-                                            onClick={() =>
-                                                setSql(
-                                                    generateDefaultDbtMetricQuery(
-                                                        metric,
-                                                    ),
-                                                )
-                                            }
-                                        />
-                                    ))}
-                                </Tabs.Panel>
-                            ) : null}
-                        </SideBarWrapper>
+                        ) : null}
                     </Tabs>
                 </Stack>
             </Sidebar>
