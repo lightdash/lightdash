@@ -1,3 +1,10 @@
+## [0.525.1](https://github.com/lightdash/lightdash/compare/0.525.0...0.525.1) (2023-05-01)
+
+
+### Bug Fixes
+
+* minor typo in self host lightdash docs (docker-compose) ([#5290](https://github.com/lightdash/lightdash/issues/5290)) ([875ecd2](https://github.com/lightdash/lightdash/commit/875ecd2d66f156bf21968c140c53a2aedbd9cfb2))
+
 # [0.525.0](https://github.com/lightdash/lightdash/compare/0.524.0...0.525.0) (2023-04-28)
 
 
