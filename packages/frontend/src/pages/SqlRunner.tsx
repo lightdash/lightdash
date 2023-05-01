@@ -1,14 +1,12 @@
-import { TreeNodeInfo } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import {
     ChartType,
     DbtCloudMetric,
     getCustomLabelsFromTableConfig,
     NotFoundError,
-    TableBase,
 } from '@lightdash/common';
 import { Alert, NavLink, Stack, Tabs } from '@mantine/core';
-import { HotkeyItem, useHotkeys } from '@mantine/hooks';
+import { useHotkeys } from '@mantine/hooks';
 import { Icon123, IconAlertCircle } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
@@ -24,7 +22,7 @@ import Sidebar from '../components/common/Page/Sidebar';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ShareShortLinkButton from '../components/common/ShareShortLinkButton';
 import SideBarLoadingState from '../components/common/SideBarLoadingState';
-import { Tree } from '../components/common/Tree';
+import CatalogTree from '../components/common/SqlRunner/CatalogTree';
 import DownloadSqlCsvButton from '../components/DownloadSqlCsvButton';
 import VisualizationConfigPanel from '../components/Explorer/VisualizationCard/VisualizationConfigPanel';
 import VisualizationCardOptions from '../components/Explorer/VisualizationCardOptions';
@@ -38,7 +36,10 @@ import SqlRunnerResultsTable from '../components/SqlRunner/SqlRunnerResultsTable
 import { useProjectDbtCloudMetrics } from '../hooks/dbtCloud/useProjectDbtCloudMetrics';
 import { downloadCsvFromSqlRunner } from '../hooks/useDownloadCsv';
 import { useProjectCatalog } from '../hooks/useProjectCatalog';
-import { useProjectCatalogTree } from '../hooks/useProjectCatalogTree';
+import {
+    ProjectCatalogTreeNode,
+    useProjectCatalogTree,
+} from '../hooks/useProjectCatalogTree';
 import { useSqlQueryMutation } from '../hooks/useSqlQuery';
 import useSqlQueryVisualization from '../hooks/useSqlQueryVisualization';
 import {
@@ -87,9 +88,8 @@ const SqlRunnerPage = () => {
 
     const [sql, setSql] = useState<string>(initialState?.sqlRunner?.sql || '');
     const [lastSqlRan, setLastSqlRan] = useState<string>();
-    const [expandedCards, setExpandedCards] = useState<
-        Map<SqlRunnerCards, boolean>
-    >(
+
+    const [expandedCards, setExpandedCards] = useState(
         new Map([
             [SqlRunnerCards.CHART, false],
             [SqlRunnerCards.SQL, true],
@@ -129,28 +129,27 @@ const SqlRunnerPage = () => {
 
     useSqlRunnerRoute(sqlRunnerState);
 
-    const onSubmit = useCallback(() => {
+    const handleSubmit = useCallback(() => {
         if (!sql) return;
 
         mutate(sql);
         setLastSqlRan(sql);
     }, [mutate, sql]);
 
-    useMount(() => onSubmit());
+    useMount(() => handleSubmit());
 
-    useHotkeys([['mod + enter', onSubmit, { preventDefault: true }]]);
+    useHotkeys([['mod + enter', handleSubmit, { preventDefault: true }]]);
 
     const catalogTree = useProjectCatalogTree(catalogData);
 
-    const handleNodeClick = useCallback(
-        (node: TreeNodeInfo) => {
-            if (node.nodeData) {
-                setSql(
-                    generateBasicSqlQuery(
-                        (node.nodeData as TableBase).sqlTable,
-                    ),
-                );
-            }
+    const handleTableSelect = useCallback(
+        (node: ProjectCatalogTreeNode) => {
+            if (!node.sqlTable) return;
+
+            const query = generateBasicSqlQuery(node.sqlTable);
+
+            setSql(query);
+            handleCardExpand(SqlRunnerCards.SQL, true);
         },
         [setSql],
     );
@@ -204,7 +203,7 @@ const SqlRunnerPage = () => {
 
                     <Tabs defaultValue="warehouse-schema">
                         {metrics.data?.metrics &&
-                        metrics.data.metrics.length === 0 ? (
+                        metrics.data.metrics.length > 0 ? (
                             <Tabs.List mb="lg">
                                 <Tabs.Tab value="warehouse-schema">
                                     Warehouse schema
@@ -219,11 +218,9 @@ const SqlRunnerPage = () => {
                                     <SideBarLoadingState />
                                 ) : (
                                     <Stack>
-                                        <Tree
-                                            setExpandedCards={setExpandedCards}
-                                            contents={catalogTree}
-                                            handleSelect={false}
-                                            onNodeClick={handleNodeClick}
+                                        <CatalogTree
+                                            nodes={catalogTree}
+                                            onSelect={handleTableSelect}
                                         />
 
                                         <Alert
@@ -269,7 +266,7 @@ const SqlRunnerPage = () => {
                         <RefreshDbtButton />
                         <div>
                             <RunSqlQueryButton
-                                onSubmit={onSubmit}
+                                onSubmit={handleSubmit}
                                 isLoading={isLoading}
                             />
                             <ShareShortLinkButton
@@ -345,7 +342,7 @@ const SqlRunnerPage = () => {
                     }
                 >
                     <SqlRunnerResultsTable
-                        onSubmit={onSubmit}
+                        onSubmit={handleSubmit}
                         resultsData={resultsData}
                         fieldsMap={fieldsMap}
                         sqlQueryMutation={sqlQueryMutation}

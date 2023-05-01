@@ -48,7 +48,13 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
                     <NavLink
                         role="listitem"
                         disabled
-                        icon={<MantineIcon icon={IconTable} size="lg" />}
+                        icon={
+                            <MantineIcon
+                                icon={IconTable}
+                                size="lg"
+                                color="gray.7"
+                            />
+                        }
                         label={
                             <Highlight highlight={query ?? ''}>
                                 {explore.label}
@@ -64,7 +70,7 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
                                 >
                                     <MantineIcon
                                         icon={IconInfoCircle}
-                                        color="gray.6"
+                                        color="gray.7"
                                         size="lg"
                                     />
                                 </Anchor>
