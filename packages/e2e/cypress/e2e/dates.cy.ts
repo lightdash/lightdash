@@ -339,10 +339,9 @@ describe('Date tests', () => {
         cy.contains('Order date').click();
 
         // Filter by year
+        cy.findByRole('button', { name: 'Year' }).findByRole('button').click();
+        cy.findByRole('menuitem', { name: 'Add filter' }).click();
 
-        cy.get('span:contains("Year") ~ div').click();
-
-        cy.get('.bp4-menu > :nth-child(1) > .bp4-menu-item').click();
         cy.get('.bp4-numeric-input input').should(
             'have.value',
             now.getFullYear(),
@@ -353,8 +352,9 @@ describe('Date tests', () => {
         cy.get('[icon="cross"]').click({ multiple: true });
 
         // Filter by month
-        cy.get('span:contains("Month") ~ div').click();
-        cy.get('.bp4-menu > :nth-child(1) > .bp4-menu-item').click();
+        cy.findByRole('button', { name: 'Month' }).findByRole('button').click();
+        cy.findByRole('menuitem', { name: 'Add filter' }).click();
+
         cy.get('select option[label="January"]')
             .parent('select')
             .should('have.value', now.getMonth());
@@ -378,10 +378,9 @@ describe('Date tests', () => {
         }
 
         const weekDate = startOfTheWeek();
-        cy.get('span:contains("Week") ~ div').click();
-        cy.get('.bp4-menu > :nth-child(1) > .bp4-menu-item').click({
-            force: true,
-        });
+        cy.findByRole('button', { name: 'Week' }).findByRole('button').click();
+        cy.findByRole('menuitem', { name: 'Add filter' }).click();
+
         cy.get('.bp4-date-input input').should('have.value', weekDate);
         cy.get('.bp4-code').contains(
             `(DATE_TRUNC('WEEK', "orders".order_date)) = ('${weekDate}')`,
@@ -389,8 +388,8 @@ describe('Date tests', () => {
         cy.get('[icon="cross"]').click({ multiple: true });
 
         // Filter by day
-        cy.get('span:contains("Day") ~ div').click();
-        cy.get('.bp4-menu > :nth-child(1) > .bp4-menu-item').click();
+        cy.findByRole('button', { name: 'Day' }).findByRole('button').click();
+        cy.findByRole('menuitem', { name: 'Add filter' }).click();
 
         const todayDate = getLocalISOString(now);
 

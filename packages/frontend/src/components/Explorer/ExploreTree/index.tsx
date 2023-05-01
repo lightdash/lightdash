@@ -10,7 +10,7 @@ import { ActionIcon, Box, Center, Stack, Text, TextInput } from '@mantine/core';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import { FC, useCallback, useMemo, useState } from 'react';
 import MantineIcon from '../../common/MantineIcon';
-import NewTableTree from './TableTree';
+import TableTree from './TableTree';
 import { getSearchResults } from './TableTree/Tree/TreeProvider';
 
 type ExploreTreeProps = {
@@ -74,7 +74,7 @@ const ExploreTree: FC<ExploreTreeProps> = ({
             <Box style={{ overflowY: 'auto' }}>
                 {tableTrees.length > 0 ? (
                     tableTrees.map((table) => (
-                        <NewTableTree
+                        <TableTree
                             key={table.name}
                             searchQuery={search}
                             showTableLabel={

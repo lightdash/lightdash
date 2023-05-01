@@ -1,11 +1,13 @@
-import { Colors, Icon } from '@blueprintjs/core';
-import { Anchor, Tooltip, TooltipProps } from '@mantine/core';
-import { ComponentProps, FC } from 'react';
+import { Anchor, AnchorProps, Tooltip, TooltipProps } from '@mantine/core';
+import { IconHelpCircle } from '@tabler/icons-react';
+import { FC } from 'react';
+import MantineIcon, { MantineIconProps } from './common/MantineIcon';
 
-type Props = React.AnchorHTMLAttributes<HTMLAnchorElement> & {
-    iconProps?: Partial<ComponentProps<typeof Icon>>;
-    tooltipProps?: Partial<TooltipProps>;
-};
+type Props = React.AnchorHTMLAttributes<HTMLAnchorElement> &
+    Partial<AnchorProps> & {
+        iconProps?: Partial<MantineIconProps>;
+        tooltipProps?: Partial<TooltipProps>;
+    };
 
 const DocumentationHelpButton: FC<Props> = ({
     iconProps,
@@ -17,17 +19,22 @@ const DocumentationHelpButton: FC<Props> = ({
         withinPortal
         label="Open documentation"
         position="top"
-        width={350}
+        maw={350}
         {...tooltipProps}
     >
         <Anchor
             role="button"
             target="_blank"
             rel="noreferrer"
-            style={{ color: Colors.GRAY5 }}
+            color="dimmed"
             {...anchorProps}
         >
-            <Icon icon="help" intent="none" iconSize={15} {...iconProps} />
+            <MantineIcon
+                icon={IconHelpCircle}
+                size="md"
+                display="inline"
+                {...iconProps}
+            />
         </Anchor>
     </Tooltip>
 );

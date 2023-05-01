@@ -1,4 +1,4 @@
-import { Card, Divider, H3 } from '@blueprintjs/core';
+import { Card, H3 } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import styled from 'styled-components';
 import { TrackSection } from '../../../providers/TrackingProvider';
@@ -37,10 +37,6 @@ const SidebarContent = styled('div')`
 interface SidebarProps {
     title?: string | React.ReactNode;
 }
-
-export const SidebarDivider = styled(Divider)`
-    margin: 12px 0 18px 0;
-`;
 
 const Sidebar: FC<SidebarProps> = ({ title, children }) => (
     <SidebarWrapper elevation={1}>

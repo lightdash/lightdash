@@ -1,9 +1,68 @@
 import { AdditionalMetric, CompiledTable } from '@lightdash/common';
-import React, { FC } from 'react';
+import {
+    Badge,
+    Group,
+    MantineProvider,
+    MantineThemeOverride,
+    NavLink,
+    Text,
+    Tooltip,
+} from '@mantine/core';
+import { IconTable } from '@tabler/icons-react';
+import { FC, useMemo } from 'react';
+import { useToggle } from 'react-use';
+
 import { TrackSection } from '../../../../providers/TrackingProvider';
 import { SectionName } from '../../../../types/Events';
-import CollapsibleTableTree from './CollapsibleTableTree';
+import MantineIcon from '../../../common/MantineIcon';
 import TableTreeSections from './TableTreeSections';
+
+type CollapsibleTableTreeProps = {
+    table: CompiledTable;
+    additionalMetrics: AdditionalMetric[];
+};
+
+const CollapsibleTableTree: FC<CollapsibleTableTreeProps> = ({
+    table,
+    additionalMetrics,
+    children,
+}) => {
+    const [isOpen, toggle] = useToggle(true);
+
+    const tableItemsCount = useMemo(() => {
+        return (
+            Object.values(table.dimensions).filter((i) => !i.hidden).length +
+            Object.values(table.metrics).filter((i) => !i.hidden).length +
+            additionalMetrics.length
+        );
+    }, [table, additionalMetrics]);
+
+    return (
+        <NavLink
+            opened={isOpen}
+            onChange={toggle}
+            icon={<MantineIcon icon={IconTable} size="lg" color="gray" />}
+            label={
+                <Tooltip
+                    withArrow
+                    label={<Text truncate>{table.description}</Text>}
+                    position="top-start"
+                    maw={350}
+                >
+                    <Group>
+                        <Text truncate fw={600}>
+                            {table.label}
+                        </Text>
+
+                        {!isOpen && <Badge>{tableItemsCount}</Badge>}
+                    </Group>
+                </Tooltip>
+            }
+        >
+            {children}
+        </NavLink>
+    );
+};
 
 type Props = {
     searchQuery?: string;
@@ -14,7 +73,25 @@ type Props = {
     onSelectedNodeChange: (itemId: string, isDimension: boolean) => void;
 };
 
-const EmptyWrapper: FC<Partial<Props>> = ({ children }) => <>{children}</>;
+const EmptyWrapper: FC = ({ children }) => <>{children}</>;
+
+const themeOverride: MantineThemeOverride = {
+    components: {
+        NavLink: {
+            styles: (theme, _params) => ({
+                root: {
+                    height: theme.spacing.xxl,
+                    padding: `0 ${theme.spacing.sm}`,
+                    flexGrow: 0,
+                },
+                rightSection: {
+                    marginLeft: theme.spacing.xxs,
+                },
+            }),
+        },
+    },
+};
+
 const TableTree: FC<Props> = ({
     showTableLabel,
     table,
@@ -24,14 +101,15 @@ const TableTree: FC<Props> = ({
     const Wrapper = showTableLabel ? CollapsibleTableTree : EmptyWrapper;
     return (
         <TrackSection name={SectionName.SIDEBAR}>
-            <Wrapper table={table} additionalMetrics={additionalMetrics}>
-                <TableTreeSections
-                    depth={showTableLabel ? 1 : 0}
-                    table={table}
-                    additionalMetrics={additionalMetrics}
-                    {...rest}
-                />
-            </Wrapper>
+            <MantineProvider inherit theme={themeOverride}>
+                <Wrapper table={table} additionalMetrics={additionalMetrics}>
+                    <TableTreeSections
+                        table={table}
+                        additionalMetrics={additionalMetrics}
+                        {...rest}
+                    />
+                </Wrapper>
+            </MantineProvider>
         </TrackSection>
     );
 };

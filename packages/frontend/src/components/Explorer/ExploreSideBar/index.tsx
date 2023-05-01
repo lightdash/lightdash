@@ -1,5 +1,5 @@
 import { NonIdealState } from '@blueprintjs/core';
-import { ActionIcon, Flex, Skeleton, Stack, TextInput } from '@mantine/core';
+import { ActionIcon, Skeleton, Stack, TextInput } from '@mantine/core';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
 import { memo, useCallback, useMemo, useState } from 'react';
@@ -16,7 +16,7 @@ import { ShowErrorsButton } from '../../ShowErrorsButton';
 import ExplorePanel from '../ExplorePanel';
 import ExploreNavLink from './ExploreNavLink';
 
-const SideBarLoadingState = () => (
+const LoadingSkeleton = () => (
     <Stack>
         <Skeleton h="md" />
 
@@ -55,7 +55,7 @@ const BasePanel = () => {
     }, [exploresResult.data, search]);
 
     if (exploresResult.status === 'loading') {
-        return <SideBarLoadingState />;
+        return <LoadingSkeleton />;
     }
 
     if (exploresResult.status === 'error') {

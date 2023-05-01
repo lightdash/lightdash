@@ -1,42 +1,27 @@
-import { Classes, Colors, Text } from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
 import {
-    DimensionType,
-    isAdditionalMetric,
     isDimension,
+    isField,
     isTimeInterval,
-    MetricType,
     timeFrameConfigs,
 } from '@lightdash/common';
-import { Highlight } from '@mantine/core';
+import { Group, Highlight, NavLink, Text, Tooltip } from '@mantine/core';
+import { darken, lighten } from 'polished';
 import { FC } from 'react';
 import { useToggle } from 'react-use';
-import { getItemBgColor } from '../../../../../hooks/useColumns';
-import FieldIcon from '../../../../common/Filters/FieldIcon';
-import { Row, SpanFlex } from '../TableTree.styles';
-import CustomMetricButtons from './CustomMetricButtons';
-import FieldButtons from './FieldButtons';
-import { Node, useTableTreeContext } from './TreeProvider';
 
-export const getItemIconName = (type: DimensionType | MetricType) => {
-    switch (type) {
-        case DimensionType.STRING || MetricType.STRING:
-            return 'citation';
-        case DimensionType.NUMBER || MetricType.NUMBER:
-            return 'numerical';
-        case DimensionType.DATE || MetricType.DATE:
-            return 'calendar';
-        case DimensionType.BOOLEAN || MetricType.BOOLEAN:
-            return 'segmented-control';
-        case DimensionType.TIMESTAMP:
-            return 'time';
-        default:
-            return 'numerical';
-    }
+import { IconAlertTriangle, IconFilter } from '@tabler/icons-react';
+import { getItemBgColor } from '../../../../../hooks/useColumns';
+import { useFilters } from '../../../../../hooks/useFilters';
+import FieldIcon from '../../../../common/Filters/FieldIcon';
+import MantineIcon from '../../../../common/MantineIcon';
+import { Node, useTableTreeContext } from './TreeProvider';
+import TreeSingleNodeActions from './TreeSingleNodeActions';
+
+type Props = {
+    node: Node;
 };
 
-const TreeSingleNode: FC<{ node: Node; depth: number }> = ({ node, depth }) => {
-    const [isHover, toggle] = useToggle(false);
+const TreeSingleNode: FC<Props> = ({ node }) => {
     const {
         itemsMap,
         selectedItems,
@@ -45,13 +30,17 @@ const TreeSingleNode: FC<{ node: Node; depth: number }> = ({ node, depth }) => {
         searchQuery,
         onItemClick,
     } = useTableTreeContext();
+    const { isFilteredField } = useFilters();
+
+    const [isHover, toggle] = useToggle(false);
+    const [isMenuOpen, toggleMenu] = useToggle(false);
+
     const isSelected = selectedItems.has(node.key);
     const isVisible = !isSearching || searchResults.has(node.key);
+
     const item = itemsMap[node.key];
 
-    if (!item || !isVisible) {
-        return null;
-    }
+    if (!item || !isVisible) return null;
 
     const timeIntervalLabel =
         isDimension(item) &&
@@ -59,50 +48,89 @@ const TreeSingleNode: FC<{ node: Node; depth: number }> = ({ node, depth }) => {
         isTimeInterval(item.timeInterval)
             ? timeFrameConfigs[item.timeInterval].getLabel()
             : undefined;
-    const label: string = timeIntervalLabel || item.label || item.name;
+
+    const isFiltered = isField(item) && isFilteredField(item);
+
+    const label = timeIntervalLabel || item.label || item.name;
+
+    const bgColor = getItemBgColor(item);
+
     return (
-        <Row
-            depth={depth}
-            selected={isSelected}
-            bgColor={getItemBgColor(item)}
+        <NavLink
+            noWrap
+            sx={{
+                backgroundColor: isSelected ? bgColor : undefined,
+                '&:hover': {
+                    backgroundColor: isSelected
+                        ? darken(0.02, bgColor)
+                        : lighten(0.1, bgColor),
+                },
+            }}
+            icon={
+                <FieldIcon
+                    item={item}
+                    color={isDimension(item) ? 'blue.9' : 'yellow.9'}
+                    size="md"
+                />
+            }
             onClick={() => onItemClick(node.key, item)}
             onMouseEnter={() => toggle(true)}
             onMouseLeave={() => toggle(false)}
-        >
-            <FieldIcon
-                item={item}
-                color={isDimension(item) ? Colors.BLUE1 : Colors.ORANGE1}
-                size={16}
-                style={{ marginRight: '8px' }}
-            />
+            label={
+                <Group noWrap>
+                    <Tooltip
+                        withArrow
+                        inline
+                        openDelay={500}
+                        disabled={!item.description}
+                        label={<Text truncate>{item.description}</Text>}
+                        position="top-start"
+                        maw={350}
+                    >
+                        <Highlight
+                            component={Text}
+                            truncate
+                            sx={{ flexGrow: 1 }}
+                            highlight={searchQuery || ''}
+                        >
+                            {label}
+                        </Highlight>
+                    </Tooltip>
 
-            <Tooltip2
-                lazy
-                content={item.description}
-                className={Classes.TEXT_OVERFLOW_ELLIPSIS}
-            >
-                <Text ellipsize>
-                    <Highlight highlight={searchQuery || ''}>{label}</Highlight>
-                </Text>
-            </Tooltip2>
+                    {isFiltered ? (
+                        <Tooltip withArrow label="This field is filtered">
+                            <MantineIcon
+                                icon={IconFilter}
+                                color="gray.7"
+                                style={{ flexShrink: 0 }}
+                            />
+                        </Tooltip>
+                    ) : null}
 
-            <SpanFlex />
-
-            {isAdditionalMetric(item) ? (
-                <CustomMetricButtons
-                    node={item}
+                    {item.hidden ? (
+                        <Tooltip
+                            withArrow
+                            label="This field has been hidden in the dbt project. It's recommend to remove it from the query"
+                        >
+                            <MantineIcon
+                                icon={IconAlertTriangle}
+                                color="yellow.9"
+                                style={{ flexShrink: 0 }}
+                            />
+                        </Tooltip>
+                    ) : null}
+                </Group>
+            }
+            rightSection={
+                <TreeSingleNodeActions
+                    item={item}
                     isHovered={isHover}
                     isSelected={isSelected}
+                    isOpened={isMenuOpen}
+                    onMenuChange={toggleMenu}
                 />
-            ) : (
-                <FieldButtons
-                    node={item}
-                    onOpenSourceDialog={() => undefined}
-                    isHovered={isHover}
-                    isSelected={isSelected}
-                />
-            )}
-        </Row>
+            }
+        />
     );
 };
 

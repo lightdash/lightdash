@@ -1,6 +1,7 @@
-import { Colors } from '@blueprintjs/core';
 import { Field, getItemMap, TableCalculation } from '@lightdash/common';
-import React, { FC, memo, ReactNode, useCallback, useMemo } from 'react';
+import { Text } from '@mantine/core';
+import { FC, memo, useCallback, useMemo } from 'react';
+
 import { useColumns } from '../../../hooks/useColumns';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
@@ -76,24 +77,29 @@ export const ExplorerResults = memo(() => {
     );
 
     const IdleState: FC = useCallback(() => {
-        let description: ReactNode =
-            'Run query to view your results and visualize them as a chart.';
-        if (dimensions.length <= 0) {
-            description = (
+        const description =
+            dimensions.length <= 0 ? (
                 <>
                     Pick one or more{' '}
-                    <span style={{ color: Colors.BLUE1 }}>dimensions</span> to
-                    split your selected metric by.
+                    <Text span color="blue.9">
+                        dimensions
+                    </Text>{' '}
+                    to split your selected metric by.
                 </>
-            );
-        } else if (metrics.length <= 0) {
-            description = (
+            ) : metrics.length <= 0 ? (
                 <>
-                    Pick a <span style={{ color: Colors.ORANGE1 }}>metric</span>{' '}
+                    Pick a{' '}
+                    <Text span color="yellow.9">
+                        metric
+                    </Text>{' '}
                     to make calculations across your selected dimensions.
                 </>
+            ) : (
+                <>
+                    Run query to view your results and visualize them as a
+                    chart.
+                </>
             );
-        }
 
         return <EmptyStateNoTableData description={description} />;
     }, [dimensions.length, metrics.length]);
