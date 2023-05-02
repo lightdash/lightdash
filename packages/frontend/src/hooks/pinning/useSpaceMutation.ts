@@ -18,6 +18,7 @@ export const useSpacePinningMutation = (projectUuid: string) => {
         {
             mutationKey: ['space_pinning_update'],
             onSuccess: async (space) => {
+                await queryClient.invalidateQueries('pinned_items');
                 await queryClient.invalidateQueries([
                     'spaces',
                     space.projectUuid,
