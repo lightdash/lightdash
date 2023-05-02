@@ -298,4 +298,26 @@ export class SchedulerClient {
 
         return { jobId };
     }
+
+    async testAndCompileProject(payload: CompileProjectPayload) {
+        const graphileClient = await this.graphileUtils;
+        const now = new Date();
+        const { id: jobId } = await graphileClient.addJob(
+            'testAndCompileProject',
+            payload,
+            {
+                runAt: now, // now
+                maxAttempts: 1,
+            },
+        );
+        await this.schedulerModel.logSchedulerJob({
+            task: 'testAndCompileProject',
+            jobId,
+            scheduledTime: now,
+            status: SchedulerJobStatus.SCHEDULED,
+            details: { createdByUserUuid: payload.userUuid },
+        });
+
+        return { jobId };
+    }
 }

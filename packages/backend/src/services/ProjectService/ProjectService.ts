@@ -55,6 +55,7 @@ import {
     UpdateProject,
     UpdateProjectMember,
     WarehouseClient,
+    WarehouseTypes,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { URL } from 'url';
@@ -325,7 +326,7 @@ export class ProjectService {
         await this.projectModel.saveExploresToCache(projectUuid, explores);
     }
 
-    async update(
+    async updateAndScheduleAsyncWork(
         projectUuid: string,
         user: SessionUser,
         data: UpdateProject,
@@ -362,80 +363,131 @@ export class ProjectService {
                     : [{ stepType: JobStepType.COMPILING }]),
             ],
         };
-
         const updatedProject = ProjectModel.mergeMissingProjectConfigSecrets(
             data,
             savedProject,
         );
 
         await this.projectModel.update(projectUuid, updatedProject);
-
-        const doAsyncWork = async () => {
-            try {
-                await this.jobModel.update(job.jobUuid, {
-                    jobStatus: JobStatusType.RUNNING,
-                });
-                const adapter = await this.jobModel.tryJobStep(
-                    job.jobUuid,
-                    JobStepType.TESTING_ADAPTOR,
-                    async () =>
-                        ProjectService.testProjectAdapter(updatedProject),
-                );
-                if (savedProject.dbtConnection.type !== DbtProjectType.NONE) {
-                    const explores = await this.jobModel.tryJobStep(
-                        job.jobUuid,
-                        JobStepType.COMPILING,
-                        async () => {
-                            try {
-                                return await adapter.compileAllExplores();
-                            } finally {
-                                await adapter.destroy();
-                            }
-                        },
-                    );
-                    await this.projectModel.saveExploresToCache(
-                        projectUuid,
-                        explores,
-                    );
-                }
-
-                await this.jobModel.update(job.jobUuid, {
-                    jobStatus: JobStatusType.DONE,
-                    jobResults: {
-                        projectUuid,
-                    },
-                });
-                analytics.track({
-                    event: 'project.updated',
-                    userId: user.userUuid,
-                    properties: {
-                        projectName: updatedProject.name,
-                        projectId: projectUuid,
-                        projectType: updatedProject.dbtConnection.type,
-                        warehouseConnectionType:
-                            updatedProject.warehouseConnection.type,
-                        organizationId: user.organizationUuid,
-                        dbtConnectionType: data.dbtConnection.type,
-                        isPreview: savedProject.type === ProjectType.PREVIEW,
-                        method,
-                    },
-                });
-            } catch (error) {
-                await this.jobModel.setPendingJobsToSkipped(job.jobUuid);
-                await this.jobModel.update(job.jobUuid, {
-                    jobStatus: JobStatusType.ERROR,
-                });
-                throw error;
-            }
-        };
         await this.jobModel.create(job);
 
-        doAsyncWork().catch((e) =>
-            Logger.error(`Error running background job: ${e}`),
-        );
+        if (savedProject.dbtConnection.type !== DbtProjectType.NONE) {
+            await schedulerClient.testAndCompileProject({
+                userUuid: user.userUuid,
+                projectUuid,
+                requestMethod: method,
+                jobUuid: job.jobUuid,
+            });
+        } else {
+            // Nothing to test and compile, just update the job status
+            await this.jobModel.update(job.jobUuid, {
+                jobStatus: JobStatusType.DONE,
+                jobResults: {
+                    projectUuid,
+                },
+            });
+        }
         return {
             jobUuid: job.jobUuid,
         };
+    }
+
+    async testAndCompileProject(
+        user: SessionUser,
+
+        projectUuid: string,
+        method: RequestMethod,
+        jobUuid: string,
+    ) {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+
+        const updatedProject = await this.projectModel.getWithSensitiveFields(
+            projectUuid,
+        );
+
+        if (updatedProject.warehouseConnection === undefined) {
+            throw new Error(
+                `Missing warehouseConnection details on project ${projectUuid}'}`,
+            );
+        }
+
+        // This job is the job model we use to compile projects
+        // This is not the graphile Job id we use on scheduler
+        // TODO: remove this old job method and replace with scheduler log details
+        const job: CreateJob = {
+            jobUuid,
+            jobType: JobType.COMPILE_PROJECT,
+            jobStatus: JobStatusType.STARTED,
+            projectUuid: undefined,
+            userUuid: user.userUuid,
+            steps: [
+                { stepType: JobStepType.TESTING_ADAPTOR },
+                ...(updatedProject.dbtConnection.type === DbtProjectType.NONE
+                    ? []
+                    : [{ stepType: JobStepType.COMPILING }]),
+            ],
+        };
+
+        try {
+            await this.jobModel.update(job.jobUuid, {
+                jobStatus: JobStatusType.RUNNING,
+            });
+            const adapter = await this.jobModel.tryJobStep(
+                job.jobUuid,
+                JobStepType.TESTING_ADAPTOR,
+                async () =>
+                    ProjectService.testProjectAdapter(
+                        updatedProject as UpdateProject,
+                    ),
+            );
+            if (updatedProject.dbtConnection.type !== DbtProjectType.NONE) {
+                const explores = await this.jobModel.tryJobStep(
+                    job.jobUuid,
+                    JobStepType.COMPILING,
+                    async () => {
+                        try {
+                            return await adapter.compileAllExplores();
+                        } finally {
+                            await adapter.destroy();
+                        }
+                    },
+                );
+                await this.projectModel.saveExploresToCache(
+                    projectUuid,
+                    explores,
+                );
+            }
+
+            await this.jobModel.update(job.jobUuid, {
+                jobStatus: JobStatusType.DONE,
+                jobResults: {
+                    projectUuid,
+                },
+            });
+            analytics.track({
+                event: 'project.updated',
+                userId: user.userUuid,
+                properties: {
+                    projectName: updatedProject.name,
+                    projectId: projectUuid,
+                    projectType: updatedProject.dbtConnection.type,
+                    warehouseConnectionType:
+                        updatedProject.warehouseConnection!.type,
+                    organizationId: user.organizationUuid,
+                    dbtConnectionType: updatedProject.dbtConnection.type,
+                    isPreview: updatedProject.type === ProjectType.PREVIEW,
+                    method,
+                },
+            });
+        } catch (error) {
+            await this.jobModel.setPendingJobsToSkipped(job.jobUuid);
+            await this.jobModel.update(job.jobUuid, {
+                jobStatus: JobStatusType.ERROR,
+            });
+            throw error;
+        }
     }
 
     private static async testProjectAdapter(

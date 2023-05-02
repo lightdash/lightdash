@@ -59,7 +59,7 @@ projectRouter.patch(
     unauthorisedInDemo,
     async (req, res, next) => {
         projectService
-            .update(
+            .updateAndScheduleAsyncWork(
                 req.params.projectUuid,
                 req.user!,
                 req.body,

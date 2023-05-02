@@ -361,6 +361,46 @@ export const sendSlackNotification = async (
     }
 };
 
+export const testAndCompileProject = async (
+    jobId: string,
+    scheduledTime: Date,
+    payload: CompileProjectPayload,
+) => {
+    const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> = {
+        task: 'compileProject',
+        jobId,
+        scheduledTime,
+    };
+    try {
+        const user = await userService.getSessionByUserUuid(payload.userUuid);
+
+        schedulerService.logSchedulerJob({
+            ...baseLog,
+            details: { createdByUserUuid: payload.userUuid },
+            status: SchedulerJobStatus.STARTED,
+        });
+
+        await projectService.testAndCompileProject(
+            user,
+            payload.projectUuid,
+            getRequestMethod(payload.requestMethod),
+            payload.jobUuid,
+        );
+        schedulerService.logSchedulerJob({
+            ...baseLog,
+            details: {},
+            status: SchedulerJobStatus.COMPLETED,
+        });
+    } catch (e) {
+        schedulerService.logSchedulerJob({
+            ...baseLog,
+            status: SchedulerJobStatus.ERROR,
+            details: { createdByUserUuid: payload.userUuid, error: e },
+        });
+        throw e;
+    }
+};
+
 export const compileProject = async (
     jobId: string,
     scheduledTime: Date,

@@ -22,7 +22,8 @@ export type SchedulerLog = {
         | 'sendEmailNotification'
         | 'sendSlackNotification'
         | 'downloadCsv'
-        | 'compileProject';
+        | 'compileProject'
+        | 'testAndCompileProject';
     schedulerUuid?: string;
     jobId: string;
     jobGroup?: string;
