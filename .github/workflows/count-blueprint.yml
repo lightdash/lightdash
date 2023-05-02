@@ -23,7 +23,7 @@ jobs:
       - uses: actions/github-script@v3
         with:
           github-token: ${{ secrets.CI_GITHUB_TOKEN }}
-          script:
+          script: |
             github.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
