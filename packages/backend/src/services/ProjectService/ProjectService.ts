@@ -61,6 +61,7 @@ import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import { Worker } from 'worker_threads';
 import { analytics } from '../../analytics/client';
+import { schedulerClient } from '../../clients/clients';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { errorHandler } from '../../errors';
@@ -1089,7 +1090,7 @@ export class ProjectService {
         return job;
     }
 
-    async compileProject(
+    async scheduleCompileProject(
         user: SessionUser,
         projectUuid: string,
         requestMethod: RequestMethod,
@@ -1108,6 +1109,9 @@ export class ProjectService {
             throw new ForbiddenError();
         }
 
+        // This job is the job model we use to compile projects
+        // This is not the graphile Job id we use on scheduler
+        // TODO: remove this old job method and replace with scheduler log details
         const job: CreateJob = {
             jobUuid: uuidv4(),
             jobType: JobType.COMPILE_PROJECT,
@@ -1116,50 +1120,78 @@ export class ProjectService {
             projectUuid,
             steps: [{ stepType: JobStepType.COMPILING }],
         };
-        return new Promise<{ jobUuid: string }>((resolve, reject) => {
-            const onLockFailed = async () => {
-                reject(
-                    new AlreadyProcessingError('Project is already compiling'),
-                );
-            };
-            const onLockAcquired = async () => {
-                await this.jobModel.create(job);
-                resolve({ jobUuid: job.jobUuid });
-                try {
-                    await this.jobModel.update(job.jobUuid, {
-                        jobStatus: JobStatusType.RUNNING,
-                    });
-                    const explores = await this.jobModel.tryJobStep(
-                        job.jobUuid,
-                        JobStepType.COMPILING,
-                        async () =>
-                            this.refreshAllTables(
-                                user,
-                                projectUuid,
-                                requestMethod,
-                            ),
-                    );
-                    await this.projectModel.saveExploresToCache(
-                        projectUuid,
-                        explores,
-                    );
-                    await this.jobModel.update(job.jobUuid, {
-                        jobStatus: JobStatusType.DONE,
-                    });
-                } catch (e) {
-                    await this.jobModel.update(job.jobUuid, {
-                        jobStatus: JobStatusType.ERROR,
-                    });
-                }
-            };
-            this.projectModel
-                .tryAcquireProjectLock(
-                    projectUuid,
-                    onLockAcquired,
-                    onLockFailed,
-                )
-                .catch((e) => Logger.error(`Background job failed: ${e}`));
+
+        await this.jobModel.create(job);
+
+        await schedulerClient.compileProject({
+            userUuid: user.userUuid,
+            projectUuid,
+            requestMethod,
+            jobUuid: job.jobUuid,
         });
+
+        return { jobUuid: job.jobUuid };
+    }
+
+    async compileProject(
+        user: SessionUser,
+        projectUuid: string,
+        requestMethod: RequestMethod,
+        jobUuid: string,
+    ) {
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        if (
+            user.ability.cannot('create', 'Job') ||
+            user.ability.cannot(
+                'manage',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const job: CreateJob = {
+            jobUuid,
+            jobType: JobType.COMPILE_PROJECT,
+            jobStatus: JobStatusType.STARTED,
+            userUuid: user.userUuid,
+            projectUuid,
+            steps: [{ stepType: JobStepType.COMPILING }],
+        };
+
+        const onLockFailed = async () => {
+            throw new AlreadyProcessingError('Project is already compiling');
+        };
+        const onLockAcquired = async () => {
+            try {
+                await this.jobModel.update(job.jobUuid, {
+                    jobStatus: JobStatusType.RUNNING,
+                });
+                const explores = await this.jobModel.tryJobStep(
+                    job.jobUuid,
+                    JobStepType.COMPILING,
+                    async () =>
+                        this.refreshAllTables(user, projectUuid, requestMethod),
+                );
+                await this.projectModel.saveExploresToCache(
+                    projectUuid,
+                    explores,
+                );
+                await this.jobModel.update(job.jobUuid, {
+                    jobStatus: JobStatusType.DONE,
+                });
+            } catch (e) {
+                await this.jobModel.update(job.jobUuid, {
+                    jobStatus: JobStatusType.ERROR,
+                });
+            }
+        };
+        await this.projectModel
+            .tryAcquireProjectLock(projectUuid, onLockAcquired, onLockFailed)
+            .catch((e) => Logger.error(`Background job failed: ${e}`));
     }
 
     async getAllExploresSummary(

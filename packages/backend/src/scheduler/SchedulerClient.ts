@@ -1,4 +1,5 @@
 import {
+    CompileProjectPayload,
     DownloadCsvPayload,
     EmailNotificationPayload,
     isSlackTarget,
@@ -267,6 +268,28 @@ export class SchedulerClient {
         );
         await this.schedulerModel.logSchedulerJob({
             task: 'downloadCsv',
+            jobId,
+            scheduledTime: now,
+            status: SchedulerJobStatus.SCHEDULED,
+            details: { createdByUserUuid: payload.userUuid },
+        });
+
+        return { jobId };
+    }
+
+    async compileProject(payload: CompileProjectPayload) {
+        const graphileClient = await this.graphileUtils;
+        const now = new Date();
+        const { id: jobId } = await graphileClient.addJob(
+            'compileProject',
+            payload,
+            {
+                runAt: now, // now
+                maxAttempts: 1,
+            },
+        );
+        await this.schedulerModel.logSchedulerJob({
+            task: 'compileProject',
             jobId,
             scheduledTime: now,
             status: SchedulerJobStatus.SCHEDULED,

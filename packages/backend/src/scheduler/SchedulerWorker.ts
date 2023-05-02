@@ -12,6 +12,7 @@ import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logger';
 import { schedulerService } from '../services/services';
 import {
+    compileProject,
     downloadCsv,
     handleScheduledDelivery,
     sendEmailNotification,
@@ -114,6 +115,13 @@ export class SchedulerWorker {
                 },
                 downloadCsv: async (payload: any, helpers: JobHelpers) => {
                     await downloadCsv(
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                    );
+                },
+                compileProject: async (payload: any, helpers: JobHelpers) => {
+                    await compileProject(
                         helpers.job.id,
                         helpers.job.run_at,
                         payload,
