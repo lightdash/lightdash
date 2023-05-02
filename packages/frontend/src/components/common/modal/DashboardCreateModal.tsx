@@ -213,9 +213,8 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                             loading={isCreatingDashboard || isCreatingSpace}
                             onClick={handleConfirm}
                             disabled={
-                                isCreatingDashboard ||
-                                isCreatingSpace ||
-                                !dashboardName
+                                (isCreatingDashboard && dashboardName === '') ||
+                                (isCreatingNewSpace && newSpaceName === '')
                             }
                         />
                     </>
