@@ -1,0 +1,33 @@
+name: Blueprint progress report
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+    paths:
+      - 'packages/frontend/src/**'
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install deps
+        run: yarn
+      - name: Count blueprint imports
+        run: echo "report=$(yarn ts-node ./scripts/count-blueprint-imports.ts)" >> $GITHUB_OUTPUT
+        id: generate_report
+      - uses: actions/github-script@v3
+        with:
+          github-token: ${{ secrets.CI_GITHUB_TOKEN }}
+          script:
+            github.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: "## Blueprint refactor progress\n\n${{ steps.generate_report.outputs.report }}"
+            })
+    
