@@ -1,3 +1,10 @@
+# [0.529.0](https://github.com/lightdash/lightdash/compare/0.528.0...0.529.0) (2023-05-02)
+
+
+### Features
+
+* migrate password reset page to mantine ([#5309](https://github.com/lightdash/lightdash/issues/5309)) ([5bcbc90](https://github.com/lightdash/lightdash/commit/5bcbc906294d01087023966137eaab19fa7d37e1))
+
 # [0.528.0](https://github.com/lightdash/lightdash/compare/0.527.2...0.528.0) (2023-05-02)
 
 
