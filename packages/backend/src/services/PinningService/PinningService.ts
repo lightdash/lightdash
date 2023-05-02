@@ -1,11 +1,5 @@
 import { subject } from '@casl/ability';
-import {
-    ForbiddenError,
-    ResourceViewChartItem,
-    ResourceViewDashboardItem,
-    ResourceViewSpaceItem,
-    SessionUser,
-} from '@lightdash/common';
+import { ForbiddenError, PinnedItems, SessionUser } from '@lightdash/common';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -59,11 +53,7 @@ export class PinningService {
         user: SessionUser,
         projectUuid: string,
         pinnedListUuid: string,
-    ): Promise<{
-        spaces: ResourceViewSpaceItem[];
-        charts: ResourceViewChartItem[];
-        dashboards: ResourceViewDashboardItem[];
-    }> {
+    ): Promise<PinnedItems> {
         const project = await this.projectModel.get(projectUuid);
         if (user.ability.cannot('view', subject('Project', project))) {
             throw new ForbiddenError();
@@ -98,5 +88,19 @@ export class PinningService {
             charts: allowedCharts,
             dashboards: allowedDashboards,
         };
+    }
+
+    async updatePinnedItemsOrder(
+        user: SessionUser,
+        projectUuid: string,
+        pinnedListUuid: string,
+        itemsOrder: {
+            dashboards: string[];
+            charts: string[];
+            spaces: string[];
+        },
+    ): Promise<PinnedItems> {
+        // TODO update order
+        return this.getPinnedItems(user, projectUuid, pinnedListUuid);
     }
 }

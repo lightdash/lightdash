@@ -82,11 +82,7 @@ export const isDeleteSpacePinnedItem = (
 
 export type ApiPinnedItems = {
     status: 'ok';
-    results: {
-        dashboards: ResourceViewDashboardItem[];
-        charts: ResourceViewChartItem[];
-        spaces: ResourceViewSpaceItem[];
-    };
+    results: PinnedItems;
 };
 
 export type PinnedItems = {
