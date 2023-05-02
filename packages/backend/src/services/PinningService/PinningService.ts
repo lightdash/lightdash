@@ -12,6 +12,7 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { ResourceViewItemModel } from '../../models/ResourceViewItemModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type Dependencies = {
     dashboardModel: DashboardModel;
@@ -67,31 +68,24 @@ export class PinningService {
         if (user.ability.cannot('view', subject('Project', project))) {
             throw new ForbiddenError();
         }
+
+        const spaces = await this.spaceModel.getAllSpaces(projectUuid);
+        const allowedSpaceUuids = spaces
+            .filter((space) => hasSpaceAccess(space, user.userUuid))
+            .map((space) => space.uuid);
+
+        if (allowedSpaceUuids.length === 0) {
+            return { spaces: [], charts: [], dashboards: [] };
+        }
         const allPinnedSpaces =
             await this.resourceViewItemModel.getAllSpacesByPinnedListUuid(
                 projectUuid,
                 pinnedListUuid,
             );
-        // TODO: remove custom auth logic (blocked by https://github.com/lightdash/lightdash/pull/5108)
-        const hasSpaceAccess = (space: ResourceViewSpaceItem) => {
-            if (space.data.projectUuid !== projectUuid) {
-                return false;
-            }
-            if (
-                space.data.isPrivate &&
-                space.data.access.find(
-                    (userUuid) => userUuid === user.userUuid,
-                ) === undefined
-            ) {
-                return false;
-            }
-            return true;
-        };
-        const allowedSpaces = allPinnedSpaces.filter(hasSpaceAccess);
-        if (allowedSpaces.length === 0) {
-            return { spaces: [], charts: [], dashboards: [] };
-        }
-        const allowedSpaceUuids = allowedSpaces.map((space) => space.data.uuid);
+
+        const allowedPinnedSpaces = allPinnedSpaces.filter(
+            ({ data: { uuid } }) => allowedSpaceUuids.includes(uuid),
+        );
         const { charts: allowedCharts, dashboards: allowedDashboards } =
             await this.resourceViewItemModel.getAllowedChartsAndDashboards(
                 projectUuid,
@@ -100,7 +94,7 @@ export class PinningService {
             );
 
         return {
-            spaces: allowedSpaces,
+            spaces: allowedPinnedSpaces,
             charts: allowedCharts,
             dashboards: allowedDashboards,
         };
