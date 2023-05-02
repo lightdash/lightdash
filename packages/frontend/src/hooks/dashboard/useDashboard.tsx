@@ -5,7 +5,6 @@ import {
     Dashboard,
     DashboardAvailableFilters,
     DashboardTile,
-    NotificationPayloadBase,
     UpdateDashboard,
     UpdateDashboardDetails,
 } from '@lightdash/common';
