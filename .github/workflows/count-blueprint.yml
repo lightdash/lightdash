@@ -16,9 +16,13 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Install deps
-        run: yarn
+        run: yarn install typescript
       - name: Count blueprint imports
-        run: echo "report=$(yarn ts-node ./scripts/count-blueprint-imports.ts)" >> $GITHUB_OUTPUT
+        run: |
+          EOF="$(openssl rand -hex 8)
+          echo "report<<$EOF" >> $GITHUB_OUTPUT
+          yarn ts-node ./scripts/count-blueprint-imports.ts >> $GITHUB_OUTPUT
+          echo "$EOF" >> $GITHUB_OUPUT
         id: generate_report
       - uses: actions/github-script@v3
         with:
