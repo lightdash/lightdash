@@ -4,7 +4,6 @@ import { memo } from 'react';
 import { Helmet } from 'react-helmet';
 import { useParams } from 'react-router-dom';
 import {
-    CardContent,
     PageContentContainer,
     PageWrapper,
     Resizer,
@@ -94,9 +93,7 @@ const ExplorerPage = memo(() => {
                             width: sidebarWidth,
                         }}
                     >
-                        <CardContent>
-                            <ExploreSideBar />
-                        </CardContent>
+                        <ExploreSideBar />
                     </Card>
 
                     <Resizer
