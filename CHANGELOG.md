@@ -1,3 +1,10 @@
+## [0.529.2](https://github.com/lightdash/lightdash/compare/0.529.1...0.529.2) (2023-05-02)
+
+
+### Bug Fixes
+
+* check for fk constraint on error ([#5321](https://github.com/lightdash/lightdash/issues/5321)) ([1599ea1](https://github.com/lightdash/lightdash/commit/1599ea1b99ebffead90b4370a1eda7b5e6e62cf7))
+
 ## [0.529.1](https://github.com/lightdash/lightdash/compare/0.529.0...0.529.1) (2023-05-02)
 
 
