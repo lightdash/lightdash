@@ -5,7 +5,6 @@ import {
     H3,
     Icon,
     NonIdealState,
-    Radio,
 } from '@blueprintjs/core';
 import styled, { keyframes } from 'styled-components';
 
@@ -87,10 +86,6 @@ export const WarehouseIcon = styled.img`
 
 export const OtherIcon = styled(Icon)`
     padding: 0 5px;
-`;
-
-export const RadioButton = styled(Radio)`
-    text-align: left;
 `;
 
 export const CodeLabel = styled.p`

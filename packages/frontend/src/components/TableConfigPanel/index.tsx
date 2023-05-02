@@ -7,7 +7,7 @@ import ConditionalFormattingList from './ConditionalFormattingList';
 import GeneralSettings from './GeneralSettings';
 import { ConfigWrapper } from './TableConfig.styles';
 
-export const TableConfigPanel: React.FC = () => {
+const TableConfigPanel: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
 
     const { resultsData } = useVisualizationContext();

@@ -1,4 +1,4 @@
-import { Card, Colors, H3 } from '@blueprintjs/core';
+import { Card, Colors } from '@blueprintjs/core';
 import styled from 'styled-components';
 import { BigButton } from '../common/BigButton';
 
@@ -7,11 +7,6 @@ export const CardWrapper = styled(Card)`
     display: flex;
     flex-direction: row;
     margin-bottom: 20px;
-`;
-
-export const Title = styled(H3)`
-    text-align: center;
-    margin-bottom: 25px;
 `;
 
 export const SaveButton = styled(BigButton)`

@@ -17,13 +17,6 @@ const createInviteQuery = async (
     };
 };
 
-const revokeInvitesQuery = async () =>
-    lightdashApi<undefined>({
-        url: `/invite-links`,
-        method: 'DELETE',
-        body: undefined,
-    });
-
 const createInviteWith3DayExpiryQuery = async (
     createInvite: Omit<CreateInviteLink, 'expiresAt'>,
 ): Promise<InviteLink> => {
@@ -69,24 +62,6 @@ export const useCreateInviteLinkMutation = () => {
             await queryClient.refetchQueries(['organization_users']);
             showToastSuccess({
                 title: 'Created new invite link',
-            });
-        },
-    });
-};
-
-export const useRevokeInvitesMutation = () => {
-    const { showToastSuccess, showToastError } = useToaster();
-    return useMutation<undefined, ApiError>(revokeInvitesQuery, {
-        mutationKey: ['invite_link_revoke'],
-        onSuccess: async () => {
-            showToastSuccess({
-                title: `All invites were revoked`,
-            });
-        },
-        onError: (error) => {
-            showToastError({
-                title: `Failed to revoke invites`,
-                subtitle: error.error.message,
             });
         },
     });

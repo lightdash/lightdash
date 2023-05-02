@@ -9,7 +9,7 @@ import {
     WeekDay,
 } from '@lightdash/common';
 import moment from 'moment';
-import React, { FC, useState } from 'react';
+import { FC, useState } from 'react';
 import { createGlobalStyle } from 'styled-components';
 
 const SelectedWeekStyles = createGlobalStyle`
@@ -71,7 +71,7 @@ export const convertWeekDayToDayPickerWeekDay = (weekDay: WeekDay) => {
 };
 
 // from 0 (Monday) to 6 (Sunday) to 1 (Monday) to 7 (Sunday)
-export const convertWeekDayToMomentWeekDay = (weekDay: WeekDay) => {
+const convertWeekDayToMomentWeekDay = (weekDay: WeekDay) => {
     return weekDay + 1;
 };
 

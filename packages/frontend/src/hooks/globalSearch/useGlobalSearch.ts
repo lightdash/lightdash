@@ -2,7 +2,7 @@ import { ApiError, SearchResults } from '@lightdash/common';
 import { useQuery } from 'react-query';
 import { lightdashApi } from '../../api';
 
-export const getSearchResults = async ({
+const getSearchResults = async ({
     projectUuid,
     query,
 }: {

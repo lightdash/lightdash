@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 
-export const getEmailStatusQuery = async () => {
+const getEmailStatusQuery = async () => {
     return lightdashApi<EmailStatusExpiring>({
         url: `/user/me/email/status`,
         method: 'GET',
@@ -11,7 +11,7 @@ export const getEmailStatusQuery = async () => {
     });
 };
 
-export const sendOneTimePasscodeQuery = async () => {
+const sendOneTimePasscodeQuery = async () => {
     return lightdashApi<EmailStatusExpiring>({
         url: `/user/me/email/otp`,
         method: 'PUT',
@@ -19,7 +19,7 @@ export const sendOneTimePasscodeQuery = async () => {
     });
 };
 
-export const verifyOTPQuery = async (code: string) => {
+const verifyOTPQuery = async (code: string) => {
     return lightdashApi<EmailStatusExpiring>({
         url: `/user/me/email/status?passcode=${code}`,
         method: 'GET',

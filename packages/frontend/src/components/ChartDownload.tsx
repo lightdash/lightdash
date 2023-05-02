@@ -111,7 +111,7 @@ type DownloadOptions = {
     chartRef: RefObject<EChartsReact>;
     chartType: ChartType;
 };
-export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
+const ChartDownloadOptions: React.FC<DownloadOptions> = ({
     chartRef,
     chartType,
 }) => {

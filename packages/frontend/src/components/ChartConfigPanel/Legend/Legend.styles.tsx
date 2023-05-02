@@ -24,17 +24,3 @@ export const SectionRow = styled.div`
         }
     }
 `;
-
-export const GridSettings = styled.div`
-    display: flex;
-    flex-direction: row;
-    margin-top: 10px;
-
-    .bp4-label {
-        margin-top: 5px;
-        margin-right: 5px;
-    }
-    .bp4-button-group {
-        height: 30px;
-    }
-`;

@@ -1,4 +1,4 @@
-import { Button, FormGroup } from '@blueprintjs/core';
+import { Button } from '@blueprintjs/core';
 import styled from 'styled-components';
 import Form from '../ReactHookForm/Form';
 
@@ -10,10 +10,6 @@ export const StyledForm = styled(Form)`
     & .bp4-label {
         white-space: nowrap;
     }
-`;
-
-export const Label = styled(FormGroup)`
-    white-space: nowrap;
 `;
 
 export const ApplyButton = styled(Button)`

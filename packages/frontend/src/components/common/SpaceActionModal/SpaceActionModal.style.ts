@@ -12,7 +12,6 @@ export const ShareSpaceWrapper = styled.div`
     display: flex;
     flex-direction: column;
 `;
-export const AddUserLabel = styled.span``;
 
 const commonTagStyle = css`
     width: 35px;

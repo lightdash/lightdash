@@ -9,7 +9,7 @@ const DEFAULT_ERROR_PROPS: ComponentProps<typeof NonIdealState> = {
     description: 'Please contact support',
 };
 
-export const StyledNonIdealState = styled(NonIdealState)<{
+const StyledNonIdealState = styled(NonIdealState)<{
     $hasMarginTop?: boolean;
 }>`
     ${({ $hasMarginTop }) => $hasMarginTop && 'margin-top: 20px;'}

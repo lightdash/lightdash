@@ -44,7 +44,7 @@ export const downloadCsv = async ({
     });
 };
 
-export const getCsvFileUrl = async (
+const getCsvFileUrl = async (
     { jobId }: ApiScheduledDownloadCsv,
     onSuccess: (data: string) => void,
     onError: (error: Error) => void,

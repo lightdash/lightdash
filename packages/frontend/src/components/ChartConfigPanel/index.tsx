@@ -4,7 +4,7 @@ import React from 'react';
 import useEcharts from '../../hooks/echarts/useEcharts';
 import ChartConfigTabs from './ChartConfigTabs';
 
-export const ChartConfigPanel: React.FC = () => {
+const ChartConfigPanel: React.FC = () => {
     const eChartsOptions = useEcharts();
     const disabled = !eChartsOptions;
 

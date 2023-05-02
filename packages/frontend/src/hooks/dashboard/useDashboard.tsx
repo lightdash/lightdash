@@ -6,7 +6,6 @@ import {
     DashboardAvailableFilters,
     DashboardTile,
     UpdateDashboard,
-    UpdateDashboardDetails,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { UseQueryOptions } from 'react-query/types/react/types';
@@ -53,16 +52,14 @@ const deleteDashboard = async (id: string) =>
         body: undefined,
     });
 
-export const postDashboardsAvailableFilters = async (
-    savedQueryUuids: string[],
-) =>
+const postDashboardsAvailableFilters = async (savedQueryUuids: string[]) =>
     lightdashApi<DashboardAvailableFilters>({
         url: `/dashboards/availableFilters`,
         method: 'POST',
         body: JSON.stringify(savedQueryUuids),
     });
 
-export const exportDashboard = async (id: string) =>
+const exportDashboard = async (id: string) =>
     lightdashApi<string>({
         url: `/dashboards/${id}/export`,
         method: 'POST',
@@ -222,18 +219,6 @@ export const useMoveDashboardMutation = () => {
             },
         },
     );
-};
-
-export const useUpdateDashboardName = (
-    id: string,
-    showRedirectButton: boolean = false,
-) => {
-    const hook = useUpdateDashboard(id, showRedirectButton);
-    return {
-        ...hook,
-        mutate: ({ name, description }: UpdateDashboardDetails) =>
-            hook.mutate({ name, description }),
-    };
 };
 
 export const useCreateMutation = (

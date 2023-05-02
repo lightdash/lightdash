@@ -67,7 +67,7 @@ type Props = {
     explore: Explore | undefined;
 };
 
-export const VisualizationProvider: FC<Props> = ({
+const VisualizationProvider: FC<Props> = ({
     minimal = false,
     initialChartConfig,
     chartType,
