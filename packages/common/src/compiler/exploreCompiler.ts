@@ -105,17 +105,23 @@ export class ExploreCompiler {
                     join.label ||
                     (join.alias && friendlyName(join.alias)) ||
                     tables[join.table].label;
+
+                const tableDimensions = tables[join.table].dimensions;
                 return {
                     ...prev,
                     [join.alias || join.table]: {
                         ...tables[join.table],
                         name: joinTableName,
                         label: joinTableLabel,
-                        dimensions: Object.keys(tables[join.table].dimensions)
+                        dimensions: Object.keys(tableDimensions)
                             .filter(
                                 (d) =>
                                     join.fields === undefined ||
-                                    join.fields.includes(d),
+                                    join.fields.includes(d) ||
+                                    (tableDimensions[d].group !== undefined &&
+                                        join.fields.includes(
+                                            tableDimensions[d].group!,
+                                        )),
                             )
                             .reduce<Record<string, Dimension>>(
                                 (prevDimensions, dimensionKey) => ({
