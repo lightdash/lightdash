@@ -5,12 +5,17 @@ import {
     DialogFooter,
     DialogProps,
     FormGroup,
+    HTMLSelect,
     InputGroup,
     Intent,
 } from '@blueprintjs/core';
 import { Dashboard } from '@lightdash/common';
-import { FC, useState } from 'react';
+import { FC, useCallback, useState } from 'react';
 import { useCreateMutation } from '../../../hooks/dashboard/useDashboard';
+import {
+    useCreateMutation as useSpaceCreateMutation,
+    useSpaces,
+} from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
 import {} from '../ShareSpaceModal/ShareSpaceModal.style';
 
@@ -27,32 +32,79 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
     onClose,
     ...modalProps
 }) => {
-    const { mutateAsync, isLoading: isCreating } =
+    const { mutateAsync: createDashboard, isLoading: isCreatingDashboard } =
         useCreateMutation(projectUuid);
+    const { mutateAsync: createSpace, isLoading: isCreatingSpace } =
+        useSpaceCreateMutation(projectUuid);
     const { user } = useApp();
 
-    const [name, setName] = useState<string>('');
-    const [description, setDescription] = useState<string>('');
+    const [dashboardName, setDashboardName] = useState<string>('');
+    const [dashboardDescription, setDashboardDescription] =
+        useState<string>('');
 
-    if (user.data?.ability?.cannot('manage', 'Dashboard')) return null;
+    const [selectedSpaceUuid, setSpaceUuid] = useState<string>();
+    const [isCreatingNewSpace, setIsCreatingnewSpace] =
+        useState<boolean>(false);
+    const [newSpaceName, setNewSpaceName] = useState('');
 
+    const { data: spaces, isLoading: isLoadingSpaces } = useSpaces(
+        projectUuid,
+        {
+            onSuccess: (data) => {
+                if (data.length > 0) {
+                    setSpaceUuid(data[0].uuid);
+                } else {
+                    setIsCreatingnewSpace(true);
+                }
+            },
+        },
+    );
+    const showNewSpaceInput = isCreatingNewSpace || spaces?.length === 0;
+
+    const handleReset = () => {
+        setDashboardName('');
+        setDashboardDescription('');
+        setNewSpaceName('');
+        setIsCreatingnewSpace(false);
+    };
     const handleClose: DashboardCreateModalProps['onClose'] = (event) => {
-        setName('');
-        setDescription('');
-
+        handleReset();
         onClose?.(event);
     };
 
-    const handleConfirm = async () => {
-        const dashboard = await mutateAsync({
-            tiles: [],
-            name,
-            description,
-            spaceUuid,
-        });
+    const handleConfirm = useCallback(async () => {
+        if (isCreatingNewSpace) {
+            const newSpace = await createSpace({
+                name: newSpaceName,
+                isPrivate: false,
+                access: [],
+            });
 
+            spaceUuid = newSpace.uuid;
+        }
+
+        const dashboard = await createDashboard({
+            name: dashboardName,
+            description: dashboardDescription,
+            spaceUuid,
+            tiles: [],
+        });
         onConfirm?.(dashboard);
-    };
+        handleReset();
+    }, [
+        createDashboard,
+        createSpace,
+        selectedSpaceUuid,
+        dashboardName,
+        newSpaceName,
+        isCreatingDashboard,
+        isCreatingNewSpace,
+        onClose,
+    ]);
+
+    if (user.data?.ability?.cannot('manage', 'Dashboard')) return null;
+
+    if (isLoadingSpaces || !spaces) return null;
 
     return (
         <Dialog
@@ -67,8 +119,8 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                     <InputGroup
                         id="chart-name"
                         type="text"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
+                        value={dashboardName}
+                        onChange={(e) => setDashboardName(e.target.value)}
                         placeholder="eg. KPI dashboard"
                     />
                 </FormGroup>
@@ -79,25 +131,91 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                     <InputGroup
                         id="chart-description"
                         type="text"
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
+                        value={dashboardDescription}
+                        onChange={(e) =>
+                            setDashboardDescription(e.target.value)
+                        }
                         placeholder="A few words to give your team some context"
                     />
                 </FormGroup>
+                {!isLoadingSpaces && !showNewSpaceInput ? (
+                    <>
+                        <FormGroup
+                            label="Select a space"
+                            labelFor="select-space"
+                        >
+                            <HTMLSelect
+                                id="select-space"
+                                fill={true}
+                                value={selectedSpaceUuid}
+                                onChange={(e) =>
+                                    setSpaceUuid(e.currentTarget.value)
+                                }
+                                options={spaces?.map((space) => ({
+                                    value: space.uuid,
+                                    label: space.name,
+                                }))}
+                            />
+                        </FormGroup>
+                        <Button
+                            minimal
+                            icon="plus"
+                            intent="primary"
+                            onClick={() => setIsCreatingnewSpace(true)}
+                        >
+                            Create new space
+                        </Button>
+                    </>
+                ) : (
+                    <>
+                        <FormGroup
+                            label="Name your space"
+                            labelFor="dashboard-space"
+                        >
+                            <InputGroup
+                                id="dashboard-space"
+                                type="text"
+                                value={newSpaceName}
+                                onChange={(e) =>
+                                    setNewSpaceName(e.target.value)
+                                }
+                                placeholder="eg. KPIs"
+                            />
+                        </FormGroup>
+                        <Button
+                            minimal
+                            icon="arrow-left"
+                            intent="primary"
+                            onClick={() => setIsCreatingnewSpace(false)}
+                        >
+                            Save to existing space
+                        </Button>
+                    </>
+                )}
             </DialogBody>
 
             <DialogFooter
                 actions={
                     <>
-                        <Button onClick={handleClose}>Cancel</Button>
+                        <Button
+                            onClick={(e) => {
+                                handleClose(e);
+                                if (onClose) onClose(e);
+                            }}
+                        >
+                            Cancel
+                        </Button>
 
                         <Button
                             intent={Intent.PRIMARY}
                             text="Create"
                             type="submit"
-                            loading={isCreating}
+                            loading={isCreatingDashboard || isCreatingSpace}
                             onClick={handleConfirm}
-                            disabled={isCreating || !name}
+                            disabled={
+                                (isCreatingDashboard && dashboardName === '') ||
+                                (isCreatingNewSpace && newSpaceName === '')
+                            }
                         />
                     </>
                 }
