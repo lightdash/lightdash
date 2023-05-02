@@ -144,6 +144,7 @@ export const schedulerService = new SchedulerService({
 });
 
 export const csvService = new CsvService({
+    lightdashConfig,
     userModel,
     s3Service,
     projectService,
