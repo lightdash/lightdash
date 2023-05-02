@@ -30,10 +30,7 @@ const Home: FC = () => {
     const {
         data: pinnedItems = { dashboards: [], charts: [], spaces: [] },
         isLoading: pinnedItemsLoading,
-    } = usePinnedItems(
-        selectedProjectUuid,
-        project?.data?.pinnedListUuid || '',
-    );
+    } = usePinnedItems(selectedProjectUuid, project?.data?.pinnedListUuid);
     const { data: dashboards = [], isLoading: dashboardsLoading } =
         useDashboards(selectedProjectUuid);
     const { data: savedCharts = [], isLoading: chartsLoading } =

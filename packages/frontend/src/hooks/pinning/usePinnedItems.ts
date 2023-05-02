@@ -9,8 +9,12 @@ const getPinnedItems = async (projectUuid: string, pinnedlistUuid: string) =>
         body: undefined,
     });
 
-export const usePinnedItems = (projectUuid: string, pinnedlistUuid: string) =>
+export const usePinnedItems = (
+    projectUuid: string,
+    pinnedlistUuid: string | undefined,
+) =>
     useQuery<PinnedItems, ApiError>({
         queryKey: ['pinned_items', projectUuid, pinnedlistUuid],
-        queryFn: () => getPinnedItems(projectUuid, pinnedlistUuid),
+        queryFn: () => getPinnedItems(projectUuid, pinnedlistUuid || ''),
+        enabled: !!pinnedlistUuid,
     });
