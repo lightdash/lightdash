@@ -1,3 +1,10 @@
+## [0.526.1](https://github.com/lightdash/lightdash/compare/0.526.0...0.526.1) (2023-05-02)
+
+
+### Bug Fixes
+
+* multiple model selection ([#5288](https://github.com/lightdash/lightdash/issues/5288)) ([1bb2abb](https://github.com/lightdash/lightdash/commit/1bb2abbf59025993e7c7e535b9111da06e980b4a))
+
 # [0.526.0](https://github.com/lightdash/lightdash/compare/0.525.1...0.526.0) (2023-05-01)
 
 
