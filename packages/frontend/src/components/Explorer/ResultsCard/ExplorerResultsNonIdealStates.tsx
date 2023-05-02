@@ -1,19 +1,9 @@
-import {
-    createStyles,
-    DefaultProps,
-    keyframes,
-    Loader,
-    Stack,
-    Text,
-    TextProps,
-    Title,
-    TitleProps,
-} from '@mantine/core';
-import React, { FC } from 'react';
-
+import { createStyles, keyframes, Loader, Text } from '@mantine/core';
+import { FC } from 'react';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { ReactComponent as NoTableIcon } from '../../../svgs/emptystate-no-table.svg';
 import { SectionName } from '../../../types/Events';
+import { EmptyState } from '../../common/EmptyState';
 import DocumentationHelpButton from '../../DocumentationHelpButton';
 import { RefreshButton } from '../../RefreshButton';
 
@@ -77,57 +67,6 @@ const useAnimatedTextStyles = createStyles((theme) => ({
 
 const ExploreDocumentationUrl =
     'https://docs.lightdash.com/get-started/exploring-data/using-explores/';
-
-type EmptyStateProps = DefaultProps & {
-    icon?: React.ReactNode;
-    title?: React.ReactNode;
-    titleProps?: TitleProps;
-    description?: React.ReactNode;
-    descriptionProps?: TextProps;
-};
-
-const EmptyState: FC<EmptyStateProps> = ({
-    icon,
-    title,
-    titleProps,
-    description,
-    descriptionProps,
-    children,
-    maw = 400,
-    ...defaultMantineProps
-}) => {
-    return (
-        <Stack align="center" pt="4xl" pb="5xl" {...defaultMantineProps}>
-            {icon}
-
-            {title ? (
-                <Title
-                    align="center"
-                    fw={500}
-                    order={4}
-                    maw={maw}
-                    {...titleProps}
-                >
-                    {title}
-                </Title>
-            ) : null}
-
-            {description ? (
-                <Text
-                    span
-                    align="center"
-                    color="dimmed"
-                    maw={maw}
-                    {...descriptionProps}
-                >
-                    {description}
-                </Text>
-            ) : null}
-
-            {children}
-        </Stack>
-    );
-};
 
 export const EmptyStateNoColumns = () => {
     const { classes } = useAnimatedTextStyles();
