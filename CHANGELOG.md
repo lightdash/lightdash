@@ -1,3 +1,10 @@
+## [0.526.2](https://github.com/lightdash/lightdash/compare/0.526.1...0.526.2) (2023-05-02)
+
+
+### Bug Fixes
+
+* handle undefined scheduler_uuid when logging ([#5184](https://github.com/lightdash/lightdash/issues/5184)) ([5de3e57](https://github.com/lightdash/lightdash/commit/5de3e575fffa1c6b343ee76675a562f3f90a4e6d))
+
 ## [0.526.1](https://github.com/lightdash/lightdash/compare/0.526.0...0.526.1) (2023-05-02)
 
 
