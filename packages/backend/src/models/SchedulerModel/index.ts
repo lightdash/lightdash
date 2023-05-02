@@ -453,7 +453,13 @@ export class SchedulerModel {
         } catch (error) {
             const FOREIGN_KEY_VIOLATION_ERROR_CODE = '23503';
 
-            if (error.code !== FOREIGN_KEY_VIOLATION_ERROR_CODE) throw error;
+            if (
+                !(
+                    error.code === FOREIGN_KEY_VIOLATION_ERROR_CODE &&
+                    error.constraint === 'scheduler_log_scheduler_uuid_foreign'
+                )
+            )
+                throw error;
         }
     }
 
