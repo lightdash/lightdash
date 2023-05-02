@@ -1,6 +1,6 @@
-import React from 'react';
-
 import { NavLink } from '@mantine/core';
+import { FC } from 'react';
+
 import { ProjectCatalogTreeNode } from '../../../hooks/useProjectCatalogTree';
 
 type Props = {
@@ -8,7 +8,7 @@ type Props = {
     onSelect: (node: ProjectCatalogTreeNode) => void;
 };
 
-const CatalogTree: React.FC<Props> = ({ nodes, onSelect }) => {
+const CatalogTree: FC<Props> = ({ nodes, onSelect }) => {
     return (
         <>
             {nodes.map((node) => (
