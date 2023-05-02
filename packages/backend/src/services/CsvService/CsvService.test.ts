@@ -1,4 +1,5 @@
 import * as fs from 'fs/promises';
+import { lightdashConfig } from '../../config/lightdashConfig';
 import {
     dashboardModel,
     savedChartModel,
@@ -25,6 +26,7 @@ jest.mock('../services', () => ({
 
 describe('Csv service', () => {
     const csvService = new CsvService({
+        lightdashConfig,
         userModel,
         projectService,
         s3Service,

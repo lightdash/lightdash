@@ -38,7 +38,7 @@ import {
 import { S3Service } from '../../clients/Aws/s3';
 import { schedulerClient } from '../../clients/clients';
 import { AttachmentUrl } from '../../clients/EmailClient/EmailClient';
-import { lightdashConfig } from '../../config/lightdashConfig';
+import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -47,6 +47,8 @@ import { runWorkerThread } from '../../utils';
 import { ProjectService } from '../ProjectService/ProjectService';
 
 type CsvServiceDependencies = {
+    lightdashConfig: LightdashConfig;
+
     projectService: ProjectService;
     s3Service: S3Service;
     savedChartModel: SavedChartModel;
@@ -119,6 +121,8 @@ const getSchedulerCsvLimit = (
 };
 
 export class CsvService {
+    lightdashConfig: LightdashConfig;
+
     projectService: ProjectService;
 
     s3Service: S3Service;
@@ -130,12 +134,14 @@ export class CsvService {
     userModel: UserModel;
 
     constructor({
+        lightdashConfig,
         userModel,
         projectService,
         s3Service,
         savedChartModel,
         dashboardModel,
     }: CsvServiceDependencies) {
+        this.lightdashConfig = lightdashConfig;
         this.userModel = userModel;
         this.projectService = projectService;
         this.s3Service = s3Service;
@@ -354,7 +360,7 @@ export class CsvService {
             });
         }
 
-        try {
+        if (this.s3Service.isEnabled()) {
             const csvContent = await fsPromise.readFile(`/tmp/${fileId}`, {
                 encoding: 'utf-8',
             });
@@ -363,11 +369,10 @@ export class CsvService {
             await fsPromise.unlink(`/tmp/${fileId}`);
 
             return { filename: `${chart.name}`, path: s3Url };
-        } catch (e) {
-            // Can't store file in S3, storing locally
-            const localUrl = `${lightdashConfig.siteUrl}/api/v1/projects/${chart.projectUuid}/csv/${fileId}`;
-            return { filename: `${chart.name}`, path: localUrl };
         }
+        // storing locally
+        const localUrl = `${this.lightdashConfig.siteUrl}/api/v1/projects/${chart.projectUuid}/csv/${fileId}`;
+        return { filename: `${chart.name}`, path: localUrl };
     }
 
     async getCsvsForDashboard(
@@ -448,16 +453,16 @@ export class CsvService {
             const fileId = `csv-${jobId}.csv`;
 
             let fileUrl;
-            try {
+            if (this.s3Service.isEnabled()) {
                 fileUrl = await this.s3Service.uploadCsv(csvContent, fileId);
-            } catch (e) {
-                // Can't store file in S3, storing locally
+            } else {
+                // storing locally
                 await fsPromise.writeFile(
                     `/tmp/${fileId}`,
                     csvContent,
                     'utf-8',
                 );
-                fileUrl = `${lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/csv/${fileId}`;
+                fileUrl = `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/csv/${fileId}`;
             }
 
             analytics.track({
@@ -596,15 +601,16 @@ export class CsvService {
             );
 
             let fileUrl;
-            try {
+            if (this.s3Service.isEnabled()) {
                 const csvContent = await fsPromise.readFile(`/tmp/${fileId}`, {
                     encoding: 'utf-8',
                 });
                 fileUrl = await this.s3Service.uploadCsv(csvContent, fileId);
 
                 await fsPromise.unlink(`/tmp/${fileId}`);
-            } catch (e) {
-                fileUrl = `${lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/csv/${fileId}`;
+            } else {
+                // Storing locally
+                fileUrl = `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/csv/${fileId}`;
             }
 
             analytics.track({
