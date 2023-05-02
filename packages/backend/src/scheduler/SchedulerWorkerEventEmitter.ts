@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/node';
 import EventEmitter from 'events';
 import { WorkerEvents } from 'graphile-worker';
 import Logger from '../logger';
@@ -14,7 +15,11 @@ schedulerWorkerEventEmitter.on('worker:stop', ({ worker, error }) => {
 });
 
 schedulerWorkerEventEmitter.on('worker:fatalError', ({ worker, error }) => {
-    Logger.info(`Worker ${worker.workerId} has fatal error. ${error}`);
+    const message = `Worker ${worker.workerId} has fatal error. ${error}`;
+    Logger.info(message);
+    Sentry.captureException(new Error(message), {
+        extra: { workerId: worker.workerId, error },
+    });
 });
 
 // Handle job events
@@ -38,9 +43,16 @@ schedulerWorkerEventEmitter.on('job:error', ({ worker, job, error }) => {
 });
 
 schedulerWorkerEventEmitter.on('job:failed', ({ worker, job, error }) => {
-    Logger.info(
-        `Worker ${worker.workerId} failed job ${job.id} (${job.task_identifier}). ${error}`,
-    );
+    const message = `Worker ${worker.workerId} failed job ${job.id} (${job.task_identifier}). ${error}`;
+    Logger.info(message);
+    Sentry.captureException(new Error(message), {
+        extra: {
+            workerId: worker.workerId,
+            jobId: job.id,
+            task: job.task_identifier,
+            error,
+        },
+    });
 });
 
 schedulerWorkerEventEmitter.on('job:complete', ({ worker, job }) => {

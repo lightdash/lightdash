@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/node';
 import { Job } from 'graphile-worker';
 import Logger from '../logger';
 
@@ -11,11 +12,11 @@ async function timeout(prom: Promise<any>, time: number, exception: Symbol) {
     ]).finally(() => clearTimeout(timer));
 }
 
-const DEFAULT_JOB_TIMEOUT = 1000 * 60 * 10; // 10 minutes
 export async function tryJobOrTimeout(
     prom: Promise<any>,
     job: Job,
-    time: number = DEFAULT_JOB_TIMEOUT,
+    time: number,
+    onTimeout: (job: Job, error: Error) => Promise<void> = async () => {},
 ): Promise<void> {
     const timeoutError = Symbol('timeoutError');
     try {
@@ -29,6 +30,15 @@ export async function tryJobOrTimeout(
             Logger.error(
                 `Worker ${job.locked_by} timed out job ${job.id} (${job.task_identifier}) after ${time}ms`,
             );
+            const timeOutError = new Error(`Job timed out after ${time}ms`);
+            Sentry.captureException(timeOutError, {
+                extra: {
+                    jobId: job.id,
+                    workerId: job.locked_by,
+                    task: job.task_identifier,
+                },
+            });
+            await onTimeout(job, timeOutError);
         }
     }
 }
