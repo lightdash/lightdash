@@ -7,7 +7,7 @@ const SchedulersModalBase: FC<
     { name: string } & React.ComponentProps<typeof SchedulersModalContent>
 > = ({
     resourceUuid,
-    name,
+    name: _name,
     schedulersQuery,
     createMutation,
     ...modalProps

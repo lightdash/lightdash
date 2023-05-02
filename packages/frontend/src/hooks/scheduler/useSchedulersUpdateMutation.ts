@@ -26,7 +26,7 @@ export const useSchedulersUpdateMutation = (schedulerUuid: string) => {
         UpdateSchedulerAndTargetsWithoutId
     >((data) => updateScheduler(schedulerUuid, data), {
         mutationKey: ['update_scheduler'],
-        onSuccess: async (space) => {
+        onSuccess: async () => {
             await queryClient.invalidateQueries('chart_schedulers');
             await queryClient.invalidateQueries('dashboard_schedulers');
             await queryClient.invalidateQueries(['scheduler', schedulerUuid]);

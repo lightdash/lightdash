@@ -1,6 +1,7 @@
 import { Button, Colors, Menu } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import {
+    assertUnreachable,
     CartesianSeriesType,
     ChartType,
     isSeriesWithMixedChartTypes,
@@ -134,8 +135,10 @@ const VisualizationCardOptions: FC = memo(() => {
                             ),
                         };
                     default:
-                        const never: never = cartesianType;
-                        throw new Error('Cartesian type not supported');
+                        return assertUnreachable(
+                            cartesianType,
+                            `Unknown cartesian type ${cartesianType}`,
+                        );
                 }
             }
             case ChartType.TABLE:
@@ -159,8 +162,10 @@ const VisualizationCardOptions: FC = memo(() => {
                     ),
                 };
             default: {
-                const never: never = chartType;
-                throw new Error('Chart type not supported');
+                return assertUnreachable(
+                    chartType,
+                    `Unknown chart type ${chartType}`,
+                );
             }
         }
     }, [
@@ -169,6 +174,7 @@ const VisualizationCardOptions: FC = memo(() => {
         cartesianType,
         chartType,
         setStacking,
+        disabled,
     ]);
 
     return (

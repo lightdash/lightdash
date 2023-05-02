@@ -18,7 +18,6 @@ import { setLastProject, useProjects } from '../../hooks/useProjects';
 import { useErrorLogs } from '../../providers/ErrorLogsProvider';
 import { ReactComponent as Logo } from '../../svgs/logo-icon.svg';
 import { ErrorLogsDrawer } from '../ErrorLogsDrawer';
-import NavLink from '../NavLink';
 import { ShowErrorsButton } from '../ShowErrorsButton';
 import BrowseMenu from './BrowseMenu';
 import ExploreMenu from './ExploreMenu';

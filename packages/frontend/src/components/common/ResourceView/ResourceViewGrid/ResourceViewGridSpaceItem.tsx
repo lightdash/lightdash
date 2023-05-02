@@ -3,7 +3,6 @@ import {
     Box,
     Flex,
     Group,
-    Overlay,
     Paper,
     Popover,
     Stack,
@@ -20,6 +19,7 @@ import {
     IconUsers,
 } from '@tabler/icons-react';
 import { FC, useMemo } from 'react';
+
 import ResourceViewActionMenu, {
     ResourceViewActionMenuCommonProps,
 } from '../ResourceActionMenu';

@@ -1,10 +1,12 @@
 import {
+    assertUnreachable,
     DbtProjectType,
     DbtProjectTypeLabels,
     WarehouseTypes,
 } from '@lightdash/common';
 import { FC, useMemo, useState } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
+
 import { useApp } from '../../providers/AppProvider';
 import FormSection from '../ReactHookForm/FormSection';
 import Input from '../ReactHookForm/Input';
@@ -94,8 +96,10 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
             case DbtProjectType.NONE:
                 return <DbtNoneForm disabled={disabled} />;
             default: {
-                const never: never = type;
-                return null;
+                return assertUnreachable(
+                    type,
+                    `Unknown dbt project type ${type}`,
+                );
             }
         }
     }, [disabled, type, resetField]);

@@ -9,6 +9,7 @@ import {
 } from '@lightdash/common';
 import { FC, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+
 import { useProject } from '../../../hooks/useProject';
 import { ReferenceLineField } from '../../common/ReferenceLine';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
@@ -26,7 +27,6 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
             dirtyLayout,
             dirtyEchartsConfig,
             updateSeries,
-            updateSingleSeries,
             referenceLines,
             setReferenceLines,
         },

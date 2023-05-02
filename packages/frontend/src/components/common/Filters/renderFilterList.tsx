@@ -54,7 +54,6 @@ const StickyMenuDivider: FC<StickyMenuDividerProps> = ({ index, title }) => {
 const renderFilterList = <T extends Field | TableCalculation>({
     items,
     itemsParentRef,
-    query,
     renderItem,
 }: ItemListRendererProps<T>) => {
     const getGroupedItems = (filteredItems: typeof items) => {

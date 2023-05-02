@@ -17,7 +17,7 @@ import {
     useProjectSavedChartStatus,
 } from '../hooks/useOnboardingStatus';
 import { useProject } from '../hooks/useProject';
-import { useSavedCharts, useSpaces } from '../hooks/useSpaces';
+import { useSavedCharts } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
 
 const Home: FC = () => {

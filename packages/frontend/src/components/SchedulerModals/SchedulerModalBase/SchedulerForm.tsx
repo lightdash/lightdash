@@ -13,6 +13,7 @@ import { Anchor } from '@mantine/core';
 import React, { FC, useEffect, useMemo, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import useHealth from '../../../hooks/health/useHealth';
+
 import { useSlackChannels } from '../../../hooks/slack/useSlackChannels';
 import { useGetSlack } from '../../../hooks/useSlack';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
@@ -98,7 +99,7 @@ const SlackErrorContent: FC<{ slackState: SlackStates }> = ({
 
 const SchedulerOptions: FC<
     { disabled: boolean } & React.ComponentProps<typeof Form>
-> = ({ disabled, methods, ...rest }) => {
+> = ({ disabled: _disabled, methods, ...rest }) => {
     const [format, setFormat] = useState(
         methods.getValues()?.options?.formatted === false
             ? Values.RAW

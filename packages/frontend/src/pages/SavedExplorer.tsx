@@ -5,7 +5,6 @@ import { useParams } from 'react-router-dom';
 import { Transition } from 'react-transition-group';
 import ErrorState from '../components/common/ErrorState';
 import {
-    CardContent,
     Drawer,
     PageContentContainer,
     PageWrapper,

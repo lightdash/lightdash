@@ -1,10 +1,10 @@
 import { subject } from '@casl/ability';
 import { IconTelescope } from '@tabler/icons-react';
 import { useMemo } from 'react';
+
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useApp } from '../../providers/AppProvider';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
-import LinkButton from '../common/LinkButton';
 import { StyledLinkButton } from '../Home/LandingPanel/LandingPanel.styles';
 
 const ExploreFromHereButton = () => {

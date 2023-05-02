@@ -1,13 +1,11 @@
 import { Button, FormGroup, InputGroup } from '@blueprintjs/core';
 import { DateInput2 } from '@blueprintjs/datetime2';
 import {
-    AdditionalMetric,
     CompiledDimension,
     Field,
     fieldId as getFieldId,
     formatDate,
     getDateFormat,
-    isAdditionalMetric,
     isDateItem,
     isDimension,
     isField,
@@ -19,6 +17,7 @@ import {
 import debounce from 'lodash/debounce';
 import moment from 'moment';
 import { FC, useCallback, useMemo, useState } from 'react';
+
 import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
 import MonthAndYearInput from '../../common/MonthAndYearInput';
 import { ReferenceLineField } from '../../common/ReferenceLine';
@@ -170,7 +169,7 @@ export const ReferenceLine: FC<Props> = ({
     removeReferenceLine,
 }) => {
     const {
-        cartesianConfig: { dirtyLayout, dirtyEchartsConfig },
+        cartesianConfig: { dirtyLayout },
     } = useVisualizationContext();
 
     const fieldsInAxes = useMemo(() => {

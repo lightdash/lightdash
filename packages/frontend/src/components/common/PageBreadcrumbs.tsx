@@ -3,7 +3,6 @@ import {
     Breadcrumbs,
     BreadcrumbsProps,
     MantineSize,
-    Text,
     Tooltip,
     TooltipProps,
 } from '@mantine/core';

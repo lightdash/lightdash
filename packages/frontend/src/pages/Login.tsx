@@ -16,8 +16,8 @@ import {
     TextInput,
     Title,
 } from '@mantine/core';
-import { isNotEmpty, useForm } from '@mantine/form';
-import React, { FC, useEffect } from 'react';
+import { useForm } from '@mantine/form';
+import { FC, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { useMutation } from 'react-query';
 import { Redirect, useLocation } from 'react-router-dom';

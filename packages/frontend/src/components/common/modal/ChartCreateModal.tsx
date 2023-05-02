@@ -29,7 +29,6 @@ interface ChartCreateModalProps extends DialogProps {
 const ChartCreateModal: FC<ChartCreateModalProps> = ({
     savedData,
     onClose,
-    onConfirm,
     ...modalProps
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();

@@ -1,4 +1,4 @@
-import { Colors, Menu, Spinner } from '@blueprintjs/core';
+import { Menu, Spinner } from '@blueprintjs/core';
 import { MenuItem2, Popover2Props } from '@blueprintjs/popover2';
 import { MultiSelect2 } from '@blueprintjs/select';
 import { FilterableItem } from '@lightdash/common';
@@ -6,6 +6,7 @@ import { Highlight } from '@mantine/core';
 import Fuse from 'fuse.js';
 import React, { FC, useCallback, useMemo, useRef, useState } from 'react';
 import styled from 'styled-components';
+
 import {
     MAX_AUTOCOMPLETE_RESULTS,
     useFieldValues,

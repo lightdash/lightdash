@@ -36,7 +36,7 @@ export const useEmailStatus = (enabled = true) =>
 
 export const useOneTimePassword = () => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastError } = useToaster();
     return useMutation<EmailStatusExpiring, ApiError>(
         () => sendOneTimePasscodeQuery(),
         {

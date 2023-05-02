@@ -1,4 +1,4 @@
-import { Card, Colors, H5 } from '@blueprintjs/core';
+import { Colors } from '@blueprintjs/core';
 import styled, { createGlobalStyle, css } from 'styled-components';
 
 interface HeaderContainerProps {

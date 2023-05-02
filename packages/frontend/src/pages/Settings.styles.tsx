@@ -1,4 +1,4 @@
-import { Card, H5 } from '@blueprintjs/core';
+import { Card } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
 
 const Layout = css`

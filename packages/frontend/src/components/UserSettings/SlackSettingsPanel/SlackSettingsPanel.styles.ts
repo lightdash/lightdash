@@ -1,4 +1,4 @@
-import { AnchorButton, Button, Callout, Colors } from '@blueprintjs/core';
+import { Callout, Colors } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const SlackSettingsWrapper = styled.div`

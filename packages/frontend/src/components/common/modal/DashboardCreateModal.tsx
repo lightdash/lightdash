@@ -9,7 +9,7 @@ import {
     InputGroup,
     Intent,
 } from '@blueprintjs/core';
-import { Dashboard } from '@lightdash/common';
+import { Dashboard, Space } from '@lightdash/common';
 import { FC, useCallback, useState } from 'react';
 import { useCreateMutation } from '../../../hooks/dashboard/useDashboard';
 import {
@@ -73,20 +73,20 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
     };
 
     const handleConfirm = useCallback(async () => {
+        let newSpace: Space | undefined;
+
         if (isCreatingNewSpace) {
-            const newSpace = await createSpace({
+            newSpace = await createSpace({
                 name: newSpaceName,
                 isPrivate: false,
                 access: [],
             });
-
-            spaceUuid = newSpace.uuid;
         }
 
         const dashboard = await createDashboard({
             name: dashboardName,
             description: dashboardDescription,
-            spaceUuid,
+            spaceUuid: newSpace?.uuid || selectedSpaceUuid,
             tiles: [],
         });
         onConfirm?.(dashboard);
@@ -97,9 +97,9 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
         selectedSpaceUuid,
         dashboardName,
         newSpaceName,
-        isCreatingDashboard,
         isCreatingNewSpace,
-        onClose,
+        dashboardDescription,
+        onConfirm,
     ]);
 
     if (user.data?.ability?.cannot('manage', 'Dashboard')) return null;

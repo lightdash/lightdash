@@ -7,6 +7,7 @@ import {
     Space,
 } from '@lightdash/common';
 import { FC, useCallback, useMemo, useState } from 'react';
+
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import { useAddSpaceShareMutation } from '../../../hooks/useSpaces';
 import {
@@ -80,7 +81,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     );
 
     const renderUserShare: ItemRenderer<string> = useCallback(
-        (userUuid, { modifiers, handleClick, query }) => {
+        (userUuid, { modifiers, handleClick }) => {
             if (!modifiers.matchesPredicate) {
                 return null;
             }

@@ -3,7 +3,6 @@ import {
     Field,
     getConditionalFormattingConfig,
     getConditionalFormattingDescription,
-    PivotValue,
     ResultValue,
     TableCalculation,
 } from '@lightdash/common';
@@ -17,6 +16,7 @@ import {
     useMemo,
     useState,
 } from 'react';
+
 import { readableColor } from '../../../utils/colorUtils';
 import { getConditionalRuleLabel } from '../Filters/configs';
 import { usePivotTableCellStyles } from './tableStyles';

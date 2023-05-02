@@ -32,6 +32,7 @@ import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import CopyToClipboard from 'react-copy-to-clipboard';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
+
 import useDashboardFiltersForExplore from '../../hooks/dashboard/useDashboardFiltersForExplore';
 import useSavedQueryWithDashboardFilters from '../../hooks/dashboard/useSavedQueryWithDashboardFilters';
 import { EChartSeries } from '../../hooks/echarts/useEcharts';
@@ -45,9 +46,9 @@ import { useApp } from '../../providers/AppProvider';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
+import { Can } from '../common/Authorization';
 import { getConditionalRuleLabel } from '../common/Filters/configs';
 import LinkMenuItem from '../common/LinkMenuItem';
-import { TableColumn } from '../common/Table/types';
 import { FilterValues } from '../DashboardFilter/ActiveFilters/ActiveFilters.styles';
 import ExportCSVModal from '../ExportCSV/ExportCSVModal';
 import LightdashVisualization from '../LightdashVisualization';
@@ -65,8 +66,6 @@ import {
     GlobalTileStyles,
 } from './TileBase/TileBase.styles';
 
-import { Can } from '../common/Authorization';
-import DashboardFilter from '../DashboardFilter';
 interface ExportResultAsCSVModalProps {
     projectUuid: string;
     savedChart: SavedChart;
@@ -75,7 +74,6 @@ interface ExportResultAsCSVModalProps {
 }
 
 const ExportResultAsCSVModal: FC<ExportResultAsCSVModalProps> = ({
-    projectUuid,
     savedChart,
     onClose,
     onConfirm,
@@ -126,13 +124,7 @@ const ValidDashboardChartTile: FC<{
         e: EchartSeriesClickEvent,
         series: EChartSeries[],
     ) => void;
-}> = ({
-    tileUuid,
-    isTitleHidden = false,
-    data,
-    project,
-    onSeriesContextMenu,
-}) => {
+}> = ({ tileUuid, isTitleHidden = false, data, onSeriesContextMenu }) => {
     const { data: resultData, isLoading } = useChartResults(
         data.uuid,
         data.metricQuery.filters,
@@ -183,9 +175,8 @@ const ValidDashboardChartTileMinimal: FC<{
     tileUuid: string;
     isTitleHidden?: boolean;
     data: SavedChart;
-    project: string;
     dashboardFilters?: DashboardFilters;
-}> = ({ tileUuid, data, project, dashboardFilters, isTitleHidden = false }) => {
+}> = ({ tileUuid, data, dashboardFilters, isTitleHidden = false }) => {
     const filters =
         dashboardFilters !== undefined
             ? convertDashboardFiltersToFilters(dashboardFilters)

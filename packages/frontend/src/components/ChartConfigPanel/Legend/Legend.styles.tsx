@@ -1,4 +1,4 @@
-import { Colors, Label } from '@blueprintjs/core';
+import { Colors } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const SectionTitle = styled.p`

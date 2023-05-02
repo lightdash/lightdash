@@ -182,7 +182,7 @@ export const useAddSpaceShareMutation = (
         (userUuid) => addSpaceShare(projectUuid, spaceUuid, userUuid),
         {
             mutationKey: ['space_share', projectUuid, spaceUuid],
-            onSuccess: async (space) => {
+            onSuccess: async () => {
                 await queryClient.refetchQueries(['spaces', projectUuid]);
                 await queryClient.refetchQueries([
                     'space',
