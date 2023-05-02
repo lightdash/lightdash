@@ -1,3 +1,10 @@
+# [0.528.0](https://github.com/lightdash/lightdash/compare/0.527.2...0.528.0) (2023-05-02)
+
+
+### Features
+
+* migrate forgot password form to mantine ([#5306](https://github.com/lightdash/lightdash/issues/5306)) ([ad2645d](https://github.com/lightdash/lightdash/commit/ad2645d870ee6c3ec7ed4b60a3b36e9ed5ad74ba))
+
 ## [0.527.2](https://github.com/lightdash/lightdash/compare/0.527.1...0.527.2) (2023-05-02)
 
 
