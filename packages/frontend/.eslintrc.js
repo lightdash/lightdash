@@ -3,6 +3,7 @@ const restrictedGlobals = require('confusing-browser-globals');
 const unusedVarExceptions = {
     argsIgnorePattern: '^_',
     destructuredArrayIgnorePattern: '^_',
+    ignoreRestSiblings: true,
 };
 
 module.exports = {
