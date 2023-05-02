@@ -53,6 +53,7 @@ module.exports = {
                 leadingUnderscore: 'allow',
             },
         ],
+        'react-hooks/exhaustive-deps': 'error',
 
         // TODO: enable these rules once the codebase is fixed
         '@typescript-eslint/ban-ts-comment': 'off',
