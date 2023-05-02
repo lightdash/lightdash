@@ -6,9 +6,9 @@ import {
     NotFoundError,
 } from '@lightdash/common';
 import { Alert, Box, NavLink, Stack, Tabs } from '@mantine/core';
-import { useHotkeys } from '@mantine/hooks';
+import { getHotkeyHandler } from '@mantine/hooks';
 import { Icon123, IconAlertCircle } from '@tabler/icons-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
@@ -137,9 +137,15 @@ const SqlRunnerPage = () => {
         setLastSqlRan(sql);
     }, [mutate, sql]);
 
-    useMount(() => handleSubmit());
+    useMount(() => {
+        handleSubmit();
+    });
 
-    useHotkeys([['mod + enter', handleSubmit, { preventDefault: true }]]);
+    useEffect(() => {
+        const handler = getHotkeyHandler([['mod+Enter', handleSubmit]]);
+        document.body.addEventListener('keydown', handler);
+        return () => document.body.removeEventListener('keydown', handler);
+    }, [handleSubmit]);
 
     const catalogTree = useProjectCatalogTree(catalogData);
 
