@@ -60,46 +60,47 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
         },
     );
     const showNewSpaceInput = isCreatingNewSpace || spaces?.length === 0;
-    const handleClose: DashboardCreateModalProps['onClose'] = (event) => {
+
+    const handleReset = () => {
         setDashboardName('');
         setDashboardDescription('');
         setNewSpaceName('');
         setIsCreatingnewSpace(false);
+    };
+    const handleClose: DashboardCreateModalProps['onClose'] = (event) => {
+        handleReset();
         onClose?.(event);
     };
 
-    const handleConfirm = useCallback(
-        async (e) => {
-            if (isCreatingNewSpace) {
-                const newSpace = await createSpace({
-                    name: newSpaceName,
-                    isPrivate: false,
-                    access: [],
-                });
-
-                spaceUuid = newSpace.uuid;
-            }
-
-            const dashboard = await createDashboard({
-                name: dashboardName,
-                description: dashboardDescription,
-                spaceUuid,
-                tiles: [],
+    const handleConfirm = useCallback(async () => {
+        if (isCreatingNewSpace) {
+            const newSpace = await createSpace({
+                name: newSpaceName,
+                isPrivate: false,
+                access: [],
             });
-            onConfirm?.(dashboard);
-            onClose?.(e);
-        },
-        [
-            createDashboard,
-            createSpace,
-            selectedSpaceUuid,
-            dashboardName,
-            newSpaceName,
-            isCreatingDashboard,
-            isCreatingNewSpace,
-            onClose,
-        ],
-    );
+
+            spaceUuid = newSpace.uuid;
+        }
+
+        const dashboard = await createDashboard({
+            name: dashboardName,
+            description: dashboardDescription,
+            spaceUuid,
+            tiles: [],
+        });
+        onConfirm?.(dashboard);
+        handleReset();
+    }, [
+        createDashboard,
+        createSpace,
+        selectedSpaceUuid,
+        dashboardName,
+        newSpaceName,
+        isCreatingDashboard,
+        isCreatingNewSpace,
+        onClose,
+    ]);
 
     if (user.data?.ability?.cannot('manage', 'Dashboard')) return null;
 
