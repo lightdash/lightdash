@@ -302,7 +302,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                                     intent="primary"
                                     onClick={() => setIsCreatingnewSpace(false)}
                                 >
-                                    Save in existing space
+                                    Save to existing space
                                 </Button>
                             </>
                         )}

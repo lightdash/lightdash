@@ -187,7 +187,7 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                             intent="primary"
                             onClick={() => setIsCreatingnewSpace(false)}
                         >
-                            Save in existing space
+                            Save to existing space
                         </Button>
                     </>
                 )}
