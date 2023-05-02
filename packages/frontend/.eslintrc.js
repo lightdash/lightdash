@@ -5,7 +5,7 @@ module.exports = {
         project: './tsconfig.json',
         createDefaultProgram: true,
     },
-    ignorePatterns: [ '**/styles/*.css' ],
+    ignorePatterns: ['**/styles/*.css'],
     extends: [
         './../../.eslintrc.js',
         'plugin:@typescript-eslint/recommended',
@@ -45,7 +45,6 @@ module.exports = {
         '@typescript-eslint/no-inferrable-types': 'off',
         '@typescript-eslint/no-non-null-assertion': 'off',
         '@typescript-eslint/no-throw-literal': 'off',
-        '@typescript-eslint/no-unused-vars': 'off',
         'import/no-extraneous-dependencies': 'off',
         'import/no-named-as-default': 'off',
         'jsx-a11y/click-events-have-key-events': 'off',
