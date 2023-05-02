@@ -32,6 +32,6 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `## Blueprint refactor progress\n\n\`\`\`\n${{ steps.generate_report.outputs.report.split('\n').slice(2, -1).join('\n') }}\n\`\`\``
+              body: `## Blueprint refactor progress\n\n\`\`\`\n${{ steps.generate_report.outputs.report }}\n\`\`\``
             })
     
