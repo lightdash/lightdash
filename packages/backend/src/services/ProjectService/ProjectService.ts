@@ -4,6 +4,7 @@ import {
     AlreadyProcessingError,
     ApiQueryResults,
     ApiSqlQueryResults,
+    ChartSummary,
     countTotalFilterRules,
     CreateDbtCloudIntegration,
     CreateJob,
@@ -1636,5 +1637,33 @@ export class ProjectService {
             integration.serviceToken,
             integration.metricsJobId,
         );
+    }
+
+    async getCharts(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<ChartSummary[]> {
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const spaces = await this.spaceModel.find({ projectUuid });
+        const allowedSpaces = spaces.filter(
+            (space) =>
+                space.projectUuid === projectUuid &&
+                (!space.isPrivate || space.access.includes(user.userUuid)),
+        );
+
+        const charts = await this.savedChartModel.find({
+            projectUuid,
+            spaceUuids: allowedSpaces.map((s) => s.uuid),
+        });
+        return charts;
     }
 }

@@ -1,5 +1,6 @@
 import {
     ChartConfig,
+    ChartSummary,
     CreateSavedChart,
     CreateSavedChartVersion,
     DBFieldTypes,
@@ -13,7 +14,6 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
-import { AnalyticsChartViewsTableName } from '../database/entities/analytics';
 import { OrganizationTableName } from '../database/entities/organizations';
 import {
     PinnedChartTableName,
@@ -543,6 +543,48 @@ export class SavedChartModel {
                 views: parseInt(savedQuery.views, 10) || 0,
                 firstViewedAt: savedQuery.first_viewed_at,
             };
+        } finally {
+            span?.finish();
+        }
+    }
+
+    async find(filters: {
+        projectUuid?: string;
+        spaceUuids?: string[];
+    }): Promise<ChartSummary[]> {
+        const transaction = Sentry.getCurrentHub()
+            ?.getScope()
+            ?.getTransaction();
+        const span = transaction?.startChild({
+            op: 'SavedChartModel.find',
+            description: 'Find charts',
+        });
+        try {
+            const query = this.database('saved_queries')
+                .select({
+                    name: 'saved_queries.name',
+                    description: 'saved_queries.description',
+                    spaceUuid: 'spaces.space_uuid',
+                    spaceName: 'spaces.name',
+                })
+                .innerJoin(
+                    'spaces',
+                    'saved_queries.space_id',
+                    'spaces.space_id',
+                );
+            if (filters.projectUuid) {
+                query.innerJoin(
+                    'projects',
+                    'spaces.project_id',
+                    'projects.project_id',
+                );
+                query.where('projects.project_uuid', filters.projectUuid);
+            }
+            if (filters.spaceUuids) {
+                query.whereIn('spaces.space_uuid', filters.spaceUuids);
+            }
+            const rows = await query;
+            return rows;
         } finally {
             span?.finish();
         }
