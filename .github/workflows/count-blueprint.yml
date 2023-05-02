@@ -29,7 +29,7 @@ jobs:
           github-token: ${{ secrets.CI_GITHUB_TOKEN }}
           script: |
             const rawOutput = `${{ steps.generate_report.outputs.report }}`
-            const message = '```\n' + rawOutput.split('\n').slice(2, -1).join('\n') + '\n```'
+            const message = '<details>\n<summary>Show report</summary>\n\n```\n' + rawOutput.split('\n').slice(2, -1).join('\n') + '\n```\n</details>'
             const title = `## Blueprint refactor progress\n\n`
             const body = title + message
             github.issues.createComment({
