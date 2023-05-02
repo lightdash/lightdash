@@ -1,3 +1,10 @@
+## [0.527.2](https://github.com/lightdash/lightdash/compare/0.527.1...0.527.2) (2023-05-02)
+
+
+### Bug Fixes
+
+* remove local storage fallback and use lightdashconfig ([#5305](https://github.com/lightdash/lightdash/issues/5305)) ([fef05de](https://github.com/lightdash/lightdash/commit/fef05def7c813ac9d9c3a20fe184736862d350cb))
+
 ## [0.527.1](https://github.com/lightdash/lightdash/compare/0.527.0...0.527.1) (2023-05-02)
 
 
