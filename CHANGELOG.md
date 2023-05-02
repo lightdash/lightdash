@@ -1,3 +1,10 @@
+## [0.527.1](https://github.com/lightdash/lightdash/compare/0.527.0...0.527.1) (2023-05-02)
+
+
+### Bug Fixes
+
+* keep date group on joined tables ([#5297](https://github.com/lightdash/lightdash/issues/5297)) ([11688b5](https://github.com/lightdash/lightdash/commit/11688b5389f262a6739bf570963a02962c372e2e))
+
 # [0.527.0](https://github.com/lightdash/lightdash/compare/0.526.2...0.527.0) (2023-05-02)
 
 
