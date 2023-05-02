@@ -67,6 +67,7 @@ const Sidebar: FC<Props> = ({
                                 display="flex"
                                 radius="unset"
                                 shadow="lg"
+                                padding="lg"
                                 pb={0}
                                 w={sidebarWidth}
                                 style={{
