@@ -16,18 +16,21 @@ export type DbPinnedChart = {
     pinned_list_uuid: string;
     saved_chart_uuid: string;
     created_at: Date;
+    order: number;
 };
 export type DbPinnedDashboard = {
     pinned_item_uuid: string;
     pinned_list_uuid: string;
     dashboard_uuid: string;
     created_at: Date;
+    order: number;
 };
 export type DBPinnedSpace = {
     pinned_item_uuid: string;
     pinned_list_uuid: string;
     space_uuid: string;
     created_at: Date;
+    order: number;
 };
 
 export type DbPinnedItem = DbPinnedChart | DbPinnedDashboard | DBPinnedSpace;

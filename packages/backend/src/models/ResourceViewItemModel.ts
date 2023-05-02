@@ -28,6 +28,7 @@ const getCharts = async (
             saved_chart_uuid: 'pinned_chart.saved_chart_uuid',
             updated_by_user_uuid: 'users.user_uuid',
             chart_config: 'sqv.chart_config',
+            order: 'pinned_chart.order',
         })
         .max({
             name: 'saved_queries.name',
@@ -79,7 +80,8 @@ const getCharts = async (
         .whereIn('spaces.space_uuid', allowedSpaceUuids)
         .andWhere('pinned_list.pinned_list_uuid', pinnedListUuid)
         .andWhere('pinned_list.project_uuid', projectUuid)
-        .groupBy(1, 2, 3, 4, 5, 6)) as Record<string, any>[];
+        .orderBy('pinned_chart.order', 'asc')
+        .groupBy(1, 2, 3, 4, 5, 6, 7)) as Record<string, any>[];
     const resourceType: ResourceViewItemType.CHART = ResourceViewItemType.CHART;
     const items = rows.map((row) => ({
         type: resourceType,
@@ -153,6 +155,7 @@ const getDashboards = async (
             'spaces.space_uuid',
             'pinned_dashboard.dashboard_uuid',
             'users.user_uuid as updated_by_user_uuid',
+            'pinned_dashboard.order',
         )
         .max({
             name: 'dashboards.name',
@@ -165,7 +168,8 @@ const getDashboards = async (
             first_viewed_at: 'analytics_dashboard_views.timestamp',
         })
         .count({ views: 'analytics_dashboard_views.timestamp' })
-        .groupBy(1, 2, 3, 4, 5)) as Record<string, any>[];
+        .orderBy('pinned_dashboard.order', 'asc')
+        .groupBy(1, 2, 3, 4, 5, 6)) as Record<string, any>[];
     const resourceType: ResourceViewItemType.DASHBOARD =
         ResourceViewItemType.DASHBOARD;
     const items = rows.map((row) => ({
@@ -201,6 +205,7 @@ const getAllSpaces = async (
                 pl.project_uuid,
                 pl.pinned_list_uuid,
                 ps.space_uuid,
+                ps.order,
                 MAX(s.name) as name,
                 BOOL_OR(s.is_private) as is_private,
                 COUNT(DISTINCT ss.user_id) as access_list_length,
@@ -218,7 +223,8 @@ const getAllSpaces = async (
             left join users u on ss.user_id = u.user_id
             left join dashboards d on s.space_id = d.space_id
             left join saved_queries sq on s.space_id = sq.space_id
-            group by 1, 2, 3, 4;
+            group by 1, 2, 3, 4, 5
+            order by ps.order asc;
         `,
         { pinnedListUuid, projectUuid },
     );
