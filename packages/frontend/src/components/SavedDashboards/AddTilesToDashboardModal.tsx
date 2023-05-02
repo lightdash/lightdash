@@ -46,6 +46,8 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
 
     const [isCreatingNewDashboard, setIsCreatingNewDashboard] = useState(false);
     const [newDashboardName, setNewDashboardName] = useState('');
+    const [newDashboardDescription, setNewDashboardDescription] =
+        useState<string>('');
 
     const [isCreatingNewSpace, setIsCreatingnewSpace] =
         useState<boolean>(false);
@@ -183,6 +185,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
             isOpen={isOpen}
             onClose={onClose}
             lazy
+            icon="control"
             title="Add chart to dashboard"
         >
             <DialogBody>
@@ -220,7 +223,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                 ) : (
                     <>
                         <FormGroup
-                            label="Name new dashboard"
+                            label="Name your dashboard"
                             labelFor="chart-name"
                         >
                             <InputGroup
@@ -231,6 +234,20 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                                     setNewDashboardName(e.target.value)
                                 }
                                 placeholder="eg. KPI dashboard"
+                            />
+                        </FormGroup>
+                        <FormGroup
+                            label="Dashboard description"
+                            labelFor="chart-description"
+                        >
+                            <InputGroup
+                                id="chart-description"
+                                type="text"
+                                value={newDashboardDescription}
+                                onChange={(e) =>
+                                    setNewDashboardDescription(e.target.value)
+                                }
+                                placeholder="A few words to give your team some context"
                             />
                         </FormGroup>
 
@@ -264,20 +281,30 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                                 </Button>
                             </>
                         ) : (
-                            <FormGroup
-                                label="Name new space"
-                                labelFor="chart-space"
-                            >
-                                <InputGroup
-                                    id="chart-space"
-                                    type="text"
-                                    value={newSpaceName}
-                                    onChange={(e) =>
-                                        setNewSpaceName(e.target.value)
-                                    }
-                                    placeholder="eg. KPIs"
-                                />
-                            </FormGroup>
+                            <>
+                                <FormGroup
+                                    label="Name new space"
+                                    labelFor="chart-space"
+                                >
+                                    <InputGroup
+                                        id="chart-space"
+                                        type="text"
+                                        value={newSpaceName}
+                                        onChange={(e) =>
+                                            setNewSpaceName(e.target.value)
+                                        }
+                                        placeholder="eg. KPIs"
+                                    />
+                                </FormGroup>
+                                <Button
+                                    minimal
+                                    icon="arrow-left"
+                                    intent="primary"
+                                    onClick={() => setIsCreatingnewSpace(false)}
+                                >
+                                    Save in existing space
+                                </Button>
+                            </>
                         )}
                     </>
                 )}
