@@ -215,8 +215,7 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                             disabled={
                                 isCreatingDashboard ||
                                 isCreatingSpace ||
-                                !dashboardName ||
-                                (isCreatingSpace && !newSpaceName)
+                                !dashboardName
                             }
                         />
                     </>

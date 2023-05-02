@@ -49,7 +49,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
     const [newDashboardDescription, setNewDashboardDescription] =
         useState<string>('');
 
-    const [isCreatingNewSpace, setIsCreatingnewSpace] =
+    const [isCreatingNewSpace, setIsCreatingNewSpace] =
         useState<boolean>(false);
     const [newSpaceName, setNewSpaceName] = useState('');
 
@@ -75,7 +75,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                 if (data.length > 0) {
                     setSpaceUuid(data[0].uuid);
                 } else {
-                    setIsCreatingnewSpace(true);
+                    setIsCreatingNewSpace(true);
                 }
             },
         },
@@ -124,6 +124,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
             if (isCreatingNewDashboard) {
                 createDashboard({
                     name: newDashboardName,
+                    description: newDashboardDescription,
                     spaceUuid: spaceUuid,
                     tiles: [
                         {
@@ -275,7 +276,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                                     minimal
                                     icon="plus"
                                     intent="primary"
-                                    onClick={() => setIsCreatingnewSpace(true)}
+                                    onClick={() => setIsCreatingNewSpace(true)}
                                 >
                                     Create new space
                                 </Button>
@@ -300,7 +301,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                                     minimal
                                     icon="arrow-left"
                                     intent="primary"
-                                    onClick={() => setIsCreatingnewSpace(false)}
+                                    onClick={() => setIsCreatingNewSpace(false)}
                                 >
                                     Save to existing space
                                 </Button>
