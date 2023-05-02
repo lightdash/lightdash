@@ -1,4 +1,3 @@
-import { Colors } from '@blueprintjs/core';
 import { Stack } from '@mantine/core';
 import { FC } from 'react';
 import { Redirect, Route, Switch } from 'react-router-dom';
@@ -98,169 +97,156 @@ const Routes: FC = () => {
             </Route>
 
             <PrivateRoute path="/">
-                <div
-                    style={{
-                        minHeight: '100vh',
-                        background: Colors.LIGHT_GRAY5,
-                    }}
-                >
-                    <UserCompletionModal />
-                    <JobDetailsDrawer />
+                <UserCompletionModal />
+                <JobDetailsDrawer />
 
-                    <Switch>
-                        <Route path="/createProject/:method?">
-                            <NavBar />
-                            <TrackPage name={PageName.CREATE_PROJECT}>
-                                <CreateProject />
-                            </TrackPage>
-                        </Route>
-                        <Route path="/createProjectSettings/:projectUuid">
-                            <NavBar />
-                            <TrackPage name={PageName.CREATE_PROJECT_SETTINGS}>
-                                <CreateProjectSettings />
-                            </TrackPage>
-                        </Route>
-                        <Route path="/generalSettings/:tab?">
-                            <NavBar />
-                            <TrackPage name={PageName.GENERAL_SETTINGS}>
-                                <Settings />
-                            </TrackPage>
-                        </Route>
-                        <Route path="/no-access">
-                            <NavBar />
-                            <TrackPage name={PageName.NO_ACCESS}>
-                                <ForbiddenPanel />
-                            </TrackPage>
-                        </Route>
-                        <Route path="/no-project-access">
-                            <NavBar />
-                            <TrackPage name={PageName.NO_PROJECT_ACCESS}>
-                                <ForbiddenPanel subject="project" />
-                            </TrackPage>
-                        </Route>
-                        <Route path="/share/:shareNanoid">
-                            <NavBar />
-                            <TrackPage name={PageName.SHARE}>
-                                <ShareRedirect />
-                            </TrackPage>
-                        </Route>
+                <Switch>
+                    <Route path="/createProject/:method?">
+                        <NavBar />
+                        <TrackPage name={PageName.CREATE_PROJECT}>
+                            <CreateProject />
+                        </TrackPage>
+                    </Route>
+                    <Route path="/createProjectSettings/:projectUuid">
+                        <NavBar />
+                        <TrackPage name={PageName.CREATE_PROJECT_SETTINGS}>
+                            <CreateProjectSettings />
+                        </TrackPage>
+                    </Route>
+                    <Route path="/generalSettings/:tab?">
+                        <NavBar />
+                        <TrackPage name={PageName.GENERAL_SETTINGS}>
+                            <Settings />
+                        </TrackPage>
+                    </Route>
+                    <Route path="/no-access">
+                        <NavBar />
+                        <TrackPage name={PageName.NO_ACCESS}>
+                            <ForbiddenPanel />
+                        </TrackPage>
+                    </Route>
+                    <Route path="/no-project-access">
+                        <NavBar />
+                        <TrackPage name={PageName.NO_PROJECT_ACCESS}>
+                            <ForbiddenPanel subject="project" />
+                        </TrackPage>
+                    </Route>
+                    <Route path="/share/:shareNanoid">
+                        <NavBar />
+                        <TrackPage name={PageName.SHARE}>
+                            <ShareRedirect />
+                        </TrackPage>
+                    </Route>
 
-                        <AppRoute path="/">
-                            <Switch>
-                                <ProjectRoute path="/projects/:projectUuid">
-                                    <Switch>
-                                        <Route path="/projects/:projectUuid/saved/:savedQueryUuid/:mode?">
-                                            <NavBar />
-                                            <TrackPage
-                                                name={
-                                                    PageName.SAVED_QUERY_EXPLORER
-                                                }
-                                            >
-                                                <SavedExplorer />
-                                            </TrackPage>
-                                        </Route>
-
-                                        <Route path="/projects/:projectUuid/saved">
-                                            <NavBar />
-                                            <TrackPage
-                                                name={PageName.SAVED_QUERIES}
-                                            >
-                                                <SavedQueries />
-                                            </TrackPage>
-                                        </Route>
-
-                                        <Route path="/projects/:projectUuid/dashboards/:dashboardUuid/:mode?">
-                                            <NavBar />
-                                            <TrackPage
-                                                name={PageName.DASHBOARD}
-                                            >
-                                                <Dashboard />
-                                            </TrackPage>
-                                        </Route>
-
-                                        <Route path="/projects/:projectUuid/dashboards">
-                                            <NavBar />
-                                            <TrackPage
-                                                name={PageName.SAVED_DASHBOARDS}
-                                            >
-                                                <SavedDashboards />
-                                            </TrackPage>
-                                        </Route>
-
-                                        <Route path="/projects/:projectUuid/sqlRunner">
-                                            <NavBar />
-                                            <TrackPage
-                                                name={PageName.SQL_RUNNER}
-                                            >
-                                                <SqlRunner />
-                                            </TrackPage>
-                                        </Route>
-
-                                        <Route path="/projects/:projectUuid/tables/:tableId">
-                                            <NavBar />
-                                            <TrackPage name={PageName.EXPLORER}>
-                                                <Explorer />
-                                            </TrackPage>
-                                        </Route>
-
-                                        <Route path="/projects/:projectUuid/tables">
-                                            <NavBar />
-                                            <TrackPage
-                                                name={PageName.EXPLORE_TABLES}
-                                            >
-                                                <Explorer />
-                                            </TrackPage>
-                                        </Route>
-
-                                        <Route path="/projects/:projectUuid/spaces/:spaceUuid">
-                                            <NavBar />
-                                            <TrackPage name={PageName.SPACE}>
-                                                <Space />
-                                            </TrackPage>
-                                        </Route>
-
-                                        <Route path="/projects/:projectUuid/spaces">
-                                            <NavBar />
-                                            <TrackPage name={PageName.SPACES}>
-                                                <Spaces />
-                                            </TrackPage>
-                                        </Route>
-
-                                        <Route
-                                            path="/projects/:projectUuid/home"
-                                            exact
+                    <AppRoute path="/">
+                        <Switch>
+                            <ProjectRoute path="/projects/:projectUuid">
+                                <Switch>
+                                    <Route path="/projects/:projectUuid/saved/:savedQueryUuid/:mode?">
+                                        <NavBar />
+                                        <TrackPage
+                                            name={PageName.SAVED_QUERY_EXPLORER}
                                         >
-                                            <NavBar />
-                                            <TrackPage name={PageName.HOME}>
-                                                <Home />
-                                            </TrackPage>
-                                        </Route>
+                                            <SavedExplorer />
+                                        </TrackPage>
+                                    </Route>
 
-                                        <Route
-                                            path="/projects/:projectUuid/user-activity"
-                                            exact
+                                    <Route path="/projects/:projectUuid/saved">
+                                        <NavBar />
+                                        <TrackPage
+                                            name={PageName.SAVED_QUERIES}
                                         >
-                                            <NavBar />
-                                            <TrackPage
-                                                name={PageName.USER_ACTIVITY}
-                                            >
-                                                <UserActivity />
-                                            </TrackPage>
-                                        </Route>
+                                            <SavedQueries />
+                                        </TrackPage>
+                                    </Route>
 
-                                        <Redirect to="/projects" />
-                                    </Switch>
-                                </ProjectRoute>
+                                    <Route path="/projects/:projectUuid/dashboards/:dashboardUuid/:mode?">
+                                        <NavBar />
+                                        <TrackPage name={PageName.DASHBOARD}>
+                                            <Dashboard />
+                                        </TrackPage>
+                                    </Route>
 
-                                <Route path="/projects/:projectUuid?" exact>
-                                    <Projects />
-                                </Route>
+                                    <Route path="/projects/:projectUuid/dashboards">
+                                        <NavBar />
+                                        <TrackPage
+                                            name={PageName.SAVED_DASHBOARDS}
+                                        >
+                                            <SavedDashboards />
+                                        </TrackPage>
+                                    </Route>
 
-                                <Redirect to="/projects" />
-                            </Switch>
-                        </AppRoute>
-                    </Switch>
-                </div>
+                                    <Route path="/projects/:projectUuid/sqlRunner">
+                                        <NavBar />
+                                        <TrackPage name={PageName.SQL_RUNNER}>
+                                            <SqlRunner />
+                                        </TrackPage>
+                                    </Route>
+
+                                    <Route path="/projects/:projectUuid/tables/:tableId">
+                                        <NavBar />
+                                        <TrackPage name={PageName.EXPLORER}>
+                                            <Explorer />
+                                        </TrackPage>
+                                    </Route>
+
+                                    <Route path="/projects/:projectUuid/tables">
+                                        <NavBar />
+                                        <TrackPage
+                                            name={PageName.EXPLORE_TABLES}
+                                        >
+                                            <Explorer />
+                                        </TrackPage>
+                                    </Route>
+
+                                    <Route path="/projects/:projectUuid/spaces/:spaceUuid">
+                                        <NavBar />
+                                        <TrackPage name={PageName.SPACE}>
+                                            <Space />
+                                        </TrackPage>
+                                    </Route>
+
+                                    <Route path="/projects/:projectUuid/spaces">
+                                        <NavBar />
+                                        <TrackPage name={PageName.SPACES}>
+                                            <Spaces />
+                                        </TrackPage>
+                                    </Route>
+
+                                    <Route
+                                        path="/projects/:projectUuid/home"
+                                        exact
+                                    >
+                                        <NavBar />
+                                        <TrackPage name={PageName.HOME}>
+                                            <Home />
+                                        </TrackPage>
+                                    </Route>
+
+                                    <Route
+                                        path="/projects/:projectUuid/user-activity"
+                                        exact
+                                    >
+                                        <NavBar />
+                                        <TrackPage
+                                            name={PageName.USER_ACTIVITY}
+                                        >
+                                            <UserActivity />
+                                        </TrackPage>
+                                    </Route>
+
+                                    <Redirect to="/projects" />
+                                </Switch>
+                            </ProjectRoute>
+
+                            <Route path="/projects/:projectUuid?" exact>
+                                <Projects />
+                            </Route>
+
+                            <Redirect to="/projects" />
+                        </Switch>
+                    </AppRoute>
+                </Switch>
             </PrivateRoute>
         </Switch>
     );
