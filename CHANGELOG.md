@@ -1,3 +1,10 @@
+# [0.527.0](https://github.com/lightdash/lightdash/compare/0.526.2...0.527.0) (2023-05-02)
+
+
+### Features
+
+* mantine sql runner sidebar ([#5296](https://github.com/lightdash/lightdash/issues/5296)) ([2971a53](https://github.com/lightdash/lightdash/commit/2971a5380ae3ad57bc3ea3aef7c72dd5caabc608))
+
 ## [0.526.2](https://github.com/lightdash/lightdash/compare/0.526.1...0.526.2) (2023-05-02)
 
 
