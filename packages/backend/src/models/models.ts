@@ -16,6 +16,7 @@ import { OrganizationModel } from './OrganizationModel';
 import { PasswordResetLinkModel } from './PasswordResetLinkModel';
 import { PinnedListModel } from './PinnedListModel';
 import { ProjectModel } from './ProjectModel/ProjectModel';
+import { ResourceViewItemModel } from './ResourceViewItemModel';
 import { SavedChartModel } from './SavedChartModel';
 import { SchedulerModel } from './SchedulerModel';
 import { SearchModel } from './SearchModel';
@@ -76,3 +77,7 @@ export const schedulerModel = new SchedulerModel({ database });
 
 export const organizationAllowedEmailDomainsModel =
     new OrganizationAllowedEmailDomainsModel({ database });
+
+export const resourceViewItemModel = new ResourceViewItemModel({
+    database,
+});

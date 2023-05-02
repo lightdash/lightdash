@@ -14,36 +14,33 @@ import {
 import { pinningService } from '../services/services';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 
-@Route('/api/v1/pinnedItems')
+@Route('/api/v1/projects/{projectUuid}/pinned-lists')
 @Response<ApiErrorPayload>('default', 'Error')
 export class PinningController extends Controller {
     /**
-     * Get a pinned item
+     * Get pinned items
+     * @param projectUuid project uuid
      * @param pinnedListUuid the list uuid for the pinned items
      * @param req express request
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('{pinnedListUuid}')
+    @Get('{pinnedListUuid}/items')
     @OperationId('getPinnedItems')
     async get(
+        @Path() projectUuid: string,
         @Path() pinnedListUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiPinnedItems> {
+        const pinnedItems = await pinningService.getPinnedItems(
+            req.user!,
+            projectUuid,
+            pinnedListUuid,
+        );
         this.setStatus(200);
-        const pinnedDashboards = await pinningService.getPinnedDashboards(
-            pinnedListUuid,
-        );
-        const pinnedCharts = await pinningService.getPinnedCharts(
-            pinnedListUuid,
-        );
-        const pinnedSpaces = await pinningService.getPinnedSpaces(
-            pinnedListUuid,
-        );
         return {
-            dashboards: pinnedDashboards,
-            charts: pinnedCharts,
-            spaces: pinnedSpaces,
+            status: 'ok',
+            results: pinnedItems,
         };
     }
 }

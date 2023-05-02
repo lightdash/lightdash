@@ -11,7 +11,19 @@ export enum ResourceViewItemType {
 
 export type ResourceViewChartItem = {
     type: ResourceViewItemType.CHART;
-    data: SpaceQuery;
+    data: Pick<
+        SpaceQuery,
+        | 'uuid'
+        | 'name'
+        | 'chartType'
+        | 'firstViewedAt'
+        | 'views'
+        | 'pinnedListUuid'
+        | 'spaceUuid'
+        | 'description'
+        | 'updatedAt'
+        | 'updatedByUser'
+    >;
 };
 
 export type ResourceViewDashboardItem = {
@@ -34,8 +46,14 @@ export type ResourceViewSpaceItem = {
     type: ResourceViewItemType.SPACE;
     data: Pick<
         Space,
-        'projectUuid' | 'uuid' | 'name' | 'isPrivate' | 'pinnedListUuid'
+        | 'projectUuid'
+        | 'uuid'
+        | 'name'
+        | 'isPrivate'
+        | 'pinnedListUuid'
+        | 'organizationUuid'
     > & {
+        access: string[];
         accessListLength: number;
         dashboardCount: number;
         chartCount: number;
@@ -90,6 +108,7 @@ export const wrapResourceView = (
 export const spaceToResourceViewItem = (
     space: Space,
 ): ResourceViewSpaceItem['data'] => ({
+    organizationUuid: space.organizationUuid,
     projectUuid: space.projectUuid,
     uuid: space.uuid,
     name: space.name,
@@ -98,4 +117,5 @@ export const spaceToResourceViewItem = (
     accessListLength: space.access.length,
     dashboardCount: space.dashboards.length,
     chartCount: space.queries.length,
+    access: space.access.map((access) => access.userUuid),
 });

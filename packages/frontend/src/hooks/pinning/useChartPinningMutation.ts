@@ -22,6 +22,7 @@ export const useChartPinningMutation = () => {
                     'saved_query',
                     variables.uuid,
                 ]);
+                await queryClient.invalidateQueries('pinned_items');
                 await queryClient.invalidateQueries('spaces');
                 await queryClient.invalidateQueries([
                     'space',

@@ -17,7 +17,10 @@ type Dependencies = {
     pinnedListModel: PinnedListModel;
 };
 
-export const hasSpaceAccess = (space: Space, userUuid: string): boolean =>
+export const hasSpaceAccess = (
+    space: Pick<Space, 'isPrivate' | 'access'>,
+    userUuid: string,
+): boolean =>
     !space.isPrivate ||
     space.access.find(
         (userAccess) =>

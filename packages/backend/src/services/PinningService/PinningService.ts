@@ -1,12 +1,18 @@
+import { subject } from '@casl/ability';
 import {
-    PinnedCharts,
-    PinnedDashboards,
-    PinnedSpaces,
+    ForbiddenError,
+    ResourceViewChartItem,
+    ResourceViewDashboardItem,
+    ResourceViewSpaceItem,
+    SessionUser,
 } from '@lightdash/common';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
+import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { ResourceViewItemModel } from '../../models/ResourceViewItemModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type Dependencies = {
     dashboardModel: DashboardModel;
@@ -16,6 +22,8 @@ type Dependencies = {
     spaceModel: SpaceModel;
 
     pinnedListModel: PinnedListModel;
+    resourceViewItemModel: ResourceViewItemModel;
+    projectModel: ProjectModel;
 };
 
 export class PinningService {
@@ -27,35 +35,68 @@ export class PinningService {
 
     pinnedListModel: PinnedListModel;
 
+    resourceViewItemModel: ResourceViewItemModel;
+
+    projectModel: ProjectModel;
+
     constructor({
         dashboardModel,
         savedChartModel,
         spaceModel,
         pinnedListModel,
+        resourceViewItemModel,
+        projectModel,
     }: Dependencies) {
         this.dashboardModel = dashboardModel;
         this.savedChartModel = savedChartModel;
         this.spaceModel = spaceModel;
         this.pinnedListModel = pinnedListModel;
+        this.resourceViewItemModel = resourceViewItemModel;
+        this.projectModel = projectModel;
     }
 
-    // eslint-disable-next-line class-methods-use-this
-    async getPinnedDashboards(
+    async getPinnedItems(
+        user: SessionUser,
+        projectUuid: string,
         pinnedListUuid: string,
-    ): Promise<PinnedDashboards> {
-        // const pinnedDashboards = await this.dashboardModel.getPinnedDashboards(pinnedListUuid);
-        return [] as PinnedDashboards;
-    }
+    ): Promise<{
+        spaces: ResourceViewSpaceItem[];
+        charts: ResourceViewChartItem[];
+        dashboards: ResourceViewDashboardItem[];
+    }> {
+        const project = await this.projectModel.get(projectUuid);
+        if (user.ability.cannot('view', subject('Project', project))) {
+            throw new ForbiddenError();
+        }
 
-    // eslint-disable-next-line class-methods-use-this
-    async getPinnedCharts(pinnedListUuid: string): Promise<PinnedCharts> {
-        // const pinnedCharts = await this.savedChartModel.getPinnedCharts(pinnedListUuid);
-        return [] as PinnedCharts;
-    }
+        const spaces = await this.spaceModel.getAllSpaces(projectUuid);
+        const allowedSpaceUuids = spaces
+            .filter((space) => hasSpaceAccess(space, user.userUuid))
+            .map((space) => space.uuid);
 
-    // eslint-disable-next-line class-methods-use-this
-    async getPinnedSpaces(pinnedListUuid: string): Promise<PinnedSpaces> {
-        // const pinnedSpaces = await this.spaceModel.getPinnedSpaces(pinnedListUuid);
-        return [] as PinnedSpaces;
+        if (allowedSpaceUuids.length === 0) {
+            return { spaces: [], charts: [], dashboards: [] };
+        }
+        const allPinnedSpaces =
+            await this.resourceViewItemModel.getAllSpacesByPinnedListUuid(
+                projectUuid,
+                pinnedListUuid,
+            );
+
+        const allowedPinnedSpaces = allPinnedSpaces.filter(
+            ({ data: { uuid } }) => allowedSpaceUuids.includes(uuid),
+        );
+        const { charts: allowedCharts, dashboards: allowedDashboards } =
+            await this.resourceViewItemModel.getAllowedChartsAndDashboards(
+                projectUuid,
+                pinnedListUuid,
+                allowedSpaceUuids,
+            );
+
+        return {
+            spaces: allowedPinnedSpaces,
+            charts: allowedCharts,
+            dashboards: allowedDashboards,
+        };
     }
 }

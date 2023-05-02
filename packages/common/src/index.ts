@@ -53,6 +53,7 @@ import {
     OrganizationProject,
     UpdateAllowedEmailDomains,
 } from './types/organization';
+import { PinnedItems } from './types/pinning';
 import {
     CreateWarehouseCredentials,
     DbtProjectConfig,
@@ -497,6 +498,7 @@ type ApiResults =
     | UserAllowedOrganization[]
     | EmailStatusExpiring
     | ApiScheduledDownloadCsv
+    | PinnedItems
     | SchedulerWithLogs;
 
 export type ApiResponse = {

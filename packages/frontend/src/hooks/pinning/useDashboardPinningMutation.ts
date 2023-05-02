@@ -22,6 +22,7 @@ export const useDashboardPinningMutation = () => {
                     'saved_dashboard_query',
                     variables.uuid,
                 ]);
+                await queryClient.invalidateQueries('pinned_items');
                 await queryClient.invalidateQueries('dashboards');
                 await queryClient.invalidateQueries([
                     'space',

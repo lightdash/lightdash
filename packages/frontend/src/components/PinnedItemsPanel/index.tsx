@@ -1,12 +1,5 @@
 import { subject } from '@casl/ability';
-import {
-    DashboardBasicDetails,
-    ResourceViewItemType,
-    Space,
-    SpaceQuery,
-    spaceToResourceViewItem,
-    wrapResourceView,
-} from '@lightdash/common';
+import { PinnedItems, ResourceViewItemType } from '@lightdash/common';
 import { Card, Group, Text } from '@mantine/core';
 import { IconPin } from '@tabler/icons-react';
 import React, { FC, useMemo } from 'react';
@@ -16,11 +9,7 @@ import MantineLinkButton from '../common/MantineLinkButton';
 import ResourceView, { ResourceViewType } from '../common/ResourceView';
 
 interface Props {
-    data: {
-        dashboards: DashboardBasicDetails[];
-        savedCharts: SpaceQuery[];
-        spaces: Space[];
-    };
+    data: PinnedItems;
     projectUuid: string;
     organizationUuid: string;
 }
@@ -35,24 +24,9 @@ const PinnedItemsPanel: FC<Props> = ({
         'update',
         subject('Project', { organizationUuid, projectUuid }),
     );
+    const pinnedItems = [...data.dashboards, ...data.spaces, ...data.charts];
 
-    const pinnedItems = useMemo(() => {
-        return [
-            ...wrapResourceView(
-                data.dashboards,
-                ResourceViewItemType.DASHBOARD,
-            ),
-            ...wrapResourceView(data.savedCharts, ResourceViewItemType.CHART),
-            ...wrapResourceView(
-                data.spaces.map(spaceToResourceViewItem),
-                ResourceViewItemType.SPACE,
-            ),
-        ].filter((item) => {
-            return !!item.data.pinnedListUuid;
-        });
-    }, [data]);
-
-    return pinnedItems.length > 0 ? (
+    return pinnedItems && pinnedItems.length > 0 ? (
         <ResourceView
             items={pinnedItems}
             view={ResourceViewType.GRID}
@@ -73,7 +47,7 @@ const PinnedItemsPanel: FC<Props> = ({
                     : 'Your data team have pinned these items to help guide you towards the most relevant content!',
             }}
         />
-    ) : userCanUpdateProject && pinnedItems.length <= 0 ? (
+    ) : (userCanUpdateProject && pinnedItems.length <= 0) || !pinnedItems ? (
         // FIXME: update width with Mantine widths
         <Card
             withBorder
