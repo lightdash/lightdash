@@ -100,7 +100,11 @@ export class PinningService {
             spaces: string[];
         },
     ): Promise<PinnedItems> {
-        // TODO update order
+        await this.pinnedListModel.updatePinnedItemsOrder(
+            projectUuid,
+            pinnedListUuid,
+            itemsOrder,
+        );
         return this.getPinnedItems(user, projectUuid, pinnedListUuid);
     }
 }

@@ -161,4 +161,19 @@ export class PinnedListModel {
 
         return { ...pinnedList, items: pinnedItems };
     }
+
+    async updatePinnedItemsOrder(
+        projectUuid: string,
+        pinnedListUuid: string,
+        itemsOrder: {
+            dashboards: string[];
+            charts: string[];
+            spaces: string[];
+        },
+    ): Promise<void> {
+        await this.database.transaction(async (trx) =>
+            // TODO
+            Promise.resolve(),
+        );
+    }
 }

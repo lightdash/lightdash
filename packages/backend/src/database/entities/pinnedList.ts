@@ -37,15 +37,15 @@ export type DbPinnedItem = DbPinnedChart | DbPinnedDashboard | DBPinnedSpace;
 
 export type CreatePinnedChart = Omit<
     DbPinnedChart,
-    'pinned_item_uuid' | 'created_at'
+    'pinned_item_uuid' | 'created_at' | 'order'
 >;
 export type CreatePinnedDashboard = Omit<
     DbPinnedDashboard,
-    'pinned_item_uuid' | 'created_at'
+    'pinned_item_uuid' | 'created_at' | 'order'
 >;
 export type CreatePinnedSpace = Omit<
     DBPinnedSpace,
-    'pinned_item_uuid' | 'created_at'
+    'pinned_item_uuid' | 'created_at' | 'order'
 >;
 
 export type PinnedListTable = Knex.CompositeTableType<
