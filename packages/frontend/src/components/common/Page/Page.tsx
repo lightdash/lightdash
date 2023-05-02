@@ -42,8 +42,6 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
                       height: containerHeight,
 
                       overflowY: 'scroll',
-                      overscrollBehavior: 'contain',
-                      WebkitOverflowScrolling: 'touch',
                   }),
 
             ...(params.withSidebar
@@ -67,8 +65,6 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
                       maxHeight: '100%',
 
                       overflowY: 'scroll',
-                      overscrollBehavior: 'contain',
-                      WebkitOverflowScrolling: 'touch',
                   }
                 : {}),
 
