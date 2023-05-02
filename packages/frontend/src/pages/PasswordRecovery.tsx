@@ -20,7 +20,7 @@ const PasswordRecovery: FC = () => {
     }
 
     return (
-        <Page withCenteredContent>
+        <Page title="Recover password" withCenteredContent>
             {/* FIXME: use Mantine sizes for width */}
             <Stack w={400} mt="4xl">
                 <Image
