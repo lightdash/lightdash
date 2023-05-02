@@ -57,11 +57,14 @@ glob('./packages/frontend/src/**/*.{ts,tsx}', (err, files) => {
 
     for (const [library, counts] of Object.entries(importCounter)) {
         const total = Object.values(counts).reduce((a, b) => a + b, 0);
-        console.log(`${library} \t\t total(${total})`);
+        console.log(`${library} - Total: ${total}`);
 
-        for (const [importName, count] of Object.entries(counts)) {
-            console.log(`\t${importName}: ${count}`);
+        for (const [importName, count] of Object.entries(counts).sort(
+            ([, a], [, b]) => b - a,
+        )) {
+            console.log(`  ${importName}: ${count}`);
         }
+        console.log();
     }
 
     const grandTotal = Object.values(importCounter).reduce(
@@ -69,7 +72,12 @@ glob('./packages/frontend/src/**/*.{ts,tsx}', (err, files) => {
         0,
     );
 
-    console.log(`----------------------------`);
-    console.log(`total imports from all libraries: ${grandTotal} (${(grandTotal/993 * 100).toFixed(1)}%)`);
-    console.log(`----------------------------`);
+    console.log(`---------------------------------------------`);
+    console.log(
+        `Total imports from all libraries: ${grandTotal} (${(
+            (grandTotal / 993) *
+            100
+        ).toFixed(1)}%)`,
+    );
+    console.log(`---------------------------------------------`);
 });
