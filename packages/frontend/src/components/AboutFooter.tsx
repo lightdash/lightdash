@@ -18,6 +18,7 @@ import { useApp } from '../providers/AppProvider';
 import { TrackPage, TrackSection } from '../providers/TrackingProvider';
 import { ReactComponent as Logo } from '../svgs/grey-icon-logo.svg';
 import { PageName, PageType, SectionName } from '../types/Events';
+import MantineIcon from './common/MantineIcon';
 import MantineLinkButton from './common/MantineLinkButton';
 
 const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
@@ -77,14 +78,24 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                             target="_blank"
                         >
                             <ActionIcon color="gray.7" p="xs" size="lg">
-                                <IconBook size={19} />
+                                <MantineIcon
+                                    icon={IconBook}
+                                    size="lg"
+                                    color="gray.7"
+                                />
                             </ActionIcon>
                         </Anchor>
                     ) : (
                         <MantineLinkButton
                             href="https://docs.lightdash.com/"
                             target="_blank"
-                            leftIcon={<IconBook size={19} />}
+                            leftIcon={
+                                <MantineIcon
+                                    icon={IconBook}
+                                    size="lg"
+                                    color="gray.7"
+                                />
+                            }
                             variant="light"
                             color="gray.7"
                             fw="500"

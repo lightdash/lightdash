@@ -56,7 +56,7 @@ const ExploreTree: FC<ExploreTreeProps> = ({
     }, [explore, searchHasResults, isSearching]);
 
     return (
-        <Stack h="100%" sx={{ overflow: 'hidden' }}>
+        <Stack sx={{ overflow: 'hidden', flexGrow: 1 }}>
             <TextInput
                 icon={<MantineIcon icon={IconSearch} />}
                 rightSection={

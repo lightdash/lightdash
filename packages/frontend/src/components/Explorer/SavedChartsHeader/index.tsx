@@ -26,6 +26,7 @@ import { SectionName } from '../../../types/Events';
 import ChartCreateModal from '../../common/modal/ChartCreateModal';
 import ChartDeleteModal from '../../common/modal/ChartDeleteModal';
 import ChartUpdateModal from '../../common/modal/ChartUpdateModal';
+import PageHeader from '../../common/Page/PageHeader';
 import {
     PageActionsContainer,
     PageDetailsContainer,
@@ -168,7 +169,8 @@ const SavedChartsHeader: FC = () => {
                     want to leave without saving?{' '}
                 </p>
             </Alert>
-            <PageHeaderContainer>
+
+            <PageHeader>
                 <PageTitleAndDetailsContainer>
                     {savedChart && (
                         <>
@@ -384,7 +386,7 @@ const SavedChartsHeader: FC = () => {
                         </Popover2>
                     </PageActionsContainer>
                 )}
-            </PageHeaderContainer>
+            </PageHeader>
 
             {unsavedChartVersion && (
                 <ChartCreateModal

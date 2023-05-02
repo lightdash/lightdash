@@ -18,9 +18,9 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { FC, useEffect } from 'react';
-import { Helmet } from 'react-helmet';
 import { useMutation } from 'react-query';
 import { Redirect, useLocation } from 'react-router-dom';
+
 import { lightdashApi } from '../api';
 import {
     GoogleLoginButton,
@@ -175,12 +175,7 @@ const Login: FC = () => {
     );
 
     return (
-        <Page isFullHeight>
-            <Helmet>
-                <title>Login - Lightdash</title>
-            </Helmet>
-
-            {/* FIXME: use Mantine sizes for width */}
+        <Page title="Login">
             <Stack w={400} mt="4xl">
                 <Image
                     src={LightdashLogo}

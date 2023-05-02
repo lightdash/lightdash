@@ -17,12 +17,12 @@ import { SectionName } from '../../../../types/Events';
 import MantineIcon from '../../../common/MantineIcon';
 import TableTreeSections from './TableTreeSections';
 
-type CollapsibleTableTreeProps = {
+type TableTreeWrapperProps = {
     table: CompiledTable;
     additionalMetrics: AdditionalMetric[];
 };
 
-const CollapsibleTableTree: FC<CollapsibleTableTreeProps> = ({
+const TableTreeWrapper: FC<TableTreeWrapperProps> = ({
     table,
     additionalMetrics,
     children,
@@ -98,7 +98,8 @@ const TableTree: FC<Props> = ({
     additionalMetrics,
     ...rest
 }) => {
-    const Wrapper = showTableLabel ? CollapsibleTableTree : EmptyWrapper;
+    const Wrapper = showTableLabel ? TableTreeWrapper : EmptyWrapper;
+
     return (
         <TrackSection name={SectionName.SIDEBAR}>
             <MantineProvider inherit theme={themeOverride}>

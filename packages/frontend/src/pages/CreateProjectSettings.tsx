@@ -1,6 +1,7 @@
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { useQueryClient } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
+
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
@@ -25,12 +26,11 @@ const CreateProjectSettings: FC = () => {
     };
 
     return (
-        <Page>
+        <Page withCenteredContent>
             <div
                 style={{
                     display: 'flex',
                     flexDirection: 'column',
-                    width: '900px',
                     paddingTop: 60,
                 }}
             >

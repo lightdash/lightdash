@@ -1,55 +1,109 @@
-import { Card, H3 } from '@blueprintjs/core';
-import React, { FC } from 'react';
-import styled from 'styled-components';
+import {
+    Box,
+    Card,
+    CardProps,
+    Flex,
+    FlexProps,
+    MantineTransition,
+    Stack,
+    Transition,
+} from '@mantine/core';
+import { FC } from 'react';
+
+import useSidebarResize from '../../../hooks/useSidebarResize';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
-import AboutFooter from '../../AboutFooter';
 
-export const SIDEBAR_WIDTH = 400;
-export const SIDEBAR_Z_INDEX = 1;
+type Props = {
+    opened?: boolean;
+    containerProps?: FlexProps;
+    cardProps?: CardProps;
+};
 
-const SidebarWrapper = styled(Card)`
-    height: calc(100vh - 50px);
-    flex-basis: ${SIDEBAR_WIDTH}px;
-    z-index: ${SIDEBAR_Z_INDEX};
-    flex-shrink: 0;
-    flex-grow: 0;
-    overflow: hidden;
-    position: sticky;
-    top: 50px;
-    padding-bottom: 0;
-`;
+const Sidebar: FC<Props> = ({
+    opened = true,
+    containerProps,
+    cardProps,
+    children,
+}) => {
+    const { sidebarRef, sidebarWidth, isResizing, startResizing } =
+        useSidebarResize({
+            defaultWidth: 400,
+            minWidth: 300,
+            maxWidth: 600,
+        });
 
-const SidebarColumn = styled('div')`
-    height: 100%;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-`;
+    const transition: MantineTransition = {
+        in: {
+            opacity: 1,
+            marginLeft: 0,
+        },
+        out: {
+            opacity: 0,
+            marginLeft: -sidebarWidth,
+        },
+        transitionProperty: 'opacity, margin',
+    };
 
-const SidebarContent = styled('div')`
-    flex: 1;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-`;
-
-interface SidebarProps {
-    title?: string | React.ReactNode;
-}
-
-const Sidebar: FC<SidebarProps> = ({ title, children }) => (
-    <SidebarWrapper elevation={1}>
+    return (
         <TrackSection name={SectionName.SIDEBAR}>
-            <SidebarColumn>
-                <SidebarContent>
-                    {typeof title === 'string' ? <H3>{title}</H3> : title}
-                    {children}
-                </SidebarContent>
-                <AboutFooter minimal />
-            </SidebarColumn>
+            <Flex
+                ref={sidebarRef}
+                direction="column"
+                h="100%"
+                mah="100%"
+                pos="relative"
+                {...containerProps}
+            >
+                <Transition
+                    mounted={opened}
+                    duration={500}
+                    transition={transition}
+                >
+                    {(styles) => (
+                        <>
+                            <Card
+                                component={Stack}
+                                display="flex"
+                                radius="unset"
+                                shadow="lg"
+                                pb={0}
+                                w={sidebarWidth}
+                                style={{
+                                    flexGrow: 1,
+                                    ...styles,
+                                }}
+                            >
+                                {children}
+                            </Card>
+
+                            {opened ? (
+                                <Box
+                                    w={5}
+                                    h="100%"
+                                    pos="absolute"
+                                    top={0}
+                                    right={-5}
+                                    onMouseDown={startResizing}
+                                    {...cardProps}
+                                    sx={(theme) => ({
+                                        cursor: 'col-resize',
+                                        background: isResizing
+                                            ? theme.fn.linearGradient(
+                                                  90,
+                                                  theme.colors.blue[5],
+                                                  'transparent',
+                                              )
+                                            : undefined,
+                                    })}
+                                />
+                            ) : null}
+                        </>
+                    )}
+                </Transition>
+            </Flex>
         </TrackSection>
-    </SidebarWrapper>
-);
+    );
+};
 
 export default Sidebar;

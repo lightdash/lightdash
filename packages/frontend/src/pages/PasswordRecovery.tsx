@@ -1,6 +1,7 @@
 import { Card, Image, Stack } from '@mantine/core';
 import { FC } from 'react';
 import { Redirect } from 'react-router-dom';
+
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import { useApp } from '../providers/AppProvider';
@@ -19,7 +20,7 @@ const PasswordRecovery: FC = () => {
     }
 
     return (
-        <Page isFullHeight>
+        <Page withCenteredContent>
             {/* FIXME: use Mantine sizes for width */}
             <Stack w={400} mt="4xl">
                 <Image

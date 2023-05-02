@@ -5,12 +5,12 @@ import {
     spaceToResourceViewItem,
     wrapResourceView,
 } from '@lightdash/common';
-import { Button, Center, Group, Stack } from '@mantine/core';
+import { Button, Group, Stack } from '@mantine/core';
 import { IconFolders, IconPlus } from '@tabler/icons-react';
 import { FC, useState } from 'react';
-import { Helmet } from 'react-helmet';
 import { useParams } from 'react-router-dom';
 import LoadingState from '../components/common/LoadingState';
+import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ResourceView, {
     ResourceViewType,
@@ -59,15 +59,10 @@ const Spaces: FC = () => {
     }
 
     return (
-        <Center my="md">
-            <Helmet>
-                <title>Spaces - Lightdash</title>
-            </Helmet>
-            {/* FIXME: use Mantine sizes for width */}
-            <Stack spacing="xl" w={900}>
-                <Group position="apart" mt="xs">
+        <Page title="Spaces" withCenteredContent>
+            <Stack spacing="xl">
+                <Group position="apart">
                     <PageBreadcrumbs
-                        mt="xs"
                         items={[
                             { to: '/home', title: 'Home' },
                             { title: 'All Spaces', active: true },
@@ -83,6 +78,7 @@ const Spaces: FC = () => {
                         </Button>
                     )}
                 </Group>
+
                 <ResourceView
                     view={ResourceViewType.GRID}
                     items={wrapResourceView(
@@ -104,6 +100,7 @@ const Spaces: FC = () => {
                     }}
                 />
             </Stack>
+
             {isCreateModalOpen && (
                 <SpaceActionModal
                     projectUuid={projectUuid}
@@ -114,7 +111,7 @@ const Spaces: FC = () => {
                     onClose={() => setIsCreateModalOpen(false)}
                 />
             )}
-        </Center>
+        </Page>
     );
 };
 

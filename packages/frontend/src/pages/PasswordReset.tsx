@@ -12,6 +12,7 @@ import {
 import { useForm } from '@mantine/form';
 import { FC } from 'react';
 import { Link, useHistory, useParams } from 'react-router-dom';
+
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
@@ -42,7 +43,7 @@ const PasswordReset: FC = () => {
     }
 
     return (
-        <Page isFullHeight>
+        <Page withCenteredContent>
             {/* FIXME: use Mantine sizes for width */}
             <Stack w={400} mt="4xl">
                 <Image

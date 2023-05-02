@@ -10,10 +10,10 @@ import {
     Text,
     Title,
 } from '@mantine/core';
-import React, { FC } from 'react';
-import { Helmet } from 'react-helmet';
+import { FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import { useIntercom } from 'react-use-intercom';
+
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import { StyledSuccessIcon } from '../components/ProjectConnection/ProjectConnectFlow/ProjectConnectFlow.styles';
@@ -53,11 +53,7 @@ const VerifyEmailPage: FC = () => {
     }
 
     return (
-        <Page isFullHeight>
-            <Helmet>
-                <title>Verify your email - Lightdash</title>
-            </Helmet>
-            {/* FIXME: update hardcoded widths with Mantine widths */}
+        <Page title="Verify your email">
             <Stack w={400} mt="4xl">
                 <Image
                     src={LightdashLogo}
