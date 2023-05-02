@@ -1,9 +1,4 @@
-import {
-    ApiError,
-    CreateShareUrl,
-    ShareUrl,
-    SlackSettings,
-} from '@lightdash/common';
+import { ApiError, SlackSettings } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
