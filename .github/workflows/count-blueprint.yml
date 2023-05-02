@@ -28,10 +28,14 @@ jobs:
         with:
           github-token: ${{ secrets.CI_GITHUB_TOKEN }}
           script: |
+            const rawOutput = `${{ steps.generate_report.outputs.report }}`
+            const message = '```\n' + rawOutput.split('\n').slice(2, -1).join('\n') + '\n```'
+            const title = `## Blueprint refactor progress\n\n`
+            const body = title + message
             github.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `## Blueprint refactor progress\n\n\`\`\`\n${{ steps.generate_report.outputs.report }}\n\`\`\``
+              body: body,
             })
     
