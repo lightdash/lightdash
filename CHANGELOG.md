@@ -1,3 +1,10 @@
+## [0.529.1](https://github.com/lightdash/lightdash/compare/0.529.0...0.529.1) (2023-05-02)
+
+
+### Bug Fixes
+
+* `create dashboard` modal should be consistent ([#5314](https://github.com/lightdash/lightdash/issues/5314)) ([6fb09ce](https://github.com/lightdash/lightdash/commit/6fb09ce55b59d158186622c203b7815c5c8555cc))
+
 # [0.529.0](https://github.com/lightdash/lightdash/compare/0.528.0...0.529.0) (2023-05-02)
 
 
