@@ -1,6 +1,5 @@
 import { Colors } from '@blueprintjs/core';
 import { ColorScheme, MantineThemeOverride, rem } from '@mantine/core';
-import { lighten } from 'polished';
 
 export const getMantineThemeOverride = (overrides?: {
     colorScheme?: ColorScheme;

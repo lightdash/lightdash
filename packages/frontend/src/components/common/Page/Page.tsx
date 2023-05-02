@@ -102,7 +102,7 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
 type Props = {
     title?: string;
     sidebar?: React.ReactNode;
-    sidebarOpened?: boolean;
+    isSidebarOpen?: boolean;
     header?: React.ReactNode;
 } & Omit<StyleProps, 'withSidebar' | 'withHeader'>;
 
@@ -110,7 +110,7 @@ const Page: FC<Props> = ({
     title,
     header,
     sidebar,
-    sidebarOpened = true,
+    isSidebarOpen = true,
 
     withSidebarFooter = false,
     withNavbar = true,
@@ -149,7 +149,7 @@ const Page: FC<Props> = ({
 
             <Box className={classes.root}>
                 {sidebar ? (
-                    <Sidebar opened={sidebarOpened}>
+                    <Sidebar isOpen={isSidebarOpen}>
                         {sidebar}
                         {withSidebarFooter ? <AboutFooter minimal /> : null}
                     </Sidebar>

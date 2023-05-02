@@ -15,13 +15,13 @@ import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 
 type Props = {
-    opened?: boolean;
+    isOpen?: boolean;
     containerProps?: FlexProps;
     cardProps?: CardProps;
 };
 
 const Sidebar: FC<Props> = ({
-    opened = true,
+    isOpen = true,
     containerProps,
     cardProps,
     children,
@@ -56,7 +56,7 @@ const Sidebar: FC<Props> = ({
                 {...containerProps}
             >
                 <Transition
-                    mounted={opened}
+                    mounted={isOpen}
                     duration={500}
                     transition={transition}
                 >
@@ -78,27 +78,25 @@ const Sidebar: FC<Props> = ({
                                 {children}
                             </Card>
 
-                            {opened ? (
-                                <Box
-                                    w={5}
-                                    h="100%"
-                                    pos="absolute"
-                                    top={0}
-                                    right={-5}
-                                    onMouseDown={startResizing}
-                                    {...cardProps}
-                                    sx={(theme) => ({
-                                        cursor: 'col-resize',
-                                        background: isResizing
-                                            ? theme.fn.linearGradient(
-                                                  90,
-                                                  theme.colors.blue[5],
-                                                  'transparent',
-                                              )
-                                            : undefined,
-                                    })}
-                                />
-                            ) : null}
+                            <Box
+                                w={5}
+                                h="100%"
+                                pos="absolute"
+                                top={0}
+                                right={-5}
+                                onMouseDown={startResizing}
+                                {...cardProps}
+                                sx={(theme) => ({
+                                    cursor: 'col-resize',
+                                    background: isResizing
+                                        ? theme.fn.linearGradient(
+                                              90,
+                                              theme.colors.blue[5],
+                                              'transparent',
+                                          )
+                                        : undefined,
+                                })}
+                            />
                         </>
                     )}
                 </Transition>
