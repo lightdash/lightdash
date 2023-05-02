@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Install deps
-        run: yarn add typescript
+        run: yarn add -W typescript
       - name: Count blueprint imports
         run: |
           EOF="$(openssl rand -hex 8)
