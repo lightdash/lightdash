@@ -67,7 +67,7 @@ const Home: FC = () => {
     }
 
     return (
-        <Page withCenteredContent>
+        <Page withFixedContent withFooter>
             <Stack spacing="xl">
                 {!onboarding.data.ranQuery ? (
                     <OnboardingPanel

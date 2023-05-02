@@ -85,7 +85,8 @@ const Settings: FC = () => {
         <Page
             withFullHeight
             withSidebarFooter
-            withCenteredContent
+            withFixedContent
+            withPaddedContent
             title="Settings"
             sidebar={
                 <Stack sx={{ flexGrow: 1 }}>

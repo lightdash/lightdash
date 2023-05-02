@@ -12,6 +12,7 @@ import { IconDots, IconPencil } from '@tabler/icons-react';
 import { FC, useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
+
 import {
     useDuplicateChartMutation,
     useMoveChartMutation,
@@ -30,7 +31,6 @@ import PageHeader from '../../common/Page/PageHeader';
 import {
     PageActionsContainer,
     PageDetailsContainer,
-    PageHeaderContainer,
     PageTitle,
     PageTitleAndDetailsContainer,
     PageTitleContainer,

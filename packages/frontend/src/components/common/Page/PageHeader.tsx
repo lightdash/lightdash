@@ -1,4 +1,4 @@
-import { Card, Flex, MantineSize } from '@mantine/core';
+import { Card, Flex } from '@mantine/core';
 import { FC } from 'react';
 
 export const PAGE_HEADER_HEIGHT = 80;
@@ -16,12 +16,7 @@ const PageHeader: FC = ({ children }) => {
             bg="white"
             shadow="xs"
             radius="unset"
-            withBorder
-            sx={{
-                borderTop: 'unset',
-                borderLeft: 'unset',
-                borderRight: 'unset',
-            }}
+            sx={{ zIndex: 1 }}
         >
             {children}
         </Card>

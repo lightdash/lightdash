@@ -67,7 +67,9 @@ const SavedExplorer = () => {
                 title={data?.name}
                 header={<SavedChartsHeader />}
                 sidebar={<ExplorePanel />}
+                sidebarOpened={isEditMode}
                 withFullHeight
+                withPaddedContent
             >
                 <Explorer />
             </Page>

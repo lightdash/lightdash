@@ -398,48 +398,52 @@ const Dashboard: FC = () => {
                 </p>
             </Alert>
 
-            <Page title={dashboard.name}>
-                <DashboardHeader
-                    spaces={spaces}
-                    dashboardName={dashboard.name}
-                    dashboardDescription={dashboard.description}
-                    dashboardUpdatedByUser={dashboard.updatedByUser}
-                    dashboardUpdatedAt={dashboard.updatedAt}
-                    dashboardSpaceName={dashboard.spaceName}
-                    dashboardSpaceUuid={dashboard.spaceUuid}
-                    dashboardViews={dashboard.views}
-                    dashboardFirstViewedAt={dashboard.firstViewedAt}
-                    isEditMode={isEditMode}
-                    isSaving={isSaving}
-                    hasDashboardChanged={
-                        haveTilesChanged ||
-                        haveFiltersChanged ||
-                        hasTemporaryFilters
-                    }
-                    onAddTiles={handleAddTiles}
-                    onSaveDashboard={() =>
-                        mutate({
-                            tiles: dashboardTiles,
-                            filters: {
-                                dimensions: [
-                                    ...dashboardFilters.dimensions,
-                                    ...dashboardTemporaryFilters.dimensions,
-                                ],
-                                metrics: [
-                                    ...dashboardFilters.metrics,
-                                    ...dashboardTemporaryFilters.metrics,
-                                ],
-                            },
-                            name: dashboard.name,
-                        })
-                    }
-                    onCancel={handleCancel}
-                    onMoveToSpace={handleMoveDashboardToSpace}
-                    onDuplicate={handleDuplicateDashboard}
-                    onDelete={handleDeleteDashboard}
-                    onExport={handleExportDashboard}
-                />
-
+            <Page
+                withPaddedContent
+                title={dashboard.name}
+                header={
+                    <DashboardHeader
+                        spaces={spaces}
+                        dashboardName={dashboard.name}
+                        dashboardDescription={dashboard.description}
+                        dashboardUpdatedByUser={dashboard.updatedByUser}
+                        dashboardUpdatedAt={dashboard.updatedAt}
+                        dashboardSpaceName={dashboard.spaceName}
+                        dashboardSpaceUuid={dashboard.spaceUuid}
+                        dashboardViews={dashboard.views}
+                        dashboardFirstViewedAt={dashboard.firstViewedAt}
+                        isEditMode={isEditMode}
+                        isSaving={isSaving}
+                        hasDashboardChanged={
+                            haveTilesChanged ||
+                            haveFiltersChanged ||
+                            hasTemporaryFilters
+                        }
+                        onAddTiles={handleAddTiles}
+                        onSaveDashboard={() =>
+                            mutate({
+                                tiles: dashboardTiles,
+                                filters: {
+                                    dimensions: [
+                                        ...dashboardFilters.dimensions,
+                                        ...dashboardTemporaryFilters.dimensions,
+                                    ],
+                                    metrics: [
+                                        ...dashboardFilters.metrics,
+                                        ...dashboardTemporaryFilters.metrics,
+                                    ],
+                                },
+                                name: dashboard.name,
+                            })
+                        }
+                        onCancel={handleCancel}
+                        onMoveToSpace={handleMoveDashboardToSpace}
+                        onDuplicate={handleDuplicateDashboard}
+                        onDelete={handleDeleteDashboard}
+                        onExport={handleExportDashboard}
+                    />
+                }
+            >
                 {dashboardChartTiles.length > 0 && (
                     <DashboardFilter isEditMode={isEditMode} />
                 )}

@@ -10,6 +10,7 @@ import {
     Anchor,
     Button,
     Card,
+    Center,
     Image,
     PasswordInput,
     Stack,
@@ -175,7 +176,7 @@ const Login: FC = () => {
     );
 
     return (
-        <Page title="Login">
+        <Page title="Login" withCenteredContent>
             <Stack w={400} mt="4xl">
                 <Image
                     src={LightdashLogo}

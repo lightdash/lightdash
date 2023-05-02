@@ -6,17 +6,19 @@ import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import AboutFooter from '../../AboutFooter';
 import { NAVBAR_HEIGHT } from '../../NavBar';
-import { PAGE_HEADER_HEIGHT } from '../PageHeader';
+import { PAGE_HEADER_HEIGHT } from './PageHeader';
 import Sidebar from './Sidebar';
 
 type StyleProps = {
-    withCenteredContent?: boolean;
+    withFixedContent?: boolean;
     withFooter?: boolean;
     withFullHeight?: boolean;
     withHeader?: boolean;
     withNavbar?: boolean;
     withSidebar?: boolean;
     withSidebarFooter?: boolean;
+    withPaddedContent?: boolean;
+    withCenteredContent?: boolean;
 };
 
 const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
@@ -37,8 +39,11 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
                       maxHeight: containerHeight,
                   }
                 : {
-                      overflowY: 'scroll',
                       height: containerHeight,
+
+                      overflowY: 'scroll',
+                      overscrollBehavior: 'contain',
+                      WebkitOverflowScrolling: 'touch',
                   }),
 
             ...(params.withSidebar
@@ -52,6 +57,7 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
         content: {
             paddingTop: theme.spacing.xl,
             paddingBottom: theme.spacing.xl,
+
             width: '100%',
 
             ...(params.withFullHeight
@@ -60,18 +66,33 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
                       height: '100%',
                       maxHeight: '100%',
 
+                      overflowY: 'scroll',
+                      overscrollBehavior: 'contain',
+                      WebkitOverflowScrolling: 'touch',
+                  }
+                : {}),
+
+            ...(params.withFixedContent
+                ? {
+                      marginLeft: 'auto',
+                      marginRight: 'auto',
+
+                      width: 900,
+                  }
+                : {}),
+
+            ...(params.withPaddedContent
+                ? {
                       paddingLeft: theme.spacing.lg,
                       paddingRight: theme.spacing.lg,
-
-                      overflowY: 'scroll',
                   }
                 : {}),
 
             ...(params.withCenteredContent
                 ? {
-                      marginLeft: 'auto',
-                      marginRight: 'auto',
-                      width: 900,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
                   }
                 : {}),
         },
@@ -81,6 +102,7 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
 type Props = {
     title?: string;
     sidebar?: React.ReactNode;
+    sidebarOpened?: boolean;
     header?: React.ReactNode;
 } & Omit<StyleProps, 'withSidebar' | 'withHeader'>;
 
@@ -88,24 +110,32 @@ const Page: FC<Props> = ({
     title,
     header,
     sidebar,
+    sidebarOpened = true,
 
     withSidebarFooter = false,
     withNavbar = true,
-    withCenteredContent = false,
+    withFixedContent = false,
     withFullHeight = false,
     withFooter = false,
+    withPaddedContent = false,
+    withCenteredContent = false,
 
     children,
 }) => {
-    const { classes } = usePageStyles({
-        withCenteredContent,
-        withFooter,
-        withFullHeight,
-        withHeader: !!header,
-        withNavbar,
-        withSidebar: !!sidebar,
-        withSidebarFooter,
-    });
+    const { classes } = usePageStyles(
+        {
+            withFixedContent,
+            withFooter,
+            withFullHeight: withFullHeight || withPaddedContent,
+            withHeader: !!header,
+            withNavbar,
+            withSidebar: !!sidebar,
+            withSidebarFooter,
+            withPaddedContent,
+            withCenteredContent,
+        },
+        { name: 'Page' },
+    );
 
     return (
         <>
@@ -119,7 +149,7 @@ const Page: FC<Props> = ({
 
             <Box className={classes.root}>
                 {sidebar ? (
-                    <Sidebar>
+                    <Sidebar opened={sidebarOpened}>
                         {sidebar}
                         {withSidebarFooter ? <AboutFooter minimal /> : null}
                     </Sidebar>

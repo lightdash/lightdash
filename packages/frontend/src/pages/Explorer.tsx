@@ -29,6 +29,7 @@ const ExplorerWithUrlParams = memo(() => {
             title={data ? data?.label : 'Tables'}
             sidebar={<ExploreSideBar />}
             withFullHeight
+            withPaddedContent
         >
             <Explorer />
         </Page>

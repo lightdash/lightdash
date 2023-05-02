@@ -44,7 +44,7 @@ const SavedQueries: FC = () => {
     };
 
     return (
-        <Page title="Saved charts" withCenteredContent>
+        <Page title="Saved charts" withFixedContent withPaddedContent>
             <Stack spacing="xl">
                 <Group position="apart">
                     <PageBreadcrumbs

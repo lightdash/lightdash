@@ -121,7 +121,7 @@ const Space: FC = () => {
     ];
 
     return (
-        <Page title={space?.name} withCenteredContent>
+        <Page title={space?.name} withFixedContent>
             <Stack spacing="xl">
                 <Group position="apart">
                     <PageBreadcrumbs

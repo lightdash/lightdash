@@ -26,7 +26,7 @@ const CreateProjectSettings: FC = () => {
     };
 
     return (
-        <Page withCenteredContent>
+        <Page withFixedContent>
             <div
                 style={{
                     display: 'flex',

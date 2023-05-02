@@ -196,6 +196,7 @@ const SqlRunnerPage = () => {
             title="SQL Runner"
             withFullHeight
             withSidebarFooter
+            withPaddedContent
             sidebar={
                 <Stack
                     spacing="xl"
