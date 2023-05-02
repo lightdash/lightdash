@@ -1,5 +1,10 @@
 const restrictedGlobals = require('confusing-browser-globals');
 
+const unusedVarExceptions = {
+    argsIgnorePattern: '^_',
+    destructuredArrayIgnorePattern: '^_',
+};
+
 module.exports = {
     parserOptions: {
         project: './tsconfig.json',
@@ -37,6 +42,17 @@ module.exports = {
     rules: {
         'no-restricted-globals': ['error'].concat(restrictedGlobals),
         'react/prop-types': 'off',
+        'no-unused-vars': ['error', unusedVarExceptions],
+        '@typescript-eslint/no-unused-vars': ['error', unusedVarExceptions],
+        '@typescript-eslint/naming-convention': [
+            'error',
+            {
+                selector: 'variable',
+                format: ['camelCase', 'PascalCase', 'UPPER_CASE'],
+                leadingUnderscore: 'allow',
+            },
+        ],
+
         // TODO: enable these rules once the codebase is fixed
         '@typescript-eslint/ban-ts-comment': 'off',
         '@typescript-eslint/ban-types': 'off',
