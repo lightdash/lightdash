@@ -42,7 +42,11 @@ const optionsToArgs = (options: DbtCompileOptions): string[] =>
         if (value !== undefined && dbtCompileArgs.includes(key)) {
             const argKey = `--${camelToSnakeCase(key)}`;
             if (typeof value !== 'boolean') {
-                return [...acc, argKey, value.toString()];
+                return [
+                    ...acc,
+                    argKey,
+                    Array.isArray(value) ? value.join(' ') : value,
+                ];
             }
             return [...acc, argKey];
         }
