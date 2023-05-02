@@ -11,6 +11,7 @@ export enum ResourceViewItemType {
 
 export type ResourceViewChartItem = {
     type: ResourceViewItemType.CHART;
+    order?: number;
     data: Pick<
         SpaceQuery,
         | 'uuid'
@@ -28,6 +29,7 @@ export type ResourceViewChartItem = {
 
 export type ResourceViewDashboardItem = {
     type: ResourceViewItemType.DASHBOARD;
+    order?: number;
     data: Pick<
         DashboardBasicDetails,
         | 'uuid'
@@ -44,6 +46,7 @@ export type ResourceViewDashboardItem = {
 
 export type ResourceViewSpaceItem = {
     type: ResourceViewItemType.SPACE;
+    order?: number;
     data: Pick<
         Space,
         | 'projectUuid'
