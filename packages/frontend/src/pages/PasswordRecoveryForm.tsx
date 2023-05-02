@@ -33,7 +33,7 @@ export const PasswordRecoveryForm: FC = () => {
         <div>
             {!isSuccess ? (
                 <>
-                    <Title>Forgot your password? 🙈</Title>
+                    <Title>Forgot your password?</Title>
                     <Subtitle>
                         Enter your email address and we’ll send you a password
                         reset link
