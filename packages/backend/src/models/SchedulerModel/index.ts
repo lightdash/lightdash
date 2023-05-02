@@ -438,17 +438,23 @@ export class SchedulerModel {
     }
 
     async logSchedulerJob(log: SchedulerLog): Promise<void> {
-        await this.database(SchedulerLogTableName).insert({
-            task: log.task,
-            scheduler_uuid: log.schedulerUuid,
-            status: log.status,
-            job_id: log.jobId,
-            job_group: log.jobGroup,
-            scheduled_time: log.scheduledTime,
-            target: log.target || null,
-            target_type: log.targetType || null,
-            details: log.details || null,
-        });
+        try {
+            await this.database(SchedulerLogTableName).insert({
+                task: log.task,
+                scheduler_uuid: log.schedulerUuid,
+                status: log.status,
+                job_id: log.jobId,
+                job_group: log.jobGroup,
+                scheduled_time: log.scheduledTime,
+                target: log.target || null,
+                target_type: log.targetType || null,
+                details: log.details || null,
+            });
+        } catch (error) {
+            const FOREIGN_KEY_VIOLATION_ERROR_CODE = '23503';
+
+            if (error.code !== FOREIGN_KEY_VIOLATION_ERROR_CODE) throw error;
+        }
     }
 
     async deleteScheduledLogs(schedulerUuid: string): Promise<void> {
