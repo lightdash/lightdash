@@ -22,7 +22,7 @@ jobs:
           EOF="$(openssl rand -hex 8)"
           echo "report<<$EOF" >> $GITHUB_OUTPUT
           yarn ts-node ./scripts/count-blueprint-imports.ts >> $GITHUB_OUTPUT
-          echo "$EOF" >> $GITHUB_OUPUT
+          echo "$EOF" >> $GITHUB_OUTPUT
         id: generate_report
       - uses: actions/github-script@v3
         with:
