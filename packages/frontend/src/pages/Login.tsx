@@ -175,7 +175,7 @@ const Login: FC = () => {
     );
 
     return (
-        <Page title="Login" withCenteredContent>
+        <Page title="Login" withCenteredContent withNavbar={false}>
             <Stack w={400} mt="4xl">
                 <Image
                     src={LightdashLogo}

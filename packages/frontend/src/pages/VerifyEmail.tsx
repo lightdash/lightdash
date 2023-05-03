@@ -53,7 +53,7 @@ const VerifyEmailPage: FC = () => {
     }
 
     return (
-        <Page title="Verify your email" withCenteredContent>
+        <Page title="Verify your email" withCenteredContent withNavbar={false}>
             <Stack w={400} mt="4xl">
                 <Image
                     src={LightdashLogo}

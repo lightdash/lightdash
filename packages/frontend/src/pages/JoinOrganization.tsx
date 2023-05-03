@@ -77,7 +77,7 @@ const JoinOrganizationPage: FC = () => {
     const disabled = isCreatingOrg || isJoiningOrg;
 
     return (
-        <Page title="Join a workspace" withCenteredContent>
+        <Page title="Join a workspace" withCenteredContent withNavbar={false}>
             {createOrgError ? (
                 <Stack mt="4xl">
                     <NonIdealState

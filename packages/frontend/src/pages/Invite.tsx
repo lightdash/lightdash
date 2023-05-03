@@ -182,7 +182,7 @@ const Invite: FC = () => {
     );
 
     return (
-        <Page title="Register" withCenteredContent>
+        <Page title="Register" withCenteredContent withNavbar={false}>
             <Stack w={400} mt="4xl">
                 <Image
                     src={LightdashLogo}
