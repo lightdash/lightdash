@@ -1,10 +1,10 @@
 FROM gitpod/workspace-full
 
 # postgres
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN sudo apt-get update && sudo apt-get install -y --no-install-recommends \
     postgresql \
     postgresql-contrib \
-    && apt-get clean \
+    && sudo apt-get clean \
     && sudo -u postgres createuser --superuser --createdb --createrole gitpod \
     && sudo -u postgres createdb gitpod
 
