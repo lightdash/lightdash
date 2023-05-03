@@ -562,6 +562,7 @@ export class SavedChartModel {
         try {
             const query = this.database('saved_queries')
                 .select({
+                    uuid: 'saved_queries.saved_query_uuid',
                     name: 'saved_queries.name',
                     description: 'saved_queries.description',
                     spaceUuid: 'spaces.space_uuid',
