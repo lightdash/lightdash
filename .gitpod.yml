@@ -1,4 +1,5 @@
-image: .gitpod.Dockerfile
+image: 
+  file: .gitpod.Dockerfile
 
 tasks:
   - name: Install yarn dependencies
