@@ -7,7 +7,7 @@ import {
 import { Anchor, Button, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconAlertCircle, IconCircleCheck } from '@tabler/icons-react';
-import { FC, useEffect, useState } from 'react';
+import { FC, useCallback, useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from 'react-query';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -52,32 +52,32 @@ const ProfilePanel: FC = () => {
     const [showVerifyEmailModal, setShowVerifyEmailModal] =
         useState<boolean>(false);
 
-    const {
-        isLoading: isUpdateUserLoading,
-        error: updateUserError,
-        mutate: updateUser,
-    } = useMutation<LightdashUser, ApiError, Partial<UpdateUserArgs>>(
-        updateUserQuery,
-        {
-            mutationKey: ['user_update'],
-            onSuccess: async () => {
-                await queryClient.refetchQueries('user');
-                await queryClient.refetchQueries('email_status');
-                showToastSuccess({
-                    title: 'Success! User details were updated.',
+    const { isLoading: isUpdateUserLoading, mutate: updateUser } = useMutation<
+        LightdashUser,
+        ApiError,
+        Partial<UpdateUserArgs>
+    >(updateUserQuery, {
+        mutationKey: ['user_update'],
+        onSuccess: async () => {
+            await queryClient.refetchQueries('user');
+            await queryClient.refetchQueries('email_status');
+            showToastSuccess({
+                title: 'Success! User details were updated.',
+            });
+        },
+        onError: useCallback(
+            (error: ApiError) => {
+                const [title, ...rest] = error.error.message.split('\n');
+                showError({
+                    title,
+                    body: rest.join('\n'),
                 });
             },
-        },
-    );
+            [showError],
+        ),
+    });
 
     useEffect(() => {
-        if (updateUserError) {
-            const [title, ...rest] = updateUserError.error.message.split('\n');
-            showError({
-                title,
-                body: rest.join('\n'),
-            });
-        }
         if (
             sendVerificationEmailError ||
             data?.isVerified ||
@@ -85,13 +85,7 @@ const ProfilePanel: FC = () => {
         ) {
             setShowVerifyEmailModal(false);
         }
-    }, [
-        sendVerificationEmailError,
-        data,
-        updateUserError,
-        showError,
-        isEmailServerConfigured,
-    ]);
+    }, [data?.isVerified, isEmailServerConfigured, sendVerificationEmailError]);
 
     const handleOnSubmit = form.onSubmit(({ firstName, lastName, email }) => {
         if (firstName && lastName && email && validateEmail(email)) {
