@@ -4,7 +4,7 @@ import { Helmet } from 'react-helmet';
 
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
-import AboutFooter from '../../AboutFooter';
+import AboutFooter, { FOOTER_HEIGHT, FOOTER_MARGIN } from '../../AboutFooter';
 import { NAVBAR_HEIGHT } from '../../NavBar';
 import { PAGE_HEADER_HEIGHT } from './PageHeader';
 import Sidebar from './Sidebar';
@@ -57,6 +57,13 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
             paddingBottom: theme.spacing.xl,
 
             width: '100%',
+            minHeight: '100%',
+
+            ...(params.withFooter
+                ? {
+                      minHeight: `calc(100% - ${FOOTER_HEIGHT}px - ${theme.spacing[FOOTER_MARGIN]} - 1)`,
+                  }
+                : {}),
 
             ...(params.withFullHeight
                 ? {
