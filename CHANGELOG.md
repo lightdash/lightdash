@@ -1,3 +1,10 @@
+## [0.530.2](https://github.com/lightdash/lightdash/compare/0.530.1...0.530.2) (2023-05-03)
+
+
+### Bug Fixes
+
+* unused exports git hook ([#5348](https://github.com/lightdash/lightdash/issues/5348)) ([70a4ce6](https://github.com/lightdash/lightdash/commit/70a4ce68c890b1f577a9dcc74751e1832d8a999c))
+
 ## [0.530.1](https://github.com/lightdash/lightdash/compare/0.530.0...0.530.1) (2023-05-03)
 
 
