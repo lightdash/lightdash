@@ -13,8 +13,8 @@ import {
     useAccessToken,
     useDeleteAccessToken,
 } from '../../../hooks/useAccessToken';
+import { EmptyState } from '../../common/EmptyState';
 import MantineIcon from '../../common/MantineIcon';
-import { EmptyState } from '../../Explorer/ResultsCard/ExplorerResultsNonIdealStates';
 import CreateTokenPanel from '../CreateTokenPanel';
 import {
     AccessTokenInfo,
@@ -133,26 +133,22 @@ const AccessTokensPanel: FC = () => {
                     ))}
                 </div>
             ) : (
-                <Box>
-                    <EmptyState
-                        icon={
-                            <MantineIcon
-                                icon={IconKey}
-                                color="gray.6"
-                                stroke={1}
-                                size={64}
-                            />
-                        }
-                        title="No tokens"
-                        description="You haven't generated any tokens yet!, generate your first token"
-                    >
-                        <MantineButton
-                            onClick={() => setCreateInvitesPanel(true)}
-                        >
-                            Generate token
-                        </MantineButton>
-                    </EmptyState>
-                </Box>
+                <EmptyState
+                    icon={
+                        <MantineIcon
+                            icon={IconKey}
+                            color="gray.6"
+                            stroke={1}
+                            size={64}
+                        />
+                    }
+                    title="No tokens"
+                    description="You haven't generated any tokens yet!, generate your first token"
+                >
+                    <MantineButton onClick={() => setCreateInvitesPanel(true)}>
+                        Generate token
+                    </MantineButton>
+                </EmptyState>
             )}
         </Flex>
     );
