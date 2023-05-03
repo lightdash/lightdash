@@ -1,6 +1,25 @@
-import { ApiError, ProjectSavedChartStatus } from '@lightdash/common';
+import {
+    ApiError,
+    OnboardingStatus,
+    ProjectSavedChartStatus,
+} from '@lightdash/common';
 import { useQuery } from 'react-query';
 import { lightdashApi } from '../api';
+
+const getOnboardingStatus = async () =>
+    lightdashApi<OnboardingStatus>({
+        url: `/org/onboardingStatus`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useOnboardingStatus = () =>
+    useQuery<OnboardingStatus, ApiError>({
+        queryKey: ['onboarding-status'],
+        queryFn: getOnboardingStatus,
+        retry: false,
+        refetchOnMount: true,
+    });
 
 const getProjectSavedChartStatus = async (projectUuid: string) =>
     lightdashApi<ProjectSavedChartStatus>({
