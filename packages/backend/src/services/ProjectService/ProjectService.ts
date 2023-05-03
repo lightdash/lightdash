@@ -373,7 +373,7 @@ export class ProjectService {
 
         if (savedProject.dbtConnection.type !== DbtProjectType.NONE) {
             await schedulerClient.testAndCompileProject({
-                userUuid: user.userUuid,
+                createdByUserUuid: user.userUuid,
                 projectUuid,
                 requestMethod: method,
                 jobUuid: job.jobUuid,
