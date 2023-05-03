@@ -25,7 +25,7 @@ import { useDashboards } from '../../hooks/dashboard/useDashboards';
 import { useSavedQuery } from '../../hooks/useSavedQuery';
 import {
     useCreateMutation as useSpaceCreateMutation,
-    useSpaces,
+    useSpaceSummaries,
 } from '../../hooks/useSpaces';
 
 interface AddTilesToDashboardModalProps {
@@ -69,7 +69,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
             },
         },
     );
-    const { data: spaces, isLoading: isLoadingSpaces } = useSpaces(
+    const { data: spaces, isLoading: isLoadingSpaces } = useSpaceSummaries(
         projectUuid,
         {
             onSuccess: (data) => {

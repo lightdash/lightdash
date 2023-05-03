@@ -50,6 +50,7 @@ import {
     RequestMethod,
     ResultRow,
     SessionUser,
+    SpaceSummary,
     SummaryExplore,
     TablesConfiguration,
     TableSelectionType,
@@ -1749,5 +1750,29 @@ export class ProjectService {
             spaceUuids: allowedSpaces.map((s) => s.uuid),
         });
         return charts;
+    }
+
+    async getSpaces(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<SpaceSummary[]> {
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const spaces = await this.spaceModel.find({ projectUuid });
+        const allowedSpaces = spaces.filter(
+            (space) =>
+                space.projectUuid === projectUuid &&
+                (!space.isPrivate || space.access.includes(user.userUuid)),
+        );
+
+        return allowedSpaces;
     }
 }
