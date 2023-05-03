@@ -1,7 +1,7 @@
 import { ApiError } from '@lightdash/common';
 import { Button, Flex, PasswordInput, Stack } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { FC, useEffect } from 'react';
+import { FC, useCallback } from 'react';
 import { useMutation } from 'react-query';
 import { lightdashApi } from '../../../api';
 import useUserHasPassword from '../../../hooks/user/usePassword';
@@ -27,11 +27,18 @@ const PasswordPanel: FC = () => {
         },
     });
 
-    const {
-        isLoading,
-        error,
-        mutate: updateUserPassword,
-    } = useMutation<
+    const onError = useCallback(
+        (error) => {
+            const [title, ...rest] = error.error.message.split('\n');
+            showError({
+                title,
+                body: rest.join('\n'),
+            });
+        },
+        [showError],
+    );
+
+    const { isLoading, mutate: updateUserPassword } = useMutation<
         undefined,
         ApiError,
         { password: string; newPassword: string }
@@ -40,17 +47,8 @@ const PasswordPanel: FC = () => {
         onSuccess: () => {
             window.location.href = '/login';
         },
+        onError,
     });
-
-    useEffect(() => {
-        if (error) {
-            const [title, ...rest] = error.error.message.split('\n');
-            showError({
-                title,
-                body: rest.join('\n'),
-            });
-        }
-    }, [error, showError]);
 
     const onSubmit = form.onSubmit(({ currentPassword, newPassword }) => {
         updateUserPassword({
