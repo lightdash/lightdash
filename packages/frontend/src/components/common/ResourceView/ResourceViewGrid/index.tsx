@@ -86,32 +86,33 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
         // Mantine use-list hook could be useful here
         // if (!result.destination) return;
         // if (result.destination.index === result.source.index) return;
-        const newDraggableItems = draggableItems.find(
-            (item) => item.name === result.source.droppableId,
-        );
-        const draggedItem = newDraggableItems?.items.splice(
-            result.source.index,
-            1,
-        );
-        if (!draggedItem) return;
-        newDraggableItems?.items.splice(
-            result.destination.index,
-            0,
-            ...draggedItem,
-        );
-        setDraggableItems(
-            produce(draggableItems, (draft) => {
-                const updatedDraggableItems = draft.find(
-                    (item) => item.name === result.source.droppableId,
-                );
-                if (updatedDraggableItems) {
-                    updatedDraggableItems.items =
-                        newDraggableItems?.items || [];
-                }
-            }),
-        );
 
-        console.log({ newDraggableItems }, { draggableItems });
+        const newState = produce(draggableItems, (draft) => {
+            const newDraggableItems = draft.find(
+                (item) => item.name === result.source.droppableId,
+            );
+
+            const draggedItem = newDraggableItems?.items.splice(
+                result.source.index,
+                1,
+            );
+            if (!draggedItem) return;
+            newDraggableItems?.items.splice(
+                result.destination.index,
+                0,
+                ...draggedItem,
+            );
+
+            const updatedDraggableItems = draft.find(
+                (item) => item.name === result.source.droppableId,
+            );
+            if (updatedDraggableItems) {
+                updatedDraggableItems.items = newDraggableItems?.items || [];
+            }
+        });
+
+        setDraggableItems(newState);
+
         //
         // const newDraggableItems = Array.from(draggableItems);
         // const [draggedItem] = newDraggableItems.splice(result.source.index, 1);
