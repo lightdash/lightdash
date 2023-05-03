@@ -139,7 +139,7 @@ const AccessTokensPanel: FC = () => {
                             icon={IconKey}
                             color="gray.6"
                             stroke={1}
-                            size={64}
+                            size="5xl"
                         />
                     }
                     title="No tokens"
