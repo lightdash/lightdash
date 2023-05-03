@@ -4,8 +4,8 @@ FROM gitpod/workspace-full
 RUN apt-get update && apt-get install -y --no-install-recommends \
     postgresql \
     postgresql-contrib \
-    && apt-get clean
-    && sudo -u postgres createuser --superuser --createdb --createrole gitpod
+    && apt-get clean \
+    && sudo -u postgres createuser --superuser --createdb --createrole gitpod \
     && sudo -u postgres createdb gitpod
 
 # dbt
