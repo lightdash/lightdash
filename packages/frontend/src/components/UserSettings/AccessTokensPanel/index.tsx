@@ -112,7 +112,7 @@ const AccessTokensPanel: FC = () => {
     return (
         <Flex
             h="100%"
-            dir="column"
+            direction="column"
             justify={hasAvailableTokens ? 'auto' : 'center'}
             align={hasAvailableTokens ? 'auto' : 'center'}
         >
