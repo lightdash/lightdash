@@ -1,4 +1,5 @@
 import { FC } from 'react';
+
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import { StyledSwitch } from './ShowTotalsToggle.styles';
 
@@ -15,7 +16,7 @@ const ShowTotalsToggle: FC = () => {
             label="Show column total"
             alignIndicator="right"
             checked={showColumnCalculation}
-            onChange={(e) => {
+            onChange={() => {
                 setShowColumnCalculation(!showColumnCalculation);
             }}
         />

@@ -66,9 +66,9 @@ export const isOnlyNumbers: FieldValidator<string> = (fieldName) => (value) =>
         : undefined;
 
 export const isValidGithubToken: FieldValidator<string> =
-    (fieldName) => (value) => {
+    (_fieldName) => (value) => {
         if (value) {
-            const [isValid, error] = validateGithubToken(value);
+            const [_isValid, error] = validateGithubToken(value);
             return error;
         }
     };

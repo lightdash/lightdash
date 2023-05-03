@@ -32,7 +32,7 @@ interface IconBoxProps extends MantineIconProps {
 const IconBox: FC<IconBoxProps> = ({
     color,
     icon,
-    size = 'xl',
+    size = 'lg',
     ...mantineIconProps
 }) => (
     <Paper
@@ -50,7 +50,7 @@ const IconBox: FC<IconBoxProps> = ({
             color={color}
             fill={color}
             fillOpacity={0.1}
-            size="lg"
+            size={size}
             {...mantineIconProps}
         />
     </Paper>

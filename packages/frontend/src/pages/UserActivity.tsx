@@ -8,7 +8,7 @@ import { IconUsers } from '@tabler/icons-react';
 import EChartsReact from 'echarts-for-react';
 import { FC } from 'react';
 import { Helmet } from 'react-helmet';
-import { useHistory, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
@@ -31,7 +31,7 @@ import {
 const showTableBodyWithUsers = (key: string, userList: UserWithCount[]) => {
     return (
         <tbody>
-            {userList.map((user, index) => {
+            {userList.map((user) => {
                 return (
                     <tr key={`${key}-${user.userUuid}`}>
                         <td>{user.firstName} </td>
@@ -125,7 +125,6 @@ const chartWeeklyAverageQueries = (
 });
 
 const UserActivity: FC = () => {
-    const history = useHistory();
     const params = useParams<{ projectUuid: string }>();
     const { data: project } = useProject(params.projectUuid);
     const { user: sessionUser } = useApp();

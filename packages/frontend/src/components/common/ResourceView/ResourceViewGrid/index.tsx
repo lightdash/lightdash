@@ -1,8 +1,9 @@
 import { assertUnreachable, ResourceViewItemType } from '@lightdash/common';
 import { Anchor, SimpleGrid, Stack, Text } from '@mantine/core';
-import { FC, useMemo, useState } from 'react';
+import { FC, useMemo } from 'react';
 import { DragDropContext, Draggable, Droppable } from 'react-beautiful-dnd';
 import { Link, useParams } from 'react-router-dom';
+
 import { ResourceViewCommonProps } from '..';
 import { ResourceViewItemActionState } from '../ResourceActionHandlers';
 import { getResourceName, getResourceUrl } from '../resourceUtils';
@@ -47,9 +48,9 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
             .filter((group) => group.items.length > 0);
     }, [groups, items]);
 
-    const [draggableItems, setDraggableItems] = useState(
-        groupedItems.map((g) => g.items),
-    );
+    // const [draggableItems, setDraggableItems] = useState(
+    //     groupedItems.map((g) => g.items),
+    // );
     const handleOnDragEnd = (result: any) => {
         // here we can implement the order logic with a mutation hook
         // Mantine use-list hook could be useful here

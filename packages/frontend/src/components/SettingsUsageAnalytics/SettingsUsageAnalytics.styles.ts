@@ -1,14 +1,4 @@
-import {
-    Button,
-    Card,
-    Collapse,
-    Colors,
-    H3,
-    HTMLSelect,
-    Icon,
-    Tag,
-} from '@blueprintjs/core';
-import { IconLayoutDashboard } from '@tabler/icons-react';
+import { Card, H3 } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
 
 export const Header = styled.div`

@@ -14,6 +14,7 @@ import {
 } from '@lightdash/common';
 import { FC, useCallback, useState } from 'react';
 import { v4 as uuid4 } from 'uuid';
+
 import {
     appendNewTilesToBottom,
     useCreateMutation,
@@ -171,6 +172,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
         isCreatingNewDashboard,
         isCreatingNewSpace,
         onClose,
+        newDashboardDescription,
     ]);
 
     if (isLoadingDashboards || !dashboards || isLoadingSpaces || !spaces) {

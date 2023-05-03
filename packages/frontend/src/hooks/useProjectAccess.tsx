@@ -75,7 +75,7 @@ export const useCreateProjectAccessMutation = (projectUuid: string) => {
         (data) => createProjectAccessQuery(projectUuid, data),
         {
             mutationKey: ['project_access_create'],
-            onSuccess: async (data) => {
+            onSuccess: async () => {
                 await queryClient.refetchQueries(['project_access_users']);
                 showToastSuccess({
                     title: 'Created new project access',
@@ -112,7 +112,7 @@ export const useUpdateProjectAccessMutation = (projectUuid: string) => {
         UpdateProjectMember & { userUuid: string }
     >((data) => updateProjectAccessQuery(projectUuid, data.userUuid, data), {
         mutationKey: ['project_access_update'],
-        onSuccess: async (data) => {
+        onSuccess: async () => {
             await queryClient.refetchQueries(['project_access_users']);
             showToastSuccess({
                 title: 'Updated project access role',

@@ -1,4 +1,4 @@
-import { Button, Colors } from '@blueprintjs/core';
+import { Colors } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
 
 export const RadioDescription = styled.p`

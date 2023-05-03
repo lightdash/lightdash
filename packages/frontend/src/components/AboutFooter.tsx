@@ -11,8 +11,9 @@ import {
     Text,
     Title,
 } from '@mantine/core';
-import { IconBook, IconInfoCircle, IconShare3 } from '@tabler/icons-react';
-import React, { FC, useState } from 'react';
+import { IconBook, IconInfoCircle } from '@tabler/icons-react';
+import { FC, useState } from 'react';
+
 import { useApp } from '../providers/AppProvider';
 import { TrackPage, TrackSection } from '../providers/TrackingProvider';
 import { ReactComponent as Logo } from '../svgs/grey-icon-logo.svg';

@@ -8,13 +8,12 @@ import { Button, Center, Group, Stack, Tooltip } from '@mantine/core';
 import { IconLayoutDashboard, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Helmet } from 'react-helmet';
-import { Redirect, useHistory, useParams } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
 import LoadingState from '../components/common/LoadingState';
 import DashboardCreateModal from '../components/common/modal/DashboardCreateModal';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ResourceView from '../components/common/ResourceView';
 import { SortDirection } from '../components/common/ResourceView/ResourceViewList';
-import { useCreateMutation } from '../hooks/dashboard/useDashboard';
 import { useDashboards } from '../hooks/dashboard/useDashboards';
 import { useSpaces } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
@@ -27,13 +26,6 @@ const SavedDashboards = () => {
     const { isLoading, data: dashboards = [] } = useDashboards(projectUuid);
     const [isCreateDashboardOpen, setIsCreateDashboardOpen] =
         useState<boolean>(false);
-
-    const {
-        isLoading: isCreatingDashboard,
-        isSuccess: hasCreatedDashboard,
-        mutate: createDashboard,
-        data: newDashboard,
-    } = useCreateMutation(projectUuid);
 
     const { user, health } = useApp();
     const isDemo = health.data?.mode === LightdashMode.DEMO;
@@ -50,15 +42,6 @@ const SavedDashboards = () => {
 
     if (isLoading || isLoadingSpaces) {
         return <LoadingState title="Loading dashboards" />;
-    }
-
-    if (hasCreatedDashboard && newDashboard) {
-        return (
-            <Redirect
-                push
-                to={`/projects/${projectUuid}/dashboards/${newDashboard.uuid}`}
-            />
-        );
     }
 
     const handleCreateDashboard = () => {
@@ -87,7 +70,6 @@ const SavedDashboards = () => {
                         !isDemo && (
                             <Button
                                 leftIcon={<IconPlus size={18} />}
-                                loading={isCreatingDashboard}
                                 onClick={handleCreateDashboard}
                                 disabled={hasNoSpaces}
                             >
@@ -131,7 +113,6 @@ const SavedDashboards = () => {
                                     <div>
                                         <Button
                                             leftIcon={<IconPlus size={18} />}
-                                            loading={isCreatingDashboard}
                                             onClick={handleCreateDashboard}
                                             disabled={hasNoSpaces}
                                         >
@@ -142,7 +123,6 @@ const SavedDashboards = () => {
                             ) : userCanManageDashboards && !isDemo ? (
                                 <Button
                                     leftIcon={<IconPlus size={18} />}
-                                    loading={isCreatingDashboard}
                                     onClick={handleCreateDashboard}
                                     disabled={hasNoSpaces}
                                 >

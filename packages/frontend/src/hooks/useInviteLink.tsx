@@ -1,9 +1,4 @@
-import {
-    ApiError,
-    CreateInviteLink,
-    formatTimestamp,
-    InviteLink,
-} from '@lightdash/common';
+import { ApiError, CreateInviteLink, InviteLink } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
@@ -69,7 +64,7 @@ export const useCreateInviteLinkMutation = () => {
                 subtitle: rest.join('\n'),
             });
         },
-        onSuccess: async (data) => {
+        onSuccess: async () => {
             await queryClient.invalidateQueries(['onboarding-status']);
             await queryClient.refetchQueries(['organization_users']);
             showToastSuccess({

@@ -1,10 +1,5 @@
 import { NonIdealState } from '@blueprintjs/core';
-import {
-    AuthorizationError,
-    ForbiddenError,
-    LightdashError,
-    NotExistsError,
-} from '@lightdash/common';
+import { LightdashError } from '@lightdash/common';
 import { ComponentProps, FC, useMemo } from 'react';
 import styled from 'styled-components';
 

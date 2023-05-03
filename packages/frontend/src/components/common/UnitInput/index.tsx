@@ -32,7 +32,6 @@ const UnitInput = forwardRef<HTMLInputElement, UnitInputProps>(
             units,
             value: valueWithUnit,
             defaultValue: defaultValueWithUnit,
-            fallbackValue,
             onChange,
             ...rest
         },

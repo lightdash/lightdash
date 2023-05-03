@@ -1,5 +1,6 @@
 import { Alert, Intent, NonIdealState, Spinner } from '@blueprintjs/core';
 import {
+    assertUnreachable,
     Dashboard as IDashboard,
     DashboardTile,
     DashboardTileTypes,
@@ -15,6 +16,7 @@ import React, {
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
 import { Helmet } from 'react-helmet';
 import { useHistory, useParams } from 'react-router-dom';
+
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
@@ -118,8 +120,8 @@ const GridTile: FC<
         case DashboardTileTypes.LOOM:
             return <LoomTile {...props} tile={tile} />;
         default: {
-            const never: never = tile;
-            throw new Error(
+            return assertUnreachable(
+                tile,
                 `Dashboard tile type "${props.tile.type}" not recognised`,
             );
         }
@@ -202,6 +204,7 @@ const Dashboard: FC = () => {
         reset,
         setDashboardTemporaryFilters,
         setHaveFiltersChanged,
+        setHaveTilesChanged,
     ]);
 
     const handleUpdateTiles = useCallback(
@@ -230,7 +233,7 @@ const Dashboard: FC = () => {
 
             setHaveTilesChanged(true);
         },
-        [setDashboardTiles],
+        [setDashboardTiles, setHaveTilesChanged],
     );
 
     const handleAddTiles = useCallback(
@@ -241,7 +244,7 @@ const Dashboard: FC = () => {
 
             setHaveTilesChanged(true);
         },
-        [setDashboardTiles],
+        [setDashboardTiles, setHaveTilesChanged],
     );
 
     const handleDeleteTile = useCallback(
@@ -254,7 +257,7 @@ const Dashboard: FC = () => {
 
             setHaveTilesChanged(true);
         },
-        [setDashboardTiles],
+        [setDashboardTiles, setHaveTilesChanged],
     );
 
     const handleEditTiles = useCallback(
@@ -266,7 +269,7 @@ const Dashboard: FC = () => {
             );
             setHaveTilesChanged(true);
         },
-        [setDashboardTiles],
+        [setDashboardTiles, setHaveTilesChanged],
     );
 
     const handleCancel = useCallback(() => {
@@ -285,6 +288,7 @@ const Dashboard: FC = () => {
         setDashboardTiles,
         setHaveFiltersChanged,
         setDashboardFilters,
+        setHaveTilesChanged,
     ]);
 
     const handleMoveDashboardToSpace = (spaceUuid: string) => {

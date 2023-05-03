@@ -1,11 +1,12 @@
 import {
     ApiQueryResults,
+    assertUnreachable,
     ChartConfig,
     ChartType,
     Explore,
 } from '@lightdash/common';
 import EChartsReact from 'echarts-for-react';
-import React, {
+import {
     createContext,
     FC,
     RefObject,
@@ -16,6 +17,7 @@ import React, {
     useRef,
     useState,
 } from 'react';
+
 import useCartesianChartConfig from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { EChartSeries } from '../../hooks/echarts/useEcharts';
 import useTableConfig from '../../hooks/tableVisualization/useTableConfig';
@@ -175,8 +177,10 @@ export const VisualizationProvider: FC<Props> = ({
                 validConfig = validTableConfig;
                 break;
             default:
-                const never: never = chartType;
-                throw new Error(`Unexpected chart type: ${chartType}`);
+                assertUnreachable(
+                    chartType,
+                    `Unexpected chart type: ${chartType}`,
+                );
         }
         onChartConfigChange?.(validConfig);
     }, [

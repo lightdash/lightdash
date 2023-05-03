@@ -2,7 +2,8 @@ import { subject } from '@casl/ability';
 import { PinnedItems, ResourceViewItemType } from '@lightdash/common';
 import { Card, Group, Text } from '@mantine/core';
 import { IconPin } from '@tabler/icons-react';
-import React, { FC, useMemo } from 'react';
+import { FC } from 'react';
+
 import { useApp } from '../../providers/AppProvider';
 import MantineIcon from '../common/MantineIcon';
 import MantineLinkButton from '../common/MantineLinkButton';

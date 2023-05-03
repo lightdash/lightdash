@@ -1,5 +1,6 @@
-import { ApiError, ApiPinnedItems, PinnedItems } from '@lightdash/common';
-import { useQuery, useQueryClient } from 'react-query';
+import { ApiError, PinnedItems } from '@lightdash/common';
+import { useQuery } from 'react-query';
+
 import { lightdashApi } from '../../api';
 
 const getPinnedItems = async (projectUuid: string, pinnedlistUuid: string) =>

@@ -2,6 +2,7 @@ import { Intent, Spinner } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { ECHARTS_DEFAULT_COLORS } from '@lightdash/common';
 import { FC, useCallback, useEffect, useState } from 'react';
+
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useOrganizationUpdateMutation } from '../../../hooks/organization/useOrganizationUpdateMutation';
 import { InputWrapper } from '../../ChartConfigPanel/ChartConfigPanel.styles';
@@ -24,7 +25,11 @@ const AppearancePanel: FC = () => {
 
     const update = useCallback(() => {
         if (data) {
-            const { needsProject, organizationUuid, ...params } = data;
+            const {
+                needsProject: _needsProject,
+                organizationUuid: _organizationUuid,
+                ...params
+            } = data;
             updateMutation.mutate({
                 ...params,
                 chartColors: colors,
