@@ -41,7 +41,7 @@ const TableTreeWrapper: FC<TableTreeWrapperProps> = ({
         <NavLink
             opened={isOpen}
             onChange={toggle}
-            icon={<MantineIcon icon={IconTable} size="lg" color="gray" />}
+            icon={<MantineIcon icon={IconTable} size="lg" color="gray.7" />}
             label={
                 <Tooltip
                     withArrow

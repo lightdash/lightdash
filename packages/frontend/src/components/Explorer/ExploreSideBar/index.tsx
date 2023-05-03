@@ -76,7 +76,7 @@ const BasePanel = () => {
 
     if (exploresResult.data) {
         return (
-            <Stack>
+            <>
                 <PageBreadcrumbs
                     size="md"
                     items={[{ title: 'Tables', active: true }]}
@@ -96,7 +96,7 @@ const BasePanel = () => {
                     onChange={(e) => setSearch(e.target.value)}
                 />
 
-                <Stack spacing="xxs">
+                <Stack spacing="xxs" sx={{ overflow: 'scroll' }}>
                     {filteredTables
                         .sort((a, b) => a.label.localeCompare(b.label))
                         .map((explore) => (
@@ -112,7 +112,7 @@ const BasePanel = () => {
                             />
                         ))}
                 </Stack>
-            </Stack>
+            </>
         );
     }
 
