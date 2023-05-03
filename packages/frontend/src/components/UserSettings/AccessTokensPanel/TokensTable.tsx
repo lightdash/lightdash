@@ -1,42 +1,12 @@
 import { Button, Classes, Dialog } from '@blueprintjs/core';
 import { ApiPersonalAccessTokenResponse, formatDate } from '@lightdash/common';
-import {
-    Button as MantineButton,
-    createStyles,
-    Paper,
-    Table,
-} from '@mantine/core';
+import { Button as MantineButton, Paper, Table } from '@mantine/core';
 import { FC, useState } from 'react';
+import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import {
     useAccessToken,
     useDeleteAccessToken,
 } from '../../../hooks/useAccessToken';
-
-const useTableStyles = createStyles((theme) => ({
-    root: {
-        '& thead tr': {
-            backgroundColor: theme.colors.gray[0],
-        },
-
-        '& thead tr th': {
-            color: theme.colors.gray[6],
-            fontWeight: 600,
-        },
-
-        '& thead tr th, & tbody tr td': {
-            padding: '12px 20px',
-        },
-
-        '& tr td:last-child': {
-            textAlign: 'right',
-        },
-
-        '&[data-hover] tbody tr': theme.fn.hover({
-            cursor: 'pointer',
-            backgroundColor: theme.fn.rgba(theme.colors.gray[0], 0.5),
-        }),
-    },
-}));
 
 const TokenItem: FC<{
     token: ApiPersonalAccessTokenResponse;
@@ -102,7 +72,11 @@ const TokenItem: FC<{
 
 export const TokensTable = () => {
     const { data } = useAccessToken();
-    const { classes } = useTableStyles();
+    const { classes } = useTableStyles({
+        '& tr td:last-child': {
+            textAlign: 'right',
+        },
+    })();
     return (
         <Paper withBorder>
             <Table className={classes.root} highlightOnHover>
