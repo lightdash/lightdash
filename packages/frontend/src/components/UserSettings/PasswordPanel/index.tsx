@@ -27,17 +27,6 @@ const PasswordPanel: FC = () => {
         },
     });
 
-    const onError = useCallback(
-        (error) => {
-            const [title, ...rest] = error.error.message.split('\n');
-            showError({
-                title,
-                body: rest.join('\n'),
-            });
-        },
-        [showError],
-    );
-
     const { isLoading, mutate: updateUserPassword } = useMutation<
         undefined,
         ApiError,
@@ -47,10 +36,19 @@ const PasswordPanel: FC = () => {
         onSuccess: () => {
             window.location.href = '/login';
         },
-        onError,
+        onError: useCallback(
+            (error) => {
+                const [title, ...rest] = error.error.message.split('\n');
+                showError({
+                    title,
+                    body: rest.join('\n'),
+                });
+            },
+            [showError],
+        ),
     });
 
-    const onSubmit = form.onSubmit(({ currentPassword, newPassword }) => {
+    const handleOnSubmit = form.onSubmit(({ currentPassword, newPassword }) => {
         updateUserPassword({
             password: hasPassword ? currentPassword : '',
             newPassword,
@@ -58,7 +56,7 @@ const PasswordPanel: FC = () => {
     });
 
     return (
-        <form onSubmit={onSubmit}>
+        <form onSubmit={handleOnSubmit}>
             <Stack mt="md">
                 {hasPassword && (
                     <PasswordInput
