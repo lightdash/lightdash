@@ -109,6 +109,20 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
             if (updatedDraggableItems) {
                 updatedDraggableItems.items = newDraggableItems?.items || [];
             }
+
+            //
+            // newDraggableItems?.items.map((item, index) => {
+            //     return { type: item.type, uuid: item.data.uuid, order: index };
+            // })
+            // updateOrder < mutation
+            // updateOrder(
+            //   [
+            //     { type: 'dashboard', uuid: '1', order: 0 },
+            //     { type: 'chart', uuid: '2', order: 1 },
+            //     { type: 'dashboard', uuid: '3', order: 2 },
+            //   ]
+            // )
+            //
         });
 
         setDraggableItems(newState);
