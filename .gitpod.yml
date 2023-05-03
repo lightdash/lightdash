@@ -1,0 +1,54 @@
+image: .gitpod.Dockerfile
+
+tasks:
+  - name: Install yarn dependencies
+    init: |
+      yarn
+      yarn common-build
+      yarn warehouses-build
+      gp sync-done yarnbuild
+
+  - name: Start postgresql
+    init: |
+      sudo systemctl start postgresql.service
+      gp sync-done startdb
+    command: psql
+
+  - name: Migrate project
+    init: |
+      gp sync-await yarnbuild
+      gp sync-await startdb
+      scripts/reset-db.sh
+      gp sync-done migration
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: gitpod
+      PGPASSWORD: ""
+      PGDATABASE: gitpod
+      LIGHTDASH_SECRET: notverysecret
+
+  - name: Run dev servers
+    init: |
+      gp sync-await migration
+    command: yarn dev
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: gitpod
+      PGPASSWORD: ""
+      PGDATABASE: gitpod
+      NODE_ENV: development
+      LIGHTDASH_SECRET: notverysecret
+      SITE_URL: http://localhost:3000
+
+ports:
+  - name: Frontend
+    port: 3000
+    onOpen: open-browser
+    visibility: private
+
+  - name: Backend API
+    port: 8080
+    onOpen: notify
+    visibility: private
