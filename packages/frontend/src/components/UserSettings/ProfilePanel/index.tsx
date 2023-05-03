@@ -189,8 +189,8 @@ const ProfilePanel: FC = () => {
 
                 <Button
                     type="submit"
+                    display="block"
                     ml="auto"
-                    display="flex"
                     mt="md"
                     loading={isUpdateUserLoading}
                     data-cy="update-profile-settings"
