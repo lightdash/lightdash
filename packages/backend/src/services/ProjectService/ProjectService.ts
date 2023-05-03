@@ -1176,7 +1176,7 @@ export class ProjectService {
         await this.jobModel.create(job);
 
         await schedulerClient.compileProject({
-            userUuid: user.userUuid,
+            createdByUserUuid: user.userUuid,
             projectUuid,
             requestMethod,
             jobUuid: job.jobUuid,
