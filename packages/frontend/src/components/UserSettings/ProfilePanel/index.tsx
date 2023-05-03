@@ -144,6 +144,12 @@ const ProfilePanel: FC = () => {
                     type="email"
                     required
                     disabled={isUpdateUserLoading}
+                    inputWrapperOrder={[
+                        'label',
+                        'input',
+                        'error',
+                        'description',
+                    ]}
                     {...form.getInputProps('email')}
                     data-cy="email-input"
                     rightSection={
@@ -166,44 +172,45 @@ const ProfilePanel: FC = () => {
                             />
                         )
                     }
+                    descriptionProps={{ mt: 'xs' }}
+                    description={
+                        isEmailServerConfigured && !data?.isVerified ? (
+                            <Text color="dimmed">
+                                This email has not been verified.{' '}
+                                <Anchor
+                                    component="span"
+                                    onClick={() => {
+                                        if (!data?.otp) {
+                                            sendVerificationEmail();
+                                        }
+                                        setShowVerifyEmailModal(true);
+                                    }}
+                                >
+                                    Click here to verify it
+                                </Anchor>
+                                .
+                            </Text>
+                        ) : null
+                    }
+                />
+
+                <Button
+                    type="submit"
+                    display="block"
+                    ml="auto"
+                    loading={isUpdateUserLoading}
+                    data-cy="update-profile-settings"
+                >
+                    Update
+                </Button>
+                <VerifyEmailModal
+                    opened={showVerifyEmailModal}
+                    onClose={() => {
+                        setShowVerifyEmailModal(false);
+                    }}
+                    isLoading={statusLoading || emailLoading}
                 />
             </Stack>
-
-            {isEmailServerConfigured && !data?.isVerified ? (
-                <Text color="dimmed" mt="sm">
-                    This email has not been verified.{' '}
-                    <Anchor
-                        component="span"
-                        onClick={() => {
-                            if (!data?.otp) {
-                                sendVerificationEmail();
-                            }
-                            setShowVerifyEmailModal(true);
-                        }}
-                    >
-                        Click here to verify it
-                    </Anchor>
-                    .
-                </Text>
-            ) : null}
-
-            <Button
-                type="submit"
-                display="block"
-                ml="auto"
-                mt="md"
-                loading={isUpdateUserLoading}
-                data-cy="update-profile-settings"
-            >
-                Update
-            </Button>
-            <VerifyEmailModal
-                opened={showVerifyEmailModal}
-                onClose={() => {
-                    setShowVerifyEmailModal(false);
-                }}
-                isLoading={statusLoading || emailLoading}
-            />
         </form>
     );
 };
