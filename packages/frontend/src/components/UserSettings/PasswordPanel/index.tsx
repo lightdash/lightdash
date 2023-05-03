@@ -1,5 +1,5 @@
 import { ApiError } from '@lightdash/common';
-import { Box, Button, Flex, PasswordInput, Stack } from '@mantine/core';
+import { Button, PasswordInput, Stack } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { FC, useCallback } from 'react';
 import { useMutation } from 'react-query';
