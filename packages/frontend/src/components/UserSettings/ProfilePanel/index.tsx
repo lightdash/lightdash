@@ -4,7 +4,7 @@ import {
     UpdateUserArgs,
     validateEmail,
 } from '@lightdash/common';
-import { Anchor, Button, Flex, Text, TextInput, Tooltip } from '@mantine/core';
+import { Anchor, Button, Text, TextInput, Tooltip } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconAlertCircle, IconCircleCheck } from '@tabler/icons-react';
 import { FC, useEffect, useState } from 'react';
@@ -113,99 +113,97 @@ const ProfilePanel: FC = () => {
     });
 
     return (
-        <Flex dir="column">
-            <form onSubmit={onSubmit} style={{ width: '100%' }}>
-                <TextInput
-                    id="first-name-input"
-                    placeholder="First name"
-                    label="First name"
-                    type="text"
-                    required
-                    disabled={isUpdateUserLoading}
-                    data-cy="first-name-input"
-                    {...form.getInputProps('firstName')}
-                />
+        <form onSubmit={onSubmit}>
+            <TextInput
+                id="first-name-input"
+                placeholder="First name"
+                label="First name"
+                type="text"
+                required
+                disabled={isUpdateUserLoading}
+                data-cy="first-name-input"
+                {...form.getInputProps('firstName')}
+            />
 
-                <TextInput
-                    id="last-name-input"
-                    placeholder="Last name"
-                    label="Last name"
-                    type="text"
-                    required
-                    disabled={isUpdateUserLoading}
-                    data-cy="last-name-input"
-                    mt="md"
-                    {...form.getInputProps('lastName')}
-                />
+            <TextInput
+                id="last-name-input"
+                placeholder="Last name"
+                label="Last name"
+                type="text"
+                required
+                disabled={isUpdateUserLoading}
+                data-cy="last-name-input"
+                mt="md"
+                {...form.getInputProps('lastName')}
+            />
 
-                <TextInput
-                    id="email-input"
-                    placeholder="Email"
-                    label="Email"
-                    type="email"
-                    required
-                    disabled={isUpdateUserLoading}
-                    {...form.getInputProps('email')}
-                    data-cy="email-input"
-                    mt="md"
-                    rightSection={
-                        isEmailServerConfigured && data?.isVerified ? (
-                            <Tooltip
-                                label="This e-mail has been verified"
-                                withArrow
-                            >
-                                <MantineIcon
-                                    size="lg"
-                                    icon={IconCircleCheck}
-                                    color="green.6"
-                                />
-                            </Tooltip>
-                        ) : (
+            <TextInput
+                id="email-input"
+                placeholder="Email"
+                label="Email"
+                type="email"
+                required
+                disabled={isUpdateUserLoading}
+                {...form.getInputProps('email')}
+                data-cy="email-input"
+                mt="md"
+                rightSection={
+                    isEmailServerConfigured && data?.isVerified ? (
+                        <Tooltip
+                            label="This e-mail has been verified"
+                            withArrow
+                        >
                             <MantineIcon
                                 size="lg"
-                                icon={IconAlertCircle}
-                                color="gray.6"
+                                icon={IconCircleCheck}
+                                color="green.6"
                             />
-                        )
-                    }
-                />
-                {isEmailServerConfigured && !data?.isVerified ? (
-                    <Text color="dimmed" mt="sm">
-                        This email has not been verified.{' '}
-                        <Anchor
-                            component="span"
-                            onClick={() => {
-                                if (!data?.otp) {
-                                    sendVerificationEmail();
-                                }
-                                setShowVerifyEmailModal(true);
-                            }}
-                        >
-                            Click here to verify it
-                        </Anchor>
-                        .
-                    </Text>
-                ) : null}
+                        </Tooltip>
+                    ) : (
+                        <MantineIcon
+                            size="lg"
+                            icon={IconAlertCircle}
+                            color="gray.6"
+                        />
+                    )
+                }
+            />
+            {isEmailServerConfigured && !data?.isVerified ? (
+                <Text color="dimmed" mt="sm">
+                    This email has not been verified.{' '}
+                    <Anchor
+                        component="span"
+                        onClick={() => {
+                            if (!data?.otp) {
+                                sendVerificationEmail();
+                            }
+                            setShowVerifyEmailModal(true);
+                        }}
+                    >
+                        Click here to verify it
+                    </Anchor>
+                    .
+                </Text>
+            ) : null}
 
-                <Button
-                    type="submit"
-                    display="block"
-                    ml="auto"
-                    mt="md"
-                    loading={isUpdateUserLoading}
-                    data-cy="update-profile-settings"
-                >
-                    Update
-                </Button>
-                <VerifyEmailModal
-                    opened={showVerifyEmailModal}
-                    onClose={() => {
-                        setShowVerifyEmailModal(false);
-                    }}
-                    isLoading={statusLoading || emailLoading}
-                />
-            </form>
-        </Flex>
+            <Button
+                type="submit"
+                display="block"
+                ml="auto"
+                mt="md"
+                loading={isUpdateUserLoading}
+                data-cy="update-profile-settings"
+            >
+                Update
+            </Button>
+            <VerifyEmailModal
+                opened={showVerifyEmailModal}
+                onClose={() => {
+                    setShowVerifyEmailModal(false);
+                }}
+                isLoading={statusLoading || emailLoading}
+            />
+        </form>
     );
 };
 
