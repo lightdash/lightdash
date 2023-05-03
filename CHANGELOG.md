@@ -1,3 +1,10 @@
+# [0.533.0](https://github.com/lightdash/lightdash/compare/0.532.0...0.533.0) (2023-05-03)
+
+
+### Features
+
+* move compile project to scheduler ([#5310](https://github.com/lightdash/lightdash/issues/5310)) ([1bc4cf1](https://github.com/lightdash/lightdash/commit/1bc4cf10e785fe364933745b1bb38f27cc6ee520))
+
 # [0.532.0](https://github.com/lightdash/lightdash/compare/0.531.0...0.532.0) (2023-05-03)
 
 
