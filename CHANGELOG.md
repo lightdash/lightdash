@@ -1,3 +1,16 @@
+# [0.532.0](https://github.com/lightdash/lightdash/compare/0.531.0...0.532.0) (2023-05-03)
+
+
+### Bug Fixes
+
+* remove unused PasswordInput ([#5352](https://github.com/lightdash/lightdash/issues/5352)) ([34f8a6d](https://github.com/lightdash/lightdash/commit/34f8a6d655e245ad77b32bb249154a4403ce916c))
+
+
+### Features
+
+* faster chart endpoint ([#5341](https://github.com/lightdash/lightdash/issues/5341)) ([338932b](https://github.com/lightdash/lightdash/commit/338932bca044984ead699c7543662b9b20999dc7))
+* migrate password settings to mantine ([#5328](https://github.com/lightdash/lightdash/issues/5328)) ([4afac94](https://github.com/lightdash/lightdash/commit/4afac94eb97134977716321234b75a341988f03f))
+
 # [0.531.0](https://github.com/lightdash/lightdash/compare/0.530.2...0.531.0) (2023-05-03)
 
 
