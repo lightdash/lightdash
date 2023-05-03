@@ -293,7 +293,7 @@ export class SchedulerClient {
             jobId,
             scheduledTime: now,
             status: SchedulerJobStatus.SCHEDULED,
-            details: { createdByUserUuid: payload.userUuid },
+            details: { createdByUserUuid: payload.createdByUserUuid },
         });
 
         return { jobId };
@@ -315,7 +315,7 @@ export class SchedulerClient {
             jobId,
             scheduledTime: now,
             status: SchedulerJobStatus.SCHEDULED,
-            details: { createdByUserUuid: payload.userUuid },
+            details: { createdByUserUuid: payload.createdByUserUuid },
         });
 
         return { jobId };
