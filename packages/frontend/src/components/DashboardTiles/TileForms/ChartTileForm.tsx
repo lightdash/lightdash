@@ -1,8 +1,6 @@
-import { SpaceQuery } from '@lightdash/common';
 import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useChartSummaries } from '../../../hooks/useChartSummaries';
-import { useSpaces } from '../../../hooks/useSpaces';
 import SelectField from '../../ReactHookForm/Select';
 
 const ChartTileForm: FC = () => {

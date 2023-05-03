@@ -8,7 +8,7 @@ import React, { FC, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom';
 import { v4 as uuid4 } from 'uuid';
-import { useSavedCharts, useSpaces } from '../../../hooks/useSpaces';
+import { useChartSummaries } from '../../../hooks/useChartSummaries';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import { SpaceLabel } from '../../Explorer/SpaceBrowser/AddResourceToSpaceModal.style';
 import Form from '../../ReactHookForm/Form';
@@ -25,15 +25,14 @@ type AddSavedChartsForm = {
 
 const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { data: savedCharts, isLoading } = useSavedCharts(projectUuid);
-    const { data: spaces } = useSpaces(projectUuid);
+    const { data: savedCharts, isLoading } = useChartSummaries(projectUuid);
     const { dashboardTiles, dashboard } = useDashboardContext();
     const methods = useForm<AddSavedChartsForm>({
         mode: 'onSubmit',
     });
 
     const allSavedCharts = useMemo(() => {
-        return (savedCharts || []).map(({ uuid, name, spaceUuid }) => {
+        return (savedCharts || []).map(({ uuid, name, spaceName }) => {
             const alreadyAddedChart = dashboardTiles.find((tile) => {
                 return (
                     tile.type === DashboardTileTypes.SAVED_CHART &&
@@ -41,19 +40,12 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                 );
             });
 
-            let subLabel = <></>;
-            if (spaces && spaces.length > 1) {
-                const space = spaces.find((sp) => sp.uuid === spaceUuid);
-
-                if (space?.name) {
-                    subLabel = (
-                        <SpaceLabel>
-                            <Icon size={12} icon="folder-close" />
-                            {space.name}
-                        </SpaceLabel>
-                    );
-                }
-            }
+            const subLabel = (
+                <SpaceLabel>
+                    <Icon size={12} icon="folder-close" />
+                    {spaceName}
+                </SpaceLabel>
+            );
 
             return {
                 value: uuid,
@@ -65,7 +57,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                     'This chart has been already added to this dashboard',
             };
         });
-    }, [dashboardTiles, savedCharts, spaces]);
+    }, [dashboardTiles, savedCharts]);
 
     const handleSubmit = (formData: AddSavedChartsForm) => {
         onAddTiles(
