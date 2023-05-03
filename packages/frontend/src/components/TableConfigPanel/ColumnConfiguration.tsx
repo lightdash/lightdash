@@ -11,7 +11,7 @@ import React from 'react';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { ColumnConfigurationWrapper } from './ColumnConfiguration.styles';
 
-export const ColumnConfiguration: React.FC = () => {
+const ColumnConfiguration: React.FC = () => {
     const {
         pivotDimensions,
         tableConfig: {

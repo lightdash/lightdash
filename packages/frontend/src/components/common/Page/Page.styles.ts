@@ -38,13 +38,6 @@ export const PageContentContainer = styled.div<PageContentContainerProps>`
     gap: 10px;
 `;
 
-export const PageHeader = styled.div`
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-top: 10px;
-`;
-
 export const WidthHack = styled.div<{ $state: string }>`
     transition: ${({ $state }) =>
         ['entering', 'exiting'].includes($state)
@@ -95,11 +88,4 @@ export const Drawer = styled(Card)<{ $state: string }>`
     top: 0;
     opacity: ${({ $state }) =>
         ['exiting', 'exited', 'unmounted'].includes($state) ? 0 : 1};
-`;
-
-export const CardContent = styled.div`
-    height: 100%;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
 `;

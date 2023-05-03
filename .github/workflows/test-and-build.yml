@@ -21,6 +21,8 @@ jobs:
       run: yarn lint
     - name: Check formatting all packages
       run: yarn format
+    - name: Check for unused exports
+      run: yarn workspace frontend unused-exports 
 
     - name: Build common
       run: yarn common-build

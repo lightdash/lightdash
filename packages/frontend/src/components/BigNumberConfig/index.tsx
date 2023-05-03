@@ -14,7 +14,7 @@ const StyleOptions = [
     })),
 ];
 
-export const BigNumberConfigPanel: React.FC = () => {
+const BigNumberConfigPanel: React.FC = () => {
     const {
         bigNumberConfig: {
             bigNumberLabel,

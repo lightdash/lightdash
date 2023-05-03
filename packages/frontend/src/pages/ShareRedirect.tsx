@@ -4,7 +4,7 @@ import { useHistory, useParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { useGetShare } from '../hooks/useShare';
 
-export const SharePanel = styled.div`
+const SharePanel = styled.div`
     margin-top: 50px;
 `;
 

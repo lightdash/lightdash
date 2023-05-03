@@ -20,7 +20,7 @@ type QueryResultsProps = {
 };
 
 // This API call will be used for getting charts in view mode and dashboard tiles
-export const getChartResults = async ({
+const getChartResults = async ({
     chartUuid,
     filters,
 }: {
@@ -34,7 +34,7 @@ export const getChartResults = async ({
     });
 };
 
-export const getQueryResults = async ({
+const getQueryResults = async ({
     projectUuid,
     tableId,
     query,
@@ -108,7 +108,7 @@ export const useQueryResults = (props?: {
     );
 };
 
-export const getUnderlyingDataResults = async ({
+const getUnderlyingDataResults = async ({
     projectUuid,
     tableId,
     query,

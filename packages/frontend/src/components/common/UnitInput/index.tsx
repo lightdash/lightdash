@@ -14,7 +14,7 @@ export type UnitInputProps = Omit<
     onChange: (value: string | undefined) => void;
 };
 
-export const getValueAndUnit = (
+const getValueAndUnit = (
     valueWithUnit: string,
     units: string[],
 ): [string?, string?] => {

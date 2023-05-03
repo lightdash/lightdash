@@ -74,7 +74,7 @@ const CronInternalInputs: FC<
     );
 };
 
-export const CronInput: FC<
+const CronInput: FC<
     Pick<InputWrapperProps, 'disabled' | 'rules' | 'name' | 'defaultValue'>
 > = ({ name, rules, defaultValue, disabled }) => {
     const { control } = useFormContext();

@@ -643,7 +643,7 @@ const getSimpleSeries = ({
     }),
 });
 
-export const getEchartsSeries = (
+const getEchartsSeries = (
     items: Array<Field | TableCalculation>,
     originalData: ApiQueryResults['rows'],
     cartesianChart: CartesianChart,

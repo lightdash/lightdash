@@ -77,7 +77,8 @@
         "lint": "yarn run linter ./src",
         "fix-lint": "yarn run linter ./src --fix",
         "format": "yarn run formatter ./src --check",
-        "fix-format": "yarn run formatter ./src --write"
+        "fix-format": "yarn run formatter ./src --write",
+        "unused-exports": "yarn run ts-unused-exports ./tsconfig.json --allowUnusedEnums --allowUnusedTypes --showLineNumber --ignoreFiles=__mocks__"
     },
     "devDependencies": {
         "@tanstack/react-query-devtools": "^4.3.5",
@@ -102,6 +103,7 @@
         "eslint-plugin-react": "^7.31.8",
         "eslint-plugin-react-hooks": "^4.6.0",
         "postcss-normalize": "10.0.1",
+        "ts-unused-exports": "^9.0.4",
         "vite": "^3.1.0",
         "vite-plugin-chunk-split": "^0.4.1",
         "vite-plugin-eslint": "^1.8.1",
