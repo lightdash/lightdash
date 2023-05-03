@@ -100,7 +100,8 @@
     "lint-staged": {
         "packages/frontend/src/**/*.(ts|tsx|json|css)": [
             "yarn workspace frontend linter --fix",
-            "yarn workspace frontend formatter --write"
+            "yarn workspace frontend formatter --write",
+            "yarn workspace frontend unused-exports"
         ],
         "packages/backend/src/**/*.(ts|tsx|json)": [
             "yarn workspace backend linter --fix",
