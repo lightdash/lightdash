@@ -1,4 +1,8 @@
-import { ApiErrorPayload, ApiPinnedItems } from '@lightdash/common';
+import {
+    ApiErrorPayload,
+    ApiPinnedItems,
+    UpdatePinnedItemOrder,
+} from '@lightdash/common';
 import express from 'express';
 import {
     Body,
@@ -70,11 +74,7 @@ export class PinningController extends Controller {
         @Path() pinnedListUuid: string,
         @Request() req: express.Request,
         @Body()
-        body: {
-            dashboards: string[];
-            charts: string[];
-            spaces: string[];
-        },
+        body: Array<UpdatePinnedItemOrder>,
     ): Promise<ApiPinnedItems> {
         const pinnedItems = await pinningService.updatePinnedItemsOrder(
             req.user!,

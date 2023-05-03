@@ -9,6 +9,8 @@ import {
     PinnedItem,
     PinnedList,
     PinnedListAndItems,
+    ResourceViewItemType,
+    UpdatePinnedItemOrder,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
@@ -171,39 +173,43 @@ export class PinnedListModel {
     async updatePinnedItemsOrder(
         projectUuid: string,
         pinnedListUuid: string,
-        itemsOrder: {
-            dashboards: string[];
-            charts: string[];
-            spaces: string[];
-        },
+        itemsOrder: Array<UpdatePinnedItemOrder>,
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
             const promises: Promise<any>[] = [];
-            itemsOrder.spaces.forEach((spaceUuid, index) => {
-                promises.push(
-                    trx(PinnedSpaceTableName)
-                        .update('order', index)
-                        .where('pinned_list_uuid', pinnedListUuid)
-                        .andWhere('space_uuid', spaceUuid),
-                );
+            itemsOrder.forEach((item) => {
+                switch (item.type) {
+                    case ResourceViewItemType.CHART: {
+                        promises.push(
+                            trx(PinnedChartTableName)
+                                .update('order', item.order)
+                                .where('pinned_list_uuid', pinnedListUuid)
+                                .andWhere('saved_chart_uuid', item.data.uuid),
+                        );
+                        break;
+                    }
+                    case ResourceViewItemType.DASHBOARD: {
+                        promises.push(
+                            trx(PinnedDashboardTableName)
+                                .update('order', item.order)
+                                .where('pinned_list_uuid', pinnedListUuid)
+                                .andWhere('dashboard_uuid', item.data.uuid),
+                        );
+                        break;
+                    }
+                    case ResourceViewItemType.SPACE: {
+                        promises.push(
+                            trx(PinnedSpaceTableName)
+                                .update('order', item.order)
+                                .where('pinned_list_uuid', pinnedListUuid)
+                                .andWhere('space_uuid', item.data.uuid),
+                        );
+                        break;
+                    }
+                    default:
+                        throw new Error('Unknown pinned item type');
+                }
             });
-            itemsOrder.dashboards.forEach((dashboardUuid, index) => {
-                promises.push(
-                    trx(PinnedDashboardTableName)
-                        .update('order', index)
-                        .where('pinned_list_uuid', pinnedListUuid)
-                        .andWhere('dashboard_uuid', dashboardUuid),
-                );
-            });
-            itemsOrder.charts.forEach((chartUuid, index) => {
-                promises.push(
-                    trx(PinnedChartTableName)
-                        .update('order', index)
-                        .where('pinned_list_uuid', pinnedListUuid)
-                        .andWhere('saved_chart_uuid', chartUuid),
-                );
-            });
-
             return Promise.all(promises);
         });
     }

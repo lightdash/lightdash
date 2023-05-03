@@ -1,5 +1,10 @@
 import { subject } from '@casl/ability';
-import { ForbiddenError, PinnedItems, SessionUser } from '@lightdash/common';
+import {
+    ForbiddenError,
+    PinnedItems,
+    SessionUser,
+    UpdatePinnedItemOrder,
+} from '@lightdash/common';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -94,13 +99,15 @@ export class PinningService {
         user: SessionUser,
         projectUuid: string,
         pinnedListUuid: string,
-        itemsOrder: {
-            dashboards: string[];
-            charts: string[];
-            spaces: string[];
-        },
+        itemsOrder: Array<UpdatePinnedItemOrder>,
     ): Promise<PinnedItems> {
-        // todo, check user access to project/pinned list
+        const project = await this.projectModel.get(projectUuid);
+        if (user.ability.cannot('manage', subject('Project', project))) {
+            throw new ForbiddenError();
+        }
+        if (project.pinnedListUuid !== pinnedListUuid) {
+            throw new ForbiddenError('Pinned list does not belong to project');
+        }
         await this.pinnedListModel.updatePinnedItemsOrder(
             projectUuid,
             pinnedListUuid,
