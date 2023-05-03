@@ -1,3 +1,11 @@
+# [0.531.0](https://github.com/lightdash/lightdash/compare/0.530.2...0.531.0) (2023-05-03)
+
+
+### Features
+
+* migrate no tokens view to mantine ([#5330](https://github.com/lightdash/lightdash/issues/5330)) ([74822c7](https://github.com/lightdash/lightdash/commit/74822c7cca24a19b51f385c41e13e235fab24517))
+* migrate profile settings to mantine ([#5326](https://github.com/lightdash/lightdash/issues/5326)) ([00be4ad](https://github.com/lightdash/lightdash/commit/00be4ad21982831665089d1b08dc390f6c83afe8))
+
 ## [0.530.2](https://github.com/lightdash/lightdash/compare/0.530.1...0.530.2) (2023-05-03)
 
 
