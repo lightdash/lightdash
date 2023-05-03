@@ -1,3 +1,10 @@
+## [0.530.1](https://github.com/lightdash/lightdash/compare/0.530.0...0.530.1) (2023-05-03)
+
+
+### Bug Fixes
+
+* multiple series reference lines ([#5340](https://github.com/lightdash/lightdash/issues/5340)) ([7e2ec5a](https://github.com/lightdash/lightdash/commit/7e2ec5ac694046d4984527189f24cdf7bd018fbd))
+
 # [0.530.0](https://github.com/lightdash/lightdash/compare/0.529.2...0.530.0) (2023-05-03)
 
 
