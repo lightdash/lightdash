@@ -4,7 +4,7 @@ import {
     UpdateUserArgs,
     validateEmail,
 } from '@lightdash/common';
-import { Anchor, Button, Text, TextInput, Tooltip } from '@mantine/core';
+import { Anchor, Button, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconAlertCircle, IconCircleCheck } from '@tabler/icons-react';
 import { FC, useEffect, useState } from 'react';
@@ -114,60 +114,61 @@ const ProfilePanel: FC = () => {
 
     return (
         <form onSubmit={onSubmit}>
-            <TextInput
-                id="first-name-input"
-                placeholder="First name"
-                label="First name"
-                type="text"
-                required
-                disabled={isUpdateUserLoading}
-                data-cy="first-name-input"
-                {...form.getInputProps('firstName')}
-            />
+            <Stack mt="md">
+                <TextInput
+                    id="first-name-input"
+                    placeholder="First name"
+                    label="First name"
+                    type="text"
+                    required
+                    disabled={isUpdateUserLoading}
+                    data-cy="first-name-input"
+                    {...form.getInputProps('firstName')}
+                />
 
-            <TextInput
-                id="last-name-input"
-                placeholder="Last name"
-                label="Last name"
-                type="text"
-                required
-                disabled={isUpdateUserLoading}
-                data-cy="last-name-input"
-                mt="md"
-                {...form.getInputProps('lastName')}
-            />
+                <TextInput
+                    id="last-name-input"
+                    placeholder="Last name"
+                    label="Last name"
+                    type="text"
+                    required
+                    disabled={isUpdateUserLoading}
+                    data-cy="last-name-input"
+                    {...form.getInputProps('lastName')}
+                />
 
-            <TextInput
-                id="email-input"
-                placeholder="Email"
-                label="Email"
-                type="email"
-                required
-                disabled={isUpdateUserLoading}
-                {...form.getInputProps('email')}
-                data-cy="email-input"
-                mt="md"
-                rightSection={
-                    isEmailServerConfigured && data?.isVerified ? (
-                        <Tooltip
-                            label="This e-mail has been verified"
-                            withArrow
-                        >
+                <TextInput
+                    id="email-input"
+                    placeholder="Email"
+                    label="Email"
+                    type="email"
+                    required
+                    disabled={isUpdateUserLoading}
+                    {...form.getInputProps('email')}
+                    data-cy="email-input"
+                    rightSection={
+                        isEmailServerConfigured && data?.isVerified ? (
+                            <Tooltip
+                                label="This e-mail has been verified"
+                                withArrow
+                            >
+                                <MantineIcon
+                                    size="lg"
+                                    icon={IconCircleCheck}
+                                    color="green.6"
+                                />
+                            </Tooltip>
+                        ) : (
                             <MantineIcon
                                 size="lg"
-                                icon={IconCircleCheck}
-                                color="green.6"
+                                icon={IconAlertCircle}
+                                color="gray.6"
                             />
-                        </Tooltip>
-                    ) : (
-                        <MantineIcon
-                            size="lg"
-                            icon={IconAlertCircle}
-                            color="gray.6"
-                        />
-                    )
-                }
-            />
+                        )
+                    }
+                />
+            </Stack>
+
             {isEmailServerConfigured && !data?.isVerified ? (
                 <Text color="dimmed" mt="sm">
                     This email has not been verified.{' '}
