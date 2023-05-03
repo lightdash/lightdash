@@ -113,7 +113,7 @@ const ProfilePanel: FC = () => {
     });
 
     return (
-        <Flex dir="column" sx={{ height: 'fit-content' }}>
+        <Flex dir="column">
             <form onSubmit={onSubmit} style={{ width: '100%' }}>
                 <TextInput
                     id="first-name-input"
