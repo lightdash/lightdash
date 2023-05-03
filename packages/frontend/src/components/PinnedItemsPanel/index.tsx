@@ -10,16 +10,20 @@ import ResourceView, { ResourceViewType } from '../common/ResourceView';
 
 interface Props {
     data: PinnedItems;
-    projectUuid: string;
     organizationUuid: string;
+    pinnedItemsProps?: {
+        projectUuid: string;
+        pinnedListUuid: string;
+    };
 }
 
 const PinnedItemsPanel: FC<Props> = ({
     data,
-    projectUuid,
     organizationUuid,
+    pinnedItemsProps = {},
 }) => {
     const { user } = useApp();
+    const { projectUuid, pinnedListUuid } = pinnedItemsProps;
     const userCanUpdateProject = user.data?.ability.can(
         'update',
         subject('Project', { organizationUuid, projectUuid }),
@@ -30,7 +34,7 @@ const PinnedItemsPanel: FC<Props> = ({
         <ResourceView
             items={pinnedItems}
             view={ResourceViewType.GRID}
-            // hasReorder
+            hasReorder
             gridProps={{
                 groups: [
                     [ResourceViewItemType.SPACE],

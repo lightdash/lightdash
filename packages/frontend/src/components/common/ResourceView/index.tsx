@@ -48,6 +48,10 @@ export interface ResourceViewCommonProps {
     emptyStateProps?: ResourceEmptyStateProps;
     view?: ResourceViewType;
     hasReorder?: boolean;
+    pinnedItemsProps?: {
+        projectUuid: string;
+        pinnedListUuid: string;
+    };
 }
 
 export enum ResourceViewType {
@@ -70,6 +74,7 @@ const ResourceView: React.FC<ResourceViewProps> = ({
     headerProps = {},
     emptyStateProps = {},
     hasReorder = false,
+    pinnedItemsProps,
 }) => {
     const theme = useMantineTheme();
 
@@ -227,6 +232,7 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                         groups={gridProps.groups}
                         onAction={handleAction}
                         hasReorder={hasReorder}
+                        pinnedItemsProps={pinnedItemsProps}
                     />
                 ) : (
                     assertUnreachable(view, 'Unknown resource view type')
