@@ -89,15 +89,15 @@ const Settings: FC = () => {
             withPaddedContent
             title="Settings"
             sidebar={
-                <Stack sx={{ flexGrow: 1 }}>
+                <Stack sx={{ flexGrow: 1, overflow: 'hidden' }}>
                     <PageBreadcrumbs
                         items={[{ title: 'Settings', active: true }]}
                     />
 
-                    <Box>
+                    <Box sx={{ flexGrow: 1, overflow: 'auto' }}>
                         <NavLink
                             label="Your settings"
-                            defaultOpened
+                            opened
                             childrenOffset={0}
                         >
                             <RouterNavLink
@@ -136,7 +136,7 @@ const Settings: FC = () => {
                         >
                             <NavLink
                                 label="Organization settings"
-                                defaultOpened
+                                opened
                                 childrenOffset={0}
                             >
                                 {user.ability.can('manage', 'Organization') && (
