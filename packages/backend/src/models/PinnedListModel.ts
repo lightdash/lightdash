@@ -133,24 +133,30 @@ export class PinnedListModel {
                 'pinned_item_uuid',
                 'saved_chart_uuid',
                 'created_at',
+                'order',
             )
-            .where('pinned_list_uuid', list.pinned_list_uuid);
+            .where('pinned_list_uuid', list.pinned_list_uuid)
+            .orderBy('order');
         const pinnedDashboards = await this.database(PinnedDashboardTableName)
             .select(
                 'pinned_list_uuid',
                 'pinned_item_uuid',
                 'dashboard_uuid',
                 'created_at',
+                'order',
             )
-            .where('pinned_list_uuid', list.pinned_list_uuid);
+            .where('pinned_list_uuid', list.pinned_list_uuid)
+            .orderBy('order');
         const pinnedSpaces = await this.database(PinnedSpaceTableName)
             .select(
                 'pinned_list_uuid',
                 'pinned_item_uuid',
                 'space_uuid',
                 'created_at',
+                'order',
             )
-            .where('pinned_list_uuid', list.pinned_list_uuid);
+            .where('pinned_list_uuid', list.pinned_list_uuid)
+            .orderBy('order');
 
         const pinnedList = PinnedListModel.convertPinnedList(list);
         const pinnedItems = [
@@ -171,9 +177,34 @@ export class PinnedListModel {
             spaces: string[];
         },
     ): Promise<void> {
-        await this.database.transaction(async (trx) =>
-            // TODO
-            Promise.resolve(),
-        );
+        await this.database.transaction(async (trx) => {
+            const promises: Promise<any>[] = [];
+            itemsOrder.spaces.forEach((spaceUuid, index) => {
+                promises.push(
+                    trx(PinnedSpaceTableName)
+                        .update('order', index)
+                        .where('pinned_list_uuid', pinnedListUuid)
+                        .andWhere('space_uuid', spaceUuid),
+                );
+            });
+            itemsOrder.dashboards.forEach((dashboardUuid, index) => {
+                promises.push(
+                    trx(PinnedDashboardTableName)
+                        .update('order', index)
+                        .where('pinned_list_uuid', pinnedListUuid)
+                        .andWhere('dashboard_uuid', dashboardUuid),
+                );
+            });
+            itemsOrder.charts.forEach((chartUuid, index) => {
+                promises.push(
+                    trx(PinnedChartTableName)
+                        .update('order', index)
+                        .where('pinned_list_uuid', pinnedListUuid)
+                        .andWhere('saved_chart_uuid', chartUuid),
+                );
+            });
+
+            return Promise.all(promises);
+        });
     }
 }

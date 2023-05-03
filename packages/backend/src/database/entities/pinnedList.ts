@@ -54,13 +54,16 @@ export type PinnedListTable = Knex.CompositeTableType<
 >;
 export type PinnedChartTable = Knex.CompositeTableType<
     DbPinnedChart,
-    CreatePinnedChart
+    CreatePinnedChart,
+    Pick<DbPinnedChart, 'order'>
 >;
 export type PinnedDashboardTable = Knex.CompositeTableType<
     DbPinnedDashboard,
-    CreatePinnedDashboard
+    CreatePinnedDashboard,
+    Pick<DbPinnedDashboard, 'order'>
 >;
 export type PinnedSpaceTable = Knex.CompositeTableType<
     DBPinnedSpace,
-    CreatePinnedSpace
+    CreatePinnedSpace,
+    Pick<DBPinnedSpace, 'order'>
 >;

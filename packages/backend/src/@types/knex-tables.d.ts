@@ -65,6 +65,8 @@ import {
     PinnedDashboardTableName,
     PinnedListTable,
     PinnedListTableName,
+    PinnedSpaceTable,
+    PinnedSpaceTableName,
 } from '../database/entities/pinnedList';
 import {
     ProjectMembershipsTable,
@@ -176,6 +178,7 @@ declare module 'knex/types/tables' {
         [PinnedListTableName]: PinnedListTable;
         [PinnedChartTableName]: PinnedChartTable;
         [PinnedDashboardTableName]: PinnedDashboardTable;
+        [PinnedSpaceTableName]: PinnedSpaceTable;
         [SchedulerTableName]: SchedulerTable;
         [SchedulerSlackTargetTableName]: SchedulerSlackTargetTable;
         [SchedulerEmailTargetTableName]: SchedulerEmailTargetTable;

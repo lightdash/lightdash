@@ -100,6 +100,7 @@ export class PinningService {
             spaces: string[];
         },
     ): Promise<PinnedItems> {
+        // todo, check user access to project/pinned list
         await this.pinnedListModel.updatePinnedItemsOrder(
             projectUuid,
             pinnedListUuid,
