@@ -1,5 +1,5 @@
 import { ApiError } from '@lightdash/common';
-import { Button, Flex, PasswordInput, Stack } from '@mantine/core';
+import { Box, Button, Flex, PasswordInput, Stack } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { FC, useCallback } from 'react';
 import { useMutation } from 'react-query';
@@ -58,37 +58,35 @@ const PasswordPanel: FC = () => {
     });
 
     return (
-        <Flex dir="column" sx={{ height: 'fit-content' }}>
-            <form onSubmit={onSubmit} style={{ width: '100%' }}>
-                <Stack mt="md">
-                    {hasPassword && (
-                        <PasswordInput
-                            label="Current password"
-                            placeholder="Enter your password..."
-                            required
-                            disabled={isLoading}
-                            {...form.getInputProps('currentPassword')}
-                        />
-                    )}
+        <form onSubmit={onSubmit}>
+            <Stack mt="md">
+                {hasPassword && (
                     <PasswordInput
-                        label="New password"
-                        placeholder="Enter your new password..."
+                        label="Current password"
+                        placeholder="Enter your password..."
                         required
                         disabled={isLoading}
-                        {...form.getInputProps('newPassword')}
+                        {...form.getInputProps('currentPassword')}
                     />
+                )}
+                <PasswordInput
+                    label="New password"
+                    placeholder="Enter your new password..."
+                    required
+                    disabled={isLoading}
+                    {...form.getInputProps('newPassword')}
+                />
 
-                    <Button
-                        type="submit"
-                        ml="auto"
-                        display="block"
-                        loading={isLoading}
-                    >
-                        Update
-                    </Button>
-                </Stack>
-            </form>
-        </Flex>
+                <Button
+                    type="submit"
+                    ml="auto"
+                    display="block"
+                    loading={isLoading}
+                >
+                    Update
+                </Button>
+            </Stack>
+        </form>
     );
 };
 
