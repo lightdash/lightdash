@@ -689,7 +689,6 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                     tileUuid={tileUuid}
                     isTitleHidden={hideTitle}
                     data={data}
-                    project={projectUuid}
                     dashboardFilters={dashboardFilters}
                 />
             ) : (
