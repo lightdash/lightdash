@@ -33,7 +33,7 @@ describe('Lightdash API organization permission tests', () => {
         const endpoints = [
             `/projects/${projectUuid}`,
             `/projects/${projectUuid}/explores`,
-            // `/projects/${projectUuid}/spaces`, // This will return 200 but an empty list, check test below
+            // `/projects/${projectUuid}/spaces-with-content`, // This will return 200 but an empty list, check test below
             // `/projects/${projectUuid}/dashboards`, // This will return 200 but an empty list, check test below
             `/projects/${projectUuid}/catalog`,
             `/projects/${projectUuid}/tablesConfiguration`,
@@ -58,7 +58,7 @@ describe('Lightdash API organization permission tests', () => {
 
         const projectUuid = SEED_PROJECT.project_uuid;
         cy.request({
-            url: `${apiUrl}/projects/${projectUuid}/spaces`,
+            url: `${apiUrl}/projects/${projectUuid}/spaces-with-content`,
             failOnStatusCode: false,
         }).then((resp) => {
             expect(resp.status).to.eq(200);
@@ -132,30 +132,30 @@ describe('Lightdash API organization permission tests', () => {
         cy.login(); // Make request as first user to get the chartUuid
 
         const projectUuid = SEED_PROJECT.project_uuid;
-        cy.request(`${apiUrl}/projects/${projectUuid}/spaces`).then(
-            (projectResponse) => {
-                expect(projectResponse.status).to.eq(200);
-                const savedChartUuid =
-                    projectResponse.body.results[0].queries[0].uuid;
+        cy.request(
+            `${apiUrl}/projects/${projectUuid}/spaces-with-content`,
+        ).then((projectResponse) => {
+            expect(projectResponse.status).to.eq(200);
+            const savedChartUuid =
+                projectResponse.body.results[0].queries[0].uuid;
 
-                cy.anotherLogin(); // Now we login as another user
+            cy.anotherLogin(); // Now we login as another user
 
-                const endpoints = [
-                    `/saved/${savedChartUuid}`,
-                    `/saved/${savedChartUuid}/availableFilters`,
-                ];
+            const endpoints = [
+                `/saved/${savedChartUuid}`,
+                `/saved/${savedChartUuid}/availableFilters`,
+            ];
 
-                endpoints.forEach((endpoint) => {
-                    cy.request({
-                        url: `${apiUrl}${endpoint}`,
-                        timeout: 500,
-                        failOnStatusCode: false,
-                    }).then((resp) => {
-                        expect(resp.status).to.eq(403);
-                    });
+            endpoints.forEach((endpoint) => {
+                cy.request({
+                    url: `${apiUrl}${endpoint}`,
+                    timeout: 500,
+                    failOnStatusCode: false,
+                }).then((resp) => {
+                    expect(resp.status).to.eq(403);
                 });
-            },
-        );
+            });
+        });
     });
 
     it('Should get an empty project list (200) from GET /org/projects', () => {
