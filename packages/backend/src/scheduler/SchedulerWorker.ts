@@ -1,3 +1,4 @@
+import { SchedulerJobStatus } from '@lightdash/common';
 import { getSchedule, stringToArray } from 'cron-converter';
 import {
     JobHelpers,
@@ -11,6 +12,7 @@ import { schedulerClient } from '../clients/clients';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logger';
 import { schedulerService } from '../services/services';
+import { tryJobOrTimeout } from './SchedulerJobTimeout';
 import {
     downloadCsv,
     handleScheduledDelivery,
@@ -94,29 +96,92 @@ export class SchedulerWorker {
                     payload: any,
                     helpers: JobHelpers,
                 ) => {
-                    await handleScheduledDelivery(
-                        helpers.job.id,
-                        helpers.job.run_at,
-                        payload,
+                    await tryJobOrTimeout(
+                        handleScheduledDelivery(
+                            helpers.job.id,
+                            helpers.job.run_at,
+                            payload,
+                        ),
+                        helpers.job,
+                        this.lightdashConfig.scheduler.jobTimeout,
+                        async (job, e) => {
+                            await schedulerService.logSchedulerJob({
+                                task: 'handleScheduledDelivery',
+                                schedulerUuid: payload.schedulerUuid,
+                                jobId: job.id,
+                                scheduledTime: job.run_at,
+                                jobGroup: payload.jobGroup,
+                                status: SchedulerJobStatus.ERROR,
+                                details: { error: e.message },
+                            });
+                        },
                     );
                 },
                 sendSlackNotification: async (
                     payload: any,
                     helpers: JobHelpers,
                 ) => {
-                    await sendSlackNotification(helpers.job.id, payload);
+                    await tryJobOrTimeout(
+                        sendSlackNotification(helpers.job.id, payload),
+                        helpers.job,
+                        this.lightdashConfig.scheduler.jobTimeout,
+                        async (job, e) => {
+                            await schedulerService.logSchedulerJob({
+                                task: 'sendSlackNotification',
+                                schedulerUuid: payload.schedulerUuid,
+                                jobId: job.id,
+                                scheduledTime: job.run_at,
+                                jobGroup: payload.jobGroup,
+                                targetType: 'slack',
+                                status: SchedulerJobStatus.ERROR,
+                                details: { error: e.message },
+                            });
+                        },
+                    );
                 },
                 sendEmailNotification: async (
                     payload: any,
                     helpers: JobHelpers,
                 ) => {
-                    await sendEmailNotification(helpers.job.id, payload);
+                    await tryJobOrTimeout(
+                        sendEmailNotification(helpers.job.id, payload),
+                        helpers.job,
+                        this.lightdashConfig.scheduler.jobTimeout,
+                        async (job, e) => {
+                            await schedulerService.logSchedulerJob({
+                                task: 'sendEmailNotification',
+                                schedulerUuid: payload.schedulerUuid,
+                                jobId: job.id,
+                                scheduledTime: job.run_at,
+                                jobGroup: payload.jobGroup,
+                                targetType: 'email',
+                                status: SchedulerJobStatus.ERROR,
+                                details: { error: e.message },
+                            });
+                        },
+                    );
                 },
                 downloadCsv: async (payload: any, helpers: JobHelpers) => {
-                    await downloadCsv(
-                        helpers.job.id,
-                        helpers.job.run_at,
-                        payload,
+                    await tryJobOrTimeout(
+                        downloadCsv(
+                            helpers.job.id,
+                            helpers.job.run_at,
+                            payload,
+                        ),
+                        helpers.job,
+                        this.lightdashConfig.scheduler.jobTimeout,
+                        async (job, e) => {
+                            await schedulerService.logSchedulerJob({
+                                task: 'downloadCsv',
+                                jobId: job.id,
+                                scheduledTime: job.run_at,
+                                status: SchedulerJobStatus.ERROR,
+                                details: {
+                                    createdByUserUuid: payload.userUuid,
+                                    error: e.message,
+                                },
+                            });
+                        },
                     );
                 },
             },

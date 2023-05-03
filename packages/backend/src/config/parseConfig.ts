@@ -57,9 +57,10 @@ export type LightdashConfig = {
     s3?: S3Config;
     headlessBrowser?: HeadlessBrowserConfig;
     slack?: SlackConfig;
-    scheduler?: {
+    scheduler: {
         enabled: boolean;
         concurrency: number;
+        jobTimeout: number;
     };
 };
 
@@ -155,6 +156,8 @@ export type SmtpConfig = {
         email: string;
     };
 };
+
+const DEFAULT_JOB_TIMEOUT = 1000 * 60 * 10; // 10 minutes
 
 const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
     const lightdashSecret = process.env.LIGHTDASH_SECRET;
@@ -317,6 +320,9 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
         scheduler: {
             enabled: process.env.SCHEDULER_ENABLED !== 'false',
             concurrency: parseInt(process.env.SCHEDULER_CONCURRENCY || '1', 10),
+            jobTimeout: process.env.SCHEDULER_JOB_TIMEOUT
+                ? parseInt(process.env.SCHEDULER_JOB_TIMEOUT, 10)
+                : DEFAULT_JOB_TIMEOUT,
         },
     };
 };

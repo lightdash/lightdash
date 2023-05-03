@@ -79,6 +79,11 @@ export const lightdashConfigMock: LightdashConfig = {
         maxLimit: 5000,
         csvCellsLimit: 100000,
     },
+    scheduler: {
+        enabled: false,
+        concurrency: 1,
+        jobTimeout: 1,
+    },
 };
 
 const dbtCloudIDEProjectConfigMock: DbtCloudIDEProjectConfig = {

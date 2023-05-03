@@ -538,7 +538,7 @@ export const sendEmailNotification = async (
             scheduledTime,
             targetType: 'email',
             status: SchedulerJobStatus.ERROR,
-            details: e,
+            details: { error: e.message },
         });
 
         throw e; // Cascade error to it can be retried by graphile
