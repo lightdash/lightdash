@@ -11,7 +11,7 @@ import {
     ResourceViewItemType,
     wrapResourceView,
 } from '@lightdash/common';
-import { ActionIcon, Center, Group, Stack } from '@mantine/core';
+import { ActionIcon, Group, Stack } from '@mantine/core';
 import {
     IconChartAreaLine,
     IconDots,
@@ -19,8 +19,8 @@ import {
     IconPlus,
 } from '@tabler/icons-react';
 import { FC, useCallback, useState } from 'react';
-import { Helmet } from 'react-helmet';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
+
 import { Can } from '../components/common/Authorization';
 import ErrorState from '../components/common/ErrorState';
 import LoadingState from '../components/common/LoadingState';
