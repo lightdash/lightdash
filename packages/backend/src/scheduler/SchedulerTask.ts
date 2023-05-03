@@ -372,11 +372,13 @@ export const testAndCompileProject = async (
         scheduledTime,
     };
     try {
-        const user = await userService.getSessionByUserUuid(payload.userUuid);
+        const user = await userService.getSessionByUserUuid(
+            payload.createdByUserUuid,
+        );
 
         schedulerService.logSchedulerJob({
             ...baseLog,
-            details: { createdByUserUuid: payload.userUuid },
+            details: { createdByUserUuid: payload.createdByUserUuid },
             status: SchedulerJobStatus.STARTED,
         });
 
@@ -395,7 +397,7 @@ export const testAndCompileProject = async (
         schedulerService.logSchedulerJob({
             ...baseLog,
             status: SchedulerJobStatus.ERROR,
-            details: { createdByUserUuid: payload.userUuid, error: e },
+            details: { createdByUserUuid: payload.createdByUserUuid, error: e },
         });
         throw e;
     }
@@ -412,11 +414,13 @@ export const compileProject = async (
         scheduledTime,
     };
     try {
-        const user = await userService.getSessionByUserUuid(payload.userUuid);
+        const user = await userService.getSessionByUserUuid(
+            payload.createdByUserUuid,
+        );
 
         schedulerService.logSchedulerJob({
             ...baseLog,
-            details: { createdByUserUuid: payload.userUuid },
+            details: { createdByUserUuid: payload.createdByUserUuid },
             status: SchedulerJobStatus.STARTED,
         });
 
@@ -435,7 +439,7 @@ export const compileProject = async (
         schedulerService.logSchedulerJob({
             ...baseLog,
             status: SchedulerJobStatus.ERROR,
-            details: { createdByUserUuid: payload.userUuid, error: e },
+            details: { createdByUserUuid: payload.createdByUserUuid, error: e },
         });
         throw e;
     }
