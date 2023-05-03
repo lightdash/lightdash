@@ -1,3 +1,10 @@
+# [0.530.0](https://github.com/lightdash/lightdash/compare/0.529.2...0.530.0) (2023-05-03)
+
+
+### Features
+
+* timeout jobs ([#5289](https://github.com/lightdash/lightdash/issues/5289)) ([85ec619](https://github.com/lightdash/lightdash/commit/85ec619bd6e016d1b356ca4412bb43a0388046c6))
+
 ## [0.529.2](https://github.com/lightdash/lightdash/compare/0.529.1...0.529.2) (2023-05-02)
 
 
