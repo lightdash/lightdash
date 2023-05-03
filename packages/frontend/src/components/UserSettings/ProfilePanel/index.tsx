@@ -93,7 +93,7 @@ const ProfilePanel: FC = () => {
         isEmailServerConfigured,
     ]);
 
-    const onSubmit = form.onSubmit(({ firstName, lastName, email }) => {
+    const handleOnSubmit = form.onSubmit(({ firstName, lastName, email }) => {
         if (firstName && lastName && email && validateEmail(email)) {
             updateUser({
                 firstName,
@@ -113,7 +113,7 @@ const ProfilePanel: FC = () => {
     });
 
     return (
-        <form onSubmit={onSubmit}>
+        <form onSubmit={handleOnSubmit}>
             <Stack mt="md">
                 <TextInput
                     id="first-name-input"
