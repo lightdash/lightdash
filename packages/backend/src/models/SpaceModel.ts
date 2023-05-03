@@ -9,8 +9,10 @@ import {
     Space,
     SpaceQuery,
     SpaceShare,
+    SpaceSummary,
     UpdateSpace,
 } from '@lightdash/common';
+import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
 import { getProjectRoleOrInheritedFromOrganization } from '../controllers/authenticationRoles';
 import {
@@ -53,6 +55,60 @@ export class SpaceModel {
 
     constructor(dependencies: Dependencies) {
         this.database = dependencies.database;
+    }
+
+    async find(filters: { projectUuid?: string }): Promise<SpaceSummary[]> {
+        const transaction = Sentry.getCurrentHub()
+            ?.getScope()
+            ?.getTransaction();
+        const span = transaction?.startChild({
+            op: 'SpaceModel.find',
+            description: 'Find spaces',
+        });
+        try {
+            const query = this.database('spaces')
+                .innerJoin(
+                    'projects',
+                    'projects.project_id',
+                    'spaces.project_id',
+                )
+                .innerJoin(
+                    'organizations',
+                    'organizations.organization_id',
+                    'projects.organization_id',
+                )
+                .leftJoin(
+                    'space_share',
+                    'space_share.space_id',
+                    'spaces.space_id',
+                )
+                .leftJoin(
+                    'users as shared_with',
+                    'space_share.user_id',
+                    'shared_with.user_id',
+                )
+                .groupBy(
+                    'organizations.organization_uuid',
+                    'projects.project_uuid',
+                    'spaces.space_uuid',
+                )
+                .select({
+                    organizationUuid: 'organizations.organization_uuid',
+                    projectUuid: 'projects.project_uuid',
+                    uuid: 'spaces.space_uuid',
+                    name: this.database.raw('max(spaces.name)'),
+                    isPrivate: this.database.raw('bool_or(spaces.is_private)'),
+                    access: this.database.raw(
+                        'jsonb_agg(shared_with.user_uuid)',
+                    ),
+                });
+            if (filters.projectUuid) {
+                query.where('projects.project_uuid', filters.projectUuid);
+            }
+            return await query;
+        } finally {
+            span?.finish();
+        }
     }
 
     async get(
