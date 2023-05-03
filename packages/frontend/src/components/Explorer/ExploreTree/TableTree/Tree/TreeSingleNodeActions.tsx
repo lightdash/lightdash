@@ -151,8 +151,11 @@ const TreeSingleNodeActions: FC<Props> = ({
             <Menu.Dropdown>
                 {isField(item) && isFilterableField(item) ? (
                     <Menu.Item
+                        component="button"
                         icon={<MantineIcon icon={IconFilter} />}
-                        onClick={() => {
+                        onClick={(e) => {
+                            e.stopPropagation();
+
                             track({
                                 name: EventName.ADD_FILTER_CLICKED,
                             });
@@ -167,8 +170,11 @@ const TreeSingleNodeActions: FC<Props> = ({
                     <Menu.Item
                         color="red"
                         key="custommetric"
+                        component="button"
                         icon={<MantineIcon icon={IconTrash} />}
-                        onClick={() => {
+                        onClick={(e) => {
+                            e.stopPropagation();
+
                             track({
                                 name: EventName.REMOVE_CUSTOM_METRIC_CLICKED,
                             });
@@ -192,7 +198,10 @@ const TreeSingleNodeActions: FC<Props> = ({
                         {customMetrics.map((metric) => (
                             <Menu.Item
                                 key={metric}
-                                onClick={() => {
+                                component="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+
                                     track({
                                         name: EventName.ADD_CUSTOM_METRIC_CLICKED,
                                     });
@@ -208,9 +217,11 @@ const TreeSingleNodeActions: FC<Props> = ({
 
             {/* prevents bubbling of click event to NavLink */}
             <Box
-                onClick={(e: React.MouseEvent<HTMLDivElement, MouseEvent>) =>
-                    e.stopPropagation()
-                }
+                component="div"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                }}
             >
                 <Menu.Target>
                     <Tooltip
