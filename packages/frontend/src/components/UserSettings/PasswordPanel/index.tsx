@@ -52,7 +52,7 @@ const PasswordPanel: FC = () => {
 
     const onSubmit = form.onSubmit(({ currentPassword, newPassword }) => {
         updateUserPassword({
-            password: currentPassword,
+            password: hasPassword ? currentPassword : '',
             newPassword,
         });
     });
