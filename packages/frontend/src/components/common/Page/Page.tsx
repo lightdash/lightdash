@@ -10,15 +10,15 @@ import { PAGE_HEADER_HEIGHT } from './PageHeader';
 import Sidebar from './Sidebar';
 
 type StyleProps = {
+    withCenteredContent?: boolean;
     withFixedContent?: boolean;
     withFooter?: boolean;
     withFullHeight?: boolean;
     withHeader?: boolean;
     withNavbar?: boolean;
+    withPaddedContent?: boolean;
     withSidebar?: boolean;
     withSidebarFooter?: boolean;
-    withPaddedContent?: boolean;
-    withCenteredContent?: boolean;
 };
 
 const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
@@ -41,7 +41,7 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
                 : {
                       height: containerHeight,
 
-                      overflowY: 'scroll',
+                      overflowY: 'auto',
                   }),
 
             ...(params.withSidebar
@@ -61,7 +61,7 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
 
             ...(params.withFooter
                 ? {
-                      minHeight: `calc(100% - ${FOOTER_HEIGHT}px - ${theme.spacing[FOOTER_MARGIN]} - 1)`,
+                      minHeight: `calc(100% - ${FOOTER_HEIGHT}px - ${theme.spacing[FOOTER_MARGIN]} - 1px)`,
                   }
                 : {}),
 
@@ -71,7 +71,7 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
                       height: '100%',
                       maxHeight: '100%',
 
-                      overflowY: 'scroll',
+                      overflowY: 'auto',
                   }
                 : {}),
 
@@ -115,27 +115,27 @@ const Page: FC<Props> = ({
     sidebar,
     isSidebarOpen = true,
 
-    withSidebarFooter = false,
-    withNavbar = true,
-    withFixedContent = false,
-    withFullHeight = false,
-    withFooter = false,
-    withPaddedContent = false,
     withCenteredContent = false,
+    withFixedContent = false,
+    withFooter = false,
+    withFullHeight = false,
+    withNavbar = true,
+    withPaddedContent = false,
+    withSidebarFooter = false,
 
     children,
 }) => {
     const { classes } = usePageStyles(
         {
+            withCenteredContent,
             withFixedContent,
             withFooter,
             withFullHeight: withFullHeight || withPaddedContent,
             withHeader: !!header,
             withNavbar,
+            withPaddedContent,
             withSidebar: !!sidebar,
             withSidebarFooter,
-            withPaddedContent,
-            withCenteredContent,
         },
         { name: 'Page' },
     );

@@ -234,7 +234,7 @@ const SqlRunnerPage = () => {
                             {isCatalogLoading ? (
                                 <SideBarLoadingState />
                             ) : (
-                                <Stack sx={{ overflowY: 'scroll', flex: 1 }}>
+                                <Stack sx={{ overflowY: 'auto', flex: 1 }}>
                                     <Box>
                                         <CatalogTree
                                             nodes={catalogTree}
@@ -259,7 +259,7 @@ const SqlRunnerPage = () => {
                         metrics.data.metrics.length > 0 ? (
                             <Tabs.Panel
                                 value="metrics"
-                                sx={{ overflowY: 'scroll', flex: 1 }}
+                                sx={{ overflowY: 'auto', flex: 1 }}
                             >
                                 {metrics.data.metrics.map((metric) => (
                                     <NavLink

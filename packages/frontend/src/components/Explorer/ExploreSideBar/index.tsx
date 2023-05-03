@@ -96,7 +96,7 @@ const BasePanel = () => {
                     onChange={(e) => setSearch(e.target.value)}
                 />
 
-                <Stack spacing="xxs" sx={{ overflow: 'scroll' }}>
+                <Stack spacing="xxs" sx={{ flexGrow: 1, overflowY: 'auto' }}>
                     {filteredTables
                         .sort((a, b) => a.label.localeCompare(b.label))
                         .map((explore) => (
