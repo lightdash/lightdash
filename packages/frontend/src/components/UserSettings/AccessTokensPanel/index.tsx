@@ -4,24 +4,25 @@ import {
     Classes,
     Dialog,
     Intent,
-    NonIdealState,
 } from '@blueprintjs/core';
 import { ApiPersonalAccessTokenResponse, formatDate } from '@lightdash/common';
-import React, { FC, useState } from 'react';
+import { Box, Button as MantineButton, Flex } from '@mantine/core';
+import { IconKey } from '@tabler/icons-react';
+import { FC, useState } from 'react';
 import {
     useAccessToken,
     useDeleteAccessToken,
 } from '../../../hooks/useAccessToken';
+import { EmptyState } from '../../common/EmptyState';
+import MantineIcon from '../../common/MantineIcon';
 import CreateTokenPanel from '../CreateTokenPanel';
 import {
     AccessTokenInfo,
     AccessTokenLabel,
-    AccessTokensPanelWrapper,
     AccessTokenWrapper,
     ExpireAtLabel,
     HeaderActions,
     ItemContent,
-    NoTokensWrapper,
     PanelTitle,
 } from './AccessTokens.styles';
 
@@ -109,7 +110,12 @@ const AccessTokensPanel: FC = () => {
     }
 
     return (
-        <AccessTokensPanelWrapper>
+        <Flex
+            h="100%"
+            direction="column"
+            justify={hasAvailableTokens ? 'auto' : 'center'}
+            align={hasAvailableTokens ? 'auto' : 'center'}
+        >
             {hasAvailableTokens && (
                 <HeaderActions>
                     <PanelTitle>Personal access tokens</PanelTitle>
@@ -127,24 +133,24 @@ const AccessTokensPanel: FC = () => {
                     ))}
                 </div>
             ) : (
-                <NoTokensWrapper>
-                    <NonIdealState
-                        icon="key"
-                        title="No tokens"
-                        description="You haven't generated any tokens yet!, generate your first token"
-                        action={
-                            <HeaderActions>
-                                <Button
-                                    intent="primary"
-                                    onClick={() => setCreateInvitesPanel(true)}
-                                    text="Generate token"
-                                />
-                            </HeaderActions>
-                        }
-                    />
-                </NoTokensWrapper>
+                <EmptyState
+                    icon={
+                        <MantineIcon
+                            icon={IconKey}
+                            color="gray.6"
+                            stroke={1}
+                            size="5xl"
+                        />
+                    }
+                    title="No tokens"
+                    description="You haven't generated any tokens yet!, generate your first token"
+                >
+                    <MantineButton onClick={() => setCreateInvitesPanel(true)}>
+                        Generate token
+                    </MantineButton>
+                </EmptyState>
             )}
-        </AccessTokensPanelWrapper>
+        </Flex>
     );
 };
 
