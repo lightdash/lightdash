@@ -6,7 +6,7 @@ import {
     Intent,
 } from '@blueprintjs/core';
 import { ApiPersonalAccessTokenResponse, formatDate } from '@lightdash/common';
-import { Box, Button as MantineButton, Flex } from '@mantine/core';
+import { Button as MantineButton, Flex } from '@mantine/core';
 import { IconKey } from '@tabler/icons-react';
 import { FC, useState } from 'react';
 import {
