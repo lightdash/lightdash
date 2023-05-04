@@ -1,3 +1,11 @@
+## [0.534.1](https://github.com/lightdash/lightdash/compare/0.534.0...0.534.1) (2023-05-04)
+
+
+### Bug Fixes
+
+* broken big number chart ([#5362](https://github.com/lightdash/lightdash/issues/5362)) ([9fa2e03](https://github.com/lightdash/lightdash/commit/9fa2e03d565659306c05b6c8b8d8196efbb83f49))
+* remove scheduler from docker-compose by default ([#5361](https://github.com/lightdash/lightdash/issues/5361)) ([0f47689](https://github.com/lightdash/lightdash/commit/0f476897f6c0e5563b2986f60ebc8db5a6247317))
+
 # [0.534.0](https://github.com/lightdash/lightdash/compare/0.533.0...0.534.0) (2023-05-04)
 
 
