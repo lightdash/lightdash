@@ -216,6 +216,7 @@ export type SavedChart = {
     views: number;
     firstViewedAt: Date | string | null;
     pinnedListUuid: string | null;
+    pinnedListOrder: number | null;
 };
 
 export type CreateSavedChart = Omit<
@@ -241,6 +242,7 @@ export type CreateSavedChartVersion = Omit<
     | 'spaceUuid'
     | 'spaceName'
     | 'pinnedListUuid'
+    | 'pinnedListOrder'
     | 'views'
     | 'firstViewedAt'
 >;
@@ -265,6 +267,7 @@ export type SpaceQuery = Pick<
     | 'views'
     | 'firstViewedAt'
     | 'pinnedListUuid'
+    | 'pinnedListOrder'
 > & { chartType: ChartKind | undefined };
 
 export const isCompleteLayout = (

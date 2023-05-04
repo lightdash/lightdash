@@ -87,6 +87,7 @@ const getCharts = async (
         type: resourceType,
         data: {
             pinnedListUuid: row.pinned_list_uuid,
+            pinnedListOrder: row.order,
             spaceUuid: row.space_uuid,
             uuid: row.saved_chart_uuid,
             name: row.name,
@@ -182,6 +183,7 @@ const getDashboards = async (
             views: row.views,
             firstViewedAt: row.first_viewed_at,
             pinnedListUuid: row.pinned_list_uuid,
+            pinnedListOrder: row.order,
             updatedAt: row.updated_at,
             updatedByUser: {
                 userUuid: row.updated_by_user_uuid,
@@ -235,6 +237,7 @@ const getAllSpaces = async (
             organizationUuid: row.organization_uuid,
             projectUuid: row.project_uuid,
             pinnedListUuid: row.pinned_list_uuid,
+            pinnedListOrder: row.order,
             uuid: row.space_uuid,
             name: row.name,
             isPrivate: row.is_private,

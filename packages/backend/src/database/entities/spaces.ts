@@ -10,6 +10,7 @@ import database from '../database';
 import { AnalyticsChartViewsTableName } from './analytics';
 import {
     DbPinnedList,
+    DBPinnedSpace,
     PinnedChartTableName,
     PinnedListTableName,
     PinnedSpaceTableName,
@@ -55,7 +56,11 @@ export const getFirstAccessibleSpace = async (
     db: Knex,
     projectUuid: string,
     userUuid: string,
-): Promise<DbSpace & Pick<DbPinnedList, 'pinned_list_uuid'>> => {
+): Promise<
+    DbSpace &
+        Pick<DbPinnedList, 'pinned_list_uuid'> &
+        Pick<DBPinnedSpace, 'order'>
+> => {
     const space = await db('spaces')
         .innerJoin('projects', 'projects.project_id', 'spaces.project_id')
         .innerJoin(
@@ -90,7 +95,11 @@ export const getFirstAccessibleSpace = async (
             );
         })
         .where(`${ProjectTableName}.project_uuid`, projectUuid)
-        .select<(DbSpace & Pick<DbPinnedList, 'pinned_list_uuid'>)[]>([
+        .select<
+            (DbSpace &
+                Pick<DbPinnedList, 'pinned_list_uuid'> &
+                Pick<DBPinnedSpace, 'order'>)[]
+        >([
             'spaces.space_id',
             'spaces.space_uuid',
             'spaces.name',
@@ -98,6 +107,7 @@ export const getFirstAccessibleSpace = async (
             'spaces.project_id',
             'organizations.organization_uuid',
             `${PinnedListTableName}.pinned_list_uuid`,
+            `${PinnedSpaceTableName}.order`,
         ])
         .first();
 
@@ -150,6 +160,7 @@ export const getSpaceWithQueries = async (
                 first_name: string;
                 last_name: string;
                 pinned_list_uuid: string | null;
+                order: number | null;
                 chart_config: ChartConfig['config'];
                 chart_type: ChartType;
                 views: string;
@@ -166,6 +177,7 @@ export const getSpaceWithQueries = async (
             `users.first_name`,
             `users.last_name`,
             `${PinnedListTableName}.pinned_list_uuid`,
+            `${PinnedChartTableName}.order`,
 
             database.raw(
                 `(SELECT COUNT('${AnalyticsChartViewsTableName}.chart_uuid') FROM ${AnalyticsChartViewsTableName} WHERE saved_queries.saved_query_uuid = ${AnalyticsChartViewsTableName}.chart_uuid) as views`,
@@ -192,6 +204,7 @@ export const getSpaceWithQueries = async (
         name: space.name,
         isPrivate: space.is_private,
         pinnedListUuid: space.pinned_list_uuid,
+        pinnedListOrder: space.order,
         queries: savedQueries.map((savedQuery) => ({
             uuid: savedQuery.saved_query_uuid,
             name: savedQuery.name,
@@ -204,6 +217,7 @@ export const getSpaceWithQueries = async (
             },
             spaceUuid: space.space_uuid,
             pinnedListUuid: savedQuery.pinned_list_uuid,
+            pinnedListOrder: savedQuery.order,
             chartType: getChartType(
                 savedQuery.chart_type,
                 savedQuery.chart_config,

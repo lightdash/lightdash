@@ -540,6 +540,7 @@ export class SavedChartModel {
                 spaceUuid: savedQuery.space_uuid,
                 spaceName: savedQuery.spaceName,
                 pinnedListUuid: savedQuery.pinned_list_uuid,
+                pinnedListOrder: null,
                 views: parseInt(savedQuery.views, 10) || 0,
                 firstViewedAt: savedQuery.first_viewed_at,
             };
