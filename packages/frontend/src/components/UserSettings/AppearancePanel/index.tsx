@@ -34,7 +34,7 @@ const AppearancePanel: FC = () => {
             (acc, key) => ({
                 [key]: (value: string) =>
                     !/^#([a-fA-F0-9]{3}|[a-fA-F0-9]{6})$/.test(value)
-                        ? 'Invalid color'
+                        ? 'Invalid color, ensure it is in hex format (e.g. #ff000 or #fff)'
                         : null,
                 ...acc,
             }),
