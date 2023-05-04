@@ -78,8 +78,8 @@ export const TokensTable = () => {
         },
     })();
     return (
-        <Paper>
-            <Table withBorder className={classes.root} highlightOnHover>
+        <Paper withBorder sx={{ overflow: 'hidden' }}>
+            <Table className={classes.root} highlightOnHover>
                 <thead>
                     <tr>
                         <th>Name</th>
