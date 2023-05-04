@@ -1,6 +1,15 @@
-import { Button, Classes, Dialog } from '@blueprintjs/core';
 import { ApiPersonalAccessTokenResponse, formatDate } from '@lightdash/common';
-import { Button as MantineButton, clsx, Paper, Table } from '@mantine/core';
+import {
+    Button,
+    clsx,
+    Flex,
+    Modal,
+    Paper,
+    Stack,
+    Table,
+    Text,
+    Title,
+} from '@mantine/core';
 import { Dispatch, FC, SetStateAction, useEffect, useState } from 'react';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import {
@@ -24,14 +33,14 @@ const TokenItem: FC<{
                     {expiresAt ? formatDate(expiresAt) : 'No expiration date'}
                 </td>
                 <td>
-                    <MantineButton
+                    <Button
                         variant="outline"
                         size="xs"
                         color="red"
                         onClick={() => setTokenToDelete(token)}
                     >
                         Delete
-                    </MantineButton>
+                    </Button>
                 </td>
             </tr>
         </>
@@ -79,39 +88,48 @@ export const TokensTable = () => {
                     </tbody>
                 </Table>
             </Paper>
-            <Dialog
-                isOpen={!!tokenToDelete}
-                icon="delete"
+
+            <Modal
+                centered
+                opened={!!tokenToDelete}
                 onClose={() => !isDeleting && setTokenToDelete(undefined)}
-                title={`Delete token ${tokenToDelete?.description}`}
-                lazy
+                title={
+                    <Title order={4}>
+                        {`Delete token ${tokenToDelete?.description}`}
+                    </Title>
+                }
             >
-                <div className={Classes.DIALOG_BODY}>
-                    <p>
+                <Stack mt="md">
+                    <Text>
                         Are you sure ? This will permanently delete the
-                        <b> {tokenToDelete?.description} </b> token.
-                    </p>
-                </div>
-                <div className={Classes.DIALOG_FOOTER}>
-                    <div className={Classes.DIALOG_FOOTER_ACTIONS}>
+                        <Text component="b">
+                            {' '}
+                            {tokenToDelete?.description}{' '}
+                        </Text>
+                        token.
+                    </Text>
+
+                    <Flex gap="sm" justify="flex-end">
                         <Button
+                            color="gray"
+                            variant="outline"
                             disabled={isDeleting}
                             onClick={() => setTokenToDelete(undefined)}
                         >
                             Cancel
                         </Button>
                         <Button
+                            color="red"
                             disabled={isDeleting}
-                            intent="danger"
                             onClick={() => {
                                 mutate(tokenToDelete?.uuid ?? '');
                             }}
                         >
                             Delete
                         </Button>
-                    </div>
-                </div>
-            </Dialog>
+                    </Flex>
+                </Stack>
+            </Modal>
         </>
     );
 };
