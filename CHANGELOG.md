@@ -1,3 +1,10 @@
+# [0.534.0](https://github.com/lightdash/lightdash/compare/0.533.0...0.534.0) (2023-05-04)
+
+
+### Features
+
+* mantine page wrappers + sidebar ([#5301](https://github.com/lightdash/lightdash/issues/5301)) ([1044c67](https://github.com/lightdash/lightdash/commit/1044c67722dd7b77f100d5f719ec2d3a40acfb5d))
+
 # [0.533.0](https://github.com/lightdash/lightdash/compare/0.532.0...0.533.0) (2023-05-03)
 
 
