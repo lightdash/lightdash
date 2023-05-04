@@ -11,11 +11,11 @@ import Sidebar from './Sidebar';
 
 type StyleProps = {
     withCenteredContent?: boolean;
+    withFitContent?: boolean;
     withFixedContent?: boolean;
     withFooter?: boolean;
     withFullHeight?: boolean;
     withHeader?: boolean;
-    withFitContent?: boolean;
     withNavbar?: boolean;
     withPaddedContent?: boolean;
     withSidebar?: boolean;
@@ -137,10 +137,10 @@ const Page: FC<Props> = ({
     isSidebarOpen = true,
 
     withCenteredContent = false,
+    withFitContent = false,
     withFixedContent = false,
     withFooter = false,
     withFullHeight = false,
-    withFitContent = false,
     withNavbar = true,
     withPaddedContent = false,
     withSidebarFooter = false,
@@ -150,11 +150,11 @@ const Page: FC<Props> = ({
     const { classes } = usePageStyles(
         {
             withCenteredContent,
+            withFitContent,
             withFixedContent,
             withFooter,
             withFullHeight,
             withHeader: !!header,
-            withFitContent,
             withNavbar,
             withPaddedContent,
             withSidebar: !!sidebar,

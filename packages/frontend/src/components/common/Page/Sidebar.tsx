@@ -14,17 +14,17 @@ import useSidebarResize from '../../../hooks/useSidebarResize';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 
-type Props = {
-    isOpen?: boolean;
-    containerProps?: FlexProps;
-    cardProps?: CardProps;
-};
-
 const SIDEBAR_DEFAULT_WIDTH = 400;
 const SIDEBAR_MIN_WIDTH = 300;
 const SIDEBAR_MAX_WIDTH = 600;
 
 const SIDEBAR_RESIZE_HANDLE_WIDTH = 6;
+
+type Props = {
+    isOpen?: boolean;
+    containerProps?: FlexProps;
+    cardProps?: CardProps;
+};
 
 const Sidebar: FC<Props> = ({
     isOpen = true,
@@ -56,9 +56,9 @@ const Sidebar: FC<Props> = ({
             <Flex
                 ref={sidebarRef}
                 direction="column"
+                pos="relative"
                 h="100%"
                 mah="100%"
-                pos="relative"
                 {...containerProps}
             >
                 <Transition
@@ -66,7 +66,7 @@ const Sidebar: FC<Props> = ({
                     duration={500}
                     transition={transition}
                 >
-                    {(styles) => (
+                    {(style) => (
                         <>
                             <Card
                                 component={Stack}
@@ -76,10 +76,8 @@ const Sidebar: FC<Props> = ({
                                 padding="lg"
                                 pb={0}
                                 w={sidebarWidth}
-                                style={{
-                                    flexGrow: 1,
-                                    ...styles,
-                                }}
+                                style={style}
+                                sx={{ flexGrow: 1 }}
                             >
                                 {children}
                             </Card>
