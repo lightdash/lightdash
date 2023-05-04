@@ -78,8 +78,8 @@ export const TokensTable = () => {
         },
     })();
     return (
-        <Paper withBorder>
-            <Table className={classes.root} highlightOnHover>
+        <Paper>
+            <Table withBorder className={classes.root} highlightOnHover>
                 <thead>
                     <tr>
                         <th>Name</th>
