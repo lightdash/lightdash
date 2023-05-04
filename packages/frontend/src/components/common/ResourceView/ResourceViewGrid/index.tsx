@@ -52,9 +52,10 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
             .filter((group) => group.items.length > 0);
     }, [groups, items]);
 
-    // this part is only for Pinned Items Panel
+    // this part is strictly for Pinned Items Panel
     const { projectUuid, pinnedListUuid } = pinnedItemsProps;
     const [draggableItems, setDraggableItems] = useState(groupedItems);
+
     const updatedOrder = draggableItems.flatMap((group) =>
         group.items.map((item, index) => {
             return {
@@ -64,6 +65,7 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
             };
         }),
     );
+
     const { mutate: reorderItems } = useReorder(
         projectUuid,
         pinnedListUuid,

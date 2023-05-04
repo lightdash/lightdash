@@ -51,11 +51,16 @@ export const useReorder = (
                 pinnedItemsOrder,
             ),
         {
-            onSuccess: (data) => {
+            onSuccess: async (data) => {
                 queryClient.setQueryData(
                     ['pinned_items', projectUuid, pinnedlistUuid],
                     data,
                 );
+                await queryClient.invalidateQueries([
+                    'pinned_items',
+                    projectUuid,
+                    pinnedlistUuid,
+                ]);
                 showToastSuccess({ title: 'Pinned items order updated' });
             },
             onError: (error) => {
