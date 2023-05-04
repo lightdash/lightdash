@@ -143,7 +143,7 @@ const UserActivity: FC = () => {
     }
 
     return (
-        <Page title={`User activity for ${project?.name}`}>
+        <Page title={`User activity for ${project?.name}`} withFitContent>
             <UserAnalyticsPageHeader>
                 <PageBreadcrumbs
                     items={[

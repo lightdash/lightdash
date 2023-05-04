@@ -3,11 +3,9 @@ import styled from 'styled-components';
 import SimpleButton from '../common/SimpleButton';
 import Form from '../ReactHookForm/Form';
 
-const CONTENT_WIDTH = 900;
 const CARD_GAP = 20;
 
 export const FormContainer = styled(Form)`
-    width: ${CONTENT_WIDTH}px;
     margin: 0 auto;
     display: flex;
     flex-direction: column;

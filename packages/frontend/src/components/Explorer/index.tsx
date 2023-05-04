@@ -26,7 +26,7 @@ const Explorer: FC = memo(() => {
             metricQuery={unsavedChartVersionMetricQuery}
             tableName={unsavedChartVersionTableName}
         >
-            <Stack h="100%">
+            <Stack sx={{ flexGrow: 1 }}>
                 <ExplorerHeader />
 
                 <FiltersCard />

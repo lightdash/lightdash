@@ -194,8 +194,8 @@ const SqlRunnerPage = () => {
     return (
         <Page
             title="SQL Runner"
-            withFullHeight
             withSidebarFooter
+            withFullHeight
             withPaddedContent
             sidebar={
                 <Stack
@@ -288,23 +288,23 @@ const SqlRunnerPage = () => {
                 </Stack>
             }
         >
-            <Stack h="100%">
-                <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
-                    <Group position="apart">
-                        <RefreshDbtButton />
+            <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
+                <Group position="apart">
+                    <RefreshDbtButton />
 
-                        <div>
-                            <RunSqlQueryButton
-                                onSubmit={handleSubmit}
-                                isLoading={isLoading}
-                            />
-                            <ShareShortLinkButton
-                                disabled={lastSqlRan === undefined}
-                            />
-                        </div>
-                    </Group>
-                </TrackSection>
+                    <div>
+                        <RunSqlQueryButton
+                            onSubmit={handleSubmit}
+                            isLoading={isLoading}
+                        />
+                        <ShareShortLinkButton
+                            disabled={lastSqlRan === undefined}
+                        />
+                    </div>
+                </Group>
+            </TrackSection>
 
+            <Stack mt="lg" spacing="sm" sx={{ flexGrow: 1 }}>
                 <VisualizationProvider
                     initialChartConfig={initialChartConfig}
                     chartType={chartType}

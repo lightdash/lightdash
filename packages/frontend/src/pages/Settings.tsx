@@ -36,7 +36,7 @@ import { useApp } from '../providers/AppProvider';
 import { TrackPage } from '../providers/TrackingProvider';
 import { PageName } from '../types/Events';
 import ProjectSettings from './ProjectSettings';
-import { CardContainer, ContentWrapper } from './Settings.styles';
+import { CardContainer } from './Settings.styles';
 
 const Settings: FC = () => {
     const {
@@ -83,9 +83,9 @@ const Settings: FC = () => {
 
     return (
         <Page
-            withFullHeight
             withSidebarFooter
             withFixedContent
+            withFullHeight
             withPaddedContent
             title="Settings"
             sidebar={
@@ -244,9 +244,7 @@ const Settings: FC = () => {
 
                 {user.ability.can('view', 'OrganizationMemberProfile') && (
                     <Route path={`/generalSettings/userManagement`}>
-                        <ContentWrapper>
-                            <UserManagementPanel />
-                        </ContentWrapper>
+                        <UserManagementPanel />
                     </Route>
                 )}
 
@@ -257,9 +255,7 @@ const Settings: FC = () => {
                             exact
                             path={`/generalSettings/projectManagement`}
                         >
-                            <ContentWrapper>
-                                <ProjectManagementPanel />
-                            </ContentWrapper>
+                            <ProjectManagementPanel />
                         </Route>
                     )}
 
@@ -274,9 +270,7 @@ const Settings: FC = () => {
                             ]}
                         >
                             <TrackPage name={PageName.PROJECT_SETTINGS}>
-                                <ContentWrapper>
-                                    <ProjectSettings />
-                                </ContentWrapper>
+                                <ProjectSettings />
                             </TrackPage>
                         </Route>
                     )}
@@ -289,10 +283,9 @@ const Settings: FC = () => {
                 </Route>
 
                 <Route exact path={`/generalSettings/personalAccessTokens`}>
-                    <ContentWrapper>
-                        <AccessTokensPanel />
-                    </ContentWrapper>
+                    <AccessTokensPanel />
                 </Route>
+
                 {health.hasSlack && user.ability.can('manage', 'Organization') && (
                     <Route exact path={`/generalSettings/integrations/slack`}>
                         <CardContainer>
@@ -300,6 +293,7 @@ const Settings: FC = () => {
                         </CardContainer>
                     </Route>
                 )}
+
                 <Route exact path={`/generalSettings`}>
                     <CardContainer>
                         <Title order={4}>Profile settings</Title>

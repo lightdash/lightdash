@@ -59,7 +59,7 @@ const Spaces: FC = () => {
     }
 
     return (
-        <Page title="Spaces" withFixedContent>
+        <Page title="Spaces" withFixedContent withPaddedContent>
             <Stack spacing="xl">
                 <Group position="apart">
                     <PageBreadcrumbs

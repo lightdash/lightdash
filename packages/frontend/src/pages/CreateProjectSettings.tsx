@@ -26,7 +26,7 @@ const CreateProjectSettings: FC = () => {
     };
 
     return (
-        <Page withFixedContent>
+        <Page withFixedContent withPaddedContent>
             <div
                 style={{
                     display: 'flex',

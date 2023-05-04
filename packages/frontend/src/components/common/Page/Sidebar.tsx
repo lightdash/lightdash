@@ -20,6 +20,12 @@ type Props = {
     cardProps?: CardProps;
 };
 
+const SIDEBAR_DEFAULT_WIDTH = 400;
+const SIDEBAR_MIN_WIDTH = 300;
+const SIDEBAR_MAX_WIDTH = 600;
+
+const SIDEBAR_RESIZE_HANDLE_WIDTH = 6;
+
 const Sidebar: FC<Props> = ({
     isOpen = true,
     containerProps,
@@ -28,9 +34,9 @@ const Sidebar: FC<Props> = ({
 }) => {
     const { sidebarRef, sidebarWidth, isResizing, startResizing } =
         useSidebarResize({
-            defaultWidth: 400,
-            minWidth: 300,
-            maxWidth: 600,
+            defaultWidth: SIDEBAR_DEFAULT_WIDTH,
+            minWidth: SIDEBAR_MIN_WIDTH,
+            maxWidth: SIDEBAR_MAX_WIDTH,
         });
 
     const transition: MantineTransition = {
@@ -79,22 +85,35 @@ const Sidebar: FC<Props> = ({
                             </Card>
 
                             <Box
-                                w={5}
                                 h="100%"
+                                w={SIDEBAR_RESIZE_HANDLE_WIDTH}
                                 pos="absolute"
                                 top={0}
-                                right={-5}
+                                right={-SIDEBAR_RESIZE_HANDLE_WIDTH}
                                 onMouseDown={startResizing}
                                 {...cardProps}
                                 sx={(theme) => ({
                                     cursor: 'col-resize',
-                                    background: isResizing
-                                        ? theme.fn.linearGradient(
-                                              90,
-                                              theme.colors.blue[5],
-                                              'transparent',
-                                          )
-                                        : undefined,
+
+                                    ...(isResizing
+                                        ? {
+                                              background:
+                                                  theme.fn.linearGradient(
+                                                      90,
+                                                      theme.colors.blue[3],
+                                                      'transparent',
+                                                  ),
+                                          }
+                                        : {
+                                              ...theme.fn.hover({
+                                                  background:
+                                                      theme.fn.linearGradient(
+                                                          90,
+                                                          theme.colors.blue[1],
+                                                          'transparent',
+                                                      ),
+                                              }),
+                                          }),
                                 })}
                             />
                         </>

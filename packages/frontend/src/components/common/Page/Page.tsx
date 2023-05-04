@@ -15,11 +15,15 @@ type StyleProps = {
     withFooter?: boolean;
     withFullHeight?: boolean;
     withHeader?: boolean;
+    withFitContent?: boolean;
     withNavbar?: boolean;
     withPaddedContent?: boolean;
     withSidebar?: boolean;
     withSidebarFooter?: boolean;
 };
+
+export const PAGE_CONTENT_WIDTH = 900;
+const PAGE_MIN_CONTENT_WIDTH = 600;
 
 const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
     let containerHeight = '100vh';
@@ -53,11 +57,17 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
         },
 
         content: {
-            paddingTop: theme.spacing.xl,
-            paddingBottom: theme.spacing.xl,
+            paddingTop: theme.spacing.lg,
+            paddingBottom: theme.spacing.lg,
 
             width: '100%',
-            minHeight: '100%',
+            minWidth: PAGE_CONTENT_WIDTH,
+
+            ...(params.withSidebar
+                ? {
+                      minWidth: PAGE_MIN_CONTENT_WIDTH,
+                  }
+                : {}),
 
             ...(params.withFooter
                 ? {
@@ -67,7 +77,9 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
 
             ...(params.withFullHeight
                 ? {
-                      flexGrow: 1,
+                      display: 'flex',
+                      flexDirection: 'column',
+
                       height: '100%',
                       maxHeight: '100%',
 
@@ -80,7 +92,16 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
                       marginLeft: 'auto',
                       marginRight: 'auto',
 
-                      width: 900,
+                      width: PAGE_CONTENT_WIDTH,
+                      flexShrink: 0,
+                  }
+                : {}),
+
+            ...(params.withFitContent
+                ? {
+                      width: 'fit-content',
+                      marginLeft: 'auto',
+                      marginRight: 'auto',
                   }
                 : {}),
 
@@ -119,6 +140,7 @@ const Page: FC<Props> = ({
     withFixedContent = false,
     withFooter = false,
     withFullHeight = false,
+    withFitContent = false,
     withNavbar = true,
     withPaddedContent = false,
     withSidebarFooter = false,
@@ -130,8 +152,9 @@ const Page: FC<Props> = ({
             withCenteredContent,
             withFixedContent,
             withFooter,
-            withFullHeight: withFullHeight || withPaddedContent,
+            withFullHeight,
             withHeader: !!header,
+            withFitContent,
             withNavbar,
             withPaddedContent,
             withSidebar: !!sidebar,

@@ -399,6 +399,7 @@ const Dashboard: FC = () => {
             </Alert>
 
             <Page
+                withFooter
                 withPaddedContent
                 title={dashboard.name}
                 header={

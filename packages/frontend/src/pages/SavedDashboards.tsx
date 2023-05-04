@@ -50,7 +50,7 @@ const SavedDashboards = () => {
     };
 
     return (
-        <Page title="Dashboards" withFixedContent>
+        <Page title="Dashboards" withFixedContent withPaddedContent>
             <Stack spacing="xl">
                 <Group position="apart">
                     <PageBreadcrumbs
