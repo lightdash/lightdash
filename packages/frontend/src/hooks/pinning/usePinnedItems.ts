@@ -1,4 +1,8 @@
-import { ApiError, ApiPinnedItems, PinnedItems } from '@lightdash/common';
+import {
+    ApiError,
+    PinnedItems,
+    UpdatePinnedItemOrder,
+} from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
@@ -13,12 +17,12 @@ const getPinnedItems = async (projectUuid: string, pinnedlistUuid: string) =>
 const updatePinnedItemsOrder = async (
     projectUuid: string,
     pinnedListUuid: string,
-    pinnedItems: PinnedItems,
+    pinnedItemsOrder: UpdatePinnedItemOrder[],
 ) => {
     return lightdashApi<PinnedItems>({
         url: `/projects/${projectUuid}/pinned-lists/${pinnedListUuid}/items/order`,
         method: 'PATCH',
-        body: JSON.stringify(pinnedItems),
+        body: JSON.stringify(pinnedItemsOrder),
     });
 };
 
@@ -32,15 +36,20 @@ export const usePinnedItems = (
         enabled: !!pinnedlistUuid,
     });
 
-export const usePinnedItemsOrder = (
+export const useReorder = (
     projectUuid: string,
     pinnedlistUuid: string,
-    pinnedItems: PinnedItems,
+    pinnedItemsOrder: UpdatePinnedItemOrder[],
 ) => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
-    return useMutation<PinnedItems, ApiError, PinnedItems>(
-        () => updatePinnedItemsOrder(projectUuid, pinnedlistUuid, pinnedItems),
+    return useMutation<PinnedItems, ApiError, UpdatePinnedItemOrder[]>(
+        () =>
+            updatePinnedItemsOrder(
+                projectUuid,
+                pinnedlistUuid,
+                pinnedItemsOrder,
+            ),
         {
             onSuccess: (data) => {
                 queryClient.setQueryData(

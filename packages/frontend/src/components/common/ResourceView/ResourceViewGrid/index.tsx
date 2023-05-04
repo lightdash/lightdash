@@ -3,8 +3,9 @@ import { Anchor, Box, SimpleGrid, Stack, Text } from '@mantine/core';
 import produce from 'immer';
 import { FC, useMemo, useState } from 'react';
 import { DragDropContext, Draggable, Droppable } from 'react-beautiful-dnd';
-import { Link, useParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { ResourceViewCommonProps } from '..';
+import { useReorder } from '../../../../hooks/pinning/usePinnedItems';
 import { ResourceViewItemActionState } from '../ResourceActionHandlers';
 import { getResourceName, getResourceUrl } from '../resourceUtils';
 import ResourceViewGridChartItem from './ResourceViewGridChartItem';
@@ -36,10 +37,8 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
     ],
     onAction,
     hasReorder = false,
-    pinnedItemsProps = {},
+    pinnedItemsProps = { projectUuid: '', pinnedListUuid: '' },
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
-
     const groupedItems = useMemo(() => {
         return groups
             .map((group) => ({
@@ -53,7 +52,23 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
             .filter((group) => group.items.length > 0);
     }, [groups, items]);
 
+    // this part is only for Pinned Items Panel
+    const { projectUuid, pinnedListUuid } = pinnedItemsProps;
     const [draggableItems, setDraggableItems] = useState(groupedItems);
+    const updatedOrder = draggableItems.flatMap((group) =>
+        group.items.map((item, index) => {
+            return {
+                type: item.type,
+                data: { uuid: item.data.uuid },
+                order: index,
+            };
+        }),
+    );
+    const { mutate: reorderItems } = useReorder(
+        projectUuid,
+        pinnedListUuid,
+        updatedOrder,
+    );
 
     const handleOnDragEnd = (result: any) => {
         const { source: drag, destination: drop } = result;
@@ -74,6 +89,7 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
             draggedItems?.items.splice(drop.index, 0, ...draggedItem);
         });
         setDraggableItems(newDraggableItems);
+        reorderItems(updatedOrder);
     };
 
     return (

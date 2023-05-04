@@ -468,7 +468,6 @@ const models: TsoaRoute.Models = {
                     ref: 'Pick_DashboardBasicDetails.uuid-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-updatedAt-or-updatedByUser_',
                     required: true,
                 },
-                order: { dataType: 'double' },
                 type: { ref: 'ResourceViewItemType.DASHBOARD', required: true },
             },
             validators: {},
@@ -546,7 +545,6 @@ const models: TsoaRoute.Models = {
                     ref: 'Pick_SpaceQuery.uuid-or-name-or-chartType-or-firstViewedAt-or-views-or-pinnedListUuid-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser_',
                     required: true,
                 },
-                order: { dataType: 'double' },
                 type: { ref: 'ResourceViewItemType.CHART', required: true },
             },
             validators: {},
@@ -618,7 +616,6 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
-                order: { dataType: 'double' },
                 type: { ref: 'ResourceViewItemType.SPACE', required: true },
             },
             validators: {},
@@ -671,17 +668,9 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ResourceViewItem: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { ref: 'ResourceViewChartItem' },
-                { ref: 'ResourceViewDashboardItem' },
-                { ref: 'ResourceViewSpaceItem' },
-            ],
-            validators: {},
-        },
+    ResourceViewItemType: {
+        dataType: 'refEnum',
+        enums: ['chart', 'dashboard', 'space'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_ResourceViewItem-at-data.uuid_': {
@@ -696,20 +685,15 @@ const models: TsoaRoute.Models = {
     UpdatePinnedItemOrder: {
         dataType: 'refAlias',
         type: {
-            dataType: 'intersection',
-            subSchemas: [
-                { ref: 'ResourceViewItem' },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        data: {
-                            ref: 'Pick_ResourceViewItem-at-data.uuid_',
-                            required: true,
-                        },
-                        order: { dataType: 'double', required: true },
-                    },
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                order: { dataType: 'double', required: true },
+                data: {
+                    ref: 'Pick_ResourceViewItem-at-data.uuid_',
+                    required: true,
                 },
-            ],
+                type: { ref: 'ResourceViewItemType', required: true },
+            },
             validators: {},
         },
     },

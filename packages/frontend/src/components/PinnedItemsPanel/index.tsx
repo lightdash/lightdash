@@ -11,12 +11,14 @@ import ResourceView, { ResourceViewType } from '../common/ResourceView';
 interface Props {
     data: PinnedItems;
     projectUuid: string;
+    pinnedListUuid: string;
     organizationUuid: string;
 }
 
 const PinnedItemsPanel: FC<Props> = ({
     data,
     projectUuid,
+    pinnedListUuid,
     organizationUuid,
 }) => {
     const { user } = useApp();
@@ -46,6 +48,7 @@ const PinnedItemsPanel: FC<Props> = ({
                     ? 'Pin Spaces, Dashboards and Charts to the top of the homepage to guide your business users to the right content.'
                     : 'Your data team have pinned these items to help guide you towards the most relevant content!',
             }}
+            pinnedItemsProps={{ projectUuid, pinnedListUuid }}
         />
     ) : (userCanUpdateProject && pinnedItems.length <= 0) || !pinnedItems ? (
         // FIXME: update width with Mantine widths
