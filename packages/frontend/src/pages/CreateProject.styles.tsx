@@ -2,15 +2,7 @@ import { Colors, H3 } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
 import SimpleButton from '../components/common/SimpleButton';
 
-export const CreateProjectWrapper = styled.div`
-    display: flex;
-    width: 100vw;
-    flex-direction: column;
-    flex: 1;
-`;
-
 export const CreateHeaderWrapper = styled.div`
-    width: 900px;
     margin: 40px auto 0;
 `;
 

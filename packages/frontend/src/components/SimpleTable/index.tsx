@@ -58,7 +58,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
 
     if (pivotTableData.error || pivotTableData.data) {
         return (
-            <Box w="100%" h="100%" p="xs" sx={{ overflowX: 'scroll' }}>
+            <Box w="100%" h="100%" p="xs" sx={{ overflowX: 'auto' }}>
                 {pivotTableData.error || !pivotTableData.data ? (
                     <NonIdealState
                         title="Results not available"

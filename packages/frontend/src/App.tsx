@@ -33,10 +33,12 @@ const queryClient = new QueryClient({
 
 const defaultAbility = new Ability();
 
-const isMobile =
-    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-        navigator.userAgent,
-    ) || window.innerWidth < 768;
+// const isMobile =
+//     /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+//         navigator.userAgent,
+//     ) || window.innerWidth < 768;
+
+const isMobile = window.innerWidth < 768;
 
 const isMinimalPage = window.location.pathname.startsWith('/minimal');
 

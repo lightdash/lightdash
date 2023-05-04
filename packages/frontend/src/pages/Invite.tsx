@@ -5,10 +5,10 @@ import {
     LightdashUser,
 } from '@lightdash/common';
 import { Anchor, Button, Card, Image, Stack, Text, Title } from '@mantine/core';
-import React, { FC, useEffect, useState } from 'react';
-import { Helmet } from 'react-helmet';
+import { FC, useEffect, useState } from 'react';
 import { useMutation } from 'react-query';
 import { Redirect, useLocation, useParams } from 'react-router-dom';
+
 import { lightdashApi } from '../api';
 import {
     GoogleLoginButton,
@@ -182,12 +182,7 @@ const Invite: FC = () => {
     );
 
     return (
-        <Page isFullHeight>
-            <Helmet>
-                <title>Register - Lightdash</title>
-            </Helmet>
-
-            {/* FIXME: use Mantine sizes for width */}
+        <Page title="Register" withCenteredContent withNavbar={false}>
             <Stack w={400} mt="4xl">
                 <Image
                     src={LightdashLogo}

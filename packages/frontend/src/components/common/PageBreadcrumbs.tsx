@@ -1,12 +1,13 @@
 import {
     Anchor,
+    AnchorProps,
     Breadcrumbs,
     BreadcrumbsProps,
     MantineSize,
     Tooltip,
     TooltipProps,
 } from '@mantine/core';
-import { FC } from 'react';
+import { FC, HTMLAttributes, Key } from 'react';
 import { Link } from 'react-router-dom';
 
 type BreadCrumbItem = {
@@ -32,21 +33,27 @@ const PageBreadcrumbs: FC<PageBreadcrumbsProps> = ({
     return (
         <Breadcrumbs {...rest}>
             {items.map((item, index) => {
-                const commonProps = {
+                const commonProps: AnchorProps &
+                    HTMLAttributes<HTMLAnchorElement> & { key: Key } = {
                     key: index,
                     size: size,
+
+                    truncate: true,
                     fw: item.active ? 600 : 500,
                     color: item.active ? 'gray.7' : 'gray.6',
                     onClick: item.onClick,
-                    sx:
-                        item.onClick || item.to
-                            ? { cursor: 'pointer' }
+                    sx: {
+                        ...(item.onClick || item.to
+                            ? {
+                                  cursor: 'pointer',
+                              }
                             : {
                                   cursor: 'text',
                                   '&:hover': {
                                       textDecoration: 'none',
                                   },
-                              },
+                              }),
+                    },
                 };
 
                 const anchor = item.to ? (

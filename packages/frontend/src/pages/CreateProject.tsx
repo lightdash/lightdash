@@ -2,6 +2,7 @@ import { getDateFormat, TimeFrames } from '@lightdash/common';
 import moment from 'moment';
 import { FC, useEffect, useState } from 'react';
 import { Redirect, useHistory, useParams } from 'react-router-dom';
+
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import ConnectManually from '../components/ProjectConnection/ProjectConnectFlow/ConnectManually';
@@ -73,7 +74,7 @@ const CreateProject: FC = () => {
 
     return (
         <ProjectFormProvider>
-            <Page noContentPadding>
+            <Page title="Create project" withFixedContent withPaddedContent>
                 {method && projectUuid ? (
                     <ConnectSuccess projectUuid={projectUuid} />
                 ) : (

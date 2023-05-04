@@ -14,7 +14,7 @@ interface Props {
 const LandingPanel: FC<Props> = ({ userName, projectUuid }) => {
     const { user } = useApp();
     return (
-        <Group position="apart" my="xl" pt="xl">
+        <Group position="apart" my="xl">
             <Stack justify="flex-start" spacing="xs">
                 <Title order={3}>
                     {`Welcome${userName ? ', ' + userName : ' to Lightdash'}!`}{' '}
