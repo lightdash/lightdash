@@ -1,5 +1,5 @@
-import { Button, Card, Colors, H5, Menu } from '@blueprintjs/core';
-import styled, { css } from 'styled-components';
+import { Card, Colors, H5 } from '@blueprintjs/core';
+import styled from 'styled-components';
 
 export const Title = styled(H5)`
     tex-align: left;
@@ -12,13 +12,7 @@ export const Description = styled.p`
     font-size: small;
 `;
 
-const Layout = css`
-    width: 900px;
-    margin: auto;
-`;
-
 export const CardContainer = styled(Card)`
-    ${Layout}
     display: grid;
     grid-template-columns: 1fr 1fr;
     margin-top: 20px;

@@ -1,7 +1,7 @@
 import { Icon } from '@blueprintjs/core';
 import { Select2 } from '@blueprintjs/select';
 import { FC } from 'react';
-import { useParams } from 'react-router-dom';
+
 import { useProject } from '../../../hooks/useProject';
 import {
     AccessRole,

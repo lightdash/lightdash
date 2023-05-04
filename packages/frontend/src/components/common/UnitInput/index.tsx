@@ -14,7 +14,7 @@ export type UnitInputProps = Omit<
     onChange: (value: string | undefined) => void;
 };
 
-export const getValueAndUnit = (
+const getValueAndUnit = (
     valueWithUnit: string,
     units: string[],
 ): [string?, string?] => {
@@ -32,7 +32,6 @@ const UnitInput = forwardRef<HTMLInputElement, UnitInputProps>(
             units,
             value: valueWithUnit,
             defaultValue: defaultValueWithUnit,
-            fallbackValue,
             onChange,
             ...rest
         },

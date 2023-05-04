@@ -1,17 +1,13 @@
 import { NonIdealState, Spinner, Tab, Tabs } from '@blueprintjs/core';
-import { subject } from '@casl/ability';
-import { Anchor, Breadcrumbs, Text } from '@mantine/core';
 import { FC } from 'react';
 import { Helmet } from 'react-helmet';
 import {
-    Link,
     Redirect,
     Route,
     Switch,
     useHistory,
     useParams,
 } from 'react-router-dom';
-import { Can } from '../components/common/Authorization';
 import ErrorState from '../components/common/ErrorState';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import DbtCloudSettings from '../components/DbtCloudSettings';

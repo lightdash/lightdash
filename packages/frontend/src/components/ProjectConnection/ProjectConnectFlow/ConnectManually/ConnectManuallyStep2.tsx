@@ -4,7 +4,6 @@ import { CreateProjectConnection } from '../..';
 import {
     BackButton,
     CreateHeaderWrapper,
-    CreateProjectWrapper,
 } from '../../../../pages/CreateProject.styles';
 import { Title } from '../ProjectConnectFlow.styles';
 import { getWarehouseLabel } from '../SelectWarehouse';
@@ -21,7 +20,7 @@ const ConnectManuallyStep2: FC<ConnectManuallyStep2Props> = ({
     onBack,
 }) => {
     return (
-        <CreateProjectWrapper>
+        <>
             <CreateHeaderWrapper>
                 <BackButton icon="chevron-left" text="Back" onClick={onBack} />
 
@@ -35,7 +34,7 @@ const ConnectManuallyStep2: FC<ConnectManuallyStep2Props> = ({
                 isCreatingFirstProject={isCreatingFirstProject}
                 selectedWarehouse={selectedWarehouse}
             />
-        </CreateProjectWrapper>
+        </>
     );
 };
 

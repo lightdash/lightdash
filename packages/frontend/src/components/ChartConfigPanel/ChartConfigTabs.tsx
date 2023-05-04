@@ -31,7 +31,6 @@ import {
     MinMaxContainer,
     MinMaxInput,
     MinMaxWrapper,
-    SectionTitle,
     Wrapper,
 } from './ChartConfigPanel.styles';
 import FieldLayoutOptions from './FieldLayoutOptions';
@@ -343,7 +342,7 @@ const ChartConfigTabs: FC = () => {
                                         dirtyLayout?.flipAxes ? 'Y' : 'X'
                                     }-axis`}
                                     checked={!!dirtyLayout?.showGridX}
-                                    onChange={(e) => {
+                                    onChange={() => {
                                         setShowGridX(!dirtyLayout?.showGridX);
                                     }}
                                 />
@@ -357,7 +356,7 @@ const ChartConfigTabs: FC = () => {
                                             ? dirtyLayout?.showGridY
                                             : true
                                     }
-                                    onChange={(e) => {
+                                    onChange={() => {
                                         setShowGridY(
                                             dirtyLayout?.showGridY !== undefined
                                                 ? !dirtyLayout?.showGridY

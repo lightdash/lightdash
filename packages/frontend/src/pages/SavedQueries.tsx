@@ -4,12 +4,13 @@ import {
     ResourceViewItemType,
     wrapResourceView,
 } from '@lightdash/common';
-import { Button, Center, Group, Stack } from '@mantine/core';
+import { Button, Group, Stack } from '@mantine/core';
 import { IconChartBar, IconPlus } from '@tabler/icons-react';
 import { FC } from 'react';
-import { Helmet } from 'react-helmet';
 import { useHistory, useParams } from 'react-router-dom';
+
 import LoadingState from '../components/common/LoadingState';
+import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ResourceView from '../components/common/ResourceView';
 import { SortDirection } from '../components/common/ResourceView/ResourceViewList';
@@ -43,20 +44,14 @@ const SavedQueries: FC = () => {
     };
 
     return (
-        <Center my="md">
-            <Helmet>
-                <title>Saved charts - Lightdash</title>
-            </Helmet>
-            {/* FIXME: use Mantine sizes for width */}
-
-            <Stack spacing="xl" w={900}>
-                <Group position="apart" mt="xs">
+        <Page title="Saved charts" withFixedContent withPaddedContent>
+            <Stack spacing="xl">
+                <Group position="apart">
                     <PageBreadcrumbs
                         items={[
                             { title: 'Home', to: '/home' },
                             { title: 'All saved charts', active: true },
                         ]}
-                        mt="xs"
                     />
 
                     {savedQueries.length > 0 &&
@@ -91,7 +86,7 @@ const SavedQueries: FC = () => {
                     }}
                 />
             </Stack>
-        </Center>
+        </Page>
     );
 };
 

@@ -1,4 +1,4 @@
-import { Button, Colors } from '@blueprintjs/core';
+import { Colors } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
 
 export const RadioDescription = styled.p`
@@ -12,7 +12,6 @@ export const ShareSpaceWrapper = styled.div`
     display: flex;
     flex-direction: column;
 `;
-export const AddUserLabel = styled.span``;
 
 const commonTagStyle = css`
     width: 35px;

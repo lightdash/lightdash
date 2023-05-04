@@ -28,8 +28,8 @@ export const useCreateShareMutation = () => {
         (data) => createShareUrl(data),
         {
             //mutationKey: ['share'],
-            onSuccess: async (space) => {},
-            onError: (error) => {},
+            onSuccess: async () => {},
+            onError: () => {},
         },
     );
 };

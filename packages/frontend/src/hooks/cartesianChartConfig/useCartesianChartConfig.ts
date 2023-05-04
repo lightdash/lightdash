@@ -57,7 +57,8 @@ const applyReferenceLines = (
             },
         );
 
-        if (referenceLinesForSerie.length === 0) return serie;
+        if (referenceLinesForSerie.length === 0)
+            return { ...serie, markLine: undefined };
         const markLineData: MarkLineData[] = referenceLinesForSerie.map(
             (line) => {
                 if (line.fieldId === undefined) return line.data;

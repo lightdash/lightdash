@@ -1,14 +1,10 @@
 import { subject } from '@casl/ability';
-import {
-    Field,
-    PivotValue,
-    ResultValue,
-    TableCalculation,
-} from '@lightdash/common';
+import { Field, ResultValue, TableCalculation } from '@lightdash/common';
 import { Menu, MenuProps } from '@mantine/core';
 import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
 import { FC } from 'react';
 import { useParams } from 'react-router-dom';
+
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';

@@ -4,6 +4,7 @@ import { ECHARTS_DEFAULT_COLORS } from '@lightdash/common';
 import { FC } from 'react';
 import { BlockPicker, ColorResult } from 'react-color';
 import { useToggle } from 'react-use';
+
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { ColorButton, ColorButtonInner } from './Series.styles';
 
@@ -14,7 +15,7 @@ type Props = {
 
 const SeriesColorPicker: FC<Props> = ({ color, onChange }) => {
     const [isOpen, toggle] = useToggle(false);
-    const { isLoading: isOrgLoading, data } = useOrganization();
+    const { data } = useOrganization();
 
     const colors = data?.chartColors || ECHARTS_DEFAULT_COLORS;
     return (

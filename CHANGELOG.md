@@ -1,3 +1,52 @@
+# [0.534.0](https://github.com/lightdash/lightdash/compare/0.533.0...0.534.0) (2023-05-04)
+
+
+### Features
+
+* mantine page wrappers + sidebar ([#5301](https://github.com/lightdash/lightdash/issues/5301)) ([1044c67](https://github.com/lightdash/lightdash/commit/1044c67722dd7b77f100d5f719ec2d3a40acfb5d))
+
+# [0.533.0](https://github.com/lightdash/lightdash/compare/0.532.0...0.533.0) (2023-05-03)
+
+
+### Features
+
+* move compile project to scheduler ([#5310](https://github.com/lightdash/lightdash/issues/5310)) ([1bc4cf1](https://github.com/lightdash/lightdash/commit/1bc4cf10e785fe364933745b1bb38f27cc6ee520))
+
+# [0.532.0](https://github.com/lightdash/lightdash/compare/0.531.0...0.532.0) (2023-05-03)
+
+
+### Bug Fixes
+
+* remove unused PasswordInput ([#5352](https://github.com/lightdash/lightdash/issues/5352)) ([34f8a6d](https://github.com/lightdash/lightdash/commit/34f8a6d655e245ad77b32bb249154a4403ce916c))
+
+
+### Features
+
+* faster chart endpoint ([#5341](https://github.com/lightdash/lightdash/issues/5341)) ([338932b](https://github.com/lightdash/lightdash/commit/338932bca044984ead699c7543662b9b20999dc7))
+* migrate password settings to mantine ([#5328](https://github.com/lightdash/lightdash/issues/5328)) ([4afac94](https://github.com/lightdash/lightdash/commit/4afac94eb97134977716321234b75a341988f03f))
+
+# [0.531.0](https://github.com/lightdash/lightdash/compare/0.530.2...0.531.0) (2023-05-03)
+
+
+### Features
+
+* migrate no tokens view to mantine ([#5330](https://github.com/lightdash/lightdash/issues/5330)) ([74822c7](https://github.com/lightdash/lightdash/commit/74822c7cca24a19b51f385c41e13e235fab24517))
+* migrate profile settings to mantine ([#5326](https://github.com/lightdash/lightdash/issues/5326)) ([00be4ad](https://github.com/lightdash/lightdash/commit/00be4ad21982831665089d1b08dc390f6c83afe8))
+
+## [0.530.2](https://github.com/lightdash/lightdash/compare/0.530.1...0.530.2) (2023-05-03)
+
+
+### Bug Fixes
+
+* unused exports git hook ([#5348](https://github.com/lightdash/lightdash/issues/5348)) ([70a4ce6](https://github.com/lightdash/lightdash/commit/70a4ce68c890b1f577a9dcc74751e1832d8a999c))
+
+## [0.530.1](https://github.com/lightdash/lightdash/compare/0.530.0...0.530.1) (2023-05-03)
+
+
+### Bug Fixes
+
+* multiple series reference lines ([#5340](https://github.com/lightdash/lightdash/issues/5340)) ([7e2ec5a](https://github.com/lightdash/lightdash/commit/7e2ec5ac694046d4984527189f24cdf7bd018fbd))
+
 # [0.530.0](https://github.com/lightdash/lightdash/compare/0.529.2...0.530.0) (2023-05-03)
 
 

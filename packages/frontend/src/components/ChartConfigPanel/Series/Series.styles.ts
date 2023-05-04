@@ -4,7 +4,6 @@ import {
     FormGroup,
     HTMLSelect,
     Icon,
-    InputGroup,
 } from '@blueprintjs/core';
 import styled, { css } from 'styled-components';
 
@@ -24,14 +23,6 @@ const GridTemplate = css`
 const FlexTemplate = css`
     display: flex;
     flex-direction: column;
-`;
-
-export const InputWrapper = styled(FormGroup)`
-    & label.bp4-label {
-        font-weight: 500;
-        display: inline-flex;
-        gap: 0.214em;
-    }
 `;
 
 export const GroupSeriesBlock = styled.div`
@@ -99,10 +90,6 @@ export const DragIcon = styled(Icon)`
     margin-top: 6px;
 `;
 
-export const SeriesInputField = styled(InputGroup)`
-    ${InputStyle}
-`;
-
 export const SeriesExtraInputs = styled.div`
     display: flex;
     flex: 1;
@@ -151,12 +138,6 @@ export const SeriesExtraSelect = styled(HTMLSelect)`
     select {
         ${InputStyle}
     }
-`;
-
-export const Wrapper = styled.div`
-    max-width: 28.571em;
-    min-width: 25em;
-    padding: 1.429em;
 `;
 
 export const ColorButton = styled.button`

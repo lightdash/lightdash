@@ -76,7 +76,7 @@ const BasePanel = () => {
 
     if (exploresResult.data) {
         return (
-            <Stack>
+            <>
                 <PageBreadcrumbs
                     size="md"
                     items={[{ title: 'Tables', active: true }]}
@@ -96,7 +96,7 @@ const BasePanel = () => {
                     onChange={(e) => setSearch(e.target.value)}
                 />
 
-                <Stack spacing="xxs">
+                <Stack spacing="xxs" sx={{ flexGrow: 1, overflowY: 'auto' }}>
                     {filteredTables
                         .sort((a, b) => a.label.localeCompare(b.label))
                         .map((explore) => (
@@ -112,7 +112,7 @@ const BasePanel = () => {
                             />
                         ))}
                 </Stack>
-            </Stack>
+            </>
         );
     }
 
@@ -137,7 +137,7 @@ const ExploreSideBar = memo(() => {
 
     return (
         <TrackSection name={SectionName.SIDEBAR}>
-            <Stack h="100%" sx={{ flexDirection: 'column' }}>
+            <Stack h="100%" sx={{ flexGrow: 1 }}>
                 {!tableName ? (
                     <BasePanel />
                 ) : (

@@ -2,6 +2,7 @@ import { Stack } from '@mantine/core';
 import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useUnmount } from 'react-use';
+
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
 import ForbiddenPanel from '../components/ForbiddenPanel';
@@ -17,7 +18,7 @@ import {
     useProjectSavedChartStatus,
 } from '../hooks/useOnboardingStatus';
 import { useProject } from '../hooks/useProject';
-import { useSavedCharts, useSpaces } from '../hooks/useSpaces';
+import { useSavedCharts } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
 
 const Home: FC = () => {
@@ -66,9 +67,8 @@ const Home: FC = () => {
     }
 
     return (
-        <Page>
-            {/* FIXME: use Mantine sizes for width */}
-            <Stack spacing="xl" w={900}>
+        <Page withFixedContent withPaddedContent withFooter>
+            <Stack spacing="xl">
                 {!onboarding.data.ranQuery ? (
                     <OnboardingPanel
                         projectUuid={project.data.projectUuid}

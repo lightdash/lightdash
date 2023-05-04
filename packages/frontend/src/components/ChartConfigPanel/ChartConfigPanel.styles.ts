@@ -27,26 +27,10 @@ export const Wrapper = styled.div`
     padding: 1.429em 1.429em 2.143em;
 `;
 
-export const FieldsGrid = styled.div`
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 1.286em;
-    align-items: center;
-`;
-
 export const GridLabel = styled.span`
     font-size: 14px;
     line-height: 1.286em;
     font-weight: 600;
-`;
-
-export const GridFieldLabel = styled.span`
-    display: inline-flex;
-    gap: 0.357em;
-
-    & .bp4-icon {
-        margin: 2px;
-    }
 `;
 
 export const AxisGroup = styled.div`

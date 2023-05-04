@@ -4,17 +4,17 @@ import {
     ResourceViewItemType,
     wrapResourceView,
 } from '@lightdash/common';
-import { Button, Center, Group, Stack, Tooltip } from '@mantine/core';
+import { Button, Group, Stack, Tooltip } from '@mantine/core';
 import { IconLayoutDashboard, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
-import { Helmet } from 'react-helmet';
-import { Redirect, useHistory, useParams } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
+
 import LoadingState from '../components/common/LoadingState';
 import DashboardCreateModal from '../components/common/modal/DashboardCreateModal';
+import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ResourceView from '../components/common/ResourceView';
 import { SortDirection } from '../components/common/ResourceView/ResourceViewList';
-import { useCreateMutation } from '../hooks/dashboard/useDashboard';
 import { useDashboards } from '../hooks/dashboard/useDashboards';
 import { useSpaces } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
@@ -27,13 +27,6 @@ const SavedDashboards = () => {
     const { isLoading, data: dashboards = [] } = useDashboards(projectUuid);
     const [isCreateDashboardOpen, setIsCreateDashboardOpen] =
         useState<boolean>(false);
-
-    const {
-        isLoading: isCreatingDashboard,
-        isSuccess: hasCreatedDashboard,
-        mutate: createDashboard,
-        data: newDashboard,
-    } = useCreateMutation(projectUuid);
 
     const { user, health } = useApp();
     const isDemo = health.data?.mode === LightdashMode.DEMO;
@@ -52,30 +45,15 @@ const SavedDashboards = () => {
         return <LoadingState title="Loading dashboards" />;
     }
 
-    if (hasCreatedDashboard && newDashboard) {
-        return (
-            <Redirect
-                push
-                to={`/projects/${projectUuid}/dashboards/${newDashboard.uuid}`}
-            />
-        );
-    }
-
     const handleCreateDashboard = () => {
         setIsCreateDashboardOpen(true);
     };
 
     return (
-        <Center my="md">
-            <Helmet>
-                <title>Dashboards - Lightdash</title>
-            </Helmet>
-
-            {/* FIXME: use Mantine sizes for width */}
-            <Stack spacing="xl" w={900}>
-                <Group position="apart" mt="xs">
+        <Page title="Dashboards" withFixedContent withPaddedContent>
+            <Stack spacing="xl">
+                <Group position="apart">
                     <PageBreadcrumbs
-                        mt="xs"
                         items={[
                             { title: 'Home', to: '/home' },
                             { title: 'All dashboards', active: true },
@@ -87,7 +65,6 @@ const SavedDashboards = () => {
                         !isDemo && (
                             <Button
                                 leftIcon={<IconPlus size={18} />}
-                                loading={isCreatingDashboard}
                                 onClick={handleCreateDashboard}
                                 disabled={hasNoSpaces}
                             >
@@ -95,19 +72,6 @@ const SavedDashboards = () => {
                             </Button>
                         )}
                 </Group>
-
-                <DashboardCreateModal
-                    projectUuid={projectUuid}
-                    isOpen={isCreateDashboardOpen}
-                    onClose={() => setIsCreateDashboardOpen(false)}
-                    onConfirm={(dashboard) => {
-                        history.push(
-                            `/projects/${projectUuid}/dashboards/${dashboard.uuid}/edit`,
-                        );
-
-                        setIsCreateDashboardOpen(false);
-                    }}
-                />
 
                 <ResourceView
                     items={wrapResourceView(
@@ -131,7 +95,6 @@ const SavedDashboards = () => {
                                     <div>
                                         <Button
                                             leftIcon={<IconPlus size={18} />}
-                                            loading={isCreatingDashboard}
                                             onClick={handleCreateDashboard}
                                             disabled={hasNoSpaces}
                                         >
@@ -142,7 +105,6 @@ const SavedDashboards = () => {
                             ) : userCanManageDashboards && !isDemo ? (
                                 <Button
                                     leftIcon={<IconPlus size={18} />}
-                                    loading={isCreatingDashboard}
                                     onClick={handleCreateDashboard}
                                     disabled={hasNoSpaces}
                                 >
@@ -152,7 +114,20 @@ const SavedDashboards = () => {
                     }}
                 />
             </Stack>
-        </Center>
+
+            <DashboardCreateModal
+                projectUuid={projectUuid}
+                isOpen={isCreateDashboardOpen}
+                onClose={() => setIsCreateDashboardOpen(false)}
+                onConfirm={(dashboard) => {
+                    history.push(
+                        `/projects/${projectUuid}/dashboards/${dashboard.uuid}/edit`,
+                    );
+
+                    setIsCreateDashboardOpen(false);
+                }}
+            />
+        </Page>
     );
 };
 

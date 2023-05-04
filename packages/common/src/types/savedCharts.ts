@@ -400,3 +400,12 @@ export const getChartType = (
             return undefined;
     }
 };
+
+export type ChartSummary = Pick<
+    SavedChart,
+    'uuid' | 'name' | 'description' | 'spaceName' | 'spaceUuid'
+>;
+export type ApiChartSummaryListResponse = {
+    status: 'ok';
+    results: ChartSummary[];
+};

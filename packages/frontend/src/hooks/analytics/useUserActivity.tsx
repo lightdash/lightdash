@@ -1,21 +1,7 @@
-import {
-    ApiError,
-    CreateDashboard,
-    Dashboard,
-    DashboardTile,
-    FilterableField,
-    isDashboardChartTileType,
-    UpdateDashboard,
-    UpdateDashboardDetails,
-    UserActivity,
-} from '@lightdash/common';
-import { useMemo, useState } from 'react';
-import { useMutation, useQueries, useQuery, useQueryClient } from 'react-query';
-import { UseQueryOptions, UseQueryResult } from 'react-query/types/react/types';
-import { useHistory, useParams } from 'react-router-dom';
-import { useDeepCompareEffect } from 'react-use';
+import { ApiError, UserActivity } from '@lightdash/common';
+import { useQuery } from 'react-query';
+
 import { lightdashApi } from '../../api';
-import useToaster from '../toaster/useToaster';
 import useQueryError from '../useQueryError';
 
 const getUserActivity = async (projectUuid: string) =>

@@ -1,5 +1,6 @@
 import { Alert, Intent, NonIdealState, Spinner } from '@blueprintjs/core';
 import {
+    assertUnreachable,
     Dashboard as IDashboard,
     DashboardTile,
     DashboardTileTypes,
@@ -13,8 +14,8 @@ import React, {
     useState,
 } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
-import { Helmet } from 'react-helmet';
 import { useHistory, useParams } from 'react-router-dom';
+
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
@@ -118,8 +119,8 @@ const GridTile: FC<
         case DashboardTileTypes.LOOM:
             return <LoomTile {...props} tile={tile} />;
         default: {
-            const never: never = tile;
-            throw new Error(
+            return assertUnreachable(
+                tile,
                 `Dashboard tile type "${props.tile.type}" not recognised`,
             );
         }
@@ -202,6 +203,7 @@ const Dashboard: FC = () => {
         reset,
         setDashboardTemporaryFilters,
         setHaveFiltersChanged,
+        setHaveTilesChanged,
     ]);
 
     const handleUpdateTiles = useCallback(
@@ -230,7 +232,7 @@ const Dashboard: FC = () => {
 
             setHaveTilesChanged(true);
         },
-        [setDashboardTiles],
+        [setDashboardTiles, setHaveTilesChanged],
     );
 
     const handleAddTiles = useCallback(
@@ -241,7 +243,7 @@ const Dashboard: FC = () => {
 
             setHaveTilesChanged(true);
         },
-        [setDashboardTiles],
+        [setDashboardTiles, setHaveTilesChanged],
     );
 
     const handleDeleteTile = useCallback(
@@ -254,7 +256,7 @@ const Dashboard: FC = () => {
 
             setHaveTilesChanged(true);
         },
-        [setDashboardTiles],
+        [setDashboardTiles, setHaveTilesChanged],
     );
 
     const handleEditTiles = useCallback(
@@ -266,7 +268,7 @@ const Dashboard: FC = () => {
             );
             setHaveTilesChanged(true);
         },
-        [setDashboardTiles],
+        [setDashboardTiles, setHaveTilesChanged],
     );
 
     const handleCancel = useCallback(() => {
@@ -285,6 +287,7 @@ const Dashboard: FC = () => {
         setDashboardTiles,
         setHaveFiltersChanged,
         setDashboardFilters,
+        setHaveTilesChanged,
     ]);
 
     const handleMoveDashboardToSpace = (spaceUuid: string) => {
@@ -376,9 +379,6 @@ const Dashboard: FC = () => {
 
     return (
         <>
-            <Helmet>
-                <title>{dashboard.name} - Lightdash</title>
-            </Helmet>
             <Alert
                 isOpen={isSaveWarningModalOpen}
                 cancelButtonText="Stay"
@@ -398,50 +398,57 @@ const Dashboard: FC = () => {
                 </p>
             </Alert>
 
-            <DashboardHeader
-                spaces={spaces}
-                dashboardName={dashboard.name}
-                dashboardDescription={dashboard.description}
-                dashboardUpdatedByUser={dashboard.updatedByUser}
-                dashboardUpdatedAt={dashboard.updatedAt}
-                dashboardSpaceName={dashboard.spaceName}
-                dashboardSpaceUuid={dashboard.spaceUuid}
-                dashboardViews={dashboard.views}
-                dashboardFirstViewedAt={dashboard.firstViewedAt}
-                isEditMode={isEditMode}
-                isSaving={isSaving}
-                hasDashboardChanged={
-                    haveTilesChanged ||
-                    haveFiltersChanged ||
-                    hasTemporaryFilters
+            <Page
+                withFooter
+                withPaddedContent
+                title={dashboard.name}
+                header={
+                    <DashboardHeader
+                        spaces={spaces}
+                        dashboardName={dashboard.name}
+                        dashboardDescription={dashboard.description}
+                        dashboardUpdatedByUser={dashboard.updatedByUser}
+                        dashboardUpdatedAt={dashboard.updatedAt}
+                        dashboardSpaceName={dashboard.spaceName}
+                        dashboardSpaceUuid={dashboard.spaceUuid}
+                        dashboardViews={dashboard.views}
+                        dashboardFirstViewedAt={dashboard.firstViewedAt}
+                        isEditMode={isEditMode}
+                        isSaving={isSaving}
+                        hasDashboardChanged={
+                            haveTilesChanged ||
+                            haveFiltersChanged ||
+                            hasTemporaryFilters
+                        }
+                        onAddTiles={handleAddTiles}
+                        onSaveDashboard={() =>
+                            mutate({
+                                tiles: dashboardTiles,
+                                filters: {
+                                    dimensions: [
+                                        ...dashboardFilters.dimensions,
+                                        ...dashboardTemporaryFilters.dimensions,
+                                    ],
+                                    metrics: [
+                                        ...dashboardFilters.metrics,
+                                        ...dashboardTemporaryFilters.metrics,
+                                    ],
+                                },
+                                name: dashboard.name,
+                            })
+                        }
+                        onCancel={handleCancel}
+                        onMoveToSpace={handleMoveDashboardToSpace}
+                        onDuplicate={handleDuplicateDashboard}
+                        onDelete={handleDeleteDashboard}
+                        onExport={handleExportDashboard}
+                    />
                 }
-                onAddTiles={handleAddTiles}
-                onSaveDashboard={() =>
-                    mutate({
-                        tiles: dashboardTiles,
-                        filters: {
-                            dimensions: [
-                                ...dashboardFilters.dimensions,
-                                ...dashboardTemporaryFilters.dimensions,
-                            ],
-                            metrics: [
-                                ...dashboardFilters.metrics,
-                                ...dashboardTemporaryFilters.metrics,
-                            ],
-                        },
-                        name: dashboard.name,
-                    })
-                }
-                onCancel={handleCancel}
-                onMoveToSpace={handleMoveDashboardToSpace}
-                onDuplicate={handleDuplicateDashboard}
-                onDelete={handleDeleteDashboard}
-                onExport={handleExportDashboard}
-            />
-            <Page isContentFullWidth>
+            >
                 {dashboardChartTiles.length > 0 && (
                     <DashboardFilter isEditMode={isEditMode} />
                 )}
+
                 <ResponsiveGridLayout
                     {...RESPONSIVE_GRID_LAYOUT_PROPS}
                     onDragStop={handleUpdateTiles}
@@ -463,6 +470,7 @@ const Dashboard: FC = () => {
                         );
                     })}
                 </ResponsiveGridLayout>
+
                 {dashboardTiles.length <= 0 && (
                     <EmptyStateNoTiles
                         onAddTiles={handleAddTiles}

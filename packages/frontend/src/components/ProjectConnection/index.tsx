@@ -8,7 +8,7 @@ import {
     ProjectType,
     WarehouseTypes,
 } from '@lightdash/common';
-import { Anchor } from '@mantine/core';
+import { Anchor, Card, Flex } from '@mantine/core';
 import { FC, useEffect, useMemo, useState } from 'react';
 import { FieldErrors, useForm } from 'react-hook-form';
 import { SubmitErrorHandler } from 'react-hook-form/dist/types/form';
@@ -32,8 +32,6 @@ import { WarehouseIcon } from './ProjectConnectFlow/ProjectConnectFlow.styles';
 import { getWarehouseLabel } from './ProjectConnectFlow/SelectWarehouse';
 import {
     CompileProjectButton,
-    FloatingFixedCard,
-    FloatingFixedWidth,
     FormContainer,
     LeftPanel,
     LeftPanelMessage,
@@ -250,49 +248,52 @@ export const UpdateProjectConnection: FC<{
     }
 
     return (
-        <>
-            <FormContainer
-                name="update_project"
-                methods={methods}
-                onSubmit={onSubmit}
-                onError={onError}
-                hasPaddingBottom
+        <FormContainer
+            name="update_project"
+            methods={methods}
+            onSubmit={onSubmit}
+            onError={onError}
+        >
+            <ProjectFormProvider savedProject={data}>
+                <ProjectForm
+                    showGeneralSettings
+                    isProjectUpdate
+                    disabled={isDisabled}
+                    defaultType={health.data?.defaultProject?.type}
+                />
+            </ProjectFormProvider>
+
+            {!isIdle && (
+                <ProjectStatusCallout
+                    style={{ marginBottom: '20px' }}
+                    mutation={updateMutation}
+                />
+            )}
+
+            <Card
+                component={Flex}
+                justify="flex-end"
+                pos="sticky"
+                withBorder
+                shadow="sm"
+                sx={(theme) => ({
+                    zIndex: 1,
+                    bottom: `-${theme.spacing.xl}`,
+                })}
             >
-                <ProjectFormProvider savedProject={data}>
-                    <ProjectForm
-                        showGeneralSettings
-                        isProjectUpdate
-                        disabled={isDisabled}
-                        defaultType={health.data?.defaultProject?.type}
-                    />
-                </ProjectFormProvider>
-
-                {!isIdle && (
-                    <ProjectStatusCallout
-                        style={{ marginBottom: '20px' }}
-                        mutation={updateMutation}
-                    />
-                )}
-
-                <FloatingFixedCard>
-                    <FloatingFixedWidth>
-                        <CompileProjectButton
-                            large
-                            type="submit"
-                            intent={Intent.PRIMARY}
-                            text={
-                                data?.dbtConnection?.type ===
-                                DbtProjectType.NONE
-                                    ? 'Save and test'
-                                    : 'Test & compile project'
-                            }
-                            loading={isSaving}
-                            disabled={isDisabled}
-                        />
-                    </FloatingFixedWidth>
-                </FloatingFixedCard>
-            </FormContainer>
-        </>
+                <CompileProjectButton
+                    large
+                    type="submit"
+                    intent={Intent.PRIMARY}
+                    loading={isSaving}
+                    disabled={isDisabled}
+                >
+                    {data?.dbtConnection?.type === DbtProjectType.NONE
+                        ? 'Save and test'
+                        : 'Test & compile project'}
+                </CompileProjectButton>
+            </Card>
+        </FormContainer>
     );
 };
 

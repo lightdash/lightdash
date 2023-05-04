@@ -1,13 +1,10 @@
 import { Button, Callout, Classes, Intent } from '@blueprintjs/core';
-import {
-    hasSpecialCharacters,
-    snakeCaseName,
-    TableCalculation,
-} from '@lightdash/common';
+import { snakeCaseName, TableCalculation } from '@lightdash/common';
 import { Anchor } from '@mantine/core';
-import React, { FC } from 'react';
+import { FC } from 'react';
 import { useForm } from 'react-hook-form';
 import { useToggle } from 'react-use';
+
 import useToaster from '../../hooks/toaster/useToaster';
 import { useExplorerAceEditorCompleter } from '../../hooks/useExplorerAceEditorCompleter';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
@@ -70,9 +67,7 @@ const TableCalculationModal: FC<Props> = ({
 }) => {
     const [isFullscreen, toggleFullscreen] = useToggle(false);
     const { showToastError } = useToaster();
-    const tableName = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.tableName,
-    );
+
     const dimensions = useExplorerContext(
         (context) => context.state.unsavedChartVersion.metricQuery.dimensions,
     );
@@ -83,6 +78,7 @@ const TableCalculationModal: FC<Props> = ({
         (context) =>
             context.state.unsavedChartVersion.metricQuery.tableCalculations,
     );
+
     const { setAceEditor } = useExplorerAceEditorCompleter();
     const methods = useForm<TableCalculationFormInputs>({
         mode: 'onSubmit',

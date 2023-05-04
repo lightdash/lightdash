@@ -1,6 +1,6 @@
 import { NotFoundError } from '@lightdash/common';
 import { FC, memo, useCallback, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+
 import { EChartSeries } from '../../../hooks/echarts/useEcharts';
 import { downloadCsv } from '../../../hooks/useDownloadCsv';
 import { useExplore } from '../../../hooks/useExplore';

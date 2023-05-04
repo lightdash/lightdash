@@ -59,7 +59,7 @@ projectRouter.patch(
     unauthorisedInDemo,
     async (req, res, next) => {
         projectService
-            .update(
+            .updateAndScheduleAsyncWork(
                 req.params.projectUuid,
                 req.user!,
                 req.body,
@@ -308,7 +308,7 @@ projectRouter.post(
     unauthorisedInDemo,
     async (req, res, next) => {
         try {
-            const results = await projectService.compileProject(
+            const results = await projectService.scheduleCompileProject(
                 req.user!,
                 req.params.projectUuid,
                 getRequestMethod(req.header(LightdashRequestMethodHeader)),

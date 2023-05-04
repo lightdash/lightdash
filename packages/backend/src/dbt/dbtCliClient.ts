@@ -146,6 +146,8 @@ export class DbtCliClient implements DbtClient {
             });
             return DbtCliClient.parseDbtJsonLogs(dbtProcess.all);
         } catch (e) {
+            Logger.error(`Error running dbt command  ${e}`);
+
             throw new DbtError(
                 `Failed to run "dbt ${command.join(' ')}"`,
                 DbtCliClient.parseDbtJsonLogs(e.all),

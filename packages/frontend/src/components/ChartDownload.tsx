@@ -10,6 +10,7 @@ import { Classes, Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import {
     ApiScheduledDownloadCsv,
+    assertUnreachable,
     ChartType,
     getCustomLabelsFromColumnProperties,
 } from '@lightdash/common';
@@ -110,7 +111,7 @@ type DownloadOptions = {
     chartRef: RefObject<EChartsReact>;
     chartType: ChartType;
 };
-export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
+const ChartDownloadOptions: React.FC<DownloadOptions> = ({
     chartRef,
     chartType,
 }) => {
@@ -150,8 +151,7 @@ export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
                 downloadJson(echartsInstance.getOption());
                 break;
             default: {
-                const never: never = type;
-                throw new Error(`Unexpected download type: ${type}`);
+                assertUnreachable(type, `Unexpected download type: ${type}`);
             }
         }
     }, [chartRef, type]);

@@ -9,7 +9,7 @@ export type SqlRunnerState = {
     sqlRunner: { sql: string } | undefined;
 };
 
-export const getSqlRunnerUrlFromCreateSavedChartVersion = (
+const getSqlRunnerUrlFromCreateSavedChartVersion = (
     projectUuid: string,
     sqlRunnerState: SqlRunnerState,
 ): { pathname: string; search: string } => {

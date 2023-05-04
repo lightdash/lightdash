@@ -1,9 +1,4 @@
-import {
-    ApiError,
-    CreateInviteLink,
-    formatTimestamp,
-    InviteLink,
-} from '@lightdash/common';
+import { ApiError, CreateInviteLink, InviteLink } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
@@ -21,13 +16,6 @@ const createInviteQuery = async (
         expiresAt: new Date(response.expiresAt),
     };
 };
-
-const revokeInvitesQuery = async () =>
-    lightdashApi<undefined>({
-        url: `/invite-links`,
-        method: 'DELETE',
-        body: undefined,
-    });
 
 const createInviteWith3DayExpiryQuery = async (
     createInvite: Omit<CreateInviteLink, 'expiresAt'>,
@@ -69,29 +57,11 @@ export const useCreateInviteLinkMutation = () => {
                 subtitle: rest.join('\n'),
             });
         },
-        onSuccess: async (data) => {
+        onSuccess: async () => {
             await queryClient.invalidateQueries(['onboarding-status']);
             await queryClient.refetchQueries(['organization_users']);
             showToastSuccess({
                 title: 'Created new invite link',
-            });
-        },
-    });
-};
-
-export const useRevokeInvitesMutation = () => {
-    const { showToastSuccess, showToastError } = useToaster();
-    return useMutation<undefined, ApiError>(revokeInvitesQuery, {
-        mutationKey: ['invite_link_revoke'],
-        onSuccess: async () => {
-            showToastSuccess({
-                title: `All invites were revoked`,
-            });
-        },
-        onError: (error) => {
-            showToastError({
-                title: `Failed to revoke invites`,
-                subtitle: error.error.message,
             });
         },
     });

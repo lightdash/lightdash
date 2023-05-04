@@ -11,7 +11,7 @@ import {
     ResourceViewItemType,
     wrapResourceView,
 } from '@lightdash/common';
-import { ActionIcon, Center, Group, Stack } from '@mantine/core';
+import { ActionIcon, Group, Stack } from '@mantine/core';
 import {
     IconChartAreaLine,
     IconDots,
@@ -19,12 +19,13 @@ import {
     IconPlus,
 } from '@tabler/icons-react';
 import { FC, useCallback, useState } from 'react';
-import { Helmet } from 'react-helmet';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
+
 import { Can } from '../components/common/Authorization';
 import ErrorState from '../components/common/ErrorState';
 import LoadingState from '../components/common/LoadingState';
 import DashboardCreateModal from '../components/common/modal/DashboardCreateModal';
+import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ResourceView from '../components/common/ResourceView';
 import { ResourceTypeIcon } from '../components/common/ResourceView/ResourceIcon';
@@ -120,240 +121,230 @@ const Space: FC = () => {
     ];
 
     return (
-        <>
-            <Helmet>
-                <title>{space?.name} - Lightdash</title>
-            </Helmet>
-            <Center my="md">
-                <Stack spacing="xl" w={900}>
-                    <Group position="apart" mt="xs">
-                        <PageBreadcrumbs
-                            mt="xs"
-                            items={[
-                                {
-                                    title: 'Spaces',
-                                    to: `/projects/${projectUuid}/spaces`,
-                                },
-                                {
-                                    title: space.name,
-                                    active: true,
-                                },
-                            ]}
-                        />
-
-                        <Group spacing="xs">
-                            <Can
-                                I="manage"
-                                this={subject('Space', {
-                                    organizationUuid:
-                                        user.data?.organizationUuid,
-                                    projectUuid,
-                                })}
-                            >
-                                {!isDemo &&
-                                    (userCanManageDashboards ||
-                                        userCanManageCharts) && (
-                                        <Popover2
-                                            captureDismiss
-                                            position={
-                                                PopoverPosition.BOTTOM_RIGHT
-                                            }
-                                            content={
-                                                <Menu>
-                                                    {userCanManageDashboards && (
-                                                        <MenuItem2
-                                                            icon={
-                                                                <IconLayoutDashboard
-                                                                    size={20}
-                                                                />
-                                                            }
-                                                            text={`Add dashboard`}
-                                                        >
-                                                            <AddResourceToSpaceMenu
-                                                                resourceType={
-                                                                    AddToSpaceResources.DASHBOARD
-                                                                }
-                                                                onAdd={() =>
-                                                                    setAddToSpace(
-                                                                        AddToSpaceResources.DASHBOARD,
-                                                                    )
-                                                                }
-                                                                onCreate={() =>
-                                                                    setIsCreateDashboardOpen(
-                                                                        true,
-                                                                    )
-                                                                }
-                                                                hasSavedResources={
-                                                                    !!dashboards.length
-                                                                }
-                                                            />
-                                                        </MenuItem2>
-                                                    )}
-                                                    {userCanManageCharts && (
-                                                        <MenuItem2
-                                                            icon={
-                                                                <IconChartAreaLine
-                                                                    size={20}
-                                                                />
-                                                            }
-                                                            text={`Add chart`}
-                                                        >
-                                                            <AddResourceToSpaceMenu
-                                                                resourceType={
-                                                                    AddToSpaceResources.CHART
-                                                                }
-                                                                onAdd={() =>
-                                                                    setAddToSpace(
-                                                                        AddToSpaceResources.CHART,
-                                                                    )
-                                                                }
-                                                                onCreate={() =>
-                                                                    setCreateToSpace(
-                                                                        AddToSpaceResources.CHART,
-                                                                    )
-                                                                }
-                                                                hasSavedResources={
-                                                                    !!savedCharts.length
-                                                                }
-                                                            />
-                                                        </MenuItem2>
-                                                    )}
-                                                </Menu>
-                                            }
-                                        >
-                                            <ActionIcon
-                                                size={36}
-                                                color="blue"
-                                                variant="filled"
-                                            >
-                                                <IconPlus size={20} />
-                                            </ActionIcon>
-                                        </Popover2>
-                                    )}
-                                <ShareSpaceModal
-                                    space={space!}
-                                    projectUuid={projectUuid}
-                                />
-                                <SpaceBrowserMenu
-                                    onRename={() => setUpdateSpace(true)}
-                                    onDelete={() => setDeleteSpace(true)}
-                                    onTogglePin={() =>
-                                        handlePinToggleSpace(space?.uuid)
-                                    }
-                                    isPinned={!!space?.pinnedListUuid}
-                                >
-                                    <ActionIcon variant="default" size={36}>
-                                        <IconDots size={20} />
-                                    </ActionIcon>
-                                </SpaceBrowserMenu>
-                                {updateSpace && (
-                                    <SpaceActionModal
-                                        projectUuid={projectUuid}
-                                        spaceUuid={space?.uuid}
-                                        actionType={ActionType.UPDATE}
-                                        title="Update space"
-                                        confirmButtonLabel="Update"
-                                        icon="folder-close"
-                                        onClose={() => setUpdateSpace(false)}
-                                    />
-                                )}
-                                {deleteSpace && (
-                                    <SpaceActionModal
-                                        projectUuid={projectUuid}
-                                        spaceUuid={space?.uuid}
-                                        actionType={ActionType.DELETE}
-                                        title="Delete space"
-                                        confirmButtonLabel="Delete"
-                                        confirmButtonIntent={Intent.DANGER}
-                                        icon="folder-close"
-                                        onSubmitForm={() => {
-                                            if (
-                                                location.pathname.includes(
-                                                    space?.uuid,
-                                                )
-                                            ) {
-                                                //Redirect to home if we are on the space we are deleting
-                                                history.push(
-                                                    `/projects/${projectUuid}/home`,
-                                                );
-                                            }
-                                        }}
-                                        onClose={() => {
-                                            setDeleteSpace(false);
-                                        }}
-                                    />
-                                )}
-                            </Can>
-                        </Group>
-                    </Group>
-                    <ResourceView
-                        items={allItems}
-                        listProps={{
-                            defaultColumnVisibility: { space: false },
-                        }}
-                        tabs={[
+        <Page title={space?.name} withFixedContent withPaddedContent>
+            <Stack spacing="xl">
+                <Group position="apart">
+                    <PageBreadcrumbs
+                        items={[
                             {
-                                id: 'all-items',
-                                name: 'All items',
+                                title: 'Spaces',
+                                to: `/projects/${projectUuid}/spaces`,
                             },
                             {
-                                id: 'dashboards',
-                                icon: (
-                                    <ResourceTypeIcon
-                                        type={ResourceViewItemType.DASHBOARD}
-                                    />
-                                ),
-                                name: 'Dashboards',
-                                filter: (item) =>
-                                    item.type ===
-                                    ResourceViewItemType.DASHBOARD,
-                            },
-                            {
-                                id: 'charts',
-                                icon: (
-                                    <ResourceTypeIcon
-                                        type={ResourceViewItemType.CHART}
-                                    />
-                                ),
-                                name: 'Charts',
-                                filter: (item) =>
-                                    item.type === ResourceViewItemType.CHART,
+                                title: space.name,
+                                active: true,
                             },
                         ]}
-                        emptyStateProps={{
-                            icon: <IconLayoutDashboard size={30} />,
-                            title: 'No items added yet',
-                        }}
                     />
 
-                    {addToSpace && (
-                        <AddResourceToSpaceModal
-                            isOpen
-                            resourceType={addToSpace}
-                            onClose={() => setAddToSpace(undefined)}
-                        />
-                    )}
+                    <Group spacing="xs">
+                        <Can
+                            I="manage"
+                            this={subject('Space', {
+                                organizationUuid: user.data?.organizationUuid,
+                                projectUuid,
+                            })}
+                        >
+                            {!isDemo &&
+                                (userCanManageDashboards ||
+                                    userCanManageCharts) && (
+                                    <Popover2
+                                        captureDismiss
+                                        position={PopoverPosition.BOTTOM_RIGHT}
+                                        content={
+                                            <Menu>
+                                                {userCanManageDashboards && (
+                                                    <MenuItem2
+                                                        icon={
+                                                            <IconLayoutDashboard
+                                                                size={20}
+                                                            />
+                                                        }
+                                                        text={`Add dashboard`}
+                                                    >
+                                                        <AddResourceToSpaceMenu
+                                                            resourceType={
+                                                                AddToSpaceResources.DASHBOARD
+                                                            }
+                                                            onAdd={() =>
+                                                                setAddToSpace(
+                                                                    AddToSpaceResources.DASHBOARD,
+                                                                )
+                                                            }
+                                                            onCreate={() =>
+                                                                setIsCreateDashboardOpen(
+                                                                    true,
+                                                                )
+                                                            }
+                                                            hasSavedResources={
+                                                                !!dashboards.length
+                                                            }
+                                                        />
+                                                    </MenuItem2>
+                                                )}
+                                                {userCanManageCharts && (
+                                                    <MenuItem2
+                                                        icon={
+                                                            <IconChartAreaLine
+                                                                size={20}
+                                                            />
+                                                        }
+                                                        text={`Add chart`}
+                                                    >
+                                                        <AddResourceToSpaceMenu
+                                                            resourceType={
+                                                                AddToSpaceResources.CHART
+                                                            }
+                                                            onAdd={() =>
+                                                                setAddToSpace(
+                                                                    AddToSpaceResources.CHART,
+                                                                )
+                                                            }
+                                                            onCreate={() =>
+                                                                setCreateToSpace(
+                                                                    AddToSpaceResources.CHART,
+                                                                )
+                                                            }
+                                                            hasSavedResources={
+                                                                !!savedCharts.length
+                                                            }
+                                                        />
+                                                    </MenuItem2>
+                                                )}
+                                            </Menu>
+                                        }
+                                    >
+                                        <ActionIcon
+                                            size={36}
+                                            color="blue"
+                                            variant="filled"
+                                        >
+                                            <IconPlus size={20} />
+                                        </ActionIcon>
+                                    </Popover2>
+                                )}
+                            <ShareSpaceModal
+                                space={space!}
+                                projectUuid={projectUuid}
+                            />
+                            <SpaceBrowserMenu
+                                onRename={() => setUpdateSpace(true)}
+                                onDelete={() => setDeleteSpace(true)}
+                                onTogglePin={() =>
+                                    handlePinToggleSpace(space?.uuid)
+                                }
+                                isPinned={!!space?.pinnedListUuid}
+                            >
+                                <ActionIcon variant="default" size={36}>
+                                    <IconDots size={20} />
+                                </ActionIcon>
+                            </SpaceBrowserMenu>
+                            {updateSpace && (
+                                <SpaceActionModal
+                                    projectUuid={projectUuid}
+                                    spaceUuid={space?.uuid}
+                                    actionType={ActionType.UPDATE}
+                                    title="Update space"
+                                    confirmButtonLabel="Update"
+                                    icon="folder-close"
+                                    onClose={() => setUpdateSpace(false)}
+                                />
+                            )}
+                            {deleteSpace && (
+                                <SpaceActionModal
+                                    projectUuid={projectUuid}
+                                    spaceUuid={space?.uuid}
+                                    actionType={ActionType.DELETE}
+                                    title="Delete space"
+                                    confirmButtonLabel="Delete"
+                                    confirmButtonIntent={Intent.DANGER}
+                                    icon="folder-close"
+                                    onSubmitForm={() => {
+                                        if (
+                                            location.pathname.includes(
+                                                space?.uuid,
+                                            )
+                                        ) {
+                                            //Redirect to home if we are on the space we are deleting
+                                            history.push(
+                                                `/projects/${projectUuid}/home`,
+                                            );
+                                        }
+                                    }}
+                                    onClose={() => {
+                                        setDeleteSpace(false);
+                                    }}
+                                />
+                            )}
+                        </Can>
+                    </Group>
+                </Group>
+                <ResourceView
+                    items={allItems}
+                    listProps={{
+                        defaultColumnVisibility: { space: false },
+                    }}
+                    tabs={[
+                        {
+                            id: 'all-items',
+                            name: 'All items',
+                        },
+                        {
+                            id: 'dashboards',
+                            icon: (
+                                <ResourceTypeIcon
+                                    type={ResourceViewItemType.DASHBOARD}
+                                />
+                            ),
+                            name: 'Dashboards',
+                            filter: (item) =>
+                                item.type === ResourceViewItemType.DASHBOARD,
+                        },
+                        {
+                            id: 'charts',
+                            icon: (
+                                <ResourceTypeIcon
+                                    type={ResourceViewItemType.CHART}
+                                />
+                            ),
+                            name: 'Charts',
+                            filter: (item) =>
+                                item.type === ResourceViewItemType.CHART,
+                        },
+                    ]}
+                    emptyStateProps={{
+                        icon: <IconLayoutDashboard size={30} />,
+                        title: 'No items added yet',
+                    }}
+                />
 
-                    {createToSpace && (
-                        <CreateResourceToSpace resourceType={createToSpace} />
-                    )}
-
-                    <DashboardCreateModal
-                        projectUuid={projectUuid}
-                        spaceUuid={space.uuid}
-                        isOpen={isCreateDashboardOpen}
-                        onClose={() => setIsCreateDashboardOpen(false)}
-                        onConfirm={(dashboard) => {
-                            history.push(
-                                `/projects/${projectUuid}/dashboards/${dashboard.uuid}/edit`,
-                            );
-
-                            setIsCreateDashboardOpen(false);
-                        }}
+                {addToSpace && (
+                    <AddResourceToSpaceModal
+                        isOpen
+                        resourceType={addToSpace}
+                        onClose={() => setAddToSpace(undefined)}
                     />
-                </Stack>
-            </Center>
-        </>
+                )}
+
+                {createToSpace && (
+                    <CreateResourceToSpace resourceType={createToSpace} />
+                )}
+
+                <DashboardCreateModal
+                    projectUuid={projectUuid}
+                    spaceUuid={space.uuid}
+                    isOpen={isCreateDashboardOpen}
+                    onClose={() => setIsCreateDashboardOpen(false)}
+                    onConfirm={(dashboard) => {
+                        history.push(
+                            `/projects/${projectUuid}/dashboards/${dashboard.uuid}/edit`,
+                        );
+
+                        setIsCreateDashboardOpen(false);
+                    }}
+                />
+            </Stack>
+        </Page>
     );
 };
 

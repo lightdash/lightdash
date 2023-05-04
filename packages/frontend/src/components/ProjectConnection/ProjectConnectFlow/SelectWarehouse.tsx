@@ -23,7 +23,7 @@ export enum OtherWarehouse {
     Other = 'Other',
 }
 
-export const WarehouseTypeLabels = [
+const WarehouseTypeLabels = [
     {
         label: 'BigQuery',
         key: WarehouseTypes.BIGQUERY,

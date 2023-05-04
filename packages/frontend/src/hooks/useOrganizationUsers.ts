@@ -23,10 +23,7 @@ const deleteUserQuery = async (id: string) =>
         body: undefined,
     });
 
-export const updateUser = async (
-    id: string,
-    data: OrganizationMemberProfileUpdate,
-) =>
+const updateUser = async (id: string, data: OrganizationMemberProfileUpdate) =>
     lightdashApi<undefined>({
         url: `/org/users/${id}`,
         method: 'PATCH',

@@ -6,7 +6,6 @@ import {
     getFilterGroupItemsPropertyName,
     getItemsFromFilterGroup,
     isFilterGroup,
-    MetricQuery,
 } from '@lightdash/common';
 import moment from 'moment';
 

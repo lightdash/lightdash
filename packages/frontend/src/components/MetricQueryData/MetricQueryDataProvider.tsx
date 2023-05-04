@@ -95,7 +95,7 @@ type Props = {
     metricQuery: MetricQuery | undefined;
 };
 
-export const MetricQueryDataProvider: FC<Props> = ({
+const MetricQueryDataProvider: FC<Props> = ({
     tableName,
     metricQuery,
     children,

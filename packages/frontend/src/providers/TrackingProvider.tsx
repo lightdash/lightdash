@@ -195,7 +195,7 @@ const Context = createContext<TrackingContext>(undefined as any);
 
 const LIGHTDASH_APP_NAME = 'lightdash_webapp';
 
-export const TrackingProviderMain: FC<TrackingData> = ({
+const TrackingProviderMain: FC<TrackingData> = ({
     rudder,
     page: pageContext,
     section: sectionContext,

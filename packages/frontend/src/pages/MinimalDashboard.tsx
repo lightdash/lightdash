@@ -5,22 +5,19 @@ import {
 } from '@lightdash/common';
 import { FC, useMemo } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
-import { useLocation, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+
 import ChartTile from '../components/DashboardTiles/DashboardChartTile';
 import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
 import { useDashboardQuery } from '../hooks/dashboard/useDashboard';
-import {
-    DashboardProvider,
-    useDashboardContext,
-} from '../providers/DashboardProvider';
-
-import { useMount } from 'react-use';
-import '../styles/react-grid.css';
+import { DashboardProvider } from '../providers/DashboardProvider';
 import {
     getReactGridLayoutConfig,
     RESPONSIVE_GRID_LAYOUT_PROPS,
 } from './Dashboard';
+
+import '../styles/react-grid.css';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 

@@ -1,4 +1,4 @@
-import { Button, Dialog, DialogFooter, DialogProps } from '@blueprintjs/core';
+import { Button, Dialog, DialogProps } from '@blueprintjs/core';
 import { FC } from 'react';
 import ExportCSV, { ExportCSVProps } from '.';
 

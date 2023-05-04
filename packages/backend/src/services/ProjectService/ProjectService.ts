@@ -4,6 +4,7 @@ import {
     AlreadyProcessingError,
     ApiQueryResults,
     ApiSqlQueryResults,
+    ChartSummary,
     countTotalFilterRules,
     CreateDbtCloudIntegration,
     CreateJob,
@@ -55,12 +56,14 @@ import {
     UpdateProject,
     UpdateProjectMember,
     WarehouseClient,
+    WarehouseTypes,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import { Worker } from 'worker_threads';
 import { analytics } from '../../analytics/client';
+import { schedulerClient } from '../../clients/clients';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { errorHandler } from '../../errors';
@@ -324,7 +327,7 @@ export class ProjectService {
         await this.projectModel.saveExploresToCache(projectUuid, explores);
     }
 
-    async update(
+    async updateAndScheduleAsyncWork(
         projectUuid: string,
         user: SessionUser,
         data: UpdateProject,
@@ -361,80 +364,131 @@ export class ProjectService {
                     : [{ stepType: JobStepType.COMPILING }]),
             ],
         };
-
         const updatedProject = ProjectModel.mergeMissingProjectConfigSecrets(
             data,
             savedProject,
         );
 
         await this.projectModel.update(projectUuid, updatedProject);
-
-        const doAsyncWork = async () => {
-            try {
-                await this.jobModel.update(job.jobUuid, {
-                    jobStatus: JobStatusType.RUNNING,
-                });
-                const adapter = await this.jobModel.tryJobStep(
-                    job.jobUuid,
-                    JobStepType.TESTING_ADAPTOR,
-                    async () =>
-                        ProjectService.testProjectAdapter(updatedProject),
-                );
-                if (savedProject.dbtConnection.type !== DbtProjectType.NONE) {
-                    const explores = await this.jobModel.tryJobStep(
-                        job.jobUuid,
-                        JobStepType.COMPILING,
-                        async () => {
-                            try {
-                                return await adapter.compileAllExplores();
-                            } finally {
-                                await adapter.destroy();
-                            }
-                        },
-                    );
-                    await this.projectModel.saveExploresToCache(
-                        projectUuid,
-                        explores,
-                    );
-                }
-
-                await this.jobModel.update(job.jobUuid, {
-                    jobStatus: JobStatusType.DONE,
-                    jobResults: {
-                        projectUuid,
-                    },
-                });
-                analytics.track({
-                    event: 'project.updated',
-                    userId: user.userUuid,
-                    properties: {
-                        projectName: updatedProject.name,
-                        projectId: projectUuid,
-                        projectType: updatedProject.dbtConnection.type,
-                        warehouseConnectionType:
-                            updatedProject.warehouseConnection.type,
-                        organizationId: user.organizationUuid,
-                        dbtConnectionType: data.dbtConnection.type,
-                        isPreview: savedProject.type === ProjectType.PREVIEW,
-                        method,
-                    },
-                });
-            } catch (error) {
-                await this.jobModel.setPendingJobsToSkipped(job.jobUuid);
-                await this.jobModel.update(job.jobUuid, {
-                    jobStatus: JobStatusType.ERROR,
-                });
-                throw error;
-            }
-        };
         await this.jobModel.create(job);
 
-        doAsyncWork().catch((e) =>
-            Logger.error(`Error running background job: ${e}`),
-        );
+        if (savedProject.dbtConnection.type !== DbtProjectType.NONE) {
+            await schedulerClient.testAndCompileProject({
+                createdByUserUuid: user.userUuid,
+                projectUuid,
+                requestMethod: method,
+                jobUuid: job.jobUuid,
+            });
+        } else {
+            // Nothing to test and compile, just update the job status
+            await this.jobModel.update(job.jobUuid, {
+                jobStatus: JobStatusType.DONE,
+                jobResults: {
+                    projectUuid,
+                },
+            });
+        }
         return {
             jobUuid: job.jobUuid,
         };
+    }
+
+    async testAndCompileProject(
+        user: SessionUser,
+
+        projectUuid: string,
+        method: RequestMethod,
+        jobUuid: string,
+    ) {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+
+        const updatedProject = await this.projectModel.getWithSensitiveFields(
+            projectUuid,
+        );
+
+        if (updatedProject.warehouseConnection === undefined) {
+            throw new Error(
+                `Missing warehouseConnection details on project ${projectUuid}'}`,
+            );
+        }
+
+        // This job is the job model we use to compile projects
+        // This is not the graphile Job id we use on scheduler
+        // TODO: remove this old job method and replace with scheduler log details
+        const job: CreateJob = {
+            jobUuid,
+            jobType: JobType.COMPILE_PROJECT,
+            jobStatus: JobStatusType.STARTED,
+            projectUuid: undefined,
+            userUuid: user.userUuid,
+            steps: [
+                { stepType: JobStepType.TESTING_ADAPTOR },
+                ...(updatedProject.dbtConnection.type === DbtProjectType.NONE
+                    ? []
+                    : [{ stepType: JobStepType.COMPILING }]),
+            ],
+        };
+
+        try {
+            await this.jobModel.update(job.jobUuid, {
+                jobStatus: JobStatusType.RUNNING,
+            });
+            const adapter = await this.jobModel.tryJobStep(
+                job.jobUuid,
+                JobStepType.TESTING_ADAPTOR,
+                async () =>
+                    ProjectService.testProjectAdapter(
+                        updatedProject as UpdateProject,
+                    ),
+            );
+            if (updatedProject.dbtConnection.type !== DbtProjectType.NONE) {
+                const explores = await this.jobModel.tryJobStep(
+                    job.jobUuid,
+                    JobStepType.COMPILING,
+                    async () => {
+                        try {
+                            return await adapter.compileAllExplores();
+                        } finally {
+                            await adapter.destroy();
+                        }
+                    },
+                );
+                await this.projectModel.saveExploresToCache(
+                    projectUuid,
+                    explores,
+                );
+            }
+
+            await this.jobModel.update(job.jobUuid, {
+                jobStatus: JobStatusType.DONE,
+                jobResults: {
+                    projectUuid,
+                },
+            });
+            analytics.track({
+                event: 'project.updated',
+                userId: user.userUuid,
+                properties: {
+                    projectName: updatedProject.name,
+                    projectId: projectUuid,
+                    projectType: updatedProject.dbtConnection.type,
+                    warehouseConnectionType:
+                        updatedProject.warehouseConnection!.type,
+                    organizationId: user.organizationUuid,
+                    dbtConnectionType: updatedProject.dbtConnection.type,
+                    isPreview: updatedProject.type === ProjectType.PREVIEW,
+                    method,
+                },
+            });
+        } catch (error) {
+            await this.jobModel.setPendingJobsToSkipped(job.jobUuid);
+            await this.jobModel.update(job.jobUuid, {
+                jobStatus: JobStatusType.ERROR,
+            });
+            throw error;
+        }
     }
 
     private static async testProjectAdapter(
@@ -1089,7 +1143,7 @@ export class ProjectService {
         return job;
     }
 
-    async compileProject(
+    async scheduleCompileProject(
         user: SessionUser,
         projectUuid: string,
         requestMethod: RequestMethod,
@@ -1108,6 +1162,9 @@ export class ProjectService {
             throw new ForbiddenError();
         }
 
+        // This job is the job model we use to compile projects
+        // This is not the graphile Job id we use on scheduler
+        // TODO: remove this old job method and replace with scheduler log details
         const job: CreateJob = {
             jobUuid: uuidv4(),
             jobType: JobType.COMPILE_PROJECT,
@@ -1116,50 +1173,78 @@ export class ProjectService {
             projectUuid,
             steps: [{ stepType: JobStepType.COMPILING }],
         };
-        return new Promise<{ jobUuid: string }>((resolve, reject) => {
-            const onLockFailed = async () => {
-                reject(
-                    new AlreadyProcessingError('Project is already compiling'),
-                );
-            };
-            const onLockAcquired = async () => {
-                await this.jobModel.create(job);
-                resolve({ jobUuid: job.jobUuid });
-                try {
-                    await this.jobModel.update(job.jobUuid, {
-                        jobStatus: JobStatusType.RUNNING,
-                    });
-                    const explores = await this.jobModel.tryJobStep(
-                        job.jobUuid,
-                        JobStepType.COMPILING,
-                        async () =>
-                            this.refreshAllTables(
-                                user,
-                                projectUuid,
-                                requestMethod,
-                            ),
-                    );
-                    await this.projectModel.saveExploresToCache(
-                        projectUuid,
-                        explores,
-                    );
-                    await this.jobModel.update(job.jobUuid, {
-                        jobStatus: JobStatusType.DONE,
-                    });
-                } catch (e) {
-                    await this.jobModel.update(job.jobUuid, {
-                        jobStatus: JobStatusType.ERROR,
-                    });
-                }
-            };
-            this.projectModel
-                .tryAcquireProjectLock(
-                    projectUuid,
-                    onLockAcquired,
-                    onLockFailed,
-                )
-                .catch((e) => Logger.error(`Background job failed: ${e}`));
+
+        await this.jobModel.create(job);
+
+        await schedulerClient.compileProject({
+            createdByUserUuid: user.userUuid,
+            projectUuid,
+            requestMethod,
+            jobUuid: job.jobUuid,
         });
+
+        return { jobUuid: job.jobUuid };
+    }
+
+    async compileProject(
+        user: SessionUser,
+        projectUuid: string,
+        requestMethod: RequestMethod,
+        jobUuid: string,
+    ) {
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        if (
+            user.ability.cannot('create', 'Job') ||
+            user.ability.cannot(
+                'manage',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const job: CreateJob = {
+            jobUuid,
+            jobType: JobType.COMPILE_PROJECT,
+            jobStatus: JobStatusType.STARTED,
+            userUuid: user.userUuid,
+            projectUuid,
+            steps: [{ stepType: JobStepType.COMPILING }],
+        };
+
+        const onLockFailed = async () => {
+            throw new AlreadyProcessingError('Project is already compiling');
+        };
+        const onLockAcquired = async () => {
+            try {
+                await this.jobModel.update(job.jobUuid, {
+                    jobStatus: JobStatusType.RUNNING,
+                });
+                const explores = await this.jobModel.tryJobStep(
+                    job.jobUuid,
+                    JobStepType.COMPILING,
+                    async () =>
+                        this.refreshAllTables(user, projectUuid, requestMethod),
+                );
+                await this.projectModel.saveExploresToCache(
+                    projectUuid,
+                    explores,
+                );
+                await this.jobModel.update(job.jobUuid, {
+                    jobStatus: JobStatusType.DONE,
+                });
+            } catch (e) {
+                await this.jobModel.update(job.jobUuid, {
+                    jobStatus: JobStatusType.ERROR,
+                });
+            }
+        };
+        await this.projectModel
+            .tryAcquireProjectLock(projectUuid, onLockAcquired, onLockFailed)
+            .catch((e) => Logger.error(`Background job failed: ${e}`));
     }
 
     async getAllExploresSummary(
@@ -1636,5 +1721,33 @@ export class ProjectService {
             integration.serviceToken,
             integration.metricsJobId,
         );
+    }
+
+    async getCharts(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<ChartSummary[]> {
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const spaces = await this.spaceModel.find({ projectUuid });
+        const allowedSpaces = spaces.filter(
+            (space) =>
+                space.projectUuid === projectUuid &&
+                (!space.isPrivate || space.access.includes(user.userUuid)),
+        );
+
+        const charts = await this.savedChartModel.find({
+            projectUuid,
+            spaceUuids: allowedSpaces.map((s) => s.uuid),
+        });
+        return charts;
     }
 }

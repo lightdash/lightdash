@@ -14,6 +14,13 @@ export type Space = {
     pinnedListUuid: string | null;
 };
 
+export type SpaceSummary = Pick<
+    Space,
+    'organizationUuid' | 'projectUuid' | 'uuid' | 'name' | 'isPrivate'
+> & {
+    access: string[];
+};
+
 export type CreateSpace = Pick<Space, 'name' | 'isPrivate' | 'access'>;
 
 export type UpdateSpace = Pick<Space, 'name' | 'isPrivate'>;

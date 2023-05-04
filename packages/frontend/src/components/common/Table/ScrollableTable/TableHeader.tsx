@@ -1,9 +1,9 @@
-import { Colors } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import { isField } from '@lightdash/common';
 import { flexRender } from '@tanstack/react-table';
 import React, { FC } from 'react';
 import { Draggable } from 'react-beautiful-dnd';
+
 import {
     TABLE_HEADER_BG,
     Th,

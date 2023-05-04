@@ -4,7 +4,7 @@ import BigNumberConfigPanel from '../../BigNumberConfig';
 import ChartConfigPanel from '../../ChartConfigPanel';
 import TableConfigPanel from '../../TableConfigPanel';
 
-export const VisualizationConfigPanel: FC<{ chartType: ChartType }> = memo(
+const VisualizationConfigPanel: FC<{ chartType: ChartType }> = memo(
     ({ chartType }) => {
         switch (chartType) {
             case ChartType.BIG_NUMBER:

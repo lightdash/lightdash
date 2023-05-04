@@ -29,7 +29,7 @@ import DefaultFilterInputs, {
     FilterInputsProps,
 } from './FilterInputs/DefaultFilterInputs';
 
-export const filterOperatorLabel: Record<FilterOperator, string> = {
+const filterOperatorLabel: Record<FilterOperator, string> = {
     [FilterOperator.NULL]: 'is null',
     [FilterOperator.NOT_NULL]: 'is not null',
     [FilterOperator.EQUALS]: 'is equal to',
@@ -123,7 +123,7 @@ export const FilterTypeConfig: Record<
     },
 };
 
-export const getValueAsString = (
+const getValueAsString = (
     filterType: FilterType,
     rule: ConditionalRule,
     field: Field | TableCalculation,
