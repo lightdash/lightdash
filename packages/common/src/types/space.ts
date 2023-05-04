@@ -31,3 +31,8 @@ export type SpaceShare = {
     lastName: string;
     role: ProjectMemberRole | null;
 };
+
+export type ApiSpaceSummaryListResponse = {
+    status: 'ok';
+    results: SpaceSummary[];
+};

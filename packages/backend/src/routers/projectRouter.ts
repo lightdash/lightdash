@@ -376,7 +376,7 @@ projectRouter.patch(
 );
 
 projectRouter.get(
-    '/spaces',
+    '/spaces-and-content',
     allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {

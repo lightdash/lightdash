@@ -36,7 +36,7 @@ describe('Lightdash scheduler endpoints', () => {
     });
     it('Should create/update/delete chart scheduler', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
-        cy.request(`${apiUrl}/projects/${projectUuid}/spaces`).then(
+        cy.request(`${apiUrl}/projects/${projectUuid}/spaces-and-content`).then(
             (projectResponse) => {
                 const savedChart = projectResponse.body.results
                     .find((s) => s.name === SEED_PROJECT.name)

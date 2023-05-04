@@ -9,7 +9,7 @@ import {
 import { FC } from 'react';
 import { Link } from 'react-router-dom';
 
-import { useSpaces } from '../../hooks/useSpaces';
+import { useSpaceSummaries } from '../../hooks/useSpaces';
 import MantineIcon from '../common/MantineIcon';
 
 interface Props {
@@ -17,7 +17,7 @@ interface Props {
 }
 
 const BrowseMenu: FC<Props> = ({ projectUuid }) => {
-    const { data: spaces, isLoading } = useSpaces(projectUuid);
+    const { data: spaces, isLoading } = useSpaceSummaries(projectUuid);
 
     return (
         <Menu
