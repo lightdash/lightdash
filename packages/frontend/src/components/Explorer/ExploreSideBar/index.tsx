@@ -137,7 +137,7 @@ const ExploreSideBar = memo(() => {
 
     return (
         <TrackSection name={SectionName.SIDEBAR}>
-            <Stack h="100%" sx={{ flexDirection: 'column' }}>
+            <Stack h="100%" sx={{ flexGrow: 1 }}>
                 {!tableName ? (
                     <BasePanel />
                 ) : (

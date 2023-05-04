@@ -83,9 +83,9 @@ const Settings: FC = () => {
 
     return (
         <Page
+            withFullHeight
             withSidebarFooter
             withFixedContent
-            withFullHeight
             withPaddedContent
             title="Settings"
             sidebar={

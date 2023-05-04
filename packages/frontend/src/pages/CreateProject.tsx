@@ -74,7 +74,7 @@ const CreateProject: FC = () => {
 
     return (
         <ProjectFormProvider>
-            <Page>
+            <Page title="Create project" withFixedContent withPaddedContent>
                 {method && projectUuid ? (
                     <ConnectSuccess projectUuid={projectUuid} />
                 ) : (

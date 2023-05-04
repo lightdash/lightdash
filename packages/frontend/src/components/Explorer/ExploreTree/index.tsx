@@ -6,7 +6,7 @@ import {
     getItemId,
     Metric,
 } from '@lightdash/common';
-import { ActionIcon, Box, Center, Stack, Text, TextInput } from '@mantine/core';
+import { ActionIcon, Box, Center, Text, TextInput } from '@mantine/core';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import { FC, useCallback, useMemo, useState } from 'react';
 import MantineIcon from '../../common/MantineIcon';
@@ -56,7 +56,7 @@ const ExploreTree: FC<ExploreTreeProps> = ({
     }, [explore, searchHasResults, isSearching]);
 
     return (
-        <Stack sx={{ overflow: 'hidden', flexGrow: 1 }}>
+        <>
             <TextInput
                 icon={<MantineIcon icon={IconSearch} />}
                 rightSection={
@@ -71,7 +71,7 @@ const ExploreTree: FC<ExploreTreeProps> = ({
                 onChange={(e) => setSearch(e.target.value)}
             />
 
-            <Box style={{ overflowY: 'auto' }}>
+            <Box style={{ flexGrow: 1, overflowY: 'auto' }}>
                 {tableTrees.length > 0 ? (
                     tableTrees.map((table) => (
                         <TableTree
@@ -94,7 +94,7 @@ const ExploreTree: FC<ExploreTreeProps> = ({
                     </Center>
                 )}
             </Box>
-        </Stack>
+        </>
     );
 };
 
