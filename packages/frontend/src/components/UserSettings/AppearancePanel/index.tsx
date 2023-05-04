@@ -1,25 +1,24 @@
-import { Intent, Spinner } from '@blueprintjs/core';
+import { Spinner } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { ECHARTS_DEFAULT_COLORS } from '@lightdash/common';
+import {
+    Box,
+    Button,
+    ColorInput,
+    SimpleGrid,
+    Stack,
+    Title,
+} from '@mantine/core';
 import { FC, useCallback, useEffect, useState } from 'react';
-
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useOrganizationUpdateMutation } from '../../../hooks/organization/useOrganizationUpdateMutation';
-import { InputWrapper } from '../../ChartConfigPanel/ChartConfigPanel.styles';
 import { Can, useAbilityContext } from '../../common/Authorization';
-import ColorInput from '../../common/ColorInput';
-import {
-    AppearancePanelWrapper,
-    ColorPalette,
-    SaveButton,
-    Title,
-} from './AppearancePanel.styles';
 
 const AppearancePanel: FC = () => {
     const ability = useAbilityContext();
     const { isLoading: isOrgLoading, data } = useOrganization();
     const updateMutation = useOrganizationUpdateMutation();
-    let [colors, setColors] = useState<string[]>(
+    const [colors, setColors] = useState<string[]>(
         data?.chartColors || ECHARTS_DEFAULT_COLORS.slice(0, 8),
     );
 
@@ -41,20 +40,23 @@ const AppearancePanel: FC = () => {
         if (data?.chartColors) {
             setColors(data.chartColors);
         }
-    }, [data]);
+    }, [data?.chartColors]);
 
     if (isOrgLoading) {
         return <Spinner />;
     }
 
     return (
-        <AppearancePanelWrapper>
-            <Title>Default chart colors</Title>
-            <ColorPalette>
-                {colors.map((color, index) => (
-                    <InputWrapper key={index} label={`Color ${index + 1}`}>
+        <Box>
+            <Stack spacing="md">
+                <Title order={5}>Default chart colors</Title>
+                <SimpleGrid cols={2}>
+                    {colors.map((color, index) => (
                         <ColorInput
+                            key={index}
+                            width="100%"
                             placeholder="Enter hex color"
+                            label={`Color ${index + 1}`}
                             value={color}
                             disabled={ability.cannot(
                                 'update',
@@ -62,32 +64,34 @@ const AppearancePanel: FC = () => {
                                     organizationUuid: data?.organizationUuid,
                                 }),
                             )}
-                            onChange={(e) => {
+                            onChange={(newColor) => {
                                 setColors(
                                     colors.map((c, i) =>
-                                        index === i ? e.target.value : c,
+                                        index === i ? newColor : c,
                                     ),
                                 );
                             }}
                         />
-                    </InputWrapper>
-                ))}
-            </ColorPalette>
-            <div style={{ flex: 1 }} />
-            <Can
-                I={'update'}
-                this={subject('Organization', {
-                    organizationUuid: data?.organizationUuid,
-                })}
-            >
-                <SaveButton
-                    intent={Intent.PRIMARY}
-                    text="Save changes"
-                    loading={updateMutation.isLoading}
-                    onClick={update}
-                />
-            </Can>
-        </AppearancePanelWrapper>
+                    ))}
+                </SimpleGrid>
+
+                <Can
+                    I={'update'}
+                    this={subject('Organization', {
+                        organizationUuid: data?.organizationUuid,
+                    })}
+                >
+                    <Button
+                        loading={updateMutation.isLoading}
+                        onClick={update}
+                        ml="auto"
+                        display="block"
+                    >
+                        Save changes
+                    </Button>
+                </Can>
+            </Stack>
+        </Box>
     );
 };
 
