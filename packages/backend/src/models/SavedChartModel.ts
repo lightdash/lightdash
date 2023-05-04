@@ -202,6 +202,11 @@ type Dependencies = {
     database: Knex;
 };
 
+type GetSavedChartParams = {
+    savedChartUuid: string;
+    showViews: boolean;
+};
+
 export class SavedChartModel {
     private database: Knex;
 
@@ -253,7 +258,10 @@ export class SavedChartModel {
                 return newSavedChart.saved_query_uuid;
             },
         );
-        return this.get(newSavedChartUuid);
+        return this.get({
+            savedChartUuid: newSavedChartUuid,
+            showViews: true, // used in useCreateMutation in FE and response is cached by react query
+        });
     }
 
     async createVersion(
@@ -271,7 +279,7 @@ export class SavedChartModel {
                 updatedByUser: user,
             });
         });
-        return this.get(savedChartUuid);
+        return this.get({ savedChartUuid, showViews: true });
     }
 
     async update(
@@ -285,7 +293,7 @@ export class SavedChartModel {
                 space_id: await getSpaceId(this.database, data.spaceUuid),
             })
             .where('saved_query_uuid', savedChartUuid);
-        return this.get(savedChartUuid);
+        return this.get({ savedChartUuid, showViews: true });
     }
 
     async updateMultiple(
@@ -304,19 +312,28 @@ export class SavedChartModel {
             await Promise.all(promises);
         });
         return Promise.all(
-            data.map(async (savedChart) => this.get(savedChart.uuid)),
+            data.map(
+                async (savedChart) =>
+                    this.get({
+                        savedChartUuid: savedChart.uuid,
+                        showViews: false,
+                    }), // used by useUpdateMultipleMutation in FE, views not needed
+            ),
         );
     }
 
     async delete(savedChartUuid: string): Promise<SavedChart> {
-        const savedChart = await this.get(savedChartUuid);
+        const savedChart = await this.get({ savedChartUuid, showViews: false }); // used by savedChartService in BE, doesn't need views
         await this.database('saved_queries')
             .delete()
             .where('saved_query_uuid', savedChartUuid);
         return savedChart;
     }
 
-    async get(savedChartUuid: string): Promise<SavedChart> {
+    async get({
+        savedChartUuid,
+        showViews,
+    }: GetSavedChartParams): Promise<SavedChart> {
         const transaction = Sentry.getCurrentHub()
             ?.getScope()
             ?.getTransaction();
@@ -325,17 +342,7 @@ export class SavedChartModel {
             description: 'Gets a single chart including statistics',
         });
         try {
-            const [savedQuery] = await this.database
-                .with('view_stats', (qb) => {
-                    qb.count({ views: '*' })
-                        .min({
-                            first_viewed_at: 'timestamp',
-                        })
-                        .select('chart_uuid')
-                        .groupBy('chart_uuid')
-                        .from('analytics_chart_views')
-                        .where('chart_uuid', savedChartUuid);
-                })
+            const query = this.database
                 .from<DbSavedChartDetails>(SavedChartsTableName)
                 .innerJoin(
                     SpaceTableName,
@@ -371,42 +378,61 @@ export class SavedChartModel {
                     PinnedListTableName,
                     `${PinnedListTableName}.pinned_list_uuid`,
                     `${PinnedChartTableName}.pinned_list_uuid`,
-                )
-                .leftJoin(
-                    'view_stats',
-                    'view_stats.chart_uuid',
-                    'saved_queries.saved_query_uuid',
-                )
+                );
+            if (showViews) {
+                query
+                    .with('view_stats', (qb) => {
+                        qb.count({ views: '*' })
+                            .min({
+                                first_viewed_at: 'timestamp',
+                            })
+                            .select('chart_uuid')
+                            .groupBy('chart_uuid')
+                            .from('analytics_chart_views')
+                            .where('chart_uuid', savedChartUuid);
+                    })
+                    .leftJoin(
+                        'view_stats',
+                        'view_stats.chart_uuid',
+                        'saved_queries.saved_query_uuid',
+                    );
+            }
+            const [savedQuery] = await query
                 .select<
                     (DbSavedChartDetails & {
                         space_uuid: string;
                         spaceName: string;
-                        views: string;
-                        first_viewed_at: Date | null;
+                        views?: string;
+                        first_viewed_at?: Date | null;
                     })[]
                 >([
-                    `${ProjectTableName}.project_uuid`,
-                    `${SavedChartsTableName}.saved_query_id`,
-                    `${SavedChartsTableName}.saved_query_uuid`,
-                    `${SavedChartsTableName}.name`,
-                    `${SavedChartsTableName}.description`,
-                    'saved_queries_versions.saved_queries_version_id',
-                    'saved_queries_versions.explore_name',
-                    'saved_queries_versions.filters',
-                    'saved_queries_versions.row_limit',
-                    'saved_queries_versions.chart_type',
-                    'saved_queries_versions.created_at',
-                    'saved_queries_versions.chart_config',
-                    'saved_queries_versions.pivot_dimensions',
-                    `${OrganizationTableName}.organization_uuid`,
-                    `${UserTableName}.user_uuid`,
-                    `${UserTableName}.first_name`,
-                    `${UserTableName}.last_name`,
-                    `${SpaceTableName}.space_uuid`,
-                    `${SpaceTableName}.name as spaceName`,
-                    `${PinnedListTableName}.pinned_list_uuid`,
-                    `view_stats.views`,
-                    `view_stats.first_viewed_at`,
+                    ...[
+                        `${ProjectTableName}.project_uuid`,
+                        `${SavedChartsTableName}.saved_query_id`,
+                        `${SavedChartsTableName}.saved_query_uuid`,
+                        `${SavedChartsTableName}.name`,
+                        `${SavedChartsTableName}.description`,
+                        'saved_queries_versions.saved_queries_version_id',
+                        'saved_queries_versions.explore_name',
+                        'saved_queries_versions.filters',
+                        'saved_queries_versions.row_limit',
+                        'saved_queries_versions.chart_type',
+                        'saved_queries_versions.created_at',
+                        'saved_queries_versions.chart_config',
+                        'saved_queries_versions.pivot_dimensions',
+                        `${OrganizationTableName}.organization_uuid`,
+                        `${UserTableName}.user_uuid`,
+                        `${UserTableName}.first_name`,
+                        `${UserTableName}.last_name`,
+                        `${SpaceTableName}.space_uuid`,
+                        `${SpaceTableName}.name as spaceName`,
+                        `${PinnedListTableName}.pinned_list_uuid`,
+                        `view_stats.views`,
+                        `view_stats.first_viewed_at`,
+                    ],
+                    ...(showViews
+                        ? ['view_stats.views', 'view_stats.first_viewed_at']
+                        : []),
                 ])
                 .where(
                     `${SavedChartsTableName}.saved_query_uuid`,
@@ -540,8 +566,12 @@ export class SavedChartModel {
                 spaceUuid: savedQuery.space_uuid,
                 spaceName: savedQuery.spaceName,
                 pinnedListUuid: savedQuery.pinned_list_uuid,
-                views: parseInt(savedQuery.views, 10) || 0,
-                firstViewedAt: savedQuery.first_viewed_at,
+                ...(savedQuery.views !== undefined
+                    ? {
+                          views: parseInt(savedQuery.views, 10) || 0,
+                          firstViewedAt: savedQuery.first_viewed_at,
+                      }
+                    : {}),
             };
         } finally {
             span?.finish();
@@ -549,6 +579,7 @@ export class SavedChartModel {
     }
 
     async find(filters: {
+        savedChartUuid?: string;
         projectUuid?: string;
         spaceUuids?: string[];
     }): Promise<ChartSummary[]> {
@@ -583,6 +614,12 @@ export class SavedChartModel {
             }
             if (filters.spaceUuids) {
                 query.whereIn('spaces.space_uuid', filters.spaceUuids);
+            }
+            if (filters.savedChartUuid) {
+                query.where(
+                    'saved_queries.saved_query_uuid',
+                    filters.savedChartUuid,
+                );
             }
             const rows = await query;
             return rows;

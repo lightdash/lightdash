@@ -285,7 +285,9 @@ export class CsvService {
         options: SchedulerCsvOptions | undefined,
         jobId?: string,
     ): Promise<AttachmentUrl> {
-        const chart = await this.savedChartModel.get(chartUuid);
+        const chart = await this.savedChartModel.get({
+            savedChartUuid: chartUuid,
+        });
         const {
             metricQuery,
             chartConfig: { config },

@@ -213,8 +213,8 @@ export type SavedChart = {
     organizationUuid: string;
     spaceUuid: string;
     spaceName: string;
-    views: number;
-    firstViewedAt: Date | string | null;
+    views?: number;
+    firstViewedAt?: Date | string | null;
     pinnedListUuid: string | null;
 };
 

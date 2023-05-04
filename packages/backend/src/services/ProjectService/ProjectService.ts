@@ -698,7 +698,9 @@ export class ProjectService {
             throw new ForbiddenError('User is not part of an organization');
         }
 
-        const savedChart = await this.savedChartModel.get(chartUuid);
+        const savedChart = await this.savedChartModel.get({
+            savedChartUuid: chartUuid,
+        });
         const { organizationUuid, projectUuid } = savedChart;
 
         if (
@@ -1451,7 +1453,9 @@ export class ProjectService {
             description: 'Gets all filters available for a single query',
         });
         try {
-            const savedChart = await this.savedChartModel.get(savedChartUuid);
+            const savedChart = await this.savedChartModel.get({
+                savedChartUuid,
+            });
 
             if (
                 user.ability.cannot('view', subject('SavedChart', savedChart))

@@ -55,7 +55,9 @@ export class SchedulerService {
         scheduler: Scheduler,
     ): Promise<SavedChart | Dashboard> {
         return isChartScheduler(scheduler)
-            ? this.savedChartModel.get(scheduler.savedChartUuid)
+            ? this.savedChartModel.get({
+                  savedChartUuid: scheduler.savedChartUuid,
+              })
             : this.dashboardModel.getById(scheduler.dashboardUuid);
     }
 

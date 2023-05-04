@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    ChartSummary,
     ChartType,
     countTotalFilterRules,
     CreateSavedChart,
@@ -61,14 +62,13 @@ export class SavedChartService {
     private async checkUpdateAccess(
         user: SessionUser,
         chartUuid: string,
-    ): Promise<SavedChart> {
-        const savedChart = await this.savedChartModel.get(chartUuid);
-        const { organizationUuid, projectUuid } = savedChart;
+    ): Promise<ChartSummary> {
+        const [savedChart] = await this.savedChartModel.find({
+            savedChartUuid: chartUuid,
+        });
         if (
-            user.ability.cannot(
-                'update',
-                subject('SavedChart', { organizationUuid, projectUuid }),
-            )
+            savedChart === undefined ||
+            user.ability.cannot('update', subject('SavedChart', savedChart))
         ) {
             throw new ForbiddenError();
         }
@@ -169,6 +169,7 @@ export class SavedChartService {
             await this.savedChartModel.get(savedChartUuid);
 
         if (
+            savedChart === undefined ||
             user.ability.cannot(
                 'update',
                 subject('SavedChart', { organizationUuid, projectUuid }),
@@ -201,7 +202,10 @@ export class SavedChartService {
         data: UpdateSavedChart,
     ): Promise<SavedChart> {
         const { organizationUuid, projectUuid, spaceUuid } =
-            await this.savedChartModel.get(savedChartUuid);
+            await this.savedChartModel.get({
+                savedChartUuid,
+                showViews: false,
+            });
 
         if (
             user.ability.cannot(
@@ -236,7 +240,10 @@ export class SavedChartService {
         savedChartUuid: string,
     ): Promise<SavedChart> {
         const { organizationUuid, projectUuid, pinnedListUuid } =
-            await this.savedChartModel.get(savedChartUuid);
+            await this.savedChartModel.get({
+                savedChartUuid,
+                showViews: false,
+            });
 
         if (
             user.ability.cannot(
@@ -274,7 +281,7 @@ export class SavedChartService {
             },
         });
 
-        return this.get(savedChartUuid, user);
+        return this.get(savedChartUuid, user, true);
     }
 
     async updateMultiple(
@@ -309,7 +316,10 @@ export class SavedChartService {
 
     async delete(user: SessionUser, savedChartUuid: string): Promise<void> {
         const { organizationUuid, projectUuid, spaceUuid } =
-            await this.savedChartModel.get(savedChartUuid);
+            await this.savedChartModel.get({
+                savedChartUuid,
+                showViews: false,
+            });
 
         if (
             user.ability.cannot(
@@ -336,8 +346,15 @@ export class SavedChartService {
         });
     }
 
-    async get(savedChartUuid: string, user: SessionUser): Promise<SavedChart> {
-        const savedChart = await this.savedChartModel.get(savedChartUuid);
+    async get(
+        savedChartUuid: string,
+        user: SessionUser,
+        showViews: boolean,
+    ): Promise<SavedChart> {
+        const savedChart = await this.savedChartModel.get({
+            savedChartUuid,
+            showViews,
+        });
         if (user.ability.cannot('view', subject('SavedChart', savedChart))) {
             throw new ForbiddenError();
         }
@@ -411,7 +428,10 @@ export class SavedChartService {
         projectUuid: string,
         chartUuid: string,
     ): Promise<SavedChart> {
-        const chart = await this.savedChartModel.get(chartUuid);
+        const chart = await this.savedChartModel.get({
+            savedChartUuid: chartUuid,
+            showViews: false,
+        });
         if (user.ability.cannot('create', subject('SavedChart', chart))) {
             throw new ForbiddenError();
         }

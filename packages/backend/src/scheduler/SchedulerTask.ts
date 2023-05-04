@@ -44,7 +44,9 @@ const getChartOrDashboard = async (
     dashboardUuid: string | null,
 ) => {
     if (chartUuid) {
-        const chart = await schedulerService.savedChartModel.get(chartUuid);
+        const chart = await schedulerService.savedChartModel.get({
+            savedChartUuid: chartUuid,
+        });
         return {
             url: `${lightdashConfig.siteUrl}/projects/${chart.projectUuid}/saved/${chartUuid}`,
             minimalUrl: `${lightdashConfig.siteUrl}/minimal/projects/${chart.projectUuid}/saved/${chartUuid}`,

@@ -272,9 +272,9 @@ export class UnfurlService {
                     throw new Error(
                         `Missing chartUuid when unfurling Dashboard URL ${parsedUrl.url}`,
                     );
-                const chart = await this.savedChartModel.get(
-                    parsedUrl.chartUuid,
-                );
+                const chart = await this.savedChartModel.get({
+                    savedChartUuid: parsedUrl.chartUuid,
+                });
                 return { title: chart.name, description: chart.description };
             case LightdashPage.EXPLORE:
                 const exploreName = parsedUrl.exploreModel
