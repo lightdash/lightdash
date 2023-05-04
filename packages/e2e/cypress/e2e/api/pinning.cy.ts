@@ -8,31 +8,31 @@ describe('Lightdash pinning endpoints', () => {
     });
     it('Should pin/unpin chart', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
-        cy.request(
-            `${apiUrl}/projects/${projectUuid}/spaces-with-content`,
-        ).then((projectResponse) => {
-            const savedChart = projectResponse.body.results[0].queries[0];
+        cy.request(`${apiUrl}/projects/${projectUuid}/spaces-and-content`).then(
+            (projectResponse) => {
+                const savedChart = projectResponse.body.results[0].queries[0];
 
-            // change once
-            cy.request(
-                'PATCH',
-                `${apiUrl}/saved/${savedChart.uuid}/pinning`,
-            ).then((updatedChartResponse) => {
-                expect(
-                    updatedChartResponse.body.results.pinnedListUuid,
-                ).to.not.eq(savedChart.pinnedListUuid);
-            });
+                // change once
+                cy.request(
+                    'PATCH',
+                    `${apiUrl}/saved/${savedChart.uuid}/pinning`,
+                ).then((updatedChartResponse) => {
+                    expect(
+                        updatedChartResponse.body.results.pinnedListUuid,
+                    ).to.not.eq(savedChart.pinnedListUuid);
+                });
 
-            // change back
-            cy.request(
-                'PATCH',
-                `${apiUrl}/saved/${savedChart.uuid}/pinning`,
-            ).then((updatedChartResponse) => {
-                expect(updatedChartResponse.body.results.pinnedListUuid).to.eq(
-                    savedChart.pinnedListUuid,
-                );
-            });
-        });
+                // change back
+                cy.request(
+                    'PATCH',
+                    `${apiUrl}/saved/${savedChart.uuid}/pinning`,
+                ).then((updatedChartResponse) => {
+                    expect(
+                        updatedChartResponse.body.results.pinnedListUuid,
+                    ).to.eq(savedChart.pinnedListUuid);
+                });
+            },
+        );
     });
     it('Should pin/unpin dashboard', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
