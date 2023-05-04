@@ -26,11 +26,10 @@ const PinnedItemsPanel: FC<Props> = ({
         'update',
         subject('Project', { organizationUuid, projectUuid }),
     );
-    const pinnedItems = [...data.dashboards, ...data.spaces, ...data.charts];
 
-    return pinnedItems && pinnedItems.length > 0 ? (
+    return data && data.length > 0 ? (
         <ResourceView
-            items={pinnedItems}
+            items={data}
             view={ResourceViewType.GRID}
             hasReorder
             gridProps={{
@@ -50,7 +49,7 @@ const PinnedItemsPanel: FC<Props> = ({
             }}
             pinnedItemsProps={{ projectUuid, pinnedListUuid }}
         />
-    ) : (userCanUpdateProject && pinnedItems.length <= 0) || !pinnedItems ? (
+    ) : (userCanUpdateProject && data.length <= 0) || !data ? (
         // FIXME: update width with Mantine widths
         <Card
             withBorder

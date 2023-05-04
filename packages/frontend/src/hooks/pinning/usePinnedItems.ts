@@ -36,15 +36,11 @@ export const usePinnedItems = (
         enabled: !!pinnedlistUuid,
     });
 
-export const useReorder = (
-    projectUuid: string,
-    pinnedlistUuid: string,
-    pinnedItemsOrder: UpdatePinnedItemOrder[],
-) => {
+export const useReorder = (projectUuid: string, pinnedlistUuid: string) => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastError } = useToaster();
     return useMutation<PinnedItems, ApiError, UpdatePinnedItemOrder[]>(
-        () =>
+        (pinnedItemsOrder: UpdatePinnedItemOrder[]) =>
             updatePinnedItemsOrder(
                 projectUuid,
                 pinnedlistUuid,
@@ -61,11 +57,10 @@ export const useReorder = (
                     projectUuid,
                     pinnedlistUuid,
                 ]);
-                showToastSuccess({ title: 'Pinned items order updated' });
             },
             onError: (error) => {
                 showToastError({
-                    title: `Pinned items order update failed. Error: ${error}.`,
+                    title: `Could not re-order pinned items. Please try again. Error: ${error.error}`,
                 });
             },
         },

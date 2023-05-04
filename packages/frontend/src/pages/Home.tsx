@@ -2,7 +2,6 @@ import { Stack } from '@mantine/core';
 import { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useUnmount } from 'react-use';
-
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
 import ForbiddenPanel from '../components/ForbiddenPanel';
@@ -28,10 +27,8 @@ const Home: FC = () => {
     const project = useProject(selectedProjectUuid);
     const onboarding = useOnboardingStatus();
 
-    const {
-        data: pinnedItems = { dashboards: [], charts: [], spaces: [] },
-        isLoading: pinnedItemsLoading,
-    } = usePinnedItems(selectedProjectUuid, project?.data?.pinnedListUuid);
+    const { data: pinnedItems = [], isLoading: pinnedItemsLoading } =
+        usePinnedItems(selectedProjectUuid, project?.data?.pinnedListUuid);
     const { data: dashboards = [], isLoading: dashboardsLoading } =
         useDashboards(selectedProjectUuid);
     const { data: savedCharts = [], isLoading: chartsLoading } =
