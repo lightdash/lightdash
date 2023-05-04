@@ -1,5 +1,4 @@
-import { Button } from '@blueprintjs/core';
-import { Flex, Title } from '@mantine/core';
+import { Button, Flex, Title } from '@mantine/core';
 import { IconKey } from '@tabler/icons-react';
 import { FC, useState } from 'react';
 import { useAccessToken } from '../../../hooks/useAccessToken';
