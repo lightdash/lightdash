@@ -66,8 +66,7 @@ export type CreatePinnedItem =
 
 export type UpdatePinnedItemOrder = {
     type: ResourceViewItemType;
-    data: Pick<ResourceViewItem['data'], 'uuid'>;
-    order: number;
+    data: Pick<ResourceViewItem['data'], 'uuid' | 'pinnedListOrder'>;
 };
 
 export const isCreateChartPinnedItem = (
@@ -93,8 +92,6 @@ export type ApiPinnedItems = {
     results: PinnedItems;
 };
 
-export type PinnedItems = {
-    dashboards: ResourceViewDashboardItem[];
-    charts: ResourceViewChartItem[];
-    spaces: ResourceViewSpaceItem[];
-};
+export type PinnedItems = Array<
+    ResourceViewDashboardItem | ResourceViewChartItem | ResourceViewSpaceItem
+>;

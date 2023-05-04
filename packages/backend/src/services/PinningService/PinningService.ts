@@ -70,7 +70,7 @@ export class PinningService {
             .map((space) => space.uuid);
 
         if (allowedSpaceUuids.length === 0) {
-            return { spaces: [], charts: [], dashboards: [] };
+            return [];
         }
         const allPinnedSpaces =
             await this.resourceViewItemModel.getAllSpacesByPinnedListUuid(
@@ -88,11 +88,7 @@ export class PinningService {
                 allowedSpaceUuids,
             );
 
-        return {
-            spaces: allowedPinnedSpaces,
-            charts: allowedCharts,
-            dashboards: allowedDashboards,
-        };
+        return [...allowedPinnedSpaces, ...allowedCharts, ...allowedDashboards];
     }
 
     async updatePinnedItemsOrder(

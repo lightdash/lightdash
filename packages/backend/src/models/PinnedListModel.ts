@@ -182,7 +182,7 @@ export class PinnedListModel {
                     case ResourceViewItemType.CHART: {
                         promises.push(
                             trx(PinnedChartTableName)
-                                .update('order', item.order)
+                                .update('order', item.data.pinnedListOrder)
                                 .where('pinned_list_uuid', pinnedListUuid)
                                 .andWhere('saved_chart_uuid', item.data.uuid),
                         );
@@ -191,7 +191,7 @@ export class PinnedListModel {
                     case ResourceViewItemType.DASHBOARD: {
                         promises.push(
                             trx(PinnedDashboardTableName)
-                                .update('order', item.order)
+                                .update('order', item.data.pinnedListOrder)
                                 .where('pinned_list_uuid', pinnedListUuid)
                                 .andWhere('dashboard_uuid', item.data.uuid),
                         );
@@ -200,7 +200,7 @@ export class PinnedListModel {
                     case ResourceViewItemType.SPACE: {
                         promises.push(
                             trx(PinnedSpaceTableName)
-                                .update('order', item.order)
+                                .update('order', item.data.pinnedListOrder)
                                 .where('pinned_list_uuid', pinnedListUuid)
                                 .andWhere('space_uuid', item.data.uuid),
                         );

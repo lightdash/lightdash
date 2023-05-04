@@ -536,7 +536,7 @@ const models: TsoaRoute.Models = {
                     pinnedListOrder: {
                         dataType: 'union',
                         subSchemas: [
-                            { dataType: 'string' },
+                            { dataType: 'double' },
                             { dataType: 'enum', enums: [null] },
                         ],
                         required: true,
@@ -651,32 +651,14 @@ const models: TsoaRoute.Models = {
     PinnedItems: {
         dataType: 'refAlias',
         type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                spaces: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'refAlias',
-                        ref: 'ResourceViewSpaceItem',
-                    },
-                    required: true,
-                },
-                charts: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'refAlias',
-                        ref: 'ResourceViewChartItem',
-                    },
-                    required: true,
-                },
-                dashboards: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'refAlias',
-                        ref: 'ResourceViewDashboardItem',
-                    },
-                    required: true,
-                },
+            dataType: 'array',
+            array: {
+                dataType: 'union',
+                subSchemas: [
+                    { ref: 'ResourceViewDashboardItem' },
+                    { ref: 'ResourceViewChartItem' },
+                    { ref: 'ResourceViewSpaceItem' },
+                ],
             },
             validators: {},
         },
@@ -699,11 +681,21 @@ const models: TsoaRoute.Models = {
         enums: ['chart', 'dashboard', 'space'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_ResourceViewItem-at-data.uuid_': {
+    'Pick_ResourceViewItem-at-data.uuid-or-pinnedListOrder_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
-            nestedProperties: { uuid: { dataType: 'string', required: true } },
+            nestedProperties: {
+                uuid: { dataType: 'string', required: true },
+                pinnedListOrder: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+            },
             validators: {},
         },
     },
@@ -713,9 +705,8 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                order: { dataType: 'double', required: true },
                 data: {
-                    ref: 'Pick_ResourceViewItem-at-data.uuid_',
+                    ref: 'Pick_ResourceViewItem-at-data.uuid-or-pinnedListOrder_',
                     required: true,
                 },
                 type: { ref: 'ResourceViewItemType', required: true },
