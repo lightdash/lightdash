@@ -7,7 +7,7 @@ import {
 } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { OrganizationProject, ProjectType } from '@lightdash/common';
-import React, { FC, useState } from 'react';
+import { FC, useState } from 'react';
 import { Redirect, useHistory } from 'react-router-dom';
 import {
     deleteLastProject,
@@ -18,10 +18,10 @@ import {
 import { useApp } from '../../../providers/AppProvider';
 import { Can } from '../../common/Authorization';
 import LinkButton from '../../common/LinkButton';
-import { PanelTitle } from '../AccessTokensPanel/AccessTokens.styles';
 import {
     HeaderActions,
     ItemContent,
+    PanelTitle,
     ProjectInfo,
     ProjectListItemWrapper,
     ProjectManagementPanelWrapper,

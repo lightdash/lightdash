@@ -1,4 +1,4 @@
-import { Card, Tag } from '@blueprintjs/core';
+import { Card, H5, Tag } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const ProjectManagementPanelWrapper = styled.div`
@@ -43,4 +43,8 @@ export const ProjectName = styled.b`
 export const ProjectTag = styled(Tag)`
     width: fit-content;
     margin-top: 0.3em;
+`;
+
+export const PanelTitle = styled(H5)`
+    margin: 0;
 `;
