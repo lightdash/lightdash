@@ -1,3 +1,10 @@
+# [0.535.0](https://github.com/lightdash/lightdash/compare/0.534.1...0.535.0) (2023-05-04)
+
+
+### Features
+
+* add faster spaces endpoint ([#5354](https://github.com/lightdash/lightdash/issues/5354)) ([a0e21e2](https://github.com/lightdash/lightdash/commit/a0e21e2997fe9942455ac21deaa278c9e3212bac))
+
 ## [0.534.1](https://github.com/lightdash/lightdash/compare/0.534.0...0.534.1) (2023-05-04)
 
 
