@@ -9,7 +9,8 @@ import {
     Stack,
     Title,
 } from '@mantine/core';
-import { FC, useCallback, useEffect, useState } from 'react';
+import { useForm } from '@mantine/form';
+import { FC } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useOrganizationUpdateMutation } from '../../../hooks/organization/useOrganizationUpdateMutation';
 import { Can, useAbilityContext } from '../../common/Authorization';
@@ -18,11 +19,17 @@ const AppearancePanel: FC = () => {
     const ability = useAbilityContext();
     const { isLoading: isOrgLoading, data } = useOrganization();
     const updateMutation = useOrganizationUpdateMutation();
-    const [colors, setColors] = useState<string[]>(
-        data?.chartColors || ECHARTS_DEFAULT_COLORS.slice(0, 8),
-    );
 
-    const update = useCallback(() => {
+    const form = useForm({
+        initialValues: (
+            data?.chartColors || ECHARTS_DEFAULT_COLORS.slice(0, 8)
+        ).reduce(
+            (acc, color, index) => ({ [`color${index}`]: color, ...acc }),
+            {},
+        ),
+    });
+
+    const handleOnSubmit = form.onSubmit((newColors) => {
         if (data) {
             const {
                 needsProject: _needsProject,
@@ -31,16 +38,10 @@ const AppearancePanel: FC = () => {
             } = data;
             updateMutation.mutate({
                 ...params,
-                chartColors: colors,
+                chartColors: Object.values(newColors),
             });
         }
-    }, [colors, data, updateMutation]);
-
-    useEffect(() => {
-        if (data?.chartColors) {
-            setColors(data.chartColors);
-        }
-    }, [data?.chartColors]);
+    });
 
     if (isOrgLoading) {
         return <Spinner />;
@@ -48,49 +49,47 @@ const AppearancePanel: FC = () => {
 
     return (
         <Box>
-            <Stack spacing="md">
-                <Title order={5}>Default chart colors</Title>
-                <SimpleGrid cols={2}>
-                    {colors.map((color, index) => (
-                        <ColorInput
-                            key={index}
-                            width="100%"
-                            placeholder="Enter hex color"
-                            label={`Color ${index + 1}`}
-                            value={color}
-                            disabled={ability.cannot(
-                                'update',
-                                subject('Organization', {
-                                    organizationUuid: data?.organizationUuid,
-                                }),
-                            )}
-                            onChange={(newColor) => {
-                                setColors(
-                                    colors.map((c, i) =>
-                                        index === i ? newColor : c,
-                                    ),
-                                );
-                            }}
-                        />
-                    ))}
-                </SimpleGrid>
+            <Title order={5} mb="md">
+                Default chart colors
+            </Title>
+            <form onSubmit={handleOnSubmit}>
+                <Stack spacing="md">
+                    <SimpleGrid cols={2}>
+                        {Object.values(form.values).map((_color, index) => (
+                            <ColorInput
+                                key={index}
+                                width="100%"
+                                placeholder="Enter hex color"
+                                label={`Color ${index + 1}`}
+                                disabled={ability.cannot(
+                                    'update',
+                                    subject('Organization', {
+                                        organizationUuid:
+                                            data?.organizationUuid,
+                                    }),
+                                )}
+                                {...form.getInputProps(`color${index}`)}
+                            />
+                        ))}
+                    </SimpleGrid>
 
-                <Can
-                    I={'update'}
-                    this={subject('Organization', {
-                        organizationUuid: data?.organizationUuid,
-                    })}
-                >
-                    <Button
-                        loading={updateMutation.isLoading}
-                        onClick={update}
-                        ml="auto"
-                        display="block"
+                    <Can
+                        I={'update'}
+                        this={subject('Organization', {
+                            organizationUuid: data?.organizationUuid,
+                        })}
                     >
-                        Save changes
-                    </Button>
-                </Can>
-            </Stack>
+                        <Button
+                            type="submit"
+                            loading={updateMutation.isLoading}
+                            ml="auto"
+                            display="block"
+                        >
+                            Save changes
+                        </Button>
+                    </Can>
+                </Stack>
+            </form>
         </Box>
     );
 };
