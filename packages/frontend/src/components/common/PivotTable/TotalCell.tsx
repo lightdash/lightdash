@@ -1,9 +1,4 @@
-import {
-    ConditionalFormattingConfig,
-    Field,
-    ResultValue,
-    TableCalculation,
-} from '@lightdash/common';
+import { ResultValue } from '@lightdash/common';
 import { Box, Text } from '@mantine/core';
 import { useClipboard, useHotkeys } from '@mantine/hooks';
 import { FC, ForwardedRef, forwardRef, useCallback, useState } from 'react';
