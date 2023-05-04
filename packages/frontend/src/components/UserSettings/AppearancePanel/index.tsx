@@ -42,12 +42,10 @@ const AppearancePanel: FC = () => {
         ),
     });
 
-    const { setValues, resetDirty } = form;
-
     useEffect(() => {
         if (data?.chartColors) {
-            setValues(getColorFields(data.chartColors));
-            resetDirty(getColorFields(data.chartColors));
+            form.setValues(getColorFields(data.chartColors));
+            form.resetDirty(getColorFields(data.chartColors));
         }
 
         // eslint-disable-next-line react-hooks/exhaustive-deps
