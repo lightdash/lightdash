@@ -21,24 +21,22 @@ const AccessTokensPanel: FC = () => {
 
     if (!hasAvailableTokens) {
         return (
-            <Flex h="100%" direction="column" justify="center" align="center">
-                <EmptyState
-                    icon={
-                        <MantineIcon
-                            icon={IconKey}
-                            color="gray.6"
-                            stroke={1}
-                            size="5xl"
-                        />
-                    }
-                    title="No tokens"
-                    description="You haven't generated any tokens yet!, generate your first token"
-                >
-                    <Button onClick={() => setCreateInvitesPanel(true)}>
-                        Generate token
-                    </Button>
-                </EmptyState>
-            </Flex>
+            <EmptyState
+                icon={
+                    <MantineIcon
+                        icon={IconKey}
+                        color="gray.6"
+                        stroke={1}
+                        size="5xl"
+                    />
+                }
+                title="No tokens"
+                description="You haven't generated any tokens yet!, generate your first token"
+            >
+                <Button onClick={() => setCreateInvitesPanel(true)}>
+                    Generate token
+                </Button>
+            </EmptyState>
         );
     }
 
