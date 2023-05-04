@@ -19,6 +19,7 @@ const AppearancePanel: FC = () => {
     const ability = useAbilityContext();
     const { isLoading: isOrgLoading, data } = useOrganization();
     const updateMutation = useOrganizationUpdateMutation();
+    const IS_HEX_CODE_COLOR_REGEX = /^#([a-fA-F0-9]{3}|[a-fA-F0-9]{6})$/;
 
     const getColorFields = (colors: string[]) =>
         colors.reduce(
@@ -33,7 +34,7 @@ const AppearancePanel: FC = () => {
         ).reduce(
             (acc, key) => ({
                 [key]: (value: string) =>
-                    !/^#([a-fA-F0-9]{3}|[a-fA-F0-9]{6})$/.test(value)
+                    !IS_HEX_CODE_COLOR_REGEX.test(value)
                         ? 'Invalid color, ensure it is in hex format (e.g. #ff000 or #fff)'
                         : null,
                 ...acc,
@@ -83,6 +84,7 @@ const AppearancePanel: FC = () => {
                                 width="100%"
                                 placeholder="Enter hex color"
                                 label={`Color ${index + 1}`}
+                                swatches={ECHARTS_DEFAULT_COLORS.slice(0, 8)}
                                 disabled={ability.cannot(
                                     'update',
                                     subject('Organization', {
