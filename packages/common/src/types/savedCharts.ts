@@ -228,6 +228,7 @@ export type CreateSavedChart = Omit<
     | 'spaceUuid'
     | 'spaceName'
     | 'pinnedListUuid'
+    | 'pinnedListOrder'
     | 'views'
     | 'firstViewedAt'
 > & { spaceUuid?: string };
