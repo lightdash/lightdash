@@ -1,7 +1,7 @@
 import { Button, Classes, Dialog } from '@blueprintjs/core';
 import { ApiPersonalAccessTokenResponse, formatDate } from '@lightdash/common';
 import { Button as MantineButton, Paper, Table } from '@mantine/core';
-import { FC, useState } from 'react';
+import { Dispatch, FC, SetStateAction, useEffect, useState } from 'react';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import {
     useAccessToken,
@@ -10,10 +10,11 @@ import {
 
 const TokenItem: FC<{
     token: ApiPersonalAccessTokenResponse;
-}> = ({ token }) => {
-    const { description, expiresAt, uuid } = token;
-    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-    const { mutate, isLoading: isDeleting } = useDeleteAccessToken();
+    setTokenToDelete: Dispatch<
+        SetStateAction<ApiPersonalAccessTokenResponse | undefined>
+    >;
+}> = ({ token, setTokenToDelete }) => {
+    const { description, expiresAt } = token;
 
     return (
         <>
@@ -27,30 +28,76 @@ const TokenItem: FC<{
                         variant="outline"
                         size="xs"
                         color="red"
-                        onClick={() => setIsDeleteDialogOpen(true)}
+                        onClick={() => setTokenToDelete(token)}
                     >
                         Delete
                     </MantineButton>
                 </td>
             </tr>
+        </>
+    );
+};
+
+export const TokensTable = () => {
+    const { data } = useAccessToken();
+
+    const { classes } = useTableStyles({
+        '& tr td:last-child': {
+            textAlign: 'right',
+        },
+    })();
+
+    const [tokenToDelete, setTokenToDelete] = useState<
+        ApiPersonalAccessTokenResponse | undefined
+    >();
+    const { mutate, isLoading: isDeleting, isSuccess } = useDeleteAccessToken();
+
+    useEffect(() => {
+        if (isSuccess) {
+            setTokenToDelete(undefined);
+        }
+    }, [isSuccess]);
+
+    return (
+        <>
+            <Paper withBorder sx={{ overflow: 'hidden' }}>
+                <Table className={classes.root} highlightOnHover>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Expiration date</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {data?.map((token) => (
+                            <TokenItem
+                                key={token.uuid}
+                                token={token}
+                                setTokenToDelete={setTokenToDelete}
+                            />
+                        ))}
+                    </tbody>
+                </Table>
+            </Paper>
             <Dialog
-                isOpen={isDeleteDialogOpen}
+                isOpen={!!tokenToDelete}
                 icon="delete"
-                onClose={() => !isDeleting && setIsDeleteDialogOpen(false)}
-                title={`Delete token ${description}`}
+                onClose={() => !isDeleting && setTokenToDelete(undefined)}
+                title={`Delete token ${tokenToDelete?.description}`}
                 lazy
             >
                 <div className={Classes.DIALOG_BODY}>
                     <p>
                         Are you sure ? This will permanently delete the
-                        <b> {description} </b> token.
+                        <b> {tokenToDelete?.description} </b> token.
                     </p>
                 </div>
                 <div className={Classes.DIALOG_FOOTER}>
                     <div className={Classes.DIALOG_FOOTER_ACTIONS}>
                         <Button
                             disabled={isDeleting}
-                            onClick={() => setIsDeleteDialogOpen(false)}
+                            onClick={() => setTokenToDelete(undefined)}
                         >
                             Cancel
                         </Button>
@@ -58,7 +105,7 @@ const TokenItem: FC<{
                             disabled={isDeleting}
                             intent="danger"
                             onClick={() => {
-                                mutate(uuid || '');
+                                mutate(tokenToDelete?.uuid ?? '');
                             }}
                         >
                             Delete
@@ -67,32 +114,5 @@ const TokenItem: FC<{
                 </div>
             </Dialog>
         </>
-    );
-};
-
-export const TokensTable = () => {
-    const { data } = useAccessToken();
-    const { classes } = useTableStyles({
-        '& tr td:last-child': {
-            textAlign: 'right',
-        },
-    })();
-    return (
-        <Paper withBorder sx={{ overflow: 'hidden' }}>
-            <Table className={classes.root} highlightOnHover>
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Expiration date</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {data?.map((token) => (
-                        <TokenItem key={token.uuid} token={token} />
-                    ))}
-                </tbody>
-            </Table>
-        </Paper>
     );
 };
