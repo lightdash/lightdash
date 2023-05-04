@@ -10,7 +10,7 @@ import {
     Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { FC } from 'react';
+import { FC, useEffect } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useOrganizationUpdateMutation } from '../../../hooks/organization/useOrganizationUpdateMutation';
 import { Can, useAbilityContext } from '../../common/Authorization';
@@ -20,14 +20,38 @@ const AppearancePanel: FC = () => {
     const { isLoading: isOrgLoading, data } = useOrganization();
     const updateMutation = useOrganizationUpdateMutation();
 
+    const getColorFields = (colors: string[]) =>
+        colors.reduce(
+            (acc, color, index) => ({ ...acc, [`color${index}`]: color }),
+            {},
+        );
+
     const form = useForm({
-        initialValues: (
-            data?.chartColors || ECHARTS_DEFAULT_COLORS.slice(0, 8)
+        initialValues: getColorFields(ECHARTS_DEFAULT_COLORS.slice(0, 8)),
+        validate: Object.keys(
+            getColorFields(ECHARTS_DEFAULT_COLORS.slice(0, 8)),
         ).reduce(
-            (acc, color, index) => ({ [`color${index}`]: color, ...acc }),
+            (acc, key) => ({
+                [key]: (value: string) =>
+                    !/^#([a-fA-F0-9]{3}|[a-fA-F0-9]{6})$/.test(value)
+                        ? 'Invalid color'
+                        : null,
+                ...acc,
+            }),
             {},
         ),
     });
+
+    const { setValues, resetDirty } = form;
+
+    useEffect(() => {
+        if (data?.chartColors) {
+            setValues(getColorFields(data.chartColors));
+            resetDirty(getColorFields(data.chartColors));
+        }
+
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [data?.chartColors]);
 
     const handleOnSubmit = form.onSubmit((newColors) => {
         if (data) {
