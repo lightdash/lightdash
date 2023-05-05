@@ -4,7 +4,7 @@ import { FC, useState } from 'react';
 import { useAccessToken } from '../../../hooks/useAccessToken';
 import { EmptyState } from '../../common/EmptyState';
 import MantineIcon from '../../common/MantineIcon';
-import { CreateTokenModal } from '../CreateTokenModal';
+import { CreateTokenModal } from './CreateTokenModal';
 import { TokensTable } from './TokensTable';
 
 const AccessTokensPanel: FC = () => {
