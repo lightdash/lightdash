@@ -1,5 +1,4 @@
 import {
-    Field,
     FieldType,
     MetricQuery,
     PivotConfig,
@@ -8,7 +7,6 @@ import {
     PTValue,
     ResultRow,
     ResultValue,
-    TableCalculation,
 } from '@lightdash/common';
 
 type PivotQueryResultsArgs = {
@@ -18,7 +16,6 @@ type PivotQueryResultsArgs = {
         'dimensions' | 'metrics' | 'tableCalculations' | 'additionalMetrics'
     >;
     rows: ResultRow[];
-    itemsMap: Record<string, TableCalculation | Field>;
 };
 
 type RecursiveRecord<T = unknown> = {
