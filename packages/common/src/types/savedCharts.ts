@@ -403,7 +403,13 @@ export const getChartType = (
 
 export type ChartSummary = Pick<
     SavedChart,
-    'uuid' | 'name' | 'description' | 'spaceName' | 'spaceUuid'
+    | 'uuid'
+    | 'name'
+    | 'description'
+    | 'spaceName'
+    | 'spaceUuid'
+    | 'projectUuid'
+    | 'organizationUuid'
 >;
 export type ApiChartSummaryListResponse = {
     status: 'ok';

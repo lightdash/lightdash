@@ -598,18 +598,25 @@ export class SavedChartModel {
                     description: 'saved_queries.description',
                     spaceUuid: 'spaces.space_uuid',
                     spaceName: 'spaces.name',
+                    projectUuid: 'projects.project_uuid',
+                    organizationUuid: 'organizations.organization_uuid',
                 })
                 .innerJoin(
                     'spaces',
                     'saved_queries.space_id',
                     'spaces.space_id',
-                );
-            if (filters.projectUuid) {
-                query.innerJoin(
+                )
+                .innerJoin(
                     'projects',
                     'spaces.project_id',
                     'projects.project_id',
+                )
+                .innerJoin(
+                    'organizations',
+                    'projects.organization_id',
+                    'organizations.organization_id',
                 );
+            if (filters.projectUuid) {
                 query.where('projects.project_uuid', filters.projectUuid);
             }
             if (filters.spaceUuids) {

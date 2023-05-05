@@ -165,24 +165,27 @@ export class SavedChartService {
         savedChartUuid: string,
         data: CreateSavedChartVersion,
     ): Promise<SavedChart> {
-        const { organizationUuid, projectUuid, spaceUuid } =
-            await this.savedChartModel.get(savedChartUuid);
+        const [savedChart] = await this.savedChartModel.find({
+            savedChartUuid,
+        });
 
         if (
             savedChart === undefined ||
-            user.ability.cannot(
-                'update',
-                subject('SavedChart', { organizationUuid, projectUuid }),
-            )
+            user.ability.cannot('update', subject('SavedChart', savedChart))
         ) {
             throw new ForbiddenError();
         }
-        if (!(await this.hasChartSpaceAccess(spaceUuid, user.userUuid))) {
+        if (
+            !(await this.hasChartSpaceAccess(
+                savedChart.spaceUuid,
+                user.userUuid,
+            ))
+        ) {
             throw new ForbiddenError(
                 "You don't have access to the space this chart belongs to",
             );
         }
-        const savedChart = await this.savedChartModel.createVersion(
+        const newVersion = await this.savedChartModel.createVersion(
             savedChartUuid,
             data,
             user,
@@ -191,9 +194,9 @@ export class SavedChartService {
         analytics.track({
             event: 'saved_chart_version.created',
             userId: user.userUuid,
-            properties: SavedChartService.getCreateEventProperties(savedChart),
+            properties: SavedChartService.getCreateEventProperties(newVersion),
         });
-        return savedChart;
+        return newVersion;
     }
 
     async update(
