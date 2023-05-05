@@ -1,3 +1,10 @@
+# [0.537.0](https://github.com/lightdash/lightdash/compare/0.536.0...0.537.0) (2023-05-05)
+
+
+### Features
+
+* migrate access tokens list to mantine table ([#5358](https://github.com/lightdash/lightdash/issues/5358)) ([0aa1a4f](https://github.com/lightdash/lightdash/commit/0aa1a4f57ab71e1cd6da86067684d350e4c13d90))
+
 # [0.536.0](https://github.com/lightdash/lightdash/compare/0.535.2...0.536.0) (2023-05-05)
 
 
