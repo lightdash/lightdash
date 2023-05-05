@@ -235,7 +235,6 @@ const useTableConfig = (
                     },
                     metricQuery: resultsData.metricQuery,
                     rows: resultsData.rows,
-                    itemsMap,
                 });
 
                 return { data: data, error: undefined };
@@ -254,7 +253,6 @@ const useTableConfig = (
         selectedItemIds,
         isColumnVisible,
         getField,
-        itemsMap,
         tableChartConfig?.showColumnCalculation,
         tableChartConfig?.showRowCalculation,
     ]);
