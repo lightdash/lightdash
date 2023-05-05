@@ -1,3 +1,10 @@
+# [0.536.0](https://github.com/lightdash/lightdash/compare/0.535.2...0.536.0) (2023-05-05)
+
+
+### Features
+
+* drag and drop pinned items ([#5345](https://github.com/lightdash/lightdash/issues/5345)) ([c63b5b1](https://github.com/lightdash/lightdash/commit/c63b5b15dac10b2521b150e0a70aadf6d25010b7))
+
 ## [0.535.2](https://github.com/lightdash/lightdash/compare/0.535.1...0.535.2) (2023-05-05)
 
 
