@@ -102,6 +102,7 @@ const parseRow = (row: Record<string, any>) =>
     Object.fromEntries(
         Object.entries(row).map(([name, value]) => [name, parseCell(value)]),
     );
+const parseRows = (rows: Record<string, any>[]) => rows.map(parseRow);
 
 export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflakeCredentials> {
     connectionOptions: ConnectionOptions;
@@ -162,7 +163,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 connection,
                 "ALTER SESSION SET TIMEZONE = 'UTC'",
             );
-            const result = await this.executeStatement(connection, sqlText);
+            const result = await this.executeStreamStatement(
+                connection,
+                sqlText,
+            );
             return result;
         } catch (e) {
             throw new WarehouseQueryError(e.message);
@@ -178,8 +182,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         }
     }
 
-    // eslint-disable-next-line class-methods-use-this
-    private async executeStatement(connection: Connection, sqlText: string) {
+    private async executeStreamStatement(
+        connection: Connection,
+        sqlText: string,
+    ) {
         return new Promise<{
             fields: Record<string, { type: DimensionType }>;
             rows: any[];
@@ -187,7 +193,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             connection.execute({
                 sqlText,
                 streamResult: true,
-                complete: (err, stmt, rs) => {
+                complete: (err, stmt) => {
                     if (err) {
                         reject(new WarehouseQueryError(err.message));
                     }
@@ -205,7 +211,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                     );
                     stmt.streamRows()
                         .on('error', (e) => {
-                            reject(new WarehouseQueryError(e.message));
+                            if (e) reject(new WarehouseQueryError(e.message));
                         })
                         .on('data', (row) => {
                             rows.push(parseRow(row));
@@ -213,6 +219,43 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                         .on('end', () => {
                             resolve({ fields, rows });
                         });
+                },
+            });
+        });
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    private async executeStatement(connection: Connection, sqlText: string) {
+        return new Promise<{
+            fields: Record<string, { type: DimensionType }>;
+            rows: any[];
+        }>((resolve, reject) => {
+            connection.execute({
+                sqlText,
+                complete: (err, stmt, data) => {
+                    if (err) {
+                        reject(err);
+                    }
+                    if (data) {
+                        const fields = stmt.getColumns().reduce(
+                            (acc, column) => ({
+                                ...acc,
+                                [column.getName()]: {
+                                    type: mapFieldType(
+                                        column.getType().toUpperCase(),
+                                    ),
+                                },
+                            }),
+                            {},
+                        );
+                        resolve({ fields, rows: parseRows(data) });
+                    } else {
+                        reject(
+                            new WarehouseQueryError(
+                                'Query result is undefined',
+                            ),
+                        );
+                    }
                 },
             });
         });
