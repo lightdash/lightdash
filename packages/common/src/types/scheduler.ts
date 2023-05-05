@@ -21,7 +21,9 @@ export type SchedulerLog = {
         | 'handleScheduledDelivery'
         | 'sendEmailNotification'
         | 'sendSlackNotification'
-        | 'downloadCsv';
+        | 'downloadCsv'
+        | 'compileProject'
+        | 'testAndCompileProject';
     schedulerUuid?: string;
     jobId: string;
     jobGroup?: string;
@@ -233,4 +235,11 @@ export type ApiCsvUrlResponse = {
         url: string;
         status: string;
     };
+};
+
+export type CompileProjectPayload = {
+    createdByUserUuid: string;
+    projectUuid: string;
+    requestMethod: string;
+    jobUuid: string;
 };

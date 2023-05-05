@@ -14,10 +14,12 @@ import Logger from '../logger';
 import { schedulerService } from '../services/services';
 import { tryJobOrTimeout } from './SchedulerJobTimeout';
 import {
+    compileProject,
     downloadCsv,
     handleScheduledDelivery,
     sendEmailNotification,
     sendSlackNotification,
+    testAndCompileProject,
 } from './SchedulerTask';
 import schedulerWorkerEventEmitter from './SchedulerWorkerEventEmitter';
 
@@ -182,6 +184,23 @@ export class SchedulerWorker {
                                 },
                             });
                         },
+                    );
+                },
+                compileProject: async (payload: any, helpers: JobHelpers) => {
+                    await compileProject(
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                    );
+                },
+                testAndCompileProject: async (
+                    payload: any,
+                    helpers: JobHelpers,
+                ) => {
+                    await testAndCompileProject(
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
                     );
                 },
             },

@@ -1,5 +1,7 @@
+import { Stack } from '@mantine/core';
 import { FC, memo } from 'react';
 import { useParams } from 'react-router-dom';
+
 import { useExplorerContext } from '../../providers/ExplorerProvider';
 import DrillDownModal from '../MetricQueryData/DrillDownModal';
 import MetricQueryDataProvider from '../MetricQueryData/MetricQueryDataProvider';
@@ -24,11 +26,18 @@ const Explorer: FC = memo(() => {
             metricQuery={unsavedChartVersionMetricQuery}
             tableName={unsavedChartVersionTableName}
         >
-            <ExplorerHeader />
-            <FiltersCard />
-            <VisualizationCard projectUuid={projectUuid} />
-            <ResultsCard />
-            <SqlCard />
+            <Stack sx={{ flexGrow: 1 }}>
+                <ExplorerHeader />
+
+                <FiltersCard />
+
+                <VisualizationCard projectUuid={projectUuid} />
+
+                <ResultsCard />
+
+                <SqlCard />
+            </Stack>
+
             <UnderlyingDataModal />
             <DrillDownModal />
         </MetricQueryDataProvider>

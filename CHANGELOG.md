@@ -1,3 +1,53 @@
+# [0.535.0](https://github.com/lightdash/lightdash/compare/0.534.1...0.535.0) (2023-05-04)
+
+
+### Features
+
+* add faster spaces endpoint ([#5354](https://github.com/lightdash/lightdash/issues/5354)) ([a0e21e2](https://github.com/lightdash/lightdash/commit/a0e21e2997fe9942455ac21deaa278c9e3212bac))
+
+## [0.534.1](https://github.com/lightdash/lightdash/compare/0.534.0...0.534.1) (2023-05-04)
+
+
+### Bug Fixes
+
+* broken big number chart ([#5362](https://github.com/lightdash/lightdash/issues/5362)) ([9fa2e03](https://github.com/lightdash/lightdash/commit/9fa2e03d565659306c05b6c8b8d8196efbb83f49))
+* remove scheduler from docker-compose by default ([#5361](https://github.com/lightdash/lightdash/issues/5361)) ([0f47689](https://github.com/lightdash/lightdash/commit/0f476897f6c0e5563b2986f60ebc8db5a6247317))
+
+# [0.534.0](https://github.com/lightdash/lightdash/compare/0.533.0...0.534.0) (2023-05-04)
+
+
+### Features
+
+* mantine page wrappers + sidebar ([#5301](https://github.com/lightdash/lightdash/issues/5301)) ([1044c67](https://github.com/lightdash/lightdash/commit/1044c67722dd7b77f100d5f719ec2d3a40acfb5d))
+
+# [0.533.0](https://github.com/lightdash/lightdash/compare/0.532.0...0.533.0) (2023-05-03)
+
+
+### Features
+
+* move compile project to scheduler ([#5310](https://github.com/lightdash/lightdash/issues/5310)) ([1bc4cf1](https://github.com/lightdash/lightdash/commit/1bc4cf10e785fe364933745b1bb38f27cc6ee520))
+
+# [0.532.0](https://github.com/lightdash/lightdash/compare/0.531.0...0.532.0) (2023-05-03)
+
+
+### Bug Fixes
+
+* remove unused PasswordInput ([#5352](https://github.com/lightdash/lightdash/issues/5352)) ([34f8a6d](https://github.com/lightdash/lightdash/commit/34f8a6d655e245ad77b32bb249154a4403ce916c))
+
+
+### Features
+
+* faster chart endpoint ([#5341](https://github.com/lightdash/lightdash/issues/5341)) ([338932b](https://github.com/lightdash/lightdash/commit/338932bca044984ead699c7543662b9b20999dc7))
+* migrate password settings to mantine ([#5328](https://github.com/lightdash/lightdash/issues/5328)) ([4afac94](https://github.com/lightdash/lightdash/commit/4afac94eb97134977716321234b75a341988f03f))
+
+# [0.531.0](https://github.com/lightdash/lightdash/compare/0.530.2...0.531.0) (2023-05-03)
+
+
+### Features
+
+* migrate no tokens view to mantine ([#5330](https://github.com/lightdash/lightdash/issues/5330)) ([74822c7](https://github.com/lightdash/lightdash/commit/74822c7cca24a19b51f385c41e13e235fab24517))
+* migrate profile settings to mantine ([#5326](https://github.com/lightdash/lightdash/issues/5326)) ([00be4ad](https://github.com/lightdash/lightdash/commit/00be4ad21982831665089d1b08dc390f6c83afe8))
+
 ## [0.530.2](https://github.com/lightdash/lightdash/compare/0.530.1...0.530.2) (2023-05-03)
 
 

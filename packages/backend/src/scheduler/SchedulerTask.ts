@@ -1,7 +1,9 @@
 import {
+    CompileProjectPayload,
     DownloadCsvPayload,
     EmailNotificationPayload,
     getHumanReadableCronExpression,
+    getRequestMethod,
     isEmailTarget,
     isSchedulerCsvOptions,
     isSlackTarget,
@@ -30,6 +32,7 @@ import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logger';
 import {
     csvService,
+    projectService,
     s3Service,
     schedulerService,
     unfurlService,
@@ -355,6 +358,90 @@ export const sendSlackNotification = async (
         });
 
         throw e; // Cascade error to it can be retried by graphile
+    }
+};
+
+export const testAndCompileProject = async (
+    jobId: string,
+    scheduledTime: Date,
+    payload: CompileProjectPayload,
+) => {
+    const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> = {
+        task: 'compileProject',
+        jobId,
+        scheduledTime,
+    };
+    try {
+        const user = await userService.getSessionByUserUuid(
+            payload.createdByUserUuid,
+        );
+
+        schedulerService.logSchedulerJob({
+            ...baseLog,
+            details: { createdByUserUuid: payload.createdByUserUuid },
+            status: SchedulerJobStatus.STARTED,
+        });
+
+        await projectService.testAndCompileProject(
+            user,
+            payload.projectUuid,
+            getRequestMethod(payload.requestMethod),
+            payload.jobUuid,
+        );
+        schedulerService.logSchedulerJob({
+            ...baseLog,
+            details: {},
+            status: SchedulerJobStatus.COMPLETED,
+        });
+    } catch (e) {
+        schedulerService.logSchedulerJob({
+            ...baseLog,
+            status: SchedulerJobStatus.ERROR,
+            details: { createdByUserUuid: payload.createdByUserUuid, error: e },
+        });
+        throw e;
+    }
+};
+
+export const compileProject = async (
+    jobId: string,
+    scheduledTime: Date,
+    payload: CompileProjectPayload,
+) => {
+    const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> = {
+        task: 'compileProject',
+        jobId,
+        scheduledTime,
+    };
+    try {
+        const user = await userService.getSessionByUserUuid(
+            payload.createdByUserUuid,
+        );
+
+        schedulerService.logSchedulerJob({
+            ...baseLog,
+            details: { createdByUserUuid: payload.createdByUserUuid },
+            status: SchedulerJobStatus.STARTED,
+        });
+
+        await projectService.compileProject(
+            user,
+            payload.projectUuid,
+            getRequestMethod(payload.requestMethod),
+            payload.jobUuid,
+        );
+        schedulerService.logSchedulerJob({
+            ...baseLog,
+            details: {},
+            status: SchedulerJobStatus.COMPLETED,
+        });
+    } catch (e) {
+        schedulerService.logSchedulerJob({
+            ...baseLog,
+            status: SchedulerJobStatus.ERROR,
+            details: { createdByUserUuid: payload.createdByUserUuid, error: e },
+        });
+        throw e;
     }
 };
 

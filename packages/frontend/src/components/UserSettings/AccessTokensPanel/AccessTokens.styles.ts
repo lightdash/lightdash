@@ -1,12 +1,6 @@
 import { Card, H5, Tag } from '@blueprintjs/core';
 import styled from 'styled-components';
 
-export const AccessTokensPanelWrapper = styled.div`
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-`;
-
 export const HeaderActions = styled.div`
     display: flex;
     justify-content: space-between;
@@ -42,10 +36,6 @@ export const AccessTokenLabel = styled.b`
 
 export const ExpireAtLabel = styled(Tag)`
     width: fit-content;
-`;
-
-export const NoTokensWrapper = styled.div`
-    transform: translateY(50%);
 `;
 
 export const PanelTitle = styled(H5)`

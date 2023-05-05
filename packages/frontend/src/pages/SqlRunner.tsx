@@ -5,21 +5,17 @@ import {
     getCustomLabelsFromTableConfig,
     NotFoundError,
 } from '@lightdash/common';
-import { Alert, Box, NavLink, Stack, Tabs } from '@mantine/core';
+import { Alert, Box, Group, NavLink, Stack, Tabs } from '@mantine/core';
 import { getHotkeyHandler } from '@mantine/hooks';
 import { Icon123, IconAlertCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Helmet } from 'react-helmet';
 import { useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
+
 import { ChartDownloadMenu } from '../components/ChartDownload';
 import CollapsableCard from '../components/common/CollapsableCard';
 import MantineIcon from '../components/common/MantineIcon';
-import {
-    PageContentContainer,
-    PageWithSidebar,
-} from '../components/common/Page/Page.styles';
-import Sidebar from '../components/common/Page/Sidebar';
+import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ShareShortLinkButton from '../components/common/ShareShortLinkButton';
 import SideBarLoadingState from '../components/common/SideBarLoadingState';
@@ -50,7 +46,6 @@ import {
 import { useApp } from '../providers/AppProvider';
 import { TrackSection } from '../providers/TrackingProvider';
 import { SectionName } from '../types/Events';
-import { ButtonsWrapper } from './SqlRunner.styles';
 
 const generateBasicSqlQuery = (table: string) =>
     `SELECT *
@@ -197,12 +192,12 @@ const SqlRunnerPage = () => {
     };
 
     return (
-        <PageWithSidebar>
-            <Helmet>
-                <title>SQL Runner - Lightdash</title>
-            </Helmet>
-
-            <Sidebar>
+        <Page
+            title="SQL Runner"
+            withSidebarFooter
+            withFullHeight
+            withPaddedContent
+            sidebar={
                 <Stack
                     spacing="xl"
                     mah="100%"
@@ -239,7 +234,7 @@ const SqlRunnerPage = () => {
                             {isCatalogLoading ? (
                                 <SideBarLoadingState />
                             ) : (
-                                <Stack sx={{ overflowY: 'scroll', flex: 1 }}>
+                                <Stack sx={{ overflowY: 'auto', flex: 1 }}>
                                     <Box>
                                         <CatalogTree
                                             nodes={catalogTree}
@@ -264,7 +259,7 @@ const SqlRunnerPage = () => {
                         metrics.data.metrics.length > 0 ? (
                             <Tabs.Panel
                                 value="metrics"
-                                sx={{ overflowY: 'scroll', flex: 1 }}
+                                sx={{ overflowY: 'auto', flex: 1 }}
                             >
                                 {metrics.data.metrics.map((metric) => (
                                     <NavLink
@@ -291,24 +286,25 @@ const SqlRunnerPage = () => {
                         ) : null}
                     </Tabs>
                 </Stack>
-            </Sidebar>
+            }
+        >
+            <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
+                <Group position="apart">
+                    <RefreshDbtButton />
 
-            <PageContentContainer>
-                <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
-                    <ButtonsWrapper>
-                        <RefreshDbtButton />
-                        <div>
-                            <RunSqlQueryButton
-                                onSubmit={handleSubmit}
-                                isLoading={isLoading}
-                            />
-                            <ShareShortLinkButton
-                                disabled={lastSqlRan === undefined}
-                            />
-                        </div>
-                    </ButtonsWrapper>
-                </TrackSection>
+                    <div>
+                        <RunSqlQueryButton
+                            onSubmit={handleSubmit}
+                            isLoading={isLoading}
+                        />
+                        <ShareShortLinkButton
+                            disabled={lastSqlRan === undefined}
+                        />
+                    </div>
+                </Group>
+            </TrackSection>
 
+            <Stack mt="lg" spacing="sm" sx={{ flexGrow: 1 }}>
                 <VisualizationProvider
                     initialChartConfig={initialChartConfig}
                     chartType={chartType}
@@ -381,8 +377,8 @@ const SqlRunnerPage = () => {
                         sqlQueryMutation={sqlQueryMutation}
                     />
                 </CollapsableCard>
-            </PageContentContainer>
-        </PageWithSidebar>
+            </Stack>
+        </Page>
     );
 };
 export default SqlRunnerPage;

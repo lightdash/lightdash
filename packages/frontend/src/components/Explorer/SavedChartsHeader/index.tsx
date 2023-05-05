@@ -12,13 +12,14 @@ import { IconDots, IconPencil } from '@tabler/icons-react';
 import { FC, useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
+
 import {
     useDuplicateChartMutation,
     useMoveChartMutation,
     useUpdateMutation,
 } from '../../../hooks/useSavedQuery';
 import useSearchParams from '../../../hooks/useSearchParams';
-import { useSpaces } from '../../../hooks/useSpaces';
+import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
@@ -26,10 +27,10 @@ import { SectionName } from '../../../types/Events';
 import ChartCreateModal from '../../common/modal/ChartCreateModal';
 import ChartDeleteModal from '../../common/modal/ChartDeleteModal';
 import ChartUpdateModal from '../../common/modal/ChartUpdateModal';
+import PageHeader from '../../common/Page/PageHeader';
 import {
     PageActionsContainer,
     PageDetailsContainer,
-    PageHeaderContainer,
     PageTitle,
     PageTitleAndDetailsContainer,
     PageTitleContainer,
@@ -75,14 +76,12 @@ const SavedChartsHeader: FC = () => {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] =
         useState<boolean>(false);
     const { user } = useApp();
-    const { data: spaces } = useSpaces(projectUuid);
+    const { data: spaces } = useSpaceSummaries(projectUuid);
     const { mutate: moveChartToSpace } = useMoveChartMutation();
     const updateSavedChart = useUpdateMutation(
         dashboardUuid ? dashboardUuid : undefined,
         savedChart?.uuid,
     );
-
-    const space = spaces?.find((s) => s.uuid === savedChart?.spaceUuid);
 
     const { mutate: duplicateChart } = useDuplicateChartMutation();
     const chartId = savedChart?.uuid || '';
@@ -168,7 +167,8 @@ const SavedChartsHeader: FC = () => {
                     want to leave without saving?{' '}
                 </p>
             </Alert>
-            <PageHeaderContainer>
+
+            <PageHeader>
                 <PageTitleAndDetailsContainer>
                     {savedChart && (
                         <>
@@ -221,16 +221,12 @@ const SavedChartsHeader: FC = () => {
                                     firstViewedAt={savedChart.firstViewedAt}
                                 />
 
-                                {space && (
-                                    <>
-                                        <SeparatorDot icon="dot" size={6} />
+                                <SeparatorDot icon="dot" size={6} />
 
-                                        <SpaceInfo
-                                            link={`/projects/${projectUuid}/spaces/${space.uuid}`}
-                                            name={space.name}
-                                        />
-                                    </>
-                                )}
+                                <SpaceInfo
+                                    link={`/projects/${projectUuid}/spaces/${savedChart.spaceUuid}`}
+                                    name={savedChart.spaceName}
+                                />
                             </PageDetailsContainer>
                         </>
                     )}
@@ -384,7 +380,7 @@ const SavedChartsHeader: FC = () => {
                         </Popover2>
                     </PageActionsContainer>
                 )}
-            </PageHeaderContainer>
+            </PageHeader>
 
             {unsavedChartVersion && (
                 <ChartCreateModal

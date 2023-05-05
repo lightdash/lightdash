@@ -85,7 +85,11 @@ export const getMantineThemeOverride = (overrides?: {
         },
     },
 
-    globalStyles: () => ({
+    globalStyles: (theme) => ({
+        'html, body': {
+            backgroundColor: theme.colors.gray[0],
+        },
+
         body: {
             textTransform: 'none',
             fontSize: '14px',

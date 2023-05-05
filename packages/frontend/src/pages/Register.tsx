@@ -1,9 +1,9 @@
 import { ApiError, CreateUserArgs, LightdashUser } from '@lightdash/common';
 import { Anchor, Card, Image, Stack, Text, Title } from '@mantine/core';
-import React, { FC } from 'react';
-import { Helmet } from 'react-helmet';
+import { FC } from 'react';
 import { useMutation } from 'react-query';
 import { useLocation } from 'react-router-dom';
+
 import { lightdashApi } from '../api';
 import {
     GoogleLoginButton,
@@ -90,12 +90,7 @@ const Register: FC = () => {
         </>
     );
     return (
-        <Page isFullHeight>
-            <Helmet>
-                <title>Register - Lightdash</title>
-            </Helmet>
-
-            {/* FIXME: use Mantine sizes for width */}
+        <Page title="Register" withCenteredContent withNavbar={false}>
             <Stack w={400} mt="4xl">
                 <Image
                     src={LightdashLogo}

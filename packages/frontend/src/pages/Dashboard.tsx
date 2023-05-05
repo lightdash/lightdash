@@ -14,7 +14,6 @@ import React, {
     useState,
 } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
-import { Helmet } from 'react-helmet';
 import { useHistory, useParams } from 'react-router-dom';
 
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
@@ -380,9 +379,6 @@ const Dashboard: FC = () => {
 
     return (
         <>
-            <Helmet>
-                <title>{dashboard.name} - Lightdash</title>
-            </Helmet>
             <Alert
                 isOpen={isSaveWarningModalOpen}
                 cancelButtonText="Stay"
@@ -402,50 +398,57 @@ const Dashboard: FC = () => {
                 </p>
             </Alert>
 
-            <DashboardHeader
-                spaces={spaces}
-                dashboardName={dashboard.name}
-                dashboardDescription={dashboard.description}
-                dashboardUpdatedByUser={dashboard.updatedByUser}
-                dashboardUpdatedAt={dashboard.updatedAt}
-                dashboardSpaceName={dashboard.spaceName}
-                dashboardSpaceUuid={dashboard.spaceUuid}
-                dashboardViews={dashboard.views}
-                dashboardFirstViewedAt={dashboard.firstViewedAt}
-                isEditMode={isEditMode}
-                isSaving={isSaving}
-                hasDashboardChanged={
-                    haveTilesChanged ||
-                    haveFiltersChanged ||
-                    hasTemporaryFilters
+            <Page
+                withFooter
+                withPaddedContent
+                title={dashboard.name}
+                header={
+                    <DashboardHeader
+                        spaces={spaces}
+                        dashboardName={dashboard.name}
+                        dashboardDescription={dashboard.description}
+                        dashboardUpdatedByUser={dashboard.updatedByUser}
+                        dashboardUpdatedAt={dashboard.updatedAt}
+                        dashboardSpaceName={dashboard.spaceName}
+                        dashboardSpaceUuid={dashboard.spaceUuid}
+                        dashboardViews={dashboard.views}
+                        dashboardFirstViewedAt={dashboard.firstViewedAt}
+                        isEditMode={isEditMode}
+                        isSaving={isSaving}
+                        hasDashboardChanged={
+                            haveTilesChanged ||
+                            haveFiltersChanged ||
+                            hasTemporaryFilters
+                        }
+                        onAddTiles={handleAddTiles}
+                        onSaveDashboard={() =>
+                            mutate({
+                                tiles: dashboardTiles,
+                                filters: {
+                                    dimensions: [
+                                        ...dashboardFilters.dimensions,
+                                        ...dashboardTemporaryFilters.dimensions,
+                                    ],
+                                    metrics: [
+                                        ...dashboardFilters.metrics,
+                                        ...dashboardTemporaryFilters.metrics,
+                                    ],
+                                },
+                                name: dashboard.name,
+                            })
+                        }
+                        onCancel={handleCancel}
+                        onMoveToSpace={handleMoveDashboardToSpace}
+                        onDuplicate={handleDuplicateDashboard}
+                        onDelete={handleDeleteDashboard}
+                        onExport={handleExportDashboard}
+                    />
                 }
-                onAddTiles={handleAddTiles}
-                onSaveDashboard={() =>
-                    mutate({
-                        tiles: dashboardTiles,
-                        filters: {
-                            dimensions: [
-                                ...dashboardFilters.dimensions,
-                                ...dashboardTemporaryFilters.dimensions,
-                            ],
-                            metrics: [
-                                ...dashboardFilters.metrics,
-                                ...dashboardTemporaryFilters.metrics,
-                            ],
-                        },
-                        name: dashboard.name,
-                    })
-                }
-                onCancel={handleCancel}
-                onMoveToSpace={handleMoveDashboardToSpace}
-                onDuplicate={handleDuplicateDashboard}
-                onDelete={handleDeleteDashboard}
-                onExport={handleExportDashboard}
-            />
-            <Page isContentFullWidth>
+            >
                 {dashboardChartTiles.length > 0 && (
                     <DashboardFilter isEditMode={isEditMode} />
                 )}
+
                 <ResponsiveGridLayout
                     {...RESPONSIVE_GRID_LAYOUT_PROPS}
                     onDragStop={handleUpdateTiles}
@@ -467,6 +470,7 @@ const Dashboard: FC = () => {
                         );
                     })}
                 </ResponsiveGridLayout>
+
                 {dashboardTiles.length <= 0 && (
                     <EmptyStateNoTiles
                         onAddTiles={handleAddTiles}

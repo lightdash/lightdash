@@ -43,7 +43,7 @@ describe('Lightdash API', () => {
         const endpoints = [
             `/projects/${projectUuid}`,
             `/projects/${projectUuid}/explores`,
-            `/projects/${projectUuid}/spaces`,
+            `/projects/${projectUuid}/spaces-and-content`,
             `/projects/${projectUuid}/dashboards`,
             `/projects/${projectUuid}/catalog`,
             `/projects/${projectUuid}/tablesConfiguration`,
@@ -171,7 +171,7 @@ describe('Lightdash API', () => {
     });
     it('Should get success response (200) from GET savedChartRouter endpoints', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
-        cy.request(`${apiUrl}/projects/${projectUuid}/spaces`).then(
+        cy.request(`${apiUrl}/projects/${projectUuid}/spaces-and-content`).then(
             (projectResponse) => {
                 expect(projectResponse.status).to.eq(200);
                 cy.log(projectResponse.body);
@@ -267,7 +267,7 @@ describe('Lightdash API forbidden tests', () => {
         const endpoints = [
             `/projects/${projectUuid}`,
             `/projects/${projectUuid}/explores`,
-            // `/projects/${projectUuid}/spaces`, // This will return 200 but an empty list, check test below
+            // `/projects/${projectUuid}/spaces-and-content`, // This will return 200 but an empty list, check test below
             // `/projects/${projectUuid}/dashboards`, // This will return 200 but an empty list, check test below
             `/projects/${projectUuid}/catalog`,
             `/projects/${projectUuid}/tablesConfiguration`,
@@ -292,7 +292,7 @@ describe('Lightdash API forbidden tests', () => {
 
         const projectUuid = SEED_PROJECT.project_uuid;
         cy.request({
-            url: `${apiUrl}/projects/${projectUuid}/spaces`,
+            url: `${apiUrl}/projects/${projectUuid}/spaces-and-content`,
             failOnStatusCode: false,
         }).then((resp) => {
             cy.log(resp.body);
@@ -368,7 +368,7 @@ describe('Lightdash API forbidden tests', () => {
         cy.login(); // Make request as first user to get the chartUuid
 
         const projectUuid = SEED_PROJECT.project_uuid;
-        cy.request(`${apiUrl}/projects/${projectUuid}/spaces`).then(
+        cy.request(`${apiUrl}/projects/${projectUuid}/spaces-and-content`).then(
             (projectResponse) => {
                 expect(projectResponse.status).to.eq(200);
                 cy.log(projectResponse.body);

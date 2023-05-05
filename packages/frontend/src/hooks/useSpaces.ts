@@ -1,4 +1,10 @@
-import { ApiError, CreateSpace, Space, UpdateSpace } from '@lightdash/common';
+import {
+    ApiError,
+    CreateSpace,
+    Space,
+    SpaceSummary,
+    UpdateSpace,
+} from '@lightdash/common';
 import {
     useMutation,
     useQuery,
@@ -10,7 +16,7 @@ import useToaster from './toaster/useToaster';
 
 const getSpaces = async (projectUuid: string) =>
     lightdashApi<Space[]>({
-        url: `/projects/${projectUuid}/spaces`,
+        url: `/projects/${projectUuid}/spaces-and-content`,
         method: 'GET',
         body: undefined,
     });
@@ -22,6 +28,25 @@ export const useSpaces = (
     return useQuery<Space[], ApiError>(
         ['spaces', projectUuid],
         () => getSpaces(projectUuid),
+        { ...queryOptions },
+    );
+};
+
+const getSpaceSummaries = async (projectUuid: string) => {
+    return lightdashApi<SpaceSummary[]>({
+        url: `/projects/${projectUuid}/spaces`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
+export const useSpaceSummaries = (
+    projectUuid: string,
+    queryOptions?: UseQueryOptions<SpaceSummary[], ApiError>,
+) => {
+    return useQuery<SpaceSummary[], ApiError>(
+        ['projects', projectUuid, 'spaces'],
+        () => getSpaceSummaries(projectUuid),
         { ...queryOptions },
     );
 };

@@ -33,7 +33,7 @@ describe('Lightdash API organization permission tests', () => {
         const endpoints = [
             `/projects/${projectUuid}`,
             `/projects/${projectUuid}/explores`,
-            // `/projects/${projectUuid}/spaces`, // This will return 200 but an empty list, check test below
+            // `/projects/${projectUuid}/spaces-and-content`, // This will return 200 but an empty list, check test below
             // `/projects/${projectUuid}/dashboards`, // This will return 200 but an empty list, check test below
             `/projects/${projectUuid}/catalog`,
             `/projects/${projectUuid}/tablesConfiguration`,
@@ -58,7 +58,7 @@ describe('Lightdash API organization permission tests', () => {
 
         const projectUuid = SEED_PROJECT.project_uuid;
         cy.request({
-            url: `${apiUrl}/projects/${projectUuid}/spaces`,
+            url: `${apiUrl}/projects/${projectUuid}/spaces-and-content`,
             failOnStatusCode: false,
         }).then((resp) => {
             expect(resp.status).to.eq(200);
@@ -132,7 +132,7 @@ describe('Lightdash API organization permission tests', () => {
         cy.login(); // Make request as first user to get the chartUuid
 
         const projectUuid = SEED_PROJECT.project_uuid;
-        cy.request(`${apiUrl}/projects/${projectUuid}/spaces`).then(
+        cy.request(`${apiUrl}/projects/${projectUuid}/spaces-and-content`).then(
             (projectResponse) => {
                 expect(projectResponse.status).to.eq(200);
                 const savedChartUuid =

@@ -4,6 +4,7 @@ import {
     Box,
     Highlight,
     NavLink,
+    Text,
     Tooltip,
     Transition,
 } from '@mantine/core';
@@ -56,7 +57,11 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
                             />
                         }
                         label={
-                            <Highlight highlight={query ?? ''}>
+                            <Highlight
+                                component={Text}
+                                highlight={query ?? ''}
+                                truncate
+                            >
                                 {explore.label}
                             </Highlight>
                         }
@@ -95,7 +100,9 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
             icon={<MantineIcon icon={IconTable} size="lg" color="gray.7" />}
             onClick={onClick}
             label={
-                <Highlight highlight={query ?? ''}>{explore.label}</Highlight>
+                <Highlight component={Text} highlight={query ?? ''} truncate>
+                    {explore.label}
+                </Highlight>
             }
             rightSection={
                 <Transition mounted={hovered} transition="fade">
@@ -108,7 +115,7 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
                         >
                             <MantineIcon
                                 icon={IconInfoCircle}
-                                color="gray.6"
+                                color="gray.7"
                                 size="lg"
                                 style={styles}
                             />

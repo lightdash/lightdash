@@ -13,10 +13,10 @@ import DashboardSchedulersModal from '../../SchedulerModals/DashboardSchedulersM
 import { getSchedulerUuidFromUrlParams } from '../../SchedulerModals/SchedulerModalBase/SchedulerModalContent';
 import ShareLinkButton from '../../ShareLinkButton';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
+import PageHeader from '../Page/PageHeader';
 import {
     PageActionsContainer,
     PageDetailsContainer,
-    PageHeaderContainer,
     PageTitle,
     PageTitleAndDetailsContainer,
     PageTitleContainer,
@@ -101,7 +101,7 @@ const DashboardHeader = ({
     );
 
     return (
-        <PageHeaderContainer>
+        <PageHeader>
             <PageTitleAndDetailsContainer>
                 <PageTitleContainer className={Classes.TEXT_OVERFLOW_ELLIPSIS}>
                     <PageTitle>{dashboardName}</PageTitle>
@@ -318,7 +318,7 @@ const DashboardHeader = ({
                     )}
                 </PageActionsContainer>
             ) : null}
-        </PageHeaderContainer>
+        </PageHeader>
     );
 };
 
