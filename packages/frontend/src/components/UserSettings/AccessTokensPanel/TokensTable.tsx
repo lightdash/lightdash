@@ -95,13 +95,13 @@ export const TokensTable = () => {
                 onClose={() => !isDeleting && setTokenToDelete(undefined)}
                 title={
                     <Title order={4}>
-                        {`Delete token ${tokenToDelete?.description}`}
+                        Delete token {tokenToDelete?.description}
                     </Title>
                 }
             >
-                <Stack mt="md">
+                <Stack spacing="xl">
                     <Text>
-                        Are you sure ? This will permanently delete the
+                        Are you sure? This will permanently delete the
                         <Text component="b">
                             {' '}
                             {tokenToDelete?.description}{' '}
