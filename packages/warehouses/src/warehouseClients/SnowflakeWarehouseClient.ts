@@ -98,15 +98,6 @@ const parseCell = (cell: any) => {
     return cell;
 };
 
-const parseRows = (rows: Record<string, any>[]) =>
-    rows.map((row) =>
-        Object.fromEntries(
-            Object.entries(row).map(([name, value]) => [
-                name,
-                parseCell(value),
-            ]),
-        ),
-    );
 const parseRow = (row: Record<string, any>) =>
     Object.fromEntries(
         Object.entries(row).map(([name, value]) => [name, parseCell(value)]),
