@@ -1,4 +1,4 @@
-import { Button, Flex, Title } from '@mantine/core';
+import { Button, Group, Stack, Title } from '@mantine/core';
 import { IconKey } from '@tabler/icons-react';
 import { FC, useState } from 'react';
 import { useAccessToken } from '../../../hooks/useAccessToken';
@@ -41,16 +41,16 @@ const AccessTokensPanel: FC = () => {
     }
 
     return (
-        <>
-            <Flex justify="space-between" align="center" mb="lg">
+        <Stack mb="lg">
+            <Group position="apart">
                 <Title order={5}>Personal access tokens</Title>
                 <Button onClick={() => setCreateInvitesPanel(true)}>
                     Generate new token
                 </Button>
-            </Flex>
+            </Group>
 
             <TokensTable />
-        </>
+        </Stack>
     );
 };
 
