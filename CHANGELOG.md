@@ -1,3 +1,10 @@
+# [0.538.0](https://github.com/lightdash/lightdash/compare/0.537.1...0.538.0) (2023-05-05)
+
+
+### Features
+
+* migrate delete token modal to mantine ([#5371](https://github.com/lightdash/lightdash/issues/5371)) ([b38906b](https://github.com/lightdash/lightdash/commit/b38906b9e067e3f678b8279d8ab1c741bdb82a03))
+
 ## [0.537.1](https://github.com/lightdash/lightdash/compare/0.537.0...0.537.1) (2023-05-05)
 
 
