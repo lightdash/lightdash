@@ -107,6 +107,10 @@ const parseRows = (rows: Record<string, any>[]) =>
             ]),
         ),
     );
+const parseRow = (row: Record<string, any>) =>
+    Object.fromEntries(
+        Object.entries(row).map(([name, value]) => [name, parseCell(value)]),
+    );
 
 export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflakeCredentials> {
     connectionOptions: ConnectionOptions;
@@ -191,30 +195,33 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         }>((resolve, reject) => {
             connection.execute({
                 sqlText,
-                complete: (err, stmt, data) => {
+                streamResult: true,
+                complete: (err, stmt, rs) => {
                     if (err) {
-                        reject(err);
+                        reject(new WarehouseQueryError(err.message));
                     }
-                    if (data) {
-                        const fields = stmt.getColumns().reduce(
-                            (acc, column) => ({
-                                ...acc,
-                                [column.getName()]: {
-                                    type: mapFieldType(
-                                        column.getType().toUpperCase(),
-                                    ),
-                                },
-                            }),
-                            {},
-                        );
-                        resolve({ fields, rows: parseRows(data) });
-                    } else {
-                        reject(
-                            new WarehouseQueryError(
-                                'Query result is undefined',
-                            ),
-                        );
-                    }
+                    const rows: any[] = [];
+                    const fields = stmt.getColumns().reduce(
+                        (acc, column) => ({
+                            ...acc,
+                            [column.getName()]: {
+                                type: mapFieldType(
+                                    column.getType().toUpperCase(),
+                                ),
+                            },
+                        }),
+                        {},
+                    );
+                    stmt.streamRows()
+                        .on('error', (e) => {
+                            reject(new WarehouseQueryError(e.message));
+                        })
+                        .on('data', (row) => {
+                            rows.push(parseRow(row));
+                        })
+                        .on('end', () => {
+                            resolve({ fields, rows });
+                        });
                 },
             });
         });
