@@ -360,13 +360,6 @@ export const pivotQueryResults = ({
         }
     });
 
-    console.log({
-        headerTotalLabels,
-        indexTotalLabels,
-        rowTotals,
-        columnTotals,
-    });
-
     return {
         titleFields,
 
