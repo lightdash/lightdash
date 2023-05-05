@@ -84,6 +84,9 @@ const AppearancePanel: FC = () => {
                                     }),
                                 )}
                                 {...form.getInputProps(`color${index}`)}
+                                onBlur={() => {
+                                    form.validateField(`color${index}`);
+                                }}
                             />
                         ))}
                     </SimpleGrid>
