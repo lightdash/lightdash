@@ -102,7 +102,7 @@ export const TokensTable = () => {
                 <Stack spacing="xl">
                     <Text>
                         Are you sure? This will permanently delete the
-                        <Text component="b">
+                        <Text fw={600} component="span">
                             {' '}
                             {tokenToDelete?.description}{' '}
                         </Text>
