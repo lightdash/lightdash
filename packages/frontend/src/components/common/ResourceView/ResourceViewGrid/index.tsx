@@ -3,7 +3,12 @@ import { Anchor, SimpleGrid, Stack, Text } from '@mantine/core';
 import produce from 'immer';
 import orderBy from 'lodash/orderBy';
 import { FC, useMemo, useState } from 'react';
-import { DragDropContext, Draggable, Droppable } from 'react-beautiful-dnd';
+import {
+    DragDropContext,
+    Draggable,
+    Droppable,
+    DropResult,
+} from 'react-beautiful-dnd';
 import { Link } from 'react-router-dom';
 import { ResourceViewCommonProps } from '..';
 import { useReorder } from '../../../../hooks/pinning/usePinnedItems';
@@ -79,7 +84,7 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
 
     const { mutate: reorderItems } = useReorder(projectUuid, pinnedListUuid);
 
-    const handleOnDragEnd = (result: any) => {
+    const handleOnDragEnd = (result: DropResult) => {
         const { source: drag, destination: drop } = result;
         const draggedItemId = drag?.droppableId;
         if (!drop) return;
@@ -120,6 +125,7 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
                         <Droppable
                             droppableId={group.name}
                             isDropDisabled={!hasReorder}
+                            direction="horizontal"
                         >
                             {(dropProvided) => (
                                 <SimpleGrid
