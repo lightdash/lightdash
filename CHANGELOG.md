@@ -1,3 +1,10 @@
+## [0.535.2](https://github.com/lightdash/lightdash/compare/0.535.1...0.535.2) (2023-05-05)
+
+
+### Bug Fixes
+
+* check space access in charts api ([#5372](https://github.com/lightdash/lightdash/issues/5372)) ([29b9e9e](https://github.com/lightdash/lightdash/commit/29b9e9e235950a819951a57ec75057e8b0b9ed33))
+
 ## [0.535.1](https://github.com/lightdash/lightdash/compare/0.535.0...0.535.1) (2023-05-05)
 
 
