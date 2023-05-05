@@ -5,7 +5,7 @@ import {
     getItemId,
     replaceStringInArray,
 } from '@lightdash/common';
-import { FC, useMemo } from 'react';
+import { FC, useCallback, useMemo } from 'react';
 import {
     AxisFieldDropdown,
     DeleteFieldButton,
@@ -66,6 +66,28 @@ const GeneralSettings: FC = () => {
             (!pivotDimensions || pivotDimensions.length < MAX_PIVOTS),
         [availableGroupByDimensions.length, pivotDimensions],
     );
+
+    const handleToggleMetricsAsRows = useCallback(() => {
+        const newValue = !metricsAsRows;
+
+        if (newValue) {
+            setShowColumnCalculation(showRowCalculation);
+            setShowRowCalculation(showColumnCalculation);
+        } else {
+            setShowColumnCalculation(showRowCalculation);
+            setShowRowCalculation(showColumnCalculation);
+        }
+
+        setMetricsAsRows(newValue);
+    }, [
+        metricsAsRows,
+        setMetricsAsRows,
+        showColumnCalculation,
+        setShowColumnCalculation,
+        showRowCalculation,
+        setShowRowCalculation,
+    ]);
+
     return (
         <>
             <SectionTitle>Pivot column</SectionTitle>
@@ -150,31 +172,30 @@ const GeneralSettings: FC = () => {
                 />
 
                 {canUseMetricsAsRows ? (
-                    <>
-                        <Checkbox
-                            label="Show metrics as rows"
-                            checked={metricsAsRows}
-                            onChange={() => {
-                                setMetricsAsRows(!metricsAsRows);
-                            }}
-                        />
-                        <Checkbox
-                            label="Show row total"
-                            checked={showRowCalculation}
-                            onChange={() => {
-                                setShowRowCalculation(!showRowCalculation);
-                            }}
-                        />
-                    </>
+                    <Checkbox
+                        label="Show metrics as rows"
+                        checked={metricsAsRows}
+                        onChange={() => handleToggleMetricsAsRows()}
+                    />
                 ) : null}
 
-                <Checkbox
-                    label="Show column total"
-                    checked={showColumnCalculation}
-                    onChange={() => {
-                        setShowColumnCalculation(!showColumnCalculation);
-                    }}
-                />
+                {canUseMetricsAsRows && metricsAsRows ? (
+                    <Checkbox
+                        label="Show row total"
+                        checked={showRowCalculation}
+                        onChange={() => {
+                            setShowRowCalculation(!showRowCalculation);
+                        }}
+                    />
+                ) : (
+                    <Checkbox
+                        label="Show column total"
+                        checked={showColumnCalculation}
+                        onChange={() => {
+                            setShowColumnCalculation(!showColumnCalculation);
+                        }}
+                    />
+                )}
             </FormGroup>
 
             <SectionTitle>Columns</SectionTitle>

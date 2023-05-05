@@ -2,8 +2,10 @@ import {
     ConditionalFormattingConfig,
     Field,
     fieldId,
+    formatValue,
     isField,
     PivotData,
+    PTTotalValue,
     ResultValue,
     TableCalculation,
 } from '@lightdash/common';
@@ -55,6 +57,33 @@ const PivotTable: FC<PivotTableProps> = ({
             data.indexValues,
             getField,
         ],
+    );
+
+    const getRowTotalItemFromAxis = useCallback(
+        (
+            total: PTTotalValue | null,
+            rowIndex: number,
+            _colIndex: number,
+        ): ResultValue => {
+            if (!data.pivotConfig.metricsAsRows)
+                throw new Error('not implemented');
+
+            const value = last(data.indexValues[rowIndex]);
+            if (!value || !value.fieldId) throw new Error('Invalid pivot data');
+
+            const item = getField(value.fieldId);
+
+            const formattedValue = formatValue(
+                total?.raw,
+                isField(item) ? item : undefined,
+            );
+
+            return {
+                raw: total,
+                formatted: formattedValue,
+            };
+        },
+        [data.pivotConfig.metricsAsRows, data.indexValues, getField],
     );
 
     const getUnderlyingFieldValues = useCallback(
@@ -191,27 +220,30 @@ const PivotTable: FC<PivotTableProps> = ({
 
                                 {/* render the total label */}
                                 {data.pivotConfig.rowTotals
-                                    ? data.headerTotals?.[headerRowIndex].map(
-                                          (total, totalIndex) =>
-                                              total ? (
-                                                  <HeaderCell
-                                                      key={`header-total-${headerRowIndex}-${totalIndex}`}
-                                                      className={cellCx(
-                                                          cellStyles.root,
-                                                          cellStyles.header,
-                                                      )}
-                                                  >
-                                                      {total.title}
-                                                  </HeaderCell>
-                                              ) : (
-                                                  <th
-                                                      key={`header-total-${headerRowIndex}-${totalIndex}`}
-                                                      className={cellCx(
-                                                          cellStyles.root,
-                                                          cellStyles.rowNumber,
-                                                      )}
-                                                  />
-                                              ),
+                                    ? data.indexTotalLabels?.[
+                                          headerRowIndex
+                                      ].map((totalLabel, totalLabelIndex) =>
+                                          totalLabel ? (
+                                              <HeaderCell
+                                                  key={`header-total-${headerRowIndex}-${totalLabelIndex}`}
+                                                  className={cellCx(
+                                                      cellStyles.root,
+                                                      cellStyles.header,
+                                                  )}
+                                              >
+                                                  {totalLabel.type === 'label'
+                                                      ? totalLabel.fieldId
+                                                      : 'Total'}
+                                              </HeaderCell>
+                                          ) : (
+                                              <th
+                                                  key={`header-total-${headerRowIndex}-${totalLabelIndex}`}
+                                                  className={cellCx(
+                                                      cellStyles.root,
+                                                      cellStyles.rowNumber,
+                                                  )}
+                                              />
+                                          ),
                                       )
                                     : null}
                             </>
@@ -297,14 +329,28 @@ const PivotTable: FC<PivotTableProps> = ({
                             {/* render the total values */}
                             {data.pivotConfig.rowTotals
                                 ? data.rowTotals?.[rowIndex].map(
-                                      (total, totalIndex) => (
-                                          <TotalCell
-                                              value={total}
-                                              key={`row-total-${rowIndex}-${totalIndex}`}
-                                          >
-                                              {total?.formatted}
-                                          </TotalCell>
-                                      ),
+                                      (total, colIndex) => {
+                                          const value = getRowTotalItemFromAxis(
+                                              total,
+                                              rowIndex,
+                                              colIndex,
+                                          );
+
+                                          return total ? (
+                                              <TotalCell
+                                                  value={value}
+                                                  key={`index-total-${rowIndex}-${colIndex}`}
+                                              >
+                                                  {value.formatted}
+                                              </TotalCell>
+                                          ) : (
+                                              <td
+                                                  className={cellCx(
+                                                      cellStyles.root,
+                                                  )}
+                                              />
+                                          );
+                                      },
                                   )
                                 : null}
                         </>
@@ -312,7 +358,8 @@ const PivotTable: FC<PivotTableProps> = ({
                 ))}
             </tbody>
 
-            {data.pivotConfig.columnTotals ? (
+            {/* TODO: column totals */}
+            {false && data.pivotConfig.columnTotals ? (
                 <tfoot>
                     {data.columnTotals?.map((row, totalRowIndex) => (
                         <tr key={`column-total-${totalRowIndex}`}>
@@ -327,13 +374,14 @@ const PivotTable: FC<PivotTableProps> = ({
                             )}
 
                             {/* render the total label */}
-                            {data.footerTotals?.[totalRowIndex].map(
-                                (total, totalColIndex) =>
-                                    total ? (
+                            {data.headerTotalLabels?.[totalRowIndex].map(
+                                (totalLabel, totalLabelColIndex) =>
+                                    totalLabel ? (
                                         <HeaderCell
-                                            key={`footer-total-${totalRowIndex}-${totalColIndex}`}
+                                            key={`footer-total-${totalRowIndex}-${totalLabelColIndex}`}
                                             textAlign={
-                                                total.titleDirection === 'index'
+                                                totalLabel.titleDirection ===
+                                                'index'
                                                     ? 'right'
                                                     : 'left'
                                             }
@@ -342,11 +390,13 @@ const PivotTable: FC<PivotTableProps> = ({
                                                 cellStyles.header,
                                             )}
                                         >
-                                            {total.title}
+                                            {totalLabel.type === 'label'
+                                                ? totalLabel.fieldId
+                                                : 'Total'}
                                         </HeaderCell>
                                     ) : (
                                         <th
-                                            key={`footer-total-${totalRowIndex}-${totalColIndex}`}
+                                            key={`footer-total-${totalRowIndex}-${totalLabelColIndex}`}
                                             className={cellCx(
                                                 cellStyles.root,
                                                 cellStyles.rowNumber,
@@ -356,14 +406,19 @@ const PivotTable: FC<PivotTableProps> = ({
                             )}
 
                             {/* render the total values */}
-                            {row.map((total, totalColIndex) => (
-                                <TotalCell
-                                    key={`column-total-${totalRowIndex}-${totalColIndex}`}
-                                    value={total}
-                                >
-                                    {total?.formatted}
-                                </TotalCell>
-                            ))}
+                            {/* TODO: get formatted totals before rendering */}
+                            {/* row.map((total, totalColIndex) => {
+                                return total ? (
+                                    <TotalCell
+                                        key={`column-total-${totalRowIndex}-${totalColIndex}`}
+                                        value={total}
+                                    >
+                                        {total?.formatted}
+                                    </TotalCell>
+                                ) : (
+                                    <td />
+                                );
+                            }) */}
                         </tr>
                     ))}
                 </tfoot>
