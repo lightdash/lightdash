@@ -8,11 +8,12 @@ import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useOrganizationUpdateMutation } from '../../../hooks/organization/useOrganizationUpdateMutation';
 import { Can, useAbilityContext } from '../../common/Authorization';
 
+const IS_HEX_CODE_COLOR_REGEX = /^#([a-fA-F0-9]{3}|[a-fA-F0-9]{6})$/;
+
 const AppearancePanel: FC = () => {
     const ability = useAbilityContext();
     const { isLoading: isOrgLoading, data } = useOrganization();
     const updateMutation = useOrganizationUpdateMutation();
-    const IS_HEX_CODE_COLOR_REGEX = /^#([a-fA-F0-9]{3}|[a-fA-F0-9]{6})$/;
 
     const getColorFields = (colors: string[]) =>
         colors.reduce(
