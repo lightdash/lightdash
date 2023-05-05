@@ -108,6 +108,49 @@ const parseRows = (rows: Record<string, any>[]) =>
             ]),
         ),
     );
+/*     const CHUNK_SIZE = 50000;
+    const readStream = Readable.from(rows, {
+        objectMode: true,
+        highWaterMark: CHUNK_SIZE,
+    });
+
+    let parsedRows = []
+    const writeStream = fs.createWriteStream(`/tmp/${fileId}`);
+
+    const rowTransformer = new Transform({
+        objectMode: true,
+        transform(
+            row: any,
+            encoding: BufferEncoding,
+            callback: TransformCallback,
+        ) {
+            callback(
+                null,
+                Object.fromEntries(
+                    Object.entries(row).map(([name, value]) => [
+                        name,
+                        parseCell(value),
+                    ]),
+                ),
+            );
+        },
+    });
+
+    const writePromise = new Promise<string>((resolve, reject) => {
+        pipeline(
+            readStream,
+            rowTransformer,
+            writeStream,
+            async (err) => {
+                if (err) {
+                    reject(err);
+                }
+                resolve(fileId);
+            },
+        );
+    });
+
+    return writePromise; */
 
 export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryCredentials> {
     client: BigQuery;
@@ -130,6 +173,49 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
 
     async runQuery(query: string) {
         try {
+            const rows: Record<string, any>[] = [];
+            const fields: Record<string, { type: DimensionType }> = {};
+
+            const writePromise = new Promise<{ fields: {}; rows: any[] }>(
+                (resolve, reject) => {
+                    this.client
+                        .createQueryStream(query)
+                        .on('error', (e) => {
+                            reject(e.message);
+                        })
+                        .on(
+                            'schema',
+                            (schema: bigquery.ITableSchema | undefined) => {
+                                console.debug('schema', schema);
+                                /* fields = fields = (schema?.fields || []).reduce<
+                    Record<string, { type: DimensionType }>
+                >((acc, field) => {
+                    if (field.name) {
+                        return {
+                            ...acc,
+                            [field.name]: { type: mapFieldType(field.type) },
+                        };
+                    }
+                    return acc;
+                }, {}) */
+                            },
+                        )
+                        .on('data', (row) => {
+                            if (rows.length === 0)
+                                console.debug('first row ', row);
+
+                            rows.push(parseRows([row]));
+                        })
+                        .on('end', (e: any) => {
+                            // All rows retrieved.
+                            console.debug('end', e);
+
+                            resolve({ fields, rows });
+                        });
+                },
+            );
+
+            return await writePromise; /*
             const [job] = await this.client.createQueryJob({
                 query,
                 useLegacySql: false,
@@ -160,7 +246,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 }
                 return acc;
             }, {});
-            return { fields, rows: parseRows(rows) };
+            return { fields, rows: parseRows(rows) }; */
         } catch (e) {
             throw new WarehouseQueryError(e.message);
         }
