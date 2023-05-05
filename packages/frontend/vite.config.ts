@@ -35,6 +35,7 @@ export default defineConfig({
         // sourcemap: true,
         target: 'es2015',
         minify: true,
+        sourcemap: true, 
         rollupOptions: {
             output: {
                 manualChunks: mapManualChunks({
