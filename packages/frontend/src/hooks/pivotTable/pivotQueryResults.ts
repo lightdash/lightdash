@@ -1,22 +1,15 @@
 import {
     Field,
     FieldType,
-    formatValue,
-    isField,
-    isMetric,
     MetricQuery,
     PivotConfig,
     PivotData,
-    PivotHeaderType,
-    PivotIndexType,
-    PivotTitleValue,
-    PivotValue,
+    PTFieldLabel,
+    PTValue,
     ResultRow,
     ResultValue,
     TableCalculation,
-    TotalTitle,
 } from '@lightdash/common';
-import last from 'lodash-es/last';
 
 type PivotQueryResultsArgs = {
     pivotConfig: PivotConfig;
@@ -106,7 +99,6 @@ export const pivotQueryResults = ({
     pivotConfig,
     metricQuery,
     rows,
-    itemsMap = {},
 }: PivotQueryResultsArgs): PivotData => {
     if (rows.length === 0) {
         throw new Error('Cannot pivot results with no rows');
@@ -131,7 +123,7 @@ export const pivotQueryResults = ({
     }));
     const headerMetricValueTypes: { type: FieldType.METRIC }[] =
         pivotConfig.metricsAsRows ? [] : [{ type: FieldType.METRIC }];
-    const headerValueTypes: PivotHeaderType[] = [
+    const headerValueTypes: PivotData['headerValueTypes'] = [
         ...headerDimensionValueTypes,
         ...headerMetricValueTypes,
     ];
@@ -150,7 +142,7 @@ export const pivotQueryResults = ({
     }));
     const indexMetricValueTypes: { type: FieldType.METRIC }[] =
         pivotConfig.metricsAsRows ? [{ type: FieldType.METRIC }] : [];
-    const indexValueTypes: PivotIndexType[] = [
+    const indexValueTypes: PivotData['indexValueTypes'] = [
         ...indexDimensionValueTypes,
         ...indexMetricValueTypes,
     ];
@@ -171,8 +163,8 @@ export const pivotQueryResults = ({
     const N_ROWS = rows.length;
 
     // For every row in the results, compute the index and header values to determine the shape of the result set
-    const indexValues: PivotValue[][] = [];
-    const headerValuesT: PivotValue[][] = [];
+    const indexValues: PivotData['indexValues'] = [];
+    const headerValuesT: PivotData['headerValues'] = [];
 
     let rowIndices = {};
     let columnIndices = {};
@@ -184,8 +176,8 @@ export const pivotQueryResults = ({
         for (let nMetric = 0; nMetric < metrics.length; nMetric++) {
             const metric = metrics[nMetric];
 
-            const indexRowValues: PivotValue[] = indexDimensions
-                .map<PivotValue>((fieldId) => ({
+            const indexRowValues = indexDimensions
+                .map<PTFieldLabel | PTValue>((fieldId) => ({
                     type: 'value',
                     fieldId: fieldId,
                     value: row[fieldId].value,
@@ -196,8 +188,8 @@ export const pivotQueryResults = ({
                         : [],
                 );
 
-            const headerRowValues: PivotValue[] = headerDimensions
-                .map<PivotValue>((fieldId) => ({
+            const headerRowValues = headerDimensions
+                .map<PTFieldLabel | PTValue>((fieldId) => ({
                     type: 'value',
                     fieldId: fieldId,
                     value: row[fieldId].value,
@@ -282,80 +274,53 @@ export const pivotQueryResults = ({
     }
 
     // compute row totals
-    let headerTotals: (TotalTitle | null)[][] | undefined;
-    let rowTotals: (ResultValue | null)[][] | undefined;
+    let indexTotalLabels: PivotData['indexTotalLabels'];
+    let rowTotals: PivotData['rowTotals'];
     if (pivotConfig.rowTotals && pivotConfig.metricsAsRows) {
         const N_TOTAL_COLS = 1;
         const N_TOTAL_ROWS = headerValues.length;
 
-        headerTotals = create2DArray<TotalTitle | null>(
-            N_TOTAL_ROWS,
-            N_TOTAL_COLS,
-        );
-        rowTotals = create2DArray<ResultValue | null>(
-            N_DATA_ROWS,
-            N_TOTAL_COLS,
-        );
+        indexTotalLabels = create2DArray(N_TOTAL_ROWS, N_TOTAL_COLS);
+        rowTotals = create2DArray(N_DATA_ROWS, N_TOTAL_COLS);
 
         // set the header last cell as the title total
-        headerTotals[N_TOTAL_ROWS - 1][N_TOTAL_COLS - 1] = {
-            title: 'Total',
+        indexTotalLabels[N_TOTAL_ROWS - 1][N_TOTAL_COLS - 1] = {
             titleDirection: 'header',
+            type: 'total',
         };
 
-        rowTotals = rowTotals.map((row, totalRowIndex) => {
+        rowTotals = rowTotals.map((row, rowIndex) => {
             return row.map(() => {
-                const indexValue = indexValues.map(last)[totalRowIndex];
-                const item = indexValue ? itemsMap[indexValue?.fieldId] : null;
-
-                const sum = dataValues[totalRowIndex].reduce((acc, value) => {
+                const sum = dataValues[rowIndex].reduce((acc, value) => {
                     const parsedVal = Number(value?.raw);
                     const finalVal = Number.isNaN(parsedVal) ? 0 : parsedVal;
                     return acc + finalVal;
                 }, 0);
 
-                const formattedSum = formatValue(
-                    sum,
-                    item && isField(item) && isMetric(item) ? item : undefined,
-                );
-
-                return {
-                    raw: sum,
-                    formatted: formattedSum,
-                };
+                return { raw: sum };
             });
         });
     }
 
-    let footerTotals: (TotalTitle | null)[][] | undefined;
-    let columnTotals: (ResultValue | null)[][] | undefined;
+    let headerTotalLabels: PivotData['headerTotalLabels'];
+    let columnTotals: PivotData['columnTotals'];
     if (pivotConfig.columnTotals && pivotConfig.metricsAsRows) {
         const N_TOTAL_ROWS = metrics.length;
         const N_TOTAL_COLS = indexValueTypes.length;
 
-        footerTotals = create2DArray<TotalTitle | null>(
-            N_TOTAL_ROWS,
-            N_TOTAL_COLS,
-        );
-        columnTotals = create2DArray<ResultValue | null>(
-            N_TOTAL_ROWS,
-            N_DATA_COLUMNS,
-        );
+        headerTotalLabels = create2DArray(N_TOTAL_ROWS, N_TOTAL_COLS);
+        columnTotals = create2DArray(N_TOTAL_ROWS, N_DATA_COLUMNS);
 
         metrics.forEach((metric, metricIndex) => {
-            const item = itemsMap[metric.fieldId];
-
-            footerTotals![metricIndex][N_TOTAL_COLS - 1] = {
-                title: `Total ${item?.name || metric.fieldId}`,
+            headerTotalLabels![metricIndex][N_TOTAL_COLS - 1] = {
                 titleDirection: 'index',
+                fieldId: metric.fieldId,
+                type: 'label',
             };
         });
 
         columnTotals = columnTotals.map((row, totalRowIndex) => {
             return row.map((_, totalColumnIndex) => {
-                const indexValue = indexValues.map(last)[totalRowIndex];
-                const item = indexValue ? itemsMap[indexValue?.fieldId] : null;
-
                 const sum = dataValues
                     .filter(
                         (__, index) => index % N_TOTAL_ROWS === totalRowIndex,
@@ -368,20 +333,12 @@ export const pivotQueryResults = ({
                         return acc + finalVal;
                     }, 0);
 
-                const formattedSum = formatValue(
-                    sum,
-                    item && isField(item) && isMetric(item) ? item : undefined,
-                );
-
-                return {
-                    raw: sum,
-                    formatted: formattedSum,
-                };
+                return { raw: sum };
             });
         });
     }
 
-    const titleFields: (PivotTitleValue | null)[][] = [
+    const titleFields: PivotData['titleFields'] = [
         ...Array(headerValueTypes.length),
     ].map(() => Array(indexValueTypes.length).fill(null));
     headerValueTypes.forEach((headerValueType, headerIndex) => {
@@ -403,18 +360,29 @@ export const pivotQueryResults = ({
         }
     });
 
+    console.log({
+        headerTotalLabels,
+        indexTotalLabels,
+        rowTotals,
+        columnTotals,
+    });
+
     return {
+        titleFields,
+
         headerValueTypes: headerValueTypes,
         headerValues,
         indexValueTypes: indexValueTypes,
         indexValues,
+
         dataColumnCount: N_DATA_COLUMNS,
         dataValues,
-        pivotConfig,
-        titleFields,
-        headerTotals,
+
+        headerTotalLabels,
+        indexTotalLabels,
         rowTotals,
-        footerTotals,
         columnTotals,
+
+        pivotConfig,
     };
 };

@@ -6,48 +6,58 @@ export type PivotConfig = {
     metricsAsRows: boolean;
     columnOrder?: string[];
     hiddenMetricFieldIds?: string[];
-    rowTotals?: boolean;
+
     columnTotals?: boolean;
+    rowTotals?: boolean;
 };
 
-type HeaderOrIndexType =
+type PTField =
     | { type: FieldType.METRIC; fieldId?: undefined }
     | { type: FieldType.DIMENSION; fieldId: string };
 
-export type PivotHeaderType = HeaderOrIndexType;
-export type PivotIndexType = HeaderOrIndexType;
+export type PTFieldLabel = {
+    type: 'label';
+    fieldId: string;
+    value?: undefined;
+};
 
-export type PivotValue =
-    | { type: 'label'; fieldId: string; value?: undefined }
-    | { type: 'value'; fieldId: string; value: ResultValue };
+export type PTTotalLabel = {
+    type: 'total';
+};
 
-export type TotalLabel = {
+export type PTValue = {
+    type: 'value';
+    fieldId: string;
+    value: ResultValue;
+};
+
+export type PTLabel = {
     titleDirection: 'index' | 'header';
 };
 
-export type PivotTitleValue = PivotValue & TotalLabel;
+export type PTTotalValue = Pick<ResultValue, 'raw'>;
 
-export type TotalTitle = {
-    title: string;
-} & TotalLabel;
+export type PTTitleValue = PTFieldLabel & PTLabel;
+
+export type PTTotalOrFieldLabel = PTLabel & (PTTotalLabel | PTFieldLabel);
 
 export type PivotData = {
-    titleFields: (PivotTitleValue | null)[][];
+    headerValueTypes: PTField[];
+    headerValues: (PTFieldLabel | PTValue)[][];
 
-    headerValueTypes: PivotHeaderType[];
-    headerValues: PivotValue[][];
-
-    indexValueTypes: PivotIndexType[];
-    indexValues: PivotValue[][];
+    indexValueTypes: PTField[];
+    indexValues: (PTFieldLabel | PTValue)[][];
 
     dataColumnCount: number;
     dataValues: (ResultValue | null)[][];
 
-    headerTotals?: (TotalTitle | null)[][];
-    footerTotals?: (TotalTitle | null)[][];
+    titleFields: (PTTitleValue | null)[][];
 
-    rowTotals?: (ResultValue | null)[][];
-    columnTotals?: (ResultValue | null)[][];
+    headerTotalLabels?: (PTTotalOrFieldLabel | null)[][];
+    indexTotalLabels?: (PTTotalOrFieldLabel | null)[][];
+
+    rowTotals?: (PTTotalValue | null)[][];
+    columnTotals?: (PTTotalValue | null)[][];
 
     pivotConfig: PivotConfig;
 };
