@@ -31,18 +31,28 @@ const PageBreadcrumbs: FC<PageBreadcrumbsProps> = ({
     ...rest
 }) => {
     return (
-        <Breadcrumbs {...rest}>
+        <Breadcrumbs
+            {...rest}
+            styles={{
+                root: {
+                    display: 'block',
+                    flexWrap: 'wrap',
+                },
+                separator: {
+                    display: 'inline-block',
+                },
+            }}
+        >
             {items.map((item, index) => {
                 const commonProps: AnchorProps &
                     HTMLAttributes<HTMLAnchorElement> & { key: Key } = {
                     key: index,
                     size: size,
-
-                    truncate: true,
                     fw: item.active ? 600 : 500,
                     color: item.active ? 'gray.7' : 'gray.6',
                     onClick: item.onClick,
                     sx: {
+                        whiteSpace: 'normal',
                         ...(item.onClick || item.to
                             ? {
                                   cursor: 'pointer',
@@ -65,7 +75,9 @@ const PageBreadcrumbs: FC<PageBreadcrumbsProps> = ({
                 );
 
                 return item.tooltipProps ? (
-                    <Tooltip {...item.tooltipProps}>{anchor}</Tooltip>
+                    <Tooltip withArrow {...item.tooltipProps}>
+                        {anchor}
+                    </Tooltip>
                 ) : (
                     anchor
                 );
