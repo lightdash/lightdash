@@ -67,6 +67,15 @@ export const getMantineThemeOverride = (overrides?: {
             }),
         },
 
+        ColorInput: {
+            styles: (theme, _params) => ({
+                label: {
+                    // FIXME: this is a hack to fix label position. remove after Blueprint migration is complete
+                    marginBottom: theme.spacing.xxs,
+                },
+            }),
+        },
+
         Kbd: {
             styles: (theme, _params) => ({
                 root: {
