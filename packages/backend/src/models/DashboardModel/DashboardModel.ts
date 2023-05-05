@@ -33,6 +33,7 @@ import {
     OrganizationTableName,
 } from '../../database/entities/organizations';
 import {
+    PinnedDashboardTable,
     PinnedDashboardTableName,
     PinnedListTable,
     PinnedListTableName,
@@ -57,7 +58,8 @@ export type GetDashboardQuery = Pick<
     Pick<ProjectTable['base'], 'project_uuid'> &
     Pick<UserTable['base'], 'user_uuid' | 'first_name' | 'last_name'> &
     Pick<OrganizationTable['base'], 'organization_uuid'> &
-    Pick<PinnedListTable['base'], 'pinned_list_uuid'> & {
+    Pick<PinnedListTable['base'], 'pinned_list_uuid'> &
+    Pick<PinnedDashboardTable['base'], 'order'> & {
         views: string;
         first_viewed_at: Date | null;
     };
@@ -70,7 +72,8 @@ export type GetDashboardDetailsQuery = Pick<
     Pick<ProjectTable['base'], 'project_uuid'> &
     Pick<UserTable['base'], 'user_uuid' | 'first_name' | 'last_name'> &
     Pick<OrganizationTable['base'], 'organization_uuid'> &
-    Pick<PinnedListTable['base'], 'pinned_list_uuid'> & {
+    Pick<PinnedListTable['base'], 'pinned_list_uuid'> &
+    Pick<PinnedDashboardTable['base'], 'order'> & {
         views: string;
     };
 
@@ -270,6 +273,7 @@ export class DashboardModel {
                         `${OrganizationTableName}.organization_uuid`,
                         `${SpaceTableName}.space_uuid`,
                         `${PinnedListTableName}.pinned_list_uuid`,
+                        `${PinnedDashboardTableName}.order`,
                         this.database.raw(
                             `(SELECT COUNT('${AnalyticsDashboardViewsTableName}.dashboard_uuid') FROM ${AnalyticsDashboardViewsTableName} where ${AnalyticsDashboardViewsTableName}.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid) as views`,
                         ),
@@ -329,6 +333,7 @@ export class DashboardModel {
                 organization_uuid,
                 space_uuid,
                 pinned_list_uuid,
+                order,
                 views,
                 first_viewed_at,
             }) => ({
@@ -345,6 +350,7 @@ export class DashboardModel {
                 },
                 spaceUuid: space_uuid,
                 pinnedListUuid: pinned_list_uuid,
+                pinnedListOrder: order,
                 views: parseInt(views, 10) || 0,
                 firstViewedAt: first_viewed_at,
             }),
@@ -408,6 +414,7 @@ export class DashboardModel {
                 `${SpaceTableName}.space_uuid`,
                 `${SpaceTableName}.name as spaceName`,
                 `${PinnedListTableName}.pinned_list_uuid`,
+                `${PinnedDashboardTableName}.order`,
                 this.database.raw(
                     `(SELECT COUNT('${AnalyticsDashboardViewsTableName}.dashboard_uuid') FROM ${AnalyticsDashboardViewsTableName} where ${AnalyticsDashboardViewsTableName}.dashboard_uuid = ?) as views`,
                     dashboardUuid,
@@ -525,6 +532,7 @@ export class DashboardModel {
             description: dashboard.description,
             updatedAt: dashboard.created_at,
             pinnedListUuid: dashboard.pinned_list_uuid,
+            pinnedListOrder: dashboard.order,
             tiles: tiles.map(
                 ({
                     type,

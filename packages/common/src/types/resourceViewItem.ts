@@ -19,6 +19,7 @@ export type ResourceViewChartItem = {
         | 'firstViewedAt'
         | 'views'
         | 'pinnedListUuid'
+        | 'pinnedListOrder'
         | 'spaceUuid'
         | 'description'
         | 'updatedAt'
@@ -37,6 +38,7 @@ export type ResourceViewDashboardItem = {
         | 'views'
         | 'firstViewedAt'
         | 'pinnedListUuid'
+        | 'pinnedListOrder'
         | 'updatedAt'
         | 'updatedByUser'
     >;
@@ -51,6 +53,7 @@ export type ResourceViewSpaceItem = {
         | 'name'
         | 'isPrivate'
         | 'pinnedListUuid'
+        | 'pinnedListOrder'
         | 'organizationUuid'
     > & {
         access: string[];
@@ -114,6 +117,7 @@ export const spaceToResourceViewItem = (
     name: space.name,
     isPrivate: space.isPrivate,
     pinnedListUuid: space.pinnedListUuid,
+    pinnedListOrder: space.pinnedListOrder,
     accessListLength: space.access.length,
     dashboardCount: space.dashboards.length,
     chartCount: space.queries.length,

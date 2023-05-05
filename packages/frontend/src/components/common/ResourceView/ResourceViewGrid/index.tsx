@@ -1,10 +1,12 @@
 import { assertUnreachable, ResourceViewItemType } from '@lightdash/common';
 import { Anchor, SimpleGrid, Stack, Text } from '@mantine/core';
-import { FC, useMemo } from 'react';
+import produce from 'immer';
+import orderBy from 'lodash/orderBy';
+import { FC, useMemo, useState } from 'react';
 import { DragDropContext, Draggable, Droppable } from 'react-beautiful-dnd';
-import { Link, useParams } from 'react-router-dom';
-
+import { Link } from 'react-router-dom';
 import { ResourceViewCommonProps } from '..';
+import { useReorder } from '../../../../hooks/pinning/usePinnedItems';
 import { ResourceViewItemActionState } from '../ResourceActionHandlers';
 import { getResourceName, getResourceUrl } from '../resourceUtils';
 import ResourceViewGridChartItem from './ResourceViewGridChartItem';
@@ -14,6 +16,10 @@ import ResourceViewGridSpaceItem from './ResourceViewGridSpaceItem';
 export interface ResourceViewGridCommonProps {
     groups?: ResourceViewItemType[][];
     hasReorder?: boolean;
+    pinnedItemsProps?: {
+        projectUuid: string;
+        pinnedListUuid: string;
+    };
 }
 
 type ResourceViewGridProps = ResourceViewGridCommonProps &
@@ -32,42 +38,74 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
     ],
     onAction,
     hasReorder = false,
+    pinnedItemsProps = { projectUuid: '', pinnedListUuid: '' },
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
-
     const groupedItems = useMemo(() => {
         return groups
-            .map((group) => ({
-                name: group
-                    .map((g) => getResourceName(g) + 's')
-                    .join(', ')
-                    .replace(/, ([^,]*)$/, ' & $1'), // replaces last comma with '&'
+            .map((group) => {
+                const filteredItems = items.filter((item) =>
+                    group.includes(item.type),
+                );
+                const orderedItems = orderBy(
+                    filteredItems,
+                    ['data.pinnedListOrder'],
+                    ['asc'],
+                );
+                return {
+                    name: group
+                        .map((g) => getResourceName(g) + 's')
+                        .join(', ')
+                        .replace(/, ([^,]*)$/, ' & $1'), // replaces last comma with '&'
 
-                items: items.filter((item) => group.includes(item.type)),
-            }))
+                    items: hasReorder ? orderedItems : filteredItems,
+                };
+            })
             .filter((group) => group.items.length > 0);
-    }, [groups, items]);
+    }, [hasReorder, groups, items]);
 
-    // const [draggableItems, setDraggableItems] = useState(
-    //     groupedItems.map((g) => g.items),
-    // );
+    // this part is strictly for Pinned Items Panel
+    const { projectUuid, pinnedListUuid } = pinnedItemsProps;
+    const [draggableItems, setDraggableItems] = useState(groupedItems);
+
+    const pinnedItemsOrder = (data: typeof draggableItems) =>
+        data.flatMap((group) =>
+            group.items.map((item, index) => {
+                return {
+                    type: item.type,
+                    data: { uuid: item.data.uuid, pinnedListOrder: index },
+                };
+            }),
+        );
+
+    const { mutate: reorderItems } = useReorder(projectUuid, pinnedListUuid);
+
     const handleOnDragEnd = (result: any) => {
-        // here we can implement the order logic with a mutation hook
-        // Mantine use-list hook could be useful here
-        return result;
-        // code below for testing drag and drop, will remove later
-        // if (!result.destination) return;
-        // const newDraggableItems = Array.from(draggableItems);
-        // const [draggedItem] = newDraggableItems.splice(result.source.index, 1);
-        // newDraggableItems.splice(result.destination.index, 0, draggedItem);
-        // setDraggableItems(newDraggableItems);
+        const { source: drag, destination: drop } = result;
+        const draggedItemId = drag?.droppableId;
+        if (!drop) return;
+        if (drop.index === drag.index) return;
+
+        // using immer to update state to maintain immutability
+        const newDraggableItems = produce(draggableItems, (draft) => {
+            // finding the group where the item was dragged from (spaces / charts & dashs)
+            const draggedItems = draft.find(
+                (item) => item.name === draggedItemId,
+            );
+            // removing item from original location
+            const draggedItem = draggedItems?.items.splice(drag.index, 1);
+            if (!draggedItem) return;
+            // adding it to its new location
+            draggedItems?.items.splice(drop.index, 0, ...draggedItem);
+        });
+        setDraggableItems(newDraggableItems);
+        reorderItems(pinnedItemsOrder(newDraggableItems));
     };
 
     return (
         <Stack spacing="xl" p="lg">
-            {groupedItems.map((group) => (
+            {draggableItems.map((group) => (
                 <Stack spacing={5} key={group.name}>
-                    {groupedItems.length > 1 && (
+                    {draggableItems.length > 1 && (
                         <Text
                             transform="uppercase"
                             fz="xs"
@@ -77,9 +115,10 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
                             {group.name}
                         </Text>
                     )}
+
                     <DragDropContext onDragEnd={handleOnDragEnd}>
                         <Droppable
-                            droppableId="pinned-charts"
+                            droppableId={group.name}
                             isDropDisabled={!hasReorder}
                         >
                             {(dropProvided) => (

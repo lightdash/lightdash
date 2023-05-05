@@ -174,6 +174,7 @@ export const dashboardWithVersionEntry: GetDashboardQuery = {
     first_name: 'firstName',
     last_name: 'lastName',
     pinned_list_uuid: 'pinnedUuid',
+    order: 0,
     views: '1',
     first_viewed_at: new Date(1),
 };
@@ -274,6 +275,7 @@ export const expectedDashboard: Dashboard = {
         userUuid: 'userUuid',
     },
     pinnedListUuid: 'pinnedUuid',
+    pinnedListOrder: 0,
     views: 1,
     firstViewedAt: new Date(1),
 };
@@ -293,6 +295,7 @@ export const expectedAllDashboards: DashboardBasicDetails[] = [
         },
         spaceUuid: 'spaceUuid',
         pinnedListUuid: 'pinnedUuid',
+        pinnedListOrder: 0,
         views: 1,
         firstViewedAt: new Date(1),
     },
