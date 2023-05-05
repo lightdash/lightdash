@@ -10,21 +10,21 @@ import { Can, useAbilityContext } from '../../common/Authorization';
 
 const IS_HEX_CODE_COLOR_REGEX = /^#([a-fA-F0-9]{3}|[a-fA-F0-9]{6})$/;
 
+const getColorFormFields = (colors: string[]) =>
+    colors.reduce(
+        (acc, color, index) => ({ ...acc, [`color${index + 1}`]: color }),
+        {},
+    );
+
 const AppearancePanel: FC = () => {
     const ability = useAbilityContext();
     const { isLoading: isOrgLoading, data } = useOrganization();
     const updateMutation = useOrganizationUpdateMutation();
 
-    const getColorFields = (colors: string[]) =>
-        colors.reduce(
-            (acc, color, index) => ({ ...acc, [`color${index + 1}`]: color }),
-            {},
-        );
-
     const form = useForm({
-        initialValues: getColorFields(ECHARTS_DEFAULT_COLORS.slice(0, 8)),
+        initialValues: getColorFormFields(ECHARTS_DEFAULT_COLORS.slice(0, 8)),
         validate: Object.keys(
-            getColorFields(ECHARTS_DEFAULT_COLORS.slice(0, 8)),
+            getColorFormFields(ECHARTS_DEFAULT_COLORS.slice(0, 8)),
         ).reduce(
             (acc, key) => ({
                 [key]: (value: string) =>
@@ -39,8 +39,8 @@ const AppearancePanel: FC = () => {
 
     useEffect(() => {
         if (data?.chartColors) {
-            form.setValues(getColorFields(data.chartColors));
-            form.resetDirty(getColorFields(data.chartColors));
+            form.setValues(getColorFormFields(data.chartColors));
+            form.resetDirty(getColorFormFields(data.chartColors));
         }
 
         // eslint-disable-next-line react-hooks/exhaustive-deps
