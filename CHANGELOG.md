@@ -1,3 +1,10 @@
+## [0.535.1](https://github.com/lightdash/lightdash/compare/0.535.0...0.535.1) (2023-05-05)
+
+
+### Bug Fixes
+
+* no queries analytics ([#5346](https://github.com/lightdash/lightdash/issues/5346)) ([f1e4222](https://github.com/lightdash/lightdash/commit/f1e42222baa1d70245fbf39a18505c6c026b4514))
+
 # [0.535.0](https://github.com/lightdash/lightdash/compare/0.534.1...0.535.0) (2023-05-04)
 
 
