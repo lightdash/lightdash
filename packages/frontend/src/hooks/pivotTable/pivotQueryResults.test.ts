@@ -279,7 +279,7 @@ describe('Should pivot data', () => {
                 [{ fieldId: 'site', type: 'label', titleDirection: 'header' }],
                 [{ fieldId: 'page', type: 'label', titleDirection: 'index' }],
             ],
-            headerTotals: undefined,
+            columnTotals: undefined,
             rowTotals: undefined,
         };
         const result = pivotQueryResults({
@@ -290,10 +290,11 @@ describe('Should pivot data', () => {
 
         expect(result).toEqual(expected);
     });
-    it('with 2 dimensions, 1 pivoted, metrics as rows', () => {
+    it('with 2 dimensions, 1 pivoted, metrics as rows with totals', () => {
         const pivotConfig = {
             pivotDimensions: ['site'],
             metricsAsRows: true,
+            rowTotals: true,
         };
         const expected = {
             headerValueTypes: [{ type: 'dimension', fieldId: 'site' }],
@@ -386,7 +387,11 @@ describe('Should pivot data', () => {
                 [{ raw: 11, formatted: '11.0' }, null],
                 [{ raw: 1, formatted: '1.0' }, null],
             ],
-            pivotConfig: { pivotDimensions: ['site'], metricsAsRows: true },
+            pivotConfig: {
+                pivotDimensions: ['site'],
+                metricsAsRows: true,
+                rowTotals: true,
+            },
             titleFields: [
                 [
                     { fieldId: 'page', type: 'label', titleDirection: 'index' },
@@ -397,8 +402,24 @@ describe('Should pivot data', () => {
                     },
                 ],
             ],
-            headerTotals: undefined,
-            rowTotals: undefined,
+            columnTotalHeaders: undefined,
+            rowTotalHeaders: [
+                [
+                    {
+                        titleDirection: 'header',
+                        type: 'total',
+                    },
+                ],
+            ],
+            columnTotals: undefined,
+            rowTotals: [
+                [{ raw: 8 }],
+                [{ raw: 17 }],
+                [{ raw: 14 }],
+                [{ raw: 13 }],
+                [{ raw: 11 }],
+                [{ raw: 1 }],
+            ],
         };
         const result = pivotQueryResults({
             pivotConfig,

@@ -271,17 +271,17 @@ export const pivotQueryResults = ({
     }
 
     // compute row totals
-    let indexTotalLabels: PivotData['indexTotalLabels'];
+    let rowTotalHeaders: PivotData['rowTotalHeaders'];
     let rowTotals: PivotData['rowTotals'];
     if (pivotConfig.rowTotals && pivotConfig.metricsAsRows) {
         const N_TOTAL_COLS = 1;
         const N_TOTAL_ROWS = headerValues.length;
 
-        indexTotalLabels = create2DArray(N_TOTAL_ROWS, N_TOTAL_COLS);
+        rowTotalHeaders = create2DArray(N_TOTAL_ROWS, N_TOTAL_COLS);
         rowTotals = create2DArray(N_DATA_ROWS, N_TOTAL_COLS);
 
         // set the header last cell as the title total
-        indexTotalLabels[N_TOTAL_ROWS - 1][N_TOTAL_COLS - 1] = {
+        rowTotalHeaders[N_TOTAL_ROWS - 1][N_TOTAL_COLS - 1] = {
             titleDirection: 'header',
             type: 'total',
         };
@@ -299,17 +299,17 @@ export const pivotQueryResults = ({
         });
     }
 
-    let headerTotalLabels: PivotData['headerTotalLabels'];
+    let columnTotalHeaders: PivotData['columnTotalHeaders'];
     let columnTotals: PivotData['columnTotals'];
     if (pivotConfig.columnTotals && pivotConfig.metricsAsRows) {
         const N_TOTAL_ROWS = metrics.length;
         const N_TOTAL_COLS = indexValueTypes.length;
 
-        headerTotalLabels = create2DArray(N_TOTAL_ROWS, N_TOTAL_COLS);
+        columnTotalHeaders = create2DArray(N_TOTAL_ROWS, N_TOTAL_COLS);
         columnTotals = create2DArray(N_TOTAL_ROWS, N_DATA_COLUMNS);
 
         metrics.forEach((metric, metricIndex) => {
-            headerTotalLabels![metricIndex][N_TOTAL_COLS - 1] = {
+            columnTotalHeaders![metricIndex][N_TOTAL_COLS - 1] = {
                 titleDirection: 'index',
                 fieldId: metric.fieldId,
                 type: 'label',
@@ -368,8 +368,8 @@ export const pivotQueryResults = ({
         dataColumnCount: N_DATA_COLUMNS,
         dataValues,
 
-        headerTotalLabels,
-        indexTotalLabels,
+        rowTotalHeaders,
+        columnTotalHeaders,
         rowTotals,
         columnTotals,
 

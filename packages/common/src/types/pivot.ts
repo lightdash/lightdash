@@ -53,8 +53,8 @@ export type PivotData = {
 
     titleFields: (PTTitleValue | null)[][];
 
-    headerTotalLabels?: (PTTotalOrFieldLabel | null)[][];
-    indexTotalLabels?: (PTTotalOrFieldLabel | null)[][];
+    rowTotalHeaders?: (PTTotalOrFieldLabel | null)[][];
+    columnTotalHeaders?: (PTTotalOrFieldLabel | null)[][];
 
     rowTotals?: (PTTotalValue | null)[][];
     columnTotals?: (PTTotalValue | null)[][];

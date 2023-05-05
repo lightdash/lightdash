@@ -220,12 +220,12 @@ const PivotTable: FC<PivotTableProps> = ({
 
                                 {/* render the total label */}
                                 {data.pivotConfig.rowTotals
-                                    ? data.indexTotalLabels?.[
+                                    ? data.rowTotalHeaders?.[
                                           headerRowIndex
-                                      ].map((totalLabel, totalLabelIndex) =>
+                                      ].map((totalLabel, headerColIndex) =>
                                           totalLabel ? (
                                               <HeaderCell
-                                                  key={`header-total-${headerRowIndex}-${totalLabelIndex}`}
+                                                  key={`header-total-${headerRowIndex}-${headerColIndex}`}
                                                   className={cellCx(
                                                       cellStyles.root,
                                                       cellStyles.header,
@@ -237,7 +237,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                               </HeaderCell>
                                           ) : (
                                               <th
-                                                  key={`header-total-${headerRowIndex}-${totalLabelIndex}`}
+                                                  key={`header-total-${headerRowIndex}-${headerColIndex}`}
                                                   className={cellCx(
                                                       cellStyles.root,
                                                       cellStyles.rowNumber,
@@ -374,11 +374,11 @@ const PivotTable: FC<PivotTableProps> = ({
                             )}
 
                             {/* render the total label */}
-                            {data.headerTotalLabels?.[totalRowIndex].map(
-                                (totalLabel, totalLabelColIndex) =>
+                            {data.columnTotalHeaders?.[totalRowIndex].map(
+                                (totalLabel, totalColIndex) =>
                                     totalLabel ? (
                                         <HeaderCell
-                                            key={`footer-total-${totalRowIndex}-${totalLabelColIndex}`}
+                                            key={`footer-total-${totalRowIndex}-${totalColIndex}`}
                                             textAlign={
                                                 totalLabel.titleDirection ===
                                                 'index'
@@ -396,7 +396,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                         </HeaderCell>
                                     ) : (
                                         <th
-                                            key={`footer-total-${totalRowIndex}-${totalLabelColIndex}`}
+                                            key={`footer-total-${totalRowIndex}-${totalColIndex}`}
                                             className={cellCx(
                                                 cellStyles.root,
                                                 cellStyles.rowNumber,
