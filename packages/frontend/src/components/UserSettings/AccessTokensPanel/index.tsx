@@ -4,18 +4,17 @@ import { FC, useState } from 'react';
 import { useAccessToken } from '../../../hooks/useAccessToken';
 import { EmptyState } from '../../common/EmptyState';
 import MantineIcon from '../../common/MantineIcon';
-import CreateTokenPanel from '../CreateTokenPanel';
+import { CreateTokenModal } from '../CreateTokenModal';
 import { TokensTable } from './TokensTable';
 
 const AccessTokensPanel: FC = () => {
     const { data } = useAccessToken();
-    const [createTokenPanel, setCreateInvitesPanel] = useState(false);
+    const [isCreatingToken, setIsCreatingToken] = useState(false);
     const hasAvailableTokens = data && data.length > 0;
-    if (createTokenPanel) {
+
+    if (isCreatingToken) {
         return (
-            <CreateTokenPanel
-                onBackClick={() => setCreateInvitesPanel(false)}
-            />
+            <CreateTokenModal onBackClick={() => setIsCreatingToken(false)} />
         );
     }
 
@@ -33,7 +32,7 @@ const AccessTokensPanel: FC = () => {
                 title="No tokens"
                 description="You haven't generated any tokens yet!, generate your first token"
             >
-                <Button onClick={() => setCreateInvitesPanel(true)}>
+                <Button onClick={() => setIsCreatingToken(true)}>
                     Generate token
                 </Button>
             </EmptyState>
@@ -44,7 +43,7 @@ const AccessTokensPanel: FC = () => {
         <Stack mb="lg">
             <Group position="apart">
                 <Title order={5}>Personal access tokens</Title>
-                <Button onClick={() => setCreateInvitesPanel(true)}>
+                <Button onClick={() => setIsCreatingToken(true)}>
                     Generate new token
                 </Button>
             </Group>
