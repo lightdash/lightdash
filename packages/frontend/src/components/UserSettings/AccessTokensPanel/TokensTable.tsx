@@ -1,6 +1,6 @@
 import { Button, Classes, Dialog } from '@blueprintjs/core';
 import { ApiPersonalAccessTokenResponse, formatDate } from '@lightdash/common';
-import { Button as MantineButton, Paper, Table } from '@mantine/core';
+import { Button as MantineButton, clsx, Paper, Table } from '@mantine/core';
 import { Dispatch, FC, SetStateAction, useEffect, useState } from 'react';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import {
@@ -58,7 +58,7 @@ export const TokensTable = () => {
         <>
             <Paper withBorder sx={{ overflow: 'hidden' }}>
                 <Table
-                    className={`${classes.root} ${classes.alignLastTdRight}`}
+                    className={clsx(classes.root, classes.alignLastTdRight)}
                     highlightOnHover
                 >
                     <thead>

@@ -4,7 +4,16 @@ import {
     isResourceViewSpaceItem,
     ResourceViewItem,
 } from '@lightdash/common';
-import { Anchor, Box, Group, Stack, Table, Text, Tooltip } from '@mantine/core';
+import {
+    Anchor,
+    Box,
+    clsx,
+    Group,
+    Stack,
+    Table,
+    Text,
+    Tooltip,
+} from '@mantine/core';
 import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
 import React, { FC, useMemo, useState } from 'react';
 import { Link, useHistory, useParams } from 'react-router-dom';
@@ -330,7 +339,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
 
     return (
         <Table
-            className={`${classes.root} ${classes.smallHeaderText}`}
+            className={clsx(classes.root, classes.smallHeaderText)}
             highlightOnHover
         >
             <thead>
