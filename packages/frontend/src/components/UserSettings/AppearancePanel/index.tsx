@@ -1,14 +1,7 @@
 import { Spinner } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { ECHARTS_DEFAULT_COLORS } from '@lightdash/common';
-import {
-    Box,
-    Button,
-    ColorInput,
-    SimpleGrid,
-    Stack,
-    Title,
-} from '@mantine/core';
+import { Button, ColorInput, SimpleGrid, Stack, Title } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { FC, useEffect } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
@@ -71,10 +64,8 @@ const AppearancePanel: FC = () => {
     }
 
     return (
-        <Box>
-            <Title order={5} mb="md">
-                Default chart colors
-            </Title>
+        <Stack spacing="md">
+            <Title order={5}>Default chart colors</Title>
             <form onSubmit={handleOnSubmit}>
                 <Stack spacing="md">
                     <SimpleGrid cols={2}>
@@ -114,7 +105,7 @@ const AppearancePanel: FC = () => {
                     </Can>
                 </Stack>
             </form>
-        </Box>
+        </Stack>
     );
 };
 
