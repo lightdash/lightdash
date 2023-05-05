@@ -1,3 +1,10 @@
+## [0.537.1](https://github.com/lightdash/lightdash/compare/0.537.0...0.537.1) (2023-05-05)
+
+
+### Bug Fixes
+
+* fix new smooth grouped series ([#5353](https://github.com/lightdash/lightdash/issues/5353)) ([64c74e6](https://github.com/lightdash/lightdash/commit/64c74e67e76aa884511f9222d9b2cd9311e08d7e))
+
 # [0.537.0](https://github.com/lightdash/lightdash/compare/0.536.0...0.537.0) (2023-05-05)
 
 
