@@ -568,7 +568,11 @@ const useCartesianChartConfig = ({
                     defaultCartesianType === CartesianSeriesType.LINE
                         ? prev?.series?.[0]?.areaStyle
                         : undefined;
+                const defaultSmooth = prev?.series?.[0]?.smooth;
+                const defaultShowSymbol = prev?.series?.[0]?.showSymbol;
                 let expectedSeriesMap = getExpectedSeriesMap({
+                    defaultSmooth,
+                    defaultShowSymbol,
                     defaultAreaStyle,
                     defaultCartesianType,
                     availableDimensions,

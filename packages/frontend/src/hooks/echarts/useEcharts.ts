@@ -521,11 +521,7 @@ const getPivotSeries = ({
         '',
     );
 
-    const firstSerie = cartesianChart.eChartsConfig.series?.[0];
-
     return {
-        smooth: firstSerie?.smooth,
-        showSymbol: firstSerie?.showSymbol,
         ...series,
         emphasis: {
             focus: 'series',
