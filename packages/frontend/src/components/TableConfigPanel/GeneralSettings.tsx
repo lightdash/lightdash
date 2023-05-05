@@ -1,5 +1,6 @@
 import { Checkbox, FormGroup } from '@blueprintjs/core';
 import {
+    CompiledDimension,
     fieldId,
     getDimensions,
     getItemId,
@@ -88,6 +89,45 @@ const GeneralSettings: FC = () => {
         setShowRowCalculation,
     ]);
 
+    const handleAddPivotDimension = useCallback(
+        (item: CompiledDimension, pivotKey: string) => {
+            setPivotDimensions(
+                pivotDimensions
+                    ? replaceStringInArray(
+                          pivotDimensions,
+                          pivotKey,
+                          getItemId(item),
+                      )
+                    : [getItemId(item)],
+            );
+        },
+        [pivotDimensions, setPivotDimensions],
+    );
+
+    const handleRemovePivotDimension = useCallback(
+        (pivotKey: string) => {
+            const newPivotDimensions = pivotDimensions?.filter(
+                (key) => key !== pivotKey,
+            );
+
+            if (
+                metricsAsRows &&
+                (!newPivotDimensions || newPivotDimensions.length === 0)
+            ) {
+                handleToggleMetricsAsRows();
+            }
+
+            setPivotDimensions(newPivotDimensions);
+        },
+
+        [
+            pivotDimensions,
+            setPivotDimensions,
+            metricsAsRows,
+            handleToggleMetricsAsRows,
+        ],
+    );
+
     return (
         <>
             <SectionTitle>Pivot column</SectionTitle>
@@ -112,15 +152,7 @@ const GeneralSettings: FC = () => {
                                 placeholder="Select a field to group by"
                                 activeField={groupSelectedField}
                                 onChange={(item) => {
-                                    setPivotDimensions(
-                                        pivotDimensions
-                                            ? replaceStringInArray(
-                                                  pivotDimensions,
-                                                  pivotKey,
-                                                  getItemId(item),
-                                              )
-                                            : [getItemId(item)],
-                                    );
+                                    handleAddPivotDimension(item, pivotKey);
                                 }}
                             />
                             {groupSelectedField && (
@@ -128,11 +160,7 @@ const GeneralSettings: FC = () => {
                                     minimal
                                     icon="cross"
                                     onClick={() => {
-                                        setPivotDimensions(
-                                            pivotDimensions.filter(
-                                                (key) => key !== pivotKey,
-                                            ),
-                                        );
+                                        handleRemovePivotDimension(pivotKey);
                                     }}
                                 />
                             )}
