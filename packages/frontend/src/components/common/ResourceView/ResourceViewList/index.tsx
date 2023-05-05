@@ -72,11 +72,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
     defaultSort,
     onAction,
 }) => {
-    const { classes } = useTableStyles({
-        '& thead tr th': {
-            fontSize: '12px',
-        },
-    })();
+    const { classes } = useTableStyles();
 
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -333,7 +329,10 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
     }, [items, columnSorts, columns]);
 
     return (
-        <Table className={classes.root} highlightOnHover>
+        <Table
+            className={`${classes.root} ${classes.smallHeaderText}`}
+            highlightOnHover
+        >
             <thead>
                 <tr>
                     {visibleColumns.map((column) => {

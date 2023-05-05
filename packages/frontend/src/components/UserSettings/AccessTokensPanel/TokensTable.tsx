@@ -41,11 +41,7 @@ const TokenItem: FC<{
 export const TokensTable = () => {
     const { data } = useAccessToken();
 
-    const { classes } = useTableStyles({
-        '& tr td:last-child': {
-            textAlign: 'right',
-        },
-    })();
+    const { classes } = useTableStyles();
 
     const [tokenToDelete, setTokenToDelete] = useState<
         ApiPersonalAccessTokenResponse | undefined
@@ -61,7 +57,10 @@ export const TokensTable = () => {
     return (
         <>
             <Paper withBorder sx={{ overflow: 'hidden' }}>
-                <Table className={classes.root} highlightOnHover>
+                <Table
+                    className={`${classes.root} ${classes.alignLastTdRight}`}
+                    highlightOnHover
+                >
                     <thead>
                         <tr>
                             <th>Name</th>
