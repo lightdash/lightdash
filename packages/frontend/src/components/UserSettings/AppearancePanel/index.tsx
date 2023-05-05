@@ -17,7 +17,7 @@ const AppearancePanel: FC = () => {
 
     const getColorFields = (colors: string[]) =>
         colors.reduce(
-            (acc, color, index) => ({ ...acc, [`color${index}`]: color }),
+            (acc, color, index) => ({ ...acc, [`color${index + 1}`]: color }),
             {},
         );
 
@@ -84,9 +84,9 @@ const AppearancePanel: FC = () => {
                                             data?.organizationUuid,
                                     }),
                                 )}
-                                {...form.getInputProps(`color${index}`)}
+                                {...form.getInputProps(`color${index + 1}`)}
                                 onBlur={() => {
-                                    form.validateField(`color${index}`);
+                                    form.validateField(`color${index + 1}`);
                                 }}
                             />
                         ))}
