@@ -20,6 +20,7 @@ interface CommonBodyCellProps {
     fontColor?: string;
     copying?: boolean;
     selected?: boolean;
+    isLargeText?: boolean;
     tooltipContent?: string;
     minimal?: boolean;
     onSelect: () => void;
@@ -39,6 +40,7 @@ const BodyCell: FC<CommonBodyCellProps> = ({
     isNumericItem,
     index,
     selected = false,
+    isLargeText = false,
     style,
     tooltipContent,
     minimal = false,
@@ -91,6 +93,7 @@ const BodyCell: FC<CommonBodyCellProps> = ({
                             style={style}
                             $rowIndex={index}
                             $isSelected={selected}
+                            $isLargeText={isLargeText}
                             $isInteractive={hasContextMenu}
                             $isCopying={copying}
                             $backgroundColor={backgroundColor}
