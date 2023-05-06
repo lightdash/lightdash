@@ -14,6 +14,7 @@ const useSavedQueryWithDashboardFilters = (
     const { data: savedQuery, isLoading } = useSavedQuery({
         id: savedChartUuid || undefined,
         useQueryOptions: { refetchOnMount: false },
+        showViews: false,
     });
 
     const { data: explore, isLoading: isLoadingExplore } = useExplore(

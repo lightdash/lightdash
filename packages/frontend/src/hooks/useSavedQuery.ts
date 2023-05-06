@@ -59,9 +59,12 @@ const updateSavedQuery = async (
     });
 };
 
-const getSavedQuery = async (id: string): Promise<SavedChart> =>
+const getSavedQuery = async (
+    id: string,
+    showViews: boolean,
+): Promise<SavedChart> =>
     lightdashApi<SavedChart>({
-        url: `/saved/${id}`,
+        url: `/saved/${id}${showViews ? '?views=true' : ''}`,
         method: 'GET',
         body: undefined,
     });
@@ -81,13 +84,16 @@ const addVersionSavedQuery = async ({
 
 interface Args {
     id?: string;
+    showViews: boolean;
     useQueryOptions?: UseQueryOptions<SavedChart, ApiError>;
 }
 
-export const useSavedQuery = ({ id, useQueryOptions }: Args = {}) =>
+export const useSavedQuery = (
+    { id, showViews, useQueryOptions }: Args = { showViews: false },
+) =>
     useQuery<SavedChart, ApiError>({
         queryKey: ['saved_query', id],
-        queryFn: () => getSavedQuery(id || ''),
+        queryFn: () => getSavedQuery(id || '', showViews),
         enabled: id !== undefined,
         retry: false,
         ...useQueryOptions,

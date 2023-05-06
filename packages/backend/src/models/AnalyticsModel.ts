@@ -56,16 +56,6 @@ export class AnalyticsModel {
         });
     }
 
-    async countDashboardViews(dashboardUuid: string): Promise<number> {
-        const [{ count }] = await this.database(
-            AnalyticsDashboardViewsTableName,
-        )
-            .count('dashboard_uuid')
-            .where('dashboard_uuid', dashboardUuid);
-
-        return Number(count);
-    }
-
     async addDashboardViewEvent(
         dashboardUuid: string,
         userUuid: string,

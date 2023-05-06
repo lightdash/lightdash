@@ -63,6 +63,7 @@ const MinimalSavedExplorer: FC = () => {
 
     const { data, isLoading, isError, error } = useSavedQuery({
         id: savedQueryUuid,
+        showViews: true,
     });
     const queryResults = useQueryResults({
         chartUuid: savedQueryUuid,

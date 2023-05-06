@@ -287,6 +287,7 @@ export class CsvService {
     ): Promise<AttachmentUrl> {
         const chart = await this.savedChartModel.get({
             savedChartUuid: chartUuid,
+            showViews: false,
         });
         const {
             metricQuery,

@@ -25,7 +25,10 @@ const ChartDeleteModal: FC<ChartDeleteModalProps> = ({
     ...modalProps
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { data: chart, isLoading } = useSavedQuery({ id: uuid });
+    const { data: chart, isLoading } = useSavedQuery({
+        id: uuid,
+        showViews: false,
+    });
     const { data: relatedDashboards, isLoading: isLoadingRelatedDashboards } =
         useDashboardsContainingChart(projectUuid, uuid);
     const { mutateAsync: deleteChart, isLoading: isDeleting } =

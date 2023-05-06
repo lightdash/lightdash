@@ -26,7 +26,10 @@ const ChartUpdateModal: FC<ChartUpdateModalProps> = ({
     ...modalProps
 }) => {
     const dashboardUuid = useSearchParams('fromDashboard');
-    const { data: chart, isLoading } = useSavedQuery({ id: uuid });
+    const { data: chart, isLoading } = useSavedQuery({
+        id: uuid,
+        showViews: false,
+    });
     const { mutateAsync, isLoading: isUpdating } = useUpdateMutation(
         dashboardUuid ? dashboardUuid : undefined,
         uuid,

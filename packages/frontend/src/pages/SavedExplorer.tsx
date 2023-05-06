@@ -24,6 +24,7 @@ const SavedExplorer = () => {
 
     const { data, isLoading, error } = useSavedQuery({
         id: savedQueryUuid,
+        showViews: true,
     });
 
     const queryResults = useQueryResults({

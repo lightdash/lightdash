@@ -57,6 +57,7 @@ export class SchedulerService {
         return isChartScheduler(scheduler)
             ? this.savedChartModel.get({
                   savedChartUuid: scheduler.savedChartUuid,
+                  showViews: true,
               })
             : this.dashboardModel.getById(scheduler.dashboardUuid);
     }

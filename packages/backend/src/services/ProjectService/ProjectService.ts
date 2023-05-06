@@ -700,8 +700,9 @@ export class ProjectService {
 
         const savedChart = await this.savedChartModel.get({
             savedChartUuid: chartUuid,
+            showViews: false,
         });
-        const { organizationUuid, projectUuid } = savedChart;
+        const { organizationUuid, projectUuid, spaceUuid } = savedChart;
 
         if (
             user.ability.cannot(
@@ -709,6 +710,10 @@ export class ProjectService {
                 subject('SavedChart', { organizationUuid, projectUuid }),
             )
         ) {
+            throw new ForbiddenError();
+        }
+        const space = await this.spaceModel.getFullSpace(spaceUuid);
+        if (!hasSpaceAccess(space, user.userUuid)) {
             throw new ForbiddenError();
         }
 
@@ -1455,6 +1460,7 @@ export class ProjectService {
         try {
             const savedChart = await this.savedChartModel.get({
                 savedChartUuid,
+                showViews: false,
             });
 
             if (

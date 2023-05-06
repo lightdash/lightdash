@@ -4,6 +4,7 @@ import {
     AuthorizationError,
     ForbiddenError,
     LightdashPage,
+    NotFoundError,
     SessionUser,
     snakeCaseName,
 } from '@lightdash/common';
@@ -272,9 +273,12 @@ export class UnfurlService {
                     throw new Error(
                         `Missing chartUuid when unfurling Dashboard URL ${parsedUrl.url}`,
                     );
-                const chart = await this.savedChartModel.get({
+                const [chart] = await this.savedChartModel.find({
                     savedChartUuid: parsedUrl.chartUuid,
                 });
+                if (chart === undefined) {
+                    throw new NotFoundError('Cannot find chart');
+                }
                 return { title: chart.name, description: chart.description };
             case LightdashPage.EXPLORE:
                 const exploreName = parsedUrl.exploreModel

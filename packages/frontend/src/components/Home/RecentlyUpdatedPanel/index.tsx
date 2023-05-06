@@ -68,7 +68,7 @@ const RecentlyUpdatedPanel: FC<Props> = ({ data, projectUuid }) => {
                             return 0;
                         }
 
-                        return b.data.views - a.data.views;
+                        return (b.data.views || 0) - (a.data.views || 0);
                     },
                 },
                 {

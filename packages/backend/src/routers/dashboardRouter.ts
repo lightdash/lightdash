@@ -32,23 +32,6 @@ dashboardRouter.get(
     },
 );
 
-dashboardRouter.get(
-    '/:dashboardUuid/views',
-    allowApiKeyAuthentication,
-    isAuthenticated,
-    async (req, res, next) => {
-        analyticsService
-            .getDashboardViews(req.params.dashboardUuid)
-            .then((results) => {
-                res.json({
-                    status: 'ok',
-                    results,
-                });
-            })
-            .catch(next);
-    },
-);
-
 dashboardRouter.patch(
     '/:dashboardUuid',
     allowApiKeyAuthentication,

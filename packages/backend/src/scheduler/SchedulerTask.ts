@@ -8,6 +8,7 @@ import {
     isSchedulerCsvOptions,
     isSlackTarget,
     LightdashPage,
+    NotFoundError,
     NotificationPayloadBase,
     ScheduledDeliveryPayload,
     Scheduler,
@@ -44,9 +45,12 @@ const getChartOrDashboard = async (
     dashboardUuid: string | null,
 ) => {
     if (chartUuid) {
-        const chart = await schedulerService.savedChartModel.get({
+        const [chart] = await schedulerService.savedChartModel.find({
             savedChartUuid: chartUuid,
         });
+        if (chart === undefined) {
+            throw new NotFoundError('Cannot find chart');
+        }
         return {
             url: `${lightdashConfig.siteUrl}/projects/${chart.projectUuid}/saved/${chartUuid}`,
             minimalUrl: `${lightdashConfig.siteUrl}/minimal/projects/${chart.projectUuid}/saved/${chartUuid}`,

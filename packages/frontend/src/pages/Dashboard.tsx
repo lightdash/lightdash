@@ -89,6 +89,7 @@ const GridTile: FC<
         isError,
     } = useSavedQuery({
         id: savedChartUuid,
+        showViews: false,
     });
 
     switch (tile.type) {

@@ -56,7 +56,10 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
 
     const [isLoading, setIsLoading] = useState(false);
 
-    const { data: savedChart } = useSavedQuery({ id: savedChartUuid });
+    const { data: savedChart } = useSavedQuery({
+        id: savedChartUuid,
+        showViews: false,
+    });
     const { data: dashboards, isLoading: isLoadingDashboards } = useDashboards(
         projectUuid,
         {
