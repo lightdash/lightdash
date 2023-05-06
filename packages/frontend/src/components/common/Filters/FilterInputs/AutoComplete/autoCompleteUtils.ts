@@ -31,10 +31,7 @@ export const mergeUniqueValues = (
     values: string[],
     newValues: string[],
 ): string[] => {
-    const normalizedValues = [
-        ...values.map(normalize),
-        ...newValues.map(normalize),
-    ];
+    const allValues = [...values, ...newValues];
 
-    return uniqBy(normalizedValues, normalize);
+    return uniqBy(allValues, normalize);
 };
