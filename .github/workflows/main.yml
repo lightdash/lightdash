@@ -40,7 +40,7 @@ jobs:
         id: docker_build
         uses: docker/build-push-action@v2
         env: 
-          NODE_OPTIONS=--max-old-space-size=8192
+          NODE_OPTIONS: --max-old-space-size=8192
         with:
           file: dockerfile
           push: ${{ github.event_name != 'pull_request' }}
