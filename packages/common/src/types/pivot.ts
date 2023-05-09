@@ -19,8 +19,6 @@ type FieldValue =
     | { type: 'value'; fieldId: string; value: ResultValue }
     | { type: 'label'; fieldId: string };
 
-type TotalValue = null | number;
-
 type TitleValue = null | {
     fieldId: string;
     titleDirection: 'index' | 'header';
@@ -29,6 +27,8 @@ type TitleValue = null | {
 type TotalHeader = null | {
     fieldId?: string;
 };
+
+type TotalValue = null | number;
 
 type DataValue = null | ResultValue;
 
