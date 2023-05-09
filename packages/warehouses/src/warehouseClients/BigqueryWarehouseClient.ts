@@ -15,6 +15,7 @@ import {
     WarehouseConnectionError,
     WarehouseQueryError,
 } from '@lightdash/common';
+import { pipeline, Transform, Writable } from 'stream';
 import { WarehouseCatalog, WarehouseTableSchema } from '../types';
 import WarehouseBaseClient from './WarehouseBaseClient';
 
@@ -157,17 +158,28 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
 
             const writePromise = new Promise<{ fields: {}; rows: any[] }>(
                 (resolve, reject) => {
-                    this.client
-                        .createQueryStream(query)
-                        .on('error', (e) => {
-                            reject(e.message);
-                        })
-                        .on('data', (row) => {
-                            rows.push(parseRow(row));
-                        })
-                        .on('end', (e: any) => {
+                    pipeline(
+                        this.client.createQueryStream(query),
+                        new Transform({
+                            objectMode: true,
+                            transform(chunk, encoding, callback) {
+                                callback(null, parseRow(chunk));
+                            },
+                        }),
+                        new Writable({
+                            objectMode: true,
+                            write(chunk, encoding, callback) {
+                                rows.push(chunk);
+                                callback();
+                            },
+                        }),
+                        async (err) => {
+                            if (err) {
+                                reject(err);
+                            }
                             resolve({ fields, rows });
-                        });
+                        },
+                    );
                 },
             );
 
