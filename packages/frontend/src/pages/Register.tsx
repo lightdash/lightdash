@@ -5,12 +5,12 @@ import { useMutation } from 'react-query';
 import { useLocation } from 'react-router-dom';
 
 import { lightdashApi } from '../api';
+import Page from '../components/common/Page/Page';
 import {
     GoogleLoginButton,
     OktaLoginButton,
     OneLoginLoginButton,
-} from '../components/common/GoogleLoginButton';
-import Page from '../components/common/Page/Page';
+} from '../components/common/ThirdPartySignInButtons';
 import PageSpinner from '../components/PageSpinner';
 import CreateUserForm from '../components/RegisterForms/CreateUserForm';
 import useToaster from '../hooks/toaster/useToaster';

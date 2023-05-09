@@ -22,12 +22,12 @@ import { useMutation } from 'react-query';
 import { Redirect, useLocation } from 'react-router-dom';
 
 import { lightdashApi } from '../api';
+import Page from '../components/common/Page/Page';
 import {
     GoogleLoginButton,
     OktaLoginButton,
     OneLoginLoginButton,
-} from '../components/common/GoogleLoginButton';
-import Page from '../components/common/Page/Page';
+} from '../components/common/ThirdPartySignInButtons';
 import PageSpinner from '../components/PageSpinner';
 import useToaster from '../hooks/toaster/useToaster';
 import { useApp } from '../providers/AppProvider';

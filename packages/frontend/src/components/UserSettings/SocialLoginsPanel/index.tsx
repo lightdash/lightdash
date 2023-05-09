@@ -8,7 +8,7 @@ import {
     GoogleLoginButton,
     OktaLoginButton,
     OneLoginLoginButton,
-} from '../../common/GoogleLoginButton';
+} from '../../common/ThirdPartySignInButtons';
 import {
     Bold,
     CardContainer,
