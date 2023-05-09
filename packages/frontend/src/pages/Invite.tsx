@@ -11,11 +11,7 @@ import { Redirect, useLocation, useParams } from 'react-router-dom';
 
 import { lightdashApi } from '../api';
 import Page from '../components/common/Page/Page';
-import {
-    GoogleSignInButton,
-    OktaSignInButton,
-    OneLoginSignInButton,
-} from '../components/common/ThirdPartySignInButtons';
+import { ThirdPartySignInButton } from '../components/common/ThirdPartySignInButton';
 import PageSpinner from '../components/PageSpinner';
 import CreateUserForm from '../components/RegisterForms/CreateUserForm';
 import { useOrganization } from '../hooks/organization/useOrganization';
@@ -143,17 +139,13 @@ const Invite: FC = () => {
         health.data?.auth.okta.enabled ||
         health.data?.auth.oneLogin.enabled;
     const ssoLogins = ssoAvailable && (
-        <>
-            {health.data?.auth.google.oauth2ClientId && (
-                <GoogleSignInButton inviteCode={inviteCode} />
-            )}
-            {health.data?.auth.okta.enabled && (
-                <OktaSignInButton inviteCode={inviteCode} />
-            )}
-            {health.data?.auth.oneLogin.enabled && (
-                <OneLoginSignInButton inviteCode={inviteCode} />
-            )}
-        </>
+        <Stack>
+            <ThirdPartySignInButton providerName="google" />
+
+            <ThirdPartySignInButton providerName="okta" />
+
+            <ThirdPartySignInButton providerName="oneLogin" />
+        </Stack>
     );
     const passwordLogin = allowPasswordAuthentication && (
         <CreateUserForm

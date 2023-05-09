@@ -5,11 +5,7 @@ import { useMutation } from 'react-query';
 import { useLocation } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import Page from '../components/common/Page/Page';
-import {
-    GoogleSignInButton,
-    OktaSignInButton,
-    OneLoginSignInButton,
-} from '../components/common/ThirdPartySignInButtons';
+import { ThirdPartySignInButton } from '../components/common/ThirdPartySignInButton';
 import PageSpinner from '../components/PageSpinner';
 import CreateUserForm from '../components/RegisterForms/CreateUserForm';
 import useToaster from '../hooks/toaster/useToaster';
@@ -62,9 +58,9 @@ const Register: FC = () => {
         health.data?.auth.oneLogin.enabled;
     const ssoLogins = ssoAvailable && (
         <>
-            {health.data?.auth.google.oauth2ClientId && <GoogleSignInButton />}
-            {health.data?.auth.okta.enabled && <OktaSignInButton />}
-            {health.data?.auth.oneLogin.enabled && <OneLoginSignInButton />}
+            <ThirdPartySignInButton providerName="google" />
+            <ThirdPartySignInButton providerName="okta" />
+            <ThirdPartySignInButton providerName="oneLogin" />
         </>
     );
     const passwordLogin = allowPasswordAuthentication && (
