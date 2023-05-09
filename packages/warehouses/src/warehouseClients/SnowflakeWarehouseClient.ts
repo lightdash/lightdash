@@ -10,6 +10,7 @@ import {
 } from '@lightdash/common';
 import * as crypto from 'crypto';
 import { Connection, ConnectionOptions, createConnection } from 'snowflake-sdk';
+import { pipeline, Transform, Writable } from 'stream';
 import * as Util from 'util';
 import { WarehouseCatalog } from '../types';
 import WarehouseBaseClient from './WarehouseBaseClient';
@@ -209,16 +210,30 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                         }),
                         {},
                     );
-                    stmt.streamRows()
-                        .on('error', (e) => {
-                            if (e) reject(new WarehouseQueryError(e.message));
-                        })
-                        .on('data', (row) => {
-                            rows.push(parseRow(row));
-                        })
-                        .on('end', () => {
-                            resolve({ fields, rows });
-                        });
+
+                    pipeline(
+                        stmt.streamRows(),
+                        new Transform({
+                            objectMode: true,
+                            transform(chunk, encoding, callback) {
+                                callback(null, parseRow(chunk));
+                            },
+                        }),
+                        new Writable({
+                            objectMode: true,
+                            write(chunk, encoding, callback) {
+                                rows.push(chunk);
+                                callback();
+                            },
+                        }),
+                        (error) => {
+                            if (error) {
+                                reject(new WarehouseQueryError(error.message));
+                            } else {
+                                resolve({ fields, rows });
+                            }
+                        },
+                    );
                 },
             });
         });
