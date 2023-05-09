@@ -31,7 +31,7 @@ const PinnedItemsPanel: FC<Props> = ({
         <ResourceView
             items={data}
             view={ResourceViewType.GRID}
-            hasReorder
+            hasReorder={userCanUpdateProject}
             gridProps={{
                 groups: [
                     [ResourceViewItemType.SPACE],
