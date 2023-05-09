@@ -412,14 +412,7 @@ describe('Should pivot data', () => {
                 ],
             ],
             columnTotals: undefined,
-            rowTotals: [
-                [{ raw: 8 }],
-                [{ raw: 17 }],
-                [{ raw: 14 }],
-                [{ raw: 13 }],
-                [{ raw: 11 }],
-                [{ raw: 1 }],
-            ],
+            rowTotals: [[8], [17], [14], [13], [11], [1]],
         };
         const result = pivotQueryResults({
             pivotConfig,
