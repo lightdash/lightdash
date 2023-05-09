@@ -1,3 +1,11 @@
+## [0.539.1](https://github.com/lightdash/lightdash/compare/0.539.0...0.539.1) (2023-05-09)
+
+
+### Bug Fixes
+
+* improve UI for drag and drop ([#5381](https://github.com/lightdash/lightdash/issues/5381)) ([bcd71f5](https://github.com/lightdash/lightdash/commit/bcd71f5df95b6cef6b01f01940733674530f5003))
+* mantine breadcrumb overflow ([#5379](https://github.com/lightdash/lightdash/issues/5379)) ([c12b608](https://github.com/lightdash/lightdash/commit/c12b60818f00325ef99ea2da2d4a7815baff9d56))
+
 # [0.539.0](https://github.com/lightdash/lightdash/compare/0.538.0...0.539.0) (2023-05-09)
 
 
