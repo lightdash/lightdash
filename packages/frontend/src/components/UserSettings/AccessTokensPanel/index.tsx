@@ -12,12 +12,6 @@ const AccessTokensPanel: FC = () => {
     const [isCreatingToken, setIsCreatingToken] = useState(false);
     const hasAvailableTokens = data && data.length > 0;
 
-    if (isCreatingToken) {
-        return (
-            <CreateTokenModal onBackClick={() => setIsCreatingToken(false)} />
-        );
-    }
-
     if (!hasAvailableTokens) {
         return (
             <EmptyState
@@ -49,6 +43,12 @@ const AccessTokensPanel: FC = () => {
             </Group>
 
             <TokensTable />
+
+            {isCreatingToken && (
+                <CreateTokenModal
+                    onBackClick={() => setIsCreatingToken(false)}
+                />
+            )}
         </Stack>
     );
 };
