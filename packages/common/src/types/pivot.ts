@@ -26,7 +26,9 @@ type TitleValue = null | {
     titleDirection: 'index' | 'header';
 };
 
-type TotalHeader = null | { fieldId?: string };
+type TotalHeader = null | {
+    fieldId?: string;
+};
 
 type DataValue = null | ResultValue;
 
