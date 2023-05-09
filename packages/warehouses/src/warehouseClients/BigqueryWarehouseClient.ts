@@ -99,14 +99,9 @@ const isSchemaFields = (
 const isTableSchema = (schema: bigquery.ITableSchema): schema is TableSchema =>
     !!schema && !!schema.fields && isSchemaFields(schema.fields);
 
-const parseRows = (rows: Record<string, any>[]) =>
-    rows.map((row) =>
-        Object.fromEntries(
-            Object.entries(row).map(([name, value]) => [
-                name,
-                parseCell(value),
-            ]),
-        ),
+const parseRow = (row: Record<string, any>[]) =>
+    Object.fromEntries(
+        Object.entries(row).map(([name, value]) => [name, parseCell(value)]),
     );
 /*     const CHUNK_SIZE = 50000;
     const readStream = Readable.from(rows, {
@@ -171,10 +166,37 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         }
     }
 
+    private async getQuerySchema(
+        query: string,
+    ): Promise<Record<string, { type: DimensionType }>> {
+        const [job] = await this.client.createQueryJob({
+            query,
+            useLegacySql: false,
+            maxResults: 1,
+        });
+        const [, , response] = await job.getQueryResults({
+            autoPaginate: false,
+        });
+        const fields = (response?.schema?.fields || []).reduce<
+            Record<string, { type: DimensionType }>
+        >((acc, field) => {
+            if (field.name) {
+                return {
+                    ...acc,
+                    [field.name]: { type: mapFieldType(field.type) },
+                };
+            }
+            return acc;
+        }, {});
+
+        return fields;
+    }
+
     async runQuery(query: string) {
         try {
             const rows: Record<string, any>[] = [];
-            const fields: Record<string, { type: DimensionType }> = {};
+            const fields: Record<string, { type: DimensionType }> =
+                await this.getQuerySchema(query);
 
             const writePromise = new Promise<{ fields: {}; rows: any[] }>(
                 (resolve, reject) => {
@@ -183,70 +205,16 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                         .on('error', (e) => {
                             reject(e.message);
                         })
-                        .on(
-                            'schema',
-                            (schema: bigquery.ITableSchema | undefined) => {
-                                console.debug('schema', schema);
-                                /* fields = fields = (schema?.fields || []).reduce<
-                    Record<string, { type: DimensionType }>
-                >((acc, field) => {
-                    if (field.name) {
-                        return {
-                            ...acc,
-                            [field.name]: { type: mapFieldType(field.type) },
-                        };
-                    }
-                    return acc;
-                }, {}) */
-                            },
-                        )
                         .on('data', (row) => {
-                            if (rows.length === 0)
-                                console.debug('first row ', row);
-
-                            rows.push(parseRows([row]));
+                            rows.push(parseRow(row));
                         })
                         .on('end', (e: any) => {
-                            // All rows retrieved.
-                            console.debug('end', e);
-
                             resolve({ fields, rows });
                         });
                 },
             );
 
-            return await writePromise; /*
-            const [job] = await this.client.createQueryJob({
-                query,
-                useLegacySql: false,
-                maximumBytesBilled:
-                    this.credentials.maximumBytesBilled === undefined
-                        ? undefined
-                        : `${this.credentials.maximumBytesBilled}`,
-                priority: this.credentials.priority,
-                jobTimeoutMs:
-                    this.credentials.timeoutSeconds &&
-                    this.credentials.timeoutSeconds * 1000,
-            });
-            // auto paginate - hides full response
-            const [rows] = await job.getQueryResults({
-                autoPaginate: true,
-            });
-            const [, , response] = await job.getQueryResults({
-                autoPaginate: false,
-            });
-            const fields = (response?.schema?.fields || []).reduce<
-                Record<string, { type: DimensionType }>
-            >((acc, field) => {
-                if (field.name) {
-                    return {
-                        ...acc,
-                        [field.name]: { type: mapFieldType(field.type) },
-                    };
-                }
-                return acc;
-            }, {});
-            return { fields, rows: parseRows(rows) }; */
+            return await writePromise;
         } catch (e) {
             throw new WarehouseQueryError(e.message);
         }
