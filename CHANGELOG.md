@@ -1,3 +1,15 @@
+# [0.540.0](https://github.com/lightdash/lightdash/compare/0.539.2...0.540.0) (2023-05-09)
+
+
+### Bug Fixes
+
+* days usage analytics ([#5409](https://github.com/lightdash/lightdash/issues/5409)) ([0ffed8e](https://github.com/lightdash/lightdash/commit/0ffed8ebefc8e456aeed5b1f54b6eadb8db280a8))
+
+
+### Features
+
+* truncate large text in table cell ([#5388](https://github.com/lightdash/lightdash/issues/5388)) ([8ebde0c](https://github.com/lightdash/lightdash/commit/8ebde0c7b8a3ebe5b2b46ecb376f4c5b64ad7c84))
+
 ## [0.539.2](https://github.com/lightdash/lightdash/compare/0.539.1...0.539.2) (2023-05-09)
 
 
