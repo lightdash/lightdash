@@ -50,7 +50,9 @@ export const getResourceUrl = (projectUuid: string, item: ResourceViewItem) => {
         case ResourceViewItemType.CHART:
             return `/projects/${projectUuid}/saved/${item.data.uuid}`;
         case ResourceViewItemType.SPACE:
-            return `/projects/${projectUuid}/spaces/${item.data.uuid}`;
+            return `/projects/${projectUuid || item.data.projectUuid}/spaces/${
+                item.data.uuid
+            }`;
         default:
             return assertUnreachable(item, `Can't get URL for ${itemType}`);
     }
