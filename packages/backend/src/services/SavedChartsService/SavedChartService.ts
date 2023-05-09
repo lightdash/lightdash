@@ -72,6 +72,16 @@ export class SavedChartService {
         ) {
             throw new ForbiddenError();
         }
+        if (
+            !(await this.hasChartSpaceAccess(
+                savedChart.spaceUuid,
+                user.userUuid,
+            ))
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to the space this chart belongs to",
+            );
+        }
         return savedChart;
     }
 
@@ -155,7 +165,7 @@ export class SavedChartService {
         savedChartUuid: string,
         data: CreateSavedChartVersion,
     ): Promise<SavedChart> {
-        const { organizationUuid, projectUuid } =
+        const { organizationUuid, projectUuid, spaceUuid } =
             await this.savedChartModel.get(savedChartUuid);
 
         if (
@@ -165,6 +175,11 @@ export class SavedChartService {
             )
         ) {
             throw new ForbiddenError();
+        }
+        if (!(await this.hasChartSpaceAccess(spaceUuid, user.userUuid))) {
+            throw new ForbiddenError(
+                "You don't have access to the space this chart belongs to",
+            );
         }
         const savedChart = await this.savedChartModel.createVersion(
             savedChartUuid,
@@ -185,7 +200,7 @@ export class SavedChartService {
         savedChartUuid: string,
         data: UpdateSavedChart,
     ): Promise<SavedChart> {
-        const { organizationUuid, projectUuid } =
+        const { organizationUuid, projectUuid, spaceUuid } =
             await this.savedChartModel.get(savedChartUuid);
 
         if (
@@ -195,6 +210,11 @@ export class SavedChartService {
             )
         ) {
             throw new ForbiddenError();
+        }
+        if (!(await this.hasChartSpaceAccess(spaceUuid, user.userUuid))) {
+            throw new ForbiddenError(
+                "You don't have access to the space this chart belongs to",
+            );
         }
         const savedChart = await this.savedChartModel.update(
             savedChartUuid,
@@ -288,7 +308,7 @@ export class SavedChartService {
     }
 
     async delete(user: SessionUser, savedChartUuid: string): Promise<void> {
-        const { organizationUuid, projectUuid } =
+        const { organizationUuid, projectUuid, spaceUuid } =
             await this.savedChartModel.get(savedChartUuid);
 
         if (
@@ -299,6 +319,12 @@ export class SavedChartService {
         ) {
             throw new ForbiddenError();
         }
+        if (!(await this.hasChartSpaceAccess(spaceUuid, user.userUuid))) {
+            throw new ForbiddenError(
+                "You don't have access to the space this chart belongs to",
+            );
+        }
+
         const deletedChart = await this.savedChartModel.delete(savedChartUuid);
         analytics.track({
             event: 'saved_chart.deleted',
@@ -388,6 +414,11 @@ export class SavedChartService {
         const chart = await this.savedChartModel.get(chartUuid);
         if (user.ability.cannot('create', subject('SavedChart', chart))) {
             throw new ForbiddenError();
+        }
+        if (!(await this.hasChartSpaceAccess(chart.spaceUuid, user.userUuid))) {
+            throw new ForbiddenError(
+                "You don't have access to the space this chart belongs to",
+            );
         }
         const duplicatedChart = {
             ...chart,

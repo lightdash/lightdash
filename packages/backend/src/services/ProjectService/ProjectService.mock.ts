@@ -244,6 +244,7 @@ export const spacesWithSavedCharts: Space[] = [
         isPrivate: false,
         uuid: 'uuid',
         pinnedListUuid: null,
+        pinnedListOrder: null,
         queries: [
             {
                 uuid: 'savedChartUuid',
@@ -251,6 +252,7 @@ export const spacesWithSavedCharts: Space[] = [
                 updatedAt: new Date(),
                 spaceUuid: 'uuid',
                 pinnedListUuid: null,
+                pinnedListOrder: null,
                 chartType: ChartKind.AREA,
                 views: 1,
                 firstViewedAt: new Date(),
@@ -268,6 +270,7 @@ export const spacesWithNoSavedCharts: Space[] = [
         name: 'sapce',
         uuid: 'uuid',
         pinnedListUuid: null,
+        pinnedListOrder: null,
         queries: [],
         projectUuid,
         isPrivate: false,

@@ -2,8 +2,7 @@ import { subject } from '@casl/ability';
 import { PinnedItems, ResourceViewItemType } from '@lightdash/common';
 import { Card, Group, Text } from '@mantine/core';
 import { IconPin } from '@tabler/icons-react';
-import { FC } from 'react';
-
+import React, { FC } from 'react';
 import { useApp } from '../../providers/AppProvider';
 import MantineIcon from '../common/MantineIcon';
 import MantineLinkButton from '../common/MantineLinkButton';
@@ -12,12 +11,14 @@ import ResourceView, { ResourceViewType } from '../common/ResourceView';
 interface Props {
     data: PinnedItems;
     projectUuid: string;
+    pinnedListUuid: string;
     organizationUuid: string;
 }
 
 const PinnedItemsPanel: FC<Props> = ({
     data,
     projectUuid,
+    pinnedListUuid,
     organizationUuid,
 }) => {
     const { user } = useApp();
@@ -25,13 +26,12 @@ const PinnedItemsPanel: FC<Props> = ({
         'update',
         subject('Project', { organizationUuid, projectUuid }),
     );
-    const pinnedItems = [...data.dashboards, ...data.spaces, ...data.charts];
 
-    return pinnedItems && pinnedItems.length > 0 ? (
+    return data && data.length > 0 ? (
         <ResourceView
-            items={pinnedItems}
+            items={data}
             view={ResourceViewType.GRID}
-            // hasReorder
+            hasReorder
             gridProps={{
                 groups: [
                     [ResourceViewItemType.SPACE],
@@ -47,8 +47,9 @@ const PinnedItemsPanel: FC<Props> = ({
                     ? 'Pin Spaces, Dashboards and Charts to the top of the homepage to guide your business users to the right content.'
                     : 'Your data team have pinned these items to help guide you towards the most relevant content!',
             }}
+            pinnedItemsProps={{ projectUuid, pinnedListUuid }}
         />
-    ) : (userCanUpdateProject && pinnedItems.length <= 0) || !pinnedItems ? (
+    ) : (userCanUpdateProject && data.length <= 0) || !data ? (
         // FIXME: update width with Mantine widths
         <Card
             withBorder

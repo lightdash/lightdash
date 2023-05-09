@@ -30,6 +30,7 @@ import {
 } from '../database/entities/organizations';
 import {
     DbPinnedList,
+    DBPinnedSpace,
     PinnedChartTableName,
     PinnedDashboardTableName,
     PinnedListTableName,
@@ -136,7 +137,8 @@ export class SpaceModel {
                 (DbSpace &
                     DbProject &
                     DbOrganization &
-                    Pick<DbPinnedList, 'pinned_list_uuid'>)[]
+                    Pick<DbPinnedList, 'pinned_list_uuid'> &
+                    Pick<DBPinnedSpace, 'order'>)[]
             >([
                 'spaces.*',
 
@@ -144,6 +146,7 @@ export class SpaceModel {
                 'organizations.organization_uuid',
 
                 `${PinnedListTableName}.pinned_list_uuid`,
+                `${PinnedSpaceTableName}.order`,
             ]);
         if (row === undefined)
             throw new NotFoundError(
@@ -157,6 +160,7 @@ export class SpaceModel {
             uuid: row.space_uuid,
             projectUuid: row.project_uuid,
             pinnedListUuid: row.pinned_list_uuid,
+            pinnedListOrder: row.order,
         };
     }
 
@@ -223,6 +227,7 @@ export class SpaceModel {
                     `(SELECT ${AnalyticsDashboardViewsTableName}.timestamp FROM ${AnalyticsDashboardViewsTableName} where ${AnalyticsDashboardViewsTableName}.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid ORDER BY ${AnalyticsDashboardViewsTableName}.timestamp ASC LIMIT 1) as first_viewed_at`,
                 ),
                 `${PinnedListTableName}.pinned_list_uuid`,
+                `${PinnedDashboardTableName}.order`,
             ])
             .orderBy([
                 {
@@ -250,6 +255,7 @@ export class SpaceModel {
                 views,
                 first_viewed_at,
                 pinned_list_uuid,
+                order,
             }) => ({
                 organizationUuid: organization_uuid,
                 name,
@@ -266,6 +272,7 @@ export class SpaceModel {
                 views: parseInt(views, 10),
                 firstViewedAt: first_viewed_at,
                 pinnedListUuid: pinned_list_uuid,
+                pinnedListOrder: order,
             }),
         );
     }
@@ -378,6 +385,7 @@ export class SpaceModel {
                     chart_config: ChartConfig['config'];
                     chart_type: ChartType;
                     pinned_list_uuid: string;
+                    order: number;
                 }[]
             >([
                 `saved_queries.saved_query_uuid`,
@@ -396,6 +404,7 @@ export class SpaceModel {
                 `saved_queries_versions.chart_config`,
                 `saved_queries_versions.chart_type`,
                 `${PinnedListTableName}.pinned_list_uuid`,
+                `${PinnedChartTableName}.order`,
             ])
             .orderBy([
                 {
@@ -427,6 +436,7 @@ export class SpaceModel {
                 savedQuery.chart_config,
             ),
             pinnedListUuid: savedQuery.pinned_list_uuid,
+            pinnedListOrder: savedQuery.order,
         }));
     }
 
@@ -454,12 +464,14 @@ export class SpaceModel {
                 (DbSpace &
                     DbProject &
                     DbOrganization &
-                    Pick<DbPinnedList, 'pinned_list_uuid'>)[]
+                    Pick<DbPinnedList, 'pinned_list_uuid'> &
+                    Pick<DBPinnedSpace, 'order'>)[]
             >([
                 'spaces.*',
                 'projects.project_uuid',
                 'organizations.organization_uuid',
                 `${PinnedListTableName}.pinned_list_uuid`,
+                `${PinnedSpaceTableName}.order`,
             ]);
         return Promise.all(
             results.map(async (row) => ({
@@ -469,6 +481,7 @@ export class SpaceModel {
                 uuid: row.space_uuid,
                 projectUuid: row.project_uuid,
                 pinnedListUuid: row.pinned_list_uuid,
+                pinnedListOrder: row.order,
                 queries: await this.getSpaceQueries(row.space_uuid),
                 dashboards: await this.getSpaceDashboards(row.space_uuid),
                 access: await this.getSpaceAccess(row.space_uuid),
@@ -485,6 +498,7 @@ export class SpaceModel {
             isPrivate: space.isPrivate,
             projectUuid: space.projectUuid,
             pinnedListUuid: space.pinnedListUuid,
+            pinnedListOrder: space.pinnedListOrder,
             queries: await this.getSpaceQueries(space.uuid),
             dashboards: await this.getSpaceDashboards(space.uuid),
             access: await this.getSpaceAccess(space.uuid),
@@ -520,6 +534,7 @@ export class SpaceModel {
             dashboards: [],
             access: [],
             pinnedListUuid: null,
+            pinnedListOrder: null,
         };
     }
 

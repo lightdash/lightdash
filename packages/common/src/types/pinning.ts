@@ -1,6 +1,8 @@
 import {
     ResourceViewChartItem,
     ResourceViewDashboardItem,
+    ResourceViewItem,
+    ResourceViewItemType,
     ResourceViewSpaceItem,
 } from './resourceViewItem';
 
@@ -62,6 +64,11 @@ export type CreatePinnedItem =
     | CreateDashboardPinnedItem
     | CreateSpacePinnedItem;
 
+export type UpdatePinnedItemOrder = {
+    type: ResourceViewItemType;
+    data: Pick<ResourceViewItem['data'], 'uuid' | 'pinnedListOrder'>;
+};
+
 export const isCreateChartPinnedItem = (
     item: CreatePinnedItem,
 ): item is CreateChartPinnedItem =>
@@ -82,15 +89,9 @@ export const isDeleteSpacePinnedItem = (
 
 export type ApiPinnedItems = {
     status: 'ok';
-    results: {
-        dashboards: ResourceViewDashboardItem[];
-        charts: ResourceViewChartItem[];
-        spaces: ResourceViewSpaceItem[];
-    };
+    results: PinnedItems;
 };
 
-export type PinnedItems = {
-    dashboards: ResourceViewDashboardItem[];
-    charts: ResourceViewChartItem[];
-    spaces: ResourceViewSpaceItem[];
-};
+export type PinnedItems = Array<
+    ResourceViewDashboardItem | ResourceViewChartItem | ResourceViewSpaceItem
+>;
