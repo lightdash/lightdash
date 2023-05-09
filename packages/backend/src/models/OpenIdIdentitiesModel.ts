@@ -72,7 +72,9 @@ export class OpenIdIdentityModel {
 
     async getIdentitiesByUserId(
         userId: number,
-    ): Promise<OpenIdIdentitySummary[]> {
+    ): Promise<
+        Record<OpenIdIdentitySummary['issuerType'], OpenIdIdentitySummary[]>
+    > {
         const identities = await this.database('openid_identities').where(
             'user_id',
             userId,
@@ -84,7 +86,14 @@ export class OpenIdIdentityModel {
                 issuer: id.issuer,
                 email: id.email,
                 createdAt: id.createdAt,
-            }));
+            }))
+            .reduce(
+                (acc, curr) => ({
+                    ...acc,
+                    [curr.issuerType]: [...(acc[curr.issuerType] || []), curr],
+                }),
+                { okta: [], google: [], oneLogin: [] },
+            );
     }
 
     async createIdentity(
