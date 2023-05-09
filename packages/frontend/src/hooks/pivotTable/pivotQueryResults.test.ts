@@ -119,9 +119,7 @@ describe('Should pivot data', () => {
                 ],
             ],
             pivotConfig,
-            titleFields: [
-                [{ fieldId: 'page', type: 'label', titleDirection: 'index' }],
-            ],
+            titleFields: [[{ fieldId: 'page', titleDirection: 'index' }]],
         };
         const result = pivotQueryResults({
             pivotConfig,
@@ -178,9 +176,7 @@ describe('Should pivot data', () => {
                 pivotDimensions: ['page'],
                 metricsAsRows: true,
             },
-            titleFields: [
-                [{ fieldId: 'page', type: 'label', titleDirection: 'header' }],
-            ],
+            titleFields: [[{ fieldId: 'page', titleDirection: 'header' }]],
         };
         const result = pivotQueryResults({
             pivotConfig,
@@ -276,8 +272,8 @@ describe('Should pivot data', () => {
             ],
             pivotConfig: { pivotDimensions: ['site'], metricsAsRows: false },
             titleFields: [
-                [{ fieldId: 'site', type: 'label', titleDirection: 'header' }],
-                [{ fieldId: 'page', type: 'label', titleDirection: 'index' }],
+                [{ fieldId: 'site', titleDirection: 'header' }],
+                [{ fieldId: 'page', titleDirection: 'index' }],
             ],
             columnTotals: undefined,
             rowTotals: undefined,
@@ -394,23 +390,12 @@ describe('Should pivot data', () => {
             },
             titleFields: [
                 [
-                    { fieldId: 'page', type: 'label', titleDirection: 'index' },
-                    {
-                        fieldId: 'site',
-                        type: 'label',
-                        titleDirection: 'header',
-                    },
+                    { fieldId: 'page', titleDirection: 'index' },
+                    { fieldId: 'site', titleDirection: 'header' },
                 ],
             ],
             columnTotalHeaders: undefined,
-            rowTotalHeaders: [
-                [
-                    {
-                        titleDirection: 'header',
-                        type: 'total',
-                    },
-                ],
-            ],
+            rowTotalHeaders: [[{ fieldId: undefined }]],
             columnTotals: undefined,
             rowTotals: [[8], [17], [14], [13], [11], [1]],
         };
