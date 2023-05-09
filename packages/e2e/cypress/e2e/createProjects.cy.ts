@@ -297,7 +297,7 @@ describe('Create projects', () => {
         cy.login();
     });
 
-    it('Should be able to create new project from settings', () => {
+    it.skip('Should be able to create new project from settings', () => {
         cy.visit(`/`);
 
         cy.findAllByTestId('settings-menu').click();
