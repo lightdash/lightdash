@@ -1,21 +1,22 @@
 import { formatTimestamp } from '@lightdash/common';
 import {
     ActionIcon,
+    Alert,
     Button,
     CopyButton,
     Modal,
     Select,
     Stack,
-    Text,
     TextInput,
     Title,
     Tooltip,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconCheck, IconCopy } from '@tabler/icons-react';
+import { IconAlertCircle, IconCheck, IconCopy } from '@tabler/icons-react';
 import { FC, useState } from 'react';
 import useHealth from '../../../hooks/health/useHealth';
 import { useCreateAccessToken } from '../../../hooks/useAccessToken';
+import MantineIcon from '../../common/MantineIcon';
 
 export const CreateTokenModal: FC<{
     onBackClick: () => void;
@@ -92,102 +93,114 @@ export const CreateTokenModal: FC<{
                     </Title>
                 }
             >
-                {!data ? (
-                    <form onSubmit={handleOnSubmit}>
+                <Stack spacing="xl">
+                    {!data ? (
+                        <form onSubmit={handleOnSubmit}>
+                            <Stack spacing="md">
+                                <TextInput
+                                    label="What’s this token for?"
+                                    disabled={isLoading}
+                                    placeholder="Description"
+                                    required
+                                    {...form.getInputProps('description')}
+                                />
+
+                                <Select
+                                    withinPortal
+                                    defaultValue={expireOptions[0].value}
+                                    label="Expiration"
+                                    data={expireOptions}
+                                    required
+                                    {...form.getInputProps('expiresAt')}
+                                ></Select>
+
+                                <Button type="submit" disabled={isLoading}>
+                                    Generate token
+                                </Button>
+                            </Stack>
+                        </form>
+                    ) : (
                         <Stack spacing="md">
                             <TextInput
-                                label="What’s this token for?"
-                                disabled={isLoading}
-                                placeholder="Description"
-                                required
-                                {...form.getInputProps('description')}
+                                id="invite-link-input"
+                                label="Token"
+                                readOnly
+                                className="cohere-block sentry-block fs-block"
+                                value={data.token}
+                                rightSection={
+                                    <CopyButton value={data.token}>
+                                        {({ copied, copy }) => (
+                                            <Tooltip
+                                                label={
+                                                    copied ? 'Copied' : 'Copy'
+                                                }
+                                                withArrow
+                                                position="right"
+                                            >
+                                                <ActionIcon
+                                                    color={
+                                                        copied ? 'teal' : 'gray'
+                                                    }
+                                                    onClick={copy}
+                                                >
+                                                    {copied ? (
+                                                        <IconCheck size="1rem" />
+                                                    ) : (
+                                                        <IconCopy size="1rem" />
+                                                    )}
+                                                </ActionIcon>
+                                            </Tooltip>
+                                        )}
+                                    </CopyButton>
+                                }
                             />
-
-                            <Select
-                                withinPortal
-                                defaultValue={expireOptions[0].value}
-                                label="Expiration"
-                                data={expireOptions}
-                                required
-                                {...form.getInputProps('expiresAt')}
-                            ></Select>
-
-                            <Button type="submit" disabled={isLoading}>
-                                Generate token
-                            </Button>
-                        </Stack>
-                    </form>
-                ) : (
-                    <Stack spacing="md">
-                        <TextInput
-                            id="invite-link-input"
-                            label="Token"
-                            readOnly
-                            className="cohere-block sentry-block fs-block"
-                            value={data.token}
-                            rightSection={
-                                <CopyButton value={data.token}>
-                                    {({ copied, copy }) => (
-                                        <Tooltip
-                                            label={copied ? 'Copied' : 'Copy'}
-                                            withArrow
-                                            position="right"
-                                        >
-                                            <ActionIcon
-                                                color={copied ? 'teal' : 'gray'}
-                                                onClick={copy}
+                            <TextInput
+                                id="invite-link-input"
+                                label="CLI Authentication code"
+                                className="sentry-block fs-block cohere-block"
+                                readOnly
+                                value={`lightdash login ${health.data?.siteUrl} --token ${data.token}`}
+                                rightSection={
+                                    <CopyButton
+                                        value={`lightdash login ${health.data?.siteUrl} --token ${data.token}`}
+                                    >
+                                        {({ copied, copy }) => (
+                                            <Tooltip
+                                                label={
+                                                    copied ? 'Copied' : 'Copy'
+                                                }
+                                                withArrow
+                                                position="right"
                                             >
-                                                {copied ? (
-                                                    <IconCheck size="1rem" />
-                                                ) : (
-                                                    <IconCopy size="1rem" />
-                                                )}
-                                            </ActionIcon>
-                                        </Tooltip>
-                                    )}
-                                </CopyButton>
-                            }
-                        />
-                        <TextInput
-                            id="invite-link-input"
-                            label="CLI Authentication code"
-                            className="sentry-block fs-block cohere-block"
-                            readOnly
-                            value={`lightdash login ${health.data?.siteUrl} --token ${data.token}`}
-                            rightSection={
-                                <CopyButton
-                                    value={`lightdash login ${health.data?.siteUrl} --token ${data.token}`}
-                                >
-                                    {({ copied, copy }) => (
-                                        <Tooltip
-                                            label={copied ? 'Copied' : 'Copy'}
-                                            withArrow
-                                            position="right"
-                                        >
-                                            <ActionIcon
-                                                color={copied ? 'teal' : 'gray'}
-                                                onClick={copy}
-                                            >
-                                                {copied ? (
-                                                    <IconCheck size="1rem" />
-                                                ) : (
-                                                    <IconCopy size="1rem" />
-                                                )}
-                                            </ActionIcon>
-                                        </Tooltip>
-                                    )}
-                                </CopyButton>
-                            }
-                        />
-                        <Text>
-                            {expireDate &&
-                                `This token will expire on
+                                                <ActionIcon
+                                                    color={
+                                                        copied ? 'teal' : 'gray'
+                                                    }
+                                                    onClick={copy}
+                                                >
+                                                    {copied ? (
+                                                        <IconCheck size="1rem" />
+                                                    ) : (
+                                                        <IconCopy size="1rem" />
+                                                    )}
+                                                </ActionIcon>
+                                            </Tooltip>
+                                        )}
+                                    </CopyButton>
+                                }
+                            />
+                            <Alert
+                                icon={<MantineIcon icon={IconAlertCircle} />}
+                            >
+                                {expireDate &&
+                                    `This token will expire on
                         ${formatTimestamp(expireDate)} `}
-                            Make sure to copy your personal access token now.
-                            You won’t be able to see it again!
-                        </Text>
-                    </Stack>
-                )}
+                                Make sure to copy your personal access token
+                                now. You won’t be able to see it again!
+                            </Alert>
+                        </Stack>
+                    )}
+                </Stack>
             </Modal>
         </>
     );
