@@ -1,3 +1,10 @@
+## [0.540.1](https://github.com/lightdash/lightdash/compare/0.540.0...0.540.1) (2023-05-09)
+
+
+### Bug Fixes
+
+* settings page layout issue ([#5416](https://github.com/lightdash/lightdash/issues/5416)) ([231d937](https://github.com/lightdash/lightdash/commit/231d937de0ffba4dd1926d1f6f498e6f0c99a92a))
+
 # [0.540.0](https://github.com/lightdash/lightdash/compare/0.539.2...0.540.0) (2023-05-09)
 
 
