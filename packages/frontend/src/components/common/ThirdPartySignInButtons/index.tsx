@@ -10,10 +10,12 @@ const ThirdPartySignInButton: FC<{
     providerName: string;
 }> = ({ href, logo, providerName }) => (
     <Button
-        variant="outline"
+        variant="default"
+        color="gray"
         component="a"
         href={href}
         leftIcon={<Image width={20} src={logo} alt={`${providerName} logo`} />}
+        sx={{ ':hover': { textDecoration: 'underline' } }}
     >
         Sign in with {providerName}
     </Button>
