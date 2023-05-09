@@ -4,12 +4,21 @@ import {
     isResourceViewSpaceItem,
     ResourceViewItem,
 } from '@lightdash/common';
-import { Anchor, Box, Group, Stack, Table, Text, Tooltip } from '@mantine/core';
-import { createStyles } from '@mantine/styles';
+import {
+    Anchor,
+    Box,
+    clsx,
+    Group,
+    Stack,
+    Table,
+    Text,
+    Tooltip,
+} from '@mantine/core';
 import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
 import React, { FC, useMemo, useState } from 'react';
 import { Link, useHistory, useParams } from 'react-router-dom';
 import { ResourceViewCommonProps } from '..';
+import { useTableStyles } from '../../../../hooks/styles/useTableStyles';
 import { useSpaces } from '../../../../hooks/useSpaces';
 import { ResourceIcon } from '../ResourceIcon';
 import {
@@ -63,29 +72,6 @@ const getNextSortDirection = (current: SortingState): SortingState => {
     const currentIndex = sortOrder.indexOf(current);
     return sortOrder.concat(sortOrder[0])[currentIndex + 1];
 };
-
-const useTableStyles = createStyles((theme) => ({
-    root: {
-        '& thead tr': {
-            backgroundColor: theme.colors.gray[0],
-        },
-
-        '& thead tr th': {
-            color: theme.colors.gray[6],
-            fontWeight: 600,
-            fontSize: '12px',
-        },
-
-        '& thead tr th, & tbody tr td': {
-            padding: '12px 20px',
-        },
-
-        '&[data-hover] tbody tr': theme.fn.hover({
-            cursor: 'pointer',
-            backgroundColor: theme.fn.rgba(theme.colors.gray[0], 0.5),
-        }),
-    },
-}));
 
 const ResourceViewList: FC<ResourceViewListProps> = ({
     items,
@@ -352,7 +338,10 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
     }, [items, columnSorts, columns]);
 
     return (
-        <Table className={classes.root} highlightOnHover>
+        <Table
+            className={clsx(classes.root, classes.smallHeaderText)}
+            highlightOnHover
+        >
             <thead>
                 <tr>
                     {visibleColumns.map((column) => {

@@ -1,3 +1,39 @@
+## [0.539.1](https://github.com/lightdash/lightdash/compare/0.539.0...0.539.1) (2023-05-09)
+
+
+### Bug Fixes
+
+* improve UI for drag and drop ([#5381](https://github.com/lightdash/lightdash/issues/5381)) ([bcd71f5](https://github.com/lightdash/lightdash/commit/bcd71f5df95b6cef6b01f01940733674530f5003))
+* mantine breadcrumb overflow ([#5379](https://github.com/lightdash/lightdash/issues/5379)) ([c12b608](https://github.com/lightdash/lightdash/commit/c12b60818f00325ef99ea2da2d4a7815baff9d56))
+
+# [0.539.0](https://github.com/lightdash/lightdash/compare/0.538.0...0.539.0) (2023-05-09)
+
+
+### Features
+
+* migrate appearance view with mantine ([#5365](https://github.com/lightdash/lightdash/issues/5365)) ([130946a](https://github.com/lightdash/lightdash/commit/130946a244b2b087716e4d7e955f8ba1ffc1d3fd))
+
+# [0.538.0](https://github.com/lightdash/lightdash/compare/0.537.1...0.538.0) (2023-05-05)
+
+
+### Features
+
+* migrate delete token modal to mantine ([#5371](https://github.com/lightdash/lightdash/issues/5371)) ([b38906b](https://github.com/lightdash/lightdash/commit/b38906b9e067e3f678b8279d8ab1c741bdb82a03))
+
+## [0.537.1](https://github.com/lightdash/lightdash/compare/0.537.0...0.537.1) (2023-05-05)
+
+
+### Bug Fixes
+
+* fix new smooth grouped series ([#5353](https://github.com/lightdash/lightdash/issues/5353)) ([64c74e6](https://github.com/lightdash/lightdash/commit/64c74e67e76aa884511f9222d9b2cd9311e08d7e))
+
+# [0.537.0](https://github.com/lightdash/lightdash/compare/0.536.0...0.537.0) (2023-05-05)
+
+
+### Features
+
+* migrate access tokens list to mantine table ([#5358](https://github.com/lightdash/lightdash/issues/5358)) ([0aa1a4f](https://github.com/lightdash/lightdash/commit/0aa1a4f57ab71e1cd6da86067684d350e4c13d90))
+
 # [0.536.0](https://github.com/lightdash/lightdash/compare/0.535.2...0.536.0) (2023-05-05)
 
 
