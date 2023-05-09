@@ -1,3 +1,10 @@
+# [0.539.0](https://github.com/lightdash/lightdash/compare/0.538.0...0.539.0) (2023-05-09)
+
+
+### Features
+
+* migrate appearance view with mantine ([#5365](https://github.com/lightdash/lightdash/issues/5365)) ([130946a](https://github.com/lightdash/lightdash/commit/130946a244b2b087716e4d7e955f8ba1ffc1d3fd))
+
 # [0.538.0](https://github.com/lightdash/lightdash/compare/0.537.1...0.538.0) (2023-05-05)
 
 
