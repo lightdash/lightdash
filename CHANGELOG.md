@@ -1,3 +1,10 @@
+## [0.539.2](https://github.com/lightdash/lightdash/compare/0.539.1...0.539.2) (2023-05-09)
+
+
+### Bug Fixes
+
+* pinnedItemsPanel updates in real time and uses optimistic updates for dnd ([#5384](https://github.com/lightdash/lightdash/issues/5384)) ([811ba23](https://github.com/lightdash/lightdash/commit/811ba234daf48047151ae420d45285e5eedb852f))
+
 ## [0.539.1](https://github.com/lightdash/lightdash/compare/0.539.0...0.539.1) (2023-05-09)
 
 
