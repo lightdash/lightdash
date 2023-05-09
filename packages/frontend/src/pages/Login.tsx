@@ -24,9 +24,9 @@ import { Redirect, useLocation } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import Page from '../components/common/Page/Page';
 import {
-    GoogleLoginButton,
-    OktaLoginButton,
-    OneLoginLoginButton,
+    GoogleSignInButton,
+    OktaSignInButton,
+    OneLoginSignInButton,
 } from '../components/common/ThirdPartySignInButtons';
 import PageSpinner from '../components/PageSpinner';
 import useToaster from '../hooks/toaster/useToaster';
@@ -119,9 +119,9 @@ const Login: FC = () => {
         health.data?.auth.oneLogin.enabled;
     const ssoLogins = ssoAvailable && (
         <>
-            {health.data?.auth.google.oauth2ClientId && <GoogleLoginButton />}
-            {health.data?.auth.okta.enabled && <OktaLoginButton />}
-            {health.data?.auth.oneLogin.enabled && <OneLoginLoginButton />}
+            {health.data?.auth.google.oauth2ClientId && <GoogleSignInButton />}
+            {health.data?.auth.okta.enabled && <OktaSignInButton />}
+            {health.data?.auth.oneLogin.enabled && <OneLoginSignInButton />}
         </>
     );
 

@@ -3,7 +3,7 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import { useFlashMessages } from '../../../hooks/useFlashMessages';
 import { useApp } from '../../../providers/AppProvider';
 
-export const GoogleLoginButton: React.FC<{ inviteCode?: string }> = ({
+export const GoogleSignInButton: React.FC<{ inviteCode?: string }> = ({
     inviteCode,
 }) => {
     const { health } = useApp();
@@ -45,7 +45,7 @@ export const GoogleLoginButton: React.FC<{ inviteCode?: string }> = ({
     );
 };
 
-export const OktaLoginButton: React.FC<{ inviteCode?: string }> = ({
+export const OktaSignInButton: React.FC<{ inviteCode?: string }> = ({
     inviteCode,
 }) => {
     const { health } = useApp();
@@ -88,7 +88,7 @@ export const OktaLoginButton: React.FC<{ inviteCode?: string }> = ({
         </Button>
     );
 };
-export const OneLoginLoginButton: React.FC<{ inviteCode?: string }> = ({
+export const OneLoginSignInButton: React.FC<{ inviteCode?: string }> = ({
     inviteCode,
 }) => {
     const { health } = useApp();

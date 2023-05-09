@@ -12,9 +12,9 @@ import { Redirect, useLocation, useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import Page from '../components/common/Page/Page';
 import {
-    GoogleLoginButton,
-    OktaLoginButton,
-    OneLoginLoginButton,
+    GoogleSignInButton,
+    OktaSignInButton,
+    OneLoginSignInButton,
 } from '../components/common/ThirdPartySignInButtons';
 import PageSpinner from '../components/PageSpinner';
 import CreateUserForm from '../components/RegisterForms/CreateUserForm';
@@ -145,13 +145,13 @@ const Invite: FC = () => {
     const ssoLogins = ssoAvailable && (
         <>
             {health.data?.auth.google.oauth2ClientId && (
-                <GoogleLoginButton inviteCode={inviteCode} />
+                <GoogleSignInButton inviteCode={inviteCode} />
             )}
             {health.data?.auth.okta.enabled && (
-                <OktaLoginButton inviteCode={inviteCode} />
+                <OktaSignInButton inviteCode={inviteCode} />
             )}
             {health.data?.auth.oneLogin.enabled && (
-                <OneLoginLoginButton inviteCode={inviteCode} />
+                <OneLoginSignInButton inviteCode={inviteCode} />
             )}
         </>
     );
