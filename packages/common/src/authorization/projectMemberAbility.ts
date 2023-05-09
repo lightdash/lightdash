@@ -32,7 +32,6 @@ export const projectMemberAbilities: Record<
     },
     interactive_viewer(member, { can }) {
         projectMemberAbilities.viewer(member, { can });
-
         can('view', 'UnderlyingData', {
             projectUuid: member.projectUuid,
         });

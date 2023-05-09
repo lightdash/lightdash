@@ -240,8 +240,8 @@ export class SavedChartService {
 
         if (
             user.ability.cannot(
-                'update',
-                subject('Project', { organizationUuid, projectUuid }),
+                'manage',
+                subject('PinnedItems', { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();

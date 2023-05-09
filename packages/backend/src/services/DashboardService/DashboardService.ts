@@ -370,8 +370,8 @@ export class DashboardService {
             existingDashboard;
         if (
             user.ability.cannot(
-                'update',
-                subject('Project', { projectUuid, organizationUuid }),
+                'manage',
+                subject('PinnedItems', { projectUuid, organizationUuid }),
             )
         ) {
             throw new ForbiddenError();
