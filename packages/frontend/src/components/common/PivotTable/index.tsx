@@ -147,8 +147,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                         const isEmpty = !titleField?.fieldId;
 
                                         const isHeaderTitle =
-                                            titleField?.titleDirection ===
-                                            'header';
+                                            titleField?.direction === 'header';
 
                                         return (
                                             <TitleCell

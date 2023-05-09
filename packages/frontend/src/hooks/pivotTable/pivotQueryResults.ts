@@ -337,7 +337,7 @@ export const pivotQueryResults = ({
         if (headerValueType.type === FieldType.DIMENSION) {
             titleFields[headerIndex][indexValueTypes.length - 1] = {
                 fieldId: headerValueType.fieldId,
-                titleDirection: 'header',
+                direction: 'header',
             };
         }
     });
@@ -345,7 +345,7 @@ export const pivotQueryResults = ({
         if (indexValueType.type === FieldType.DIMENSION) {
             titleFields[headerValueTypes.length - 1][indexIndex] = {
                 fieldId: indexValueType.fieldId,
-                titleDirection: 'index',
+                direction: 'index',
             };
         }
     });

@@ -21,7 +21,7 @@ type FieldValue =
 
 type TitleField = null | {
     fieldId: string;
-    titleDirection: 'index' | 'header';
+    direction: 'index' | 'header';
 };
 
 type TotalField = null | {
