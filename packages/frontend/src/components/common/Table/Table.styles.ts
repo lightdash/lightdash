@@ -144,17 +144,18 @@ export const Td = styled.td<{
     $fontColor?: string;
     $hasData: boolean;
     $isLargeText: boolean;
+    $isMinimal: boolean;
 }>`
     max-width: 300px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 
-    ${({ $isLargeText, $isSelected }) =>
+    ${({ $isLargeText, $isSelected, $isMinimal }) =>
         $isLargeText
             ? `
                 min-width: 300px;
-                white-space: ${$isSelected ? 'normal' : 'nowrap'};
+                white-space: ${$isSelected || $isMinimal ? 'normal' : 'nowrap'};
                 :hover {
                     white-space: normal;
                 }
