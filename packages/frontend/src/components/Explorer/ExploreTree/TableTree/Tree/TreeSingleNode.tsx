@@ -83,7 +83,7 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                         multiline
                         sx={{ whiteSpace: 'normal' }}
                         disabled={!item.description}
-                        label={item.description?.repeat(10)}
+                        label={item.description}
                         position="top-start"
                         withinPortal
                         maw={700}
