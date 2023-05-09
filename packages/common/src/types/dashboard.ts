@@ -97,6 +97,7 @@ export type Dashboard = {
     views: number;
     firstViewedAt: Date | string | null;
     pinnedListUuid: string | null;
+    pinnedListOrder: number | null;
 };
 
 export type DashboardBasicDetails = Pick<
@@ -112,6 +113,7 @@ export type DashboardBasicDetails = Pick<
     | 'views'
     | 'firstViewedAt'
     | 'pinnedListUuid'
+    | 'pinnedListOrder'
 >;
 
 export type DashboardUnversionedFields = Pick<

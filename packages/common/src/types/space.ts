@@ -12,6 +12,7 @@ export type Space = {
     dashboards: DashboardBasicDetails[];
     access: SpaceShare[];
     pinnedListUuid: string | null;
+    pinnedListOrder: number | null;
 };
 
 export type SpaceSummary = Pick<

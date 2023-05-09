@@ -1,10 +1,16 @@
-import { ApiErrorPayload, ApiPinnedItems } from '@lightdash/common';
+import {
+    ApiErrorPayload,
+    ApiPinnedItems,
+    UpdatePinnedItemOrder,
+} from '@lightdash/common';
 import express from 'express';
 import {
+    Body,
     Controller,
     Get,
     Middlewares,
     OperationId,
+    Patch,
     Path,
     Request,
     Response,
@@ -12,7 +18,11 @@ import {
     SuccessResponse,
 } from 'tsoa';
 import { pinningService } from '../services/services';
-import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
+import {
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    unauthorisedInDemo,
+} from './authentication';
 
 @Route('/api/v1/projects/{projectUuid}/pinned-lists')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -36,6 +46,41 @@ export class PinningController extends Controller {
             req.user!,
             projectUuid,
             pinnedListUuid,
+        );
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: pinnedItems,
+        };
+    }
+
+    /**
+     * Update pinned items order
+     * @param projectUuid project uuid
+     * @param pinnedListUuid the list uuid for the pinned items
+     * @param req express request
+     * @param body the new order of the pinned items
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('{pinnedListUuid}/items/order')
+    @OperationId('updatePinnedItemsOrder')
+    async post(
+        @Path() projectUuid: string,
+        @Path() pinnedListUuid: string,
+        @Request() req: express.Request,
+        @Body()
+        body: Array<UpdatePinnedItemOrder>,
+    ): Promise<ApiPinnedItems> {
+        const pinnedItems = await pinningService.updatePinnedItemsOrder(
+            req.user!,
+            projectUuid,
+            pinnedListUuid,
+            body,
         );
         this.setStatus(200);
         return {

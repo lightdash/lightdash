@@ -2,7 +2,7 @@ export type UserWithCount = {
     userUuid: string;
     firstName: string;
     lastName: string;
-    count: number;
+    count: number | undefined;
 };
 
 export type UserActivity = {

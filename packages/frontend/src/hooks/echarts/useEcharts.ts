@@ -520,6 +520,7 @@ const getPivotSeries = ({
         },
         '',
     );
+
     return {
         ...series,
         emphasis: {

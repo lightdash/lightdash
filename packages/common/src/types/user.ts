@@ -1,6 +1,5 @@
 import { AbilityBuilder } from '@casl/ability';
 import { MemberAbility } from '../authorization/types';
-import { EmailStatusExpiring } from './email';
 import { OrganizationMemberRole } from './organizationMemberProfile';
 
 export interface LightdashUser {

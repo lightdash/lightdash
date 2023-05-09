@@ -1,10 +1,9 @@
 import { subject } from '@casl/ability';
 import {
     ForbiddenError,
-    ResourceViewChartItem,
-    ResourceViewDashboardItem,
-    ResourceViewSpaceItem,
+    PinnedItems,
     SessionUser,
+    UpdatePinnedItemOrder,
 } from '@lightdash/common';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
@@ -59,11 +58,7 @@ export class PinningService {
         user: SessionUser,
         projectUuid: string,
         pinnedListUuid: string,
-    ): Promise<{
-        spaces: ResourceViewSpaceItem[];
-        charts: ResourceViewChartItem[];
-        dashboards: ResourceViewDashboardItem[];
-    }> {
+    ): Promise<PinnedItems> {
         const project = await this.projectModel.get(projectUuid);
         if (user.ability.cannot('view', subject('Project', project))) {
             throw new ForbiddenError();
@@ -75,7 +70,7 @@ export class PinningService {
             .map((space) => space.uuid);
 
         if (allowedSpaceUuids.length === 0) {
-            return { spaces: [], charts: [], dashboards: [] };
+            return [];
         }
         const allPinnedSpaces =
             await this.resourceViewItemModel.getAllSpacesByPinnedListUuid(
@@ -93,10 +88,27 @@ export class PinningService {
                 allowedSpaceUuids,
             );
 
-        return {
-            spaces: allowedPinnedSpaces,
-            charts: allowedCharts,
-            dashboards: allowedDashboards,
-        };
+        return [...allowedPinnedSpaces, ...allowedCharts, ...allowedDashboards];
+    }
+
+    async updatePinnedItemsOrder(
+        user: SessionUser,
+        projectUuid: string,
+        pinnedListUuid: string,
+        itemsOrder: Array<UpdatePinnedItemOrder>,
+    ): Promise<PinnedItems> {
+        const project = await this.projectModel.get(projectUuid);
+        if (user.ability.cannot('manage', subject('Project', project))) {
+            throw new ForbiddenError();
+        }
+        if (project.pinnedListUuid !== pinnedListUuid) {
+            throw new ForbiddenError('Pinned list does not belong to project');
+        }
+        await this.pinnedListModel.updatePinnedItemsOrder(
+            projectUuid,
+            pinnedListUuid,
+            itemsOrder,
+        );
+        return this.getPinnedItems(user, projectUuid, pinnedListUuid);
     }
 }

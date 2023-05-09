@@ -29,7 +29,7 @@ type DbUserWithCount = {
     user_uuid: string;
     first_name: string;
     last_name: string;
-    count: number;
+    count: number | null;
 };
 export class AnalyticsModel {
     private database: Knex;
@@ -121,8 +121,9 @@ export class AnalyticsModel {
             userUuid: userData.user_uuid,
             firstName: userData.first_name,
             lastName: userData.last_name,
-            count: userData.count,
+            count: userData.count || undefined,
         });
+
         return {
             numberUsers: usersInProject.length,
             numberInteractiveViewers: usersInProject.filter(

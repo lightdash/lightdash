@@ -55,6 +55,7 @@ export const publicSpace: Space = {
     access: [],
     name: '',
     pinnedListUuid: null,
+    pinnedListOrder: null,
 };
 export const privateSpace: Space = {
     ...publicSpace,
@@ -89,6 +90,7 @@ export const dashboard: Dashboard = {
     spaceUuid: 'spaceUuid',
     spaceName: 'space name',
     pinnedListUuid: null,
+    pinnedListOrder: null,
     views: 1,
     firstViewedAt: new Date(1),
 };
@@ -103,6 +105,7 @@ export const dashboardsDetails: DashboardBasicDetails[] = [
         updatedAt: dashboard.updatedAt,
         spaceUuid: 'spaceUuid',
         pinnedListUuid: null,
+        pinnedListOrder: null,
         views: 1,
         firstViewedAt: new Date(1),
     },

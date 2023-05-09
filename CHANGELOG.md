@@ -1,3 +1,45 @@
+# [0.538.0](https://github.com/lightdash/lightdash/compare/0.537.1...0.538.0) (2023-05-05)
+
+
+### Features
+
+* migrate delete token modal to mantine ([#5371](https://github.com/lightdash/lightdash/issues/5371)) ([b38906b](https://github.com/lightdash/lightdash/commit/b38906b9e067e3f678b8279d8ab1c741bdb82a03))
+
+## [0.537.1](https://github.com/lightdash/lightdash/compare/0.537.0...0.537.1) (2023-05-05)
+
+
+### Bug Fixes
+
+* fix new smooth grouped series ([#5353](https://github.com/lightdash/lightdash/issues/5353)) ([64c74e6](https://github.com/lightdash/lightdash/commit/64c74e67e76aa884511f9222d9b2cd9311e08d7e))
+
+# [0.537.0](https://github.com/lightdash/lightdash/compare/0.536.0...0.537.0) (2023-05-05)
+
+
+### Features
+
+* migrate access tokens list to mantine table ([#5358](https://github.com/lightdash/lightdash/issues/5358)) ([0aa1a4f](https://github.com/lightdash/lightdash/commit/0aa1a4f57ab71e1cd6da86067684d350e4c13d90))
+
+# [0.536.0](https://github.com/lightdash/lightdash/compare/0.535.2...0.536.0) (2023-05-05)
+
+
+### Features
+
+* drag and drop pinned items ([#5345](https://github.com/lightdash/lightdash/issues/5345)) ([c63b5b1](https://github.com/lightdash/lightdash/commit/c63b5b15dac10b2521b150e0a70aadf6d25010b7))
+
+## [0.535.2](https://github.com/lightdash/lightdash/compare/0.535.1...0.535.2) (2023-05-05)
+
+
+### Bug Fixes
+
+* check space access in charts api ([#5372](https://github.com/lightdash/lightdash/issues/5372)) ([29b9e9e](https://github.com/lightdash/lightdash/commit/29b9e9e235950a819951a57ec75057e8b0b9ed33))
+
+## [0.535.1](https://github.com/lightdash/lightdash/compare/0.535.0...0.535.1) (2023-05-05)
+
+
+### Bug Fixes
+
+* no queries analytics ([#5346](https://github.com/lightdash/lightdash/issues/5346)) ([f1e4222](https://github.com/lightdash/lightdash/commit/f1e42222baa1d70245fbf39a18505c6c026b4514))
+
 # [0.535.0](https://github.com/lightdash/lightdash/compare/0.534.1...0.535.0) (2023-05-04)
 
 
