@@ -79,7 +79,7 @@ const Home: FC = () => {
                         />
                         <PinnedItemsPanel
                             data={pinnedItems}
-                            projectUuid={params.projectUuid}
+                            projectUuid={project.data.projectUuid}
                             pinnedListUuid={project.data.pinnedListUuid || ''}
                             organizationUuid={project.data.organizationUuid}
                         />
