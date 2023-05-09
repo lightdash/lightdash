@@ -290,7 +290,7 @@ const UserActivity: FC = () => {
                             <tr>
                                 <th>First Name</th>
                                 <th>Last Name</th>
-                                <th>Days since last login</th>
+                                <th>Days since last query</th>
                             </tr>
                         </thead>
                         {showTableBodyWithUsers(

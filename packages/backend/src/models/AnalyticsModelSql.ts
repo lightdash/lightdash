@@ -92,7 +92,7 @@ select
   users.user_uuid, 
   MIN(users.first_name) as first_name, 
   MIN(users.last_name) as last_name,
-  COALESCE(MAX(analytics_chart_views.timestamp), MAX(users.created_at) )  as count 
+  EXTRACT(DAY FROM  NOW() - COALESCE(MAX(analytics_chart_views.timestamp), MAX(users.created_at) ))   as count 
 from users
   LEFT JOIN analytics_chart_views ON users.user_uuid = analytics_chart_views.user_uuid
   left join saved_queries sq on sq.saved_query_uuid = analytics_chart_views.chart_uuid
