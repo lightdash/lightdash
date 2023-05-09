@@ -213,29 +213,28 @@ const PivotTable: FC<PivotTableProps> = ({
 
                                 {/* render the total label */}
                                 {data.pivotConfig.rowTotals
-                                    ? data.rowTotalHeaders?.[
-                                          headerRowIndex
-                                      ].map((totalLabel, headerColIndex) =>
-                                          totalLabel ? (
-                                              <HeaderCell
-                                                  key={`header-total-${headerRowIndex}-${headerColIndex}`}
-                                                  className={cellCx(
-                                                      cellStyles.root,
-                                                      cellStyles.header,
-                                                  )}
-                                              >
-                                                  {totalLabel.fieldId ??
-                                                      'Total'}
-                                              </HeaderCell>
-                                          ) : (
-                                              <th
-                                                  key={`header-total-${headerRowIndex}-${headerColIndex}`}
-                                                  className={cellCx(
-                                                      cellStyles.root,
-                                                      cellStyles.rowNumber,
-                                                  )}
-                                              />
-                                          ),
+                                    ? data.rowTotalFields?.[headerRowIndex].map(
+                                          (totalLabel, headerColIndex) =>
+                                              totalLabel ? (
+                                                  <HeaderCell
+                                                      key={`header-total-${headerRowIndex}-${headerColIndex}`}
+                                                      className={cellCx(
+                                                          cellStyles.root,
+                                                          cellStyles.header,
+                                                      )}
+                                                  >
+                                                      {totalLabel.fieldId ??
+                                                          'Total'}
+                                                  </HeaderCell>
+                                              ) : (
+                                                  <th
+                                                      key={`header-total-${headerRowIndex}-${headerColIndex}`}
+                                                      className={cellCx(
+                                                          cellStyles.root,
+                                                          cellStyles.rowNumber,
+                                                      )}
+                                                  />
+                                              ),
                                       )
                                     : null}
                             </>
@@ -366,7 +365,7 @@ const PivotTable: FC<PivotTableProps> = ({
                             )}
 
                             {/* render the total label */}
-                            {data.columnTotalHeaders?.[totalRowIndex].map(
+                            {data.columnTotalFields?.[totalRowIndex].map(
                                 (totalLabel, totalColIndex) =>
                                     totalLabel ? (
                                         <HeaderCell

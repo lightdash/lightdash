@@ -44,8 +44,8 @@ export type PivotData = {
 
     titleFields: TitleField[][];
 
-    rowTotalHeaders?: TotalField[][];
-    columnTotalHeaders?: TotalField[][];
+    rowTotalFields?: TotalField[][];
+    columnTotalFields?: TotalField[][];
 
     rowTotals?: TotalValue[][];
     columnTotals?: TotalValue[][];

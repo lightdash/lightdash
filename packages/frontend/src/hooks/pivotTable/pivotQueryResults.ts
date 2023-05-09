@@ -276,17 +276,17 @@ export const pivotQueryResults = ({
     }
 
     // compute row totals
-    let rowTotalHeaders: PivotData['rowTotalHeaders'];
+    let rowTotalFields: PivotData['rowTotalFields'];
     let rowTotals: PivotData['rowTotals'];
     if (pivotConfig.rowTotals && pivotConfig.metricsAsRows) {
         const N_TOTAL_COLS = 1;
         const N_TOTAL_ROWS = headerValues.length;
 
-        rowTotalHeaders = create2DArray(N_TOTAL_ROWS, N_TOTAL_COLS);
+        rowTotalFields = create2DArray(N_TOTAL_ROWS, N_TOTAL_COLS);
         rowTotals = create2DArray(N_DATA_ROWS, N_TOTAL_COLS);
 
         // set the header last cell as the title total
-        rowTotalHeaders[N_TOTAL_ROWS - 1][N_TOTAL_COLS - 1] = {
+        rowTotalFields[N_TOTAL_ROWS - 1][N_TOTAL_COLS - 1] = {
             fieldId: undefined,
         };
 
@@ -300,17 +300,17 @@ export const pivotQueryResults = ({
         );
     }
 
-    let columnTotalHeaders: PivotData['columnTotalHeaders'];
+    let columnTotalFields: PivotData['columnTotalFields'];
     let columnTotals: PivotData['columnTotals'];
     if (pivotConfig.columnTotals && pivotConfig.metricsAsRows) {
         const N_TOTAL_ROWS = metrics.length;
         const N_TOTAL_COLS = indexValueTypes.length;
 
-        columnTotalHeaders = create2DArray(N_TOTAL_ROWS, N_TOTAL_COLS);
+        columnTotalFields = create2DArray(N_TOTAL_ROWS, N_TOTAL_COLS);
         columnTotals = create2DArray(N_TOTAL_ROWS, N_DATA_COLUMNS);
 
         metrics.forEach((metric, metricIndex) => {
-            columnTotalHeaders![metricIndex][N_TOTAL_COLS - 1] = {
+            columnTotalFields![metricIndex][N_TOTAL_COLS - 1] = {
                 fieldId: metric.fieldId,
             };
         });
@@ -361,8 +361,8 @@ export const pivotQueryResults = ({
         dataColumnCount: N_DATA_COLUMNS,
         dataValues,
 
-        rowTotalHeaders,
-        columnTotalHeaders,
+        rowTotalFields,
+        columnTotalFields,
         rowTotals,
         columnTotals,
 

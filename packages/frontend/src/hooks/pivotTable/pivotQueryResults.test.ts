@@ -394,8 +394,8 @@ describe('Should pivot data', () => {
                     { fieldId: 'site', titleDirection: 'header' },
                 ],
             ],
-            columnTotalHeaders: undefined,
-            rowTotalHeaders: [[{ fieldId: undefined }]],
+            columnTotalFields: undefined,
+            rowTotalFields: [[{ fieldId: undefined }]],
             columnTotals: undefined,
             rowTotals: [[8], [17], [14], [13], [11], [1]],
         };
