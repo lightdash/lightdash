@@ -143,7 +143,25 @@ export const Td = styled.td<{
     $backgroundColor?: string;
     $fontColor?: string;
     $hasData: boolean;
+    $isLargeText: boolean;
+    $isMinimal: boolean;
 }>`
+    max-width: 300px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    ${({ $isLargeText, $isSelected, $isMinimal }) =>
+        $isLargeText
+            ? `
+                min-width: 300px;
+                white-space: ${$isSelected || $isMinimal ? 'normal' : 'nowrap'};
+                :hover {
+                    white-space: normal;
+                }
+            `
+            : ''}
+
     ${CellStyles}
 
     ${({ $isInteractive, $hasData }) =>

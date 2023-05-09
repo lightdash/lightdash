@@ -42,7 +42,7 @@ const CellContextMenu: FC<
     const fieldValues = mapValues(cell.row.original, (v) => v?.value) || {};
 
     return (
-        <Menu>
+        <Menu style={{ maxWidth: 500 }}>
             {!!value.raw && isField(item) && (
                 <UrlMenuItems
                     urls={item.urls}

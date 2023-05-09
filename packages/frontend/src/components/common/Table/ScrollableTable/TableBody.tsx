@@ -44,6 +44,9 @@ interface TableRowProps {
     minimal?: boolean;
 }
 
+// arbitrary number that is usually smaller than the 300px max width of the cell
+const SMALL_TEXT_LENGTH = 35;
+
 const TableRow: FC<TableRowProps> = ({
     row,
     index,
@@ -96,6 +99,10 @@ const TableRow: FC<TableRowProps> = ({
                         cellContextMenu={cellContextMenu}
                         copying={cell.id === copyingCellId}
                         selected={cell.id === selectedCell?.id}
+                        isLargeText={
+                            (cellValue?.value.formatted || '').length >
+                            SMALL_TEXT_LENGTH
+                        }
                         tooltipContent={tooltipContent}
                         onSelect={() => onSelectCell?.(cell)}
                         onDeselect={() => onSelectCell?.(undefined)}
