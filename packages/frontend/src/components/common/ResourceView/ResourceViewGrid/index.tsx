@@ -1,8 +1,12 @@
-import { assertUnreachable, ResourceViewItemType } from '@lightdash/common';
+import {
+    assertUnreachable,
+    ResourceViewItem,
+    ResourceViewItemType,
+} from '@lightdash/common';
 import { Anchor, SimpleGrid, Stack, Text } from '@mantine/core';
 import produce from 'immer';
 import orderBy from 'lodash/orderBy';
-import { FC, useMemo, useState } from 'react';
+import { FC, useMemo } from 'react';
 import {
     DragDropContext,
     Draggable,
@@ -70,15 +74,15 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
 
     // this part is strictly for Pinned Items Panel
     const { projectUuid, pinnedListUuid } = pinnedItemsProps;
-    const [draggableItems, setDraggableItems] = useState(groupedItems);
 
-    const pinnedItemsOrder = (data: typeof draggableItems) =>
+    // this method converts groupedItems to the format required by the API
+    const pinnedItemsOrder = (data: typeof groupedItems) =>
         data.flatMap((group) =>
             group.items.map((item, index) => {
                 return {
                     type: item.type,
-                    data: { uuid: item.data.uuid, pinnedListOrder: index },
-                };
+                    data: { ...item.data, pinnedListOrder: index },
+                } as ResourceViewItem;
             }),
         );
 
@@ -91,7 +95,7 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
         if (drop.index === drag.index) return;
 
         // using immer to update state to maintain immutability
-        const newDraggableItems = produce(draggableItems, (draft) => {
+        const newDraggableItems = produce(groupedItems, (draft) => {
             // finding the group where the item was dragged from (spaces / charts & dashs)
             const draggedItems = draft.find(
                 (item) => item.name === draggedItemId,
@@ -102,15 +106,14 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
             // adding it to its new location
             draggedItems?.items.splice(drop.index, 0, ...draggedItem);
         });
-        setDraggableItems(newDraggableItems);
         reorderItems(pinnedItemsOrder(newDraggableItems));
     };
 
     return (
         <Stack spacing="xl" p="lg">
-            {draggableItems.map((group) => (
+            {groupedItems.map((group) => (
                 <Stack spacing={5} key={group.name}>
-                    {draggableItems.length > 1 && (
+                    {groupedItems.length > 1 && (
                         <Text
                             transform="uppercase"
                             fz="xs"

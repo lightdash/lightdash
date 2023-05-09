@@ -39,19 +39,26 @@ export const usePinnedItems = (
 export const useReorder = (projectUuid: string, pinnedlistUuid: string) => {
     const queryClient = useQueryClient();
     const { showToastError } = useToaster();
-    return useMutation<PinnedItems, ApiError, UpdatePinnedItemOrder[]>(
-        (pinnedItemsOrder: UpdatePinnedItemOrder[]) =>
-            updatePinnedItemsOrder(
+    return useMutation<PinnedItems, ApiError, PinnedItems>(
+        (pinnedItems) => {
+            queryClient.setQueryData(
+                ['pinned_items', projectUuid, pinnedlistUuid],
+                pinnedItems,
+            );
+            return updatePinnedItemsOrder(
                 projectUuid,
                 pinnedlistUuid,
-                pinnedItemsOrder,
-            ),
+                pinnedItems.map((pinnedItem) => ({
+                    type: pinnedItem.type,
+                    data: {
+                        uuid: pinnedItem.data.uuid,
+                        pinnedListOrder: pinnedItem.data.pinnedListOrder,
+                    },
+                })),
+            );
+        },
         {
-            onSuccess: async (data) => {
-                queryClient.setQueryData(
-                    ['pinned_items', projectUuid, pinnedlistUuid],
-                    data,
-                );
+            onSuccess: async () => {
                 await queryClient.invalidateQueries([
                     'pinned_items',
                     projectUuid,
