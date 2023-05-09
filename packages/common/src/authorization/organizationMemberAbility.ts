@@ -24,7 +24,7 @@ export const organizationMemberAbilities: Record<
             createdByUserUuid: member.userUuid,
         });
         can('view', 'PinnedItems', {
-            projectUuid: member.organizationUuid,
+            organizationUuid: member.organizationUuid,
         });
     },
     viewer(member, { can }) {
@@ -44,9 +44,6 @@ export const organizationMemberAbilities: Record<
         can('view', 'Organization', {
             organizationUuid: member.organizationUuid,
         });
-        can('view', 'PinnedItems', {
-            projectUuid: member.organizationUuid,
-        });
     },
     interactive_viewer(member, { can }) {
         organizationMemberAbilities.viewer(member, { can });
@@ -64,9 +61,6 @@ export const organizationMemberAbilities: Record<
         can('manage', 'Explore', {
             organizationUuid: member.organizationUuid,
         });
-        can('view', 'PinnedItems', {
-            projectUuid: member.organizationUuid,
-        });
     },
     editor(member, { can }) {
         organizationMemberAbilities.interactive_viewer(member, { can });
@@ -81,7 +75,7 @@ export const organizationMemberAbilities: Record<
         });
         can('manage', 'Job');
         can('manage', 'PinnedItems', {
-            projectUuid: member.organizationUuid,
+            organizationUuid: member.organizationUuid,
         });
     },
     developer(member, { can }) {
@@ -108,7 +102,7 @@ export const organizationMemberAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'PinnedItems', {
-            projectUuid: member.organizationUuid,
+            organizationUuid: member.organizationUuid,
         });
     },
 };

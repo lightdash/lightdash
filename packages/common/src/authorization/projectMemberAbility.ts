@@ -41,9 +41,6 @@ export const projectMemberAbilities: Record<
         can('manage', 'Explore', {
             projectUuid: member.projectUuid,
         });
-        can('view', 'PinnedItems', {
-            projectUuid: member.projectUuid,
-        });
     },
     editor(member, { can }) {
         projectMemberAbilities.interactive_viewer(member, { can });
@@ -70,9 +67,6 @@ export const projectMemberAbilities: Record<
     admin(member, { can }) {
         projectMemberAbilities.developer(member, { can });
         can('manage', 'Project', {
-            projectUuid: member.projectUuid,
-        });
-        can('manage', 'PinnedItems', {
             projectUuid: member.projectUuid,
         });
     },
