@@ -98,6 +98,7 @@ const Spaces: FC = () => {
                                 </Button>
                             ) : undefined,
                     }}
+                    pinnedItemsProps={{ projectUuid, pinnedListUuid: '' }}
                 />
             </Stack>
 
