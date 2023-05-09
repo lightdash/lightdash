@@ -25,30 +25,25 @@ const mockStreamRow = () =>
         },
     });
 
-/*
-jest.mock('./BigqueryWarehouseClient', () => {
-    return jest.fn().mockImplementationOnce(() => {
-        return {
-            getQuerySchema: jest.fn(() => expectedFields)
-        }
-           
-    });
-}); */
-
 describe('BigqueryWarehouseClient', () => {
     it.only('expect query rows with mapped values', async () => {
         const warehouse = new BigqueryWarehouseClient(credentials);
 
         (warehouse.client.createQueryStream as jest.Mock) =
             jest.fn(mockStreamRow);
-        // (warehouse.client.createQueryJob  as jest.Mock)= jest.fn( mockStreamRow)
+        (warehouse.client.createQueryJob as jest.Mock) = jest.fn(
+            () => createJobResponse,
+        );
 
         const results = await warehouse.runQuery('fake sql');
 
-        // expect(results.fields).toEqual(expectedFields);
+        expect(results.fields).toEqual(expectedFields);
         expect(results.rows[0]).toEqual(expectedRow);
         expect(
             warehouse.client.createQueryStream as jest.Mock,
+        ).toHaveBeenCalledTimes(1);
+        expect(
+            warehouse.client.createQueryJob as jest.Mock,
         ).toHaveBeenCalledTimes(1);
     });
     it('expect schema with bigquery types mapped to dimension types', async () => {
