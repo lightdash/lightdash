@@ -58,7 +58,7 @@ export const getDatasetResponse = {
     table: jest.fn(() => getTableResponse),
 };
 
-const rows: Record<string, any>[] = [
+export const rows: Record<string, any>[] = [
     {
         myStringColumn: 'string value',
         myNumberColumn: 100,

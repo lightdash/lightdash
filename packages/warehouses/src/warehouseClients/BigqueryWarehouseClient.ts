@@ -103,49 +103,6 @@ const parseRow = (row: Record<string, any>[]) =>
     Object.fromEntries(
         Object.entries(row).map(([name, value]) => [name, parseCell(value)]),
     );
-/*     const CHUNK_SIZE = 50000;
-    const readStream = Readable.from(rows, {
-        objectMode: true,
-        highWaterMark: CHUNK_SIZE,
-    });
-
-    let parsedRows = []
-    const writeStream = fs.createWriteStream(`/tmp/${fileId}`);
-
-    const rowTransformer = new Transform({
-        objectMode: true,
-        transform(
-            row: any,
-            encoding: BufferEncoding,
-            callback: TransformCallback,
-        ) {
-            callback(
-                null,
-                Object.fromEntries(
-                    Object.entries(row).map(([name, value]) => [
-                        name,
-                        parseCell(value),
-                    ]),
-                ),
-            );
-        },
-    });
-
-    const writePromise = new Promise<string>((resolve, reject) => {
-        pipeline(
-            readStream,
-            rowTransformer,
-            writeStream,
-            async (err) => {
-                if (err) {
-                    reject(err);
-                }
-                resolve(fileId);
-            },
-        );
-    });
-
-    return writePromise; */
 
 export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryCredentials> {
     client: BigQuery;
@@ -166,7 +123,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         }
     }
 
-    private async getQuerySchema(
+    async getQuerySchema(
         query: string,
     ): Promise<Record<string, { type: DimensionType }>> {
         const [job] = await this.client.createQueryJob({
