@@ -5,7 +5,6 @@ import {
     formatValue,
     isField,
     PivotData,
-    PTTotalValue,
     ResultValue,
     TableCalculation,
 } from '@lightdash/common';
@@ -60,11 +59,7 @@ const PivotTable: FC<PivotTableProps> = ({
     );
 
     const getRowTotalItemFromAxis = useCallback(
-        (
-            total: PTTotalValue | null,
-            rowIndex: number,
-            _colIndex: number,
-        ): ResultValue => {
+        (total: unknown, rowIndex: number, _colIndex: number): ResultValue => {
             if (!data.pivotConfig.metricsAsRows)
                 throw new Error('not implemented');
 
@@ -74,7 +69,7 @@ const PivotTable: FC<PivotTableProps> = ({
             const item = getField(value.fieldId);
 
             const formattedValue = formatValue(
-                total?.raw,
+                total,
                 isField(item) ? item : undefined,
             );
 
@@ -101,12 +96,10 @@ const PivotTable: FC<PivotTableProps> = ({
                 ...(data.indexValues[rowIndex] ?? []),
                 // get the header values for this column
                 ...(data.headerValues.map((hv) => hv[colIndex]) ?? []),
-            ]
-                .filter((iv) => iv.type === 'value')
-                .reduce<Record<string, ResultValue>>((acc, iv) => {
-                    if (!iv.value) return acc;
-                    return { ...acc, [iv.fieldId]: iv.value };
-                }, initialData);
+            ].reduce<Record<string, ResultValue>>((acc, iv) => {
+                if (iv.type !== 'value') return acc;
+                return { ...acc, [iv.fieldId]: iv.value };
+            }, initialData);
         },
         [data.indexValues, data.headerValues, data.dataValues, getItemFromAxis],
     );
@@ -231,9 +224,8 @@ const PivotTable: FC<PivotTableProps> = ({
                                                       cellStyles.header,
                                                   )}
                                               >
-                                                  {totalLabel.type === 'label'
-                                                      ? totalLabel.fieldId
-                                                      : 'Total'}
+                                                  {totalLabel.fieldId ??
+                                                      'Total'}
                                               </HeaderCell>
                                           ) : (
                                               <th
@@ -361,7 +353,7 @@ const PivotTable: FC<PivotTableProps> = ({
             {/* TODO: column totals */}
             {false && data.pivotConfig.columnTotals ? (
                 <tfoot>
-                    {data.columnTotals?.map((row, totalRowIndex) => (
+                    {data.columnTotals?.map((_row, totalRowIndex) => (
                         <tr key={`column-total-${totalRowIndex}`}>
                             {/* shows empty cell if row numbers are visible */}
                             {hideRowNumbers ? null : (
@@ -379,20 +371,13 @@ const PivotTable: FC<PivotTableProps> = ({
                                     totalLabel ? (
                                         <HeaderCell
                                             key={`footer-total-${totalRowIndex}-${totalColIndex}`}
-                                            textAlign={
-                                                totalLabel.titleDirection ===
-                                                'index'
-                                                    ? 'right'
-                                                    : 'left'
-                                            }
+                                            textAlign="right"
                                             className={cellCx(
                                                 cellStyles.root,
                                                 cellStyles.header,
                                             )}
                                         >
-                                            {totalLabel.type === 'label'
-                                                ? totalLabel.fieldId
-                                                : 'Total'}
+                                            {totalLabel.fieldId ?? 'Total'}
                                         </HeaderCell>
                                     ) : (
                                         <th

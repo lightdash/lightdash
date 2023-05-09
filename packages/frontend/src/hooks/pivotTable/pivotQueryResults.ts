@@ -3,8 +3,6 @@ import {
     MetricQuery,
     PivotConfig,
     PivotData,
-    PTFieldLabel,
-    PTValue,
     ResultRow,
     ResultValue,
 } from '@lightdash/common';
@@ -34,6 +32,13 @@ const create2DArray = <T>(
     return Array.from({ length: rows }, () => {
         return Array.from({ length: columns }, () => value);
     });
+};
+
+const parseNumericValue = (value: ResultValue | null): number => {
+    if (value === null) return 0;
+
+    const parsedVal = Number(value.raw);
+    return Number.isNaN(parsedVal) ? 0 : parsedVal;
 };
 
 const setIndexByKey = (
@@ -174,7 +179,7 @@ export const pivotQueryResults = ({
             const metric = metrics[nMetric];
 
             const indexRowValues = indexDimensions
-                .map<PTFieldLabel | PTValue>((fieldId) => ({
+                .map<PivotData['indexValues'][number][number]>((fieldId) => ({
                     type: 'value',
                     fieldId: fieldId,
                     value: row[fieldId].value,
@@ -186,7 +191,7 @@ export const pivotQueryResults = ({
                 );
 
             const headerRowValues = headerDimensions
-                .map<PTFieldLabel | PTValue>((fieldId) => ({
+                .map<PivotData['headerValues'][number][number]>((fieldId) => ({
                     type: 'value',
                     fieldId: fieldId,
                     value: row[fieldId].value,
@@ -282,21 +287,17 @@ export const pivotQueryResults = ({
 
         // set the header last cell as the title total
         rowTotalHeaders[N_TOTAL_ROWS - 1][N_TOTAL_COLS - 1] = {
-            titleDirection: 'header',
-            type: 'total',
+            fieldId: undefined,
         };
 
-        rowTotals = rowTotals.map((row, rowIndex) => {
-            return row.map(() => {
-                const sum = dataValues[rowIndex].reduce((acc, value) => {
-                    const parsedVal = Number(value?.raw);
-                    const finalVal = Number.isNaN(parsedVal) ? 0 : parsedVal;
-                    return acc + finalVal;
-                }, 0);
-
-                return { raw: sum };
-            });
-        });
+        rowTotals = rowTotals.map((row, rowIndex) =>
+            row.map(() =>
+                dataValues[rowIndex].reduce(
+                    (acc, value) => acc + parseNumericValue(value),
+                    0,
+                ),
+            ),
+        );
     }
 
     let columnTotalHeaders: PivotData['columnTotalHeaders'];
@@ -310,29 +311,23 @@ export const pivotQueryResults = ({
 
         metrics.forEach((metric, metricIndex) => {
             columnTotalHeaders![metricIndex][N_TOTAL_COLS - 1] = {
-                titleDirection: 'index',
                 fieldId: metric.fieldId,
-                type: 'label',
             };
         });
 
-        columnTotals = columnTotals.map((row, totalRowIndex) => {
-            return row.map((_, totalColumnIndex) => {
-                const sum = dataValues
+        columnTotals = columnTotals.map((row, totalRowIndex) =>
+            row.map((_, totalColIndex) =>
+                dataValues
                     .filter(
                         (__, index) => index % N_TOTAL_ROWS === totalRowIndex,
                     )
-                    .reduce((acc, value) => {
-                        const parsedVal = Number(value[totalColumnIndex]?.raw);
-                        const finalVal = Number.isNaN(parsedVal)
-                            ? 0
-                            : parsedVal;
-                        return acc + finalVal;
-                    }, 0);
-
-                return { raw: sum };
-            });
-        });
+                    .reduce(
+                        (acc, value) =>
+                            acc + parseNumericValue(value[totalColIndex]),
+                        0,
+                    ),
+            ),
+        );
     }
 
     const titleFields: PivotData['titleFields'] = [
@@ -342,7 +337,6 @@ export const pivotQueryResults = ({
         if (headerValueType.type === FieldType.DIMENSION) {
             titleFields[headerIndex][indexValueTypes.length - 1] = {
                 fieldId: headerValueType.fieldId,
-                type: 'label',
                 titleDirection: 'header',
             };
         }
@@ -351,7 +345,6 @@ export const pivotQueryResults = ({
         if (indexValueType.type === FieldType.DIMENSION) {
             titleFields[headerValueTypes.length - 1][indexIndex] = {
                 fieldId: indexValueType.fieldId,
-                type: 'label',
                 titleDirection: 'index',
             };
         }

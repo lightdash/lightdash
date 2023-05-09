@@ -11,53 +11,42 @@ export type PivotConfig = {
     rowTotals?: boolean;
 };
 
-type PTField =
+type Field =
     | { type: FieldType.METRIC; fieldId?: undefined }
     | { type: FieldType.DIMENSION; fieldId: string };
 
-export type PTFieldLabel = {
-    type: 'label';
+type FieldValue =
+    | { type: 'value'; fieldId: string; value: ResultValue }
+    | { type: 'label'; fieldId: string };
+
+type TotalValue = null | number;
+
+type TitleValue = null | {
     fieldId: string;
-    value?: undefined;
-};
-
-export type PTTotalLabel = {
-    type: 'total';
-};
-
-export type PTValue = {
-    type: 'value';
-    fieldId: string;
-    value: ResultValue;
-};
-
-export type PTLabel = {
     titleDirection: 'index' | 'header';
 };
 
-export type PTTotalValue = Pick<ResultValue, 'raw'>;
+type TotalHeader = null | { fieldId?: string };
 
-export type PTTitleValue = PTFieldLabel & PTLabel;
-
-export type PTTotalOrFieldLabel = PTLabel & (PTTotalLabel | PTFieldLabel);
+type DataValue = null | ResultValue;
 
 export type PivotData = {
-    headerValueTypes: PTField[];
-    headerValues: (PTFieldLabel | PTValue)[][];
+    headerValueTypes: Field[];
+    headerValues: FieldValue[][];
 
-    indexValueTypes: PTField[];
-    indexValues: (PTFieldLabel | PTValue)[][];
+    indexValueTypes: Field[];
+    indexValues: FieldValue[][];
 
     dataColumnCount: number;
-    dataValues: (ResultValue | null)[][];
+    dataValues: DataValue[][];
 
-    titleFields: (PTTitleValue | null)[][];
+    titleFields: TitleValue[][];
 
-    rowTotalHeaders?: (PTTotalOrFieldLabel | null)[][];
-    columnTotalHeaders?: (PTTotalOrFieldLabel | null)[][];
+    rowTotalHeaders?: TotalHeader[][];
+    columnTotalHeaders?: TotalHeader[][];
 
-    rowTotals?: (PTTotalValue | null)[][];
-    columnTotals?: (PTTotalValue | null)[][];
+    rowTotals?: TotalValue[][];
+    columnTotals?: TotalValue[][];
 
     pivotConfig: PivotConfig;
 };
