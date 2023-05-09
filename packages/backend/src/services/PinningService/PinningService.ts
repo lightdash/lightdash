@@ -98,7 +98,7 @@ export class PinningService {
         itemsOrder: Array<UpdatePinnedItemOrder>,
     ): Promise<PinnedItems> {
         const project = await this.projectModel.get(projectUuid);
-        if (user.ability.cannot('manage', subject('Project', project))) {
+        if (user.ability.cannot('manage', subject('PinnedItems', project))) {
             throw new ForbiddenError();
         }
         if (project.pinnedListUuid !== pinnedListUuid) {

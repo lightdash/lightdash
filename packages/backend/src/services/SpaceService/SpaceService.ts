@@ -254,8 +254,8 @@ export class SpaceService {
 
         if (
             user.ability.cannot(
-                'update',
-                subject('Space', { projectUuid, organizationUuid }),
+                'manage',
+                subject('PinnedItems', { projectUuid, organizationUuid }),
             )
         ) {
             throw new ForbiddenError();
