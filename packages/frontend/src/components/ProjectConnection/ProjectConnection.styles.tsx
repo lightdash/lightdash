@@ -10,6 +10,7 @@ export const FormContainer = styled(Form)`
     display: flex;
     flex-direction: column;
     gap: ${CARD_GAP}px;
+    width: 100%;
 `;
 
 export const CompileProjectButton = styled(Button)`
