@@ -19,12 +19,12 @@ type FieldValue =
     | { type: 'value'; fieldId: string; value: ResultValue }
     | { type: 'label'; fieldId: string };
 
-type TitleValue = null | {
+type TitleField = null | {
     fieldId: string;
     titleDirection: 'index' | 'header';
 };
 
-type TotalHeader = null | {
+type TotalField = null | {
     fieldId?: string;
 };
 
@@ -42,10 +42,10 @@ export type PivotData = {
     dataColumnCount: number;
     dataValues: DataValue[][];
 
-    titleFields: TitleValue[][];
+    titleFields: TitleField[][];
 
-    rowTotalHeaders?: TotalHeader[][];
-    columnTotalHeaders?: TotalHeader[][];
+    rowTotalHeaders?: TotalField[][];
+    columnTotalHeaders?: TotalField[][];
 
     rowTotals?: TotalValue[][];
     columnTotals?: TotalValue[][];
