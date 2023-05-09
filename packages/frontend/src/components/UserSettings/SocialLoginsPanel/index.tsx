@@ -1,87 +1,73 @@
-import { Button, Classes, Tag } from '@blueprintjs/core';
 import { ApiError, OpenIdIdentitySummary } from '@lightdash/common';
+import { ActionIcon, Card, Group, Stack, Text } from '@mantine/core';
+import { IconTrash } from '@tabler/icons-react';
 import { FC } from 'react';
 import { useQuery } from 'react-query';
 import { lightdashApi } from '../../../api';
 import { useDeleteOpenIdentityMutation } from '../../../hooks/user/useDeleteOpenIdentityMutation';
-import {
-    GoogleSignInButton,
-    OktaSignInButton,
-    OneLoginSignInButton,
-} from '../../common/ThirdPartySignInButtons';
-import {
-    Bold,
-    CardContainer,
-    CardWrapper,
-    GoogleButtonWrapper,
-    Text,
-    Title,
-} from './SocialLoginsPanel.styles';
+import MantineIcon from '../../common/MantineIcon';
+import { ThirdPartySignInButton } from '../../common/ThirdPartySignInButton';
 
 const getIdentitiesQuery = async () =>
-    lightdashApi<OpenIdIdentitySummary[]>({
+    lightdashApi<
+        Record<OpenIdIdentitySummary['issuerType'], OpenIdIdentitySummary[]>
+    >({
         url: '/user/identities',
         method: 'GET',
         body: undefined,
     });
 
-const renderIssuerType = (
-    issuerType: OpenIdIdentitySummary['issuerType'],
-): string => {
-    switch (issuerType) {
-        case 'google':
-            return 'Google';
-        case 'okta':
-            return 'Okta';
-        default:
-            return issuerType;
-    }
-};
-
 const SocialLoginsPanel: FC = () => {
-    const { data } = useQuery<OpenIdIdentitySummary[], ApiError>({
+    const { data: userSocialLogins } = useQuery<
+        Record<OpenIdIdentitySummary['issuerType'], OpenIdIdentitySummary[]>,
+        ApiError
+    >({
         queryKey: 'user_identities',
         queryFn: getIdentitiesQuery,
     });
+
     const deleteMutation = useDeleteOpenIdentityMutation();
+
     return (
-        <div>
-            <CardWrapper>
-                {data?.map((id) => (
-                    <CardContainer key={id.issuerType} elevation={0}>
-                        <Text>
-                            <Bold className={Classes.TEXT_OVERFLOW_ELLIPSIS}>
-                                {renderIssuerType(id.issuerType)}
-                            </Bold>
-                            {id.email && <Tag minimal>{id.email}</Tag>}
+        <Stack spacing="md">
+            {Object.entries(userSocialLogins ?? {}).map(
+                ([issuerType, logins]) => (
+                    <Stack key={issuerType} spacing="xs">
+                        <Text tt="capitalize" fw={600}>
+                            {issuerType}
                         </Text>
-                        <Button
-                            icon="delete"
-                            disabled={deleteMutation.isLoading}
-                            intent="danger"
-                            text="Delete"
-                            outlined
-                            onClick={() =>
-                                deleteMutation.mutate({
-                                    email: id.email,
-                                    issuer: id.issuer,
-                                })
-                            }
-                        />
-                    </CardContainer>
-                ))}
-            </CardWrapper>
-            <Title>Add social login</Title>
-            <GoogleButtonWrapper>
-                <GoogleSignInButton />
-            </GoogleButtonWrapper>
-            <GoogleButtonWrapper>
-                <OktaSignInButton />
-            </GoogleButtonWrapper>
-            <GoogleButtonWrapper>
-                <OneLoginSignInButton />
-            </GoogleButtonWrapper>
-        </div>
+                        {logins.map((login) => (
+                            <Card key={login.email} withBorder padding="xs">
+                                <Group position="apart">
+                                    {login.email}
+                                    <ActionIcon
+                                        size="xs"
+                                        disabled={deleteMutation.isLoading}
+                                        onClick={() =>
+                                            deleteMutation.mutate({
+                                                email: login.email,
+                                                issuer: login.issuer,
+                                            })
+                                        }
+                                    >
+                                        <MantineIcon icon={IconTrash} />
+                                    </ActionIcon>
+                                </Group>
+                            </Card>
+                        ))}
+                        <Group position="left" spacing="xs">
+                            <ThirdPartySignInButton
+                                size="xs"
+                                providerName={
+                                    issuerType as OpenIdIdentitySummary['issuerType']
+                                }
+                                intent="add"
+                            />
+                        </Group>
+                    </Stack>
+                ),
+            )}
+        </Stack>
     );
 };
 
