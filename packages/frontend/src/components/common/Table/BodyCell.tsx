@@ -94,6 +94,7 @@ const BodyCell: FC<CommonBodyCellProps> = ({
                             $rowIndex={index}
                             $isSelected={selected}
                             $isLargeText={isLargeText}
+                            $isMinimal={minimal}
                             $isInteractive={hasContextMenu}
                             $isCopying={copying}
                             $backgroundColor={backgroundColor}
