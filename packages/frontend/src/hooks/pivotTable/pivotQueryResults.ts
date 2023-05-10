@@ -302,32 +302,59 @@ export const pivotQueryResults = ({
 
     let columnTotalFields: PivotData['columnTotalFields'];
     let columnTotals: PivotData['columnTotals'];
-    if (pivotConfig.columnTotals && pivotConfig.metricsAsRows) {
-        const N_TOTAL_ROWS = metrics.length;
-        const N_TOTAL_COLS = indexValueTypes.length;
+    if (pivotConfig.columnTotals) {
+        if (pivotConfig.metricsAsRows) {
+            const N_TOTAL_ROWS = metrics.length;
+            const N_TOTAL_COLS = indexValueTypes.length;
 
-        columnTotalFields = create2DArray(N_TOTAL_ROWS, N_TOTAL_COLS);
-        columnTotals = create2DArray(N_TOTAL_ROWS, N_DATA_COLUMNS);
+            columnTotalFields = create2DArray(N_TOTAL_ROWS, N_TOTAL_COLS);
+            columnTotals = create2DArray(N_TOTAL_ROWS, N_DATA_COLUMNS);
 
-        metrics.forEach((metric, metricIndex) => {
-            columnTotalFields![metricIndex][N_TOTAL_COLS - 1] = {
-                fieldId: metric.fieldId,
+            metrics.forEach((metric, metricIndex) => {
+                columnTotalFields![metricIndex][N_TOTAL_COLS - 1] = {
+                    fieldId: metric.fieldId,
+                };
+            });
+
+            columnTotals = columnTotals.map((row, totalRowIndex) =>
+                row.map((_, totalColIndex) =>
+                    dataValues
+                        .filter(
+                            (__, index) =>
+                                index % N_TOTAL_ROWS === totalRowIndex,
+                        )
+                        .reduce(
+                            (acc, value) =>
+                                acc + parseNumericValue(value[totalColIndex]),
+                            0,
+                        ),
+                ),
+            );
+        } else {
+            console.log({ indexValueTypes });
+            const N_TOTAL_COLS = indexValues[0].length;
+            const N_TOTAL_ROWS = 1;
+
+            columnTotalFields = create2DArray(N_TOTAL_ROWS, N_TOTAL_COLS);
+            columnTotals = create2DArray(N_TOTAL_ROWS, N_DATA_COLUMNS);
+
+            // set the header last cell as the title total
+            columnTotalFields[N_TOTAL_ROWS - 1][N_TOTAL_COLS - 1] = {
+                fieldId: undefined,
             };
-        });
 
-        columnTotals = columnTotals.map((row, totalRowIndex) =>
-            row.map((_, totalColIndex) =>
-                dataValues
-                    .filter(
-                        (__, index) => index % N_TOTAL_ROWS === totalRowIndex,
-                    )
-                    .reduce(
-                        (acc, value) =>
-                            acc + parseNumericValue(value[totalColIndex]),
+            columnTotals = columnTotals.map((row, _totalRowIndex) =>
+                row.map((_col, colIndex) => {
+                    const values = dataValues.map(
+                        (dataRow) => dataRow[colIndex],
+                    );
+                    return values.reduce(
+                        (acc, value) => acc + parseNumericValue(value),
                         0,
-                    ),
-            ),
-        );
+                    );
+                }),
+            );
+        }
     }
 
     const titleFields: PivotData['titleFields'] = [
