@@ -1,5 +1,6 @@
 import { BigQueryDate, BigQueryTimestamp } from '@google-cloud/bigquery';
 import { CreateBigqueryCredentials, WarehouseTypes } from '@lightdash/common';
+import { Readable } from 'stream';
 import { BigqueryFieldType } from './BigqueryWarehouseClient';
 
 export const credentials: CreateBigqueryCredentials = {
@@ -70,8 +71,18 @@ export const rows: Record<string, any>[] = [
     },
 ];
 
+const mockStreamRow = () =>
+    new Readable({
+        objectMode: true,
+        read() {
+            rows.forEach((row) => this.push(row));
+            this.push(null);
+        },
+    });
+
 export const createJobResponse = [
     {
         getQueryResults: jest.fn(() => [rows, undefined, metadata]),
+        getQueryResultsStream: jest.fn(mockStreamRow),
     },
 ];

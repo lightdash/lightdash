@@ -16,21 +16,10 @@ import {
     expectedWarehouseSchema,
 } from './WarehouseClient.mock';
 
-const mockStreamRow = () =>
-    new Readable({
-        objectMode: true,
-        read() {
-            rows.forEach((row) => this.push(row));
-            this.push(null);
-        },
-    });
-
 describe('BigqueryWarehouseClient', () => {
-    it.only('expect query rows with mapped values', async () => {
+    it('expect query rows with mapped values', async () => {
         const warehouse = new BigqueryWarehouseClient(credentials);
 
-        (warehouse.client.createQueryStream as jest.Mock) =
-            jest.fn(mockStreamRow);
         (warehouse.client.createQueryJob as jest.Mock) = jest.fn(
             () => createJobResponse,
         );
@@ -39,9 +28,6 @@ describe('BigqueryWarehouseClient', () => {
 
         expect(results.fields).toEqual(expectedFields);
         expect(results.rows[0]).toEqual(expectedRow);
-        expect(
-            warehouse.client.createQueryStream as jest.Mock,
-        ).toHaveBeenCalledTimes(1);
         expect(
             warehouse.client.createQueryJob as jest.Mock,
         ).toHaveBeenCalledTimes(1);
