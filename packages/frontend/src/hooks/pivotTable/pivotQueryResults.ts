@@ -300,9 +300,7 @@ export const pivotQueryResults = ({
                 ),
             );
         } else {
-            throw new Error(
-                'not implemented: row totals with metrics as columns',
-            );
+            // TODO: implement row totals with metrics as columns
         }
     }
 

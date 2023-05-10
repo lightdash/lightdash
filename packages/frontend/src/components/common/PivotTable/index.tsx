@@ -424,7 +424,13 @@ const PivotTable: FC<PivotTableProps> = ({
                                         {value.formatted}
                                     </TotalCell>
                                 ) : (
-                                    <td />
+                                    <td
+                                        key={`footer-total-${totalRowIndex}-${totalColIndex}`}
+                                        className={cellCx(
+                                            cellStyles.root,
+                                            cellStyles.rowNumber,
+                                        )}
+                                    />
                                 );
                             })}
                         </tr>

@@ -223,4 +223,6 @@ const getPivotDataAndColumns = ({
     };
 };
 
+// TODO: remove after pivoting v2 is released
+// ts-unused-exports:disable-next-line
 export default getPivotDataAndColumns;

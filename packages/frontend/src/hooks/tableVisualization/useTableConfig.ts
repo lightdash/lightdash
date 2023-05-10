@@ -17,7 +17,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { TableColumn, TableHeader } from '../../components/common/Table/types';
 import { pivotQueryResults } from '../pivotTable/pivotQueryResults';
 import getDataAndColumns from './getDataAndColumns';
-import getPivotDataAndColumns from './getPivotDataAndColumns';
 
 const useTableConfig = (
     tableChartConfig: TableChart | undefined,
@@ -159,36 +158,41 @@ const useTableConfig = (
                 columns: [],
             };
         }
+
         if (pivotDimensions && pivotDimensions.length > 0) {
-            return getPivotDataAndColumns({
-                columnOrder,
-                itemsMap,
-                resultsData,
-                pivotDimensions,
-                isColumnVisible,
-                getFieldLabel,
-            });
-        } else {
-            return getDataAndColumns({
-                itemsMap,
-                selectedItemIds,
-                resultsData,
-                isColumnVisible,
-                showTableNames,
-                getFieldLabelOverride,
-                isColumnFrozen,
-            });
+            return {
+                rows: [],
+                columns: [],
+            };
+
+            // TODO: Remove this once we have completed the pivot v2
+            // return getPivotDataAndColumns({
+            //   columnOrder,
+            //   itemsMap,
+            //   resultsData,
+            //   pivotDimensions,
+            //   isColumnVisible,
+            //   getFieldLabel,
+            // });
         }
+
+        return getDataAndColumns({
+            itemsMap,
+            selectedItemIds,
+            resultsData,
+            isColumnVisible,
+            showTableNames,
+            getFieldLabelOverride,
+            isColumnFrozen,
+        });
     }, [
         selectedItemIds,
-        columnOrder,
+        pivotDimensions,
         itemsMap,
         resultsData,
-        pivotDimensions,
         isColumnVisible,
         showTableNames,
         isColumnFrozen,
-        getFieldLabel,
         getFieldLabelOverride,
     ]);
 
@@ -196,13 +200,14 @@ const useTableConfig = (
         data: PivotData | undefined;
         error: undefined | string;
     }>(() => {
-        if (!canUsePivotTable) {
-            return { data: undefined, error: 'Cannot pivot' };
+        if (
+            !pivotDimensions ||
+            pivotDimensions.length === 0 ||
+            !resultsData ||
+            resultsData.rows.length === 0
+        ) {
+            return { data: undefined, error: undefined };
         }
-
-        // Pivot V2. This will always trigger when `canUsePivotTable` is true.
-        // The old pivot below will always trigger.
-        // So currently we pivot twice when the above conditions are met.
 
         const hiddenMetricFieldIds = selectedItemIds?.filter((fieldId) => {
             const field = getField(fieldId);
@@ -234,7 +239,6 @@ const useTableConfig = (
         resultsData,
         pivotDimensions,
         columnOrder,
-        canUsePivotTable,
         metricsAsRows,
         selectedItemIds,
         isColumnVisible,
