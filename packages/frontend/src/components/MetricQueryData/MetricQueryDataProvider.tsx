@@ -2,6 +2,7 @@ import {
     DashboardFilters,
     Explore,
     Field,
+    formatItemValue,
     getItemId,
     hashFieldReference,
     isDimension,
@@ -79,7 +80,7 @@ export const getDataFromChartClick = (
         ? e.data[getItemId(selectedField)]
         : undefined;
     const fieldValues: Record<string, ResultValue> = Object.entries(
-        e.data as Record<string, any>,
+        e.data,
     ).reduce((acc, entry) => {
         const [key, val] = entry;
         return { ...acc, [key]: { raw: val, formatted: val } };
@@ -87,7 +88,10 @@ export const getDataFromChartClick = (
 
     return {
         item: selectedField,
-        value: { raw: selectedValue, formatted: selectedValue },
+        value: {
+            raw: selectedValue,
+            formatted: formatItemValue(selectedField, selectedValue),
+        },
         fieldValues,
         pivotReference,
     };
