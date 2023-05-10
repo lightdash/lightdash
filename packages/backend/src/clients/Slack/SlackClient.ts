@@ -89,7 +89,7 @@ export class SlackClient {
 
         do {
             try {
-                Logger.debug(`Fetching slack users with cursor ${nextCursor}`);
+                Logger.debug(`Fetching slack channels with cursor ${nextCursor}`);
 
                 const conversations: ConversationsListResponse =
                     // eslint-disable-next-line no-await-in-loop
