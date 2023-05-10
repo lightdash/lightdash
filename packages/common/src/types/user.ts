@@ -1,5 +1,6 @@
 import { AbilityBuilder } from '@casl/ability';
 import { MemberAbility } from '../authorization/types';
+import { OpenIdIdentityIssuerType } from './openIdIdentity';
 import { OrganizationMemberRole } from './organizationMemberProfile';
 
 export interface LightdashUser {
@@ -52,7 +53,7 @@ export interface OpenIdUser {
     openId: {
         subject: string;
         issuer: string;
-        issuerType: 'google' | 'okta' | 'oneLogin';
+        issuerType: OpenIdIdentityIssuerType;
         email: string;
         firstName: string | undefined;
         lastName: string | undefined;
