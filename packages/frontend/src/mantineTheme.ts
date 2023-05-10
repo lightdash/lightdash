@@ -49,12 +49,6 @@ export const getMantineThemeOverride = (overrides?: {
     lineHeight: 1.2858142857,
 
     components: {
-        Tooltip: {
-            defaultProps: {
-                withArrow: true,
-            },
-        },
-
         TextInput: {
             styles: (theme, _params) => ({
                 label: {
@@ -91,6 +85,9 @@ export const getMantineThemeOverride = (overrides?: {
         },
 
         Tooltip: {
+            defaultProps: {
+                withArrow: true,
+            },
             styles: () => ({
                 // FIXME: this is a hack to fix tooltip position. remove after Blueprint migration is complete
                 root: {
