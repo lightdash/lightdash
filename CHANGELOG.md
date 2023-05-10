@@ -1,3 +1,11 @@
+# [0.543.0](https://github.com/lightdash/lightdash/compare/0.542.1...0.543.0) (2023-05-10)
+
+
+### Features
+
+* add source maps ([#5373](https://github.com/lightdash/lightdash/issues/5373)) ([cdfbbd8](https://github.com/lightdash/lightdash/commit/cdfbbd80b3743902d55c8e39376ac1479973a5c7))
+* stream bigquery results ([#5377](https://github.com/lightdash/lightdash/issues/5377)) ([422b3b1](https://github.com/lightdash/lightdash/commit/422b3b112a614115f383282442e9f5861753e404))
+
 ## [0.542.1](https://github.com/lightdash/lightdash/compare/0.542.0...0.542.1) (2023-05-10)
 
 
