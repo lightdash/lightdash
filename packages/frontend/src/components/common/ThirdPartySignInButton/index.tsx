@@ -1,4 +1,7 @@
-import { OpenIdIdentitySummary } from '@lightdash/common';
+import {
+    OpenIdIdentityIssuerType,
+    OpenIdIdentitySummary,
+} from '@lightdash/common';
 import { Button, ButtonProps, Image } from '@mantine/core';
 import { FC } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -61,7 +64,7 @@ export const ThirdPartySignInButton: FC<ThirdPartySignInButtonProps> = ({
     const { health } = useApp();
 
     switch (providerName) {
-        case 'google':
+        case OpenIdIdentityIssuerType.GOOGLE:
             return health.data?.auth.google.oauth2ClientId ? (
                 <ThirdPartySignInButtonBase
                     loginPath={health.data.auth.google.loginPath}
@@ -72,7 +75,7 @@ export const ThirdPartySignInButton: FC<ThirdPartySignInButtonProps> = ({
                 />
             ) : null;
 
-        case 'okta':
+        case OpenIdIdentityIssuerType.OKTA:
             return health.data?.auth.okta.enabled ? (
                 <ThirdPartySignInButtonBase
                     loginPath={health.data.auth.okta.loginPath}
@@ -82,7 +85,7 @@ export const ThirdPartySignInButton: FC<ThirdPartySignInButtonProps> = ({
                     {...props}
                 />
             ) : null;
-        case 'oneLogin':
+        case OpenIdIdentityIssuerType.ONELOGIN:
             return health.data?.auth.oneLogin.enabled ? (
                 <ThirdPartySignInButtonBase
                     loginPath={health.data.auth.oneLogin.loginPath}
