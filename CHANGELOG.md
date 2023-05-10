@@ -1,3 +1,10 @@
+## [0.541.2](https://github.com/lightdash/lightdash/compare/0.541.1...0.541.2) (2023-05-10)
+
+
+### Bug Fixes
+
+* run databrick query async ([#5419](https://github.com/lightdash/lightdash/issues/5419)) ([3aa2371](https://github.com/lightdash/lightdash/commit/3aa2371f574bd000ba73bbc7f6571aa4e83be70e))
+
 ## [0.541.1](https://github.com/lightdash/lightdash/compare/0.541.0...0.541.1) (2023-05-10)
 
 
