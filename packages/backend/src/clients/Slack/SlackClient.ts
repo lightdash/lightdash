@@ -1,4 +1,5 @@
 import { SlackChannel } from '@lightdash/common';
+import * as Sentry from '@sentry/node';
 import { App, Block, LogLevel } from '@slack/bolt';
 import { ConversationsListResponse, UsersListResponse } from '@slack/web-api';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -87,40 +88,53 @@ export class SlackClient {
         let allChannels: ConversationsListResponse['channels'] = [];
 
         do {
-            Logger.debug(`Fetching slack users with cursor ${nextCursor}`);
+            try {
+                Logger.debug(`Fetching slack users with cursor ${nextCursor}`);
 
-            const conversations: ConversationsListResponse =
-                // eslint-disable-next-line no-await-in-loop
-                await this.slackApp.client.conversations.list({
-                    token: installation?.token,
-                    types: 'public_channel',
-                    limit: 500,
-                    cursor: nextCursor,
-                });
+                const conversations: ConversationsListResponse =
+                    // eslint-disable-next-line no-await-in-loop
+                    await this.slackApp.client.conversations.list({
+                        token: installation?.token,
+                        types: 'public_channel',
+                        limit: 900,
+                        cursor: nextCursor,
+                    });
 
-            nextCursor = conversations.response_metadata?.next_cursor;
-            allChannels = conversations.channels
-                ? [...allChannels, ...conversations.channels]
-                : allChannels;
+                nextCursor = conversations.response_metadata?.next_cursor;
+                allChannels = conversations.channels
+                    ? [...allChannels, ...conversations.channels]
+                    : allChannels;
+            } catch (e) {
+                Logger.error(`Unable to fetch slack channels ${e}`);
+                Sentry.captureException(e);
+                break;
+            }
         } while (nextCursor);
         Logger.debug(`Total slack channels ${allChannels.length}`);
 
         nextCursor = undefined;
         let allUsers: UsersListResponse['members'] = [];
         do {
-            Logger.debug(`Fetching slack users with cursor ${nextCursor}`);
+            try {
+                Logger.debug(`Fetching slack users with cursor ${nextCursor}`);
 
-            const users: UsersListResponse =
-                // eslint-disable-next-line no-await-in-loop
-                await this.slackApp.client.users.list({
-                    token: installation?.token,
-                    limit: 500,
-                    cursor: nextCursor,
-                });
-            nextCursor = users.response_metadata?.next_cursor;
-            allUsers = users.members
-                ? [...allUsers, ...users.members]
-                : allUsers;
+                const users: UsersListResponse =
+                    // eslint-disable-next-line no-await-in-loop
+                    await this.slackApp.client.users.list({
+                        token: installation?.token,
+                        limit: 900,
+                        cursor: nextCursor,
+                    });
+                nextCursor = users.response_metadata?.next_cursor;
+                allUsers = users.members
+                    ? [...allUsers, ...users.members]
+                    : allUsers;
+            } catch (e) {
+                Logger.error(`Unable to fetch slack users ${e}`);
+                Sentry.captureException(e);
+
+                break;
+            }
         } while (nextCursor);
         Logger.debug(`Total slack users ${allUsers.length}`);
 
