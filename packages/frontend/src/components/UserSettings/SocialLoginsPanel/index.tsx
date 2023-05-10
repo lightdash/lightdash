@@ -1,30 +1,16 @@
-import { ApiError, OpenIdIdentitySummary } from '@lightdash/common';
+import { OpenIdIdentitySummary } from '@lightdash/common';
 import { ActionIcon, Card, Group, Stack, Text } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
 import { FC } from 'react';
-import { useQuery } from 'react-query';
-import { lightdashApi } from '../../../api';
-import { useDeleteOpenIdentityMutation } from '../../../hooks/user/useDeleteOpenIdentityMutation';
+import {
+    useDeleteOpenIdentityMutation,
+    useOpenIdentities,
+} from '../../../hooks/user/useOpenIdentity';
 import MantineIcon from '../../common/MantineIcon';
 import { ThirdPartySignInButton } from '../../common/ThirdPartySignInButton';
 
-const getIdentitiesQuery = async () =>
-    lightdashApi<
-        Record<OpenIdIdentitySummary['issuerType'], OpenIdIdentitySummary[]>
-    >({
-        url: '/user/identities',
-        method: 'GET',
-        body: undefined,
-    });
-
 const SocialLoginsPanel: FC = () => {
-    const { data: userSocialLogins } = useQuery<
-        Record<OpenIdIdentitySummary['issuerType'], OpenIdIdentitySummary[]>,
-        ApiError
-    >({
-        queryKey: 'user_identities',
-        queryFn: getIdentitiesQuery,
-    });
+    const { data: userSocialLogins } = useOpenIdentities();
 
     const deleteMutation = useDeleteOpenIdentityMutation();
 
