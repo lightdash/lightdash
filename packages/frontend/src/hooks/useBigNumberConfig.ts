@@ -168,10 +168,10 @@ const useBigNumberConfig = (
     );
 
     const calculateComparisonValue = (a: number, b: number, format: string) => {
-        const rawValue = Math.round(b - a);
+        const rawValue = Math.round(a - b);
         switch (format) {
             case formatValues.PERCENTAGE:
-                return Math.round(((b - a) / a) * 100);
+                return Math.round(((a - b) / b) * 100);
 
             case formatValues.RAW:
                 return rawValue === 0 ? 'No change' : rawValue;
