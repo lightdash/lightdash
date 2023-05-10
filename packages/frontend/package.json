@@ -68,7 +68,7 @@
     },
     "scripts": {
         "start": "vite",
-        "build": "tsc --project tsconfig.build.json && vite build",
+        "build": "tsc --project tsconfig.build.json && NODE_OPTIONS=--max-old-space-size=8192 vite build",
         "serve": "vite preview",
         "test": "jest",
         "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
