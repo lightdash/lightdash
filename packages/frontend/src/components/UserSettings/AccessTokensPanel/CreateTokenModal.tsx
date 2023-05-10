@@ -13,7 +13,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconAlertCircle, IconCheck, IconCopy } from '@tabler/icons-react';
-import { FC, useEffect, useState } from 'react';
+import { FC } from 'react';
 import useHealth from '../../../hooks/health/useHealth';
 import { useCreateAccessToken } from '../../../hooks/useAccessToken';
 import MantineIcon from '../../common/MantineIcon';
@@ -29,8 +29,6 @@ export const CreateTokenModal: FC<{
         isLoading,
         isSuccess,
     } = useCreateAccessToken();
-
-    const [expireDate, setExpireDate] = useState<Date | undefined>();
 
     const form = useForm({
         initialValues: {
@@ -62,12 +60,6 @@ export const CreateTokenModal: FC<{
         },
     ];
 
-    useEffect(() => {
-        if (isSuccess) {
-            setExpireDate(data.expiresAt);
-        }
-    }, [data?.expiresAt, isSuccess]);
-
     const handleOnSubmit = form.onSubmit(({ description, expiresAt }) => {
         const currentDate = new Date();
         const dateWhenExpires = !!Number(expiresAt)
@@ -77,7 +69,6 @@ export const CreateTokenModal: FC<{
                   ),
               )
             : undefined;
-        setExpireDate(dateWhenExpires);
 
         createAccessToken({
             description,
@@ -146,11 +137,13 @@ export const CreateTokenModal: FC<{
                                             color={copied ? 'teal' : 'gray'}
                                             onClick={copy}
                                         >
-                                            {copied ? (
-                                                <IconCheck size="1rem" />
-                                            ) : (
-                                                <IconCopy size="1rem" />
-                                            )}
+                                            <MantineIcon
+                                                icon={
+                                                    copied
+                                                        ? IconCheck
+                                                        : IconCopy
+                                                }
+                                            />
                                         </ActionIcon>
                                     </Tooltip>
                                 )}
@@ -177,11 +170,13 @@ export const CreateTokenModal: FC<{
                                             color={copied ? 'teal' : 'gray'}
                                             onClick={copy}
                                         >
-                                            {copied ? (
-                                                <IconCheck size="1rem" />
-                                            ) : (
-                                                <IconCopy size="1rem" />
-                                            )}
+                                            <MantineIcon
+                                                icon={
+                                                    copied
+                                                        ? IconCheck
+                                                        : IconCopy
+                                                }
+                                            />
                                         </ActionIcon>
                                     </Tooltip>
                                 )}
@@ -189,9 +184,9 @@ export const CreateTokenModal: FC<{
                         }
                     />
                     <Alert icon={<MantineIcon icon={IconAlertCircle} />}>
-                        {expireDate &&
+                        {data.expiresAt &&
                             `This token will expire on
-                        ${formatTimestamp(expireDate)} `}
+                        ${formatTimestamp(data.expiresAt)} `}
                         Make sure to copy your personal access token now. You
                         won’t be able to see it again!
                     </Alert>
