@@ -22,25 +22,33 @@ const SocialLoginsPanel: FC = () => {
                         <Text tt="capitalize" fw={600}>
                             {issuerType}
                         </Text>
-                        {logins.map((login) => (
-                            <Card key={login.email} withBorder padding="xs">
-                                <Group position="apart">
-                                    {login.email}
-                                    <ActionIcon
-                                        size="xs"
-                                        disabled={deleteMutation.isLoading}
-                                        onClick={() =>
-                                            deleteMutation.mutate({
-                                                email: login.email,
-                                                issuer: login.issuer,
-                                            })
-                                        }
-                                    >
-                                        <MantineIcon icon={IconTrash} />
-                                    </ActionIcon>
-                                </Group>
-                            </Card>
-                        ))}
+                        {logins.length
+                            ? logins.map((login) => (
+                                  <Card
+                                      key={login.email}
+                                      withBorder
+                                      padding="xs"
+                                  >
+                                      <Group position="apart">
+                                          {login.email}
+                                          <ActionIcon
+                                              size="xs"
+                                              disabled={
+                                                  deleteMutation.isLoading
+                                              }
+                                              onClick={() =>
+                                                  deleteMutation.mutate({
+                                                      email: login.email,
+                                                      issuer: login.issuer,
+                                                  })
+                                              }
+                                          >
+                                              <MantineIcon icon={IconTrash} />
+                                          </ActionIcon>
+                                      </Group>
+                                  </Card>
+                              ))
+                            : null}
                         <Group position="left" spacing="xs">
                             <ThirdPartySignInButton
                                 size="xs"
