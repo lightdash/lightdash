@@ -331,28 +331,26 @@ export const pivotQueryResults = ({
                 ),
             );
         } else {
-            console.log({ indexValueTypes });
             const N_TOTAL_COLS = indexValues[0].length;
             const N_TOTAL_ROWS = 1;
 
             columnTotalFields = create2DArray(N_TOTAL_ROWS, N_TOTAL_COLS);
             columnTotals = create2DArray(N_TOTAL_ROWS, N_DATA_COLUMNS);
 
-            // set the header last cell as the title total
+            // set the last cell as "total"
             columnTotalFields[N_TOTAL_ROWS - 1][N_TOTAL_COLS - 1] = {
                 fieldId: undefined,
             };
 
             columnTotals = columnTotals.map((row, _totalRowIndex) =>
-                row.map((_col, colIndex) => {
-                    const values = dataValues.map(
-                        (dataRow) => dataRow[colIndex],
-                    );
-                    return values.reduce(
-                        (acc, value) => acc + parseNumericValue(value),
-                        0,
-                    );
-                }),
+                row.map((_col, colIndex) =>
+                    dataValues
+                        .map((dataRow) => dataRow[colIndex])
+                        .reduce(
+                            (acc, value) => acc + parseNumericValue(value),
+                            0,
+                        ),
+                ),
             );
         }
     }
