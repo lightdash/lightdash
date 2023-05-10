@@ -114,6 +114,7 @@ const useBigNumberConfig = (
     const [bigNumberLabel, setBigNumberLabel] = useState<
         BigNumber['label'] | undefined
     >(bigNumberConfigData?.label);
+    const [showLabel, setShowLabel] = useState<boolean>(true);
 
     const [bigNumberStyle, setBigNumberStyle] = useState<
         BigNumber['style'] | undefined
@@ -122,23 +123,32 @@ const useBigNumberConfig = (
     useEffect(() => {
         if (bigNumberConfigData?.selectedField !== undefined)
             setSelectedField(bigNumberConfigData.selectedField);
+        if (!showLabel) setBigNumberLabel('');
 
         setBigNumberLabel(bigNumberConfigData?.label);
         setBigNumberStyle(bigNumberConfigData?.style);
-    }, [bigNumberConfigData]);
+    }, [bigNumberConfigData, showLabel]);
 
-    const bigNumberRaw =
+    // big number value (first row)
+    const firstRowValueRaw =
         selectedField && resultsData?.rows?.[0]?.[selectedField]?.value.raw;
 
-    const isNumber =
-        isNumericItem(item) &&
-        !(bigNumberRaw instanceof Date) &&
-        !valueIsNaN(bigNumberRaw);
+    // value for comparison (second row)
+    const secondRowValueRaw =
+        selectedField && resultsData?.rows?.[1]?.[selectedField]?.value.raw;
 
-    const bigNumber = !isNumber
+    const isFirstRowValueNumber =
+        isNumericItem(item) &&
+        !(firstRowValueRaw instanceof Date) &&
+        !valueIsNaN(firstRowValueRaw);
+
+    const isSecondRowValueNumber =
+        !(secondRowValueRaw instanceof Date) && !valueIsNaN(secondRowValueRaw);
+
+    const bigNumber = !isFirstRowValueNumber
         ? selectedField &&
           resultsData?.rows?.[0]?.[selectedField]?.value.formatted
-        : formatValue(bigNumberRaw, {
+        : formatValue(firstRowValueRaw, {
               format: isField(item) ? item.format : undefined,
               round: bigNumberStyle
                   ? 2
@@ -148,7 +158,41 @@ const useBigNumberConfig = (
               compact: bigNumberStyle,
           });
 
-    const showStyle = isNumber && (!isField(item) || item.format !== 'percent');
+    const formatValues = {
+        RAW: 'raw',
+        PERCENTAGE: 'percentage',
+    };
+    const [showComparison, setShowComparison] = useState<boolean>(false);
+    const [comparisonFormat, setComparisonFormat] = useState<string>(
+        formatValues.RAW,
+    );
+
+    const calculateComparisonValue = (a: number, b: number, format: string) => {
+        switch (format) {
+            case formatValues.PERCENTAGE:
+                return ((b - a) / a) * 100;
+
+            case formatValues.RAW:
+                return b - a;
+            default:
+                return b - a;
+        }
+    };
+
+    const comparisonValue =
+        firstRowValueRaw &&
+        secondRowValueRaw &&
+        isSecondRowValueNumber &&
+        isFirstRowValueNumber
+            ? calculateComparisonValue(
+                  Number(firstRowValueRaw),
+                  Number(secondRowValueRaw),
+                  comparisonFormat,
+              )
+            : 'Comparison not applicable';
+
+    const showStyle =
+        isFirstRowValueNumber && (!isField(item) || item.format !== 'percent');
 
     const validBigNumberConfig: BigNumber = useMemo(
         () => ({
@@ -171,6 +215,14 @@ const useBigNumberConfig = (
         selectedField,
         setSelectedField,
         getField,
+        comparisonValue,
+        showLabel,
+        setShowLabel,
+        showComparison,
+        setShowComparison,
+        formatValues,
+        comparisonFormat,
+        setComparisonFormat,
     };
 };
 

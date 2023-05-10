@@ -1,3 +1,4 @@
+import { IconArrowDownRight, IconArrowUpRight } from '@tabler/icons-react';
 import clamp from 'lodash-es/clamp';
 import { FC, HTMLAttributes, useMemo } from 'react';
 import { useResizeObserver } from '../../hooks/useResizeObserver';
@@ -30,6 +31,9 @@ const VALUE_SIZE_MAX = 64;
 const LABEL_SIZE_MIN = 14;
 const LABEL_SIZE_MAX = 32;
 
+const COMPARISON_VALUE_SIZE_MIN = 14;
+const COMPARISON_VALUE_SIZE_MAX = 32;
+
 const calculateFontSize = (
     fontSizeMin: number,
     fontSizeMax: number,
@@ -50,13 +54,22 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     const {
         resultsData,
         isLoading,
-        bigNumberConfig: { bigNumber, bigNumberLabel, defaultLabel },
+        bigNumberConfig: {
+            bigNumber,
+            bigNumberLabel,
+            defaultLabel,
+            comparisonValue,
+            showComparison,
+            showLabel,
+            comparisonFormat,
+            formatValues,
+        },
         isSqlRunner,
     } = useVisualizationContext();
 
     const [setRef, observerElementSize] = useResizeObserver();
 
-    const { valueFontSize, labelFontSize } = useMemo(() => {
+    const { valueFontSize, labelFontSize, comparisonFontSize } = useMemo(() => {
         const boundWidth = clamp(
             observerElementSize?.width || 0,
             BOX_MIN_WIDTH,
@@ -75,9 +88,16 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             boundWidth,
         );
 
+        const comparisonValueSize = calculateFontSize(
+            COMPARISON_VALUE_SIZE_MIN,
+            COMPARISON_VALUE_SIZE_MAX,
+            boundWidth,
+        );
+
         return {
             valueFontSize: valueSize,
             labelFontSize: labelSize,
+            comparisonFontSize: comparisonValueSize,
         };
     }, [observerElementSize]);
 
@@ -114,11 +134,36 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                 )}
             </BigNumberHalf>
 
-            <BigNumberHalf>
-                <BigNumberLabel $fontSize={labelFontSize}>
-                    {bigNumberLabel || defaultLabel}
-                </BigNumberLabel>
-            </BigNumberHalf>
+            {showLabel ? (
+                <BigNumberHalf>
+                    <BigNumberLabel $fontSize={labelFontSize}>
+                        {bigNumberLabel || defaultLabel}
+                    </BigNumberLabel>
+                </BigNumberHalf>
+            ) : null}
+
+            {showComparison ? (
+                <BigNumberHalf>
+                    <BigNumber
+                        $fontSize={comparisonFontSize}
+                        style={{
+                            marginTop: 10,
+                        }}
+                    >
+                        {typeof comparisonValue === 'number' &&
+                        comparisonFormat === formatValues.PERCENTAGE
+                            ? `${comparisonValue}%`
+                            : comparisonValue}
+                        {typeof comparisonValue === 'number' &&
+                        comparisonValue > 0 ? (
+                            <IconArrowUpRight style={{ marginLeft: 5 }} />
+                        ) : typeof comparisonValue === 'number' &&
+                          comparisonValue < 0 ? (
+                            <IconArrowDownRight style={{ marginLeft: 5 }} />
+                        ) : null}
+                    </BigNumber>
+                </BigNumberHalf>
+            ) : null}
         </BigNumberContainer>
     ) : (
         <EmptyChart />
