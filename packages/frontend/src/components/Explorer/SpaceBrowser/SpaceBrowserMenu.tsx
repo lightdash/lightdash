@@ -32,8 +32,11 @@ export const SpaceBrowserMenu: React.FC<Props> = ({
                     <MenuItem2 icon="edit" text="Rename" onClick={onRename} />
 
                     {user.data?.ability.can(
-                        'update',
-                        subject('Project', { organizationUuid, projectUuid }),
+                        'manage',
+                        subject('PinnedItems', {
+                            organizationUuid,
+                            projectUuid,
+                        }),
                     ) ? (
                         <MenuItem2
                             role="menuitem"

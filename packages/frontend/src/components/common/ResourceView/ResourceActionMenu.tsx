@@ -151,8 +151,8 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                 )}
 
                 {user.data?.ability.can(
-                    'update',
-                    subject('Project', { organizationUuid, projectUuid }),
+                    'manage',
+                    subject('PinnedItems', { organizationUuid, projectUuid }),
                 ) ? (
                     <Menu.Item
                         component="button"

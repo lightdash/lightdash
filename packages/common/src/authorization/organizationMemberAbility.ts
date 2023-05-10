@@ -23,6 +23,9 @@ export const organizationMemberAbilities: Record<
         can('view', 'CsvJobResult', {
             createdByUserUuid: member.userUuid,
         });
+        can('view', 'PinnedItems', {
+            organizationUuid: member.organizationUuid,
+        });
     },
     viewer(member, { can }) {
         organizationMemberAbilities.member(member, { can });
@@ -71,6 +74,9 @@ export const organizationMemberAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'Job');
+        can('manage', 'PinnedItems', {
+            organizationUuid: member.organizationUuid,
+        });
     },
     developer(member, { can }) {
         organizationMemberAbilities.editor(member, { can });
@@ -93,6 +99,9 @@ export const organizationMemberAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'OrganizationMemberProfile', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('manage', 'PinnedItems', {
             organizationUuid: member.organizationUuid,
         });
     },

@@ -22,16 +22,16 @@ const PinnedItemsPanel: FC<Props> = ({
     organizationUuid,
 }) => {
     const { user } = useApp();
-    const userCanUpdateProject = user.data?.ability.can(
-        'update',
-        subject('Project', { organizationUuid, projectUuid }),
+    const userCanManagePinnedItems = user.data?.ability.can(
+        'manage',
+        subject('PinnedItems', { organizationUuid, projectUuid }),
     );
 
     return data && data.length > 0 ? (
         <ResourceView
             items={data}
             view={ResourceViewType.GRID}
-            hasReorder
+            hasReorder={userCanManagePinnedItems}
             gridProps={{
                 groups: [
                     [ResourceViewItemType.SPACE],
@@ -42,14 +42,16 @@ const PinnedItemsPanel: FC<Props> = ({
                 ],
             }}
             headerProps={{
-                title: userCanUpdateProject ? 'Pinned items' : 'Pinned for you',
-                description: userCanUpdateProject
+                title: userCanManagePinnedItems
+                    ? 'Pinned items'
+                    : 'Pinned for you',
+                description: userCanManagePinnedItems
                     ? 'Pin Spaces, Dashboards and Charts to the top of the homepage to guide your business users to the right content.'
                     : 'Your data team have pinned these items to help guide you towards the most relevant content!',
             }}
             pinnedItemsProps={{ projectUuid, pinnedListUuid }}
         />
-    ) : (userCanUpdateProject && data.length <= 0) || !data ? (
+    ) : (userCanManagePinnedItems && data.length <= 0) || !data ? (
         // FIXME: update width with Mantine widths
         <Card
             withBorder

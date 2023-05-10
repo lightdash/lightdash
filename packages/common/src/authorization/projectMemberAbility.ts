@@ -26,10 +26,12 @@ export const projectMemberAbilities: Record<
         can('view', 'Project', {
             projectUuid: member.projectUuid,
         });
+        can('view', 'PinnedItems', {
+            projectUuid: member.projectUuid,
+        });
     },
     interactive_viewer(member, { can }) {
         projectMemberAbilities.viewer(member, { can });
-
         can('view', 'UnderlyingData', {
             projectUuid: member.projectUuid,
         });
@@ -51,12 +53,13 @@ export const projectMemberAbilities: Record<
         can('manage', 'SavedChart', {
             projectUuid: member.projectUuid,
         });
-
         can('manage', 'Job');
+        can('manage', 'PinnedItems', {
+            projectUuid: member.projectUuid,
+        });
     },
     developer(member, { can }) {
         projectMemberAbilities.editor(member, { can });
-
         can('manage', 'SqlRunner', {
             projectUuid: member.projectUuid,
         });
