@@ -209,7 +209,9 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
         let query: IOperation | null = null;
 
         try {
-            query = await session.executeStatement(sql);
+            query = await session.executeStatement(sql, {
+                runAsync: true,
+            });
 
             const result = await query.fetchAll();
             const schema = await query.getSchema();
