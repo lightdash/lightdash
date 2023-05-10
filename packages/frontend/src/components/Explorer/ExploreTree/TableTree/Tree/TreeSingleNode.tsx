@@ -80,12 +80,13 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                 <Group noWrap>
                     <Tooltip
                         withArrow
-                        inline
-                        openDelay={500}
+                        multiline
+                        sx={{ whiteSpace: 'normal' }}
                         disabled={!item.description}
-                        label={<Text truncate>{item.description}</Text>}
+                        label={item.description}
                         position="top-start"
-                        maw={350}
+                        withinPortal
+                        maw={700}
                     >
                         <Highlight
                             component={Text}
@@ -98,7 +99,11 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                     </Tooltip>
 
                     {isFiltered ? (
-                        <Tooltip withArrow label="This field is filtered">
+                        <Tooltip
+                            withArrow
+                            withinPortal
+                            label="This field is filtered"
+                        >
                             <MantineIcon
                                 icon={IconFilter}
                                 color="gray.7"
@@ -110,6 +115,7 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                     {item.hidden ? (
                         <Tooltip
                             withArrow
+                            withinPortal
                             label="This field has been hidden in the dbt project. It's recommend to remove it from the query"
                         >
                             <MantineIcon
