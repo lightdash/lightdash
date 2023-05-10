@@ -1,3 +1,15 @@
+# [0.542.0](https://github.com/lightdash/lightdash/compare/0.541.2...0.542.0) (2023-05-10)
+
+
+### Bug Fixes
+
+* get correct link for a space in all spaces grid ([#5410](https://github.com/lightdash/lightdash/issues/5410)) ([467effc](https://github.com/lightdash/lightdash/commit/467effc61d71326a8803fd415442cd46e2fb9b86))
+
+
+### Features
+
+* migrate token creation panel to mantine modal ([#5390](https://github.com/lightdash/lightdash/issues/5390)) ([1790e2d](https://github.com/lightdash/lightdash/commit/1790e2d03708d9eb1fd296263db95b97a37d11f4))
+
 ## [0.541.2](https://github.com/lightdash/lightdash/compare/0.541.1...0.541.2) (2023-05-10)
 
 
