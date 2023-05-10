@@ -82,7 +82,6 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                         withinPortal
                         multiline
                         sx={{ whiteSpace: 'normal' }}
-                        openDelay={500}
                         disabled={!item.description}
                         label={item.description}
                         position="top-start"
