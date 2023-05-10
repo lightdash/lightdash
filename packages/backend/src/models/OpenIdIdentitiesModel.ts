@@ -94,15 +94,12 @@ export class OpenIdIdentityModel {
                 email: id.email,
                 createdAt: id.createdAt,
             }))
-            .reduce(
+            .reduce<Record<OpenIdIdentityIssuerType, OpenIdIdentitySummary[]>>(
                 (acc, curr) => ({
                     ...acc,
                     [curr.issuerType]: [...(acc[curr.issuerType] || []), curr],
                 }),
-                defaultIdentities as Record<
-                    OpenIdIdentityIssuerType,
-                    OpenIdIdentitySummary[]
-                >,
+                defaultIdentities,
             );
     }
 
