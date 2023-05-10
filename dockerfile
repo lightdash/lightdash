@@ -76,7 +76,7 @@ RUN yarn --cwd ./packages/backend/ build
 
 # Build frontend
 COPY packages/frontend ./packages/frontend
-RUN yarn --cwd ./packages/frontend/ build
+RUN NODE_OPTIONS=--max-old-space-size=8192 yarn --cwd ./packages/frontend/ build
 
 # Cleanup development dependencies
 RUN rm -rf node_modules
