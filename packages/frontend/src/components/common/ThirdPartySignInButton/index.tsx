@@ -42,7 +42,7 @@ const ThirdPartySignInButtonBase: FC<
                     : ''
             }`}
             leftIcon={
-                <Image width={20} src={logo} alt={`${providerName} logo}`} />
+                <Image width={16} src={logo} alt={`${providerName} logo}`} />
             }
             sx={{ ':hover': { textDecoration: 'underline' } }}
             {...props}
