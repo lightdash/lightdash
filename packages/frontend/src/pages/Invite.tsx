@@ -3,6 +3,7 @@ import {
     CreateOrganizationUser,
     CreateUserArgs,
     LightdashUser,
+    OpenIdIdentityIssuerType,
 } from '@lightdash/common';
 import { Anchor, Button, Card, Image, Stack, Text, Title } from '@mantine/core';
 import { FC, useEffect, useState } from 'react';
@@ -140,9 +141,12 @@ const Invite: FC = () => {
         health.data?.auth.oneLogin.enabled;
     const ssoLogins = ssoAvailable && (
         <Stack>
-            <ThirdPartySignInButton providerName="google" />
-            <ThirdPartySignInButton providerName="okta" />
-            <ThirdPartySignInButton providerName="oneLogin" />
+            {Object.values(OpenIdIdentityIssuerType).map((providerName) => (
+                <ThirdPartySignInButton
+                    key={providerName}
+                    providerName={providerName}
+                />
+            ))}
         </Stack>
     );
     const passwordLogin = allowPasswordAuthentication && (

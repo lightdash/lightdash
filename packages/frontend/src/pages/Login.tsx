@@ -2,6 +2,7 @@ import {
     ApiError,
     LightdashMode,
     LightdashUser,
+    OpenIdIdentityIssuerType,
     SEED_ORG_1_ADMIN_EMAIL,
     SEED_ORG_1_ADMIN_PASSWORD,
     validateEmail,
@@ -115,9 +116,12 @@ const Login: FC = () => {
         health.data?.auth.oneLogin.enabled;
     const ssoLogins = ssoAvailable && (
         <Stack>
-            <ThirdPartySignInButton providerName="google" />
-            <ThirdPartySignInButton providerName="okta" />
-            <ThirdPartySignInButton providerName="oneLogin" />
+            {Object.values(OpenIdIdentityIssuerType).map((providerName) => (
+                <ThirdPartySignInButton
+                    key={providerName}
+                    providerName={providerName}
+                />
+            ))}
         </Stack>
     );
 

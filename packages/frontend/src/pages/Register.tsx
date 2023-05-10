@@ -1,4 +1,9 @@
-import { ApiError, CreateUserArgs, LightdashUser } from '@lightdash/common';
+import {
+    ApiError,
+    CreateUserArgs,
+    LightdashUser,
+    OpenIdIdentityIssuerType,
+} from '@lightdash/common';
 import { Anchor, Card, Image, Stack, Text, Title } from '@mantine/core';
 import { FC } from 'react';
 import { useMutation } from 'react-query';
@@ -58,9 +63,12 @@ const Register: FC = () => {
         health.data?.auth.oneLogin.enabled;
     const ssoLogins = ssoAvailable && (
         <Stack>
-            <ThirdPartySignInButton providerName="google" />
-            <ThirdPartySignInButton providerName="okta" />
-            <ThirdPartySignInButton providerName="oneLogin" />
+            {Object.values(OpenIdIdentityIssuerType).map((providerName) => (
+                <ThirdPartySignInButton
+                    key={providerName}
+                    providerName={providerName}
+                />
+            ))}
         </Stack>
     );
     const passwordLogin = allowPasswordAuthentication && (
