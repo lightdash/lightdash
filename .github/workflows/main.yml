@@ -11,6 +11,9 @@ on:
       - '!*-beta*'
 
   workflow_dispatch:
+
+env: 
+  NODE_OPTIONS: --max-old-space-size=8192
   
 jobs:
   docker:
