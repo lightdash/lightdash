@@ -141,9 +141,7 @@ const Invite: FC = () => {
     const ssoLogins = ssoAvailable && (
         <Stack>
             <ThirdPartySignInButton providerName="google" />
-
             <ThirdPartySignInButton providerName="okta" />
-
             <ThirdPartySignInButton providerName="oneLogin" />
         </Stack>
     );

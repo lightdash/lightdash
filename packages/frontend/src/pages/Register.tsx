@@ -57,11 +57,11 @@ const Register: FC = () => {
         health.data?.auth.okta.enabled ||
         health.data?.auth.oneLogin.enabled;
     const ssoLogins = ssoAvailable && (
-        <>
+        <Stack>
             <ThirdPartySignInButton providerName="google" />
             <ThirdPartySignInButton providerName="okta" />
             <ThirdPartySignInButton providerName="oneLogin" />
-        </>
+        </Stack>
     );
     const passwordLogin = allowPasswordAuthentication && (
         <CreateUserForm
