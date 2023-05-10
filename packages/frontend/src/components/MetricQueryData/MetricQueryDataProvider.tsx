@@ -2,6 +2,7 @@ import {
     DashboardFilters,
     Explore,
     Field,
+    formatItemValue,
     getItemId,
     hashFieldReference,
     isDimension,
@@ -69,13 +70,17 @@ export const getDataFromChartClick = (
         (item) => !isDimension(item),
     );
 
-    const selectedField =
-        selectedMetricsAndTableCalculations.length > 0
-            ? selectedMetricsAndTableCalculations[0]
-            : selectedFields[0];
-    const selectedValue = e.data[getItemId(selectedField)];
+    let selectedField: Field | TableCalculation | undefined = undefined;
+    if (selectedMetricsAndTableCalculations.length > 0) {
+        selectedField = selectedMetricsAndTableCalculations[0];
+    } else if (selectedFields.length > 0) {
+        selectedField = selectedFields[0];
+    }
+    const selectedValue = selectedField
+        ? e.data[getItemId(selectedField)]
+        : undefined;
     const fieldValues: Record<string, ResultValue> = Object.entries(
-        e.data as Record<string, any>,
+        e.data,
     ).reduce((acc, entry) => {
         const [key, val] = entry;
         return { ...acc, [key]: { raw: val, formatted: val } };
@@ -83,7 +88,10 @@ export const getDataFromChartClick = (
 
     return {
         item: selectedField,
-        value: { raw: selectedValue, formatted: selectedValue },
+        value: {
+            raw: selectedValue,
+            formatted: formatItemValue(selectedField, selectedValue),
+        },
         fieldValues,
         pivotReference,
     };
