@@ -199,17 +199,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                         reject(new WarehouseQueryError(err.message));
                     }
                     const rows: any[] = [];
-                    const fields = stmt.getColumns().reduce(
-                        (acc, column) => ({
-                            ...acc,
-                            [column.getName()]: {
-                                type: mapFieldType(
-                                    column.getType().toUpperCase(),
-                                ),
-                            },
-                        }),
-                        {},
-                    );
 
                     pipeline(
                         stmt.streamRows(),
@@ -230,6 +219,23 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                             if (error) {
                                 reject(new WarehouseQueryError(error.message));
                             } else {
+                                const columns = stmt.getColumns();
+                                const fields = columns
+                                    ? columns.reduce(
+                                          (acc, column) => ({
+                                              ...acc,
+                                              [column.getName()]: {
+                                                  type: mapFieldType(
+                                                      column
+                                                          .getType()
+                                                          .toUpperCase(),
+                                                  ),
+                                              },
+                                          }),
+                                          {},
+                                      )
+                                    : {};
+
                                 resolve({ fields, rows });
                             }
                         },
