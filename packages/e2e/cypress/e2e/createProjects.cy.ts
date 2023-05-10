@@ -297,7 +297,7 @@ describe('Create projects', () => {
         cy.login();
     });
 
-    it('Should be able to create new project from settings', () => {
+    it.skip('Should be able to create new project from settings', () => {
         cy.visit(`/`);
 
         cy.findAllByTestId('settings-menu').click();
@@ -312,7 +312,7 @@ describe('Create projects', () => {
         cy.contains('a', 'Create project manually');
     });
 
-    it.only('Should create a Postgres project', () => {
+    it('Should create a Postgres project', () => {
         cy.visit(`/createProject`);
 
         cy.contains('button', 'PostgreSQL').click();

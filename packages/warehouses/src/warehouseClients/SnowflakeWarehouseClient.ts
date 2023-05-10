@@ -10,6 +10,7 @@ import {
 } from '@lightdash/common';
 import * as crypto from 'crypto';
 import { Connection, ConnectionOptions, createConnection } from 'snowflake-sdk';
+import { pipeline, Transform, Writable } from 'stream';
 import * as Util from 'util';
 import { WarehouseCatalog } from '../types';
 import WarehouseBaseClient from './WarehouseBaseClient';
@@ -98,15 +99,11 @@ const parseCell = (cell: any) => {
     return cell;
 };
 
-const parseRows = (rows: Record<string, any>[]) =>
-    rows.map((row) =>
-        Object.fromEntries(
-            Object.entries(row).map(([name, value]) => [
-                name,
-                parseCell(value),
-            ]),
-        ),
+const parseRow = (row: Record<string, any>) =>
+    Object.fromEntries(
+        Object.entries(row).map(([name, value]) => [name, parseCell(value)]),
     );
+const parseRows = (rows: Record<string, any>[]) => rows.map(parseRow);
 
 export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflakeCredentials> {
     connectionOptions: ConnectionOptions;
@@ -167,7 +164,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 connection,
                 "ALTER SESSION SET TIMEZONE = 'UTC'",
             );
-            const result = await this.executeStatement(connection, sqlText);
+            const result = await this.executeStreamStatement(
+                connection,
+                sqlText,
+            );
             return result;
         } catch (e) {
             throw new WarehouseQueryError(e.message);
@@ -181,6 +181,62 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 });
             });
         }
+    }
+
+    private async executeStreamStatement(
+        connection: Connection,
+        sqlText: string,
+    ) {
+        return new Promise<{
+            fields: Record<string, { type: DimensionType }>;
+            rows: any[];
+        }>((resolve, reject) => {
+            connection.execute({
+                sqlText,
+                streamResult: true,
+                complete: (err, stmt) => {
+                    if (err) {
+                        reject(new WarehouseQueryError(err.message));
+                    }
+                    const rows: any[] = [];
+                    const fields = stmt.getColumns().reduce(
+                        (acc, column) => ({
+                            ...acc,
+                            [column.getName()]: {
+                                type: mapFieldType(
+                                    column.getType().toUpperCase(),
+                                ),
+                            },
+                        }),
+                        {},
+                    );
+
+                    pipeline(
+                        stmt.streamRows(),
+                        new Transform({
+                            objectMode: true,
+                            transform(chunk, encoding, callback) {
+                                callback(null, parseRow(chunk));
+                            },
+                        }),
+                        new Writable({
+                            objectMode: true,
+                            write(chunk, encoding, callback) {
+                                rows.push(chunk);
+                                callback();
+                            },
+                        }),
+                        (error) => {
+                            if (error) {
+                                reject(new WarehouseQueryError(error.message));
+                            } else {
+                                resolve({ fields, rows });
+                            }
+                        },
+                    );
+                },
+            });
+        });
     }
 
     // eslint-disable-next-line class-methods-use-this
