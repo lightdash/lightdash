@@ -85,6 +85,9 @@ export const getMantineThemeOverride = (overrides?: {
         },
 
         Tooltip: {
+            defaultProps: {
+                withArrow: true,
+            },
             styles: () => ({
                 // FIXME: this is a hack to fix tooltip position. remove after Blueprint migration is complete
                 root: {

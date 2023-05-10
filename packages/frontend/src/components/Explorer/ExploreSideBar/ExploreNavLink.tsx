@@ -39,12 +39,7 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
             .join('\n');
 
         return (
-            <Tooltip
-                withArrow
-                withinPortal
-                position="right"
-                label={errorMessage}
-            >
+            <Tooltip withinPortal position="right" label={errorMessage}>
                 <Box>
                     <NavLink
                         role="listitem"
@@ -108,7 +103,6 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
                 <Transition mounted={hovered} transition="fade">
                     {(styles) => (
                         <Tooltip
-                            withArrow
                             withinPortal
                             position="right"
                             label={explore.description}

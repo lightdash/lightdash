@@ -225,7 +225,6 @@ const TreeSingleNodeActions: FC<Props> = ({
             >
                 <Menu.Target>
                     <Tooltip
-                        withArrow
                         openDelay={500}
                         position="top"
                         label="View options"

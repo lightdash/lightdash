@@ -19,7 +19,6 @@ const TitleCell: FC<TitleCellProps> = ({
 }) => {
     return (
         <Tooltip
-            withArrow
             withinPortal
             multiline
             disabled={!description}

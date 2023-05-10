@@ -42,7 +42,6 @@ const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
         >
             <Tooltip
                 label={item.data.description}
-                withArrow
                 position="top"
                 disabled={!item.data.description}
             >
@@ -68,7 +67,6 @@ const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
 
             <Flex pl="md" pr="xs" h={32} justify="space-between" align="center">
                 <Tooltip
-                    withArrow
                     position="bottom-start"
                     disabled={!item.data.views || !item.data.firstViewedAt}
                     label={getResourceViewsSinceWhenDescription(item)}

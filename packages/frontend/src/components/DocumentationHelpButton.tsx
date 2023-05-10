@@ -15,7 +15,6 @@ const DocumentationHelpButton: FC<Props> = ({
     ...anchorProps
 }) => (
     <Tooltip
-        withArrow
         withinPortal
         label="Open documentation"
         position="top"

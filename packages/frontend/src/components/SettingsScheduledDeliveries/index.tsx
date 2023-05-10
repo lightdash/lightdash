@@ -55,7 +55,6 @@ const SchedulerDetails: FC<{ scheduler: SchedulerAndTargets; user?: User }> = ({
         <Tooltip
             position="right"
             multiline
-            withArrow
             label={
                 <>
                     <p>
