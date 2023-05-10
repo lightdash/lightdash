@@ -1,3 +1,10 @@
+## [0.541.1](https://github.com/lightdash/lightdash/compare/0.541.0...0.541.1) (2023-05-10)
+
+
+### Bug Fixes
+
+* overflow with mantine tooltips in explore panel ([#5413](https://github.com/lightdash/lightdash/issues/5413)) ([7d2cfd7](https://github.com/lightdash/lightdash/commit/7d2cfd754099f9fa1a08c413edf93ab25ce04833))
+
 # [0.541.0](https://github.com/lightdash/lightdash/compare/0.540.1...0.541.0) (2023-05-10)
 
 
