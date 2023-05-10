@@ -124,42 +124,45 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         }
     }
 
-    async getQuerySchema(
-        query: string,
-    ): Promise<Record<string, { type: DimensionType }>> {
-        const [job] = await this.client.createQueryJob({
-            query,
-            useLegacySql: false,
-            maxResults: 1,
-        });
-        const [, , response] = await job.getQueryResults({
-            autoPaginate: false,
-        });
-        const fields = (response?.schema?.fields || []).reduce<
-            Record<string, { type: DimensionType }>
-        >((acc, field) => {
-            if (field.name) {
-                return {
-                    ...acc,
-                    [field.name]: { type: mapFieldType(field.type) },
-                };
-            }
-            return acc;
-        }, {});
-
-        return fields;
-    }
-
     async runQuery(query: string) {
         try {
             const rows: Record<string, any>[] = [];
-            const fields: Record<string, { type: DimensionType }> =
-                await this.getQuerySchema(query);
 
+            const [job] = await this.client.createQueryJob({
+                query,
+                useLegacySql: false,
+                maximumBytesBilled:
+                    this.credentials.maximumBytesBilled === undefined
+                        ? undefined
+                        : `${this.credentials.maximumBytesBilled}`,
+                priority: this.credentials.priority,
+                jobTimeoutMs:
+                    this.credentials.timeoutSeconds &&
+                    this.credentials.timeoutSeconds * 1000,
+            });
+
+            // Get the full api response but we can request zero rows
+            const [, , response] = await job.getQueryResults({
+                autoPaginate: false, // v. important, without this we wouldn't get the apiResponse object
+                maxApiCalls: 1, // only allow one api call - not sure how essential this is
+                maxResults: 0, // don't fetch any results
+            });
+
+            const fields = (response?.schema?.fields || []).reduce<
+                Record<string, { type: DimensionType }>
+            >((acc, field) => {
+                if (field.name) {
+                    return {
+                        ...acc,
+                        [field.name]: { type: mapFieldType(field.type) },
+                    };
+                }
+                return acc;
+            }, {});
             const writePromise = new Promise<{ fields: {}; rows: any[] }>(
                 (resolve, reject) => {
                     pipeline(
-                        this.client.createQueryStream(query),
+                        job.getQueryResultsStream(),
                         new Transform({
                             objectMode: true,
                             transform(chunk, encoding, callback) {
