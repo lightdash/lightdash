@@ -47,7 +47,7 @@ const ThirdPartySignInButtonBase: FC<
             sx={{ ':hover': { textDecoration: 'underline' } }}
             {...props}
         >
-            {intent === 'signin' ? 'Sign in with Okta' : 'Add +'}
+            {intent === 'signin' ? `Sign in with ${providerName}` : 'Add +'}
         </Button>
     );
 };
