@@ -15,6 +15,7 @@ import {
     WarehouseConnectionError,
     WarehouseQueryError,
 } from '@lightdash/common';
+import { pipeline, Transform, Writable } from 'stream';
 import { WarehouseCatalog, WarehouseTableSchema } from '../types';
 import WarehouseBaseClient from './WarehouseBaseClient';
 
@@ -99,14 +100,9 @@ const isSchemaFields = (
 const isTableSchema = (schema: bigquery.ITableSchema): schema is TableSchema =>
     !!schema && !!schema.fields && isSchemaFields(schema.fields);
 
-const parseRows = (rows: Record<string, any>[]) =>
-    rows.map((row) =>
-        Object.fromEntries(
-            Object.entries(row).map(([name, value]) => [
-                name,
-                parseCell(value),
-            ]),
-        ),
+const parseRow = (row: Record<string, any>[]) =>
+    Object.fromEntries(
+        Object.entries(row).map(([name, value]) => [name, parseCell(value)]),
     );
 
 export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryCredentials> {
@@ -130,6 +126,8 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
 
     async runQuery(query: string) {
         try {
+            const rows: Record<string, any>[] = [];
+
             const [job] = await this.client.createQueryJob({
                 query,
                 useLegacySql: false,
@@ -142,13 +140,14 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                     this.credentials.timeoutSeconds &&
                     this.credentials.timeoutSeconds * 1000,
             });
-            // auto paginate - hides full response
-            const [rows] = await job.getQueryResults({
-                autoPaginate: true,
-            });
+
+            // Get the full api response but we can request zero rows
             const [, , response] = await job.getQueryResults({
-                autoPaginate: false,
+                autoPaginate: false, // v. important, without this we wouldn't get the apiResponse object
+                maxApiCalls: 1, // only allow one api call - not sure how essential this is
+                maxResults: 0, // don't fetch any results
             });
+
             const fields = (response?.schema?.fields || []).reduce<
                 Record<string, { type: DimensionType }>
             >((acc, field) => {
@@ -160,7 +159,34 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 }
                 return acc;
             }, {});
-            return { fields, rows: parseRows(rows) };
+            const writePromise = new Promise<{ fields: {}; rows: any[] }>(
+                (resolve, reject) => {
+                    pipeline(
+                        job.getQueryResultsStream(),
+                        new Transform({
+                            objectMode: true,
+                            transform(chunk, encoding, callback) {
+                                callback(null, parseRow(chunk));
+                            },
+                        }),
+                        new Writable({
+                            objectMode: true,
+                            write(chunk, encoding, callback) {
+                                rows.push(chunk);
+                                callback();
+                            },
+                        }),
+                        async (err) => {
+                            if (err) {
+                                reject(err);
+                            }
+                            resolve({ fields, rows });
+                        },
+                    );
+                },
+            );
+
+            return await writePromise;
         } catch (e) {
             throw new WarehouseQueryError(e.message);
         }
