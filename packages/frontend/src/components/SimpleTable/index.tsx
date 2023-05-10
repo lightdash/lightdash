@@ -1,5 +1,4 @@
 import { NonIdealState } from '@blueprintjs/core';
-import { Box } from '@mantine/core';
 import { FC } from 'react';
 import PivotTable from '../common/PivotTable';
 import Table from '../common/Table';
@@ -57,25 +56,20 @@ const SimpleTable: FC<SimpleTableProps> = ({
     }
 
     if (pivotTableData.error || pivotTableData.data) {
-        return (
-            <Box w="100%" h="100%" p="xs" sx={{ overflowX: 'auto' }}>
-                {pivotTableData.error || !pivotTableData.data ? (
-                    <NonIdealState
-                        title="Results not available"
-                        description={pivotTableData.error}
-                        icon="error"
-                    />
-                ) : (
-                    <PivotTable
-                        w="100%"
-                        data={pivotTableData.data}
-                        conditionalFormattings={conditionalFormattings}
-                        getFieldLabel={getFieldLabel}
-                        getField={getField}
-                        hideRowNumbers={hideRowNumbers}
-                    />
-                )}
-            </Box>
+        return pivotTableData.error || !pivotTableData.data ? (
+            <NonIdealState
+                title="Results not available"
+                description={pivotTableData.error}
+                icon="error"
+            />
+        ) : (
+            <PivotTable
+                data={pivotTableData.data}
+                conditionalFormattings={conditionalFormattings}
+                getFieldLabel={getFieldLabel}
+                getField={getField}
+                hideRowNumbers={hideRowNumbers}
+            />
         );
     }
 
