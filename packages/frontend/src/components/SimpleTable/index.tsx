@@ -1,4 +1,5 @@
 import { NonIdealState } from '@blueprintjs/core';
+import { Box } from '@mantine/core';
 import { FC } from 'react';
 import PivotTable from '../common/PivotTable';
 import Table from '../common/Table';
@@ -63,13 +64,15 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 icon="error"
             />
         ) : (
-            <PivotTable
-                data={pivotTableData.data}
-                conditionalFormattings={conditionalFormattings}
-                getFieldLabel={getFieldLabel}
-                getField={getField}
-                hideRowNumbers={hideRowNumbers}
-            />
+            <Box miw="100%" h="100%" sx={{ overflow: 'auto' }}>
+                <PivotTable
+                    data={pivotTableData.data}
+                    conditionalFormattings={conditionalFormattings}
+                    getFieldLabel={getFieldLabel}
+                    getField={getField}
+                    hideRowNumbers={hideRowNumbers}
+                />
+            </Box>
         );
     }
 
