@@ -1,3 +1,10 @@
+# [0.541.0](https://github.com/lightdash/lightdash/compare/0.540.1...0.541.0) (2023-05-10)
+
+
+### Features
+
+* snowflake streaming query ([#5380](https://github.com/lightdash/lightdash/issues/5380)) ([7a2d231](https://github.com/lightdash/lightdash/commit/7a2d231513f949fe69269499bc165d6f505aa598))
+
 ## [0.540.1](https://github.com/lightdash/lightdash/compare/0.540.0...0.540.1) (2023-05-09)
 
 
