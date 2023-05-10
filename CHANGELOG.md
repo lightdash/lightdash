@@ -1,3 +1,12 @@
+## [0.543.1](https://github.com/lightdash/lightdash/compare/0.543.0...0.543.1) (2023-05-10)
+
+
+### Bug Fixes
+
+* manual trigger release ([#5432](https://github.com/lightdash/lightdash/issues/5432)) ([5d1960f](https://github.com/lightdash/lightdash/commit/5d1960fddced449ff787580b99c79c26504e2b20))
+* pinning permissions ([#5417](https://github.com/lightdash/lightdash/issues/5417)) ([50ce4d6](https://github.com/lightdash/lightdash/commit/50ce4d61b92d5b6b4bf294963c938af20e456f88))
+* snowflake fields streaming ([#5428](https://github.com/lightdash/lightdash/issues/5428)) ([2e87665](https://github.com/lightdash/lightdash/commit/2e87665c6e3265065fab7854114abb3958123b62))
+
 # [0.543.0](https://github.com/lightdash/lightdash/compare/0.542.1...0.543.0) (2023-05-10)
 
 
