@@ -219,17 +219,22 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                             if (error) {
                                 reject(new WarehouseQueryError(error.message));
                             } else {
-                                const fields = stmt.getColumns().reduce(
-                                    (acc, column) => ({
-                                        ...acc,
-                                        [column.getName()]: {
-                                            type: mapFieldType(
-                                                column.getType().toUpperCase(),
-                                            ),
-                                        },
-                                    }),
-                                    {},
-                                );
+                                const columns = stmt.getColumns();
+                                const fields = columns
+                                    ? columns.reduce(
+                                          (acc, column) => ({
+                                              ...acc,
+                                              [column.getName()]: {
+                                                  type: mapFieldType(
+                                                      column
+                                                          .getType()
+                                                          .toUpperCase(),
+                                                  ),
+                                              },
+                                          }),
+                                          {},
+                                      )
+                                    : {};
 
                                 resolve({ fields, rows });
                             }
