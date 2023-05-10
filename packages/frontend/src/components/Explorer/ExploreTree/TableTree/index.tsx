@@ -44,7 +44,6 @@ const TableTreeWrapper: FC<TableTreeWrapperProps> = ({
             icon={<MantineIcon icon={IconTable} size="lg" color="gray.7" />}
             label={
                 <Tooltip
-                    withArrow
                     label={<Text truncate>{table.description}</Text>}
                     position="top-start"
                     maw={350}

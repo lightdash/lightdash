@@ -18,7 +18,6 @@ const ViewInfo: FC<ViewInfoProps> = ({ views, firstViewedAt }) => {
 
     return (
         <Tooltip
-            withArrow
             position="top-start"
             label={label}
             disabled={!views || !firstViewedAt}

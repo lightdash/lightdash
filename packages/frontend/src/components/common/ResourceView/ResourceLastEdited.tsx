@@ -23,7 +23,6 @@ const ResourceLastEdited: FC<ResourceLastEditedProps> = ({
         <div>
             <Tooltip
                 position="top-start"
-                withArrow
                 label={moment(updatedAt).format('YYYY-MM-DD HH:mm:ss')}
             >
                 <Text fz={12} fw={500} color="gray.7">

@@ -88,10 +88,7 @@ const SavedDashboards = () => {
                             userCanManageDashboards &&
                             !isDemo &&
                             hasNoSpaces ? (
-                                <Tooltip
-                                    withArrow
-                                    label="First you must create a space for this dashboard"
-                                >
+                                <Tooltip label="First you must create a space for this dashboard">
                                     <div>
                                         <Button
                                             leftIcon={<IconPlus size={18} />}

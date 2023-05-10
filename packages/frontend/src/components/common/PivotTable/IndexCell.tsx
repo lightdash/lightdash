@@ -13,7 +13,6 @@ const IndexCell: FC<IndexCellProps> = ({
 }) => {
     return (
         <Tooltip
-            withArrow
             withinPortal
             multiline
             disabled={!description}

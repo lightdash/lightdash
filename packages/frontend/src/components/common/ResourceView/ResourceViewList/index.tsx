@@ -137,7 +137,6 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
 
                                 <Stack spacing={2}>
                                     <Tooltip
-                                        withArrow
                                         disabled={
                                             canBelongToSpace
                                                 ? !item.data.description
@@ -163,7 +162,6 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                         <Text fz={12} color="gray.6">
                                             {getResourceTypeName(item)} •{' '}
                                             <Tooltip
-                                                withArrow
                                                 position="top-start"
                                                 disabled={
                                                     !item.data.views ||

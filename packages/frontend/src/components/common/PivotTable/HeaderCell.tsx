@@ -15,7 +15,6 @@ const HeaderCell: FC<HeaderCellProps> = ({
 }) => {
     return (
         <Tooltip
-            withArrow
             withinPortal
             multiline
             disabled={!description}

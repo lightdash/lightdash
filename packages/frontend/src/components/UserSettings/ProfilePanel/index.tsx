@@ -148,10 +148,7 @@ const ProfilePanel: FC = () => {
                     data-cy="email-input"
                     rightSection={
                         isEmailServerConfigured && data?.isVerified ? (
-                            <Tooltip
-                                label="This e-mail has been verified"
-                                withArrow
-                            >
+                            <Tooltip label="This e-mail has been verified">
                                 <MantineIcon
                                     size="lg"
                                     icon={IconCircleCheck}

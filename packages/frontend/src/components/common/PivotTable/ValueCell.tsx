@@ -114,7 +114,6 @@ const ValueCell: FC<ValueCellProps> = ({
                         disabled={!conditionalFormatting}
                         label={conditionalFormatting?.tooltipContent}
                         withinPortal
-                        withArrow
                     >
                         <ForwardRef
                             render={(tooltipProps, tooltipRef) => (

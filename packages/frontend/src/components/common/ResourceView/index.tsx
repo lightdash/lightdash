@@ -192,7 +192,6 @@ const ResourceView: React.FC<ResourceViewProps> = ({
 
                                     {headerProps?.description ? (
                                         <Tooltip
-                                            withArrow
                                             label={
                                                 headerProps.description || ''
                                             }

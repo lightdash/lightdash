@@ -49,6 +49,12 @@ export const getMantineThemeOverride = (overrides?: {
     lineHeight: 1.2858142857,
 
     components: {
+        Tooltip: {
+            defaultProps: {
+                withArrow: true,
+            },
+        },
+
         TextInput: {
             styles: (theme, _params) => ({
                 label: {

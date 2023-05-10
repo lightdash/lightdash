@@ -75,9 +75,7 @@ const PageBreadcrumbs: FC<PageBreadcrumbsProps> = ({
                 );
 
                 return item.tooltipProps ? (
-                    <Tooltip withArrow {...item.tooltipProps}>
-                        {anchor}
-                    </Tooltip>
+                    <Tooltip {...item.tooltipProps}>{anchor}</Tooltip>
                 ) : (
                     anchor
                 );
