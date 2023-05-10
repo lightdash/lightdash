@@ -7,6 +7,7 @@ import {
     isSessionUser,
     LightdashError,
     LightdashMode,
+    OpenIdIdentityIssuerType,
     OpenIdUser,
     SessionUser,
 } from '@lightdash/common';
@@ -183,7 +184,7 @@ export const googlePassportStrategy: GoogleStrategy | undefined = !(
                           subject,
                           firstName: profile.name?.givenName,
                           lastName: profile.name?.familyName,
-                          issuerType: 'google',
+                          issuerType: OpenIdIdentityIssuerType.GOOGLE,
                       },
                   };
                   const user = await userService.loginWithOpenId(
@@ -269,7 +270,7 @@ export const oktaPassportStrategy = !(
               userInfoURL: generateOktaUrl('/userinfo'),
               passReqToCallback: true,
           },
-          genericOidcHandler('okta'),
+          genericOidcHandler(OpenIdIdentityIssuerType.OKTA),
       );
 
 export const oneLoginPassportStrategy = !(
@@ -304,7 +305,7 @@ export const oneLoginPassportStrategy = !(
               ).href,
               passReqToCallback: true,
           },
-          genericOidcHandler('oneLogin'),
+          genericOidcHandler(OpenIdIdentityIssuerType.ONELOGIN),
       );
 export const isAuthenticated: RequestHandler = (req, res, next) => {
     if (req.user?.userUuid) {
