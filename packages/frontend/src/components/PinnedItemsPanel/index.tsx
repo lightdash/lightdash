@@ -26,7 +26,6 @@ const PinnedItemsPanel: FC<Props> = ({
         'manage',
         subject('PinnedItems', { organizationUuid, projectUuid }),
     );
-    console.log({ userCanManagePinnedItems, user });
 
     return data && data.length > 0 ? (
         <ResourceView
