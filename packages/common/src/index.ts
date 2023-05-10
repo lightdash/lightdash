@@ -470,7 +470,7 @@ type ApiResults =
     | Dashboard[]
     | DeleteOpenIdentity
     | ApiFlashResults
-    | OpenIdIdentitySummary[]
+    | Record<OpenIdIdentitySummary['issuerType'], OpenIdIdentitySummary[]>
     | FilterableField[]
     | DashboardAvailableFilters
     | ProjectSavedChartStatus
