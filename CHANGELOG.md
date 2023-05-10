@@ -1,3 +1,10 @@
+## [0.542.1](https://github.com/lightdash/lightdash/compare/0.542.0...0.542.1) (2023-05-10)
+
+
+### Bug Fixes
+
+* undefined item on chart click ([#5412](https://github.com/lightdash/lightdash/issues/5412)) ([c558fc9](https://github.com/lightdash/lightdash/commit/c558fc9110ceced9366743588e28fd32d9fe32f5))
+
 # [0.542.0](https://github.com/lightdash/lightdash/compare/0.541.2...0.542.0) (2023-05-10)
 
 
