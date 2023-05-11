@@ -178,7 +178,7 @@ const useBigNumberConfig = (
             setSelectedField(bigNumberConfigData.selectedField);
 
         setBigNumberLabel(bigNumberConfigData?.label);
-        setShowLabel(bigNumberConfigData?.showLabel);
+        setShowLabel(bigNumberConfigData?.showLabel ?? true);
 
         setBigNumberStyle(bigNumberConfigData?.style);
 
