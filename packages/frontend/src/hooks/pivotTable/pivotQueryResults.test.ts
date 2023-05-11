@@ -90,6 +90,7 @@ describe('Should pivot data', () => {
         });
         expect(result).toEqual(expected);
     });
+
     it('with 1 dimension, metrics as cols', () => {
         const pivotConfig = {
             pivotDimensions: [],
@@ -158,6 +159,7 @@ describe('Should pivot data', () => {
         });
         expect(result).toEqual(expected);
     });
+
     it('with 1 dimension, 1 pivoted, metrics as rows', () => {
         const pivotConfig = {
             pivotDimensions: ['page'],
@@ -215,6 +217,7 @@ describe('Should pivot data', () => {
         });
         expect(result).toEqual(expected);
     });
+
     it('with 2 dimensions, 1 pivoted, metrics as columns', () => {
         const pivotConfig = {
             pivotDimensions: ['site'],
@@ -316,6 +319,7 @@ describe('Should pivot data', () => {
 
         expect(result).toEqual(expected);
     });
+
     it('with 2 dimensions, 1 pivoted, metrics as rows with totals', () => {
         const pivotConfig = {
             pivotDimensions: ['site'],
@@ -436,6 +440,7 @@ describe('Should pivot data', () => {
         });
         expect(result).toStrictEqual(expected);
     });
+
     it.skip('with 0 dimensions and 2 metrics as columns', () => {
         const pivotConfig = {
             pivotDimensions: [],
