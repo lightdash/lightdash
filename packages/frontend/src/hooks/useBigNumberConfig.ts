@@ -223,7 +223,7 @@ const useBigNumberConfig = (
                   Number(secondRowValueRaw),
                   comparisonFormat,
               )
-            : 'Comparison not applicable';
+            : 'N/A';
 
     useEffect(() => {
         setComparisonDiff(
