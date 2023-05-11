@@ -1,3 +1,10 @@
+# [0.545.0](https://github.com/lightdash/lightdash/compare/0.544.0...0.545.0) (2023-05-11)
+
+
+### Features
+
+* migrate social logins to mantine ([#5421](https://github.com/lightdash/lightdash/issues/5421)) ([c256b2b](https://github.com/lightdash/lightdash/commit/c256b2b903bb3c97d00dd84e03b0c3988dd20391))
+
 # [0.544.0](https://github.com/lightdash/lightdash/compare/0.543.3...0.544.0) (2023-05-11)
 
 
