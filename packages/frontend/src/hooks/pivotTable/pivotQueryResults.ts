@@ -369,8 +369,8 @@ export const pivotQueryResults = ({
     }
 
     const titleFields: PivotData['titleFields'] = create2DArray(
-        headerValueTypes.length + 1,
-        indexValueTypes.length + 1,
+        headerValueTypes.length,
+        indexValueTypes.length,
     );
     if (hasHeader && hasIndex) {
         headerValueTypes.forEach((headerValueType, headerIndex) => {
