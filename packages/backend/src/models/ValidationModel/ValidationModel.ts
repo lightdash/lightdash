@@ -36,4 +36,33 @@ export class ValidationModel {
             .where({ project_uuid: projectUuid })
             .delete();
     }
+
+    async get(projectUuid: string): Promise<ValidationResponse[]> {
+        const validationErrors = await this.database(ValidationTableName)
+            .select('*')
+            .where('project_uuid', projectUuid);
+
+        return validationErrors.map((validationError) => {
+            const validation = {
+                createdAt: validationError.created_at,
+                projectUuid: validationError.project_uuid,
+                summary: validationError.summary,
+                error: validationError.error,
+                ...(validationError.dashboard_uuid && {
+                    chartUuid: validationError.dashboard_uuid,
+                }),
+                ...(validationError.saved_chart_uuid && {
+                    chartUuid: validationError.saved_chart_uuid,
+                }),
+            };
+
+            return {
+                ...validation,
+                // TODO: fix below
+                name: 'unknown',
+                // TODO: fix below
+                lastUpdatedBy: 'last_updated_by',
+            };
+        });
+    }
 }

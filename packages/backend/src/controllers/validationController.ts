@@ -41,4 +41,24 @@ export class ValidationController extends Controller {
             results: await validationService.validate(req.user!, projectUuid),
         };
     }
+
+    /**
+     * Get validation for a project
+     * @param projectUuid the projectId for the validation
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/')
+    @OperationId('getValidate')
+    async get(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiValidateResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await validationService.get(req.user!, projectUuid),
+        };
+    }
 }
