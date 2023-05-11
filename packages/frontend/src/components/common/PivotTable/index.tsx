@@ -41,8 +41,8 @@ const PivotTable: FC<PivotTableProps> = ({
     const getItemFromAxis = useCallback(
         (rowIndex: number, colIndex: number) => {
             const value = data.pivotConfig.metricsAsRows
-                ? last(data.headerValues)?.[colIndex]
-                : last(data.indexValues[rowIndex]);
+                ? last(data.indexValues[rowIndex])
+                : last(data.headerValues)?.[colIndex];
 
             if (!value || !value.fieldId) throw new Error('Invalid pivot data');
 
