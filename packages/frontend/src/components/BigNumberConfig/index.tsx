@@ -42,7 +42,7 @@ const BigNumberConfigPanel: React.FC = () => {
             setShowComparison,
             comparisonFormat,
             setComparisonFormat,
-            formatValues,
+            comparisonFormatTypes,
         },
     } = useVisualizationContext();
     const [isOpen, setIsOpen] = useState(false);
@@ -134,17 +134,18 @@ const BigNumberConfigPanel: React.FC = () => {
                     {showComparison && (
                         <RadioGroup
                             onChange={(e) => {
+                                // @ts-ignore
                                 setComparisonFormat(e.currentTarget.value);
                             }}
                             selectedValue={comparisonFormat}
                         >
                             <Radio
                                 label="By raw value"
-                                value={formatValues.RAW}
+                                value={comparisonFormatTypes.RAW}
                             />
                             <Radio
                                 label="By percentage"
-                                value={formatValues.PERCENTAGE}
+                                value={comparisonFormatTypes.PERCENTAGE}
                             />
                         </RadioGroup>
                     )}

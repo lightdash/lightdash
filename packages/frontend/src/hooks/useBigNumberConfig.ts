@@ -3,7 +3,9 @@ import {
     BigNumber,
     convertAdditionalMetric,
     Explore,
+    Field,
     fieldId,
+    formatItemValue,
     formatValue,
     friendlyName,
     getDimensions,
@@ -13,9 +15,65 @@ import {
     isField,
     isNumericItem,
     Metric,
+    TableCalculation,
     valueIsNaN,
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+
+enum comparisonFormatTypes {
+    RAW = 'raw',
+    PERCENTAGE = 'percentage',
+}
+
+enum comparisonDiffTypes {
+    POSITIVE = 'positive',
+    NEGATIVE = 'negative',
+    NONE = 'none',
+    NAN = 'nan',
+}
+
+const calculateComparisonValue = (
+    a: number,
+    b: number,
+    format: comparisonFormatTypes,
+) => {
+    const rawValue = a - b;
+    switch (format) {
+        case comparisonFormatTypes.PERCENTAGE:
+            return rawValue / b;
+        case comparisonFormatTypes.RAW:
+            return rawValue;
+        default:
+            return rawValue;
+    }
+};
+
+const formatComparisonValue = (
+    format: comparisonFormatTypes,
+    comparisonDiff: comparisonDiffTypes | undefined,
+    item: Field | TableCalculation | undefined,
+    value: number | string,
+) => {
+    const prefix =
+        comparisonDiff === comparisonDiffTypes.NAN ||
+        comparisonDiffTypes.NEGATIVE
+            ? ''
+            : comparisonDiff === comparisonDiffTypes.POSITIVE ||
+              comparisonDiffTypes.NONE
+            ? '+'
+            : '';
+    switch (format) {
+        case comparisonFormatTypes.PERCENTAGE:
+            return `${prefix}${formatValue(value, {
+                format: 'percent',
+                round: 0,
+            })}`;
+        case comparisonFormatTypes.RAW:
+            return `${prefix}${formatItemValue(item, value)}`;
+        default:
+            return formatItemValue(item, value);
+    }
+};
 
 const useBigNumberConfig = (
     bigNumberConfigData: BigNumber | undefined,
@@ -123,7 +181,6 @@ const useBigNumberConfig = (
     useEffect(() => {
         if (bigNumberConfigData?.selectedField !== undefined)
             setSelectedField(bigNumberConfigData.selectedField);
-        if (!showLabel) setBigNumberLabel('');
 
         setBigNumberLabel(bigNumberConfigData?.label);
         setBigNumberStyle(bigNumberConfigData?.style);
@@ -136,16 +193,10 @@ const useBigNumberConfig = (
     // value for comparison (second row)
     const secondRowValueRaw =
         selectedField && resultsData?.rows?.[1]?.[selectedField]?.value.raw;
+    const isNumber = (i: Field | TableCalculation | undefined, value: any) =>
+        isNumericItem(i) && !(value instanceof Date) && !valueIsNaN(value);
 
-    const isFirstRowValueNumber =
-        isNumericItem(item) &&
-        !(firstRowValueRaw instanceof Date) &&
-        !valueIsNaN(firstRowValueRaw);
-
-    const isSecondRowValueNumber =
-        !(secondRowValueRaw instanceof Date) && !valueIsNaN(secondRowValueRaw);
-
-    const bigNumber = !isFirstRowValueNumber
+    const bigNumber = !isNumber(item, firstRowValueRaw)
         ? selectedField &&
           resultsData?.rows?.[0]?.[selectedField]?.value.formatted
         : formatValue(firstRowValueRaw, {
@@ -158,33 +209,15 @@ const useBigNumberConfig = (
               compact: bigNumberStyle,
           });
 
-    const formatValues = {
-        RAW: 'raw',
-        PERCENTAGE: 'percentage',
-    };
     const [showComparison, setShowComparison] = useState<boolean>(false);
-    const [comparisonFormat, setComparisonFormat] = useState<string>(
-        formatValues.RAW,
-    );
+    const [comparisonFormat, setComparisonFormat] =
+        useState<comparisonFormatTypes>(comparisonFormatTypes.RAW);
+    const [comparisonDiff, setComparisonDiff] = useState<
+        comparisonDiffTypes | undefined
+    >(undefined);
 
-    const calculateComparisonValue = (a: number, b: number, format: string) => {
-        const rawValue = Math.round(a - b);
-        switch (format) {
-            case formatValues.PERCENTAGE:
-                return Math.round(((a - b) / b) * 100);
-
-            case formatValues.RAW:
-                return rawValue === 0 ? 'No change' : rawValue;
-            default:
-                return rawValue;
-        }
-    };
-
-    const comparisonValue =
-        firstRowValueRaw &&
-        secondRowValueRaw &&
-        isSecondRowValueNumber &&
-        isFirstRowValueNumber
+    const unformattedValue =
+        isNumber(item, secondRowValueRaw) && isNumber(item, firstRowValueRaw)
             ? calculateComparisonValue(
                   Number(firstRowValueRaw),
                   Number(secondRowValueRaw),
@@ -192,8 +225,30 @@ const useBigNumberConfig = (
               )
             : 'Comparison not applicable';
 
+    useEffect(() => {
+        setComparisonDiff(
+            unformattedValue > 0
+                ? comparisonDiffTypes.POSITIVE
+                : unformattedValue < 0
+                ? comparisonDiffTypes.NEGATIVE
+                : unformattedValue === 0
+                ? comparisonDiffTypes.NONE
+                : valueIsNaN(unformattedValue)
+                ? comparisonDiffTypes.NAN
+                : undefined,
+        );
+    }, [unformattedValue]);
+
+    const comparisonValue = formatComparisonValue(
+        comparisonFormat,
+        comparisonDiff,
+        item,
+        unformattedValue,
+    );
+
     const showStyle =
-        isFirstRowValueNumber && (!isField(item) || item.format !== 'percent');
+        isNumber(item, firstRowValueRaw) &&
+        (!isField(item) || item.format !== 'percent');
 
     const validBigNumberConfig: BigNumber = useMemo(
         () => ({
@@ -221,9 +276,11 @@ const useBigNumberConfig = (
         setShowLabel,
         showComparison,
         setShowComparison,
-        formatValues,
+        comparisonFormatTypes,
         comparisonFormat,
         setComparisonFormat,
+        comparisonDiff,
+        comparisonDiffTypes,
     };
 };
 

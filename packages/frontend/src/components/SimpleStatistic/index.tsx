@@ -2,6 +2,7 @@ import { IconArrowDownRight, IconArrowUpRight } from '@tabler/icons-react';
 import clamp from 'lodash-es/clamp';
 import { FC, HTMLAttributes, useMemo } from 'react';
 import { useResizeObserver } from '../../hooks/useResizeObserver';
+import MantineIcon from '../common/MantineIcon';
 import {
     TILE_HEADER_HEIGHT,
     TILE_HEADER_MARGIN_BOTTOM,
@@ -31,8 +32,8 @@ const VALUE_SIZE_MAX = 64;
 const LABEL_SIZE_MIN = 14;
 const LABEL_SIZE_MAX = 32;
 
-const COMPARISON_VALUE_SIZE_MIN = 14;
-const COMPARISON_VALUE_SIZE_MAX = 32;
+const COMPARISON_VALUE_SIZE_MIN = 12;
+const COMPARISON_VALUE_SIZE_MAX = 22;
 
 const calculateFontSize = (
     fontSizeMin: number,
@@ -61,8 +62,8 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             comparisonValue,
             showComparison,
             showLabel,
-            comparisonFormat,
-            formatValues,
+            comparisonDiff,
+            comparisonDiffTypes,
         },
         isSqlRunner,
     } = useVisualizationContext();
@@ -150,16 +151,19 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                             marginTop: 10,
                         }}
                     >
-                        {typeof comparisonValue === 'number' &&
-                        comparisonFormat === formatValues.PERCENTAGE
-                            ? `${comparisonValue}%`
-                            : comparisonValue}
-                        {typeof comparisonValue === 'number' &&
-                        comparisonValue > 0 ? (
-                            <IconArrowUpRight style={{ marginLeft: 5 }} />
-                        ) : typeof comparisonValue === 'number' &&
-                          comparisonValue < 0 ? (
-                            <IconArrowDownRight style={{ marginLeft: 5 }} />
+                        {comparisonValue}
+                        {comparisonDiff === comparisonDiffTypes.POSITIVE ? (
+                            <MantineIcon
+                                icon={IconArrowUpRight}
+                                size={18}
+                                style={{ display: 'inline', marginLeft: 5 }}
+                            />
+                        ) : comparisonDiff === comparisonDiffTypes.NEGATIVE ? (
+                            <MantineIcon
+                                icon={IconArrowDownRight}
+                                size={18}
+                                style={{ display: 'inline', marginLeft: 5 }}
+                            />
                         ) : null}
                     </BigNumber>
                 </BigNumberHalf>
