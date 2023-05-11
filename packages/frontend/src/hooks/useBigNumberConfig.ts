@@ -25,7 +25,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 const calculateComparisonValue = (
     a: number,
     b: number,
-    format: ComparisonFormatTypes,
+    format: ComparisonFormatTypes | undefined,
 ) => {
     const rawValue = a - b;
     switch (format) {
@@ -39,7 +39,7 @@ const calculateComparisonValue = (
 };
 
 const formatComparisonValue = (
-    format: ComparisonFormatTypes,
+    format: ComparisonFormatTypes | undefined,
     comparisonDiff: ComparisonDiffTypes | undefined,
     item: Field | TableCalculation | undefined,
     value: number | string,
@@ -162,19 +162,32 @@ const useBigNumberConfig = (
     const [bigNumberLabel, setBigNumberLabel] = useState<
         BigNumber['label'] | undefined
     >(bigNumberConfigData?.label);
-    const [showLabel, setShowLabel] = useState<boolean>(true);
-
+    const [showLabel, setShowLabel] = useState<
+        BigNumber['showLabel'] | undefined
+    >(true);
     const [bigNumberStyle, setBigNumberStyle] = useState<
         BigNumber['style'] | undefined
     >(bigNumberConfigData?.style);
+
+    const [showComparison, setShowComparison] = useState<
+        BigNumber['showComparison'] | undefined
+    >(false);
+    const [comparisonFormat, setComparisonFormat] = useState<
+        BigNumber['comparisonFormat'] | undefined
+    >(ComparisonFormatTypes.RAW);
 
     useEffect(() => {
         if (bigNumberConfigData?.selectedField !== undefined)
             setSelectedField(bigNumberConfigData.selectedField);
 
         setBigNumberLabel(bigNumberConfigData?.label);
+        // setShowLabel(bigNumberConfigData?.showLabel);
+
         setBigNumberStyle(bigNumberConfigData?.style);
-    }, [bigNumberConfigData, showLabel]);
+
+        // setShowComparison(bigNumberConfigData?.showComparison);
+        // setComparisonFormat(bigNumberConfigData?.comparisonFormat);
+    }, [bigNumberConfigData]);
 
     // big number value (first row)
     const firstRowValueRaw =
@@ -199,13 +212,6 @@ const useBigNumberConfig = (
               compact: bigNumberStyle,
           });
 
-    const [showComparison, setShowComparison] = useState<boolean>(false);
-    const [comparisonFormat, setComparisonFormat] =
-        useState<ComparisonFormatTypes>(ComparisonFormatTypes.RAW);
-    const [comparisonDiff, setComparisonDiff] = useState<ComparisonDiffTypes>(
-        ComparisonDiffTypes.UNDEFINED,
-    );
-
     const unformattedValue =
         isNumber(item, secondRowValueRaw) && isNumber(item, firstRowValueRaw)
             ? calculateComparisonValue(
@@ -215,18 +221,16 @@ const useBigNumberConfig = (
               )
             : 'N/A';
 
-    useEffect(() => {
-        setComparisonDiff(
-            unformattedValue > 0
-                ? ComparisonDiffTypes.POSITIVE
-                : unformattedValue < 0
-                ? ComparisonDiffTypes.NEGATIVE
-                : unformattedValue === 0
-                ? ComparisonDiffTypes.NONE
-                : valueIsNaN(unformattedValue)
-                ? ComparisonDiffTypes.NAN
-                : ComparisonDiffTypes.UNDEFINED,
-        );
+    const comparisonDiff = useMemo(() => {
+        return unformattedValue > 0
+            ? ComparisonDiffTypes.POSITIVE
+            : unformattedValue < 0
+            ? ComparisonDiffTypes.NEGATIVE
+            : unformattedValue === 0
+            ? ComparisonDiffTypes.NONE
+            : valueIsNaN(unformattedValue)
+            ? ComparisonDiffTypes.NAN
+            : ComparisonDiffTypes.UNDEFINED;
     }, [unformattedValue]);
 
     const comparisonValue = formatComparisonValue(
@@ -240,34 +244,23 @@ const useBigNumberConfig = (
         isNumber(item, firstRowValueRaw) &&
         (!isField(item) || item.format !== 'percent');
 
-    const validBigNumberConfig: BigNumber = useMemo(
-        () => ({
+    const validBigNumberConfig: BigNumber = useMemo(() => {
+        return {
             label: bigNumberLabel,
             style: bigNumberStyle,
             selectedField: selectedField,
-            comparisonValue,
             showLabel,
-            setShowLabel,
             showComparison,
-            setShowComparison,
             comparisonFormat,
-            setComparisonFormat,
-            comparisonDiff,
-        }),
-        [
-            bigNumberLabel,
-            bigNumberStyle,
-            selectedField,
-            comparisonValue,
-            showLabel,
-            setShowLabel,
-            showComparison,
-            setShowComparison,
-            comparisonFormat,
-            setComparisonFormat,
-            comparisonDiff,
-        ],
-    );
+        };
+    }, [
+        bigNumberLabel,
+        bigNumberStyle,
+        selectedField,
+        showLabel,
+        showComparison,
+        comparisonFormat,
+    ]);
     return {
         bigNumber,
         bigNumberLabel,
