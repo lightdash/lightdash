@@ -1,13 +1,13 @@
 import {
     ApiQueryResults,
     BigNumber,
+    CompactOrAlias,
     ComparisonDiffTypes,
     ComparisonFormatTypes,
     convertAdditionalMetric,
     Explore,
     Field,
     fieldId,
-    formatItemValue,
     formatValue,
     friendlyName,
     getDimensions,
@@ -43,6 +43,7 @@ const formatComparisonValue = (
     comparisonDiff: ComparisonDiffTypes | undefined,
     item: Field | TableCalculation | undefined,
     value: number | string,
+    bigNumberStyle: CompactOrAlias | undefined,
 ) => {
     const prefix =
         comparisonDiff === ComparisonDiffTypes.POSITIVE ||
@@ -56,9 +57,25 @@ const formatComparisonValue = (
                 round: 0,
             })}`;
         case ComparisonFormatTypes.RAW:
-            return `${prefix}${formatItemValue(item, value)}`;
+            return `${prefix}${formatValue(value, {
+                format: isField(item) ? item.format : undefined,
+                round: bigNumberStyle
+                    ? 2
+                    : isField(item)
+                    ? item.round
+                    : undefined,
+                compact: bigNumberStyle,
+            })}`;
         default:
-            return formatItemValue(item, value);
+            return formatValue(value, {
+                format: isField(item) ? item.format : undefined,
+                round: bigNumberStyle
+                    ? 2
+                    : isField(item)
+                    ? item.round
+                    : undefined,
+                compact: bigNumberStyle,
+            });
     }
 };
 
@@ -240,6 +257,7 @@ const useBigNumberConfig = (
                   comparisonDiff,
                   item,
                   unformattedValue,
+                  bigNumberStyle,
               );
 
     const showStyle =
