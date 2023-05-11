@@ -347,65 +347,6 @@ const PivotTable: FC<PivotTableProps> = ({
                     </tr>
                 ))}
             </tbody>
-
-            {/* TODO: column totals */}
-            {false && data.pivotConfig.columnTotals ? (
-                <tfoot>
-                    {data.columnTotals?.map((_row, totalRowIndex) => (
-                        <tr key={`column-total-${totalRowIndex}`}>
-                            {/* shows empty cell if row numbers are visible */}
-                            {hideRowNumbers ? null : (
-                                <th
-                                    className={cellCx(
-                                        cellStyles.root,
-                                        cellStyles.rowNumber,
-                                    )}
-                                />
-                            )}
-
-                            {/* render the total label */}
-                            {data.columnTotalFields?.[totalRowIndex].map(
-                                (totalLabel, totalColIndex) =>
-                                    totalLabel ? (
-                                        <HeaderCell
-                                            key={`footer-total-${totalRowIndex}-${totalColIndex}`}
-                                            textAlign="right"
-                                            className={cellCx(
-                                                cellStyles.root,
-                                                cellStyles.header,
-                                            )}
-                                        >
-                                            {totalLabel.fieldId ?? 'Total'}
-                                        </HeaderCell>
-                                    ) : (
-                                        <th
-                                            key={`footer-total-${totalRowIndex}-${totalColIndex}`}
-                                            className={cellCx(
-                                                cellStyles.root,
-                                                cellStyles.rowNumber,
-                                            )}
-                                        />
-                                    ),
-                            )}
-
-                            {/* render the total values */}
-                            {/* TODO: get formatted totals before rendering */}
-                            {/* row.map((total, totalColIndex) => {
-                                return total ? (
-                                    <TotalCell
-                                        key={`column-total-${totalRowIndex}-${totalColIndex}`}
-                                        value={total}
-                                    >
-                                        {total?.formatted}
-                                    </TotalCell>
-                                ) : (
-                                    <td />
-                                );
-                            }) */}
-                        </tr>
-                    ))}
-                </tfoot>
-            ) : null}
         </Table>
     );
 };
