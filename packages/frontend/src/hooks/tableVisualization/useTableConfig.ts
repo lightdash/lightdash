@@ -164,16 +164,6 @@ const useTableConfig = (
                 rows: [],
                 columns: [],
             };
-
-            // TODO: Remove this once we have completed the pivot v2
-            // return getPivotDataAndColumns({
-            //   columnOrder,
-            //   itemsMap,
-            //   resultsData,
-            //   pivotDimensions,
-            //   isColumnVisible,
-            //   getFieldLabel,
-            // });
         }
 
         return getDataAndColumns({
