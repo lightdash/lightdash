@@ -230,12 +230,15 @@ const useBigNumberConfig = (
             : ComparisonDiffTypes.UNDEFINED;
     }, [unformattedValue]);
 
-    const comparisonValue = formatComparisonValue(
-        comparisonFormat,
-        comparisonDiff,
-        item,
-        unformattedValue,
-    );
+    const comparisonValue =
+        unformattedValue === 'N/A'
+            ? 'N/A'
+            : formatComparisonValue(
+                  comparisonFormat,
+                  comparisonDiff,
+                  item,
+                  unformattedValue,
+              );
 
     const showStyle =
         isNumber(item, firstRowValueRaw) &&
