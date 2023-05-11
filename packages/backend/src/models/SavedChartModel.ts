@@ -561,9 +561,9 @@ export class SavedChartModel {
                 organizationUuid: 'organizations.organization_uuid',
                 pinnedListUuid: `${PinnedListTableName}.pinned_list_uuid`,
             })
-            .innerJoin('spaces', 'saved_queries.space_id', 'spaces.space_id')
-            .innerJoin('projects', 'spaces.project_id', 'projects.project_id')
-            .innerJoin(
+            .leftJoin('spaces', 'saved_queries.space_id', 'spaces.space_id')
+            .leftJoin('projects', 'spaces.project_id', 'projects.project_id')
+            .leftJoin(
                 OrganizationTableName,
                 'organizations.organization_id',
                 'projects.organization_id',
@@ -573,7 +573,7 @@ export class SavedChartModel {
                 `${PinnedChartTableName}.saved_chart_uuid`,
                 `${SavedChartsTableName}.saved_query_uuid`,
             )
-            .innerJoin(
+            .leftJoin(
                 PinnedListTableName,
                 `${PinnedListTableName}.pinned_list_uuid`,
                 `${PinnedChartTableName}.pinned_list_uuid`,
