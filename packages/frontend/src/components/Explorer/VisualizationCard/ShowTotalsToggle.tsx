@@ -5,20 +5,40 @@ import { StyledSwitch } from './ShowTotalsToggle.styles';
 
 const ShowTotalsToggle: FC = () => {
     const {
-        tableConfig: { showColumnCalculation, setShowColumnCalculation },
+        tableConfig: {
+            showColumnCalculation,
+            setShowColumnCalculation,
+            showRowCalculation,
+            setShowRowCalculation,
+            canUseMetricsAsRows,
+            metricsAsRows,
+        },
     } = useVisualizationContext();
+
+    const options =
+        canUseMetricsAsRows && metricsAsRows
+            ? {
+                  label: 'Show row total',
+                  value: showRowCalculation,
+                  onChange: () => setShowRowCalculation(!showRowCalculation),
+              }
+            : {
+                  label: 'Show column total',
+                  value: showColumnCalculation,
+                  onChange: () =>
+                      setShowColumnCalculation(!showColumnCalculation),
+              };
+
     return (
         <StyledSwitch
             large
             id="showTotals"
             innerLabelChecked="Yes"
             innerLabel="No"
-            label="Show column total"
             alignIndicator="right"
-            checked={showColumnCalculation}
-            onChange={() => {
-                setShowColumnCalculation(!showColumnCalculation);
-            }}
+            label={options.label}
+            checked={options.value}
+            onChange={options.onChange}
         />
     );
 };

@@ -1,11 +1,12 @@
 import { Checkbox, FormGroup } from '@blueprintjs/core';
 import {
+    CompiledDimension,
     fieldId,
     getDimensions,
     getItemId,
     replaceStringInArray,
 } from '@lightdash/common';
-import { FC, useMemo } from 'react';
+import { FC, useCallback, useMemo } from 'react';
 import {
     AxisFieldDropdown,
     DeleteFieldButton,
@@ -23,12 +24,14 @@ const GeneralSettings: FC = () => {
         resultsData,
         pivotDimensions,
         tableConfig: {
-            showColumnCalculation,
             showTableNames,
+            setShowTableNames,
             hideRowNumbers,
-            setShowTableName,
-            setShowColumnCalculation,
             setHideRowNumbers,
+            showColumnCalculation,
+            setShowColumnCalculation,
+            showRowCalculation,
+            setShowRowCalculation,
             metricsAsRows,
             setMetricsAsRows,
             canUseMetricsAsRows,
@@ -64,6 +67,67 @@ const GeneralSettings: FC = () => {
             (!pivotDimensions || pivotDimensions.length < MAX_PIVOTS),
         [availableGroupByDimensions.length, pivotDimensions],
     );
+
+    const handleToggleMetricsAsRows = useCallback(() => {
+        const newValue = !metricsAsRows;
+
+        if (newValue) {
+            setShowColumnCalculation(showRowCalculation);
+            setShowRowCalculation(showColumnCalculation);
+        } else {
+            setShowColumnCalculation(showRowCalculation);
+            setShowRowCalculation(showColumnCalculation);
+        }
+
+        setMetricsAsRows(newValue);
+    }, [
+        metricsAsRows,
+        setMetricsAsRows,
+        showColumnCalculation,
+        setShowColumnCalculation,
+        showRowCalculation,
+        setShowRowCalculation,
+    ]);
+
+    const handleAddPivotDimension = useCallback(
+        (item: CompiledDimension, pivotKey: string) => {
+            setPivotDimensions(
+                pivotDimensions
+                    ? replaceStringInArray(
+                          pivotDimensions,
+                          pivotKey,
+                          getItemId(item),
+                      )
+                    : [getItemId(item)],
+            );
+        },
+        [pivotDimensions, setPivotDimensions],
+    );
+
+    const handleRemovePivotDimension = useCallback(
+        (pivotKey: string) => {
+            const newPivotDimensions = pivotDimensions?.filter(
+                (key) => key !== pivotKey,
+            );
+
+            if (
+                metricsAsRows &&
+                (!newPivotDimensions || newPivotDimensions.length === 0)
+            ) {
+                handleToggleMetricsAsRows();
+            }
+
+            setPivotDimensions(newPivotDimensions);
+        },
+
+        [
+            pivotDimensions,
+            setPivotDimensions,
+            metricsAsRows,
+            handleToggleMetricsAsRows,
+        ],
+    );
+
     return (
         <>
             <SectionTitle>Pivot column</SectionTitle>
@@ -88,15 +152,7 @@ const GeneralSettings: FC = () => {
                                 placeholder="Select a field to group by"
                                 activeField={groupSelectedField}
                                 onChange={(item) => {
-                                    setPivotDimensions(
-                                        pivotDimensions
-                                            ? replaceStringInArray(
-                                                  pivotDimensions,
-                                                  pivotKey,
-                                                  getItemId(item),
-                                              )
-                                            : [getItemId(item)],
-                                    );
+                                    handleAddPivotDimension(item, pivotKey);
                                 }}
                             />
                             {groupSelectedField && (
@@ -104,11 +160,7 @@ const GeneralSettings: FC = () => {
                                     minimal
                                     icon="cross"
                                     onClick={() => {
-                                        setPivotDimensions(
-                                            pivotDimensions.filter(
-                                                (key) => key !== pivotKey,
-                                            ),
-                                        );
+                                        handleRemovePivotDimension(pivotKey);
                                     }}
                                 />
                             )}
@@ -132,18 +184,10 @@ const GeneralSettings: FC = () => {
 
             <FormGroup>
                 <Checkbox
-                    label="Show column total"
-                    checked={showColumnCalculation}
-                    onChange={() => {
-                        setShowColumnCalculation(!showColumnCalculation);
-                    }}
-                />
-
-                <Checkbox
                     label="Show table names"
                     checked={showTableNames}
                     onChange={() => {
-                        setShowTableName(!showTableNames);
+                        setShowTableNames(!showTableNames);
                     }}
                 />
 
@@ -155,12 +199,28 @@ const GeneralSettings: FC = () => {
                     }}
                 />
 
-                {canUseMetricsAsRows && (
+                {canUseMetricsAsRows ? (
                     <Checkbox
                         label="Show metrics as rows"
                         checked={metricsAsRows}
+                        onChange={() => handleToggleMetricsAsRows()}
+                    />
+                ) : null}
+
+                {canUseMetricsAsRows && metricsAsRows ? (
+                    <Checkbox
+                        label="Show row total"
+                        checked={showRowCalculation}
                         onChange={() => {
-                            setMetricsAsRows(!metricsAsRows);
+                            setShowRowCalculation(!showRowCalculation);
+                        }}
+                    />
+                ) : (
+                    <Checkbox
+                        label="Show column total"
+                        checked={showColumnCalculation}
+                        onChange={() => {
+                            setShowColumnCalculation(!showColumnCalculation);
                         }}
                     />
                 )}

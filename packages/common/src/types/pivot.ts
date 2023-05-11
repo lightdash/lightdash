@@ -6,37 +6,49 @@ export type PivotConfig = {
     metricsAsRows: boolean;
     columnOrder?: string[];
     hiddenMetricFieldIds?: string[];
+
+    columnTotals?: boolean;
+    rowTotals?: boolean;
 };
 
-type HeaderOrIndexType =
+type Field =
     | { type: FieldType.METRIC; fieldId?: undefined }
     | { type: FieldType.DIMENSION; fieldId: string };
 
-export type PivotHeaderType = HeaderOrIndexType;
-export type PivotIndexType = HeaderOrIndexType;
+type FieldValue =
+    | { type: 'value'; fieldId: string; value: ResultValue }
+    | { type: 'label'; fieldId: string };
 
-export type PivotValue =
-    | { type: 'label'; fieldId: string; value?: undefined }
-    | { type: 'value'; fieldId: string; value: ResultValue };
-
-export type PivotTitleValue = PivotValue & {
-    titleDirection: 'index' | 'header';
+type TitleField = null | {
+    fieldId: string;
+    direction: 'index' | 'header';
 };
 
+type TotalField = null | {
+    fieldId?: string;
+};
+
+type TotalValue = null | number;
+
+type DataValue = null | ResultValue;
+
 export type PivotData = {
-    titleFields: (PivotTitleValue | null)[][];
+    headerValueTypes: Field[];
+    headerValues: FieldValue[][];
 
-    headerValueTypes: PivotHeaderType[];
-    headerValues: PivotValue[][];
-
-    indexValueTypes: PivotIndexType[];
-    indexValues: PivotValue[][];
+    indexValueTypes: Field[];
+    indexValues: FieldValue[][];
 
     dataColumnCount: number;
-    dataValues: (ResultValue | null)[][];
+    dataValues: DataValue[][];
 
-    columnTotals?: (ResultValue | null)[][];
-    rowTotals?: (ResultValue | null)[][];
+    titleFields: TitleField[][];
+
+    rowTotalFields?: TotalField[][];
+    columnTotalFields?: TotalField[][];
+
+    rowTotals?: TotalValue[][];
+    columnTotals?: TotalValue[][];
 
     pivotConfig: PivotConfig;
 };
