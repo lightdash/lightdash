@@ -164,29 +164,29 @@ const useBigNumberConfig = (
     >(bigNumberConfigData?.label);
     const [showLabel, setShowLabel] = useState<
         BigNumber['showLabel'] | undefined
-    >(true);
+    >(bigNumberConfigData?.showLabel);
     const [bigNumberStyle, setBigNumberStyle] = useState<
         BigNumber['style'] | undefined
     >(bigNumberConfigData?.style);
 
     const [showComparison, setShowComparison] = useState<
         BigNumber['showComparison'] | undefined
-    >(false);
+    >(bigNumberConfigData?.showComparison);
     const [comparisonFormat, setComparisonFormat] = useState<
         BigNumber['comparisonFormat'] | undefined
-    >(ComparisonFormatTypes.RAW);
+    >(bigNumberConfigData?.comparisonFormat);
 
     useEffect(() => {
         if (bigNumberConfigData?.selectedField !== undefined)
             setSelectedField(bigNumberConfigData.selectedField);
 
         setBigNumberLabel(bigNumberConfigData?.label);
-        // setShowLabel(bigNumberConfigData?.showLabel);
+        setShowLabel(bigNumberConfigData?.showLabel);
 
         setBigNumberStyle(bigNumberConfigData?.style);
 
-        // setShowComparison(bigNumberConfigData?.showComparison);
-        // setComparisonFormat(bigNumberConfigData?.comparisonFormat);
+        setShowComparison(bigNumberConfigData?.showComparison);
+        setComparisonFormat(bigNumberConfigData?.comparisonFormat);
     }, [bigNumberConfigData]);
 
     // big number value (first row)
