@@ -1,6 +1,9 @@
+import { ComparisonDiffTypes } from '@lightdash/common';
+import { IconArrowDownRight, IconArrowUpRight } from '@tabler/icons-react';
 import clamp from 'lodash-es/clamp';
 import { FC, HTMLAttributes, useMemo } from 'react';
 import { useResizeObserver } from '../../hooks/useResizeObserver';
+import MantineIcon from '../common/MantineIcon';
 import {
     TILE_HEADER_HEIGHT,
     TILE_HEADER_MARGIN_BOTTOM,
@@ -30,6 +33,9 @@ const VALUE_SIZE_MAX = 64;
 const LABEL_SIZE_MIN = 14;
 const LABEL_SIZE_MAX = 32;
 
+const COMPARISON_VALUE_SIZE_MIN = 12;
+const COMPARISON_VALUE_SIZE_MAX = 22;
+
 const calculateFontSize = (
     fontSizeMin: number,
     fontSizeMax: number,
@@ -50,13 +56,21 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     const {
         resultsData,
         isLoading,
-        bigNumberConfig: { bigNumber, bigNumberLabel, defaultLabel },
+        bigNumberConfig: {
+            bigNumber,
+            bigNumberLabel,
+            defaultLabel,
+            comparisonValue,
+            showComparison,
+            showLabel,
+            comparisonDiff,
+        },
         isSqlRunner,
     } = useVisualizationContext();
 
     const [setRef, observerElementSize] = useResizeObserver();
 
-    const { valueFontSize, labelFontSize } = useMemo(() => {
+    const { valueFontSize, labelFontSize, comparisonFontSize } = useMemo(() => {
         const boundWidth = clamp(
             observerElementSize?.width || 0,
             BOX_MIN_WIDTH,
@@ -75,9 +89,16 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             boundWidth,
         );
 
+        const comparisonValueSize = calculateFontSize(
+            COMPARISON_VALUE_SIZE_MIN,
+            COMPARISON_VALUE_SIZE_MAX,
+            boundWidth,
+        );
+
         return {
             valueFontSize: valueSize,
             labelFontSize: labelSize,
+            comparisonFontSize: comparisonValueSize,
         };
     }, [observerElementSize]);
 
@@ -114,11 +135,41 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                 )}
             </BigNumberHalf>
 
-            <BigNumberHalf>
-                <BigNumberLabel $fontSize={labelFontSize}>
-                    {bigNumberLabel || defaultLabel}
-                </BigNumberLabel>
-            </BigNumberHalf>
+            {showLabel ? (
+                <BigNumberHalf>
+                    <BigNumberLabel $fontSize={labelFontSize}>
+                        {bigNumberLabel || defaultLabel}
+                    </BigNumberLabel>
+                </BigNumberHalf>
+            ) : null}
+
+            {showComparison ? (
+                <BigNumberHalf>
+                    <BigNumber
+                        $fontSize={comparisonFontSize}
+                        style={{
+                            marginTop: 10,
+                            display: 'flex',
+                            alignItems: 'center',
+                        }}
+                    >
+                        {comparisonValue}
+                        {comparisonDiff === ComparisonDiffTypes.POSITIVE ? (
+                            <MantineIcon
+                                icon={IconArrowUpRight}
+                                size={18}
+                                style={{ display: 'inline', marginLeft: 5 }}
+                            />
+                        ) : comparisonDiff === ComparisonDiffTypes.NEGATIVE ? (
+                            <MantineIcon
+                                icon={IconArrowDownRight}
+                                size={18}
+                                style={{ display: 'inline', marginLeft: 5 }}
+                            />
+                        ) : null}
+                    </BigNumber>
+                </BigNumberHalf>
+            ) : null}
         </BigNumberContainer>
     ) : (
         <EmptyChart />

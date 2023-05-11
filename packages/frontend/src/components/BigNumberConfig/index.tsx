@@ -1,6 +1,20 @@
-import { Button, FormGroup, HTMLSelect, InputGroup } from '@blueprintjs/core';
+import {
+    Button,
+    FormGroup,
+    HTMLSelect,
+    InputGroup,
+    Radio,
+    RadioGroup,
+    Switch,
+} from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
-import { CompactConfigMap, CompactOrAlias, getItemId } from '@lightdash/common';
+import {
+    CompactConfigMap,
+    CompactOrAlias,
+    ComparisonFormatTypes,
+    getItemId,
+} from '@lightdash/common';
+import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import React, { useState } from 'react';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
@@ -27,6 +41,12 @@ const BigNumberConfigPanel: React.FC = () => {
             selectedField,
             setSelectedField,
             getField,
+            showLabel,
+            setShowLabel,
+            showComparison,
+            setShowComparison,
+            comparisonFormat,
+            setComparisonFormat,
         },
     } = useVisualizationContext();
     const [isOpen, setIsOpen] = useState(false);
@@ -37,7 +57,7 @@ const BigNumberConfigPanel: React.FC = () => {
             disabled={disabled}
             content={
                 <InputWrapper>
-                    <FormGroup labelFor="bignumber-field" label="Select field">
+                    <FormGroup labelFor="bignumber-field" label="Field">
                         <FieldAutoComplete
                             id="bignumber-field"
                             fields={availableFields}
@@ -60,11 +80,26 @@ const BigNumberConfigPanel: React.FC = () => {
                             onBlur={(e) =>
                                 setBigNumberLabel(e.currentTarget.value)
                             }
+                            rightElement={
+                                <Button
+                                    active={showLabel}
+                                    icon={
+                                        showLabel ? (
+                                            <IconEye size={18} />
+                                        ) : (
+                                            <IconEyeOff size={18} />
+                                        )
+                                    }
+                                    onClick={() => {
+                                        setShowLabel(!showLabel);
+                                    }}
+                                />
+                            }
                         />
                     </FormGroup>
 
                     {showStyle && (
-                        <FormGroup labelFor="bignumber-style" label="Style">
+                        <FormGroup labelFor="bignumber-style" label="Format">
                             <HTMLSelect
                                 id="bignumber-style"
                                 fill
@@ -81,6 +116,45 @@ const BigNumberConfigPanel: React.FC = () => {
                                 }}
                             />
                         </FormGroup>
+                    )}
+                    <FormGroup
+                        labelFor="bignumber-comparison"
+                        label="Compare to previous row"
+                        inline
+                        style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            marginBottom: 'none',
+                        }}
+                    >
+                        <Switch
+                            alignIndicator="right"
+                            checked={showComparison}
+                            onChange={() => {
+                                setShowComparison(!showComparison);
+                            }}
+                        />
+                    </FormGroup>
+                    {showComparison && (
+                        <RadioGroup
+                            onChange={(e) => {
+                                setComparisonFormat(
+                                    e.currentTarget.value === 'raw'
+                                        ? ComparisonFormatTypes.RAW
+                                        : ComparisonFormatTypes.PERCENTAGE,
+                                );
+                            }}
+                            selectedValue={comparisonFormat}
+                        >
+                            <Radio
+                                label="By raw value"
+                                value={ComparisonFormatTypes.RAW}
+                            />
+                            <Radio
+                                label="By percentage"
+                                value={ComparisonFormatTypes.PERCENTAGE}
+                            />
+                        </RadioGroup>
                     )}
                 </InputWrapper>
             }

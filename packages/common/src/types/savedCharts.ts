@@ -21,10 +21,26 @@ export enum ChartType {
     BIG_NUMBER = 'big_number',
 }
 
+export enum ComparisonFormatTypes {
+    RAW = 'raw',
+    PERCENTAGE = 'percentage',
+}
+
+export enum ComparisonDiffTypes {
+    POSITIVE = 'positive',
+    NEGATIVE = 'negative',
+    NONE = 'none',
+    NAN = 'nan',
+    UNDEFINED = 'undefined',
+}
+
 export type BigNumber = {
     label?: string;
     style?: CompactOrAlias;
     selectedField?: string;
+    showLabel?: boolean;
+    showComparison?: boolean;
+    comparisonFormat?: ComparisonFormatTypes;
 };
 
 export type BigNumberConfig = {
