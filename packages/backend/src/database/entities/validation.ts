@@ -1,0 +1,14 @@
+import { Knex } from 'knex';
+
+export type DbValidationTable = {
+    created_at: Date;
+    saved_chart_uuid: string | null;
+    dashboard_uuid: string | null;
+    project_uuid: string;
+    summary: string;
+    error: string;
+};
+
+export type ValidationTable = Knex.CompositeTableType<DbValidationTable>;
+
+export const ValidationTableName = 'validations';

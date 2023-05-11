@@ -25,6 +25,7 @@ import { ShareModel } from './ShareModel';
 import { SlackAuthenticationModel } from './SlackAuthenticationModel';
 import { SpaceModel } from './SpaceModel';
 import { UserModel } from './UserModel';
+import { ValidationModel } from './ValidationModel/ValidationModel';
 
 export const encryptionService = new EncryptionService({ lightdashConfig });
 
@@ -79,5 +80,8 @@ export const organizationAllowedEmailDomainsModel =
     new OrganizationAllowedEmailDomainsModel({ database });
 
 export const resourceViewItemModel = new ResourceViewItemModel({
+    database,
+});
+export const validationModel = new ValidationModel({
     database,
 });

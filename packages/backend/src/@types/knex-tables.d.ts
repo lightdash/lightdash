@@ -134,6 +134,10 @@ import {
     SchedulerTable,
     SchedulerTableName,
 } from '../database/entities/scheduler';
+import {
+    DbValidationTable,
+    ValidationTableName,
+} from '../database/entities/validation';
 
 declare module 'knex/types/tables' {
     interface Tables {
@@ -185,5 +189,6 @@ declare module 'knex/types/tables' {
         [EmailOneTimePasscodesTableName]: EmailOneTimePasscodeTable;
         [SchedulerLogTableName]: SchedulerLogTable;
         [OrganizationAllowedEmailDomainsTableName]: OrganizationAllowedEmailDomainsTable;
+        [ValidationTableName]: DbValidationTable;
     }
 }
