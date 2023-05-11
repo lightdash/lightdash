@@ -28,4 +28,10 @@ export class ValidationModel {
             await Promise.all(insertPromises);
         });
     }
+
+    async delete(projectUuid: string): Promise<void> {
+        await this.database(ValidationTableName)
+            .where({ project_uuid: projectUuid })
+            .delete();
+    }
 }

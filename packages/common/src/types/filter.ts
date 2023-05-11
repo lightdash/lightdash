@@ -121,6 +121,32 @@ export const isFilterGroup = (value: FilterGroupItem): value is FilterGroup =>
 export const isFilterRule = (value: ConditionalRule): value is FilterRule =>
     'id' in value && 'target' in value && 'operator' in value;
 
+export const getFilterRules = (filters: Filters): FilterRule[] => {
+    const rules: FilterRule[] = [];
+    const flattenFilterGroup = (filterGroup: FilterGroup): FilterRule[] => {
+        const groupRules: FilterRule[] = [];
+
+        (isAndFilterGroup(filterGroup)
+            ? filterGroup.and
+            : filterGroup.or
+        ).forEach((item) => {
+            if (isFilterGroup(item)) {
+                rules.push(...flattenFilterGroup(item));
+            } else {
+                rules.push(item);
+            }
+        });
+        return groupRules;
+    };
+    if (filters.dimensions) {
+        rules.push(...flattenFilterGroup(filters.dimensions));
+    }
+    if (filters.metrics) {
+        rules.push(...flattenFilterGroup(filters.metrics));
+    }
+    return rules;
+};
+
 export enum FilterGroupOperator {
     and = 'and',
     or = 'or',

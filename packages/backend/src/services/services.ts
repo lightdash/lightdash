@@ -166,7 +166,6 @@ export const pinningService = new PinningService({
 
 export const validationService = new ValidationService({
     lightdashConfig,
-    projectService,
     projectModel,
     savedChartModel,
     validationModel,
