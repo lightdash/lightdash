@@ -14,7 +14,7 @@ import { FC, useCallback, useState } from 'react';
 import { useCreateMutation } from '../../../hooks/dashboard/useDashboard';
 import {
     useCreateMutation as useSpaceCreateMutation,
-    useSpaces,
+    useSpaceSummaries,
 } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
 import {} from '../ShareSpaceModal/ShareSpaceModal.style';
@@ -47,7 +47,7 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
         useState<boolean>(false);
     const [newSpaceName, setNewSpaceName] = useState('');
 
-    const { data: spaces, isLoading: isLoadingSpaces } = useSpaces(
+    const { data: spaces, isLoading: isLoadingSpaces } = useSpaceSummaries(
         projectUuid,
         {
             onSuccess: (data) => {

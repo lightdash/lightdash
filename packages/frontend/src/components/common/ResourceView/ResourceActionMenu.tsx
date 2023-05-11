@@ -20,7 +20,7 @@ import {
 } from '@tabler/icons-react';
 import { FC } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
-import { useSpaces } from '../../../hooks/useSpaces';
+import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
 import MantineIcon from '../MantineIcon';
 import {
@@ -51,7 +51,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     const location = useLocation();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const organizationUuid = user.data?.organizationUuid;
-    const { data: spaces = [] } = useSpaces(projectUuid);
+    const { data: spaces = [] } = useSpaceSummaries(projectUuid);
     const isPinned = !!item.data.pinnedListUuid;
     const isDashboardPage = location.pathname.includes('/dashboards');
 
