@@ -24,6 +24,7 @@ import {
     shareModel,
     spaceModel,
     userModel,
+    validationModel,
 } from '../models/models';
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
 import { CsvService } from './CsvService/CsvService';
@@ -41,6 +42,7 @@ import { ShareService } from './ShareService/ShareService';
 import { SpaceService } from './SpaceService/SpaceService';
 import { UnfurlService } from './UnfurlService/UnfurlService';
 import { UserService } from './UserService';
+import { ValidationService } from './ValidationService/ValidationService';
 
 const encryptionService = new EncryptionService({ lightdashConfig });
 
@@ -160,4 +162,12 @@ export const pinningService = new PinningService({
     pinnedListModel,
     resourceViewItemModel,
     projectModel,
+});
+
+export const validationService = new ValidationService({
+    lightdashConfig,
+    projectService,
+    projectModel,
+    savedChartModel,
+    validationModel,
 });
