@@ -232,9 +232,10 @@ export const pivotQueryResults = ({
         }
     }
 
-    const headerValues = headerValuesT[0].map((_, colIndex) =>
-        headerValuesT.map((row) => row[colIndex]),
-    );
+    const headerValues =
+        headerValuesT[0]?.map((_, colIndex) =>
+            headerValuesT.map((row) => row[colIndex]),
+        ) ?? [];
 
     const hasIndex = indexValueTypes.length > 0;
     const hasHeader = headerValueTypes.length > 0;
@@ -367,25 +368,28 @@ export const pivotQueryResults = ({
         }
     }
 
-    const titleFields: PivotData['titleFields'] = [
-        ...Array(headerValueTypes.length),
-    ].map(() => Array(indexValueTypes.length).fill(null));
-    headerValueTypes.forEach((headerValueType, headerIndex) => {
-        if (headerValueType.type === FieldType.DIMENSION) {
-            titleFields[headerIndex][indexValueTypes.length - 1] = {
-                fieldId: headerValueType.fieldId,
-                direction: 'header',
-            };
-        }
-    });
-    indexValueTypes.forEach((indexValueType, indexIndex) => {
-        if (indexValueType.type === FieldType.DIMENSION) {
-            titleFields[headerValueTypes.length - 1][indexIndex] = {
-                fieldId: indexValueType.fieldId,
-                direction: 'index',
-            };
-        }
-    });
+    const titleFields: PivotData['titleFields'] = create2DArray(
+        headerValueTypes.length + 1,
+        indexValueTypes.length + 1,
+    );
+    if (hasHeader && hasIndex) {
+        headerValueTypes.forEach((headerValueType, headerIndex) => {
+            if (headerValueType.type === FieldType.DIMENSION) {
+                titleFields[headerIndex][indexValueTypes.length - 1] = {
+                    fieldId: headerValueType.fieldId,
+                    direction: 'header',
+                };
+            }
+        });
+        indexValueTypes.forEach((indexValueType, indexIndex) => {
+            if (indexValueType.type === FieldType.DIMENSION) {
+                titleFields[headerValueTypes.length - 1][indexIndex] = {
+                    fieldId: indexValueType.fieldId,
+                    direction: 'index',
+                };
+            }
+        });
+    }
 
     return {
         titleFields,
