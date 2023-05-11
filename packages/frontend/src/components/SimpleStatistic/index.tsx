@@ -149,6 +149,8 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                         $fontSize={comparisonFontSize}
                         style={{
                             marginTop: 10,
+                            display: 'flex',
+                            alignItems: 'center',
                         }}
                     >
                         {comparisonValue}

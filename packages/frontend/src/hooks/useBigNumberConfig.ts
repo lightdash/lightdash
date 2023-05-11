@@ -1,6 +1,8 @@
 import {
     ApiQueryResults,
     BigNumber,
+    ComparisonDiffTypes,
+    ComparisonFormatTypes,
     convertAdditionalMetric,
     Explore,
     Field,
@@ -20,28 +22,16 @@ import {
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-enum comparisonFormatTypes {
-    RAW = 'raw',
-    PERCENTAGE = 'percentage',
-}
-
-enum comparisonDiffTypes {
-    POSITIVE = 'positive',
-    NEGATIVE = 'negative',
-    NONE = 'none',
-    NAN = 'nan',
-}
-
 const calculateComparisonValue = (
     a: number,
     b: number,
-    format: comparisonFormatTypes,
+    format: ComparisonFormatTypes,
 ) => {
     const rawValue = a - b;
     switch (format) {
-        case comparisonFormatTypes.PERCENTAGE:
+        case ComparisonFormatTypes.PERCENTAGE:
             return rawValue / b;
-        case comparisonFormatTypes.RAW:
+        case ComparisonFormatTypes.RAW:
             return rawValue;
         default:
             return rawValue;
@@ -49,26 +39,26 @@ const calculateComparisonValue = (
 };
 
 const formatComparisonValue = (
-    format: comparisonFormatTypes,
-    comparisonDiff: comparisonDiffTypes | undefined,
+    format: ComparisonFormatTypes,
+    comparisonDiff: ComparisonDiffTypes | undefined,
     item: Field | TableCalculation | undefined,
     value: number | string,
 ) => {
     const prefix =
-        comparisonDiff === comparisonDiffTypes.NAN ||
-        comparisonDiffTypes.NEGATIVE
+        comparisonDiff === ComparisonDiffTypes.NAN ||
+        ComparisonDiffTypes.NEGATIVE
             ? ''
-            : comparisonDiff === comparisonDiffTypes.POSITIVE ||
-              comparisonDiffTypes.NONE
+            : comparisonDiff === ComparisonDiffTypes.POSITIVE ||
+              ComparisonDiffTypes.NONE
             ? '+'
             : '';
     switch (format) {
-        case comparisonFormatTypes.PERCENTAGE:
+        case ComparisonFormatTypes.PERCENTAGE:
             return `${prefix}${formatValue(value, {
                 format: 'percent',
                 round: 0,
             })}`;
-        case comparisonFormatTypes.RAW:
+        case ComparisonFormatTypes.RAW:
             return `${prefix}${formatItemValue(item, value)}`;
         default:
             return formatItemValue(item, value);
@@ -211,10 +201,10 @@ const useBigNumberConfig = (
 
     const [showComparison, setShowComparison] = useState<boolean>(false);
     const [comparisonFormat, setComparisonFormat] =
-        useState<comparisonFormatTypes>(comparisonFormatTypes.RAW);
-    const [comparisonDiff, setComparisonDiff] = useState<
-        comparisonDiffTypes | undefined
-    >(undefined);
+        useState<ComparisonFormatTypes>(ComparisonFormatTypes.RAW);
+    const [comparisonDiff, setComparisonDiff] = useState<ComparisonDiffTypes>(
+        ComparisonDiffTypes.UNDEFINED,
+    );
 
     const unformattedValue =
         isNumber(item, secondRowValueRaw) && isNumber(item, firstRowValueRaw)
@@ -228,14 +218,14 @@ const useBigNumberConfig = (
     useEffect(() => {
         setComparisonDiff(
             unformattedValue > 0
-                ? comparisonDiffTypes.POSITIVE
+                ? ComparisonDiffTypes.POSITIVE
                 : unformattedValue < 0
-                ? comparisonDiffTypes.NEGATIVE
+                ? ComparisonDiffTypes.NEGATIVE
                 : unformattedValue === 0
-                ? comparisonDiffTypes.NONE
+                ? ComparisonDiffTypes.NONE
                 : valueIsNaN(unformattedValue)
-                ? comparisonDiffTypes.NAN
-                : undefined,
+                ? ComparisonDiffTypes.NAN
+                : ComparisonDiffTypes.UNDEFINED,
         );
     }, [unformattedValue]);
 
@@ -255,8 +245,28 @@ const useBigNumberConfig = (
             label: bigNumberLabel,
             style: bigNumberStyle,
             selectedField: selectedField,
+            comparisonValue,
+            showLabel,
+            setShowLabel,
+            showComparison,
+            setShowComparison,
+            comparisonFormat,
+            setComparisonFormat,
+            comparisonDiff,
         }),
-        [bigNumberLabel, bigNumberStyle, selectedField],
+        [
+            bigNumberLabel,
+            bigNumberStyle,
+            selectedField,
+            comparisonValue,
+            showLabel,
+            setShowLabel,
+            showComparison,
+            setShowComparison,
+            comparisonFormat,
+            setComparisonFormat,
+            comparisonDiff,
+        ],
     );
     return {
         bigNumber,
@@ -276,11 +286,11 @@ const useBigNumberConfig = (
         setShowLabel,
         showComparison,
         setShowComparison,
-        comparisonFormatTypes,
+        comparisonFormatTypes: ComparisonFormatTypes,
         comparisonFormat,
         setComparisonFormat,
         comparisonDiff,
-        comparisonDiffTypes,
+        comparisonDiffTypes: ComparisonDiffTypes,
     };
 };
 

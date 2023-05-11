@@ -134,8 +134,11 @@ const BigNumberConfigPanel: React.FC = () => {
                     {showComparison && (
                         <RadioGroup
                             onChange={(e) => {
-                                // @ts-ignore
-                                setComparisonFormat(e.currentTarget.value);
+                                setComparisonFormat(
+                                    e.currentTarget.value === 'raw'
+                                        ? comparisonFormatTypes.RAW
+                                        : comparisonFormatTypes.PERCENTAGE,
+                                );
                             }}
                             selectedValue={comparisonFormat}
                         >

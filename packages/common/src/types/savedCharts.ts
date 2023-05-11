@@ -21,10 +21,33 @@ export enum ChartType {
     BIG_NUMBER = 'big_number',
 }
 
+export enum ComparisonFormatTypes {
+    RAW = 'raw',
+    PERCENTAGE = 'percentage',
+}
+
+export enum ComparisonDiffTypes {
+    POSITIVE = 'positive',
+    NEGATIVE = 'negative',
+    NONE = 'none',
+    NAN = 'nan',
+    UNDEFINED = 'undefined',
+}
+
 export type BigNumber = {
     label?: string;
     style?: CompactOrAlias;
     selectedField?: string;
+    comparisonValue: string;
+    showLabel: boolean;
+    setShowLabel: React.Dispatch<React.SetStateAction<boolean>>;
+    showComparison: boolean;
+    setShowComparison: React.Dispatch<React.SetStateAction<boolean>>;
+    comparisonFormat: ComparisonFormatTypes;
+    setComparisonFormat: React.Dispatch<
+        React.SetStateAction<ComparisonFormatTypes>
+    >;
+    comparisonDiff: ComparisonDiffTypes;
 };
 
 export type BigNumberConfig = {
