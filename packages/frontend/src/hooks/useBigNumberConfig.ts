@@ -281,11 +281,9 @@ const useBigNumberConfig = (
         setShowLabel,
         showComparison,
         setShowComparison,
-        comparisonFormatTypes: ComparisonFormatTypes,
         comparisonFormat,
         setComparisonFormat,
         comparisonDiff,
-        comparisonDiffTypes: ComparisonDiffTypes,
     };
 };
 

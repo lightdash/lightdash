@@ -8,7 +8,12 @@ import {
     Switch,
 } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
-import { CompactConfigMap, CompactOrAlias, getItemId } from '@lightdash/common';
+import {
+    CompactConfigMap,
+    CompactOrAlias,
+    ComparisonFormatTypes,
+    getItemId,
+} from '@lightdash/common';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import React, { useState } from 'react';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
@@ -42,7 +47,6 @@ const BigNumberConfigPanel: React.FC = () => {
             setShowComparison,
             comparisonFormat,
             setComparisonFormat,
-            comparisonFormatTypes,
         },
     } = useVisualizationContext();
     const [isOpen, setIsOpen] = useState(false);
@@ -136,19 +140,19 @@ const BigNumberConfigPanel: React.FC = () => {
                             onChange={(e) => {
                                 setComparisonFormat(
                                     e.currentTarget.value === 'raw'
-                                        ? comparisonFormatTypes.RAW
-                                        : comparisonFormatTypes.PERCENTAGE,
+                                        ? ComparisonFormatTypes.RAW
+                                        : ComparisonFormatTypes.PERCENTAGE,
                                 );
                             }}
                             selectedValue={comparisonFormat}
                         >
                             <Radio
                                 label="By raw value"
-                                value={comparisonFormatTypes.RAW}
+                                value={ComparisonFormatTypes.RAW}
                             />
                             <Radio
                                 label="By percentage"
-                                value={comparisonFormatTypes.PERCENTAGE}
+                                value={ComparisonFormatTypes.PERCENTAGE}
                             />
                         </RadioGroup>
                     )}

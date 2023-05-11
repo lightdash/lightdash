@@ -1,3 +1,4 @@
+import { ComparisonDiffTypes } from '@lightdash/common';
 import { IconArrowDownRight, IconArrowUpRight } from '@tabler/icons-react';
 import clamp from 'lodash-es/clamp';
 import { FC, HTMLAttributes, useMemo } from 'react';
@@ -63,7 +64,6 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             showComparison,
             showLabel,
             comparisonDiff,
-            comparisonDiffTypes,
         },
         isSqlRunner,
     } = useVisualizationContext();
@@ -154,13 +154,13 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                         }}
                     >
                         {comparisonValue}
-                        {comparisonDiff === comparisonDiffTypes.POSITIVE ? (
+                        {comparisonDiff === ComparisonDiffTypes.POSITIVE ? (
                             <MantineIcon
                                 icon={IconArrowUpRight}
                                 size={18}
                                 style={{ display: 'inline', marginLeft: 5 }}
                             />
-                        ) : comparisonDiff === comparisonDiffTypes.NEGATIVE ? (
+                        ) : comparisonDiff === ComparisonDiffTypes.NEGATIVE ? (
                             <MantineIcon
                                 icon={IconArrowDownRight}
                                 size={18}
