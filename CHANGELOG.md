@@ -1,3 +1,10 @@
+# [0.544.0](https://github.com/lightdash/lightdash/compare/0.543.3...0.544.0) (2023-05-11)
+
+
+### Features
+
+* pivot table row totals ([#5186](https://github.com/lightdash/lightdash/issues/5186)) ([30e322e](https://github.com/lightdash/lightdash/commit/30e322eb55ba19fb68667f1580c2dd6493741129))
+
 ## [0.543.3](https://github.com/lightdash/lightdash/compare/0.543.2...0.543.3) (2023-05-11)
 
 
