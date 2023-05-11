@@ -42,27 +42,38 @@ export class ValidationModel {
             .select('*')
             .where('project_uuid', projectUuid);
 
-        return validationErrors.map((validationError) => {
-            const validation = {
-                createdAt: validationError.created_at,
-                projectUuid: validationError.project_uuid,
-                summary: validationError.summary,
-                error: validationError.error,
-                ...(validationError.dashboard_uuid && {
-                    chartUuid: validationError.dashboard_uuid,
-                }),
-                ...(validationError.saved_chart_uuid && {
-                    chartUuid: validationError.saved_chart_uuid,
-                }),
-            };
+        // TODO: should this be done in Service?
+        return Promise.all(
+            validationErrors.map(async (validationError) => {
+                const validation: Partial<ValidationResponse> = {
+                    createdAt: validationError.created_at,
+                    projectUuid: validationError.project_uuid,
+                    summary: validationError.summary,
+                    error: validationError.error,
+                    ...(validationError.dashboard_uuid && {
+                        dashboardUuid: validationError.dashboard_uuid,
+                    }),
+                };
 
-            return {
-                ...validation,
-                // TODO: fix below
-                name: 'unknown',
-                // TODO: fix below
-                lastUpdatedBy: 'last_updated_by',
-            };
-        });
+                if (validationError.saved_chart_uuid) {
+                    const chart = await savedChartModel.get(
+                        validationError.saved_chart_uuid,
+                    );
+                    validation.name = chart.name;
+                    validation.lastUpdatedBy = `${chart.updatedByUser?.firstName} ${chart.updatedByUser?.lastName}`;
+                    validation.chartUuid = validationError.saved_chart_uuid;
+                } else {
+                    validation.name = 'Private content';
+                    // TODO: check this
+                    validation.lastUpdatedBy = '';
+                }
+
+                // updated by in dashboard?
+                // lastUpdatedBy might not exist - when it hasnt been used in a chart yet
+
+                // TODO: remove typecast
+                return validation as ValidationResponse;
+            }),
+        );
     }
 }
