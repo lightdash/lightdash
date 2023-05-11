@@ -1583,8 +1583,6 @@ const models: TsoaRoute.Models = {
                 lastUpdatedBy: { dataType: 'string', required: true },
                 error: { dataType: 'string', required: true },
                 summary: { dataType: 'string', required: true },
-                spaceName: { dataType: 'string', required: true },
-                spaceUuid: { dataType: 'string', required: true },
                 projectUuid: { dataType: 'string', required: true },
                 dashboardUuid: { dataType: 'string' },
                 chartUuid: { dataType: 'string' },
@@ -3212,6 +3210,50 @@ export function RegisterRoutes(app: express.Router) {
                 const controller = new ValidationController();
 
                 const promise = controller.post.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.get(
+        '/api/v1/:projectUuid/validate',
+        ...fetchMiddlewares<RequestHandler>(ValidationController),
+        ...fetchMiddlewares<RequestHandler>(ValidationController.prototype.get),
+
+        function ValidationController_get(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const controller = new ValidationController();
+
+                const promise = controller.get.apply(
                     controller,
                     validatedArgs as any,
                 );
