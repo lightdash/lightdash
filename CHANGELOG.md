@@ -1,3 +1,10 @@
+# [0.546.0](https://github.com/lightdash/lightdash/compare/0.545.0...0.546.0) (2023-05-11)
+
+
+### Features
+
+* big number comparison ([#5452](https://github.com/lightdash/lightdash/issues/5452)) ([3300091](https://github.com/lightdash/lightdash/commit/33000911f8cbdadb5815f8348d39cfeb2a8feceb))
+
 # [0.545.0](https://github.com/lightdash/lightdash/compare/0.544.0...0.545.0) (2023-05-11)
 
 
