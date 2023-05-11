@@ -41,61 +41,60 @@ const SocialLoginsPanel: FC = () => {
 
     const deleteMutation = useDeleteOpenIdentityMutation();
 
+    if (!health) return null;
+
     return (
         <Stack spacing="md">
-            {health &&
-                (
-                    Object.entries(userSocialLogins ?? {}) as Entries<
-                        typeof userSocialLogins
-                    >
-                ).map(
-                    ([issuerType, logins]) =>
-                        isIssuerTypeAvailable(health, issuerType) && (
-                            <Stack key={issuerType} spacing="xs">
-                                <Text tt="capitalize" fw={600}>
-                                    {issuerType}
-                                </Text>
-                                {logins.length
-                                    ? logins.map((login) => (
-                                          <Card
-                                              key={login.email}
-                                              withBorder
-                                              padding="xs"
-                                          >
-                                              <Group position="apart">
-                                                  {login.email}
-                                                  <ActionIcon
-                                                      size="xs"
-                                                      disabled={
-                                                          deleteMutation.isLoading
-                                                      }
-                                                      onClick={() =>
-                                                          deleteMutation.mutate(
-                                                              {
-                                                                  email: login.email,
-                                                                  issuer: login.issuer,
-                                                              },
-                                                          )
-                                                      }
-                                                  >
-                                                      <MantineIcon
-                                                          icon={IconTrash}
-                                                      />
-                                                  </ActionIcon>
-                                              </Group>
-                                          </Card>
-                                      ))
-                                    : null}
-                                <Group position="left" spacing="xs">
-                                    <ThirdPartySignInButton
-                                        size="xs"
-                                        providerName={issuerType}
-                                        intent="add"
-                                    />
-                                </Group>
-                            </Stack>
-                        ),
-                )}
+            {(
+                Object.entries(userSocialLogins ?? {}) as Entries<
+                    typeof userSocialLogins
+                >
+            ).map(
+                ([issuerType, logins]) =>
+                    isIssuerTypeAvailable(health, issuerType) && (
+                        <Stack key={issuerType} spacing="xs">
+                            <Text tt="capitalize" fw={600}>
+                                {issuerType}
+                            </Text>
+                            {logins.length
+                                ? logins.map((login) => (
+                                      <Card
+                                          key={login.email}
+                                          withBorder
+                                          padding="xs"
+                                      >
+                                          <Group position="apart">
+                                              {login.email}
+                                              <ActionIcon
+                                                  size="xs"
+                                                  disabled={
+                                                      deleteMutation.isLoading
+                                                  }
+                                                  onClick={() =>
+                                                      deleteMutation.mutate({
+                                                          email: login.email,
+                                                          issuer: login.issuer,
+                                                      })
+                                                  }
+                                              >
+                                                  <MantineIcon
+                                                      icon={IconTrash}
+                                                  />
+                                              </ActionIcon>
+                                          </Group>
+                                      </Card>
+                                  ))
+                                : null}
+                            <Group position="left" spacing="xs">
+                                <ThirdPartySignInButton
+                                    size="xs"
+                                    providerName={issuerType}
+                                    intent="add"
+                                />
+                            </Group>
+                        </Stack>
+                    ),
+            )}
         </Stack>
     );
 };
