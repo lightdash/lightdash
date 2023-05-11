@@ -1,16 +1,16 @@
-import { ApiError, CreateUserArgs, LightdashUser } from '@lightdash/common';
+import {
+    ApiError,
+    CreateUserArgs,
+    LightdashUser,
+    OpenIdIdentityIssuerType,
+} from '@lightdash/common';
 import { Anchor, Card, Image, Stack, Text, Title } from '@mantine/core';
 import { FC } from 'react';
 import { useMutation } from 'react-query';
 import { useLocation } from 'react-router-dom';
-
 import { lightdashApi } from '../api';
-import {
-    GoogleLoginButton,
-    OktaLoginButton,
-    OneLoginLoginButton,
-} from '../components/common/GoogleLoginButton';
 import Page from '../components/common/Page/Page';
+import { ThirdPartySignInButton } from '../components/common/ThirdPartySignInButton';
 import PageSpinner from '../components/PageSpinner';
 import CreateUserForm from '../components/RegisterForms/CreateUserForm';
 import useToaster from '../hooks/toaster/useToaster';
@@ -62,11 +62,15 @@ const Register: FC = () => {
         health.data?.auth.okta.enabled ||
         health.data?.auth.oneLogin.enabled;
     const ssoLogins = ssoAvailable && (
-        <>
-            {health.data?.auth.google.oauth2ClientId && <GoogleLoginButton />}
-            {health.data?.auth.okta.enabled && <OktaLoginButton />}
-            {health.data?.auth.oneLogin.enabled && <OneLoginLoginButton />}
-        </>
+        <Stack>
+            {Object.values(OpenIdIdentityIssuerType).map((providerName) => (
+                <ThirdPartySignInButton
+                    key={providerName}
+                    providerName={providerName}
+                    intent="signup"
+                />
+            ))}
+        </Stack>
     );
     const passwordLogin = allowPasswordAuthentication && (
         <CreateUserForm

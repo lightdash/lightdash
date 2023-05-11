@@ -457,7 +457,9 @@ export class UserService {
 
     async getLinkedIdentities({
         userId,
-    }: Pick<SessionUser, 'userId'>): Promise<OpenIdIdentitySummary[]> {
+    }: Pick<SessionUser, 'userId'>): Promise<
+        Record<OpenIdIdentitySummary['issuerType'], OpenIdIdentitySummary[]>
+    > {
         return this.openIdIdentityModel.getIdentitiesByUserId(userId);
     }
 
