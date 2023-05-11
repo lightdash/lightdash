@@ -1,3 +1,10 @@
+## [0.543.2](https://github.com/lightdash/lightdash/compare/0.543.1...0.543.2) (2023-05-11)
+
+
+### Bug Fixes
+
+* increase slack channels request ([#5427](https://github.com/lightdash/lightdash/issues/5427)) ([bbd8f63](https://github.com/lightdash/lightdash/commit/bbd8f63077f79d3ec3c7cc06b153a7729cd5461e))
+
 ## [0.543.1](https://github.com/lightdash/lightdash/compare/0.543.0...0.543.1) (2023-05-10)
 
 
