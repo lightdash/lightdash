@@ -272,7 +272,7 @@ export class UnfurlService {
                     throw new Error(
                         `Missing chartUuid when unfurling Dashboard URL ${parsedUrl.url}`,
                     );
-                const chart = await this.savedChartModel.get(
+                const chart = await this.savedChartModel.getSummary(
                     parsedUrl.chartUuid,
                 );
                 return { title: chart.name, description: chart.description };

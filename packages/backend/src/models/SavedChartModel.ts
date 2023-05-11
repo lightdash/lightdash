@@ -549,6 +549,61 @@ export class SavedChartModel {
         }
     }
 
+    private getChatSummaryQuery() {
+        return this.database('saved_queries')
+            .select({
+                uuid: 'saved_queries.saved_query_uuid',
+                name: 'saved_queries.name',
+                description: 'saved_queries.description',
+                spaceUuid: 'spaces.space_uuid',
+                spaceName: 'spaces.name',
+                projectUuid: 'projects.project_uuid',
+                organizationUuid: 'organizations.organization_uuid',
+                pinnedListUuid: `${PinnedListTableName}.pinned_list_uuid`,
+            })
+            .innerJoin('spaces', 'saved_queries.space_id', 'spaces.space_id')
+            .innerJoin('projects', 'spaces.project_id', 'projects.project_id')
+            .innerJoin(
+                OrganizationTableName,
+                'organizations.organization_id',
+                'projects.organization_id',
+            )
+            .leftJoin(
+                PinnedChartTableName,
+                `${PinnedChartTableName}.saved_chart_uuid`,
+                `${SavedChartsTableName}.saved_query_uuid`,
+            )
+            .innerJoin(
+                PinnedListTableName,
+                `${PinnedListTableName}.pinned_list_uuid`,
+                `${PinnedChartTableName}.pinned_list_uuid`,
+            );
+    }
+
+    async getSummary(savedChartUuid: string): Promise<ChartSummary> {
+        const transaction = Sentry.getCurrentHub()
+            ?.getScope()
+            ?.getTransaction();
+        const span = transaction?.startChild({
+            op: 'SavedChartModel.getSummary',
+            description: 'Get chart summary',
+        });
+        try {
+            const [chart] = await this.getChatSummaryQuery()
+                .where(
+                    `${SavedChartsTableName}.saved_query_uuid`,
+                    savedChartUuid,
+                )
+                .limit(1);
+            if (chart === undefined) {
+                throw new NotFoundError('Saved query not found');
+            }
+            return chart;
+        } finally {
+            span?.finish();
+        }
+    }
+
     async find(filters: {
         projectUuid?: string;
         spaceUuids?: string[];
@@ -561,32 +616,14 @@ export class SavedChartModel {
             description: 'Find charts',
         });
         try {
-            const query = this.database('saved_queries')
-                .select({
-                    uuid: 'saved_queries.saved_query_uuid',
-                    name: 'saved_queries.name',
-                    description: 'saved_queries.description',
-                    spaceUuid: 'spaces.space_uuid',
-                    spaceName: 'spaces.name',
-                })
-                .innerJoin(
-                    'spaces',
-                    'saved_queries.space_id',
-                    'spaces.space_id',
-                );
+            const query = this.getChatSummaryQuery();
             if (filters.projectUuid) {
-                query.innerJoin(
-                    'projects',
-                    'spaces.project_id',
-                    'projects.project_id',
-                );
                 query.where('projects.project_uuid', filters.projectUuid);
             }
             if (filters.spaceUuids) {
                 query.whereIn('spaces.space_uuid', filters.spaceUuids);
             }
-            const rows = await query;
-            return rows;
+            return await query;
         } finally {
             span?.finish();
         }

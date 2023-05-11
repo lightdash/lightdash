@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    ChartSummary,
     ChartType,
     countTotalFilterRules,
     CreateSavedChart,
@@ -61,8 +62,8 @@ export class SavedChartService {
     private async checkUpdateAccess(
         user: SessionUser,
         chartUuid: string,
-    ): Promise<SavedChart> {
-        const savedChart = await this.savedChartModel.get(chartUuid);
+    ): Promise<ChartSummary> {
+        const savedChart = await this.savedChartModel.getSummary(chartUuid);
         const { organizationUuid, projectUuid } = savedChart;
         if (
             user.ability.cannot(
@@ -166,7 +167,7 @@ export class SavedChartService {
         data: CreateSavedChartVersion,
     ): Promise<SavedChart> {
         const { organizationUuid, projectUuid, spaceUuid } =
-            await this.savedChartModel.get(savedChartUuid);
+            await this.savedChartModel.getSummary(savedChartUuid);
 
         if (
             user.ability.cannot(
@@ -201,7 +202,7 @@ export class SavedChartService {
         data: UpdateSavedChart,
     ): Promise<SavedChart> {
         const { organizationUuid, projectUuid, spaceUuid } =
-            await this.savedChartModel.get(savedChartUuid);
+            await this.savedChartModel.getSummary(savedChartUuid);
 
         if (
             user.ability.cannot(
@@ -236,7 +237,7 @@ export class SavedChartService {
         savedChartUuid: string,
     ): Promise<SavedChart> {
         const { organizationUuid, projectUuid, pinnedListUuid } =
-            await this.savedChartModel.get(savedChartUuid);
+            await this.savedChartModel.getSummary(savedChartUuid);
 
         if (
             user.ability.cannot(
@@ -309,7 +310,7 @@ export class SavedChartService {
 
     async delete(user: SessionUser, savedChartUuid: string): Promise<void> {
         const { organizationUuid, projectUuid, spaceUuid } =
-            await this.savedChartModel.get(savedChartUuid);
+            await this.savedChartModel.getSummary(savedChartUuid);
 
         if (
             user.ability.cannot(
