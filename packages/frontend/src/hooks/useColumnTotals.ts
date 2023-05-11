@@ -18,7 +18,7 @@ type Args = {
     itemsMap: Record<FieldId, Field | TableCalculation>;
 };
 
-export const isSummable = (item: Field | TableCalculation) => {
+const isSummable = (item: Field | TableCalculation) => {
     if (isField(item) || isAdditionalMetric(item)) {
         const numericTypes: string[] = [
             DimensionType.NUMBER,
@@ -34,7 +34,7 @@ export const isSummable = (item: Field | TableCalculation) => {
     return true;
 };
 
-export const getResultColumnTotals = (
+const getResultColumnTotals = (
     rows: ResultRow[],
     keys: Array<string>,
 ): Record<FieldId, number | undefined> => {
