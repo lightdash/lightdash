@@ -182,8 +182,10 @@ const useBigNumberConfig = (
 
         setBigNumberStyle(bigNumberConfigData?.style);
 
-        setShowComparison(bigNumberConfigData?.showComparison);
-        setComparisonFormat(bigNumberConfigData?.comparisonFormat);
+        setShowComparison(bigNumberConfigData?.showComparison ?? false);
+        setComparisonFormat(
+            bigNumberConfigData?.comparisonFormat ?? ComparisonFormatTypes.RAW,
+        );
     }, [bigNumberConfigData]);
 
     // big number value (first row)
