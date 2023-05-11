@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     HealthState,
     OpenIdIdentityIssuerType,
     OpenIdIdentitySummary,
@@ -27,7 +28,10 @@ const isIssuerTypeAvailable = (
         case OpenIdIdentityIssuerType.ONELOGIN:
             return health.auth.oneLogin.enabled;
         default:
-            return false;
+            return assertUnreachable(
+                issuerType,
+                'Unexpected issuer type when getting social logins',
+            );
     }
 };
 
@@ -85,9 +89,7 @@ const SocialLoginsPanel: FC = () => {
                                 <Group position="left" spacing="xs">
                                     <ThirdPartySignInButton
                                         size="xs"
-                                        providerName={
-                                            issuerType as OpenIdIdentitySummary['issuerType']
-                                        }
+                                        providerName={issuerType}
                                         intent="add"
                                     />
                                 </Group>

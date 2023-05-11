@@ -145,6 +145,8 @@ const Invite: FC = () => {
                 <ThirdPartySignInButton
                     key={providerName}
                     providerName={providerName}
+                    inviteCode={inviteCode}
+                    intent="signup"
                 />
             ))}
         </Stack>
