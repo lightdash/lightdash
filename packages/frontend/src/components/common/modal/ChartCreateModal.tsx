@@ -13,7 +13,7 @@ import { useParams } from 'react-router-dom';
 import { useCreateMutation } from '../../../hooks/useSavedQuery';
 import {
     useCreateMutation as useSpaceCreateMutation,
-    useSpaces,
+    useSpaceSummaries,
 } from '../../../hooks/useSpaces';
 import {
     CreateNewText,
@@ -32,8 +32,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     ...modalProps
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-
-    const { data: spaces } = useSpaces(projectUuid);
+    const { data: spaces } = useSpaceSummaries(projectUuid);
     const { mutateAsync, isLoading: isCreating } = useCreateMutation();
     const { mutateAsync: createSpaceAsync, isLoading: isCreatingSpace } =
         useSpaceCreateMutation(projectUuid);

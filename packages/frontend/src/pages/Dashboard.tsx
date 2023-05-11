@@ -37,7 +37,7 @@ import {
     useUpdateDashboard,
 } from '../hooks/dashboard/useDashboard';
 import { useSavedQuery } from '../hooks/useSavedQuery';
-import { useSpaces } from '../hooks/useSpaces';
+import { useSpaceSummaries } from '../hooks/useSpaces';
 import {
     DashboardProvider,
     useDashboardContext,
@@ -134,7 +134,7 @@ const Dashboard: FC = () => {
         dashboardUuid: string;
         mode?: string;
     }>();
-    const { data: spaces } = useSpaces(projectUuid);
+    const { data: spaces } = useSpaceSummaries(projectUuid);
 
     const {
         dashboard,
