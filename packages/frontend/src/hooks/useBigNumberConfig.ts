@@ -45,11 +45,8 @@ const formatComparisonValue = (
     value: number | string,
 ) => {
     const prefix =
-        comparisonDiff === ComparisonDiffTypes.NAN ||
-        ComparisonDiffTypes.NEGATIVE
-            ? ''
-            : comparisonDiff === ComparisonDiffTypes.POSITIVE ||
-              ComparisonDiffTypes.NONE
+        comparisonDiff ===
+        (ComparisonDiffTypes.POSITIVE || ComparisonDiffTypes.NONE)
             ? '+'
             : '';
     switch (format) {
