@@ -1,3 +1,10 @@
+## [0.543.3](https://github.com/lightdash/lightdash/compare/0.543.2...0.543.3) (2023-05-11)
+
+
+### Bug Fixes
+
+* conditional formatting in new pivot table ([#5435](https://github.com/lightdash/lightdash/issues/5435)) ([ee3640f](https://github.com/lightdash/lightdash/commit/ee3640f2accfd28eac0c5ace4e143e35bf53a586))
+
 ## [0.543.2](https://github.com/lightdash/lightdash/compare/0.543.1...0.543.2) (2023-05-11)
 
 
