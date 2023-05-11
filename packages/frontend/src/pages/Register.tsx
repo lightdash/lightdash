@@ -67,6 +67,7 @@ const Register: FC = () => {
                 <ThirdPartySignInButton
                     key={providerName}
                     providerName={providerName}
+                    intent="signup"
                 />
             ))}
         </Stack>
