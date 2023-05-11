@@ -5,6 +5,7 @@ import {
     Dashboard,
     fieldId as getFieldId,
     ForbiddenError,
+    getFilterRules,
     isChartScheduler,
     isDimension,
     isMetric,
@@ -23,6 +24,7 @@ import cronstrue from 'cronstrue';
 import { analytics } from '../../analytics/client';
 import { schedulerClient, slackClient } from '../../clients/clients';
 import { LightdashConfig } from '../../config/parseConfig';
+import Logger from '../../logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -33,7 +35,6 @@ import { ProjectService } from '../ProjectService/ProjectService';
 type ServiceDependencies = {
     lightdashConfig: LightdashConfig;
     validationModel: ValidationModel;
-    projectService: ProjectService;
     projectModel: ProjectModel;
     savedChartModel: SavedChartModel;
 };
@@ -43,9 +44,6 @@ export class ValidationService {
 
     validationModel: ValidationModel;
 
-    // spaceService: SpaceService;
-    projectService: ProjectService;
-
     projectModel: ProjectModel;
 
     savedChartModel: SavedChartModel;
@@ -53,29 +51,21 @@ export class ValidationService {
     constructor({
         lightdashConfig,
         validationModel,
-        projectService,
         projectModel,
         savedChartModel,
     }: ServiceDependencies) {
         this.lightdashConfig = lightdashConfig;
-        this.projectService = projectService;
         this.projectModel = projectModel;
         this.savedChartModel = savedChartModel;
-
         this.validationModel = validationModel;
     }
 
     async validate(user: SessionUser, projectUuid: string): Promise<any> {
-        // const project = await this.validationModel.get(projectUuid);
-
-        // TODO we need the fields from the project to validate it
-        // const exploresSummaries = await this.projectService.getAllExploresSummary(user, projectUuid, false)
-        // const explorePromises = exploresSummaries.map((exploreSummary) => this.projectService.getExplore(user, projectUuid, exploreSummary.name))
+        // TODO check permissions
         const exploresSummaries = await this.projectModel.getExploresFromCache(
             projectUuid,
         );
 
-        // const explorePromises = exploresSummaries.map((exploreSummary) => this.projectService.getExplore(user, projectUuid, exploreSummary.name))
         const existingFields = exploresSummaries?.reduce<CompiledField[]>(
             (acc, exploreSummary) => {
                 if (!exploreSummary.tables) return acc;
@@ -92,24 +82,31 @@ export class ValidationService {
             [],
         );
 
+        if (!existingFields) {
+            Logger.warn(
+                `No fields found for project validation ${projectUuid}`,
+            );
+            return [];
+        }
+
+        const existingFieldIds = existingFields.map(getFieldId);
         const existingDimensionIds = existingFields
-            ?.filter(isDimension)
+            .filter(isDimension)
             .map(getFieldId);
         const existingMetricIds = existingFields
-            ?.filter(isMetric)
+            .filter(isMetric)
             .map(getFieldId);
 
-        // const explores = await  Promise.all(explorePromises)
-
-        // const fieldIds = explores.map((explore) => explore.fields.map((field) => field.id))
-
-        // TODO charts + dashboards
         const chartSummaries = await this.savedChartModel.find({ projectUuid });
         const charts = await Promise.all(
             chartSummaries.map((chartSummary) =>
                 this.savedChartModel.get(chartSummary.uuid),
             ),
         );
+        // TODO dashboards
+
+        // TODO get space uuids from charts and dashboards and check if "developer" has access to them
+        // Don't do it for admins
 
         const results: ValidationResponse[] = charts.flatMap((chart) => {
             const filterAdditionalMetrics = (metric: string) =>
@@ -157,13 +154,87 @@ export class ValidationService {
                     return acc;
                 }, []);
 
+            const filterErrors = getFilterRules(
+                chart.metricQuery.filters,
+            ).reduce<ValidationResponse[]>((acc, field) => {
+                if (!existingFieldIds?.includes(field.target.fieldId)) {
+                    return [
+                        ...acc,
+                        {
+                            ...commonValidation,
+                            summary: `filter not found ${field}`,
+                            error: `filter not found ${field}`,
+                        },
+                    ];
+                }
+                return acc;
+            }, []);
+
+            const sortErrors = chart.metricQuery.sorts.reduce<
+                ValidationResponse[]
+            >((acc, field) => {
+                if (!existingFieldIds?.includes(field.fieldId)) {
+                    return [
+                        ...acc,
+                        {
+                            ...commonValidation,
+                            summary: `sort not found ${field}`,
+                            error: `sort not found ${field}`,
+                        },
+                    ];
+                }
+                return acc;
+            }, []);
+
+            const parseTableField = (field: string) =>
+                // Transform ${table.field} references on table calculation to table_field
+                field.replace('${', '').replace('}', '').replace('.', '_');
+
+            const tableCalculationFieldsInSql: string[] =
+                chart.metricQuery.tableCalculations.reduce<string[]>(
+                    (acc, tc) => {
+                        const regex = /\$\{([^}]+)\}/g;
+
+                        const fieldsInSql = tc.sql.match(regex); // regex.exec(tc.sql)
+                        if (fieldsInSql != null) {
+                            return [
+                                ...acc,
+                                ...fieldsInSql.map(parseTableField),
+                            ];
+                        }
+                        return acc;
+                    },
+                    [],
+                );
+            const tableCalculationErrors = tableCalculationFieldsInSql.reduce<
+                ValidationResponse[]
+            >((acc, field) => {
+                if (!existingFieldIds?.includes(field)) {
+                    return [
+                        ...acc,
+                        {
+                            ...commonValidation,
+                            summary: `table calculation not found ${field}`,
+                            error: `table calculation not found ${field}`,
+                        },
+                    ];
+                }
+                return acc;
+            }, []);
+
             // TODO add more validation
-            return [...dimensionErrors, ...metricErrors];
+            return [
+                ...dimensionErrors,
+                ...metricErrors,
+                ...filterErrors,
+                ...sortErrors,
+                ...tableCalculationErrors,
+            ];
         });
 
-        // TODO:  this.validationModel.delete(projectUuid)
+        await this.validationModel.delete(projectUuid);
 
-        this.validationModel.create(results);
+        await this.validationModel.create(results);
 
         return results;
     }
