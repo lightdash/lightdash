@@ -113,6 +113,10 @@ export class ValidationService {
                 !chart.metricQuery.additionalMetrics
                     ?.map((additionalMetric) => getFieldId(additionalMetric))
                     ?.includes(metric);
+            const filterTableCalculations = (metric: string) =>
+                !chart.metricQuery.tableCalculations
+                    ?.map((tableCalculation) => tableCalculation.name)
+                    ?.includes(metric);
 
             const hasAccess = true; // TODO: hasSpaceAccess(chartuuid)
             const commonValidation = {
@@ -186,6 +190,22 @@ export class ValidationService {
                 return acc;
             }, []);
 
+            const errorColumnOrder = chart.tableConfig.columnOrder
+                .filter(filterTableCalculations)
+                .filter(filterAdditionalMetrics)
+                .reduce<ValidationResponse[]>((acc, field) => {
+                    if (!existingFieldIds?.includes(field)) {
+                        return [
+                            ...acc,
+                            {
+                                ...commonValidation,
+                                summary: `table column order not found ${field}`,
+                                error: `table column order found ${field}`,
+                            },
+                        ];
+                    }
+                    return acc;
+                }, []);
             const parseTableField = (field: string) =>
                 // Transform ${table.field} references on table calculation to table_field
                 field.replace('${', '').replace('}', '').replace('.', '_');
@@ -229,6 +249,7 @@ export class ValidationService {
                 ...filterErrors,
                 ...sortErrors,
                 ...tableCalculationErrors,
+                ...errorColumnOrder,
             ];
         });
 
