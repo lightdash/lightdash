@@ -1,4 +1,5 @@
 import {
+    dashboardModel,
     projectModel,
     savedChartModel,
     validationModel,
@@ -8,6 +9,7 @@ import { ValidationService } from './ValidationService';
 import {
     chart,
     config,
+    dashboard,
     explore,
     exploreWithoutDimension,
     exploreWithoutMetric,
@@ -26,6 +28,10 @@ jest.mock('../../models/models', () => ({
         delete: jest.fn(async () => {}),
         create: jest.fn(async () => {}),
     },
+    dashboardModel: {
+        getAllByProject: jest.fn(async () => [{}]),
+        getById: jest.fn(async () => dashboard),
+    },
 }));
 
 describe('validation', () => {
@@ -33,6 +39,7 @@ describe('validation', () => {
         validationModel,
         projectModel,
         savedChartModel,
+        dashboardModel,
         lightdashConfig: config,
     });
 
@@ -61,12 +68,12 @@ describe('validation', () => {
         expect({ ...errors[0], createdAt: undefined }).toEqual({
             createdAt: undefined,
             chartUuid: 'chartUuid',
-            error: "The field 'table_dimension' no longer exists and is being used as a dimension.",
             lastUpdatedBy: 'David Attenborough',
             name: 'Test chart',
+            lastUpdatedAt: new Date('2021-01-01'),
+
             projectUuid: 'projectUuid',
-            summary:
-                "Dimension error: the field 'table_dimension' no longer exists",
+            error: "Dimension error: the field 'table_dimension' no longer exists",
             table: 'table',
         });
 
@@ -74,9 +81,9 @@ describe('validation', () => {
             "Dimension error: the field 'table_dimension' no longer exists",
             "Filter error: the field 'table_dimension' no longer exists",
             "Sorting error: the field 'table_dimension' no longer exists",
-            "Table calculation error: the field 'table_dimension' no longer exists",
+            "The chart 'Test chart' is broken on this dashboard.", // Dashboard error
         ];
-        expect(errors.map((error) => error.summary)).toEqual(expectedErrors);
+        expect(errors.map((error) => error.error)).toEqual(expectedErrors);
         expect(validationModel.delete).toHaveBeenCalledTimes(1);
         expect(validationModel.create).toHaveBeenCalledTimes(1);
     });
@@ -94,20 +101,20 @@ describe('validation', () => {
         expect({ ...errors[0], createdAt: undefined }).toEqual({
             createdAt: undefined,
             chartUuid: 'chartUuid',
-            error: "The field 'table_metric' no longer exists and is being used as a metric.",
             lastUpdatedBy: 'David Attenborough',
             name: 'Test chart',
+            lastUpdatedAt: new Date('2021-01-01'),
             projectUuid: 'projectUuid',
-            summary: "Metric error: the field 'table_metric' no longer exists",
+            error: "Metric error: the field 'table_metric' no longer exists",
             table: 'table',
         });
 
         const expectedErrors: string[] = [
             "Metric error: the field 'table_metric' no longer exists",
             "Filter error: the field 'table_metric' no longer exists",
-            "Table calculation error: the field 'table_metric' no longer exists",
+            "The chart 'Test chart' is broken on this dashboard.", // Dashboard error
         ];
-        expect(errors.map((error) => error.summary)).toEqual(expectedErrors);
+        expect(errors.map((error) => error.error)).toEqual(expectedErrors);
         expect(validationModel.delete).toHaveBeenCalledTimes(1);
         expect(validationModel.create).toHaveBeenCalledTimes(1);
     });
