@@ -35,7 +35,7 @@ export enum ComparisonDiffTypes {
 }
 
 export type BigNumber = {
-    bigNumberLabel?: string;
+    label?: string;
     style?: CompactOrAlias;
     selectedField?: string;
     showBigNumberLabel?: boolean;

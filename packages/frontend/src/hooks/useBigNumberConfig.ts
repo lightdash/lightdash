@@ -179,8 +179,8 @@ const useBigNumberConfig = (
         : selectedField && friendlyName(selectedField);
 
     const [bigNumberLabel, setBigNumberLabel] = useState<
-        BigNumber['bigNumberLabel'] | undefined
-    >(bigNumberConfigData?.bigNumberLabel);
+        BigNumber['label'] | undefined
+    >(bigNumberConfigData?.label);
     const [showLabel, setShowLabel] = useState<
         BigNumber['showBigNumberLabel'] | undefined
     >(bigNumberConfigData?.showBigNumberLabel);
@@ -205,7 +205,7 @@ const useBigNumberConfig = (
         if (bigNumberConfigData?.selectedField !== undefined)
             setSelectedField(bigNumberConfigData.selectedField);
 
-        setBigNumberLabel(bigNumberConfigData?.bigNumberLabel);
+        setBigNumberLabel(bigNumberConfigData?.label);
         setShowLabel(bigNumberConfigData?.showBigNumberLabel ?? true);
 
         setBigNumberStyle(bigNumberConfigData?.style);
@@ -295,7 +295,7 @@ const useBigNumberConfig = (
 
     const validBigNumberConfig: BigNumber = useMemo(() => {
         return {
-            bigNumberLabel,
+            label: bigNumberLabel,
             style: bigNumberStyle,
             selectedField: selectedField,
             showBigNumberLabel: showLabel,
