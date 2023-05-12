@@ -181,9 +181,9 @@ const useBigNumberConfig = (
     const [bigNumberLabel, setBigNumberLabel] = useState<
         BigNumber['label'] | undefined
     >(bigNumberConfigData?.label);
-    const [showLabel, setShowLabel] = useState<
-        BigNumber['showLabel'] | undefined
-    >(bigNumberConfigData?.showLabel);
+    const [showBigNumberLabel, setShowBigNumberLabel] = useState<
+        BigNumber['showBigNumberLabel'] | undefined
+    >(bigNumberConfigData?.showBigNumberLabel);
     const [bigNumberStyle, setBigNumberStyle] = useState<
         BigNumber['style'] | undefined
     >(bigNumberConfigData?.style);
@@ -197,13 +197,16 @@ const useBigNumberConfig = (
     const [flipColors, setFlipColors] = useState<BigNumber['flipColors']>(
         bigNumberConfigData?.flipColors,
     );
+    const [comparisonLabel, setComparisonLabel] = useState<
+        BigNumber['comparisonLabel']
+    >(bigNumberConfigData?.comparisonLabel);
 
     useEffect(() => {
         if (bigNumberConfigData?.selectedField !== undefined)
             setSelectedField(bigNumberConfigData.selectedField);
 
         setBigNumberLabel(bigNumberConfigData?.label);
-        setShowLabel(bigNumberConfigData?.showLabel ?? true);
+        setShowBigNumberLabel(bigNumberConfigData?.showBigNumberLabel ?? true);
 
         setBigNumberStyle(bigNumberConfigData?.style);
 
@@ -212,6 +215,7 @@ const useBigNumberConfig = (
             bigNumberConfigData?.comparisonFormat ?? ComparisonFormatTypes.RAW,
         );
         setFlipColors(bigNumberConfigData?.flipColors ?? false);
+        setComparisonLabel(bigNumberConfigData?.comparisonLabel);
     }, [bigNumberConfigData]);
 
     // big number value (first row)
@@ -294,19 +298,21 @@ const useBigNumberConfig = (
             label: bigNumberLabel,
             style: bigNumberStyle,
             selectedField: selectedField,
-            showLabel,
+            showBigNumberLabel,
             showComparison,
             comparisonFormat,
             flipColors,
+            comparisonLabel,
         };
     }, [
         bigNumberLabel,
         bigNumberStyle,
         selectedField,
-        showLabel,
+        showBigNumberLabel,
         showComparison,
         comparisonFormat,
         flipColors,
+        comparisonLabel,
     ]);
     return {
         bigNumber,
@@ -322,8 +328,8 @@ const useBigNumberConfig = (
         setSelectedField,
         getField,
         comparisonValue,
-        showLabel,
-        setShowLabel,
+        showBigNumberLabel,
+        setShowBigNumberLabel,
         showComparison,
         setShowComparison,
         comparisonFormat,
@@ -332,6 +338,8 @@ const useBigNumberConfig = (
         flipColors,
         setFlipColors,
         comparisonTooltip,
+        comparisonLabel,
+        setComparisonLabel,
     };
 };
 

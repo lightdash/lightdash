@@ -38,10 +38,11 @@ export type BigNumber = {
     label?: string;
     style?: CompactOrAlias;
     selectedField?: string;
-    showLabel?: boolean;
+    showBigNumberLabel?: boolean;
     showComparison?: boolean;
     comparisonFormat?: ComparisonFormatTypes;
     flipColors?: boolean;
+    comparisonLabel?: string;
 };
 
 export type BigNumberConfig = {

@@ -64,10 +64,11 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             defaultLabel,
             comparisonValue,
             showComparison,
-            showLabel,
+            showBigNumberLabel,
             comparisonDiff,
             flipColors,
             comparisonTooltip,
+            comparisonLabel,
         },
         isSqlRunner,
     } = useVisualizationContext();
@@ -153,7 +154,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                 )}
             </BigNumberHalf>
 
-            {showLabel ? (
+            {showBigNumberLabel ? (
                 <BigNumberHalf>
                     <BigNumberLabel $fontSize={labelFontSize}>
                         {bigNumberLabel || defaultLabel}
@@ -162,15 +163,18 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             ) : null}
 
             {showComparison ? (
-                <BigNumberHalf>
+                <BigNumberHalf
+                    style={{
+                        marginTop: 10,
+                    }}
+                >
                     <Tooltip label={comparisonTooltip}>
                         <BigNumber
                             $fontSize={comparisonFontSize}
                             style={{
-                                marginTop: 10,
+                                color: comparisonValueColor,
                                 display: 'flex',
                                 alignItems: 'center',
-                                color: comparisonValueColor,
                             }}
                         >
                             {comparisonValue}
@@ -178,18 +182,27 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                                 <MantineIcon
                                     icon={IconArrowUpRight}
                                     size={18}
-                                    style={{ display: 'inline', marginLeft: 5 }}
+                                    style={{
+                                        display: 'inline',
+                                        margin: '0 7px 0 3px',
+                                    }}
                                 />
                             ) : comparisonDiff ===
                               ComparisonDiffTypes.NEGATIVE ? (
                                 <MantineIcon
                                     icon={IconArrowDownRight}
                                     size={18}
-                                    style={{ display: 'inline', marginLeft: 5 }}
+                                    style={{
+                                        display: 'inline',
+                                        margin: '0 7px 0 3px',
+                                    }}
                                 />
                             ) : null}
                         </BigNumber>
                     </Tooltip>
+                    <BigNumberLabel $fontSize={comparisonFontSize}>
+                        {comparisonLabel ?? null}
+                    </BigNumberLabel>
                 </BigNumberHalf>
             ) : null}
         </BigNumberContainer>
