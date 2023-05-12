@@ -30,7 +30,7 @@ export enum ComparisonDiffTypes {
     POSITIVE = 'positive',
     NEGATIVE = 'negative',
     NONE = 'none',
-    NAN = 'nan',
+    NAN = 'NaN',
     UNDEFINED = 'undefined',
 }
 

@@ -38,6 +38,8 @@ const calculateComparisonValue = (
     }
 };
 
+const NOT_APPLICABLE = 'n/a';
+const UNDEFINED = 'undefined';
 const formatComparisonValue = (
     format: ComparisonFormatTypes | undefined,
     comparisonDiff: ComparisonDiffTypes | undefined,
@@ -50,6 +52,9 @@ const formatComparisonValue = (
         comparisonDiff === ComparisonDiffTypes.NONE
             ? '+'
             : '';
+    if (value === UNDEFINED) {
+        value = NOT_APPLICABLE;
+    }
     switch (format) {
         case ComparisonFormatTypes.PERCENTAGE:
             return `${prefix}${formatValue(value, {
@@ -232,7 +237,6 @@ const useBigNumberConfig = (
               compact: bigNumberStyle,
           });
 
-    const NOT_APPLICABLE = 'n/a';
     const unformattedValue =
         isNumber(item, secondRowValueRaw) && isNumber(item, firstRowValueRaw)
             ? calculateComparisonValue(
@@ -240,6 +244,8 @@ const useBigNumberConfig = (
                   Number(secondRowValueRaw),
                   comparisonFormat,
               )
+            : secondRowValueRaw === undefined
+            ? UNDEFINED
             : NOT_APPLICABLE;
 
     const comparisonDiff = useMemo(() => {
@@ -249,9 +255,9 @@ const useBigNumberConfig = (
             ? ComparisonDiffTypes.NEGATIVE
             : unformattedValue === 0
             ? ComparisonDiffTypes.NONE
-            : valueIsNaN(unformattedValue)
-            ? ComparisonDiffTypes.NAN
-            : ComparisonDiffTypes.UNDEFINED;
+            : unformattedValue === UNDEFINED
+            ? ComparisonDiffTypes.UNDEFINED
+            : ComparisonDiffTypes.NAN;
     }, [unformattedValue]);
 
     const comparisonValue =
@@ -264,6 +270,20 @@ const useBigNumberConfig = (
                   unformattedValue,
                   bigNumberStyle,
               );
+
+    const comparisonTooltip = useMemo(() => {
+        switch (comparisonDiff) {
+            case ComparisonDiffTypes.POSITIVE:
+            case ComparisonDiffTypes.NEGATIVE:
+                return `${comparisonValue} compared to previous row`;
+            case ComparisonDiffTypes.NONE:
+                return `No change compared to previous row`;
+            case ComparisonDiffTypes.NAN:
+                return `The previous row's value is not a number`;
+            case ComparisonDiffTypes.UNDEFINED:
+                return `There is no previous row to compare to`;
+        }
+    }, [comparisonValue, comparisonDiff]);
 
     const showStyle =
         isNumber(item, firstRowValueRaw) &&
@@ -311,6 +331,7 @@ const useBigNumberConfig = (
         comparisonDiff,
         flipColors,
         setFlipColors,
+        comparisonTooltip,
     };
 };
 
