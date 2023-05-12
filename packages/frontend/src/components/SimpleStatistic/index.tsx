@@ -64,7 +64,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             defaultLabel,
             comparisonValue,
             showComparison,
-            showLabel,
+            showBigNumberLabel,
             comparisonDiff,
             flipColors,
             comparisonTooltip,
@@ -154,7 +154,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                 )}
             </BigNumberHalf>
 
-            {showLabel ? (
+            {showBigNumberLabel ? (
                 <BigNumberHalf>
                     <BigNumberLabel $fontSize={labelFontSize}>
                         {bigNumberLabel || defaultLabel}

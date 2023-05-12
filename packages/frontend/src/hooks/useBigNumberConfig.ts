@@ -181,7 +181,7 @@ const useBigNumberConfig = (
     const [bigNumberLabel, setBigNumberLabel] = useState<
         BigNumber['label'] | undefined
     >(bigNumberConfigData?.label);
-    const [showLabel, setShowLabel] = useState<
+    const [showBigNumberLabel, setShowBigNumberLabel] = useState<
         BigNumber['showBigNumberLabel'] | undefined
     >(bigNumberConfigData?.showBigNumberLabel);
     const [bigNumberStyle, setBigNumberStyle] = useState<
@@ -206,7 +206,7 @@ const useBigNumberConfig = (
             setSelectedField(bigNumberConfigData.selectedField);
 
         setBigNumberLabel(bigNumberConfigData?.label);
-        setShowLabel(bigNumberConfigData?.showBigNumberLabel ?? true);
+        setShowBigNumberLabel(bigNumberConfigData?.showBigNumberLabel ?? true);
 
         setBigNumberStyle(bigNumberConfigData?.style);
 
@@ -298,7 +298,7 @@ const useBigNumberConfig = (
             label: bigNumberLabel,
             style: bigNumberStyle,
             selectedField: selectedField,
-            showBigNumberLabel: showLabel,
+            showBigNumberLabel,
             showComparison,
             comparisonFormat,
             flipColors,
@@ -308,7 +308,7 @@ const useBigNumberConfig = (
         bigNumberLabel,
         bigNumberStyle,
         selectedField,
-        showLabel,
+        showBigNumberLabel,
         showComparison,
         comparisonFormat,
         flipColors,
@@ -328,8 +328,8 @@ const useBigNumberConfig = (
         setSelectedField,
         getField,
         comparisonValue,
-        showLabel,
-        setShowLabel,
+        showBigNumberLabel,
+        setShowBigNumberLabel,
         showComparison,
         setShowComparison,
         comparisonFormat,

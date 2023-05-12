@@ -45,8 +45,8 @@ const BigNumberConfigTabs = () => {
             selectedField,
             setSelectedField,
             getField,
-            showLabel,
-            setShowLabel,
+            showBigNumberLabel,
+            setShowBigNumberLabel,
             showComparison,
             setShowComparison,
             comparisonFormat,
@@ -95,16 +95,18 @@ const BigNumberConfigTabs = () => {
                                     }
                                     rightElement={
                                         <Button
-                                            active={showLabel}
+                                            active={showBigNumberLabel}
                                             icon={
-                                                showLabel ? (
+                                                showBigNumberLabel ? (
                                                     <IconEye size={18} />
                                                 ) : (
                                                     <IconEyeOff size={18} />
                                                 )
                                             }
                                             onClick={() => {
-                                                setShowLabel(!showLabel);
+                                                setShowBigNumberLabel(
+                                                    !showBigNumberLabel,
+                                                );
                                             }}
                                         />
                                     }
