@@ -103,7 +103,11 @@ export const useJob = (
         queryKey: ['job', jobId],
         queryFn: () => getJob(jobId || ''),
         enabled: !!jobId,
-        refetchInterval: (data) => data?.jobStatus === 'RUNNING' && 500,
+        refetchInterval: (data) =>
+            data === undefined ||
+            [JobStatusType.DONE, JobStatusType.ERROR].includes(data.jobStatus)
+                ? false
+                : 500,
         onSuccess: (job) => {
             queryClient.invalidateQueries('tables');
             onSuccess(job);
