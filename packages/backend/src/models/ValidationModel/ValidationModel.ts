@@ -39,9 +39,9 @@ export class ValidationModel {
 
     async get(projectUuid: string): Promise<ValidationResponse[]> {
         const chartsAndErrorsRows: (DbValidationTable & {
-            name: 'Which customers have not recently ordered an item?';
-            first_name: 'David';
-            last_name: 'Attenborough';
+            name: string;
+            first_name: string;
+            last_name: string;
         })[] = await this.database(ValidationTableName)
             .select('validations.*')
             .leftJoin(
