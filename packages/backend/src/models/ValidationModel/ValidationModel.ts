@@ -129,6 +129,28 @@ export class ValidationModel {
             })),
         );
 
-        return [...chartValidationErrors, ...dashboardValidationErrors];
+        const tableValidationErrorsRows: DbValidationTable[] =
+            await this.database(ValidationTableName)
+                .select(`${ValidationTableName}.*`)
+                .where('project_uuid', projectUuid)
+                .whereNull('saved_chart_uuid')
+                .whereNull('dashboard_uuid');
+
+        const tableValidationErrors = await Promise.all(
+            tableValidationErrorsRows.map(async (validationError) => ({
+                createdAt: validationError.created_at,
+                projectUuid: validationError.project_uuid,
+                summary: validationError.summary,
+                error: validationError.error,
+                // TODO: Check if this is correct
+                name: 'Table',
+            })),
+        );
+
+        return [
+            ...chartValidationErrors,
+            ...dashboardValidationErrors,
+            ...tableValidationErrors,
+        ];
     }
 }

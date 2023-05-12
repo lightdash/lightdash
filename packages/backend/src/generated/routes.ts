@@ -1580,7 +1580,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                lastUpdatedBy: { dataType: 'string', required: true },
+                lastUpdatedBy: { dataType: 'string' },
                 error: { dataType: 'string', required: true },
                 summary: { dataType: 'string', required: true },
                 projectUuid: { dataType: 'string', required: true },
