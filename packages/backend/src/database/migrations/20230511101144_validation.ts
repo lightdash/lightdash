@@ -5,6 +5,10 @@ const ValidationTableName = 'validations';
 export async function up(knex: Knex): Promise<void> {
     if (!(await knex.schema.hasTable(ValidationTableName))) {
         await knex.schema.createTable(ValidationTableName, (table) => {
+            table.specificType(
+                'validation_id',
+                'INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY',
+            );
             table
                 .timestamp('created_at', { useTz: false })
                 .notNullable()

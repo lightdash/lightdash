@@ -31,6 +31,7 @@ type Subject =
     | 'ExportCsv'
     | 'CsvJobResult'
     | 'PinnedItems'
+    | 'Validation'
     | 'all';
 
 type PossibleAbilities = [

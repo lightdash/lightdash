@@ -1,6 +1,9 @@
 import { ValidationResponse } from '@lightdash/common';
 import { Knex } from 'knex';
-import { ValidationTableName } from '../../database/entities/validation';
+import {
+    ValidationInsert,
+    ValidationTableName,
+} from '../../database/entities/validation';
 
 type ValidationModelDependencies = {
     database: Knex;
@@ -13,11 +16,11 @@ export class ValidationModel {
         this.database = deps.database;
     }
 
-    async create(validations: ValidationResponse[]): Promise<void> {
+    async create(validations: ValidationInsert[]): Promise<void> {
         await this.database.transaction(async (trx) => {
             const insertPromises = validations.map((validation) =>
                 trx(ValidationTableName).insert({
-                    saved_chart_uuid: validation.chartUuid,
+                    saved_chart_uuid: validation.savedChartUuid,
                     dashboard_uuid: validation.dashboardUuid,
                     project_uuid: validation.projectUuid,
                     error: validation.error,

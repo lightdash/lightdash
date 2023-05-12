@@ -6,18 +6,22 @@ import {
     fieldId as getFieldId,
     ForbiddenError,
     getFilterRules,
+    getSpaceAccessFromSummary,
     isChartScheduler,
     isDashboardChartTileType,
     isDimension,
     isMetric,
     isSlackTarget,
     isUserWithOrg,
+    ProjectMemberRole,
     SavedChart,
     ScheduledJobs,
     Scheduler,
     SchedulerAndTargets,
     SchedulerLog,
     SessionUser,
+    Space,
+    SpaceSummary,
     TableCalculation,
     UpdateSchedulerAndTargetsWithoutId,
     ValidationResponse,
@@ -26,13 +30,16 @@ import cronstrue from 'cronstrue';
 import { analytics } from '../../analytics/client';
 import { schedulerClient, slackClient } from '../../clients/clients';
 import { LightdashConfig } from '../../config/parseConfig';
+import { ValidationInsert } from '../../database/entities/validation';
 import Logger from '../../logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
+import { SpaceModel } from '../../models/SpaceModel';
 import { ValidationModel } from '../../models/ValidationModel/ValidationModel';
 import { ProjectService } from '../ProjectService/ProjectService';
+import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type ServiceDependencies = {
     lightdashConfig: LightdashConfig;
@@ -91,7 +98,7 @@ export class ValidationService {
     private async validateCharts(
         projectUuid: string,
         existingFields: CompiledField[],
-    ): Promise<ValidationResponse[]> {
+    ): Promise<ValidationInsert[]> {
         const existingFieldIds = existingFields.map(getFieldId);
 
         const existingDimensionIds = existingFields
@@ -107,28 +114,20 @@ export class ValidationService {
             ),
         );
 
-        const results: ValidationResponse[] = charts.flatMap((chart) => {
+        const results = charts.flatMap((chart) => {
             const filterAdditionalMetrics = (metric: string) =>
                 !chart.metricQuery.additionalMetrics
                     ?.map((additionalMetric) => getFieldId(additionalMetric))
                     ?.includes(metric);
-            const filterTableCalculations = (metric: string) =>
-                !chart.metricQuery.tableCalculations
-                    ?.map((tableCalculation) => tableCalculation.name)
-                    ?.includes(metric);
 
-            const hasAccess = true; // TODO: hasSpaceAccess(chartuuid)
             const commonValidation = {
-                createdAt: new Date(),
-                name: hasAccess ? chart.name : 'Private content',
-                chartUuid: chart.uuid,
-                table: chart.tableName,
+                savedChartUuid: chart.uuid,
+                name: chart.name,
                 projectUuid: chart.projectUuid,
-                lastUpdatedBy: `${chart.updatedByUser?.firstName} ${chart.updatedByUser?.lastName}`,
-                lastUpdatedAt: chart.updatedAt,
+                dashboardUuid: null,
             };
             const containsFieldId = (
-                acc: ValidationResponse[],
+                acc: ValidationInsert[],
                 fieldIds: string[],
                 fieldId: string,
                 error: string,
@@ -145,7 +144,7 @@ export class ValidationService {
                 return acc;
             };
             const dimensionErrors = chart.metricQuery.dimensions.reduce<
-                ValidationResponse[]
+                ValidationInsert[]
             >(
                 (acc, field) =>
                     containsFieldId(
@@ -158,7 +157,7 @@ export class ValidationService {
             );
             const metricErrors = chart.metricQuery.metrics
                 .filter(filterAdditionalMetrics)
-                .reduce<ValidationResponse[]>(
+                .reduce<ValidationInsert[]>(
                     (acc, field) =>
                         containsFieldId(
                             acc,
@@ -171,7 +170,7 @@ export class ValidationService {
 
             const filterErrors = getFilterRules(
                 chart.metricQuery.filters,
-            ).reduce<ValidationResponse[]>(
+            ).reduce<ValidationInsert[]>(
                 (acc, field) =>
                     containsFieldId(
                         acc,
@@ -183,7 +182,7 @@ export class ValidationService {
             );
 
             const sortErrors = chart.metricQuery.sorts.reduce<
-                ValidationResponse[]
+                ValidationInsert[]
             >(
                 (acc, field) =>
                     containsFieldId(
@@ -197,7 +196,11 @@ export class ValidationService {
 
             /*
             // I think these are redundant, as we already check dimension/metrics
-            
+            const filterTableCalculations = (metric: string) =>
+                !chart.metricQuery.tableCalculations
+                    ?.map((tableCalculation) => tableCalculation.name)
+                    ?.includes(metric);
+
             const errorColumnOrder = chart.tableConfig.columnOrder
                 .filter(filterTableCalculations)
                 .filter(filterAdditionalMetrics)
@@ -238,15 +241,9 @@ export class ValidationService {
         projectUuid: string,
         existingFields: CompiledField[],
         brokenCharts: { uuid: string; name: string }[],
-    ): Promise<ValidationResponse[]> {
+    ): Promise<ValidationInsert[]> {
         const existingFieldIds = existingFields.map(getFieldId);
 
-        const existingDimensionIds = existingFields
-            .filter(isDimension)
-            .map(getFieldId);
-        const existingMetricIds = existingFields
-            .filter(isMetric)
-            .map(getFieldId);
         const dashboardSummaries = await this.dashboardModel.getAllByProject(
             projectUuid,
         );
@@ -255,75 +252,67 @@ export class ValidationService {
                 this.dashboardModel.getById(dashboardSummary.uuid),
             ),
         );
-        const results: ValidationResponse[] = dashboards.flatMap(
-            (dashboard) => {
-                const hasAccess = true; // TODO: hasSpaceAccess(chartuuid)
-                const commonValidation = {
-                    createdAt: new Date(),
-                    name: hasAccess ? dashboard.name : 'Private content',
-                    dashboardUuid: dashboard.uuid,
-                    projectUuid: dashboard.projectUuid,
-                    lastUpdatedBy: `${dashboard.updatedByUser?.firstName} ${dashboard.updatedByUser?.lastName}`,
-                    lastUpdatedAt: dashboard.updatedAt,
-                };
-                const containsFieldId = (
-                    acc: ValidationResponse[],
-                    fieldIds: string[],
-                    fieldId: string,
-                    error: string,
-                ) => {
-                    if (!fieldIds?.includes(fieldId)) {
+        const results: ValidationInsert[] = dashboards.flatMap((dashboard) => {
+            const commonValidation = {
+                dashboardUuid: dashboard.uuid,
+                savedChartUuid: null,
+                projectUuid: dashboard.projectUuid,
+            };
+            const containsFieldId = (
+                acc: ValidationInsert[],
+                fieldIds: string[],
+                fieldId: string,
+                error: string,
+            ) => {
+                if (!fieldIds?.includes(fieldId)) {
+                    return [
+                        ...acc,
+                        {
+                            ...commonValidation,
+                            error,
+                        },
+                    ];
+                }
+                return acc;
+            };
+            const dashboardFilterRules = [
+                ...dashboard.filters.dimensions,
+                ...dashboard.filters.metrics,
+            ];
+            const filterErrors = dashboardFilterRules.reduce<
+                ValidationInsert[]
+            >(
+                (acc, filter) =>
+                    containsFieldId(
+                        acc,
+                        existingFieldIds,
+                        filter.target.fieldId,
+                        `Filter error: the field '${filter}' no longer exists`,
+                    ),
+                [],
+            );
+
+            const chartTiles = dashboard.tiles.filter(isDashboardChartTileType);
+            const chartErrors = chartTiles.reduce<ValidationInsert[]>(
+                (acc, chart) => {
+                    const brokenChart = brokenCharts.find(
+                        (c) => c.uuid === chart.properties.savedChartUuid,
+                    );
+                    if (brokenChart !== undefined) {
                         return [
                             ...acc,
                             {
                                 ...commonValidation,
-                                error,
+                                error: `The chart '${brokenChart.name}' is broken on this dashboard.`,
                             },
                         ];
                     }
                     return acc;
-                };
-                const dashboardFilterRules = [
-                    ...dashboard.filters.dimensions,
-                    ...dashboard.filters.metrics,
-                ];
-                const filterErrors = dashboardFilterRules.reduce<
-                    ValidationResponse[]
-                >(
-                    (acc, filter) =>
-                        containsFieldId(
-                            acc,
-                            existingFieldIds,
-                            filter.target.fieldId,
-                            `Filter error: the field '${filter}' no longer exists`,
-                        ),
-                    [],
-                );
-
-                const chartTiles = dashboard.tiles.filter(
-                    isDashboardChartTileType,
-                );
-                const chartErrors = chartTiles.reduce<ValidationResponse[]>(
-                    (acc, chart) => {
-                        const brokenChart = brokenCharts.find(
-                            (c) => c.uuid === chart.properties.savedChartUuid,
-                        );
-                        if (brokenChart !== undefined) {
-                            return [
-                                ...acc,
-                                {
-                                    ...commonValidation,
-                                    error: `The chart '${brokenChart.name}' is broken on this dashboard.`,
-                                },
-                            ];
-                        }
-                        return acc;
-                    },
-                    [],
-                );
-                return [...filterErrors, ...chartErrors];
-            },
-        );
+                },
+                [],
+            );
+            return [...filterErrors, ...chartErrors];
+        });
 
         return results;
     }
@@ -332,7 +321,18 @@ export class ValidationService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<ValidationResponse[]> {
-        // TODO check permissions
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Validation', {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
         const explores = await this.projectModel.getExploresFromCache(
             projectUuid,
         );
@@ -360,9 +360,6 @@ export class ValidationService {
             return [];
         }
 
-        // TODO get space uuids from charts and dashboards and check if "developer" has access to them
-        // Don't do it for admins
-
         const chartErrors = await this.validateCharts(
             projectUuid,
             existingFields,
@@ -370,7 +367,10 @@ export class ValidationService {
         const dashboardErrors = await this.validateDashboards(
             projectUuid,
             existingFields,
-            chartErrors.map((c) => ({ uuid: c.chartUuid!, name: c.name })),
+            chartErrors.map((c) => ({
+                uuid: c.savedChartUuid!,
+                name: c.name!,
+            })),
         );
         const validationErrors = [...chartErrors, ...dashboardErrors];
         await this.validationModel.delete(projectUuid);
@@ -378,6 +378,6 @@ export class ValidationService {
         if (validationErrors.length > 0)
             await this.validationModel.create(validationErrors);
 
-        return validationErrors;
+        return []; // this.getValidations(projectUuid)
     }
 }

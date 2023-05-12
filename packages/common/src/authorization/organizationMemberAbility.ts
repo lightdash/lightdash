@@ -83,6 +83,9 @@ export const organizationMemberAbilities: Record<
         can('manage', 'SqlRunner', {
             organizationUuid: member.organizationUuid,
         });
+        can('manage', 'Validation', {
+            organizationUuid: member.organizationUuid,
+        });
     },
     admin(member, { can }) {
         organizationMemberAbilities.developer(member, { can });

@@ -37,9 +37,8 @@ export const user: SessionUser = {
     role: OrganizationMemberRole.ADMIN,
     ability: new Ability([
         {
-            subject: 'OrganizationMemberProfile',
-            action: ['view'],
-            conditions: { organizationUuid: 'organizationUuid' },
+            subject: 'Validation',
+            action: ['manage'],
         },
     ]),
     isActive: true,
