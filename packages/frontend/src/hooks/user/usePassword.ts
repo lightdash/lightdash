@@ -9,11 +9,8 @@ const getUserHasPassword = async (): Promise<boolean> =>
         body: undefined,
     });
 
-const useUserHasPassword = () => {
-    return useQuery<boolean, ApiError>({
+export const useUserHasPassword = () =>
+    useQuery<boolean, ApiError>({
         queryKey: 'user-has-password',
         queryFn: getUserHasPassword,
     });
-};
-
-export default useUserHasPassword;

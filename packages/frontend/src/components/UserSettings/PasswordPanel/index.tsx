@@ -4,7 +4,7 @@ import { useForm } from '@mantine/form';
 import { FC, useCallback } from 'react';
 import { useMutation } from 'react-query';
 import { lightdashApi } from '../../../api';
-import useUserHasPassword from '../../../hooks/user/usePassword';
+import { useUserHasPassword } from '../../../hooks/user/usePassword';
 import { useErrorLogs } from '../../../providers/ErrorLogsProvider';
 
 const updateUserPasswordQuery = async (data: {
