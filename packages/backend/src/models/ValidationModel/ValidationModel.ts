@@ -1,6 +1,11 @@
 import { ValidationResponse } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
+    DashboardsTableName,
+    DashboardTable,
+    DashboardVersionsTableName,
+} from '../../database/entities/dashboards';
+import {
     SavedChartsTableName,
     SavedChartTable,
     SavedChartVersionsTableName,
@@ -61,7 +66,7 @@ export class ValidationModel {
                 )
                 .leftJoin(
                     UserTableName,
-                    `${SavedChartsTableName}.updated_by_user_uuid`,
+                    `${SavedChartVersionsTableName}.updated_by_user_uuid`,
                     `${UserTableName}.user_uuid`,
                 )
                 .where('project_uuid', projectUuid)
@@ -72,7 +77,7 @@ export class ValidationModel {
                     `${UserTableName}.last_name`,
                 ]);
 
-        const chartValidationErrors = Promise.all(
+        const chartValidationErrors = await Promise.all(
             chartValidationErrorsRows.map(async (validationError) => ({
                 createdAt: validationError.created_at,
                 chartUuid: validationError.saved_chart_uuid ?? undefined,
@@ -84,8 +89,46 @@ export class ValidationModel {
             })),
         );
 
-        // TODO: add dashboard validation errors
+        const dashboardValidationErrorsRows: (DbValidationTable &
+            Pick<DashboardTable['base'], 'name'> &
+            Pick<UserTable['base'], 'first_name' | 'last_name'>)[] =
+            await this.database(ValidationTableName)
+                .select(`${ValidationTableName}.*`)
+                .leftJoin(
+                    DashboardsTableName,
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    `${ValidationTableName}.dashboard_uuid`,
+                )
+                .innerJoin(
+                    `${DashboardVersionsTableName}`,
+                    `${DashboardsTableName}.dashboard_id`,
+                    `${DashboardVersionsTableName}.dashboard_id`,
+                )
+                .leftJoin(
+                    UserTableName,
+                    `${UserTableName}.user_uuid`,
+                    `${DashboardVersionsTableName}.updated_by_user_uuid`,
+                )
+                .where('project_uuid', projectUuid)
+                .select([
+                    `${ValidationTableName}.*`,
+                    `${DashboardsTableName}.name`,
+                    `${UserTableName}.first_name`,
+                    `${UserTableName}.last_name`,
+                ]);
 
-        return chartValidationErrors;
+        const dashboardValidationErrors = await Promise.all(
+            dashboardValidationErrorsRows.map(async (validationError) => ({
+                createdAt: validationError.created_at,
+                dashboardUuid: validationError.dashboard_uuid ?? undefined,
+                projectUuid: validationError.project_uuid,
+                summary: validationError.summary,
+                error: validationError.error,
+                name: validationError.name,
+                lastUpdatedBy: `${validationError.first_name} ${validationError.last_name}`,
+            })),
+        );
+
+        return [...chartValidationErrors, ...dashboardValidationErrors];
     }
 }
