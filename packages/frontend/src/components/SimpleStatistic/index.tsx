@@ -65,6 +65,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             showComparison,
             showLabel,
             comparisonDiff,
+            flipColors,
         },
         isSqlRunner,
     } = useVisualizationContext();
@@ -106,11 +107,16 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     const comparisonValueColor = useMemo(() => {
         switch (comparisonDiff) {
             case ComparisonDiffTypes.NAN:
-                return Colors.GRAY3;
             case ComparisonDiffTypes.UNDEFINED:
                 return Colors.GRAY3;
+            case ComparisonDiffTypes.POSITIVE:
+                return flipColors ? Colors.RED3 : Colors.GREEN3;
+            case ComparisonDiffTypes.NEGATIVE:
+                return flipColors ? Colors.GREEN3 : Colors.RED3;
+            case ComparisonDiffTypes.NONE:
+                return 'inherit';
         }
-    }, [comparisonDiff]);
+    }, [comparisonDiff, flipColors]);
 
     const validData = bigNumber && resultsData?.rows.length;
 
