@@ -34,8 +34,8 @@ savedChartRouter.get(
     allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
-        analyticsService
-            .getChartViews(req.params.savedQueryUuid)
+        savedChartsService
+            .getViewStats(req.user!, req.params.savedQueryUuid)
             .then((results) => {
                 res.json({
                     status: 'ok',

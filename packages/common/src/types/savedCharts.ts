@@ -1,4 +1,5 @@
 import assertUnreachable from '../utils/assertUnreachable';
+import { ViewStatistics } from './analytics';
 import { ConditionalFormattingConfig } from './conditionalFormatting';
 import { CompactOrAlias } from './field';
 import { MetricQuery } from './metricQuery';
@@ -232,8 +233,6 @@ export type SavedChart = {
     organizationUuid: string;
     spaceUuid: string;
     spaceName: string;
-    views: number;
-    firstViewedAt: Date | string | null;
     pinnedListUuid: string | null;
     pinnedListOrder: number | null;
 };
@@ -284,11 +283,12 @@ export type SpaceQuery = Pick<
     | 'updatedByUser'
     | 'description'
     | 'spaceUuid'
-    | 'views'
-    | 'firstViewedAt'
     | 'pinnedListUuid'
     | 'pinnedListOrder'
-> & { chartType: ChartKind | undefined };
+> &
+    ViewStatistics & {
+        chartType: ChartKind | undefined;
+    };
 
 export const isCompleteLayout = (
     value: CartesianChartLayout | undefined,

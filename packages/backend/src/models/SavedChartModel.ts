@@ -322,20 +322,10 @@ export class SavedChartModel {
             ?.getTransaction();
         const span = transaction?.startChild({
             op: 'SavedChartModel.get',
-            description: 'Gets a single chart including statistics',
+            description: 'Gets a single chart',
         });
         try {
             const [savedQuery] = await this.database
-                .with('view_stats', (qb) => {
-                    qb.count({ views: '*' })
-                        .min({
-                            first_viewed_at: 'timestamp',
-                        })
-                        .select('chart_uuid')
-                        .groupBy('chart_uuid')
-                        .from('analytics_chart_views')
-                        .where('chart_uuid', savedChartUuid);
-                })
                 .from<DbSavedChartDetails>(SavedChartsTableName)
                 .innerJoin(
                     SpaceTableName,
@@ -372,17 +362,10 @@ export class SavedChartModel {
                     `${PinnedListTableName}.pinned_list_uuid`,
                     `${PinnedChartTableName}.pinned_list_uuid`,
                 )
-                .leftJoin(
-                    'view_stats',
-                    'view_stats.chart_uuid',
-                    'saved_queries.saved_query_uuid',
-                )
                 .select<
                     (DbSavedChartDetails & {
                         space_uuid: string;
                         spaceName: string;
-                        views: string;
-                        first_viewed_at: Date | null;
                     })[]
                 >([
                     `${ProjectTableName}.project_uuid`,
@@ -405,8 +388,6 @@ export class SavedChartModel {
                     `${SpaceTableName}.space_uuid`,
                     `${SpaceTableName}.name as spaceName`,
                     `${PinnedListTableName}.pinned_list_uuid`,
-                    `view_stats.views`,
-                    `view_stats.first_viewed_at`,
                 ])
                 .where(
                     `${SavedChartsTableName}.saved_query_uuid`,
@@ -541,8 +522,6 @@ export class SavedChartModel {
                 spaceName: savedQuery.spaceName,
                 pinnedListUuid: savedQuery.pinned_list_uuid,
                 pinnedListOrder: null,
-                views: parseInt(savedQuery.views, 10) || 0,
-                firstViewedAt: savedQuery.first_viewed_at,
             };
         } finally {
             span?.finish();
