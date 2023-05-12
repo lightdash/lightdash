@@ -1,3 +1,10 @@
+## [0.548.1](https://github.com/lightdash/lightdash/compare/0.548.0...0.548.1) (2023-05-12)
+
+
+### Bug Fixes
+
+* optimize chart queries ([#5455](https://github.com/lightdash/lightdash/issues/5455)) ([442f72b](https://github.com/lightdash/lightdash/commit/442f72b3f6fcd0302eb2e541267c1d53e9caa279))
+
 # [0.548.0](https://github.com/lightdash/lightdash/compare/0.547.0...0.548.0) (2023-05-12)
 
 
