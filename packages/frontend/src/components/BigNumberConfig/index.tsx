@@ -47,6 +47,8 @@ const BigNumberConfigPanel: React.FC = () => {
             setShowComparison,
             comparisonFormat,
             setComparisonFormat,
+            flipColors,
+            setFlipColors,
         },
     } = useVisualizationContext();
     const [isOpen, setIsOpen] = useState(false);
@@ -135,26 +137,47 @@ const BigNumberConfigPanel: React.FC = () => {
                             }}
                         />
                     </FormGroup>
+
                     {showComparison && (
-                        <RadioGroup
-                            onChange={(e) => {
-                                setComparisonFormat(
-                                    e.currentTarget.value === 'raw'
-                                        ? ComparisonFormatTypes.RAW
-                                        : ComparisonFormatTypes.PERCENTAGE,
-                                );
-                            }}
-                            selectedValue={comparisonFormat}
-                        >
-                            <Radio
-                                label="By raw value"
-                                value={ComparisonFormatTypes.RAW}
-                            />
-                            <Radio
-                                label="By percentage"
-                                value={ComparisonFormatTypes.PERCENTAGE}
-                            />
-                        </RadioGroup>
+                        <>
+                            <RadioGroup
+                                onChange={(e) => {
+                                    setComparisonFormat(
+                                        e.currentTarget.value === 'raw'
+                                            ? ComparisonFormatTypes.RAW
+                                            : ComparisonFormatTypes.PERCENTAGE,
+                                    );
+                                }}
+                                selectedValue={comparisonFormat}
+                            >
+                                <Radio
+                                    label="By raw value"
+                                    value={ComparisonFormatTypes.RAW}
+                                />
+                                <Radio
+                                    label="By percentage"
+                                    value={ComparisonFormatTypes.PERCENTAGE}
+                                />
+                            </RadioGroup>
+                            <FormGroup
+                                labelFor="bignumber-comparison-color"
+                                label="Flip colors"
+                                inline
+                                style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    marginBottom: 'none',
+                                }}
+                            >
+                                <Switch
+                                    alignIndicator="right"
+                                    checked={flipColors}
+                                    onChange={() => {
+                                        setFlipColors(!flipColors);
+                                    }}
+                                />
+                            </FormGroup>
+                        </>
                     )}
                 </InputWrapper>
             }

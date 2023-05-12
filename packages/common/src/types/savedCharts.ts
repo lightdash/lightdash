@@ -41,6 +41,7 @@ export type BigNumber = {
     showLabel?: boolean;
     showComparison?: boolean;
     comparisonFormat?: ComparisonFormatTypes;
+    flipColors?: boolean;
 };
 
 export type BigNumberConfig = {

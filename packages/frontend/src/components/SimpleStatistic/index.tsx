@@ -65,6 +65,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             showComparison,
             showLabel,
             comparisonDiff,
+            flipColors,
         },
         isSqlRunner,
     } = useVisualizationContext();
@@ -109,6 +110,12 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                 return Colors.GRAY3;
             case ComparisonDiffTypes.UNDEFINED:
                 return Colors.GRAY3;
+            case ComparisonDiffTypes.POSITIVE:
+                return Colors.GREEN3;
+            case ComparisonDiffTypes.NEGATIVE:
+                return Colors.RED3;
+            case ComparisonDiffTypes.NONE:
+                return 'inherit';
         }
     }, [comparisonDiff]);
 
@@ -161,7 +168,9 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                             marginTop: 10,
                             display: 'flex',
                             alignItems: 'center',
-                            color: comparisonValueColor,
+                            color: `${
+                                flipColors ? comparisonValueColor : 'inherit'
+                            }`,
                         }}
                     >
                         {comparisonValue}

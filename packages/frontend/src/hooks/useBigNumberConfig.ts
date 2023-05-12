@@ -189,6 +189,9 @@ const useBigNumberConfig = (
     const [comparisonFormat, setComparisonFormat] = useState<
         BigNumber['comparisonFormat'] | undefined
     >(bigNumberConfigData?.comparisonFormat);
+    const [flipColors, setFlipColors] = useState<BigNumber['flipColors']>(
+        bigNumberConfigData?.flipColors,
+    );
 
     useEffect(() => {
         if (bigNumberConfigData?.selectedField !== undefined)
@@ -203,6 +206,7 @@ const useBigNumberConfig = (
         setComparisonFormat(
             bigNumberConfigData?.comparisonFormat ?? ComparisonFormatTypes.RAW,
         );
+        setFlipColors(bigNumberConfigData?.flipColors ?? true);
     }, [bigNumberConfigData]);
 
     // big number value (first row)
@@ -273,6 +277,7 @@ const useBigNumberConfig = (
             showLabel,
             showComparison,
             comparisonFormat,
+            flipColors,
         };
     }, [
         bigNumberLabel,
@@ -281,6 +286,7 @@ const useBigNumberConfig = (
         showLabel,
         showComparison,
         comparisonFormat,
+        flipColors,
     ]);
     return {
         bigNumber,
@@ -303,6 +309,8 @@ const useBigNumberConfig = (
         comparisonFormat,
         setComparisonFormat,
         comparisonDiff,
+        flipColors,
+        setFlipColors,
     };
 };
 
