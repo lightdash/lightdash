@@ -7,6 +7,7 @@ import {
     ForbiddenError,
     getFilterRules,
     isChartScheduler,
+    isDashboardChartTileType,
     isDimension,
     isMetric,
     isSlackTarget,
@@ -17,6 +18,7 @@ import {
     SchedulerAndTargets,
     SchedulerLog,
     SessionUser,
+    TableCalculation,
     UpdateSchedulerAndTargetsWithoutId,
     ValidationResponse,
 } from '@lightdash/common';
@@ -37,6 +39,7 @@ type ServiceDependencies = {
     validationModel: ValidationModel;
     projectModel: ProjectModel;
     savedChartModel: SavedChartModel;
+    dashboardModel: DashboardModel;
 };
 
 export class ValidationService {
@@ -48,16 +51,290 @@ export class ValidationService {
 
     savedChartModel: SavedChartModel;
 
+    dashboardModel: DashboardModel;
+
     constructor({
         lightdashConfig,
         validationModel,
         projectModel,
         savedChartModel,
+        dashboardModel,
     }: ServiceDependencies) {
         this.lightdashConfig = lightdashConfig;
         this.projectModel = projectModel;
         this.savedChartModel = savedChartModel;
         this.validationModel = validationModel;
+        this.dashboardModel = dashboardModel;
+    }
+
+    private static getTableCalculationFieldIds(
+        tableCalculations: TableCalculation[],
+    ): string[] {
+        const parseTableField = (field: string) =>
+            // Transform ${table.field} references on table calculation to table_field
+            field.replace('${', '').replace('}', '').replace('.', '_');
+
+        const tableCalculationFieldsInSql: string[] = tableCalculations.reduce<
+            string[]
+        >((acc, tc) => {
+            const regex = /\$\{([^}]+)\}/g;
+
+            const fieldsInSql = tc.sql.match(regex); // regex.exec(tc.sql)
+            if (fieldsInSql != null) {
+                return [...acc, ...fieldsInSql.map(parseTableField)];
+            }
+            return acc;
+        }, []);
+        return tableCalculationFieldsInSql;
+    }
+
+    private async validateCharts(
+        projectUuid: string,
+        existingFields: CompiledField[],
+    ): Promise<ValidationResponse[]> {
+        const existingFieldIds = existingFields.map(getFieldId);
+
+        const existingDimensionIds = existingFields
+            .filter(isDimension)
+            .map(getFieldId);
+        const existingMetricIds = existingFields
+            .filter(isMetric)
+            .map(getFieldId);
+        const chartSummaries = await this.savedChartModel.find({ projectUuid });
+        const charts = await Promise.all(
+            chartSummaries.map((chartSummary) =>
+                this.savedChartModel.get(chartSummary.uuid),
+            ),
+        );
+
+        const results: ValidationResponse[] = charts.flatMap((chart) => {
+            const filterAdditionalMetrics = (metric: string) =>
+                !chart.metricQuery.additionalMetrics
+                    ?.map((additionalMetric) => getFieldId(additionalMetric))
+                    ?.includes(metric);
+            const filterTableCalculations = (metric: string) =>
+                !chart.metricQuery.tableCalculations
+                    ?.map((tableCalculation) => tableCalculation.name)
+                    ?.includes(metric);
+
+            const hasAccess = true; // TODO: hasSpaceAccess(chartuuid)
+            const commonValidation = {
+                createdAt: new Date(),
+                name: hasAccess ? chart.name : 'Private content',
+                chartUuid: chart.uuid,
+                table: chart.tableName,
+                projectUuid: chart.projectUuid,
+                lastUpdatedBy: `${chart.updatedByUser?.firstName} ${chart.updatedByUser?.lastName}`,
+            };
+            const containsFieldId = (
+                acc: ValidationResponse[],
+                fieldIds: string[],
+                fieldId: string,
+                summary: string,
+                error: string,
+            ) => {
+                if (!fieldIds?.includes(fieldId)) {
+                    return [
+                        ...acc,
+                        {
+                            ...commonValidation,
+                            summary,
+                            error,
+                        },
+                    ];
+                }
+                return acc;
+            };
+            const dimensionErrors = chart.metricQuery.dimensions.reduce<
+                ValidationResponse[]
+            >(
+                (acc, field) =>
+                    containsFieldId(
+                        acc,
+                        existingDimensionIds,
+                        field,
+                        `Dimension error: the field '${field}' no longer exists`,
+                        `The field '${field}' no longer exists and is being used as a dimension.`,
+                    ),
+                [],
+            );
+            const metricErrors = chart.metricQuery.metrics
+                .filter(filterAdditionalMetrics)
+                .reduce<ValidationResponse[]>(
+                    (acc, field) =>
+                        containsFieldId(
+                            acc,
+                            existingMetricIds,
+                            field,
+                            `Metric error: the field '${field}' no longer exists`,
+                            `The field '${field}' no longer exists and is being used as a metric.`,
+                        ),
+                    [],
+                );
+
+            const filterErrors = getFilterRules(
+                chart.metricQuery.filters,
+            ).reduce<ValidationResponse[]>(
+                (acc, field) =>
+                    containsFieldId(
+                        acc,
+                        existingFieldIds,
+                        field.target.fieldId,
+                        `Filter error: the field '${field.target.fieldId}' no longer exists`,
+                        `The field '${field.target.fieldId}' no longer exists and is being used as a filter.`,
+                    ),
+                [],
+            );
+
+            const sortErrors = chart.metricQuery.sorts.reduce<
+                ValidationResponse[]
+            >(
+                (acc, field) =>
+                    containsFieldId(
+                        acc,
+                        existingFieldIds,
+                        field.fieldId,
+                        `Sorting error: the field '${field.fieldId}' no longer exists`,
+                        `The field '${field.fieldId}' no longer exists and is being used as a sort.`,
+                    ),
+                [],
+            );
+
+            /*
+            // I think this is redundant, as we already check dimension/metrics
+            const errorColumnOrder = chart.tableConfig.columnOrder
+                .filter(filterTableCalculations)
+                .filter(filterAdditionalMetrics)
+                .reduce<ValidationResponse[]>((acc, field) => {
+                    return containsFieldId(acc, existingFieldIds, field, 
+                        `Table error: the field '${field}' no longer exists`, 
+                        `The field '${field}' no longer exists and is being used to order table columns.`)
+                }, []);
+                */
+
+            const tableCalculationErrors =
+                ValidationService.getTableCalculationFieldIds(
+                    chart.metricQuery.tableCalculations,
+                ).reduce<ValidationResponse[]>(
+                    (acc, field) =>
+                        containsFieldId(
+                            acc,
+                            existingFieldIds,
+                            field,
+                            `Table calculation error: the field '${field}' no longer exists`,
+                            `The field '${field}' no longer exists and is being used as a table calculation.`,
+                        ),
+                    [],
+                );
+
+            // TODO add more validation
+            return [
+                ...dimensionErrors,
+                ...metricErrors,
+                ...filterErrors,
+                ...sortErrors,
+                ...tableCalculationErrors,
+            ];
+        });
+
+        return results;
+    }
+
+    private async validateDashboards(
+        projectUuid: string,
+        existingFields: CompiledField[],
+        brokenCharts: { uuid: string; name: string }[],
+    ): Promise<ValidationResponse[]> {
+        const existingFieldIds = existingFields.map(getFieldId);
+
+        const existingDimensionIds = existingFields
+            .filter(isDimension)
+            .map(getFieldId);
+        const existingMetricIds = existingFields
+            .filter(isMetric)
+            .map(getFieldId);
+        const dashboardSummaries = await this.dashboardModel.getAllByProject(
+            projectUuid,
+        );
+        const dashboards = await Promise.all(
+            dashboardSummaries.map((dashboardSummary) =>
+                this.dashboardModel.getById(dashboardSummary.uuid),
+            ),
+        );
+        const results: ValidationResponse[] = dashboards.flatMap(
+            (dashboard) => {
+                const hasAccess = true; // TODO: hasSpaceAccess(chartuuid)
+                const commonValidation = {
+                    createdAt: new Date(),
+                    name: hasAccess ? dashboard.name : 'Private content',
+                    dashboardUuid: dashboard.uuid,
+                    projectUuid: dashboard.projectUuid,
+                    lastUpdatedBy: `${dashboard.updatedByUser?.firstName} ${dashboard.updatedByUser?.lastName}`,
+                };
+                const containsFieldId = (
+                    acc: ValidationResponse[],
+                    fieldIds: string[],
+                    fieldId: string,
+                    summary: string,
+                    error: string,
+                ) => {
+                    if (!fieldIds?.includes(fieldId)) {
+                        return [
+                            ...acc,
+                            {
+                                ...commonValidation,
+                                summary,
+                                error,
+                            },
+                        ];
+                    }
+                    return acc;
+                };
+                const dashboardFilterRules = [
+                    ...dashboard.filters.dimensions,
+                    ...dashboard.filters.metrics,
+                ];
+                const filterErrors = dashboardFilterRules.reduce<
+                    ValidationResponse[]
+                >(
+                    (acc, filter) =>
+                        containsFieldId(
+                            acc,
+                            existingFieldIds,
+                            filter.target.fieldId,
+                            `Filter error: the field '${filter}' no longer exists`,
+                            `The field '${filter}' no longer exists and is being used as a dashboard filter.`,
+                        ),
+                    [],
+                );
+
+                const chartTiles = dashboard.tiles.filter(
+                    isDashboardChartTileType,
+                );
+                const chartErrors = chartTiles.reduce<ValidationResponse[]>(
+                    (acc, chart) => {
+                        const brokenChart = brokenCharts.find(
+                            (c) => c.uuid === chart.properties.savedChartUuid,
+                        );
+                        if (brokenChart !== undefined) {
+                            return [
+                                ...acc,
+                                {
+                                    ...commonValidation,
+                                    error: `The chart '${brokenChart.name}' is broken on this dashboard.`,
+                                    summary: `Chart error: the chart '${brokenChart.name}' has an error.`,
+                                },
+                            ];
+                        }
+                        return acc;
+                    },
+                    [],
+                );
+                return [...filterErrors, ...chartErrors];
+            },
+        );
+
+        return results;
     }
 
     async validate(
@@ -92,174 +369,24 @@ export class ValidationService {
             return [];
         }
 
-        const existingFieldIds = existingFields.map(getFieldId);
-        const existingDimensionIds = existingFields
-            .filter(isDimension)
-            .map(getFieldId);
-        const existingMetricIds = existingFields
-            .filter(isMetric)
-            .map(getFieldId);
-
-        const chartSummaries = await this.savedChartModel.find({ projectUuid });
-        const charts = await Promise.all(
-            chartSummaries.map((chartSummary) =>
-                this.savedChartModel.get(chartSummary.uuid),
-            ),
-        );
-        // TODO dashboards
-
         // TODO get space uuids from charts and dashboards and check if "developer" has access to them
         // Don't do it for admins
 
-        const results: ValidationResponse[] = charts.flatMap((chart) => {
-            const filterAdditionalMetrics = (metric: string) =>
-                !chart.metricQuery.additionalMetrics
-                    ?.map((additionalMetric) => getFieldId(additionalMetric))
-                    ?.includes(metric);
-            const filterTableCalculations = (metric: string) =>
-                !chart.metricQuery.tableCalculations
-                    ?.map((tableCalculation) => tableCalculation.name)
-                    ?.includes(metric);
-
-            const hasAccess = true; // TODO: hasSpaceAccess(chartuuid)
-            const commonValidation = {
-                createdAt: new Date(),
-                name: hasAccess ? chart.name : 'Private content',
-                chartUuid: chart.uuid,
-                table: chart.tableName,
-                projectUuid: chart.projectUuid,
-                lastUpdatedBy: `${chart.updatedByUser?.firstName} ${chart.updatedByUser?.lastName}`,
-            };
-            const dimensionErrors = chart.metricQuery.dimensions.reduce<
-                ValidationResponse[]
-            >((acc, field) => {
-                if (!existingDimensionIds?.includes(field)) {
-                    return [
-                        ...acc,
-                        {
-                            ...commonValidation,
-                            summary: `dimension not found ${field}`,
-                            error: `dimension not found ${field}`,
-                        },
-                    ];
-                }
-                return acc;
-            }, []);
-            const metricErrors = chart.metricQuery.metrics
-                .filter(filterAdditionalMetrics)
-                .reduce<ValidationResponse[]>((acc, field) => {
-                    if (!existingMetricIds?.includes(field)) {
-                        return [
-                            ...acc,
-                            {
-                                ...commonValidation,
-                                summary: `metric not found ${field}`,
-                                error: `metric not found ${field}`,
-                            },
-                        ];
-                    }
-                    return acc;
-                }, []);
-
-            const filterErrors = getFilterRules(
-                chart.metricQuery.filters,
-            ).reduce<ValidationResponse[]>((acc, field) => {
-                if (!existingFieldIds?.includes(field.target.fieldId)) {
-                    return [
-                        ...acc,
-                        {
-                            ...commonValidation,
-                            summary: `filter not found ${field.target.fieldId}`,
-                            error: `filter not found ${field.target.fieldId}`,
-                        },
-                    ];
-                }
-                return acc;
-            }, []);
-
-            const sortErrors = chart.metricQuery.sorts.reduce<
-                ValidationResponse[]
-            >((acc, field) => {
-                if (!existingFieldIds?.includes(field.fieldId)) {
-                    return [
-                        ...acc,
-                        {
-                            ...commonValidation,
-                            summary: `sort not found ${field.fieldId}`,
-                            error: `sort not found ${field.fieldId}`,
-                        },
-                    ];
-                }
-                return acc;
-            }, []);
-
-            const errorColumnOrder = chart.tableConfig.columnOrder
-                .filter(filterTableCalculations)
-                .filter(filterAdditionalMetrics)
-                .reduce<ValidationResponse[]>((acc, field) => {
-                    if (!existingFieldIds?.includes(field)) {
-                        return [
-                            ...acc,
-                            {
-                                ...commonValidation,
-                                summary: `table column order not found ${field}`,
-                                error: `table column order found ${field}`,
-                            },
-                        ];
-                    }
-                    return acc;
-                }, []);
-            const parseTableField = (field: string) =>
-                // Transform ${table.field} references on table calculation to table_field
-                field.replace('${', '').replace('}', '').replace('.', '_');
-
-            const tableCalculationFieldsInSql: string[] =
-                chart.metricQuery.tableCalculations.reduce<string[]>(
-                    (acc, tc) => {
-                        const regex = /\$\{([^}]+)\}/g;
-
-                        const fieldsInSql = tc.sql.match(regex); // regex.exec(tc.sql)
-                        if (fieldsInSql != null) {
-                            return [
-                                ...acc,
-                                ...fieldsInSql.map(parseTableField),
-                            ];
-                        }
-                        return acc;
-                    },
-                    [],
-                );
-            const tableCalculationErrors = tableCalculationFieldsInSql.reduce<
-                ValidationResponse[]
-            >((acc, field) => {
-                if (!existingFieldIds?.includes(field)) {
-                    return [
-                        ...acc,
-                        {
-                            ...commonValidation,
-                            summary: `table calculation not found ${field}`,
-                            error: `table calculation not found ${field}`,
-                        },
-                    ];
-                }
-                return acc;
-            }, []);
-
-            // TODO add more validation
-            return [
-                ...dimensionErrors,
-                ...metricErrors,
-                ...filterErrors,
-                ...sortErrors,
-                ...tableCalculationErrors,
-                ...errorColumnOrder,
-            ];
-        });
-
+        const chartErrors = await this.validateCharts(
+            projectUuid,
+            existingFields,
+        );
+        const dashboardErrors = await this.validateDashboards(
+            projectUuid,
+            existingFields,
+            chartErrors.map((c) => ({ uuid: c.chartUuid!, name: c.name })),
+        );
+        const validationErrors = [...chartErrors, ...dashboardErrors];
         await this.validationModel.delete(projectUuid);
 
-        if (results.length > 0) await this.validationModel.create(results);
+        if (validationErrors.length > 0)
+            await this.validationModel.create(validationErrors);
 
-        return results;
+        return validationErrors;
     }
 }

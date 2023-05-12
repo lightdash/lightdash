@@ -28,7 +28,7 @@ jest.mock('../../models/models', () => ({
     },
 }));
 
-describe('share', () => {
+describe('validation', () => {
     const validationService = new ValidationService({
         validationModel,
         projectModel,
@@ -58,26 +58,25 @@ describe('share', () => {
             chart.projectUuid,
         );
 
-        expect(errors.length).toEqual(5);
         expect({ ...errors[0], createdAt: undefined }).toEqual({
             createdAt: undefined,
             chartUuid: 'chartUuid',
-            error: 'dimension not found table_dimension',
+            error: "The field 'table_dimension' no longer exists and is being used as a dimension.",
             lastUpdatedBy: 'David Attenborough',
             name: 'Test chart',
             projectUuid: 'projectUuid',
-            summary: 'dimension not found table_dimension',
+            summary:
+                "Dimension error: the field 'table_dimension' no longer exists",
             table: 'table',
         });
 
         const expectedErrors: string[] = [
-            'dimension not found table_dimension',
-            'filter not found table_dimension',
-            'sort not found table_dimension',
-            'table calculation not found table_dimension',
-            'table column order found table_dimension',
+            "Dimension error: the field 'table_dimension' no longer exists",
+            "Filter error: the field 'table_dimension' no longer exists",
+            "Sorting error: the field 'table_dimension' no longer exists",
+            "Table calculation error: the field 'table_dimension' no longer exists",
         ];
-        expect(errors.map((error) => error.error)).toEqual(expectedErrors);
+        expect(errors.map((error) => error.summary)).toEqual(expectedErrors);
         expect(validationModel.delete).toHaveBeenCalledTimes(1);
         expect(validationModel.create).toHaveBeenCalledTimes(1);
     });
@@ -92,25 +91,23 @@ describe('share', () => {
             chart.projectUuid,
         );
 
-        expect(errors.length).toEqual(4);
         expect({ ...errors[0], createdAt: undefined }).toEqual({
             createdAt: undefined,
             chartUuid: 'chartUuid',
-            error: 'metric not found table_metric',
+            error: "The field 'table_metric' no longer exists and is being used as a metric.",
             lastUpdatedBy: 'David Attenborough',
             name: 'Test chart',
             projectUuid: 'projectUuid',
-            summary: 'metric not found table_metric',
+            summary: "Metric error: the field 'table_metric' no longer exists",
             table: 'table',
         });
 
         const expectedErrors: string[] = [
-            'metric not found table_metric',
-            'filter not found table_metric',
-            'table calculation not found table_metric',
-            'table column order found table_metric',
+            "Metric error: the field 'table_metric' no longer exists",
+            "Filter error: the field 'table_metric' no longer exists",
+            "Table calculation error: the field 'table_metric' no longer exists",
         ];
-        expect(errors.map((error) => error.error)).toEqual(expectedErrors);
+        expect(errors.map((error) => error.summary)).toEqual(expectedErrors);
         expect(validationModel.delete).toHaveBeenCalledTimes(1);
         expect(validationModel.create).toHaveBeenCalledTimes(1);
     });
