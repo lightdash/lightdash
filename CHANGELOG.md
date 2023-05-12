@@ -1,3 +1,15 @@
+# [0.550.0](https://github.com/lightdash/lightdash/compare/0.549.1...0.550.0) (2023-05-12)
+
+
+### Bug Fixes
+
+* get chart view stats in a separate endpoint ([#5477](https://github.com/lightdash/lightdash/issues/5477)) ([7b99216](https://github.com/lightdash/lightdash/commit/7b99216c827348e54543684d1cf1ac910713d6e9))
+
+
+### Features
+
+* big number comp label ([#5474](https://github.com/lightdash/lightdash/issues/5474)) ([7a749ba](https://github.com/lightdash/lightdash/commit/7a749baf0f5eeba9b5cb2a3e61261bb90ef19b80))
+
 ## [0.549.1](https://github.com/lightdash/lightdash/compare/0.549.0...0.549.1) (2023-05-12)
 
 
