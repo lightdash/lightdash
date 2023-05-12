@@ -15,6 +15,7 @@ import {
     SessionUser,
     UpdateMultipleSavedChart,
     UpdateSavedChart,
+    ViewStatistics,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
 import { analytics } from '../../analytics/client';
@@ -337,6 +338,29 @@ export class SavedChartService {
         });
     }
 
+    async getViewStats(
+        user: SessionUser,
+        savedChartUuid: string,
+    ): Promise<ViewStatistics> {
+        const savedChart = await this.savedChartModel.getSummary(
+            savedChartUuid,
+        );
+        if (user.ability.cannot('view', subject('SavedChart', savedChart))) {
+            throw new ForbiddenError();
+        }
+        if (
+            !(await this.hasChartSpaceAccess(
+                savedChart.spaceUuid,
+                user.userUuid,
+            ))
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to the space this chart belongs to",
+            );
+        }
+        return this.analyticsModel.getChartViewStats(savedChartUuid);
+    }
+
     async get(savedChartUuid: string, user: SessionUser): Promise<SavedChart> {
         const savedChart = await this.savedChartModel.get(savedChartUuid);
         if (user.ability.cannot('view', subject('SavedChart', savedChart))) {
@@ -368,12 +392,7 @@ export class SavedChartService {
             },
         });
 
-        const views = await this.analyticsModel.countChartViews(savedChartUuid);
-
-        return {
-            ...savedChart,
-            views,
-        };
+        return savedChart;
     }
 
     async create(

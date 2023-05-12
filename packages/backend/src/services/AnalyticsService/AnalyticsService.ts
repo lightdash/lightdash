@@ -13,10 +13,6 @@ export class AnalyticsService {
         this.analyticsModel = dependencies.analyticsModel;
     }
 
-    async getChartViews(chartUuid: string): Promise<number> {
-        return this.analyticsModel.countChartViews(chartUuid);
-    }
-
     async getDashboardViews(dashboardUuid: string): Promise<number> {
         return this.analyticsModel.countDashboardViews(dashboardUuid);
     }

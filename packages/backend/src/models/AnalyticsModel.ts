@@ -2,15 +2,14 @@ import {
     OrganizationMemberRole,
     UserActivity,
     UserWithCount,
+    ViewStatistics,
 } from '@lightdash/common';
+import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
 import {
     AnalyticsChartViewsTableName,
     AnalyticsDashboardViewsTableName,
 } from '../database/entities/analytics';
-import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
-import { OrganizationTableName } from '../database/entities/organizations';
-import { UserTableName } from '../database/entities/users';
 import {
     chartWeeklyAverageQueriesSql,
     chartWeeklyQueryingUsersSql,
@@ -38,12 +37,36 @@ export class AnalyticsModel {
         this.database = dependencies.database;
     }
 
-    async countChartViews(chartUuid: string): Promise<number> {
-        const [{ count }] = await this.database(AnalyticsChartViewsTableName)
-            .count('chart_uuid')
-            .where('chart_uuid', chartUuid);
+    async getChartViewStats(chartUuid: string): Promise<ViewStatistics> {
+        const transaction = Sentry.getCurrentHub()
+            ?.getScope()
+            ?.getTransaction();
+        const span = transaction?.startChild({
+            op: 'AnalyticsModel.getChartStats',
+            description: 'Gets a single chart statistics',
+        });
 
-        return Number(count);
+        try {
+            const stats = await this.database(AnalyticsChartViewsTableName)
+                .count({ views: '*' })
+                .min({
+                    first_viewed_at: 'timestamp',
+                })
+                .select('chart_uuid')
+                .groupBy('chart_uuid')
+                .where('chart_uuid', chartUuid)
+                .first();
+
+            return {
+                views:
+                    typeof stats?.views === 'number'
+                        ? stats.views
+                        : parseInt(stats?.views ?? '0', 10),
+                firstViewedAt: stats?.first_viewed_at ?? new Date(),
+            };
+        } finally {
+            span?.finish();
+        }
     }
 
     async addChartViewEvent(

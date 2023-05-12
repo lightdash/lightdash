@@ -1,4 +1,4 @@
-import { UserActivity } from './types/analytics';
+import { UserActivity, ViewStatistics } from './types/analytics';
 import {
     Dashboard,
     DashboardAvailableFilters,
@@ -477,6 +477,7 @@ type ApiResults =
     | EmailStatusExpiring
     | ApiScheduledDownloadCsv
     | PinnedItems
+    | ViewStatistics
     | SchedulerWithLogs;
 
 export type ApiResponse = {

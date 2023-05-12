@@ -13,6 +13,7 @@ import { FC, useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
 
+import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
 import {
     useDuplicateChartMutation,
     useMoveChartMutation,
@@ -82,6 +83,7 @@ const SavedChartsHeader: FC = () => {
         dashboardUuid ? dashboardUuid : undefined,
         savedChart?.uuid,
     );
+    const chartViewStats = useChartViewStats(savedChart?.uuid);
 
     const { mutate: duplicateChart } = useDuplicateChartMutation();
     const chartId = savedChart?.uuid || '';
@@ -217,8 +219,10 @@ const SavedChartsHeader: FC = () => {
                                 <SeparatorDot icon="dot" size={6} />
 
                                 <ViewInfo
-                                    views={savedChart.views}
-                                    firstViewedAt={savedChart.firstViewedAt}
+                                    views={chartViewStats.data?.views}
+                                    firstViewedAt={
+                                        chartViewStats.data?.firstViewedAt
+                                    }
                                 />
 
                                 <SeparatorDot icon="dot" size={6} />
