@@ -43,26 +43,26 @@ export class ValidationModel {
             first_name: string;
             last_name: string;
         })[] = await this.database(ValidationTableName)
-            .select('validations.*')
+            .select(`${ValidationTableName}.*`)
             .leftJoin(
                 SavedChartsTableName,
                 `${SavedChartsTableName}.saved_query_uuid`,
                 `${ValidationTableName}.saved_chart_uuid`,
             )
             .innerJoin(
-                'saved_queries_versions',
+                `${SavedChartVersionsTableName}`,
                 `${SavedChartsTableName}.saved_query_id`,
-                'saved_queries_versions.saved_query_id',
+                `${SavedChartVersionsTableName}.saved_query_id`,
             )
             .leftJoin(
                 UserTableName,
-                'saved_queries_versions.updated_by_user_uuid',
+                `${SavedChartsTableName}.updated_by_user_uuid`,
                 `${UserTableName}.user_uuid`,
             )
             .where('project_uuid', projectUuid)
             .select([
-                'validations.*',
-                'saved_queries.name',
+                `${ValidationTableName}.*`,
+                `${SavedChartsTableName}.name`,
                 `${UserTableName}.first_name`,
                 `${UserTableName}.last_name`,
             ]);
