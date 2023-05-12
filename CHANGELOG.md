@@ -1,3 +1,10 @@
+## [0.546.1](https://github.com/lightdash/lightdash/compare/0.546.0...0.546.1) (2023-05-12)
+
+
+### Bug Fixes
+
+* spotlight results ([#5459](https://github.com/lightdash/lightdash/issues/5459)) ([a2b0772](https://github.com/lightdash/lightdash/commit/a2b077243f4b08c2c1a3a54f98509899894cd3cc))
+
 # [0.546.0](https://github.com/lightdash/lightdash/compare/0.545.0...0.546.0) (2023-05-11)
 
 
