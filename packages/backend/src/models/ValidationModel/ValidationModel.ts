@@ -4,10 +4,12 @@ import {
     DashboardsTableName,
     DashboardTable,
     DashboardVersionsTableName,
+    DashboardVersionTable,
 } from '../../database/entities/dashboards';
 import {
     SavedChartsTableName,
     SavedChartTable,
+    SavedChartVersionsTable,
     SavedChartVersionsTableName,
 } from '../../database/entities/savedCharts';
 import { UserTable, UserTableName } from '../../database/entities/users';
@@ -51,7 +53,8 @@ export class ValidationModel {
     async get(projectUuid: string): Promise<ValidationResponse[]> {
         const chartValidationErrorsRows: (DbValidationTable &
             Pick<SavedChartTable['base'], 'name'> &
-            Pick<UserTable['base'], 'first_name' | 'last_name'>)[] =
+            Pick<UserTable['base'], 'first_name' | 'last_name'> &
+            Pick<SavedChartVersionsTable['base'], 'created_at'>)[] =
             await this.database(ValidationTableName)
                 .select(`${ValidationTableName}.*`)
                 .leftJoin(
@@ -73,6 +76,7 @@ export class ValidationModel {
                 .select([
                     `${ValidationTableName}.*`,
                     `${SavedChartsTableName}.name`,
+                    `${SavedChartVersionsTableName}.created_at as last_updated_at`,
                     `${UserTableName}.first_name`,
                     `${UserTableName}.last_name`,
                 ]);
@@ -82,16 +86,17 @@ export class ValidationModel {
                 createdAt: validationError.created_at,
                 chartUuid: validationError.saved_chart_uuid ?? undefined,
                 projectUuid: validationError.project_uuid,
-                summary: validationError.summary,
                 error: validationError.error,
                 name: validationError.name,
                 lastUpdatedBy: `${validationError.first_name} ${validationError.last_name}`,
+                lastUpdatedAt: validationError.created_at,
             })),
         );
 
         const dashboardValidationErrorsRows: (DbValidationTable &
             Pick<DashboardTable['base'], 'name'> &
-            Pick<UserTable['base'], 'first_name' | 'last_name'>)[] =
+            Pick<UserTable['base'], 'first_name' | 'last_name'> &
+            Pick<DashboardVersionTable['base'], 'created_at'>)[] =
             await this.database(ValidationTableName)
                 .select(`${ValidationTableName}.*`)
                 .leftJoin(
@@ -113,6 +118,7 @@ export class ValidationModel {
                 .select([
                     `${ValidationTableName}.*`,
                     `${DashboardsTableName}.name`,
+                    `${DashboardVersionsTableName}.created_at`,
                     `${UserTableName}.first_name`,
                     `${UserTableName}.last_name`,
                 ]);
@@ -122,10 +128,10 @@ export class ValidationModel {
                 createdAt: validationError.created_at,
                 dashboardUuid: validationError.dashboard_uuid ?? undefined,
                 projectUuid: validationError.project_uuid,
-                summary: validationError.summary,
                 error: validationError.error,
                 name: validationError.name,
                 lastUpdatedBy: `${validationError.first_name} ${validationError.last_name}`,
+                lastUpdatedAt: validationError.created_at,
             })),
         );
 
@@ -140,9 +146,7 @@ export class ValidationModel {
             tableValidationErrorsRows.map(async (validationError) => ({
                 createdAt: validationError.created_at,
                 projectUuid: validationError.project_uuid,
-                summary: validationError.summary,
                 error: validationError.error,
-                // TODO: Check if this is correct
                 name: 'Table',
             })),
         );
