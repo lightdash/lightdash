@@ -206,7 +206,7 @@ const useBigNumberConfig = (
         setComparisonFormat(
             bigNumberConfigData?.comparisonFormat ?? ComparisonFormatTypes.RAW,
         );
-        setFlipColors(bigNumberConfigData?.flipColors ?? true);
+        setFlipColors(bigNumberConfigData?.flipColors ?? false);
     }, [bigNumberConfigData]);
 
     // big number value (first row)
