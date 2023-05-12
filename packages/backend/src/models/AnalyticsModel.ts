@@ -52,8 +52,6 @@ export class AnalyticsModel {
                 .min({
                     first_viewed_at: 'timestamp',
                 })
-                .select('chart_uuid')
-                .groupBy('chart_uuid')
                 .where('chart_uuid', chartUuid)
                 .first();
 
