@@ -163,63 +163,72 @@ const BigNumberConfigTabs = () => {
                                     }}
                                 />
                             </FormGroup>
-                            <FormGroup
-                                labelFor="comparison-format"
-                                label="Compare by:"
-                            >
-                                <RadioGroup
-                                    onChange={(e) => {
-                                        setComparisonFormat(
-                                            e.currentTarget.value === 'raw'
-                                                ? ComparisonFormatTypes.RAW
-                                                : ComparisonFormatTypes.PERCENTAGE,
-                                        );
-                                    }}
-                                    selectedValue={comparisonFormat}
-                                >
-                                    <Radio
-                                        label="Raw value"
-                                        value={ComparisonFormatTypes.RAW}
-                                    />
-                                    <Radio
-                                        label="Percentage"
-                                        value={ComparisonFormatTypes.PERCENTAGE}
-                                    />
-                                </RadioGroup>
-                            </FormGroup>
-                            <FormGroup
-                                labelFor="comparison-color"
-                                label="Flip positive color"
-                                inline
-                                style={{
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    marginBottom: 'none',
-                                }}
-                            >
-                                <Switch
-                                    alignIndicator="right"
-                                    checked={flipColors}
-                                    onChange={() => {
-                                        setFlipColors(!flipColors);
-                                    }}
-                                />
-                            </FormGroup>
-                            <FormGroup
-                                labelFor="comparison-label"
-                                label="Comparison label"
-                            >
-                                <InputGroup
-                                    id="comparison-label"
-                                    placeholder="Add an optional label"
-                                    defaultValue={comparisonLabel}
-                                    onBlur={(e) =>
-                                        setComparisonLabel(
-                                            e.currentTarget.value,
-                                        )
-                                    }
-                                />
-                            </FormGroup>
+                            {showComparison ? (
+                                <>
+                                    <FormGroup
+                                        labelFor="comparison-format"
+                                        label="Compare by:"
+                                    >
+                                        <RadioGroup
+                                            onChange={(e) => {
+                                                setComparisonFormat(
+                                                    e.currentTarget.value ===
+                                                        'raw'
+                                                        ? ComparisonFormatTypes.RAW
+                                                        : ComparisonFormatTypes.PERCENTAGE,
+                                                );
+                                            }}
+                                            selectedValue={comparisonFormat}
+                                        >
+                                            <Radio
+                                                label="Raw value"
+                                                value={
+                                                    ComparisonFormatTypes.RAW
+                                                }
+                                            />
+                                            <Radio
+                                                label="Percentage"
+                                                value={
+                                                    ComparisonFormatTypes.PERCENTAGE
+                                                }
+                                            />
+                                        </RadioGroup>
+                                    </FormGroup>
+                                    <FormGroup
+                                        labelFor="comparison-color"
+                                        label="Flip positive color"
+                                        inline
+                                        style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            marginBottom: 'none',
+                                        }}
+                                    >
+                                        <Switch
+                                            alignIndicator="right"
+                                            checked={flipColors}
+                                            onChange={() => {
+                                                setFlipColors(!flipColors);
+                                            }}
+                                        />
+                                    </FormGroup>
+                                    <FormGroup
+                                        labelFor="comparison-label"
+                                        label="Comparison label"
+                                    >
+                                        <InputGroup
+                                            id="comparison-label"
+                                            placeholder="Add an optional label"
+                                            defaultValue={comparisonLabel}
+                                            onBlur={(e) =>
+                                                setComparisonLabel(
+                                                    e.currentTarget.value,
+                                                )
+                                            }
+                                        />
+                                    </FormGroup>
+                                </>
+                            ) : null}
                         </InputWrapper>
                     }
                 />
