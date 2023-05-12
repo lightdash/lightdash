@@ -425,7 +425,14 @@ export const getChartType = (
 
 export type ChartSummary = Pick<
     SavedChart,
-    'uuid' | 'name' | 'description' | 'spaceName' | 'spaceUuid'
+    | 'uuid'
+    | 'name'
+    | 'description'
+    | 'spaceName'
+    | 'spaceUuid'
+    | 'projectUuid'
+    | 'organizationUuid'
+    | 'pinnedListUuid'
 >;
 export type ApiChartSummaryListResponse = {
     status: 'ok';

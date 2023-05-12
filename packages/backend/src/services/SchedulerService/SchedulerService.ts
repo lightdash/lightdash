@@ -1,11 +1,11 @@
 import { subject } from '@casl/ability';
 import {
+    ChartSummary,
     Dashboard,
     ForbiddenError,
     isChartScheduler,
     isSlackTarget,
     isUserWithOrg,
-    SavedChart,
     ScheduledJobs,
     Scheduler,
     SchedulerAndTargets,
@@ -53,16 +53,16 @@ export class SchedulerService {
 
     private async getSchedulerResource(
         scheduler: Scheduler,
-    ): Promise<SavedChart | Dashboard> {
+    ): Promise<ChartSummary | Dashboard> {
         return isChartScheduler(scheduler)
-            ? this.savedChartModel.get(scheduler.savedChartUuid)
+            ? this.savedChartModel.getSummary(scheduler.savedChartUuid)
             : this.dashboardModel.getById(scheduler.dashboardUuid);
     }
 
     private async checkUserCanUpdateSchedulerResource(
         user: SessionUser,
         schedulerUuid: string,
-    ): Promise<{ scheduler: Scheduler; resource: SavedChart | Dashboard }> {
+    ): Promise<{ scheduler: Scheduler; resource: ChartSummary | Dashboard }> {
         const scheduler = await this.schedulerModel.getScheduler(schedulerUuid);
         const resource = await this.getSchedulerResource(scheduler);
         const { organizationUuid, projectUuid } = resource;
