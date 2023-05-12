@@ -107,17 +107,16 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     const comparisonValueColor = useMemo(() => {
         switch (comparisonDiff) {
             case ComparisonDiffTypes.NAN:
-                return Colors.GRAY3;
             case ComparisonDiffTypes.UNDEFINED:
                 return Colors.GRAY3;
             case ComparisonDiffTypes.POSITIVE:
-                return Colors.GREEN3;
+                return flipColors ? Colors.RED3 : Colors.GREEN3;
             case ComparisonDiffTypes.NEGATIVE:
-                return Colors.RED3;
+                return flipColors ? Colors.GREEN3 : Colors.RED3;
             case ComparisonDiffTypes.NONE:
                 return 'inherit';
         }
-    }, [comparisonDiff]);
+    }, [comparisonDiff, flipColors]);
 
     const validData = bigNumber && resultsData?.rows.length;
 
@@ -168,9 +167,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                             marginTop: 10,
                             display: 'flex',
                             alignItems: 'center',
-                            color: `${
-                                flipColors ? comparisonValueColor : 'inherit'
-                            }`,
+                            color: comparisonValueColor,
                         }}
                     >
                         {comparisonValue}

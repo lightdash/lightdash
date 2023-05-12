@@ -161,7 +161,7 @@ const BigNumberConfigPanel: React.FC = () => {
                             </RadioGroup>
                             <FormGroup
                                 labelFor="bignumber-comparison-color"
-                                label="Flip colors"
+                                label="Flip positive color"
                                 inline
                                 style={{
                                     display: 'flex',
