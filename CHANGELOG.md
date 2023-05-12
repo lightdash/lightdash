@@ -1,3 +1,10 @@
+## [0.550.1](https://github.com/lightdash/lightdash/compare/0.550.0...0.550.1) (2023-05-12)
+
+
+### Bug Fixes
+
+* return if no entries ([#5472](https://github.com/lightdash/lightdash/issues/5472)) ([1232362](https://github.com/lightdash/lightdash/commit/123236270ef2b5211a65fbf43aac7787025ddb7c))
+
 # [0.550.0](https://github.com/lightdash/lightdash/compare/0.549.1...0.550.0) (2023-05-12)
 
 
