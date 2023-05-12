@@ -6,7 +6,7 @@ export type ValidationResponse = {
     dashboardUuid?: string;
     projectUuid: string;
     error: string;
-    lastUpdatedBy: string;
+    lastUpdatedBy?: string;
     lastUpdatedAt: Date;
 };
 
