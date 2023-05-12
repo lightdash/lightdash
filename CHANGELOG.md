@@ -1,3 +1,10 @@
+## [0.549.1](https://github.com/lightdash/lightdash/compare/0.549.0...0.549.1) (2023-05-12)
+
+
+### Bug Fixes
+
+* refetch job data for status STARTED ([#5476](https://github.com/lightdash/lightdash/issues/5476)) ([ee717af](https://github.com/lightdash/lightdash/commit/ee717af7974d1a1ce5a4ec169bbb0003bed6f9ff))
+
 # [0.549.0](https://github.com/lightdash/lightdash/compare/0.548.1...0.549.0) (2023-05-12)
 
 
