@@ -3,6 +3,9 @@ import {
     ApiValidateResponse,
     CompiledField,
     Dashboard,
+    Explore,
+    ExploreCompiler,
+    ExploreError,
     fieldId as getFieldId,
     ForbiddenError,
     getFilterRules,
@@ -10,9 +13,11 @@ import {
     isChartScheduler,
     isDashboardChartTileType,
     isDimension,
+    isExploreError,
     isMetric,
     isSlackTarget,
     isUserWithOrg,
+    OrganizationMemberRole,
     ProjectMemberRole,
     SavedChart,
     ScheduledJobs,
@@ -26,6 +31,7 @@ import {
     UpdateSchedulerAndTargetsWithoutId,
     ValidationResponse,
 } from '@lightdash/common';
+import WarehouseBaseClient from '@lightdash/warehouses/src/warehouseClients/WarehouseBaseClient';
 import cronstrue from 'cronstrue';
 import { analytics } from '../../analytics/client';
 import { schedulerClient, slackClient } from '../../clients/clients';
@@ -47,6 +53,7 @@ type ServiceDependencies = {
     projectModel: ProjectModel;
     savedChartModel: SavedChartModel;
     dashboardModel: DashboardModel;
+    spaceModel: SpaceModel;
 };
 
 export class ValidationService {
@@ -60,18 +67,22 @@ export class ValidationService {
 
     dashboardModel: DashboardModel;
 
+    spaceModel: SpaceModel;
+
     constructor({
         lightdashConfig,
         validationModel,
         projectModel,
         savedChartModel,
         dashboardModel,
+        spaceModel,
     }: ServiceDependencies) {
         this.lightdashConfig = lightdashConfig;
         this.projectModel = projectModel;
         this.savedChartModel = savedChartModel;
         this.validationModel = validationModel;
         this.dashboardModel = dashboardModel;
+        this.spaceModel = spaceModel;
     }
 
     private static getTableCalculationFieldIds(
@@ -86,13 +97,36 @@ export class ValidationService {
         >((acc, tc) => {
             const regex = /\$\{([^}]+)\}/g;
 
-            const fieldsInSql = tc.sql.match(regex); // regex.exec(tc.sql)
+            const fieldsInSql = tc.sql.match(regex);
             if (fieldsInSql != null) {
                 return [...acc, ...fieldsInSql.map(parseTableField)];
             }
             return acc;
         }, []);
         return tableCalculationFieldsInSql;
+    }
+
+    private static async validateTables(
+        projectUuid: string,
+        explores: (Explore | ExploreError)[] | undefined,
+    ): Promise<ValidationInsert[]> {
+        // Get existing errors from ExploreError and convert to ValidationInsert
+        if (explores === undefined) {
+            return [];
+        }
+        const errors = explores.reduce<ValidationInsert[]>((acc, explore) => {
+            if (isExploreError(explore)) {
+                const exploreErrors = explore.errors.map((ee) => ({
+                    error: ee.message,
+                    projectUuid,
+                    dashboardUuid: null,
+                    savedChartUuid: null,
+                }));
+                return [...acc, ...exploreErrors];
+            }
+            return acc;
+        }, []);
+        return errors;
     }
 
     private async validateCharts(
@@ -317,22 +351,7 @@ export class ValidationService {
         return results;
     }
 
-    async validate(
-        user: SessionUser,
-        projectUuid: string,
-    ): Promise<ValidationResponse[]> {
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('Validation', {
-                    organizationUuid: user.organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
+    async generateValidation(projectUuid: string): Promise<ValidationInsert[]> {
         const explores = await this.projectModel.getExploresFromCache(
             projectUuid,
         );
@@ -360,6 +379,10 @@ export class ValidationService {
             return [];
         }
 
+        const tableErrors = await ValidationService.validateTables(
+            projectUuid,
+            explores,
+        );
         const chartErrors = await this.validateCharts(
             projectUuid,
             existingFields,
@@ -372,17 +395,80 @@ export class ValidationService {
                 name: c.name!,
             })),
         );
-        const validationErrors = [...chartErrors, ...dashboardErrors];
+        const validationErrors = [
+            ...tableErrors,
+            ...chartErrors,
+            ...dashboardErrors,
+        ];
+        return validationErrors;
+    }
+
+    async validate(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<ValidationResponse[]> {
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Validation', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const validationErrors = await this.generateValidation(projectUuid);
         await this.validationModel.delete(projectUuid);
 
         if (validationErrors.length > 0)
             await this.validationModel.create(validationErrors);
 
-        return []; // this.getValidations(projectUuid)
+        const validations = await this.validationModel.get(projectUuid);
+        return this.hidePrivateContent(user, projectUuid, validations);
     }
 
-    async get(user: SessionUser, projectUuid: string): Promise<any> {
-        // TODO: add permission check if necessary
-        return this.validationModel.get(projectUuid);
+    async hidePrivateContent(
+        user: SessionUser,
+        projectUuid: string,
+        validations: ValidationResponse[],
+    ): Promise<ValidationResponse[]> {
+        if (user.role === OrganizationMemberRole.ADMIN) return validations;
+
+        const spaces = await this.spaceModel.find({ projectUuid });
+        // Filter private content to developers
+        return validations.map((validation) => {
+            const space = spaces.find((s) => s.uuid === validation.spaceUuid);
+            const hasAccess =
+                space &&
+                hasSpaceAccess(getSpaceAccessFromSummary(space), user.userUuid);
+            if (hasAccess) return validation;
+
+            return { ...validation, name: 'Private content' };
+        });
+    }
+
+    async get(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<ValidationResponse[]> {
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Validation', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const validations = await this.validationModel.get(projectUuid);
+        return this.hidePrivateContent(user, projectUuid, validations);
     }
 }

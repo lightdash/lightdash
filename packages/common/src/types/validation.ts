@@ -1,10 +1,11 @@
 export type ValidationResponse = {
-    validationId?: number;
+    validationId: number;
     createdAt: Date;
     name: string;
     chartUuid?: string;
     dashboardUuid?: string;
     projectUuid: string;
+    spaceUuid?: string;
     error: string;
     lastUpdatedBy?: string;
     lastUpdatedAt?: Date;

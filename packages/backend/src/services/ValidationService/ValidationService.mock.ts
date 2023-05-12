@@ -5,8 +5,10 @@ import {
     DashboardTileTypes,
     DimensionType,
     Explore,
+    ExploreError,
     FieldType,
     FilterOperator,
+    InlineErrorType,
     LightdashMode,
     MetricType,
     OrganizationMemberRole,
@@ -22,6 +24,7 @@ export const config = {
     siteUrl: 'https://test.lightdash.cloud',
 } as LightdashConfig;
 
+export const project = { organizationUuid: 'orgUuid' };
 export const user: SessionUser = {
     userUuid: 'userUuid',
     email: 'email',
@@ -242,4 +245,19 @@ export const exploreWithoutMetric: Explore = {
             metrics: {},
         },
     },
+};
+
+export const exploreError: ExploreError = {
+    name: 'valid_explore',
+    label: 'valid_explore',
+    tags: [],
+    baseTable: 'table',
+    joinedTables: [],
+    tables: {},
+    errors: [
+        {
+            message: 'Explore error message',
+            type: InlineErrorType.NO_DIMENSIONS_FOUND,
+        },
+    ],
 };

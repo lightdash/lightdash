@@ -2,6 +2,7 @@ import {
     dashboardModel,
     projectModel,
     savedChartModel,
+    spaceModel,
     validationModel,
 } from '../../models/models';
 
@@ -11,8 +12,10 @@ import {
     config,
     dashboard,
     explore,
+    exploreError,
     exploreWithoutDimension,
     exploreWithoutMetric,
+    project,
     user,
 } from './ValidationService.mock';
 
@@ -23,6 +26,7 @@ jest.mock('../../models/models', () => ({
     },
     projectModel: {
         getExploresFromCache: jest.fn(async () => [explore]),
+        get: jest.fn(async () => project),
     },
     validationModel: {
         delete: jest.fn(async () => {}),
@@ -41,6 +45,7 @@ describe('validation', () => {
         savedChartModel,
         dashboardModel,
         lightdashConfig: config,
+        spaceModel,
     });
 
     afterEach(() => {
@@ -49,43 +54,34 @@ describe('validation', () => {
 
     it('Should validate project without errors', async () => {
         expect(
-            await validationService.validate(user, chart.projectUuid),
+            await validationService.generateValidation(chart.projectUuid),
         ).toEqual([]);
-
-        expect(validationModel.delete).toHaveBeenCalledTimes(1);
-        expect(validationModel.create).toHaveBeenCalledTimes(0);
     });
     it('Should validate project with dimension errors', async () => {
         (projectModel.getExploresFromCache as jest.Mock).mockImplementationOnce(
             async () => [exploreWithoutDimension],
         );
 
-        const errors = await validationService.validate(
-            user,
+        const errors = await validationService.generateValidation(
             chart.projectUuid,
         );
 
         expect({ ...errors[0], createdAt: undefined }).toEqual({
             createdAt: undefined,
-            chartUuid: 'chartUuid',
-            lastUpdatedBy: 'David Attenborough',
-            name: 'Test chart',
-            lastUpdatedAt: new Date('2021-01-01'),
-
-            projectUuid: 'projectUuid',
+            dashboardUuid: null,
             error: "Dimension error: the field 'table_dimension' no longer exists",
-            table: 'table',
+            name: 'Test chart',
+            projectUuid: 'projectUuid',
+            savedChartUuid: 'chartUuid',
         });
 
         const expectedErrors: string[] = [
             "Dimension error: the field 'table_dimension' no longer exists",
             "Filter error: the field 'table_dimension' no longer exists",
             "Sorting error: the field 'table_dimension' no longer exists",
-            "The chart 'Test chart' is broken on this dashboard.", // Dashboard error
+            "The chart 'Test chart' is broken on this dashboard.",
         ];
         expect(errors.map((error) => error.error)).toEqual(expectedErrors);
-        expect(validationModel.delete).toHaveBeenCalledTimes(1);
-        expect(validationModel.create).toHaveBeenCalledTimes(1);
     });
 
     it('Should validate project with metric errors', async () => {
@@ -93,29 +89,46 @@ describe('validation', () => {
             async () => [exploreWithoutMetric],
         );
 
-        const errors = await validationService.validate(
-            user,
+        const errors = await validationService.generateValidation(
             chart.projectUuid,
         );
 
         expect({ ...errors[0], createdAt: undefined }).toEqual({
             createdAt: undefined,
-            chartUuid: 'chartUuid',
-            lastUpdatedBy: 'David Attenborough',
-            name: 'Test chart',
-            lastUpdatedAt: new Date('2021-01-01'),
-            projectUuid: 'projectUuid',
+            dashboardUuid: null,
             error: "Metric error: the field 'table_metric' no longer exists",
-            table: 'table',
+            name: 'Test chart',
+            projectUuid: 'projectUuid',
+            savedChartUuid: 'chartUuid',
         });
 
         const expectedErrors: string[] = [
             "Metric error: the field 'table_metric' no longer exists",
             "Filter error: the field 'table_metric' no longer exists",
-            "The chart 'Test chart' is broken on this dashboard.", // Dashboard error
+            "The chart 'Test chart' is broken on this dashboard.",
         ];
         expect(errors.map((error) => error.error)).toEqual(expectedErrors);
-        expect(validationModel.delete).toHaveBeenCalledTimes(1);
-        expect(validationModel.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('Should validate project with table errors', async () => {
+        (projectModel.getExploresFromCache as jest.Mock).mockImplementationOnce(
+            async () => [exploreError],
+        );
+
+        const errors = await validationService.generateValidation(
+            chart.projectUuid,
+        );
+
+        expect({ ...errors[0], createdAt: undefined }).toEqual({
+            createdAt: undefined,
+            dashboardUuid: null,
+            error: 'Explore error message',
+            projectUuid: 'projectUuid',
+            savedChartUuid: null,
+        });
+
+        expect(errors.map((error) => error.error)[0]).toEqual(
+            'Explore error message',
+        );
     });
 });
