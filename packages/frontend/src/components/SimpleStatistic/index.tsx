@@ -1,5 +1,6 @@
 import { Colors } from '@blueprintjs/core';
 import { ComparisonDiffTypes } from '@lightdash/common';
+import { Tooltip } from '@mantine/core';
 import { IconArrowDownRight, IconArrowUpRight } from '@tabler/icons-react';
 import clamp from 'lodash-es/clamp';
 import { FC, HTMLAttributes, useMemo } from 'react';
@@ -66,6 +67,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             showLabel,
             comparisonDiff,
             flipColors,
+            comparisonTooltip,
         },
         isSqlRunner,
     } = useVisualizationContext();
@@ -161,30 +163,33 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
 
             {showComparison ? (
                 <BigNumberHalf>
-                    <BigNumber
-                        $fontSize={comparisonFontSize}
-                        style={{
-                            marginTop: 10,
-                            display: 'flex',
-                            alignItems: 'center',
-                            color: comparisonValueColor,
-                        }}
-                    >
-                        {comparisonValue}
-                        {comparisonDiff === ComparisonDiffTypes.POSITIVE ? (
-                            <MantineIcon
-                                icon={IconArrowUpRight}
-                                size={18}
-                                style={{ display: 'inline', marginLeft: 5 }}
-                            />
-                        ) : comparisonDiff === ComparisonDiffTypes.NEGATIVE ? (
-                            <MantineIcon
-                                icon={IconArrowDownRight}
-                                size={18}
-                                style={{ display: 'inline', marginLeft: 5 }}
-                            />
-                        ) : null}
-                    </BigNumber>
+                    <Tooltip label={comparisonTooltip}>
+                        <BigNumber
+                            $fontSize={comparisonFontSize}
+                            style={{
+                                marginTop: 10,
+                                display: 'flex',
+                                alignItems: 'center',
+                                color: comparisonValueColor,
+                            }}
+                        >
+                            {comparisonValue}
+                            {comparisonDiff === ComparisonDiffTypes.POSITIVE ? (
+                                <MantineIcon
+                                    icon={IconArrowUpRight}
+                                    size={18}
+                                    style={{ display: 'inline', marginLeft: 5 }}
+                                />
+                            ) : comparisonDiff ===
+                              ComparisonDiffTypes.NEGATIVE ? (
+                                <MantineIcon
+                                    icon={IconArrowDownRight}
+                                    size={18}
+                                    style={{ display: 'inline', marginLeft: 5 }}
+                                />
+                            ) : null}
+                        </BigNumber>
+                    </Tooltip>
                 </BigNumberHalf>
             ) : null}
         </BigNumberContainer>
