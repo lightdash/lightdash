@@ -166,8 +166,6 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                 <BigNumberHalf
                     style={{
                         marginTop: 10,
-                        display: 'flex',
-                        alignItems: 'center',
                     }}
                 >
                     <Tooltip label={comparisonTooltip}>
@@ -175,6 +173,8 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                             $fontSize={comparisonFontSize}
                             style={{
                                 color: comparisonValueColor,
+                                display: 'flex',
+                                alignItems: 'center',
                             }}
                         >
                             {comparisonValue}
