@@ -104,10 +104,8 @@ export const useJob = (
         queryFn: () => getJob(jobId || ''),
         enabled: !!jobId,
         refetchInterval: (data) =>
-            [
-                JobStatusType.DONE.valueOf(),
-                JobStatusType.ERROR.valueOf(),
-            ].includes(data?.jobStatus || '')
+            data === undefined ||
+            [JobStatusType.DONE, JobStatusType.ERROR].includes(data.jobStatus)
                 ? false
                 : 500,
         onSuccess: (job) => {
