@@ -7,7 +7,7 @@ export type ValidationResponse = {
     projectUuid: string;
     error: string;
     lastUpdatedBy?: string;
-    lastUpdatedAt: Date;
+    lastUpdatedAt?: Date;
 };
 
 export type ApiValidateResponse = {
