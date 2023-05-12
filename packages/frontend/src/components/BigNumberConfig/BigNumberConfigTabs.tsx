@@ -176,11 +176,11 @@ const BigNumberConfigTabs = () => {
                                     selectedValue={comparisonFormat}
                                 >
                                     <Radio
-                                        label="By raw value"
+                                        label="Raw value"
                                         value={ComparisonFormatTypes.RAW}
                                     />
                                     <Radio
-                                        label="By percentage"
+                                        label="Percentage"
                                         value={ComparisonFormatTypes.PERCENTAGE}
                                     />
                                 </RadioGroup>
