@@ -125,7 +125,7 @@ export class ValidationService {
                 table: chart.tableName,
                 projectUuid: chart.projectUuid,
                 lastUpdatedBy: `${chart.updatedByUser?.firstName} ${chart.updatedByUser?.lastName}`,
-                lastUpdatedTime: chart.updatedAt,
+                lastUpdatedAt: chart.updatedAt,
             };
             const containsFieldId = (
                 acc: ValidationResponse[],
@@ -264,7 +264,7 @@ export class ValidationService {
                     dashboardUuid: dashboard.uuid,
                     projectUuid: dashboard.projectUuid,
                     lastUpdatedBy: `${dashboard.updatedByUser?.firstName} ${dashboard.updatedByUser?.lastName}`,
-                    lastUpdatedTime: dashboard.updatedAt,
+                    lastUpdatedAt: dashboard.updatedAt,
                 };
                 const containsFieldId = (
                     acc: ValidationResponse[],

@@ -1,6 +1,8 @@
 import { Ability } from '@casl/ability';
 import {
     ChartType,
+    Dashboard,
+    DashboardTileTypes,
     DimensionType,
     Explore,
     FieldType,
@@ -49,7 +51,7 @@ export const chart: SavedChart = {
     projectUuid: 'projectUuid',
     name: 'Test chart',
     tableName: 'table',
-    updatedAt: new Date(),
+    updatedAt: new Date('2021-01-01'),
     updatedByUser: {
         userUuid: 'userUuid',
         firstName: 'David',
@@ -142,6 +144,38 @@ export const chart: SavedChart = {
     pinnedListOrder: null,
     views: 31,
     firstViewedAt: '2023-05-03T08:22:06.353Z',
+};
+
+export const dashboard: Dashboard = {
+    organizationUuid: 'orgUuid',
+    projectUuid: 'projectUuid',
+    uuid: 'dashboardUuid',
+    name: 'test dashboard',
+    updatedAt: new Date(),
+    tiles: [
+        {
+            uuid: 'tileUuid',
+            type: DashboardTileTypes.SAVED_CHART,
+            properties: {
+                title: 'test chart',
+                savedChartUuid: 'chartUuid',
+            },
+            x: 0,
+            y: 0,
+            w: 1,
+            h: 1,
+        },
+    ],
+    filters: {
+        dimensions: [],
+        metrics: [],
+    },
+    spaceUuid: '',
+    spaceName: '',
+    views: 0,
+    firstViewedAt: null,
+    pinnedListUuid: null,
+    pinnedListOrder: null,
 };
 
 export const explore: Explore = {
