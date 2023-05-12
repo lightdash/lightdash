@@ -1,3 +1,10 @@
+## [0.550.2](https://github.com/lightdash/lightdash/compare/0.550.1...0.550.2) (2023-05-12)
+
+
+### Bug Fixes
+
+* suppress aws sdk warning in cli ([#5479](https://github.com/lightdash/lightdash/issues/5479)) ([2ba89ca](https://github.com/lightdash/lightdash/commit/2ba89cab5c2cfe5fb19efc0d1b366f0c14c5e751))
+
 ## [0.550.1](https://github.com/lightdash/lightdash/compare/0.550.0...0.550.1) (2023-05-12)
 
 
