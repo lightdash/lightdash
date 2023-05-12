@@ -1,3 +1,10 @@
+# [0.547.0](https://github.com/lightdash/lightdash/compare/0.546.1...0.547.0) (2023-05-12)
+
+
+### Features
+
+* updated styling when comparison is n/a ([#5463](https://github.com/lightdash/lightdash/issues/5463)) ([6793a40](https://github.com/lightdash/lightdash/commit/6793a4074d2b385b6431aef6b604ab8b05f4bcaf))
+
 ## [0.546.1](https://github.com/lightdash/lightdash/compare/0.546.0...0.546.1) (2023-05-12)
 
 
