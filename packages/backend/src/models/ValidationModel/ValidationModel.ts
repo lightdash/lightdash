@@ -15,6 +15,7 @@ import {
 import { UserTable, UserTableName } from '../../database/entities/users';
 import {
     DbValidationTable,
+    ValidationInsert,
     ValidationTableName,
 } from '../../database/entities/validation';
 
