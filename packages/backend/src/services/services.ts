@@ -170,4 +170,5 @@ export const validationService = new ValidationService({
     savedChartModel,
     validationModel,
     dashboardModel,
+    spaceModel,
 });

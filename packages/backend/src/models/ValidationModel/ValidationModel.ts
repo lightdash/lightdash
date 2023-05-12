@@ -1,4 +1,4 @@
-import { ValidationResponse } from '@lightdash/common';
+import { Space, ValidationResponse } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     DashboardsTableName,
@@ -12,6 +12,7 @@ import {
     SavedChartVersionsTable,
     SavedChartVersionsTableName,
 } from '../../database/entities/savedCharts';
+import { DbSpace, SpaceTableName } from '../../database/entities/spaces';
 import { UserTable, UserTableName } from '../../database/entities/users';
 import {
     DbValidationTable,
@@ -55,13 +56,18 @@ export class ValidationModel {
         const chartValidationErrorsRows: (DbValidationTable &
             Pick<SavedChartTable['base'], 'name'> &
             Pick<UserTable['base'], 'first_name' | 'last_name'> &
+            Pick<DbSpace, 'space_uuid'> &
             Pick<SavedChartVersionsTable['base'], 'created_at'>)[] =
             await this.database(ValidationTableName)
-                .select(`${ValidationTableName}.*`)
                 .leftJoin(
                     SavedChartsTableName,
                     `${SavedChartsTableName}.saved_query_uuid`,
                     `${ValidationTableName}.saved_chart_uuid`,
+                )
+                .innerJoin(
+                    SpaceTableName,
+                    `${SpaceTableName}.space_id`,
+                    `${SavedChartsTableName}.space_id`,
                 )
                 .innerJoin(
                     `${SavedChartVersionsTableName}`,
@@ -74,12 +80,15 @@ export class ValidationModel {
                     `${UserTableName}.user_uuid`,
                 )
                 .where('project_uuid', projectUuid)
+                .andWhereNot(`${ValidationTableName}.saved_chart_uuid`, null)
+
                 .select([
                     `${ValidationTableName}.*`,
                     `${SavedChartsTableName}.name`,
                     `${SavedChartVersionsTableName}.created_at as last_updated_at`,
                     `${UserTableName}.first_name`,
                     `${UserTableName}.last_name`,
+                    `${SpaceTableName}.space_uuid`,
                 ]);
 
         const chartValidationErrors = await Promise.all(
@@ -91,19 +100,26 @@ export class ValidationModel {
                 name: validationError.name,
                 lastUpdatedBy: `${validationError.first_name} ${validationError.last_name}`,
                 lastUpdatedAt: validationError.created_at,
+                validationId: validationError.validation_id,
+                spaceUuid: validationError.space_uuid,
             })),
         );
 
         const dashboardValidationErrorsRows: (DbValidationTable &
             Pick<DashboardTable['base'], 'name'> &
             Pick<UserTable['base'], 'first_name' | 'last_name'> &
+            Pick<DbSpace, 'space_uuid'> &
             Pick<DashboardVersionTable['base'], 'created_at'>)[] =
             await this.database(ValidationTableName)
-                .select(`${ValidationTableName}.*`)
                 .leftJoin(
                     DashboardsTableName,
                     `${DashboardsTableName}.dashboard_uuid`,
                     `${ValidationTableName}.dashboard_uuid`,
+                )
+                .innerJoin(
+                    SpaceTableName,
+                    `${DashboardsTableName}.space_id`,
+                    `${SpaceTableName}.space_id`,
                 )
                 .innerJoin(
                     `${DashboardVersionsTableName}`,
@@ -116,12 +132,14 @@ export class ValidationModel {
                     `${DashboardVersionsTableName}.updated_by_user_uuid`,
                 )
                 .where('project_uuid', projectUuid)
+                .andWhereNot(`${ValidationTableName}.dashboard_uuid`, null)
                 .select([
                     `${ValidationTableName}.*`,
                     `${DashboardsTableName}.name`,
                     `${DashboardVersionsTableName}.created_at`,
                     `${UserTableName}.first_name`,
                     `${UserTableName}.last_name`,
+                    `${SpaceTableName}.space_uuid`,
                 ]);
 
         const dashboardValidationErrors = await Promise.all(
@@ -133,6 +151,8 @@ export class ValidationModel {
                 name: validationError.name,
                 lastUpdatedBy: `${validationError.first_name} ${validationError.last_name}`,
                 lastUpdatedAt: validationError.created_at,
+                validationId: validationError.validation_id,
+                spaceUuid: validationError.space_uuid,
             })),
         );
 
@@ -149,6 +169,7 @@ export class ValidationModel {
                 projectUuid: validationError.project_uuid,
                 error: validationError.error,
                 name: 'Table',
+                validationId: validationError.validation_id,
             })),
         );
 
