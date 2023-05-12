@@ -380,4 +380,9 @@ export class ValidationService {
 
         return []; // this.getValidations(projectUuid)
     }
+
+    async get(user: SessionUser, projectUuid: string): Promise<any> {
+        // TODO: add permission check if necessary
+        return this.validationModel.get(projectUuid);
+    }
 }
