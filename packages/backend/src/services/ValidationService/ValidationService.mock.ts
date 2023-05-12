@@ -4,6 +4,7 @@ import {
     DimensionType,
     Explore,
     FieldType,
+    FilterOperator,
     LightdashMode,
     MetricType,
     OrganizationMemberRole,
@@ -19,45 +20,92 @@ export const config = {
     siteUrl: 'https://test.lightdash.cloud',
 } as LightdashConfig;
 
+export const user: SessionUser = {
+    userUuid: 'userUuid',
+    email: 'email',
+    firstName: 'firstName',
+    lastName: 'lastName',
+    organizationUuid: 'organizationUuid',
+    organizationName: 'organizationName',
+    organizationCreatedAt: new Date(),
+    isTrackingAnonymized: false,
+    isMarketingOptedIn: false,
+    isSetupComplete: true,
+    userId: 0,
+    role: OrganizationMemberRole.ADMIN,
+    ability: new Ability([
+        {
+            subject: 'OrganizationMemberProfile',
+            action: ['view'],
+            conditions: { organizationUuid: 'organizationUuid' },
+        },
+    ]),
+    isActive: true,
+    abilityRules: [],
+};
+
 export const chart: SavedChart = {
-    uuid: 'fc4059cc-1d21-4b33-b21f-0c5370b55513',
-    projectUuid: '3675b69e-8324-4110-bdca-059031aa8da3',
-    name: 'How much revenue do we have per payment method?',
-    description:
-        'Total revenue received via coupons, gift cards, bank transfers, and credit cards',
-    tableName: 'payments',
+    uuid: 'chartUuid',
+    projectUuid: 'projectUuid',
+    name: 'Test chart',
+    tableName: 'table',
     updatedAt: new Date(),
     updatedByUser: {
-        userUuid: 'b264d83a-9000-426a-85ec-3f9c20f368ce',
+        userUuid: 'userUuid',
         firstName: 'David',
         lastName: 'Attenborough',
     },
     metricQuery: {
-        dimensions: ['payments_payment_method'],
-        metrics: [
-            'payments_total_revenue',
-            'payments_unique_payment_count',
-            'payments_payment_id_max',
-        ],
-        filters: {},
+        dimensions: ['table_dimension'],
+        metrics: ['table_metric'],
+        filters: {
+            dimensions: {
+                id: 'dimensionFilterUuid',
+                and: [
+                    {
+                        id: '',
+                        target: { fieldId: 'table_dimension' },
+                        values: ['2018-01-01'],
+                        operator: FilterOperator.EQUALS,
+                    },
+                ],
+            },
+            metrics: {
+                id: 'metricFilterUuid',
+                or: [
+                    {
+                        id: '',
+                        target: { fieldId: 'table_metric' },
+                        values: ['2018-01-01'],
+                        operator: FilterOperator.EQUALS,
+                    },
+                ],
+            },
+        },
         sorts: [
             {
-                fieldId: 'payments_total_revenue',
+                fieldId: 'table_dimension',
                 descending: false,
             },
         ],
-        limit: 10,
-        tableCalculations: [],
-        additionalMetrics: [
+        tableCalculations: [
             {
-                table: 'payments',
-                name: 'payment_id_max',
-                type: MetricType.MAX,
-                label: 'Max of Payment id',
-                description: 'Max of Payment id on the table Payments',
-                sql: '${TABLE}.payment_id',
+                name: 'table_calculation',
+                displayName: 'myTableCalculation',
+                sql: '1 + ${table_dimension} + ${table_metric}',
             },
         ],
+        additionalMetrics: [
+            {
+                table: 'table',
+                name: 'custom_metric',
+                type: MetricType.MAX,
+                label: 'Count of dimension',
+                description: 'Count of dimension',
+                sql: '${TABLE}.dimension',
+            },
+        ],
+        limit: 10,
     },
     chartConfig: {
         type: ChartType.CARTESIAN,
@@ -81,15 +129,15 @@ export const chart: SavedChart = {
     },
     tableConfig: {
         columnOrder: [
-            'payments_payment_method',
-            'payments_total_revenue',
-            'payments_unique_payment_count',
-            'payments_payment_id_max',
+            'table_dimension',
+            'table_metric',
+            'table_custom_metric',
+            'table_calculation',
         ],
     },
-    organizationUuid: '172a2270-000f-42be-9c68-c4752c23ae51',
-    spaceUuid: '84b6b431-cea5-4e75-8a1d-670777fe8c7d',
-    spaceName: 'Jaffle shop',
+    organizationUuid: 'orgUuid',
+    spaceUuid: 'spaceUuid',
+    spaceName: 'space name',
     pinnedListUuid: null,
     pinnedListOrder: null,
     views: 31,
@@ -101,22 +149,22 @@ export const explore: Explore = {
     name: 'valid_explore',
     label: 'valid_explore',
     tags: [],
-    baseTable: 'a',
+    baseTable: 'table',
     joinedTables: [],
     tables: {
-        a: {
-            name: 'a',
-            label: 'a',
+        table: {
+            name: 'table',
+            label: 'table',
             database: 'database',
             schema: 'schema',
             sqlTable: 'test.table',
             dimensions: {
-                myDimension: {
-                    table: 'a',
-                    tableLabel: 'a',
+                dimension: {
+                    table: 'table',
+                    tableLabel: 'table',
                     sql: 'sql',
-                    name: 'myDimension',
-                    label: 'myDimension',
+                    name: 'dimension',
+                    label: 'dimension',
                     fieldType: FieldType.DIMENSION,
                     type: DimensionType.STRING,
                     compiledSql: 'compiledSql',
@@ -126,11 +174,11 @@ export const explore: Explore = {
             },
             metrics: {
                 myMetric: {
-                    table: 'a',
-                    tableLabel: 'a',
+                    table: 'table',
+                    tableLabel: 'table',
                     sql: 'sql',
-                    name: 'myMetric',
-                    label: 'myMetric',
+                    name: 'metric',
+                    label: 'metric',
                     fieldType: FieldType.METRIC,
                     type: MetricType.NUMBER,
                     isAutoGenerated: false,
@@ -140,6 +188,25 @@ export const explore: Explore = {
                 },
             },
             lineageGraph: {},
+        },
+    },
+};
+
+export const exploreWithoutDimension: Explore = {
+    ...explore,
+    tables: {
+        table: {
+            ...explore.tables.table,
+            dimensions: {},
+        },
+    },
+};
+export const exploreWithoutMetric: Explore = {
+    ...explore,
+    tables: {
+        table: {
+            ...explore.tables.table,
+            metrics: {},
         },
     },
 };

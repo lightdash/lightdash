@@ -60,17 +60,20 @@ export class ValidationService {
         this.validationModel = validationModel;
     }
 
-    async validate(user: SessionUser, projectUuid: string): Promise<any> {
+    async validate(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<ValidationResponse[]> {
         // TODO check permissions
-        const exploresSummaries = await this.projectModel.getExploresFromCache(
+        const explores = await this.projectModel.getExploresFromCache(
             projectUuid,
         );
 
-        const existingFields = exploresSummaries?.reduce<CompiledField[]>(
-            (acc, exploreSummary) => {
-                if (!exploreSummary.tables) return acc;
+        const existingFields = explores?.reduce<CompiledField[]>(
+            (acc, explore) => {
+                if (!explore.tables) return acc;
 
-                const fields = Object.values(exploreSummary.tables).flatMap(
+                const fields = Object.values(explore.tables).flatMap(
                     (table) => [
                         ...Object.values(table.dimensions),
                         ...Object.values(table.metrics),
@@ -166,8 +169,8 @@ export class ValidationService {
                         ...acc,
                         {
                             ...commonValidation,
-                            summary: `filter not found ${field}`,
-                            error: `filter not found ${field}`,
+                            summary: `filter not found ${field.target.fieldId}`,
+                            error: `filter not found ${field.target.fieldId}`,
                         },
                     ];
                 }
@@ -182,8 +185,8 @@ export class ValidationService {
                         ...acc,
                         {
                             ...commonValidation,
-                            summary: `sort not found ${field}`,
-                            error: `sort not found ${field}`,
+                            summary: `sort not found ${field.fieldId}`,
+                            error: `sort not found ${field.fieldId}`,
                         },
                     ];
                 }
@@ -255,7 +258,7 @@ export class ValidationService {
 
         await this.validationModel.delete(projectUuid);
 
-        await this.validationModel.create(results);
+        if (results.length > 0) await this.validationModel.create(results);
 
         return results;
     }
