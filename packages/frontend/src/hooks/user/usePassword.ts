@@ -1,6 +1,8 @@
 import { ApiError } from '@lightdash/common';
-import { useQuery } from 'react-query';
+import { useCallback } from 'react';
+import { useMutation, useQuery } from 'react-query';
 import { lightdashApi } from '../../api';
+import { useErrorLogs } from '../../providers/ErrorLogsProvider';
 
 const getUserHasPassword = async (): Promise<boolean> =>
     lightdashApi<boolean>({
@@ -14,3 +16,38 @@ export const useUserHasPassword = () =>
         queryKey: 'user-has-password',
         queryFn: getUserHasPassword,
     });
+
+const updateUserPasswordQuery = async (data: {
+    password: string;
+    newPassword: string;
+}) =>
+    lightdashApi<undefined>({
+        url: `/user/password`,
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+
+export const useUserUpdatePasswordMutation = () => {
+    const { showError } = useErrorLogs();
+
+    return useMutation<
+        undefined,
+        ApiError,
+        { password: string; newPassword: string }
+    >(updateUserPasswordQuery, {
+        mutationKey: ['user_password_update'],
+        onSuccess: () => {
+            window.location.href = '/login';
+        },
+        onError: useCallback(
+            (error) => {
+                const [title, ...rest] = error.error.message.split('\n');
+                showError({
+                    title,
+                    body: rest.join('\n'),
+                });
+            },
+            [showError],
+        ),
+    });
+};

@@ -1,25 +1,14 @@
-import { ApiError } from '@lightdash/common';
 import { Button, PasswordInput, Stack } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { FC, useCallback } from 'react';
-import { useMutation } from 'react-query';
-import { lightdashApi } from '../../../api';
-import { useUserHasPassword } from '../../../hooks/user/usePassword';
-import { useErrorLogs } from '../../../providers/ErrorLogsProvider';
-
-const updateUserPasswordQuery = async (data: {
-    password: string;
-    newPassword: string;
-}) =>
-    lightdashApi<undefined>({
-        url: `/user/password`,
-        method: 'POST',
-        body: JSON.stringify(data),
-    });
+import { FC } from 'react';
+import {
+    useUserHasPassword,
+    useUserUpdatePasswordMutation,
+} from '../../../hooks/user/usePassword';
 
 const PasswordPanel: FC = () => {
     const { data: hasPassword } = useUserHasPassword();
-    const { showError } = useErrorLogs();
+
     const form = useForm({
         initialValues: {
             currentPassword: '',
@@ -27,26 +16,8 @@ const PasswordPanel: FC = () => {
         },
     });
 
-    const { isLoading, mutate: updateUserPassword } = useMutation<
-        undefined,
-        ApiError,
-        { password: string; newPassword: string }
-    >(updateUserPasswordQuery, {
-        mutationKey: ['user_password_update'],
-        onSuccess: () => {
-            window.location.href = '/login';
-        },
-        onError: useCallback(
-            (error) => {
-                const [title, ...rest] = error.error.message.split('\n');
-                showError({
-                    title,
-                    body: rest.join('\n'),
-                });
-            },
-            [showError],
-        ),
-    });
+    const { isLoading, mutate: updateUserPassword } =
+        useUserUpdatePasswordMutation();
 
     const handleOnSubmit = form.onSubmit(({ currentPassword, newPassword }) => {
         updateUserPassword({
