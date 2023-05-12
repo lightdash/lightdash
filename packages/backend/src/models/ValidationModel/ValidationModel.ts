@@ -38,42 +38,48 @@ export class ValidationModel {
     }
 
     async get(projectUuid: string): Promise<ValidationResponse[]> {
-        const validationErrors = await this.database(ValidationTableName)
-            .select('*')
-            .where('project_uuid', projectUuid);
+        const chartsAndErrorsRows: (DbValidationTable & {
+            name: 'Which customers have not recently ordered an item?';
+            first_name: 'David';
+            last_name: 'Attenborough';
+        })[] = await this.database(ValidationTableName)
+            .select('validations.*')
+            .leftJoin(
+                SavedChartsTableName,
+                `${SavedChartsTableName}.saved_query_uuid`,
+                `${ValidationTableName}.saved_chart_uuid`,
+            )
+            .innerJoin(
+                'saved_queries_versions',
+                `${SavedChartsTableName}.saved_query_id`,
+                'saved_queries_versions.saved_query_id',
+            )
+            .leftJoin(
+                UserTableName,
+                'saved_queries_versions.updated_by_user_uuid',
+                `${UserTableName}.user_uuid`,
+            )
+            .where('project_uuid', projectUuid)
+            .select([
+                'validations.*',
+                'saved_queries.name',
+                `${UserTableName}.first_name`,
+                `${UserTableName}.last_name`,
+            ]);
 
-        // TODO: should this be done in Service?
-        return Promise.all(
-            validationErrors.map(async (validationError) => {
-                const validation: Partial<ValidationResponse> = {
-                    createdAt: validationError.created_at,
-                    projectUuid: validationError.project_uuid,
-                    summary: validationError.summary,
-                    error: validationError.error,
-                    ...(validationError.dashboard_uuid && {
-                        dashboardUuid: validationError.dashboard_uuid,
-                    }),
-                };
-
-                if (validationError.saved_chart_uuid) {
-                    const chart = await savedChartModel.get(
-                        validationError.saved_chart_uuid,
-                    );
-                    validation.name = chart.name;
-                    validation.lastUpdatedBy = `${chart.updatedByUser?.firstName} ${chart.updatedByUser?.lastName}`;
-                    validation.chartUuid = validationError.saved_chart_uuid;
-                } else {
-                    validation.name = 'Private content';
-                    // TODO: check this
-                    validation.lastUpdatedBy = '';
-                }
-
-                // updated by in dashboard?
-                // lastUpdatedBy might not exist - when it hasnt been used in a chart yet
-
-                // TODO: remove typecast
-                return validation as ValidationResponse;
-            }),
+        const chartValidationErrors = Promise.all(
+            chartsAndErrorsRows.map(async (validationError) => ({
+                createdAt: validationError.created_at,
+                projectUuid: validationError.project_uuid,
+                summary: validationError.summary,
+                error: validationError.error,
+                name: validationError.name,
+                lastUpdatedBy: `${validationError.first_name} ${validationError.last_name}`,
+            })),
         );
+
+        // TODO: add dashboard validation errors
+
+        return chartValidationErrors;
     }
 }
