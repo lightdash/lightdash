@@ -63,6 +63,9 @@ export const projectMemberAbilities: Record<
         can('manage', 'SqlRunner', {
             projectUuid: member.projectUuid,
         });
+        can('manage', 'Validation', {
+            projectUuid: member.projectUuid,
+        });
     },
     admin(member, { can }) {
         projectMemberAbilities.developer(member, { can });

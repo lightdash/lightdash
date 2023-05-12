@@ -1,3 +1,4 @@
+import { get } from 'http';
 import { DashboardBasicDetails } from './dashboard';
 import { ProjectMemberRole } from './projectMemberProfile';
 import { SpaceQuery } from './savedCharts';
@@ -37,3 +38,15 @@ export type ApiSpaceSummaryListResponse = {
     status: 'ok';
     results: SpaceSummary[];
 };
+
+export const getSpaceAccessFromSummary = (
+    summary: SpaceSummary,
+): Pick<Space, 'isPrivate' | 'access'> => ({
+    isPrivate: summary.isPrivate,
+    access: summary.access.map((access) => ({
+        userUuid: access,
+        role: ProjectMemberRole.VIEWER,
+        firstName: '',
+        lastName: '',
+    })),
+});

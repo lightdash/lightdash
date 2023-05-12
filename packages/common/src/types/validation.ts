@@ -1,4 +1,5 @@
 export type ValidationResponse = {
+    validationId?: number;
     createdAt: Date;
     name: string;
     chartUuid?: string;
