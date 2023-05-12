@@ -125,12 +125,12 @@ export class ValidationService {
                 table: chart.tableName,
                 projectUuid: chart.projectUuid,
                 lastUpdatedBy: `${chart.updatedByUser?.firstName} ${chart.updatedByUser?.lastName}`,
+                lastUpdatedTime: chart.updatedAt,
             };
             const containsFieldId = (
                 acc: ValidationResponse[],
                 fieldIds: string[],
                 fieldId: string,
-                summary: string,
                 error: string,
             ) => {
                 if (!fieldIds?.includes(fieldId)) {
@@ -138,7 +138,6 @@ export class ValidationService {
                         ...acc,
                         {
                             ...commonValidation,
-                            summary,
                             error,
                         },
                     ];
@@ -154,7 +153,6 @@ export class ValidationService {
                         existingDimensionIds,
                         field,
                         `Dimension error: the field '${field}' no longer exists`,
-                        `The field '${field}' no longer exists and is being used as a dimension.`,
                     ),
                 [],
             );
@@ -167,7 +165,6 @@ export class ValidationService {
                             existingMetricIds,
                             field,
                             `Metric error: the field '${field}' no longer exists`,
-                            `The field '${field}' no longer exists and is being used as a metric.`,
                         ),
                     [],
                 );
@@ -181,7 +178,6 @@ export class ValidationService {
                         existingFieldIds,
                         field.target.fieldId,
                         `Filter error: the field '${field.target.fieldId}' no longer exists`,
-                        `The field '${field.target.fieldId}' no longer exists and is being used as a filter.`,
                     ),
                 [],
             );
@@ -195,13 +191,13 @@ export class ValidationService {
                         existingFieldIds,
                         field.fieldId,
                         `Sorting error: the field '${field.fieldId}' no longer exists`,
-                        `The field '${field.fieldId}' no longer exists and is being used as a sort.`,
                     ),
                 [],
             );
 
             /*
-            // I think this is redundant, as we already check dimension/metrics
+            // I think these are redundant, as we already check dimension/metrics
+            
             const errorColumnOrder = chart.tableConfig.columnOrder
                 .filter(filterTableCalculations)
                 .filter(filterAdditionalMetrics)
@@ -210,7 +206,7 @@ export class ValidationService {
                         `Table error: the field '${field}' no longer exists`, 
                         `The field '${field}' no longer exists and is being used to order table columns.`)
                 }, []);
-                */
+               
 
             const tableCalculationErrors =
                 ValidationService.getTableCalculationFieldIds(
@@ -225,15 +221,13 @@ export class ValidationService {
                             `The field '${field}' no longer exists and is being used as a table calculation.`,
                         ),
                     [],
-                );
+                ); */
 
-            // TODO add more validation
             return [
                 ...dimensionErrors,
                 ...metricErrors,
                 ...filterErrors,
                 ...sortErrors,
-                ...tableCalculationErrors,
             ];
         });
 
@@ -270,12 +264,12 @@ export class ValidationService {
                     dashboardUuid: dashboard.uuid,
                     projectUuid: dashboard.projectUuid,
                     lastUpdatedBy: `${dashboard.updatedByUser?.firstName} ${dashboard.updatedByUser?.lastName}`,
+                    lastUpdatedTime: dashboard.updatedAt,
                 };
                 const containsFieldId = (
                     acc: ValidationResponse[],
                     fieldIds: string[],
                     fieldId: string,
-                    summary: string,
                     error: string,
                 ) => {
                     if (!fieldIds?.includes(fieldId)) {
@@ -283,7 +277,6 @@ export class ValidationService {
                             ...acc,
                             {
                                 ...commonValidation,
-                                summary,
                                 error,
                             },
                         ];
@@ -303,7 +296,6 @@ export class ValidationService {
                             existingFieldIds,
                             filter.target.fieldId,
                             `Filter error: the field '${filter}' no longer exists`,
-                            `The field '${filter}' no longer exists and is being used as a dashboard filter.`,
                         ),
                     [],
                 );
@@ -322,7 +314,6 @@ export class ValidationService {
                                 {
                                     ...commonValidation,
                                     error: `The chart '${brokenChart.name}' is broken on this dashboard.`,
-                                    summary: `Chart error: the chart '${brokenChart.name}' has an error.`,
                                 },
                             ];
                         }

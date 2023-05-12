@@ -19,7 +19,6 @@ export async function up(knex: Knex): Promise<void> {
                 .references('dashboard_uuid')
                 .inTable('dashboards')
                 .onDelete('CASCADE');
-            table.string('summary').notNullable();
             table.string('error').notNullable();
             table
                 .uuid('project_uuid')
