@@ -5,7 +5,6 @@ export type DbValidationTable = {
     saved_chart_uuid: string | null;
     dashboard_uuid: string | null;
     project_uuid: string;
-    summary: string;
     error: string;
 };
 

@@ -20,7 +20,6 @@ export class ValidationModel {
                     saved_chart_uuid: validation.chartUuid,
                     dashboard_uuid: validation.dashboardUuid,
                     project_uuid: validation.projectUuid,
-                    summary: validation.summary,
                     error: validation.error,
                 }),
             );

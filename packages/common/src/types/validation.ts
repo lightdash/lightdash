@@ -4,9 +4,9 @@ export type ValidationResponse = {
     chartUuid?: string;
     dashboardUuid?: string;
     projectUuid: string;
-    summary: string;
     error: string;
     lastUpdatedBy: string;
+    lastUpdatedTime: Date;
 };
 
 export type ApiValidateResponse = {
