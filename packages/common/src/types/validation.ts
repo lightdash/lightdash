@@ -6,8 +6,8 @@ export type ValidationResponse = {
     dashboardUuid?: string;
     projectUuid: string;
     error: string;
-    lastUpdatedBy: string;
-    lastUpdatedAt: Date;
+    lastUpdatedBy?: string;
+    lastUpdatedAt?: Date;
 };
 
 export type ApiValidateResponse = {
