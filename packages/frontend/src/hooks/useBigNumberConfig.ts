@@ -228,6 +228,7 @@ const useBigNumberConfig = (
               compact: bigNumberStyle,
           });
 
+    const NOT_APPLICABLE = 'n/a';
     const unformattedValue =
         isNumber(item, secondRowValueRaw) && isNumber(item, firstRowValueRaw)
             ? calculateComparisonValue(
@@ -235,7 +236,7 @@ const useBigNumberConfig = (
                   Number(secondRowValueRaw),
                   comparisonFormat,
               )
-            : 'N/A';
+            : NOT_APPLICABLE;
 
     const comparisonDiff = useMemo(() => {
         return unformattedValue > 0
@@ -250,8 +251,8 @@ const useBigNumberConfig = (
     }, [unformattedValue]);
 
     const comparisonValue =
-        unformattedValue === 'N/A'
-            ? 'N/A'
+        unformattedValue === NOT_APPLICABLE
+            ? NOT_APPLICABLE
             : formatComparisonValue(
                   comparisonFormat,
                   comparisonDiff,

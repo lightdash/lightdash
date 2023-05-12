@@ -1,3 +1,4 @@
+import { Colors } from '@blueprintjs/core';
 import { ComparisonDiffTypes } from '@lightdash/common';
 import { IconArrowDownRight, IconArrowUpRight } from '@tabler/icons-react';
 import clamp from 'lodash-es/clamp';
@@ -102,6 +103,15 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
         };
     }, [observerElementSize]);
 
+    const comparisonValueColor = useMemo(() => {
+        switch (comparisonDiff) {
+            case ComparisonDiffTypes.NAN:
+                return Colors.GRAY3;
+            case ComparisonDiffTypes.UNDEFINED:
+                return Colors.GRAY3;
+        }
+    }, [comparisonDiff]);
+
     const validData = bigNumber && resultsData?.rows.length;
 
     if (isLoading) return <LoadingChart />;
@@ -151,6 +161,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                             marginTop: 10,
                             display: 'flex',
                             alignItems: 'center',
+                            color: comparisonValueColor,
                         }}
                     >
                         {comparisonValue}
