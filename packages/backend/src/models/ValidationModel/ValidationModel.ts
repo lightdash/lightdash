@@ -1,7 +1,13 @@
 import { ValidationResponse } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
-    ValidationInsert,
+    SavedChartsTableName,
+    SavedChartTable,
+    SavedChartVersionsTableName,
+} from '../../database/entities/savedCharts';
+import { UserTable, UserTableName } from '../../database/entities/users';
+import {
+    DbValidationTable,
     ValidationTableName,
 } from '../../database/entities/validation';
 
@@ -38,34 +44,33 @@ export class ValidationModel {
     }
 
     async get(projectUuid: string): Promise<ValidationResponse[]> {
-        const chartsAndErrorsRows: (DbValidationTable & {
-            name: string;
-            first_name: string;
-            last_name: string;
-        })[] = await this.database(ValidationTableName)
-            .select(`${ValidationTableName}.*`)
-            .leftJoin(
-                SavedChartsTableName,
-                `${SavedChartsTableName}.saved_query_uuid`,
-                `${ValidationTableName}.saved_chart_uuid`,
-            )
-            .innerJoin(
-                `${SavedChartVersionsTableName}`,
-                `${SavedChartsTableName}.saved_query_id`,
-                `${SavedChartVersionsTableName}.saved_query_id`,
-            )
-            .leftJoin(
-                UserTableName,
-                `${SavedChartsTableName}.updated_by_user_uuid`,
-                `${UserTableName}.user_uuid`,
-            )
-            .where('project_uuid', projectUuid)
-            .select([
-                `${ValidationTableName}.*`,
-                `${SavedChartsTableName}.name`,
-                `${UserTableName}.first_name`,
-                `${UserTableName}.last_name`,
-            ]);
+        const chartsAndErrorsRows: (DbValidationTable &
+            Pick<SavedChartTable['base'], 'name'> &
+            Pick<UserTable['base'], 'first_name' | 'last_name'>)[] =
+            await this.database(ValidationTableName)
+                .select(`${ValidationTableName}.*`)
+                .leftJoin(
+                    SavedChartsTableName,
+                    `${SavedChartsTableName}.saved_query_uuid`,
+                    `${ValidationTableName}.saved_chart_uuid`,
+                )
+                .innerJoin(
+                    `${SavedChartVersionsTableName}`,
+                    `${SavedChartsTableName}.saved_query_id`,
+                    `${SavedChartVersionsTableName}.saved_query_id`,
+                )
+                .leftJoin(
+                    UserTableName,
+                    `${SavedChartsTableName}.updated_by_user_uuid`,
+                    `${UserTableName}.user_uuid`,
+                )
+                .where('project_uuid', projectUuid)
+                .select([
+                    `${ValidationTableName}.*`,
+                    `${SavedChartsTableName}.name`,
+                    `${UserTableName}.first_name`,
+                    `${UserTableName}.last_name`,
+                ]);
 
         const chartValidationErrors = Promise.all(
             chartsAndErrorsRows.map(async (validationError) => ({
