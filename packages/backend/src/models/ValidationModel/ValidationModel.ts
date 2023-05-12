@@ -44,7 +44,7 @@ export class ValidationModel {
     }
 
     async get(projectUuid: string): Promise<ValidationResponse[]> {
-        const chartsAndErrorsRows: (DbValidationTable &
+        const chartValidationErrorsRows: (DbValidationTable &
             Pick<SavedChartTable['base'], 'name'> &
             Pick<UserTable['base'], 'first_name' | 'last_name'>)[] =
             await this.database(ValidationTableName)
@@ -73,8 +73,9 @@ export class ValidationModel {
                 ]);
 
         const chartValidationErrors = Promise.all(
-            chartsAndErrorsRows.map(async (validationError) => ({
+            chartValidationErrorsRows.map(async (validationError) => ({
                 createdAt: validationError.created_at,
+                chartUuid: validationError.saved_chart_uuid ?? undefined,
                 projectUuid: validationError.project_uuid,
                 summary: validationError.summary,
                 error: validationError.error,
