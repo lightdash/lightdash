@@ -23,6 +23,7 @@ import { IconSearch } from '@tabler/icons-react';
 import { FC, MouseEventHandler, useMemo, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 
+import { GLOBAL_SEARCH_MIN_QUERY_LENGTH } from '../../../hooks/globalSearch/useGlobalSearch';
 import { useProject } from '../../../hooks/useProject';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
@@ -226,7 +227,11 @@ const GlobalSearch: FC<GlobalSearchProps> = ({ projectUuid }) => {
 
             <MantineProvider inherit theme={{ colorScheme: 'light' }}>
                 <SpotlightProvider
-                    actions={query && query.length > 2 ? searchItems : []}
+                    actions={
+                        query && query.length >= GLOBAL_SEARCH_MIN_QUERY_LENGTH
+                            ? searchItems
+                            : []
+                    }
                     highlightQuery
                     searchIcon={
                         isSearching ? (
@@ -240,6 +245,7 @@ const GlobalSearch: FC<GlobalSearchProps> = ({ projectUuid }) => {
                     cleanQueryOnClose
                     searchPlaceholder={`Search ${project.data?.name}...`}
                     onQueryChange={setQuery}
+                    limit={Number.POSITIVE_INFINITY}
                     nothingFoundMessage={
                         !query
                             ? 'Start typing to search everything in the project'
