@@ -369,27 +369,29 @@ export const pivotQueryResults = ({
     }
 
     const titleFields: PivotData['titleFields'] = create2DArray(
-        headerValueTypes.length,
-        indexValueTypes.length,
+        hasHeader ? headerValueTypes.length : 1,
+        hasIndex ? indexValueTypes.length : 1,
     );
-    if (hasHeader && hasIndex) {
-        headerValueTypes.forEach((headerValueType, headerIndex) => {
-            if (headerValueType.type === FieldType.DIMENSION) {
-                titleFields[headerIndex][indexValueTypes.length - 1] = {
-                    fieldId: headerValueType.fieldId,
-                    direction: 'header',
-                };
-            }
-        });
-        indexValueTypes.forEach((indexValueType, indexIndex) => {
-            if (indexValueType.type === FieldType.DIMENSION) {
-                titleFields[headerValueTypes.length - 1][indexIndex] = {
-                    fieldId: indexValueType.fieldId,
-                    direction: 'index',
-                };
-            }
-        });
-    }
+    headerValueTypes.forEach((headerValueType, headerIndex) => {
+        if (headerValueType.type === FieldType.DIMENSION) {
+            titleFields[headerIndex][
+                hasIndex ? indexValueTypes.length - 1 : 0
+            ] = {
+                fieldId: headerValueType.fieldId,
+                direction: 'header',
+            };
+        }
+    });
+    indexValueTypes.forEach((indexValueType, indexIndex) => {
+        if (indexValueType.type === FieldType.DIMENSION) {
+            titleFields[hasHeader ? headerValueTypes.length - 1 : 0][
+                indexIndex
+            ] = {
+                fieldId: indexValueType.fieldId,
+                direction: 'index',
+            };
+        }
+    });
 
     return {
         titleFields,

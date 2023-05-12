@@ -156,13 +156,8 @@ const PivotTable: FC<PivotTableProps> = ({
                                 )}
 
                                 {/* renders the title labels */}
-                                {data.indexValueTypes.map(
-                                    (_indexValueType, indexColIndex) => {
-                                        const titleField =
-                                            data.titleFields[headerRowIndex][
-                                                indexColIndex
-                                            ];
-
+                                {data.titleFields[headerRowIndex].map(
+                                    (titleField, titleFieldIndex) => {
                                         const field = titleField?.fieldId
                                             ? getField(titleField?.fieldId)
                                             : undefined;
@@ -174,7 +169,7 @@ const PivotTable: FC<PivotTableProps> = ({
 
                                         return (
                                             <TitleCell
-                                                key={`title-${headerRowIndex}-${indexColIndex}`}
+                                                key={`title-${headerRowIndex}-${titleFieldIndex}`}
                                                 className={cellCx(
                                                     cellStyles.root,
                                                     cellStyles.header,
@@ -279,6 +274,17 @@ const PivotTable: FC<PivotTableProps> = ({
                                     {rowIndex + 1}
                                 </td>
                             )}
+
+                            {/* renders empty rows if there are no index values but titles */}
+                            {data.indexValueTypes.length === 0 &&
+                                data.titleFields[0].map(
+                                    (_titleField, titleFieldIndex) => (
+                                        <td
+                                            key={`empty-title-${rowIndex}-${titleFieldIndex}`}
+                                            className={cellCx(cellStyles.root)}
+                                        />
+                                    ),
+                                )}
 
                             {/* renders the index values or labels */}
                             {data.indexValueTypes.map(

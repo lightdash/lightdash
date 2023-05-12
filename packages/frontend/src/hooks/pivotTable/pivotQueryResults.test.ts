@@ -81,7 +81,7 @@ describe('Should pivot data', () => {
             columnTotals: undefined,
 
             pivotConfig,
-            titleFields: [[], []],
+            titleFields: [[{ direction: 'header', fieldId: 'page' }], [null]],
         };
         const result = pivotQueryResults({
             pivotConfig,
