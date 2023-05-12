@@ -17,7 +17,10 @@ import {
 } from '@lightdash/common';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import React, { useState } from 'react';
-import { Wrapper } from '../ChartConfigPanel/ChartConfigPanel.styles';
+import {
+    InputWrapper,
+    Wrapper,
+} from '../ChartConfigPanel/ChartConfigPanel.styles';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 
@@ -66,7 +69,7 @@ const BigNumberConfigTabs = () => {
                     id="layout"
                     title="Layout"
                     panel={
-                        <>
+                        <InputWrapper>
                             <FormGroup labelFor="bignumber-field" label="Field">
                                 <FieldAutoComplete
                                     id="bignumber-field"
@@ -131,7 +134,7 @@ const BigNumberConfigTabs = () => {
                                     />
                                 </FormGroup>
                             )}
-                        </>
+                        </InputWrapper>
                     }
                 />
 
@@ -139,7 +142,7 @@ const BigNumberConfigTabs = () => {
                     id="comparison"
                     title="Comparison"
                     panel={
-                        <>
+                        <InputWrapper>
                             <FormGroup
                                 labelFor="bignumber-comparison"
                                 label="Compare to previous row"
@@ -206,7 +209,7 @@ const BigNumberConfigTabs = () => {
                             >
                                 <InputGroup
                                     id="comparison-label"
-                                    placeholder="Add a label for your comparison"
+                                    placeholder="Add an optional label"
                                     defaultValue={comparisonLabel}
                                     onBlur={(e) =>
                                         setComparisonLabel(
@@ -215,7 +218,7 @@ const BigNumberConfigTabs = () => {
                                     }
                                 />
                             </FormGroup>
-                        </>
+                        </InputWrapper>
                     }
                 />
             </Tabs>
