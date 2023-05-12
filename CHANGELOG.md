@@ -1,3 +1,10 @@
+# [0.548.0](https://github.com/lightdash/lightdash/compare/0.547.0...0.548.0) (2023-05-12)
+
+
+### Features
+
+* big number comp color switch ([#5464](https://github.com/lightdash/lightdash/issues/5464)) ([b8d5a14](https://github.com/lightdash/lightdash/commit/b8d5a14566657df0bd762ad8dcca70cc280d4a75))
+
 # [0.547.0](https://github.com/lightdash/lightdash/compare/0.546.1...0.547.0) (2023-05-12)
 
 
