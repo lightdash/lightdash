@@ -104,9 +104,9 @@ export class ValidationModel {
                 projectUuid: validationError.project_uuid,
                 error: validationError.error,
                 name: validationError.name,
-                ...(!!validationError.first_name && {
-                    lastUpdatedBy: `${validationError.first_name} ${validationError.last_name}`,
-                }),
+                lastUpdatedBy: validationError.first_name
+                    ? `${validationError.first_name} ${validationError.last_name}`
+                    : undefined,
                 lastUpdatedAt: validationError.created_at,
                 validationId: validationError.validation_id,
                 spaceUuid: validationError.space_uuid,
@@ -164,9 +164,9 @@ export class ValidationModel {
                 projectUuid: validationError.project_uuid,
                 error: validationError.error,
                 name: validationError.name,
-                ...(!!validationError.first_name && {
-                    lastUpdatedBy: `${validationError.first_name} ${validationError.last_name}`,
-                }),
+                lastUpdatedBy: validationError.first_name
+                    ? `${validationError.first_name} ${validationError.last_name}`
+                    : undefined,
                 lastUpdatedAt: validationError.created_at,
                 validationId: validationError.validation_id,
                 spaceUuid: validationError.space_uuid,
