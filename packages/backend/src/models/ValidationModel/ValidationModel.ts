@@ -64,15 +64,15 @@ export class ValidationModel {
                     `${SavedChartsTableName}.saved_query_uuid`,
                     `${ValidationTableName}.saved_chart_uuid`,
                 )
-                .innerJoin(
+                .leftJoin(
                     SpaceTableName,
                     `${SpaceTableName}.space_id`,
                     `${SavedChartsTableName}.space_id`,
                 )
-                .innerJoin(
+                .leftJoin(
                     `${SavedChartVersionsTableName}`,
-                    `${SavedChartsTableName}.saved_query_id`,
                     `${SavedChartVersionsTableName}.saved_query_id`,
+                    `${SavedChartsTableName}.saved_query_id`,
                 )
                 .leftJoin(
                     UserTableName,
@@ -89,10 +89,17 @@ export class ValidationModel {
                     `${UserTableName}.first_name`,
                     `${UserTableName}.last_name`,
                     `${SpaceTableName}.space_uuid`,
-                ]);
+                ])
+                .orderBy([
+                    {
+                        column: `${SavedChartVersionsTableName}.saved_query_id`,
+                        order: 'desc',
+                    },
+                ])
+                .distinctOn(`${SavedChartVersionsTableName}.saved_query_id`);
 
-        const chartValidationErrors = await Promise.all(
-            chartValidationErrorsRows.map(async (validationError) => ({
+        const chartValidationErrors = chartValidationErrorsRows.map(
+            (validationError) => ({
                 createdAt: validationError.created_at,
                 chartUuid: validationError.saved_chart_uuid ?? undefined,
                 projectUuid: validationError.project_uuid,
@@ -102,7 +109,7 @@ export class ValidationModel {
                 lastUpdatedAt: validationError.created_at,
                 validationId: validationError.validation_id,
                 spaceUuid: validationError.space_uuid,
-            })),
+            }),
         );
 
         const dashboardValidationErrorsRows: (DbValidationTable &
@@ -116,12 +123,12 @@ export class ValidationModel {
                     `${DashboardsTableName}.dashboard_uuid`,
                     `${ValidationTableName}.dashboard_uuid`,
                 )
-                .innerJoin(
+                .leftJoin(
                     SpaceTableName,
                     `${DashboardsTableName}.space_id`,
                     `${SpaceTableName}.space_id`,
                 )
-                .innerJoin(
+                .leftJoin(
                     `${DashboardVersionsTableName}`,
                     `${DashboardsTableName}.dashboard_id`,
                     `${DashboardVersionsTableName}.dashboard_id`,
@@ -140,10 +147,17 @@ export class ValidationModel {
                     `${UserTableName}.first_name`,
                     `${UserTableName}.last_name`,
                     `${SpaceTableName}.space_uuid`,
-                ]);
+                ])
+                .orderBy([
+                    {
+                        column: `${DashboardVersionsTableName}.dashboard_id`,
+                        order: 'desc',
+                    },
+                ])
+                .distinctOn(`${DashboardVersionsTableName}.dashboard_id`);
 
-        const dashboardValidationErrors = await Promise.all(
-            dashboardValidationErrorsRows.map(async (validationError) => ({
+        const dashboardValidationErrors = dashboardValidationErrorsRows.map(
+            (validationError) => ({
                 createdAt: validationError.created_at,
                 dashboardUuid: validationError.dashboard_uuid ?? undefined,
                 projectUuid: validationError.project_uuid,
@@ -153,7 +167,7 @@ export class ValidationModel {
                 lastUpdatedAt: validationError.created_at,
                 validationId: validationError.validation_id,
                 spaceUuid: validationError.space_uuid,
-            })),
+            }),
         );
 
         const tableValidationErrorsRows: DbValidationTable[] =
@@ -163,14 +177,14 @@ export class ValidationModel {
                 .whereNull('saved_chart_uuid')
                 .whereNull('dashboard_uuid');
 
-        const tableValidationErrors = await Promise.all(
-            tableValidationErrorsRows.map(async (validationError) => ({
+        const tableValidationErrors = tableValidationErrorsRows.map(
+            (validationError) => ({
                 createdAt: validationError.created_at,
                 projectUuid: validationError.project_uuid,
                 error: validationError.error,
                 name: 'Table',
                 validationId: validationError.validation_id,
-            })),
+            }),
         );
 
         return [
