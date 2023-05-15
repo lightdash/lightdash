@@ -16,6 +16,7 @@ import { UpdateProjectConnection } from '../components/ProjectConnection';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
 import SettingsScheduledDeliveries from '../components/SettingsScheduledDeliveries';
 import SettingsUsageAnalytics from '../components/SettingsUsageAnalytics';
+import { SettingsValidation } from '../components/SettingsValidation';
 import { useProject } from '../hooks/useProject';
 import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
@@ -27,7 +28,8 @@ enum SettingsTabs {
     TABLES_CONFIGURATION = 'tablesConfiguration',
     PROJECT_ACCESS = 'projectAccess',
     USAGE_ANALYTICS = 'usageAnalytics',
-    SCHEDULED_DELIVERTIES = 'scheduledDeliveries',
+    SCHEDULED_DELIVERIES = 'scheduledDeliveries',
+    VALIDATION = 'validation',
 }
 
 enum IntegrationsTabs {
@@ -114,7 +116,7 @@ const ProjectSettings: FC = () => {
                         />
                     )}
                     <Tab
-                        id={SettingsTabs.SCHEDULED_DELIVERTIES}
+                        id={SettingsTabs.SCHEDULED_DELIVERIES}
                         title="Scheduled Deliveries"
                     />
                 </Tabs>
@@ -153,9 +155,12 @@ const ProjectSettings: FC = () => {
                 </Route>
                 <Route
                     exact
-                    path={`${basePath}/${SettingsTabs.SCHEDULED_DELIVERTIES}`}
+                    path={`${basePath}/${SettingsTabs.SCHEDULED_DELIVERIES}`}
                 >
                     <SettingsScheduledDeliveries projectUuid={projectUuid} />
+                </Route>
+                <Route exact path={`${basePath}/${SettingsTabs.VALIDATION}`}>
+                    <SettingsValidation projectUuid={projectUuid} />
                 </Route>
                 <Redirect to={basePath} />
             </Switch>
