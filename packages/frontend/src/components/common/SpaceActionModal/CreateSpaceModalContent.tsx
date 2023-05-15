@@ -58,7 +58,7 @@ const CreateSpaceModalContent: FC<CreateSpaceModalBody> = ({
                             onClick={() => setIsShared(false)}
                         />
                         <RadioDescription>
-                            Only you can access this space.
+                            Only you and admins can access this space.
                         </RadioDescription>
                         <Radio
                             label="Shared"
