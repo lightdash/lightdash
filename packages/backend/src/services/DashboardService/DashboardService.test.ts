@@ -1,4 +1,8 @@
-import { defineUserAbility, ForbiddenError } from '@lightdash/common';
+import {
+    defineUserAbility,
+    ForbiddenError,
+    SessionUser,
+} from '@lightdash/common';
 import { analytics } from '../../analytics/client';
 import {
     analyticsModel,
@@ -281,7 +285,7 @@ describe('DashboardService', () => {
         );
     });
 
-    test('should not see dashboard from private space', async () => {
+    test('should not see dashboard from private space if you are not admin', async () => {
         (spaceModel.getFullSpace as jest.Mock).mockImplementationOnce(
             async () => privateSpace,
         );
@@ -289,6 +293,17 @@ describe('DashboardService', () => {
         await expect(
             service.getById(user, dashboard.uuid),
         ).rejects.toThrowError(ForbiddenError);
+    });
+    test('should see dashboard from private space if you are admin', async () => {
+        (spaceModel.getFullSpace as jest.Mock).mockImplementationOnce(
+            async () => privateSpace,
+        );
+
+        const result = await service.getById(user, dashboard.uuid);
+
+        expect(result).toEqual(dashboard);
+        expect(dashboardModel.getById).toHaveBeenCalledTimes(1);
+        expect(dashboardModel.getById).toHaveBeenCalledWith(dashboard.uuid);
     });
 
     test('should not see dashboards from private space', async () => {

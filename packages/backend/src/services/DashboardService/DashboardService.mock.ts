@@ -30,6 +30,10 @@ export const user: SessionUser = {
             subject: 'Dashboard',
             action: ['view', 'update', 'delete', 'create'],
         },
+        {
+            subject: 'Project',
+            action: ['manage'],
+        },
     ]),
     isActive: true,
     abilityRules: [],
