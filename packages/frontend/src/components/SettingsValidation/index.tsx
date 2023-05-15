@@ -1,5 +1,6 @@
 import { ValidationResponse } from '@lightdash/common';
 import {
+    Alert,
     Button,
     clsx,
     Flex,
@@ -10,6 +11,7 @@ import {
     useMantineTheme,
 } from '@mantine/core';
 import {
+    IconAlertCircle,
     IconChartBar,
     IconLayoutDashboard,
     IconTable,
@@ -21,6 +23,7 @@ import {
     useValidation,
     useValidationMutation,
 } from '../../hooks/validation/useValidation';
+import MantineIcon from '../common/MantineIcon';
 import { IconBox } from '../common/ResourceView/ResourceIcon';
 
 const UpdatedAtAndBy: FC<
@@ -30,8 +33,12 @@ const UpdatedAtAndBy: FC<
 
     return (
         <>
-            <Text fw={500}>{timeAgo}</Text>
-            <Text color="gray.6">by {lastUpdatedBy}</Text>
+            <Text fz="xs" fw={500}>
+                {timeAgo}
+            </Text>
+            <Text fz="xs" color="gray.6">
+                by {lastUpdatedBy}
+            </Text>
         </>
     );
 };
@@ -115,9 +122,24 @@ export const SettingsValidation: FC<{ projectUuid: string }> = ({
                                         </Flex>
                                     </td>
                                     <td>
-                                        <Text color="gray.8" fw={500}>
+                                        <Alert
+                                            icon={
+                                                <MantineIcon
+                                                    icon={IconAlertCircle}
+                                                />
+                                            }
+                                            // title={validationError.error}
+                                            color="red"
+                                            fw={500}
+                                            fz="sm"
+                                        >
                                             {validationError.error}
-                                        </Text>
+                                        </Alert>
+                                        {/* <Text
+                                            color="gray.8"
+                                            fw={500}
+                                            fz="sm"
+                                        ></Text> */}
                                     </td>
                                     <td>
                                         {validationError.lastUpdatedAt &&
@@ -131,7 +153,9 @@ export const SettingsValidation: FC<{ projectUuid: string }> = ({
                                                 }
                                             />
                                         ) : (
-                                            <Text fw={500}>N/A</Text>
+                                            <Text fz="xs" fw={500}>
+                                                N/A
+                                            </Text>
                                         )}
                                     </td>
                                 </tr>
