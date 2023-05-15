@@ -103,6 +103,33 @@ describe('Lightdash API tests for member user with admin project permissions', (
         });
     });
 
+    it('Should get success response (200) from GET validation', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        const endpoint = `/projects/${projectUuid}/validate`;
+        cy.request({
+            url: `${apiUrl}${endpoint}`,
+            method: 'GET',
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body).to.have.property('status', 'ok');
+        });
+    });
+    it('Should get success response (200) from POST validation', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        const endpoint = `/projects/${projectUuid}/validate`;
+        cy.request({
+            url: `${apiUrl}${endpoint}`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            body: runqueryBody,
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body).to.have.property('status', 'ok');
+        });
+    });
+
     it('Should get success response (200) from POST chart results', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
@@ -423,6 +450,33 @@ describe('Lightdash API tests for member user with editor project permissions', 
         });
     });
 
+    it('Should get forbidden (403) from GET validation', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        const endpoint = `/projects/${projectUuid}/validate`;
+        cy.request({
+            url: `${apiUrl}${endpoint}`,
+            method: 'GET',
+            failOnStatusCode: false,
+        }).then((resp) => {
+            expect(resp.status).to.eq(403);
+        });
+    });
+    it('Should get forbidden (403) from POST validation', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        const endpoint = `/projects/${projectUuid}/validate`;
+        cy.request({
+            url: `${apiUrl}${endpoint}`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            body: runqueryBody,
+            failOnStatusCode: false,
+        }).then((resp) => {
+            expect(resp.status).to.eq(403);
+        });
+    });
+
     it('Should get a forbidden (403) from PATCH project', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
@@ -584,6 +638,33 @@ describe('Lightdash API tests for member user with developer project permissions
             headers: { 'Content-type': 'application/json' },
             method: 'POST',
             body: sqlQueryBody,
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body).to.have.property('status', 'ok');
+        });
+    });
+
+    it('Should get success response (200) from GET validation', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        const endpoint = `/projects/${projectUuid}/validate`;
+        cy.request({
+            url: `${apiUrl}${endpoint}`,
+            method: 'GET',
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body).to.have.property('status', 'ok');
+        });
+    });
+    it('Should get success response (200) from POST validation', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        const endpoint = `/projects/${projectUuid}/validate`;
+        cy.request({
+            url: `${apiUrl}${endpoint}`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            body: runqueryBody,
         }).then((resp) => {
             expect(resp.status).to.eq(200);
             expect(resp.body).to.have.property('status', 'ok');

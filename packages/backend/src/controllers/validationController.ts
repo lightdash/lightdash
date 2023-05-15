@@ -19,7 +19,7 @@ import {
 import { validationService } from '../services/services';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 
-@Route('/api/v1/{projectUuid}/validate')
+@Route('/api/v1/projects/{projectUuid}/validate')
 @Response<ApiErrorPayload>('default', 'Error')
 export class ValidationController extends Controller {
     /**

@@ -717,25 +717,36 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                name: { dataType: 'string', required: true },
-                uuid: { dataType: 'string', required: true },
-                description: { dataType: 'string' },
-                spaceUuid: { dataType: 'string', required: true },
-                spaceName: { dataType: 'string', required: true },
+    'Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid_':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    name: { dataType: 'string', required: true },
+                    organizationUuid: { dataType: 'string', required: true },
+                    uuid: { dataType: 'string', required: true },
+                    description: { dataType: 'string' },
+                    projectUuid: { dataType: 'string', required: true },
+                    spaceUuid: { dataType: 'string', required: true },
+                    pinnedListUuid: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                    spaceName: { dataType: 'string', required: true },
+                },
+                validators: {},
             },
-            validators: {},
         },
-    },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ChartSummary: {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid_',
+            ref: 'Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid_',
             validators: {},
         },
     },
@@ -3177,7 +3188,7 @@ export function RegisterRoutes(app: express.Router) {
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.post(
-        '/api/v1/:projectUuid/validate',
+        '/api/v1/projects/:projectUuid/validate',
         ...fetchMiddlewares<RequestHandler>(ValidationController),
         ...fetchMiddlewares<RequestHandler>(
             ValidationController.prototype.post,
@@ -3223,7 +3234,7 @@ export function RegisterRoutes(app: express.Router) {
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.get(
-        '/api/v1/:projectUuid/validate',
+        '/api/v1/projects/:projectUuid/validate',
         ...fetchMiddlewares<RequestHandler>(ValidationController),
         ...fetchMiddlewares<RequestHandler>(ValidationController.prototype.get),
 
