@@ -72,6 +72,7 @@ import { SlackChannel } from './types/slack';
 import { Space } from './types/space';
 import { TableBase } from './types/table';
 import { LightdashUser, UserAllowedOrganization } from './types/user';
+import { ApiValidateResponse } from './types/validation';
 import { formatItemValue } from './utils/formatting';
 import { getItemId, getItemLabelWithoutTableName } from './utils/item';
 
@@ -479,7 +480,8 @@ type ApiResults =
     | ApiScheduledDownloadCsv
     | PinnedItems
     | ViewStatistics
-    | SchedulerWithLogs;
+    | SchedulerWithLogs
+    | ApiValidateResponse;
 
 export type ApiResponse = {
     status: 'ok';
