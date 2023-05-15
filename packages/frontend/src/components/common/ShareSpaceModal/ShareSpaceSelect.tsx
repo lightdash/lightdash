@@ -47,8 +47,8 @@ export const enum SpaceAccessType {
 export const SpaceAccessOptions: AccessOption[] = [
     {
         title: 'Restricted access',
-        description: 'Only invited members can access',
-        selectDescription: 'Only invited members can access',
+        description: 'Only invited members and admins can access',
+        selectDescription: 'Only invited members and admins can access',
         value: SpaceAccessType.PRIVATE,
     },
     {
