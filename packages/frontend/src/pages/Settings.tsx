@@ -238,7 +238,19 @@ const Settings: FC = () => {
                             </div>
                             <AllowedDomainsPanel />
                         </CardContainer>
-                        <DeleteOrganizationPanel />
+                        {user.ability?.can('delete', 'Organization') && (
+                            <CardContainer>
+                                <div>
+                                    <Title order={4}>Danger zone </Title>
+                                    <Description>
+                                        This action deletes the whole workspace
+                                        and all its content, including users.
+                                        This action is not reversible.
+                                    </Description>
+                                </div>
+                                <DeleteOrganizationPanel />
+                            </CardContainer>
+                        )}
                     </Route>
                 )}
 
