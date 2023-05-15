@@ -68,11 +68,10 @@ describe('validation', () => {
 
         expect({ ...errors[0], createdAt: undefined }).toEqual({
             createdAt: undefined,
-            dashboardUuid: null,
             error: "Dimension error: the field 'table_dimension' no longer exists",
             name: 'Test chart',
             projectUuid: 'projectUuid',
-            savedChartUuid: 'chartUuid',
+            chartUuid: 'chartUuid',
         });
 
         const expectedErrors: string[] = [
@@ -95,11 +94,10 @@ describe('validation', () => {
 
         expect({ ...errors[0], createdAt: undefined }).toEqual({
             createdAt: undefined,
-            dashboardUuid: null,
             error: "Metric error: the field 'table_metric' no longer exists",
             name: 'Test chart',
             projectUuid: 'projectUuid',
-            savedChartUuid: 'chartUuid',
+            chartUuid: 'chartUuid',
         });
 
         const expectedErrors: string[] = [
@@ -121,10 +119,9 @@ describe('validation', () => {
 
         expect({ ...errors[0], createdAt: undefined }).toEqual({
             createdAt: undefined,
-            dashboardUuid: null,
+            name: 'valid_explore',
             error: 'Explore error message',
             projectUuid: 'projectUuid',
-            savedChartUuid: null,
         });
 
         expect(errors.map((error) => error.error)[0]).toEqual(

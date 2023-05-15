@@ -1,50 +1,29 @@
 import { subject } from '@casl/ability';
 import {
-    ApiValidateResponse,
     CompiledField,
     CreateValidation,
-    Dashboard,
     Explore,
-    ExploreCompiler,
     ExploreError,
     fieldId as getFieldId,
     ForbiddenError,
     getFilterRules,
     getSpaceAccessFromSummary,
-    isChartScheduler,
     isDashboardChartTileType,
     isDimension,
     isExploreError,
     isMetric,
-    isSlackTarget,
-    isUserWithOrg,
     OrganizationMemberRole,
-    ProjectMemberRole,
-    SavedChart,
-    ScheduledJobs,
-    Scheduler,
-    SchedulerAndTargets,
-    SchedulerLog,
     SessionUser,
-    Space,
-    SpaceSummary,
     TableCalculation,
-    UpdateSchedulerAndTargetsWithoutId,
     ValidationResponse,
 } from '@lightdash/common';
-import WarehouseBaseClient from '@lightdash/warehouses/src/warehouseClients/WarehouseBaseClient';
-import cronstrue from 'cronstrue';
-import { analytics } from '../../analytics/client';
-import { schedulerClient, slackClient } from '../../clients/clients';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
-import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { ValidationModel } from '../../models/ValidationModel/ValidationModel';
-import { ProjectService } from '../ProjectService/ProjectService';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type ServiceDependencies = {
