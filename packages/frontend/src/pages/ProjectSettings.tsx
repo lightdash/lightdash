@@ -17,7 +17,7 @@ import { UpdateProjectConnection } from '../components/ProjectConnection';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
 import SettingsScheduledDeliveries from '../components/SettingsScheduledDeliveries';
 import SettingsUsageAnalytics from '../components/SettingsUsageAnalytics';
-import { SettingsValidation } from '../components/SettingsValidation';
+import { SettingsValidator } from '../components/SettingsValidator';
 import { useProject } from '../hooks/useProject';
 import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
@@ -169,7 +169,7 @@ const ProjectSettings: FC = () => {
                     <SettingsScheduledDeliveries projectUuid={projectUuid} />
                 </Route>
                 <Route exact path={`${basePath}/${SettingsTabs.VALIDATOR}`}>
-                    <SettingsValidation projectUuid={projectUuid} />
+                    <SettingsValidator projectUuid={projectUuid} />
                 </Route>
                 <Redirect to={basePath} />
             </Switch>

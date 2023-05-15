@@ -44,7 +44,7 @@ const UpdatedAtAndBy: FC<
     );
 };
 
-export const SettingsValidation: FC<{ projectUuid: string }> = ({
+export const SettingsValidator: FC<{ projectUuid: string }> = ({
     projectUuid,
 }) => {
     const { classes } = useTableStyles();
