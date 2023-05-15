@@ -72,7 +72,7 @@ import { SlackChannel } from './types/slack';
 import { Space } from './types/space';
 import { TableBase } from './types/table';
 import { LightdashUser, UserAllowedOrganization } from './types/user';
-import { ApiValidateResponse } from './types/validation';
+import { ValidationResponse } from './types/validation';
 import { formatItemValue } from './utils/formatting';
 import { getItemId, getItemLabelWithoutTableName } from './utils/item';
 
@@ -481,7 +481,7 @@ type ApiResults =
     | PinnedItems
     | ViewStatistics
     | SchedulerWithLogs
-    | ApiValidateResponse;
+    | ValidationResponse[];
 
 export type ApiResponse = {
     status: 'ok';
