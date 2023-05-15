@@ -111,6 +111,7 @@ WHERE users.user_uuid in ('${userUuids.join(
     OR 
     (
       analytics_chart_views.timestamp is null 
+      AND users.created_at < NOW() - interval '90 days'
     )
   )
 GROUP BY users.user_uuid
