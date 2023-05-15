@@ -11,6 +11,7 @@ import {
     isDashboardVersionedFields,
     isSlackTarget,
     isUserWithOrg,
+    OrganizationMemberRole,
     SchedulerAndTargets,
     SessionUser,
     Space,
@@ -169,6 +170,7 @@ export class DashboardService {
             throw new ForbiddenError();
         }
         if (
+            user.role !== OrganizationMemberRole.ADMIN &&
             !(await this.hasDashboardSpaceAccess(
                 dashboard.spaceUuid,
                 user.userUuid,
@@ -316,6 +318,7 @@ export class DashboardService {
         }
 
         if (
+            user.role !== OrganizationMemberRole.ADMIN &&
             !(await this.hasDashboardSpaceAccess(
                 existingDashboard.spaceUuid,
                 user.userUuid,
@@ -475,7 +478,10 @@ export class DashboardService {
             throw new ForbiddenError();
         }
 
-        if (!(await this.hasDashboardSpaceAccess(spaceUuid, user.userUuid))) {
+        if (
+            user.role !== OrganizationMemberRole.ADMIN &&
+            !(await this.hasDashboardSpaceAccess(spaceUuid, user.userUuid))
+        ) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",
             );

@@ -10,6 +10,7 @@ import {
     isChartScheduler,
     isSlackTarget,
     isUserWithOrg,
+    OrganizationMemberRole,
     SavedChart,
     SchedulerAndTargets,
     SessionUser,
@@ -178,7 +179,10 @@ export class SavedChartService {
         ) {
             throw new ForbiddenError();
         }
-        if (!(await this.hasChartSpaceAccess(spaceUuid, user.userUuid))) {
+        if (
+            user.role !== OrganizationMemberRole.ADMIN &&
+            !(await this.hasChartSpaceAccess(spaceUuid, user.userUuid))
+        ) {
             throw new ForbiddenError(
                 "You don't have access to the space this chart belongs to",
             );
@@ -213,7 +217,10 @@ export class SavedChartService {
         ) {
             throw new ForbiddenError();
         }
-        if (!(await this.hasChartSpaceAccess(spaceUuid, user.userUuid))) {
+        if (
+            user.role !== OrganizationMemberRole.ADMIN &&
+            !(await this.hasChartSpaceAccess(spaceUuid, user.userUuid))
+        ) {
             throw new ForbiddenError(
                 "You don't have access to the space this chart belongs to",
             );
@@ -335,7 +342,10 @@ export class SavedChartService {
         ) {
             throw new ForbiddenError();
         }
-        if (!(await this.hasChartSpaceAccess(spaceUuid, user.userUuid))) {
+        if (
+            user.role !== OrganizationMemberRole.ADMIN &&
+            !(await this.hasChartSpaceAccess(spaceUuid, user.userUuid))
+        ) {
             throw new ForbiddenError(
                 "You don't have access to the space this chart belongs to",
             );
@@ -382,6 +392,7 @@ export class SavedChartService {
         }
 
         if (
+            user.role !== OrganizationMemberRole.ADMIN &&
             !(await this.hasChartSpaceAccess(
                 savedChart.spaceUuid,
                 user.userUuid,
