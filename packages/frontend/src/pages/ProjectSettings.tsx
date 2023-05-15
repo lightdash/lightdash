@@ -119,6 +119,7 @@ const ProjectSettings: FC = () => {
                         id={SettingsTabs.SCHEDULED_DELIVERIES}
                         title="Scheduled Deliveries"
                     />
+                    <Tab id={SettingsTabs.VALIDATION} title="Validation" />
                 </Tabs>
             </TabsWrapper>
 
