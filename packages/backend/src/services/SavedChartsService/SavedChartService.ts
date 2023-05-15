@@ -180,7 +180,10 @@ export class SavedChartService {
             throw new ForbiddenError();
         }
         if (
-            user.role !== OrganizationMemberRole.ADMIN &&
+            user.ability.cannot(
+                'manage',
+                subject('Project', { organizationUuid, projectUuid }),
+            ) &&
             !(await this.hasChartSpaceAccess(spaceUuid, user.userUuid))
         ) {
             throw new ForbiddenError(
@@ -218,7 +221,10 @@ export class SavedChartService {
             throw new ForbiddenError();
         }
         if (
-            user.role !== OrganizationMemberRole.ADMIN &&
+            user.ability.cannot(
+                'manage',
+                subject('Project', { organizationUuid, projectUuid }),
+            ) &&
             !(await this.hasChartSpaceAccess(spaceUuid, user.userUuid))
         ) {
             throw new ForbiddenError(
@@ -329,7 +335,10 @@ export class SavedChartService {
             throw new ForbiddenError();
         }
         if (
-            user.role !== OrganizationMemberRole.ADMIN &&
+            user.ability.cannot(
+                'manage',
+                subject('Project', { organizationUuid, projectUuid }),
+            ) &&
             !(await this.hasChartSpaceAccess(spaceUuid, user.userUuid))
         ) {
             throw new ForbiddenError(
@@ -377,7 +386,7 @@ export class SavedChartService {
             throw new ForbiddenError();
         }
         if (
-            user.role !== OrganizationMemberRole.ADMIN &&
+            user.ability.cannot('manage', subject('Project', savedChart)) &&
             !(await this.hasChartSpaceAccess(
                 savedChart.spaceUuid,
                 user.userUuid,
