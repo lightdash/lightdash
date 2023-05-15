@@ -25,7 +25,7 @@ export const SettingsValidation: FC<{ projectUuid: string }> = ({
             return <IconBox icon={IconChartBar} color="blue.8" />;
         if (validationError.dashboardUuid)
             return <IconBox icon={IconLayoutDashboard} color="green.8" />;
-        return <IconBox icon={IconTable} color="blue.8" />;
+        return <IconBox icon={IconTable} color="indigo.6" />;
     };
 
     return (
