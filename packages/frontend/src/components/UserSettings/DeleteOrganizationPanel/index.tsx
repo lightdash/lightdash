@@ -3,12 +3,13 @@ import { IconTrash } from '@tabler/icons-react';
 import { FC, useState } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import MantineIcon from '../../common/MantineIcon';
-import OrganizationDeleteModal from '../../common/modal/OrganizationDeleteModal';
+import { OrganizationDeleteModal } from './DeleteOrganizationModal';
 
 export const DeleteOrganizationPanel: FC = () => {
     const { isLoading: isLoading, data: organization } = useOrganization();
 
-    const [showConfirmation, setShowConfirmation] = useState<boolean>(false);
+    const [showDeleteOrganizationModal, setShowDeleteOrganizationModal] =
+        useState(false);
 
     if (isLoading || organization === undefined) return null;
 
@@ -18,15 +19,14 @@ export const DeleteOrganizationPanel: FC = () => {
                 variant="outline"
                 color="red"
                 leftIcon={<MantineIcon icon={IconTrash} />}
-                onClick={() => setShowConfirmation(true)}
+                onClick={() => setShowDeleteOrganizationModal(true)}
             >
                 Delete '{organization.name}'
             </Button>
 
             <OrganizationDeleteModal
-                isOpen={showConfirmation}
-                onClose={() => setShowConfirmation(false)}
-                onConfirm={() => setShowConfirmation(false)}
+                opened={showDeleteOrganizationModal}
+                onClose={() => setShowDeleteOrganizationModal(false)}
             />
         </Group>
     );
