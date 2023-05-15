@@ -1,5 +1,5 @@
-import { Button, Intent } from '@blueprintjs/core';
 import { OrganizationMemberRole, ProjectType } from '@lightdash/common';
+import { Button } from '@mantine/core';
 import { FC, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import {
@@ -145,14 +145,14 @@ const AllowedDomainsPanel: FC = () => {
                             )}
                     </>
                 )}
-                <div style={{ flex: 1 }} />
                 <Button
-                    style={{ alignSelf: 'flex-end', marginTop: 20 }}
-                    intent={Intent.PRIMARY}
-                    text="Update"
-                    loading={isLoading}
                     type="submit"
-                />
+                    display="block"
+                    ml="auto"
+                    loading={isLoading}
+                >
+                    Update
+                </Button>
             </Form>
         </FormWrapper>
     );
