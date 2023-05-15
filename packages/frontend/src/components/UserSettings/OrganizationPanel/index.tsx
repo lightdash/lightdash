@@ -21,7 +21,8 @@ const OrganizationPanel: FC = () => {
         if (data) {
             form.setFieldValue('organizationName', data?.name);
         }
-    }, [data, data?.name, form]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [data, data?.name]);
 
     const handleOnSubmit = form.onSubmit(({ organizationName }) => {
         updateOrganization({ ...data, name: organizationName });
