@@ -13,6 +13,7 @@ import {
 import {
     IconAlertCircle,
     IconChartBar,
+    IconCheck,
     IconLayoutDashboard,
     IconTable,
 } from '@tabler/icons-react';
@@ -81,6 +82,7 @@ export const SettingsValidation: FC<{ projectUuid: string }> = ({
                         }}
                     >
                         <Text fw={500} fz="xs" c="gray.6">
+                            {/* TODO: show created at timestamp on hover of formatted date instead? */}
                             {!!data?.length
                                 ? `Last validated at: ${data[0].createdAt}`
                                 : null}
@@ -110,57 +112,67 @@ export const SettingsValidation: FC<{ projectUuid: string }> = ({
                             </tr>
                         </thead>
                         <tbody>
-                            {data?.map((validationError) => (
-                                <tr key={validationError.name}>
-                                    <td>
-                                        <Flex gap="sm" align="center">
-                                            <Icon
-                                                validationError={
-                                                    validationError
-                                                }
-                                            />
+                            {data && data.length
+                                ? data.map((validationError) => (
+                                      <tr key={validationError.name}>
+                                          <td>
+                                              <Flex gap="sm" align="center">
+                                                  <Icon
+                                                      validationError={
+                                                          validationError
+                                                      }
+                                                  />
 
-                                            <Text fw={600} fz="xs">
-                                                {validationError.name}
-                                            </Text>
-                                        </Flex>
-                                    </td>
-                                    <td>
-                                        <Alert
-                                            icon={
-                                                <MantineIcon
-                                                    icon={IconAlertCircle}
-                                                />
-                                            }
-                                            color="red"
-                                            fw={500}
-                                        >
-                                            <Text fz="xs">
-                                                {validationError.error}
-                                            </Text>
-                                        </Alert>
-                                    </td>
-                                    <td>
-                                        {validationError.lastUpdatedAt &&
-                                        validationError.lastUpdatedBy ? (
-                                            <UpdatedAtAndBy
-                                                lastUpdatedAt={
-                                                    validationError.lastUpdatedAt
-                                                }
-                                                lastUpdatedBy={
-                                                    validationError.lastUpdatedBy
-                                                }
-                                            />
-                                        ) : (
-                                            <Text fz="xs" fw={500}>
-                                                N/A
-                                            </Text>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
+                                                  <Text fw={600} fz="xs">
+                                                      {validationError.name}
+                                                  </Text>
+                                              </Flex>
+                                          </td>
+                                          <td>
+                                              <Alert
+                                                  icon={
+                                                      <MantineIcon
+                                                          icon={IconAlertCircle}
+                                                      />
+                                                  }
+                                                  color="red"
+                                                  fw={500}
+                                              >
+                                                  <Text fz="xs">
+                                                      {validationError.error}
+                                                  </Text>
+                                              </Alert>
+                                          </td>
+                                          <td>
+                                              {validationError.lastUpdatedAt &&
+                                              validationError.lastUpdatedBy ? (
+                                                  <UpdatedAtAndBy
+                                                      lastUpdatedAt={
+                                                          validationError.lastUpdatedAt
+                                                      }
+                                                      lastUpdatedBy={
+                                                          validationError.lastUpdatedBy
+                                                      }
+                                                  />
+                                              ) : (
+                                                  <Text fz="xs" fw={500}>
+                                                      N/A
+                                                  </Text>
+                                              )}
+                                          </td>
+                                      </tr>
+                                  ))
+                                : null}
                         </tbody>
                     </Table>
+                    {!data?.length && (
+                        <Group position="center" spacing="xs" p="md">
+                            <MantineIcon icon={IconCheck} color="green" />
+                            <Text fw={500} c="gray.7">
+                                No validation errors found
+                            </Text>
+                        </Group>
+                    )}
                 </Paper>
             )}
         </>
