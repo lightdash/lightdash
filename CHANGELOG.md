@@ -1,3 +1,12 @@
+## [0.551.1](https://github.com/lightdash/lightdash/compare/0.551.0...0.551.1) (2023-05-15)
+
+
+### Bug Fixes
+
+* add correct rendering logic fot empty pats list ([#5488](https://github.com/lightdash/lightdash/issues/5488)) ([852f582](https://github.com/lightdash/lightdash/commit/852f5827b13c456353261b73a55557bd3300eb7a))
+* only pass property if first name ([#5492](https://github.com/lightdash/lightdash/issues/5492)) ([af81e31](https://github.com/lightdash/lightdash/commit/af81e314d2ce1eb9080d294367873ddebc67165e))
+* remove new users from analytics ([#5489](https://github.com/lightdash/lightdash/issues/5489)) ([26c2582](https://github.com/lightdash/lightdash/commit/26c2582d160b65d52676b5340e9e4d4f88198189))
+
 # [0.551.0](https://github.com/lightdash/lightdash/compare/0.550.2...0.551.0) (2023-05-15)
 
 
