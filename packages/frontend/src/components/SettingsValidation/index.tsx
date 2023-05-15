@@ -71,9 +71,10 @@ export const SettingsValidation: FC<{ projectUuid: string }> = ({
                             borderBottomColor: theme.colors.gray[3],
                         }}
                     >
-                        <Text fw={500}>
-                            {/* TODO: only show if validation has been run before */}
-                            Last validation run at:{' '}
+                        <Text fw={500} fz="xs" c="gray.6">
+                            {!!data?.length
+                                ? `Last validated at: ${data[0].createdAt}`
+                                : null}
                         </Text>
                         <Button
                         // TODO: add onClick
