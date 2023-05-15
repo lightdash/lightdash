@@ -95,7 +95,11 @@ export const SettingsValidation: FC<{ projectUuid: string }> = ({
                     </Group>
 
                     <Table
-                        className={clsx(classes.root, classes.smallHeaderText)}
+                        className={clsx(
+                            classes.root,
+                            classes.smallHeaderText,
+                            classes.smallPadding,
+                        )}
                         highlightOnHover
                     >
                         <thead>
@@ -116,7 +120,7 @@ export const SettingsValidation: FC<{ projectUuid: string }> = ({
                                                 }
                                             />
 
-                                            <Text fw={600}>
+                                            <Text fw={600} fz="xs">
                                                 {validationError.name}
                                             </Text>
                                         </Flex>
@@ -128,18 +132,13 @@ export const SettingsValidation: FC<{ projectUuid: string }> = ({
                                                     icon={IconAlertCircle}
                                                 />
                                             }
-                                            // title={validationError.error}
                                             color="red"
                                             fw={500}
-                                            fz="sm"
                                         >
-                                            {validationError.error}
+                                            <Text fz="xs">
+                                                {validationError.error}
+                                            </Text>
                                         </Alert>
-                                        {/* <Text
-                                            color="gray.8"
-                                            fw={500}
-                                            fz="sm"
-                                        ></Text> */}
                                     </td>
                                     <td>
                                         {validationError.lastUpdatedAt &&
