@@ -30,7 +30,7 @@ enum SettingsTabs {
     PROJECT_ACCESS = 'projectAccess',
     USAGE_ANALYTICS = 'usageAnalytics',
     SCHEDULED_DELIVERIES = 'scheduledDeliveries',
-    VALIDATION = 'validation',
+    VALIDATOR = 'validator',
 }
 
 enum IntegrationsTabs {
@@ -127,9 +127,7 @@ const ProjectSettings: FC = () => {
                             organizationUuid: project.organizationUuid,
                             projectUuid,
                         }),
-                    ) && (
-                        <Tab id={SettingsTabs.VALIDATION} title="Validation" />
-                    )}
+                    ) && <Tab id={SettingsTabs.VALIDATOR} title="Validator" />}
                 </Tabs>
             </TabsWrapper>
 
@@ -170,7 +168,7 @@ const ProjectSettings: FC = () => {
                 >
                     <SettingsScheduledDeliveries projectUuid={projectUuid} />
                 </Route>
-                <Route exact path={`${basePath}/${SettingsTabs.VALIDATION}`}>
+                <Route exact path={`${basePath}/${SettingsTabs.VALIDATOR}`}>
                     <SettingsValidation projectUuid={projectUuid} />
                 </Route>
                 <Redirect to={basePath} />
