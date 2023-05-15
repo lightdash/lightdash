@@ -3,7 +3,7 @@ import { subject } from '@casl/ability';
 import { Dashboard } from '@lightdash/common';
 import { FC } from 'react';
 import { useParams } from 'react-router-dom';
-import { useSavedCharts } from '../../../hooks/useSpaces';
+import { useChartSummaries } from '../../../hooks/useChartSummaries';
 import { useApp } from '../../../providers/AppProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
@@ -73,7 +73,7 @@ const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
     isEditMode,
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const savedChartsRequest = useSavedCharts(projectUuid);
+    const savedChartsRequest = useChartSummaries(projectUuid);
     const savedCharts = savedChartsRequest.data || [];
     const hasSavedCharts = savedCharts.length > 0;
 

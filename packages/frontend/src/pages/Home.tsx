@@ -29,10 +29,12 @@ const Home: FC = () => {
 
     const { data: pinnedItems = [], isLoading: pinnedItemsLoading } =
         usePinnedItems(selectedProjectUuid, project?.data?.pinnedListUuid);
+    // only used for recently updated panel - could be faster
     const { data: dashboards = [], isLoading: dashboardsLoading } =
         useDashboards(selectedProjectUuid);
     const { data: savedCharts = [], isLoading: chartsLoading } =
         useSavedCharts(selectedProjectUuid);
+    // -----
 
     const { user } = useApp();
 
