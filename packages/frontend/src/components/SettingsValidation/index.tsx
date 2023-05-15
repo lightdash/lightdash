@@ -17,7 +17,10 @@ import {
 import { FC } from 'react';
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
 import { useTimeAgo } from '../../hooks/useTimeAgo';
-import { useValidation } from '../../hooks/validation/useValidation';
+import {
+    useValidation,
+    useValidationMutation,
+} from '../../hooks/validation/useValidation';
 import { IconBox } from '../common/ResourceView/ResourceIcon';
 
 const UpdatedAtAndBy: FC<
@@ -40,11 +43,8 @@ export const SettingsValidation: FC<{ projectUuid: string }> = ({
     const theme = useMantineTheme();
 
     const { data, isSuccess } = useValidation(projectUuid);
-
-    console.log(data);
-
-    // TODO: get last time validation was run
-    // TODO: add mutation to create validation
+    const { mutate: validateProject, isLoading: isValidating } =
+        useValidationMutation(projectUuid);
 
     const Icon = ({
         validationError,
@@ -57,6 +57,8 @@ export const SettingsValidation: FC<{ projectUuid: string }> = ({
             return <IconBox icon={IconLayoutDashboard} color="green.8" />;
         return <IconBox icon={IconTable} color="indigo.6" />;
     };
+
+    // TODO: add error state
 
     return (
         <>
@@ -77,10 +79,9 @@ export const SettingsValidation: FC<{ projectUuid: string }> = ({
                                 : null}
                         </Text>
                         <Button
-                        // TODO: add onClick
-                        // TODO: add loading state
-                        // TODO: add disabled state
-                        // TODO: add error state
+                            onClick={() => validateProject()}
+                            loading={isValidating}
+                            disabled={isValidating}
                         >
                             Run validation
                         </Button>
