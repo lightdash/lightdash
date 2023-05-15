@@ -1,4 +1,5 @@
 import { NonIdealState, Spinner, Tab, Tabs } from '@blueprintjs/core';
+import { subject } from '@casl/ability';
 import { FC } from 'react';
 import { Helmet } from 'react-helmet';
 import {
@@ -119,7 +120,16 @@ const ProjectSettings: FC = () => {
                         id={SettingsTabs.SCHEDULED_DELIVERIES}
                         title="Scheduled Deliveries"
                     />
-                    <Tab id={SettingsTabs.VALIDATION} title="Validation" />
+
+                    {user.data?.ability?.can(
+                        'manage',
+                        subject('Validation', {
+                            organizationUuid: project.organizationUuid,
+                            projectUuid,
+                        }),
+                    ) && (
+                        <Tab id={SettingsTabs.VALIDATION} title="Validation" />
+                    )}
                 </Tabs>
             </TabsWrapper>
 
