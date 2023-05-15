@@ -7,7 +7,8 @@ type DbGroup = {
     organization_id: number;
 };
 
-type DbGroupCreate = Pick<DbGroup, 'organization_id' | 'name'>;
+type DbGroupCreate = Pick<DbGroup, 'organization_id' | 'name'> &
+    Partial<Pick<DbGroup, 'group_uuid'>>;
 type DbGroupUpdate = Pick<DbGroup, 'name'>;
 
 export const GroupTableName = 'groups';

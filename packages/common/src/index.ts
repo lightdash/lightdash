@@ -250,7 +250,7 @@ export const SEED_SPACE = {
 };
 
 export const SEED_GROUP = {
-    uuid: '9d615ede-5758-4954-9fb9-2a07fc415ba5',
+    groupUuid: '9d615ede-5758-4954-9fb9-2a07fc415ba5',
     name: 'Org 1 Group',
 };
 
