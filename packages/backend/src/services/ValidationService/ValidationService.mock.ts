@@ -144,8 +144,6 @@ export const chart: SavedChart = {
     spaceName: 'space name',
     pinnedListUuid: null,
     pinnedListOrder: null,
-    views: 31,
-    firstViewedAt: '2023-05-03T08:22:06.353Z',
 };
 
 export const dashboard: Dashboard = {
