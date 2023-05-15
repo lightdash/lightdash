@@ -7,8 +7,22 @@ import {
 } from '@tabler/icons-react';
 import { FC } from 'react';
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
+import { useTimeAgo } from '../../hooks/useTimeAgo';
 import { useValidation } from '../../hooks/validation/useValidation';
 import { IconBox } from '../common/ResourceView/ResourceIcon';
+
+const UpdatedAtAndBy: FC<
+    Required<Pick<ValidationResponse, 'lastUpdatedAt' | 'lastUpdatedBy'>>
+> = ({ lastUpdatedAt, lastUpdatedBy }) => {
+    const timeAgo = useTimeAgo(lastUpdatedAt);
+
+    return (
+        <>
+            <Text fw={500}>{timeAgo}</Text>
+            by <Text fw={500}>{lastUpdatedBy}</Text>
+        </>
+    );
+};
 
 export const SettingsValidation: FC<{ projectUuid: string }> = ({
     projectUuid,
@@ -59,9 +73,18 @@ export const SettingsValidation: FC<{ projectUuid: string }> = ({
                                     <td>{validationError.error}</td>
                                     <td>
                                         {validationError.lastUpdatedAt &&
-                                        validationError.lastUpdatedBy
-                                            ? `${validationError.lastUpdatedAt} by ${validationError.lastUpdatedBy}`
-                                            : 'N/A'}
+                                        validationError.lastUpdatedBy ? (
+                                            <UpdatedAtAndBy
+                                                lastUpdatedAt={
+                                                    validationError.lastUpdatedAt
+                                                }
+                                                lastUpdatedBy={
+                                                    validationError.lastUpdatedBy
+                                                }
+                                            />
+                                        ) : (
+                                            'N/A'
+                                        )}
                                     </td>
                                 </tr>
                             ))}
