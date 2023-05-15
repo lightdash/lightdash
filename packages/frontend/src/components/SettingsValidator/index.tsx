@@ -108,7 +108,7 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                             <tr>
                                 <th>Name</th>
                                 <th>Error</th>
-                                <th>Last updated</th>
+                                <th>Last edited</th>
                             </tr>
                         </thead>
                         <tbody>
