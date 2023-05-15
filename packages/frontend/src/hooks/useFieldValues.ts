@@ -1,7 +1,9 @@
 import {
+    AndFilterGroup,
     ApiError,
     FieldValueSearchResult,
     FilterableItem,
+    getFilterRulesFromGroup,
     getItemId,
     isField,
 } from '@lightdash/common';
@@ -17,6 +19,7 @@ const getFieldValues = async (
     table: string | undefined,
     fieldId: string,
     search: string,
+    filters: AndFilterGroup,
     limit: number = MAX_AUTOCOMPLETE_RESULTS,
 ) => {
     if (!table) {
@@ -24,11 +27,14 @@ const getFieldValues = async (
     }
 
     return lightdashApi<FieldValueSearchResult>({
-        url: `/projects/${projectId}/field/${fieldId}/search?value=${encodeURIComponent(
+        url: `/projects/${projectId}/field/${fieldId}/search`,
+        method: 'POST',
+        body: JSON.stringify({
             search,
-        )}&limit=${limit}&table=${table}`,
-        method: 'GET',
-        body: undefined,
+            limit,
+            table,
+            filters,
+        }),
     });
 };
 
@@ -37,6 +43,7 @@ export const useFieldValues = (
     initialData: string[],
     projectId: string,
     field: FilterableItem,
+    filters: AndFilterGroup,
     debounce: boolean = true,
     useQueryOptions?: UseQueryOptions<FieldValueSearchResult, ApiError>,
 ) => {
@@ -57,6 +64,11 @@ export const useFieldValues = (
 
     const handleUpdateResults = useCallback(
         (data: FieldValueSearchResult<string>) => {
+            if (getFilterRulesFromGroup(filters).length > 0) {
+                setSearches(new Set<string>());
+                setResults(new Set(initialData));
+                setResultCounts(new Map());
+            }
             setSearches((s) => {
                 return s.add(data.search);
             });
@@ -69,12 +81,19 @@ export const useFieldValues = (
                 return new Set([...oldSet, ...data.results]);
             });
         },
-        [setResults],
+        [filters, initialData],
     );
 
     const query = useQuery<FieldValueSearchResult, ApiError>(
         ['project', projectId, tableName, fieldName, 'search', debouncedSearch],
-        () => getFieldValues(projectId, tableName, fieldId, debouncedSearch),
+        () =>
+            getFieldValues(
+                projectId,
+                tableName,
+                fieldId,
+                debouncedSearch,
+                filters,
+            ),
         {
             // make sure we don't cache for too long
             staleTime: 60 * 1000, // 1 minute

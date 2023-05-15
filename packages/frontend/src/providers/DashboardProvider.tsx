@@ -42,6 +42,7 @@ type DashboardContext = {
     setHaveTilesChanged: Dispatch<SetStateAction<boolean>>;
     dashboardFilters: DashboardFilters;
     dashboardTemporaryFilters: DashboardFilters;
+    allFilters: DashboardFilters;
     setDashboardFilters: Dispatch<SetStateAction<DashboardFilters>>;
     setDashboardTemporaryFilters: Dispatch<SetStateAction<DashboardFilters>>;
     addDimensionDashboardFilter: (
@@ -264,6 +265,19 @@ export const DashboardProvider: React.FC = ({ children }) => {
         });
     }, [dashboardTemporaryFilters, history, pathname, search]);
 
+    const allFilters = useMemo(() => {
+        return {
+            dimensions: [
+                ...dashboardFilters.dimensions,
+                ...dashboardTemporaryFilters?.dimensions,
+            ],
+            metrics: [
+                ...dashboardFilters.metrics,
+                ...dashboardTemporaryFilters?.metrics,
+            ],
+        };
+    }, [dashboardFilters, dashboardTemporaryFilters]);
+
     const value = {
         dashboard,
         dashboardError,
@@ -286,6 +300,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
         allFilterableFields,
         filterableFieldsBySavedQueryUuid,
         filterableFieldsByTileUuid,
+        allFilters,
     };
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };

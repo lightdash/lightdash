@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     AdditionalMetric,
     AlreadyProcessingError,
+    AndFilterGroup,
     ApiQueryResults,
     ApiSqlQueryResults,
     ChartSummary,
@@ -17,7 +18,9 @@ import {
     ExploreError,
     fieldId as getFieldId,
     FilterableField,
+    filterFilterGroupByTable,
     FilterGroup,
+    FilterGroupItem,
     FilterOperator,
     Filters,
     findFieldByIdInExplore,
@@ -57,7 +60,6 @@ import {
     UpdateProject,
     UpdateProjectMember,
     WarehouseClient,
-    WarehouseTypes,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { URL } from 'url';
@@ -904,6 +906,7 @@ export class ProjectService {
         fieldId: string,
         search: string,
         limit: number,
+        filters: AndFilterGroup | undefined,
     ): Promise<Array<unknown>> {
         const { organizationUuid } =
             await this.projectModel.getWithSensitiveFields(projectUuid);
@@ -946,22 +949,28 @@ export class ProjectService {
             type: MetricType.STRING,
         };
 
+        const autocompleteDimensionFilters: FilterGroupItem[] = [
+            {
+                id: uuidv4(),
+                target: {
+                    fieldId,
+                },
+                operator: FilterOperator.INCLUDE,
+                values: [search],
+            },
+        ];
+        if (filters) {
+            autocompleteDimensionFilters.push(
+                ...filterFilterGroupByTable(filters, explore.name).and,
+            );
+        }
         const metricQuery: MetricQuery = {
             dimensions: [],
             metrics: [getItemId(distinctMetric)],
             filters: {
                 dimensions: {
                     id: uuidv4(),
-                    and: [
-                        {
-                            id: uuidv4(),
-                            target: {
-                                fieldId,
-                            },
-                            operator: FilterOperator.INCLUDE,
-                            values: [search],
-                        },
-                    ],
+                    and: autocompleteDimensionFilters,
                 },
             },
             additionalMetrics: [distinctMetric],

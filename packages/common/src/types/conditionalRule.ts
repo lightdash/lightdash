@@ -17,6 +17,7 @@ export enum ConditionalOperator {
 }
 
 export type ConditionalRule<O = ConditionalOperator, V = unknown> = {
+    id: string;
     operator: O;
     values?: V[];
 };

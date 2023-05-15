@@ -19,6 +19,7 @@ import {
 } from './autoCompleteUtils';
 
 type Props = {
+    filterId: string;
     field: FilterableItem;
     values: string[];
     suggestions: string[];
@@ -34,6 +35,7 @@ const PaddedMenuItem = styled(MenuItem2)`
 `;
 
 const MultiAutoComplete: FC<Props> = ({
+    filterId,
     values,
     field,
     suggestions: initialSuggestionData,
@@ -41,18 +43,24 @@ const MultiAutoComplete: FC<Props> = ({
     disabled,
     onChange,
 }) => {
-    const { projectUuid } = useFiltersContext();
+    const { projectUuid, getRelatedFilterGroup } = useFiltersContext();
     if (!projectUuid) {
         throw new Error('projectUuid is required in FiltersProvider');
     }
 
     const [search, setSearch] = useState('');
 
+    const relatedFilterGroup = useMemo(
+        () => getRelatedFilterGroup(filterId),
+        [filterId, getRelatedFilterGroup],
+    );
+
     const { isLoading, results: resultsSet } = useFieldValues(
         search,
         initialSuggestionData,
         projectUuid,
         field,
+        relatedFilterGroup,
         true,
         { refetchOnMount: 'always' },
     );
