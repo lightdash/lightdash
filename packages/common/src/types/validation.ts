@@ -11,6 +11,11 @@ export type ValidationResponse = {
     lastUpdatedAt?: Date;
 };
 
+export type CreateValidation = Pick<
+    ValidationResponse,
+    'name' | 'chartUuid' | 'dashboardUuid' | 'projectUuid' | 'error'
+>;
+
 export type ApiValidateResponse = {
     status: 'ok';
     results: ValidationResponse[];

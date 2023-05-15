@@ -1,4 +1,4 @@
-import { Space, ValidationResponse } from '@lightdash/common';
+import { CreateValidation, Space, ValidationResponse } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     DashboardsTableName,
@@ -16,7 +16,6 @@ import { DbSpace, SpaceTableName } from '../../database/entities/spaces';
 import { UserTable, UserTableName } from '../../database/entities/users';
 import {
     DbValidationTable,
-    ValidationInsert,
     ValidationTableName,
 } from '../../database/entities/validation';
 
@@ -31,11 +30,11 @@ export class ValidationModel {
         this.database = deps.database;
     }
 
-    async create(validations: ValidationInsert[]): Promise<void> {
+    async create(validations: CreateValidation[]): Promise<void> {
         await this.database.transaction(async (trx) => {
             const insertPromises = validations.map((validation) =>
                 trx(ValidationTableName).insert({
-                    saved_chart_uuid: validation.savedChartUuid,
+                    saved_chart_uuid: validation.chartUuid,
                     dashboard_uuid: validation.dashboardUuid,
                     project_uuid: validation.projectUuid,
                     error: validation.error,

@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     ApiValidateResponse,
     CompiledField,
+    CreateValidation,
     Dashboard,
     Explore,
     ExploreCompiler,
@@ -36,7 +37,6 @@ import cronstrue from 'cronstrue';
 import { analytics } from '../../analytics/client';
 import { schedulerClient, slackClient } from '../../clients/clients';
 import { LightdashConfig } from '../../config/parseConfig';
-import { ValidationInsert } from '../../database/entities/validation';
 import Logger from '../../logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -109,18 +109,17 @@ export class ValidationService {
     private static async validateTables(
         projectUuid: string,
         explores: (Explore | ExploreError)[] | undefined,
-    ): Promise<ValidationInsert[]> {
+    ): Promise<CreateValidation[]> {
         // Get existing errors from ExploreError and convert to ValidationInsert
         if (explores === undefined) {
             return [];
         }
-        const errors = explores.reduce<ValidationInsert[]>((acc, explore) => {
+        const errors = explores.reduce<CreateValidation[]>((acc, explore) => {
             if (isExploreError(explore)) {
                 const exploreErrors = explore.errors.map((ee) => ({
+                    name: explore.name,
                     error: ee.message,
                     projectUuid,
-                    dashboardUuid: null,
-                    savedChartUuid: null,
                 }));
                 return [...acc, ...exploreErrors];
             }
@@ -132,7 +131,7 @@ export class ValidationService {
     private async validateCharts(
         projectUuid: string,
         existingFields: CompiledField[],
-    ): Promise<ValidationInsert[]> {
+    ): Promise<CreateValidation[]> {
         const existingFieldIds = existingFields.map(getFieldId);
 
         const existingDimensionIds = existingFields
@@ -155,13 +154,12 @@ export class ValidationService {
                     ?.includes(metric);
 
             const commonValidation = {
-                savedChartUuid: chart.uuid,
+                chartUuid: chart.uuid,
                 name: chart.name,
                 projectUuid: chart.projectUuid,
-                dashboardUuid: null,
             };
             const containsFieldId = (
-                acc: ValidationInsert[],
+                acc: CreateValidation[],
                 fieldIds: string[],
                 fieldId: string,
                 error: string,
@@ -178,7 +176,7 @@ export class ValidationService {
                 return acc;
             };
             const dimensionErrors = chart.metricQuery.dimensions.reduce<
-                ValidationInsert[]
+                CreateValidation[]
             >(
                 (acc, field) =>
                     containsFieldId(
@@ -191,7 +189,7 @@ export class ValidationService {
             );
             const metricErrors = chart.metricQuery.metrics
                 .filter(filterAdditionalMetrics)
-                .reduce<ValidationInsert[]>(
+                .reduce<CreateValidation[]>(
                     (acc, field) =>
                         containsFieldId(
                             acc,
@@ -204,7 +202,7 @@ export class ValidationService {
 
             const filterErrors = getFilterRules(
                 chart.metricQuery.filters,
-            ).reduce<ValidationInsert[]>(
+            ).reduce<CreateValidation[]>(
                 (acc, field) =>
                     containsFieldId(
                         acc,
@@ -216,7 +214,7 @@ export class ValidationService {
             );
 
             const sortErrors = chart.metricQuery.sorts.reduce<
-                ValidationInsert[]
+                CreateValidation[]
             >(
                 (acc, field) =>
                     containsFieldId(
@@ -274,8 +272,8 @@ export class ValidationService {
     private async validateDashboards(
         projectUuid: string,
         existingFields: CompiledField[],
-        brokenCharts: { uuid: string; name: string }[],
-    ): Promise<ValidationInsert[]> {
+        brokenCharts: Pick<CreateValidation, 'chartUuid' | 'name'>[],
+    ): Promise<CreateValidation[]> {
         const existingFieldIds = existingFields.map(getFieldId);
 
         const dashboardSummaries = await this.dashboardModel.getAllByProject(
@@ -286,14 +284,14 @@ export class ValidationService {
                 this.dashboardModel.getById(dashboardSummary.uuid),
             ),
         );
-        const results: ValidationInsert[] = dashboards.flatMap((dashboard) => {
+        const results: CreateValidation[] = dashboards.flatMap((dashboard) => {
             const commonValidation = {
+                name: dashboard.name,
                 dashboardUuid: dashboard.uuid,
-                savedChartUuid: null,
                 projectUuid: dashboard.projectUuid,
             };
             const containsFieldId = (
-                acc: ValidationInsert[],
+                acc: CreateValidation[],
                 fieldIds: string[],
                 fieldId: string,
                 error: string,
@@ -314,7 +312,7 @@ export class ValidationService {
                 ...dashboard.filters.metrics,
             ];
             const filterErrors = dashboardFilterRules.reduce<
-                ValidationInsert[]
+                CreateValidation[]
             >(
                 (acc, filter) =>
                     containsFieldId(
@@ -327,10 +325,10 @@ export class ValidationService {
             );
 
             const chartTiles = dashboard.tiles.filter(isDashboardChartTileType);
-            const chartErrors = chartTiles.reduce<ValidationInsert[]>(
+            const chartErrors = chartTiles.reduce<CreateValidation[]>(
                 (acc, chart) => {
                     const brokenChart = brokenCharts.find(
-                        (c) => c.uuid === chart.properties.savedChartUuid,
+                        (c) => c.chartUuid === chart.properties.savedChartUuid,
                     );
                     if (brokenChart !== undefined) {
                         return [
@@ -351,7 +349,7 @@ export class ValidationService {
         return results;
     }
 
-    async generateValidation(projectUuid: string): Promise<ValidationInsert[]> {
+    async generateValidation(projectUuid: string): Promise<CreateValidation[]> {
         const explores = await this.projectModel.getExploresFromCache(
             projectUuid,
         );
@@ -390,10 +388,7 @@ export class ValidationService {
         const dashboardErrors = await this.validateDashboards(
             projectUuid,
             existingFields,
-            chartErrors.map((c) => ({
-                uuid: c.savedChartUuid!,
-                name: c.name!,
-            })),
+            chartErrors,
         );
         const validationErrors = [
             ...tableErrors,
