@@ -1,3 +1,10 @@
+# [0.551.0](https://github.com/lightdash/lightdash/compare/0.550.2...0.551.0) (2023-05-15)
+
+
+### Features
+
+* validation endpoint ([#5446](https://github.com/lightdash/lightdash/issues/5446)) ([305688b](https://github.com/lightdash/lightdash/commit/305688b773d00a7fe9e1e84bce988b17408ae085))
+
 ## [0.550.2](https://github.com/lightdash/lightdash/compare/0.550.1...0.550.2) (2023-05-12)
 
 
