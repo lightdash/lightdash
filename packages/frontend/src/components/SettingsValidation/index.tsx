@@ -1,5 +1,14 @@
 import { ValidationResponse } from '@lightdash/common';
-import { Flex, Paper, Table, Text } from '@mantine/core';
+import {
+    Button,
+    clsx,
+    Flex,
+    Group,
+    Paper,
+    Table,
+    Text,
+    useMantineTheme,
+} from '@mantine/core';
 import {
     IconChartBar,
     IconLayoutDashboard,
@@ -19,7 +28,7 @@ const UpdatedAtAndBy: FC<
     return (
         <>
             <Text fw={500}>{timeAgo}</Text>
-            by <Text fw={500}>{lastUpdatedBy}</Text>
+            <Text color="gray.6">by {lastUpdatedBy}</Text>
         </>
     );
 };
@@ -27,8 +36,15 @@ const UpdatedAtAndBy: FC<
 export const SettingsValidation: FC<{ projectUuid: string }> = ({
     projectUuid,
 }) => {
-    const { data, isSuccess } = useValidation(projectUuid);
     const { classes } = useTableStyles();
+    const theme = useMantineTheme();
+
+    const { data, isSuccess } = useValidation(projectUuid);
+
+    console.log(data);
+
+    // TODO: get last time validation was run
+    // TODO: add mutation to create validation
 
     const Icon = ({
         validationError,
@@ -46,31 +62,61 @@ export const SettingsValidation: FC<{ projectUuid: string }> = ({
         <>
             {isSuccess && (
                 <Paper withBorder sx={{ overflow: 'hidden' }}>
-                    <Table className={classes.root} highlightOnHover>
+                    <Group
+                        position="apart"
+                        p="md"
+                        sx={{
+                            borderBottomWidth: 1,
+                            borderBottomStyle: 'solid',
+                            borderBottomColor: theme.colors.gray[3],
+                        }}
+                    >
+                        <Text fw={500}>
+                            {/* TODO: only show if validation has been run before */}
+                            Last validation run at:{' '}
+                        </Text>
+                        <Button
+                        // TODO: add onClick
+                        // TODO: add loading state
+                        // TODO: add disabled state
+                        // TODO: add error state
+                        >
+                            Run validation
+                        </Button>
+                    </Group>
+
+                    <Table
+                        className={clsx(classes.root, classes.smallHeaderText)}
+                        highlightOnHover
+                    >
                         <thead>
                             <tr>
                                 <th>Name</th>
-                                <th>Error Details</th>
-                                <th>Last Updated</th>
+                                <th>Error</th>
+                                <th>Last updated</th>
                             </tr>
                         </thead>
                         <tbody>
                             {data?.map((validationError) => (
                                 <tr key={validationError.name}>
                                     <td>
-                                        <Flex gap="sm">
+                                        <Flex gap="sm" align="center">
                                             <Icon
                                                 validationError={
                                                     validationError
                                                 }
                                             />
 
-                                            <Text fw={500}>
+                                            <Text fw={600}>
                                                 {validationError.name}
                                             </Text>
                                         </Flex>
                                     </td>
-                                    <td>{validationError.error}</td>
+                                    <td>
+                                        <Text color="gray.8" fw={500}>
+                                            {validationError.error}
+                                        </Text>
+                                    </td>
                                     <td>
                                         {validationError.lastUpdatedAt &&
                                         validationError.lastUpdatedBy ? (
@@ -83,7 +129,7 @@ export const SettingsValidation: FC<{ projectUuid: string }> = ({
                                                 }
                                             />
                                         ) : (
-                                            'N/A'
+                                            <Text fw={500}>N/A</Text>
                                         )}
                                     </td>
                                 </tr>
