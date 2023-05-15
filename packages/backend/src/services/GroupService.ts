@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     ForbiddenError,
+    Group,
     GroupMembership,
     GroupWithMembers,
     SessionUser,
@@ -25,8 +26,8 @@ export class GroupsService {
         const group = await this.groupsModel.getGroup(member.groupUuid);
         if (
             actor.ability.cannot(
-                'manage',
-                subject('Organization', {
+                'update',
+                subject('Group', {
                     organizationUuid: group.organizationUuid,
                 }),
             )
@@ -43,8 +44,8 @@ export class GroupsService {
         const group = await this.groupsModel.getGroup(member.groupUuid);
         if (
             actor.ability.cannot(
-                'manage',
-                subject('Organization', {
+                'update',
+                subject('Group', {
                     organizationUuid: group.organizationUuid,
                 }),
             )
@@ -58,8 +59,8 @@ export class GroupsService {
         const group = await this.groupsModel.getGroup(groupUuid);
         if (
             actor.ability.cannot(
-                'manage',
-                subject('Organization', {
+                'delete',
+                subject('Group', {
                     organizationUuid: group.organizationUuid,
                 }),
             )
@@ -69,15 +70,12 @@ export class GroupsService {
         await this.groupsModel.deleteGroup(groupUuid);
     }
 
-    async get(
-        actor: SessionUser,
-        groupUuid: string,
-    ): Promise<GroupWithMembers> {
-        const group = await this.groupsModel.getGroupWithMembers(groupUuid);
+    async get(actor: SessionUser, groupUuid: string): Promise<Group> {
+        const group = await this.groupsModel.getGroup(groupUuid);
         if (
             actor.ability.cannot(
                 'view',
-                subject('Organization', {
+                subject('Group', {
                     organizationUuid: group.organizationUuid,
                 }),
             )

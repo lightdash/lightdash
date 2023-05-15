@@ -23,7 +23,7 @@ import path from 'path';
 import { lightdashConfig } from '../../../config/lightdashConfig';
 import { projectModel } from '../../../models/models';
 import { EncryptionService } from '../../../services/EncryptionService/EncryptionService';
-import { projectService, spaceService } from '../../../services/services';
+import { projectService } from '../../../services/services';
 import { DbEmailIn } from '../../entities/emails';
 import { OnboardingTableName } from '../../entities/onboarding';
 import { DbOrganizationIn } from '../../entities/organizations';

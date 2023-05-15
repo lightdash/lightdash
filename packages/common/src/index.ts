@@ -249,6 +249,11 @@ export const SEED_SPACE = {
     name: SEED_PROJECT.name,
 };
 
+export const SEED_GROUP = {
+    uuid: '9d615ede-5758-4954-9fb9-2a07fc415ba5',
+    name: 'Org 1 Group',
+};
+
 export type ArgumentsOf<F extends Function> = F extends (
     ...args: infer A
 ) => any

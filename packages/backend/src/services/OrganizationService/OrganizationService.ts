@@ -1,12 +1,12 @@
 import { subject } from '@casl/ability';
 import {
     AllowedEmailDomains,
-    CreateOrganization,
     CreateGroup,
+    CreateOrganization,
     CreateProject,
     ForbiddenError,
-    isUserWithOrg,
     Group,
+    isUserWithOrg,
     LightdashMode,
     NotExistsError,
     OnbordingRecord,
@@ -409,19 +409,36 @@ export class OrganizationService {
 
     async addGroupToOrganization(
         actor: SessionUser,
-        createGroup: CreateGroup,
+        createGroup: Pick<CreateGroup, 'name'>,
     ): Promise<Group> {
         if (
+            actor.organizationUuid === undefined ||
             actor.ability.cannot(
-                'manage',
-                subject('Organization', {
-                    organizationUuid: createGroup.organizationUuid,
+                'create',
+                subject('Group', {
+                    organizationUuid: actor.organizationUuid,
                 }),
             )
         ) {
             throw new ForbiddenError();
         }
-        const group = await this.groupsModel.createGroup(createGroup);
+        const group = await this.groupsModel.createGroup({
+            organizationUuid: actor.organizationUuid,
+            ...createGroup,
+        });
         return group;
+    }
+
+    async listGroupsInOrganization(actor: SessionUser): Promise<Group[]> {
+        if (actor.organizationUuid === undefined) {
+            throw new ForbiddenError();
+        }
+        const groups = await this.groupsModel.find({
+            organizationUuid: actor.organizationUuid,
+        });
+        const allowedGroups = groups.filter((group) =>
+            actor.ability.can('view', subject('Group', group)),
+        );
+        return allowedGroups;
     }
 }

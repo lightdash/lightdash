@@ -15,19 +15,26 @@ export class GroupsModel {
         this.database = deps.database;
     }
 
-    async listGroupsInOrganization(organizationUuid: string): Promise<Group[]> {
-        const groups = await this.database('groups')
+    async find(filters: { organizationUuid: string }): Promise<Group[]> {
+        const query = this.database('groups')
             .innerJoin(
                 'organizations',
                 'groups.organization_id',
                 'organizations.organization_id',
             )
             .select();
+        if (filters.organizationUuid) {
+            query.where(
+                'organizations.organization_uuid',
+                filters.organizationUuid,
+            );
+        }
+        const groups = await query;
         return groups.map((group) => ({
             uuid: group.group_uuid,
             name: group.name,
             createdAt: group.created_at,
-            organizationUuid,
+            organizationUuid: group.organization_uuid,
         }));
     }
 
@@ -114,6 +121,7 @@ export class GroupsModel {
     }
 
     // TODO: do we need to enforce that only org_members from the same org can join or do we want to manage this as business logic?
+    // the current schema enforces that only org_members can be added to groups in the same org
     async addGroupMember(
         member: GroupMembership,
     ): Promise<GroupMembership | undefined> {

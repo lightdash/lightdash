@@ -1,24 +1,29 @@
 import {
     ApiErrorPayload,
+    ApiGroupListResponse,
+    ApiGroupResponse,
     ApiOrganization,
     ApiOrganizationAllowedEmailDomains,
     ApiOrganizationMemberProfile,
     ApiOrganizationMemberProfiles,
     ApiSuccessEmpty,
+    CreateGroup,
     CreateOrganization,
     OrganizationMemberProfileUpdate,
     UpdateAllowedEmailDomains,
     UpdateOrganization,
 } from '@lightdash/common';
-import { Controller, Delete } from '@tsoa/runtime';
 import express from 'express';
 import {
     Body,
+    Controller,
+    Delete,
     Get,
     Middlewares,
     OperationId,
     Patch,
     Path,
+    Post,
     Put,
     Request,
     Response,
@@ -226,6 +231,44 @@ export class OrganizationController extends Controller {
                 req.user!,
                 body,
             ),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @Post('/groups')
+    @OperationId('createGroup')
+    async createGroup(
+        @Request() req: express.Request,
+        @Body() body: Pick<CreateGroup, 'name'>,
+    ): Promise<ApiGroupResponse> {
+        const group = await organizationService.addGroupToOrganization(
+            req.user!,
+            body,
+        );
+        this.setStatus(201);
+        return {
+            status: 'ok',
+            results: group,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('/groups')
+    @OperationId('listGroupsInOrganization')
+    async listGroupsInOrganization(
+        @Request() req: express.Request,
+    ): Promise<ApiGroupListResponse> {
+        const groups = await organizationService.listGroupsInOrganization(
+            req.user!,
+        );
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: groups,
         };
     }
 }

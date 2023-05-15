@@ -64,3 +64,8 @@ export type ApiGroupResponse = {
     status: 'ok';
     results: Group;
 };
+
+export type ApiGroupListResponse = {
+    status: 'ok';
+    results: Group[];
+};
