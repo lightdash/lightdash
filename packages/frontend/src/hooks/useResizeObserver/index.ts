@@ -27,17 +27,19 @@ export const useResizeObserver = <T extends HTMLElement = any>() => {
         () =>
             typeof window !== 'undefined'
                 ? new ResizeObserver((entries: any) => {
+                      if (!Array.isArray(entries) || !entries.length) {
+                          return;
+                      }
+
                       const entry = entries[0];
 
-                      if (entry) {
-                          cancelAnimationFrame(frameID.current);
+                      cancelAnimationFrame(frameID.current);
 
-                          frameID.current = requestAnimationFrame(() => {
-                              if (ref) {
-                                  setRect(entry.contentRect);
-                              }
-                          });
-                      }
+                      frameID.current = requestAnimationFrame(() => {
+                          if (ref) {
+                              setRect(entry.contentRect);
+                          }
+                      });
                   })
                 : null,
         [ref],

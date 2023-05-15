@@ -1,6 +1,6 @@
 import { Button, Classes, Divider, Intent, Menu } from '@blueprintjs/core';
 import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
-import { Dashboard, Space, UpdatedByUser } from '@lightdash/common';
+import { Dashboard, SpaceSummary, UpdatedByUser } from '@lightdash/common';
 import { IconDots, IconPencil } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
@@ -28,7 +28,7 @@ import ViewInfo from '../PageHeader/ViewInfo';
 import SpaceActionModal, { ActionType } from '../SpaceActionModal';
 
 type DashboardHeaderProps = {
-    spaces?: Space[];
+    spaces?: SpaceSummary[];
     dashboardDescription?: string;
     dashboardName: string;
     dashboardSpaceName?: string;

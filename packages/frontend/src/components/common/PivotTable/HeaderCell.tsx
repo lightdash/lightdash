@@ -5,6 +5,7 @@ interface HeaderCellProps {
     className?: string;
     level?: number;
     description?: string;
+    textAlign?: 'left' | 'right';
 }
 
 const HeaderCell: FC<HeaderCellProps> = ({
@@ -12,6 +13,7 @@ const HeaderCell: FC<HeaderCellProps> = ({
     className,
     description,
     level = 0,
+    textAlign = 'left',
 }) => {
     return (
         <Tooltip
@@ -25,6 +27,7 @@ const HeaderCell: FC<HeaderCellProps> = ({
                 className={className}
                 sx={(theme) => ({
                     backgroundColor: theme.colors.gray[level],
+                    textAlign,
                 })}
             >
                 {children}

@@ -1,4 +1,5 @@
 import assertUnreachable from '../utils/assertUnreachable';
+import { ViewStatistics } from './analytics';
 import { ConditionalFormattingConfig } from './conditionalFormatting';
 import { CompactOrAlias } from './field';
 import { MetricQuery } from './metricQuery';
@@ -21,10 +22,28 @@ export enum ChartType {
     BIG_NUMBER = 'big_number',
 }
 
+export enum ComparisonFormatTypes {
+    RAW = 'raw',
+    PERCENTAGE = 'percentage',
+}
+
+export enum ComparisonDiffTypes {
+    POSITIVE = 'positive',
+    NEGATIVE = 'negative',
+    NONE = 'none',
+    NAN = 'NaN',
+    UNDEFINED = 'undefined',
+}
+
 export type BigNumber = {
     label?: string;
     style?: CompactOrAlias;
     selectedField?: string;
+    showBigNumberLabel?: boolean;
+    showComparison?: boolean;
+    comparisonFormat?: ComparisonFormatTypes;
+    flipColors?: boolean;
+    comparisonLabel?: string;
 };
 
 export type BigNumberConfig = {
@@ -40,6 +59,7 @@ export type ColumnProperties = {
 
 export type TableChart = {
     showColumnCalculation?: boolean;
+    showRowCalculation?: boolean;
     showTableNames?: boolean;
     hideRowNumbers?: boolean;
     columns?: Record<string, ColumnProperties>;
@@ -213,8 +233,6 @@ export type SavedChart = {
     organizationUuid: string;
     spaceUuid: string;
     spaceName: string;
-    views: number;
-    firstViewedAt: Date | string | null;
     pinnedListUuid: string | null;
     pinnedListOrder: number | null;
 };
@@ -265,11 +283,12 @@ export type SpaceQuery = Pick<
     | 'updatedByUser'
     | 'description'
     | 'spaceUuid'
-    | 'views'
-    | 'firstViewedAt'
     | 'pinnedListUuid'
     | 'pinnedListOrder'
-> & { chartType: ChartKind | undefined };
+> &
+    ViewStatistics & {
+        chartType: ChartKind | undefined;
+    };
 
 export const isCompleteLayout = (
     value: CartesianChartLayout | undefined,
@@ -407,7 +426,14 @@ export const getChartType = (
 
 export type ChartSummary = Pick<
     SavedChart,
-    'uuid' | 'name' | 'description' | 'spaceName' | 'spaceUuid'
+    | 'uuid'
+    | 'name'
+    | 'description'
+    | 'spaceName'
+    | 'spaceUuid'
+    | 'projectUuid'
+    | 'organizationUuid'
+    | 'pinnedListUuid'
 >;
 export type ApiChartSummaryListResponse = {
     status: 'ok';

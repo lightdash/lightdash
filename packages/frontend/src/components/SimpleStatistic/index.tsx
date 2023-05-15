@@ -1,6 +1,11 @@
+import { Colors } from '@blueprintjs/core';
+import { ComparisonDiffTypes } from '@lightdash/common';
+import { Tooltip } from '@mantine/core';
+import { IconArrowDownRight, IconArrowUpRight } from '@tabler/icons-react';
 import clamp from 'lodash-es/clamp';
 import { FC, HTMLAttributes, useMemo } from 'react';
 import { useResizeObserver } from '../../hooks/useResizeObserver';
+import MantineIcon from '../common/MantineIcon';
 import {
     TILE_HEADER_HEIGHT,
     TILE_HEADER_MARGIN_BOTTOM,
@@ -30,6 +35,9 @@ const VALUE_SIZE_MAX = 64;
 const LABEL_SIZE_MIN = 14;
 const LABEL_SIZE_MAX = 32;
 
+const COMPARISON_VALUE_SIZE_MIN = 12;
+const COMPARISON_VALUE_SIZE_MAX = 22;
+
 const calculateFontSize = (
     fontSizeMin: number,
     fontSizeMax: number,
@@ -50,13 +58,24 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     const {
         resultsData,
         isLoading,
-        bigNumberConfig: { bigNumber, bigNumberLabel, defaultLabel },
+        bigNumberConfig: {
+            bigNumber,
+            bigNumberLabel,
+            defaultLabel,
+            comparisonValue,
+            showComparison,
+            showBigNumberLabel,
+            comparisonDiff,
+            flipColors,
+            comparisonTooltip,
+            comparisonLabel,
+        },
         isSqlRunner,
     } = useVisualizationContext();
 
     const [setRef, observerElementSize] = useResizeObserver();
 
-    const { valueFontSize, labelFontSize } = useMemo(() => {
+    const { valueFontSize, labelFontSize, comparisonFontSize } = useMemo(() => {
         const boundWidth = clamp(
             observerElementSize?.width || 0,
             BOX_MIN_WIDTH,
@@ -75,11 +94,32 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             boundWidth,
         );
 
+        const comparisonValueSize = calculateFontSize(
+            COMPARISON_VALUE_SIZE_MIN,
+            COMPARISON_VALUE_SIZE_MAX,
+            boundWidth,
+        );
+
         return {
             valueFontSize: valueSize,
             labelFontSize: labelSize,
+            comparisonFontSize: comparisonValueSize,
         };
     }, [observerElementSize]);
+
+    const comparisonValueColor = useMemo(() => {
+        switch (comparisonDiff) {
+            case ComparisonDiffTypes.NAN:
+            case ComparisonDiffTypes.UNDEFINED:
+                return Colors.GRAY3;
+            case ComparisonDiffTypes.POSITIVE:
+                return flipColors ? Colors.RED3 : Colors.GREEN3;
+            case ComparisonDiffTypes.NEGATIVE:
+                return flipColors ? Colors.GREEN3 : Colors.RED3;
+            case ComparisonDiffTypes.NONE:
+                return 'inherit';
+        }
+    }, [comparisonDiff, flipColors]);
 
     const validData = bigNumber && resultsData?.rows.length;
 
@@ -114,11 +154,57 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                 )}
             </BigNumberHalf>
 
-            <BigNumberHalf>
-                <BigNumberLabel $fontSize={labelFontSize}>
-                    {bigNumberLabel || defaultLabel}
-                </BigNumberLabel>
-            </BigNumberHalf>
+            {showBigNumberLabel ? (
+                <BigNumberHalf>
+                    <BigNumberLabel $fontSize={labelFontSize}>
+                        {bigNumberLabel || defaultLabel}
+                    </BigNumberLabel>
+                </BigNumberHalf>
+            ) : null}
+
+            {showComparison ? (
+                <BigNumberHalf
+                    style={{
+                        marginTop: 10,
+                    }}
+                >
+                    <Tooltip label={comparisonTooltip}>
+                        <BigNumber
+                            $fontSize={comparisonFontSize}
+                            style={{
+                                color: comparisonValueColor,
+                                display: 'flex',
+                                alignItems: 'center',
+                            }}
+                        >
+                            {comparisonValue}
+                            {comparisonDiff === ComparisonDiffTypes.POSITIVE ? (
+                                <MantineIcon
+                                    icon={IconArrowUpRight}
+                                    size={18}
+                                    style={{
+                                        display: 'inline',
+                                        margin: '0 7px 0 3px',
+                                    }}
+                                />
+                            ) : comparisonDiff ===
+                              ComparisonDiffTypes.NEGATIVE ? (
+                                <MantineIcon
+                                    icon={IconArrowDownRight}
+                                    size={18}
+                                    style={{
+                                        display: 'inline',
+                                        margin: '0 7px 0 3px',
+                                    }}
+                                />
+                            ) : null}
+                        </BigNumber>
+                    </Tooltip>
+                    <BigNumberLabel $fontSize={comparisonFontSize}>
+                        {comparisonLabel ?? null}
+                    </BigNumberLabel>
+                </BigNumberHalf>
+            ) : null}
         </BigNumberContainer>
     ) : (
         <EmptyChart />

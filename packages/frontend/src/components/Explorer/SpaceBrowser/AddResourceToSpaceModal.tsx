@@ -15,7 +15,11 @@ import {
     useUpdateMultipleDashboard,
 } from '../../../hooks/dashboard/useDashboards';
 import { useUpdateMultipleMutation } from '../../../hooks/useSavedQuery';
-import { useSavedCharts, useSpace, useSpaces } from '../../../hooks/useSpaces';
+import {
+    useSavedCharts,
+    useSpace,
+    useSpaceSummaries,
+} from '../../../hooks/useSpaces';
 import Form from '../../ReactHookForm/Form';
 import MultiSelect from '../../ReactHookForm/MultiSelect';
 import { SpaceLabel } from './AddResourceToSpaceModal.style';
@@ -60,7 +64,7 @@ const AddResourceToSpaceModal: FC<Props> = ({
     }>();
 
     const { data: space } = useSpace(projectUuid, spaceUuid);
-    const { data: spaces } = useSpaces(projectUuid);
+    const { data: spaces } = useSpaceSummaries(projectUuid);
 
     const { mutate: chartMutation } = useUpdateMultipleMutation(projectUuid);
     const { mutate: dashboardMutation } =

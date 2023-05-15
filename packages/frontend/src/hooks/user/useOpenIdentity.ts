@@ -1,5 +1,9 @@
-import { ApiError, DeleteOpenIdentity } from '@lightdash/common';
-import { useMutation, useQueryClient } from 'react-query';
+import {
+    ApiError,
+    DeleteOpenIdentity,
+    OpenIdIdentitySummary,
+} from '@lightdash/common';
+import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
@@ -31,3 +35,21 @@ export const useDeleteOpenIdentityMutation = () => {
         },
     );
 };
+
+const getIdentitiesQuery = async () =>
+    lightdashApi<
+        Record<OpenIdIdentitySummary['issuerType'], OpenIdIdentitySummary[]>
+    >({
+        url: '/user/identities',
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useOpenIdentities = () =>
+    useQuery<
+        Record<OpenIdIdentitySummary['issuerType'], OpenIdIdentitySummary[]>,
+        ApiError
+    >({
+        queryKey: 'user_identities',
+        queryFn: getIdentitiesQuery,
+    });

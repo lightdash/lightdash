@@ -6,7 +6,7 @@ import { InfoContainer } from '.';
 
 interface ViewInfoProps {
     views?: number;
-    firstViewedAt: Date | string | null;
+    firstViewedAt?: Date | string | null;
 }
 
 const ViewInfo: FC<ViewInfoProps> = ({ views, firstViewedAt }) => {

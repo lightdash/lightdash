@@ -2,6 +2,7 @@ import {
     ConditionalFormattingConfig,
     Field,
     fieldId,
+    formatValue,
     isField,
     PivotData,
     ResultValue,
@@ -15,6 +16,7 @@ import HeaderCell from './HeaderCell';
 import IndexCell from './IndexCell';
 import { usePivotTableCellStyles, usePivotTableStyles } from './tableStyles';
 import TitleCell from './TitleCell';
+import TotalCell from './TotalCell';
 import ValueCell from './ValueCell';
 
 type PivotTableProps = TableProps &
@@ -41,8 +43,8 @@ const PivotTable: FC<PivotTableProps> = ({
     const getItemFromAxis = useCallback(
         (rowIndex: number, colIndex: number) => {
             const value = data.pivotConfig.metricsAsRows
-                ? last(data.headerValues)?.[colIndex]
-                : last(data.indexValues[rowIndex]);
+                ? last(data.indexValues[rowIndex])
+                : last(data.headerValues)?.[colIndex];
 
             if (!value || !value.fieldId) throw new Error('Invalid pivot data');
 
@@ -54,6 +56,29 @@ const PivotTable: FC<PivotTableProps> = ({
             data.indexValues,
             getField,
         ],
+    );
+
+    const getRowTotalItemFromAxis = useCallback(
+        (total: unknown, rowIndex: number, _colIndex: number): ResultValue => {
+            if (!data.pivotConfig.metricsAsRows)
+                throw new Error('not implemented');
+
+            const value = last(data.indexValues[rowIndex]);
+            if (!value || !value.fieldId) throw new Error('Invalid pivot data');
+
+            const item = getField(value.fieldId);
+
+            const formattedValue = formatValue(
+                total,
+                isField(item) ? item : undefined,
+            );
+
+            return {
+                raw: total,
+                formatted: formattedValue,
+            };
+        },
+        [data.pivotConfig.metricsAsRows, data.indexValues, getField],
     );
 
     const getUnderlyingFieldValues = useCallback(
@@ -71,12 +96,10 @@ const PivotTable: FC<PivotTableProps> = ({
                 ...(data.indexValues[rowIndex] ?? []),
                 // get the header values for this column
                 ...(data.headerValues.map((hv) => hv[colIndex]) ?? []),
-            ]
-                .filter((iv) => iv.type === 'value')
-                .reduce<Record<string, ResultValue>>((acc, iv) => {
-                    if (!iv.value) return acc;
-                    return { ...acc, [iv.fieldId]: iv.value };
-                }, initialData);
+            ].reduce<Record<string, ResultValue>>((acc, iv) => {
+                if (iv.type !== 'value') return acc;
+                return { ...acc, [iv.fieldId]: iv.value };
+            }, initialData);
         },
         [data.indexValues, data.headerValues, data.dataValues, getItemFromAxis],
     );
@@ -97,7 +120,7 @@ const PivotTable: FC<PivotTableProps> = ({
                         data.headerValues.length - headerRowIndex;
 
                     return (
-                        <tr key={headerRowIndex}>
+                        <tr key={`header-row-${headerRowIndex}`}>
                             <>
                                 {/* shows empty cell if row numbers are visible */}
                                 {hideRowNumbers ? null : (
@@ -124,12 +147,11 @@ const PivotTable: FC<PivotTableProps> = ({
                                         const isEmpty = !titleField?.fieldId;
 
                                         const isHeaderTitle =
-                                            titleField?.titleDirection ===
-                                            'header';
+                                            titleField?.direction === 'header';
 
                                         return (
                                             <TitleCell
-                                                key={`${headerRowIndex}-${indexColIndex}`}
+                                                key={`title-${headerRowIndex}-${indexColIndex}`}
                                                 className={cellCx(
                                                     cellStyles.root,
                                                     cellStyles.header,
@@ -169,7 +191,7 @@ const PivotTable: FC<PivotTableProps> = ({
 
                                         return (
                                             <HeaderCell
-                                                key={`${headerRowIndex}-${headerColIndex}`}
+                                                key={`header-${headerRowIndex}-${headerColIndex}`}
                                                 className={cellCx(
                                                     cellStyles.root,
                                                     cellStyles.header,
@@ -187,6 +209,33 @@ const PivotTable: FC<PivotTableProps> = ({
                                         );
                                     },
                                 )}
+
+                                {/* render the total label */}
+                                {data.pivotConfig.rowTotals
+                                    ? data.rowTotalFields?.[headerRowIndex].map(
+                                          (totalLabel, headerColIndex) =>
+                                              totalLabel ? (
+                                                  <HeaderCell
+                                                      key={`header-total-${headerRowIndex}-${headerColIndex}`}
+                                                      className={cellCx(
+                                                          cellStyles.root,
+                                                          cellStyles.header,
+                                                      )}
+                                                  >
+                                                      {totalLabel.fieldId ??
+                                                          'Total'}
+                                                  </HeaderCell>
+                                              ) : (
+                                                  <th
+                                                      key={`header-total-${headerRowIndex}-${headerColIndex}`}
+                                                      className={cellCx(
+                                                          cellStyles.root,
+                                                          cellStyles.rowNumber,
+                                                      )}
+                                                  />
+                                              ),
+                                      )
+                                    : null}
                             </>
                         </tr>
                     );
@@ -195,7 +244,7 @@ const PivotTable: FC<PivotTableProps> = ({
 
             <tbody>
                 {data.dataValues.map((row, rowIndex) => (
-                    <tr key={rowIndex}>
+                    <tr key={`row-${rowIndex}`}>
                         <>
                             {!hideRowNumbers && (
                                 <td
@@ -225,7 +274,7 @@ const PivotTable: FC<PivotTableProps> = ({
 
                                     return (
                                         <IndexCell
-                                            key={`${rowIndex}-${indexColIndex}`}
+                                            key={`index-${rowIndex}-${indexColIndex}`}
                                             className={cellCx(
                                                 cellStyles.root,
                                                 cellStyles.header,
@@ -251,7 +300,7 @@ const PivotTable: FC<PivotTableProps> = ({
 
                                 return (
                                     <ValueCell
-                                        key={`${rowIndex}-${colIndex}`}
+                                        key={`value-${rowIndex}-${colIndex}`}
                                         item={item}
                                         value={value}
                                         colIndex={colIndex}
@@ -266,6 +315,34 @@ const PivotTable: FC<PivotTableProps> = ({
                                     />
                                 );
                             })}
+
+                            {/* render the total values */}
+                            {data.pivotConfig.rowTotals
+                                ? data.rowTotals?.[rowIndex].map(
+                                      (total, colIndex) => {
+                                          const value = getRowTotalItemFromAxis(
+                                              total,
+                                              rowIndex,
+                                              colIndex,
+                                          );
+
+                                          return total ? (
+                                              <TotalCell
+                                                  value={value}
+                                                  key={`index-total-${rowIndex}-${colIndex}`}
+                                              >
+                                                  {value.formatted}
+                                              </TotalCell>
+                                          ) : (
+                                              <td
+                                                  className={cellCx(
+                                                      cellStyles.root,
+                                                  )}
+                                              />
+                                          );
+                                      },
+                                  )
+                                : null}
                         </>
                     </tr>
                 ))}

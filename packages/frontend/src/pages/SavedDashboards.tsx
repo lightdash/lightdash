@@ -16,7 +16,7 @@ import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ResourceView from '../components/common/ResourceView';
 import { SortDirection } from '../components/common/ResourceView/ResourceViewList';
 import { useDashboards } from '../hooks/dashboard/useDashboards';
-import { useSpaces } from '../hooks/useSpaces';
+import { useSpaceSummaries } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
 
 export const DEFAULT_DASHBOARD_NAME = 'Untitled dashboard';
@@ -30,7 +30,8 @@ const SavedDashboards = () => {
 
     const { user, health } = useApp();
     const isDemo = health.data?.mode === LightdashMode.DEMO;
-    const { data: spaces, isLoading: isLoadingSpaces } = useSpaces(projectUuid);
+    const { data: spaces, isLoading: isLoadingSpaces } =
+        useSpaceSummaries(projectUuid);
     const hasNoSpaces = spaces && spaces.length === 0;
 
     const userCanManageDashboards = user.data?.ability?.can(

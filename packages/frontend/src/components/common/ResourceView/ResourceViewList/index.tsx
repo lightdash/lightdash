@@ -19,7 +19,7 @@ import React, { FC, useMemo, useState } from 'react';
 import { Link, useHistory, useParams } from 'react-router-dom';
 import { ResourceViewCommonProps } from '..';
 import { useTableStyles } from '../../../../hooks/styles/useTableStyles';
-import { useSpaces } from '../../../../hooks/useSpaces';
+import { useSpaceSummaries } from '../../../../hooks/useSpaces';
 import { ResourceIcon } from '../ResourceIcon';
 import {
     getResourceTypeName,
@@ -85,7 +85,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
 
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { data: spaces = [] } = useSpaces(projectUuid);
+    const { data: spaces = [] } = useSpaceSummaries(projectUuid);
 
     const [columnSorts, setColumnSorts] = useState<SortingStateMap>(
         defaultSort ? new Map(Object.entries(defaultSort)) : new Map(),

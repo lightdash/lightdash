@@ -12,12 +12,13 @@ import { useMetricQueryDataContext } from '../../MetricQueryData/MetricQueryData
 import MantineIcon from '../MantineIcon';
 
 type ValueCellMenuProps = {
-    rowIndex: number;
-    colIndex: number;
-    item: Field | TableCalculation | undefined;
     value: ResultValue | null;
     onCopy: () => void;
-    getUnderlyingFieldValues: (
+
+    rowIndex?: number;
+    colIndex?: number;
+    item?: Field | TableCalculation | undefined;
+    getUnderlyingFieldValues?: (
         colIndex: number,
         rowIndex: number,
     ) => Record<string, ResultValue>;
@@ -47,23 +48,34 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
         return <>{children}</>;
     }
 
-    const canViewUnderlyingData = user.data?.ability?.can(
-        'view',
-        subject('UnderlyingData', {
-            organizationUuid: user.data?.organizationUuid,
-            projectUuid: projectUuid,
-        }),
-    );
+    const hasUnderlyingData = getUnderlyingFieldValues && item;
+    const hasDrillInto = getUnderlyingFieldValues && item;
 
-    const canViewDrillInto = user.data?.ability?.can(
-        'manage',
-        subject('Explore', {
-            organizationUuid: user.data?.organizationUuid,
-            projectUuid: projectUuid,
-        }),
-    );
+    const canViewUnderlyingData =
+        hasUnderlyingData &&
+        user.data?.ability?.can(
+            'view',
+            subject('UnderlyingData', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid: projectUuid,
+            }),
+        );
+
+    const canViewDrillInto =
+        hasDrillInto &&
+        user.data?.ability?.can(
+            'manage',
+            subject('Explore', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid: projectUuid,
+            }),
+        );
 
     const handleOpenUnderlyingDataModal = () => {
+        if (!getUnderlyingFieldValues || !item || !rowIndex || !colIndex) {
+            return;
+        }
+
         const underlyingFieldValues = getUnderlyingFieldValues(
             rowIndex,
             colIndex,
@@ -86,7 +98,10 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
     };
 
     const handleOpenDrillIntoModal = () => {
-        if (!item) return;
+        if (!getUnderlyingFieldValues || !item || !rowIndex || !colIndex) {
+            return;
+        }
+
         const underlyingFieldValues = getUnderlyingFieldValues(
             rowIndex,
             colIndex,

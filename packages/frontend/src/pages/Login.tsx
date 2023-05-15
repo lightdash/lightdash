@@ -2,6 +2,7 @@ import {
     ApiError,
     LightdashMode,
     LightdashUser,
+    OpenIdIdentityIssuerType,
     SEED_ORG_1_ADMIN_EMAIL,
     SEED_ORG_1_ADMIN_PASSWORD,
     validateEmail,
@@ -22,12 +23,8 @@ import { useMutation } from 'react-query';
 import { Redirect, useLocation } from 'react-router-dom';
 
 import { lightdashApi } from '../api';
-import {
-    GoogleLoginButton,
-    OktaLoginButton,
-    OneLoginLoginButton,
-} from '../components/common/GoogleLoginButton';
 import Page from '../components/common/Page/Page';
+import { ThirdPartySignInButton } from '../components/common/ThirdPartySignInButton';
 import PageSpinner from '../components/PageSpinner';
 import useToaster from '../hooks/toaster/useToaster';
 import { useApp } from '../providers/AppProvider';
@@ -118,11 +115,14 @@ const Login: FC = () => {
         health.data?.auth.okta.enabled ||
         health.data?.auth.oneLogin.enabled;
     const ssoLogins = ssoAvailable && (
-        <>
-            {health.data?.auth.google.oauth2ClientId && <GoogleLoginButton />}
-            {health.data?.auth.okta.enabled && <OktaLoginButton />}
-            {health.data?.auth.oneLogin.enabled && <OneLoginLoginButton />}
-        </>
+        <Stack>
+            {Object.values(OpenIdIdentityIssuerType).map((providerName) => (
+                <ThirdPartySignInButton
+                    key={providerName}
+                    providerName={providerName}
+                />
+            ))}
+        </Stack>
     );
 
     const passwordLogin = allowPasswordAuthentication && (

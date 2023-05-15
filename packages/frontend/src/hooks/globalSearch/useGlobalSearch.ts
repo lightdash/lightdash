@@ -2,6 +2,8 @@ import { ApiError, SearchResults } from '@lightdash/common';
 import { useQuery } from 'react-query';
 import { lightdashApi } from '../../api';
 
+export const GLOBAL_SEARCH_MIN_QUERY_LENGTH = 3;
+
 const getSearchResults = async ({
     projectUuid,
     query,
@@ -24,7 +26,7 @@ const useGlobalSearch = (projectUuid: string, query: string = '') => {
                 query,
             }),
         retry: false,
-        enabled: query.length > 2,
+        enabled: query.length >= GLOBAL_SEARCH_MIN_QUERY_LENGTH,
         keepPreviousData: true,
     });
 };

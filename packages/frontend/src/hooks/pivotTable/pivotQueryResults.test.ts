@@ -119,9 +119,7 @@ describe('Should pivot data', () => {
                 ],
             ],
             pivotConfig,
-            titleFields: [
-                [{ fieldId: 'page', type: 'label', titleDirection: 'index' }],
-            ],
+            titleFields: [[{ fieldId: 'page', direction: 'index' }]],
         };
         const result = pivotQueryResults({
             pivotConfig,
@@ -178,9 +176,7 @@ describe('Should pivot data', () => {
                 pivotDimensions: ['page'],
                 metricsAsRows: true,
             },
-            titleFields: [
-                [{ fieldId: 'page', type: 'label', titleDirection: 'header' }],
-            ],
+            titleFields: [[{ fieldId: 'page', direction: 'header' }]],
         };
         const result = pivotQueryResults({
             pivotConfig,
@@ -276,9 +272,11 @@ describe('Should pivot data', () => {
             ],
             pivotConfig: { pivotDimensions: ['site'], metricsAsRows: false },
             titleFields: [
-                [{ fieldId: 'site', type: 'label', titleDirection: 'header' }],
-                [{ fieldId: 'page', type: 'label', titleDirection: 'index' }],
+                [{ fieldId: 'site', direction: 'header' }],
+                [{ fieldId: 'page', direction: 'index' }],
             ],
+            columnTotals: undefined,
+            rowTotals: undefined,
         };
         const result = pivotQueryResults({
             pivotConfig,
@@ -288,10 +286,11 @@ describe('Should pivot data', () => {
 
         expect(result).toEqual(expected);
     });
-    it('with 2 dimensions, 1 pivoted, metrics as rows', () => {
+    it('with 2 dimensions, 1 pivoted, metrics as rows with totals', () => {
         const pivotConfig = {
             pivotDimensions: ['site'],
             metricsAsRows: true,
+            rowTotals: true,
         };
         const expected = {
             headerValueTypes: [{ type: 'dimension', fieldId: 'site' }],
@@ -384,17 +383,21 @@ describe('Should pivot data', () => {
                 [{ raw: 11, formatted: '11.0' }, null],
                 [{ raw: 1, formatted: '1.0' }, null],
             ],
-            pivotConfig: { pivotDimensions: ['site'], metricsAsRows: true },
+            pivotConfig: {
+                pivotDimensions: ['site'],
+                metricsAsRows: true,
+                rowTotals: true,
+            },
             titleFields: [
                 [
-                    { fieldId: 'page', type: 'label', titleDirection: 'index' },
-                    {
-                        fieldId: 'site',
-                        type: 'label',
-                        titleDirection: 'header',
-                    },
+                    { fieldId: 'page', direction: 'index' },
+                    { fieldId: 'site', direction: 'header' },
                 ],
             ],
+            columnTotalFields: undefined,
+            rowTotalFields: [[{ fieldId: undefined }]],
+            columnTotals: undefined,
+            rowTotals: [[8], [17], [14], [13], [11], [1]],
         };
         const result = pivotQueryResults({
             pivotConfig,

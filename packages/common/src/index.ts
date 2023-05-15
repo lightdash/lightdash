@@ -1,4 +1,4 @@
-import { UserActivity } from './types/analytics';
+import { UserActivity, ViewStatistics } from './types/analytics';
 import {
     Dashboard,
     DashboardAvailableFilters,
@@ -46,6 +46,10 @@ import { SlackSettings } from './types/slackSettings';
 
 import { EmailStatusExpiring } from './types/email';
 import { FieldValueSearchResult } from './types/fieldMatch';
+import {
+    DeleteOpenIdentity,
+    OpenIdIdentitySummary,
+} from './types/openIdIdentity';
 import {
     AllowedEmailDomains,
     OnboardingStatus,
@@ -98,6 +102,7 @@ export * from './types/fieldMatch';
 export * from './types/filter';
 export * from './types/job';
 export * from './types/metricQuery';
+export * from './types/openIdIdentity';
 export * from './types/organization';
 export * from './types/organizationMemberProfile';
 export * from './types/personalAccessToken';
@@ -384,33 +389,6 @@ export type UpdateUserArgs = {
     isSetupComplete: boolean;
 };
 
-export type CreateOpenIdIdentity = {
-    subject: string;
-    issuer: string;
-    issuerType: 'google' | 'okta' | 'oneLogin';
-    userId: number;
-    email: string;
-};
-
-export type UpdateOpenIdentity = Pick<
-    CreateOpenIdIdentity,
-    'subject' | 'issuer' | 'email' | 'issuerType'
->;
-
-export type OpenIdIdentity = CreateOpenIdIdentity & {
-    createdAt: Date;
-};
-
-export type OpenIdIdentitySummary = Pick<
-    OpenIdIdentity,
-    'issuer' | 'email' | 'createdAt' | 'issuerType'
->;
-
-export type DeleteOpenIdentity = Pick<
-    OpenIdIdentitySummary,
-    'issuer' | 'email'
->;
-
 export type PasswordResetLink = {
     expiresAt: Date;
     code: string;
@@ -471,7 +449,7 @@ type ApiResults =
     | Dashboard[]
     | DeleteOpenIdentity
     | ApiFlashResults
-    | OpenIdIdentitySummary[]
+    | Record<OpenIdIdentitySummary['issuerType'], OpenIdIdentitySummary[]>
     | FilterableField[]
     | DashboardAvailableFilters
     | ProjectSavedChartStatus
@@ -500,6 +478,7 @@ type ApiResults =
     | EmailStatusExpiring
     | ApiScheduledDownloadCsv
     | PinnedItems
+    | ViewStatistics
     | SchedulerWithLogs;
 
 export type ApiResponse = {

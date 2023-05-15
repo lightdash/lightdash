@@ -1,3 +1,99 @@
+## [0.550.1](https://github.com/lightdash/lightdash/compare/0.550.0...0.550.1) (2023-05-12)
+
+
+### Bug Fixes
+
+* return if no entries ([#5472](https://github.com/lightdash/lightdash/issues/5472)) ([1232362](https://github.com/lightdash/lightdash/commit/123236270ef2b5211a65fbf43aac7787025ddb7c))
+
+# [0.550.0](https://github.com/lightdash/lightdash/compare/0.549.1...0.550.0) (2023-05-12)
+
+
+### Bug Fixes
+
+* get chart view stats in a separate endpoint ([#5477](https://github.com/lightdash/lightdash/issues/5477)) ([7b99216](https://github.com/lightdash/lightdash/commit/7b99216c827348e54543684d1cf1ac910713d6e9))
+
+
+### Features
+
+* big number comp label ([#5474](https://github.com/lightdash/lightdash/issues/5474)) ([7a749ba](https://github.com/lightdash/lightdash/commit/7a749baf0f5eeba9b5cb2a3e61261bb90ef19b80))
+
+## [0.549.1](https://github.com/lightdash/lightdash/compare/0.549.0...0.549.1) (2023-05-12)
+
+
+### Bug Fixes
+
+* refetch job data for status STARTED ([#5476](https://github.com/lightdash/lightdash/issues/5476)) ([ee717af](https://github.com/lightdash/lightdash/commit/ee717af7974d1a1ce5a4ec169bbb0003bed6f9ff))
+
+# [0.549.0](https://github.com/lightdash/lightdash/compare/0.548.1...0.549.0) (2023-05-12)
+
+
+### Features
+
+* big number comparisons tooltips ([#5473](https://github.com/lightdash/lightdash/issues/5473)) ([e86dc15](https://github.com/lightdash/lightdash/commit/e86dc159851431faef6925792b18e0a603a5250d))
+
+## [0.548.1](https://github.com/lightdash/lightdash/compare/0.548.0...0.548.1) (2023-05-12)
+
+
+### Bug Fixes
+
+* optimize chart queries ([#5455](https://github.com/lightdash/lightdash/issues/5455)) ([442f72b](https://github.com/lightdash/lightdash/commit/442f72b3f6fcd0302eb2e541267c1d53e9caa279))
+
+# [0.548.0](https://github.com/lightdash/lightdash/compare/0.547.0...0.548.0) (2023-05-12)
+
+
+### Features
+
+* big number comp color switch ([#5464](https://github.com/lightdash/lightdash/issues/5464)) ([b8d5a14](https://github.com/lightdash/lightdash/commit/b8d5a14566657df0bd762ad8dcca70cc280d4a75))
+
+# [0.547.0](https://github.com/lightdash/lightdash/compare/0.546.1...0.547.0) (2023-05-12)
+
+
+### Features
+
+* updated styling when comparison is n/a ([#5463](https://github.com/lightdash/lightdash/issues/5463)) ([6793a40](https://github.com/lightdash/lightdash/commit/6793a4074d2b385b6431aef6b604ab8b05f4bcaf))
+
+## [0.546.1](https://github.com/lightdash/lightdash/compare/0.546.0...0.546.1) (2023-05-12)
+
+
+### Bug Fixes
+
+* spotlight results ([#5459](https://github.com/lightdash/lightdash/issues/5459)) ([a2b0772](https://github.com/lightdash/lightdash/commit/a2b077243f4b08c2c1a3a54f98509899894cd3cc))
+
+# [0.546.0](https://github.com/lightdash/lightdash/compare/0.545.0...0.546.0) (2023-05-11)
+
+
+### Features
+
+* big number comparison ([#5452](https://github.com/lightdash/lightdash/issues/5452)) ([3300091](https://github.com/lightdash/lightdash/commit/33000911f8cbdadb5815f8348d39cfeb2a8feceb))
+
+# [0.545.0](https://github.com/lightdash/lightdash/compare/0.544.0...0.545.0) (2023-05-11)
+
+
+### Features
+
+* migrate social logins to mantine ([#5421](https://github.com/lightdash/lightdash/issues/5421)) ([c256b2b](https://github.com/lightdash/lightdash/commit/c256b2b903bb3c97d00dd84e03b0c3988dd20391))
+
+# [0.544.0](https://github.com/lightdash/lightdash/compare/0.543.3...0.544.0) (2023-05-11)
+
+
+### Features
+
+* pivot table row totals ([#5186](https://github.com/lightdash/lightdash/issues/5186)) ([30e322e](https://github.com/lightdash/lightdash/commit/30e322eb55ba19fb68667f1580c2dd6493741129))
+
+## [0.543.3](https://github.com/lightdash/lightdash/compare/0.543.2...0.543.3) (2023-05-11)
+
+
+### Bug Fixes
+
+* conditional formatting in new pivot table ([#5435](https://github.com/lightdash/lightdash/issues/5435)) ([ee3640f](https://github.com/lightdash/lightdash/commit/ee3640f2accfd28eac0c5ace4e143e35bf53a586))
+
+## [0.543.2](https://github.com/lightdash/lightdash/compare/0.543.1...0.543.2) (2023-05-11)
+
+
+### Bug Fixes
+
+* increase slack channels request ([#5427](https://github.com/lightdash/lightdash/issues/5427)) ([bbd8f63](https://github.com/lightdash/lightdash/commit/bbd8f63077f79d3ec3c7cc06b153a7729cd5461e))
+
 ## [0.543.1](https://github.com/lightdash/lightdash/compare/0.543.0...0.543.1) (2023-05-10)
 
 

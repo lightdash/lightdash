@@ -3,6 +3,7 @@ import {
     CreateOrganizationUser,
     CreateUserArgs,
     LightdashUser,
+    OpenIdIdentityIssuerType,
 } from '@lightdash/common';
 import { Anchor, Button, Card, Image, Stack, Text, Title } from '@mantine/core';
 import { FC, useEffect, useState } from 'react';
@@ -10,12 +11,8 @@ import { useMutation } from 'react-query';
 import { Redirect, useLocation, useParams } from 'react-router-dom';
 
 import { lightdashApi } from '../api';
-import {
-    GoogleLoginButton,
-    OktaLoginButton,
-    OneLoginLoginButton,
-} from '../components/common/GoogleLoginButton';
 import Page from '../components/common/Page/Page';
+import { ThirdPartySignInButton } from '../components/common/ThirdPartySignInButton';
 import PageSpinner from '../components/PageSpinner';
 import CreateUserForm from '../components/RegisterForms/CreateUserForm';
 import { useOrganization } from '../hooks/organization/useOrganization';
@@ -143,17 +140,16 @@ const Invite: FC = () => {
         health.data?.auth.okta.enabled ||
         health.data?.auth.oneLogin.enabled;
     const ssoLogins = ssoAvailable && (
-        <>
-            {health.data?.auth.google.oauth2ClientId && (
-                <GoogleLoginButton inviteCode={inviteCode} />
-            )}
-            {health.data?.auth.okta.enabled && (
-                <OktaLoginButton inviteCode={inviteCode} />
-            )}
-            {health.data?.auth.oneLogin.enabled && (
-                <OneLoginLoginButton inviteCode={inviteCode} />
-            )}
-        </>
+        <Stack>
+            {Object.values(OpenIdIdentityIssuerType).map((providerName) => (
+                <ThirdPartySignInButton
+                    key={providerName}
+                    providerName={providerName}
+                    inviteCode={inviteCode}
+                    intent="signup"
+                />
+            ))}
+        </Stack>
     );
     const passwordLogin = allowPasswordAuthentication && (
         <CreateUserForm
