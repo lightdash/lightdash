@@ -1,3 +1,10 @@
+# [0.552.0](https://github.com/lightdash/lightdash/compare/0.551.2...0.552.0) (2023-05-16)
+
+
+### Features
+
+* enable new pivot table ([#5434](https://github.com/lightdash/lightdash/issues/5434)) ([8767946](https://github.com/lightdash/lightdash/commit/87679467056cb7e24b3cd210472434dfc5bc8f83))
+
 ## [0.551.2](https://github.com/lightdash/lightdash/compare/0.551.1...0.551.2) (2023-05-16)
 
 
