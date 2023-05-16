@@ -1,6 +1,7 @@
 import { ValidationResponse } from '@lightdash/common';
 import {
     Alert,
+    Box,
     Button,
     clsx,
     Flex,
@@ -27,6 +28,8 @@ import {
 import MantineIcon from '../common/MantineIcon';
 import { IconBox } from '../common/ResourceView/ResourceIcon';
 
+const MIN_ROWS_TO_ENABLE_SCROLLING = 6;
+
 const UpdatedAtAndBy: FC<
     Required<Pick<ValidationResponse, 'lastUpdatedAt' | 'lastUpdatedBy'>>
 > = ({ lastUpdatedAt, lastUpdatedBy }) => {
@@ -34,12 +37,8 @@ const UpdatedAtAndBy: FC<
 
     return (
         <>
-            <Text fz="xs" fw={500}>
-                {timeAgo}
-            </Text>
-            <Text fz="xs" color="gray.6">
-                by {lastUpdatedBy}
-            </Text>
+            <Text fw={500}>{timeAgo}</Text>
+            <Text color="gray.6">by {lastUpdatedBy}</Text>
         </>
     );
 };
@@ -68,7 +67,7 @@ const SettingsValidator: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     return (
         <>
             {isSuccess && (
-                <Paper withBorder sx={{ overflow: 'hidden' }}>
+                <Paper withBorder>
                     <Group
                         position="apart"
                         p="md"
@@ -92,83 +91,101 @@ const SettingsValidator: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                         </Button>
                     </Group>
 
-                    <Table
-                        className={clsx(
-                            classes.root,
-                            classes.smallHeaderText,
-                            classes.smallPadding,
-                        )}
-                        highlightOnHover
+                    <Box
+                        sx={{
+                            overflowY:
+                                data.length > MIN_ROWS_TO_ENABLE_SCROLLING
+                                    ? 'scroll'
+                                    : 'auto',
+                            maxHeight:
+                                data.length > MIN_ROWS_TO_ENABLE_SCROLLING
+                                    ? '500px'
+                                    : 'auto',
+                        }}
                     >
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Error</th>
-                                <th>Last edited</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {data && data.length
-                                ? data.map((validationError) => (
-                                      <tr key={validationError.name}>
-                                          <td>
-                                              <Flex gap="sm" align="center">
-                                                  <Icon
-                                                      validationError={
-                                                          validationError
-                                                      }
-                                                  />
-
-                                                  <Text fw={600} fz="xs">
-                                                      {validationError.name}
-                                                  </Text>
-                                              </Flex>
-                                          </td>
-                                          <td>
-                                              <Alert
-                                                  icon={
-                                                      <MantineIcon
-                                                          icon={IconAlertCircle}
+                        <Table
+                            className={clsx(
+                                classes.root,
+                                classes.smallHeaderText,
+                                classes.smallPadding,
+                                classes.stickyHeader,
+                            )}
+                            fontSize="xs"
+                            highlightOnHover
+                        >
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Error</th>
+                                    <th>Last edited</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {data && data.length
+                                    ? data.map((validationError) => (
+                                          <tr key={validationError.name}>
+                                              <td>
+                                                  <Flex gap="sm" align="center">
+                                                      <Icon
+                                                          validationError={
+                                                              validationError
+                                                          }
                                                       />
-                                                  }
-                                                  color="red"
-                                                  fw={500}
-                                              >
-                                                  <Text fz="xs">
-                                                      {validationError.error}
-                                                  </Text>
-                                              </Alert>
-                                          </td>
-                                          <td>
-                                              {validationError.lastUpdatedAt &&
-                                              validationError.lastUpdatedBy ? (
-                                                  <UpdatedAtAndBy
-                                                      lastUpdatedAt={
-                                                          validationError.lastUpdatedAt
+
+                                                      <Text fw={600}>
+                                                          {validationError.name}
+                                                      </Text>
+                                                  </Flex>
+                                              </td>
+                                              <td>
+                                                  <Alert
+                                                      icon={
+                                                          <MantineIcon
+                                                              icon={
+                                                                  IconAlertCircle
+                                                              }
+                                                          />
                                                       }
-                                                      lastUpdatedBy={
-                                                          validationError.lastUpdatedBy
-                                                      }
-                                                  />
-                                              ) : (
-                                                  <Text fz="xs" fw={500}>
-                                                      N/A
-                                                  </Text>
-                                              )}
-                                          </td>
-                                      </tr>
-                                  ))
-                                : null}
-                        </tbody>
-                    </Table>
-                    {!data?.length && (
-                        <Group position="center" spacing="xs" p="md">
-                            <MantineIcon icon={IconCheck} color="green" />
-                            <Text fw={500} c="gray.7">
-                                No validation errors found
-                            </Text>
-                        </Group>
-                    )}
+                                                      pos="unset"
+                                                      color="red"
+                                                      fw={500}
+                                                  >
+                                                      <Text fz="xs">
+                                                          {
+                                                              validationError.error
+                                                          }
+                                                      </Text>
+                                                  </Alert>
+                                              </td>
+                                              <td>
+                                                  {validationError.lastUpdatedAt &&
+                                                  validationError.lastUpdatedBy ? (
+                                                      <UpdatedAtAndBy
+                                                          lastUpdatedAt={
+                                                              validationError.lastUpdatedAt
+                                                          }
+                                                          lastUpdatedBy={
+                                                              validationError.lastUpdatedBy
+                                                          }
+                                                      />
+                                                  ) : (
+                                                      <Text fw={500}>N/A</Text>
+                                                  )}
+                                              </td>
+                                          </tr>
+                                      ))
+                                    : null}
+                            </tbody>
+                        </Table>
+                        {!data?.length && (
+                            <Group position="center" spacing="xs" p="md">
+                                <MantineIcon icon={IconCheck} color="green" />
+                                <Text fw={500} c="gray.7">
+                                    No validation errors found
+                                </Text>
+                            </Group>
+                        )}
+                    </Box>
                 </Paper>
             )}
         </>

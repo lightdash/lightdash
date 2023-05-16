@@ -35,4 +35,14 @@ export const useTableStyles = createStyles((theme) => ({
             padding: `${theme.spacing.xs} ${theme.spacing.md}`,
         },
     },
+    stickyHeader: {
+        '& thead tr th': {
+            borderBottom: 'none',
+            // NOTE: This allows the sticky header to have a border-bottom when table is scrolled and border-collapse: collapse is set
+            boxShadow: `inset 0px -1px 0px 0px ${theme.colors.gray[3]}`,
+            backgroundColor: theme.colors.gray[0],
+            position: 'sticky',
+            top: 0,
+        },
+    },
 }));
