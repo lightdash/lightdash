@@ -1,3 +1,10 @@
+## [0.551.2](https://github.com/lightdash/lightdash/compare/0.551.1...0.551.2) (2023-05-16)
+
+
+### Bug Fixes
+
+* use space summaries where possible in frontend ([#5490](https://github.com/lightdash/lightdash/issues/5490)) ([8392277](https://github.com/lightdash/lightdash/commit/839227755fb46ff5388363bb88e4dc542942a470))
+
 ## [0.551.1](https://github.com/lightdash/lightdash/compare/0.551.0...0.551.1) (2023-05-15)
 
 
