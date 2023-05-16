@@ -498,6 +498,7 @@ export type SchedulerUpsertEvent = BaseTrack & {
         cronExpression: string;
         cronString: string;
         resourceId: string;
+        format: 'csv' | 'image';
         targets: Array<{
             schedulerTargetId: string;
             type: 'slack' | 'email';

@@ -511,6 +511,7 @@ export class SavedChartService {
                     ? 'chart'
                     : 'dashboard',
                 cronExpression: scheduler.cron,
+                format: scheduler.format,
                 cronString: cronstrue.toString(scheduler.cron, {
                     verbose: true,
                     throwExceptionOnParseError: false,
