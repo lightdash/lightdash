@@ -18,7 +18,6 @@ import {
     ExploreError,
     fieldId as getFieldId,
     FilterableField,
-    filterFilterGroupByTable,
     FilterGroup,
     FilterGroupItem,
     FilterOperator,
@@ -28,6 +27,7 @@ import {
     formatRows,
     getDimensions,
     getFields,
+    getFiltersFromTable,
     getItemId,
     getItemMap,
     getMetrics,
@@ -961,7 +961,7 @@ export class ProjectService {
         ];
         if (filters) {
             autocompleteDimensionFilters.push(
-                ...filterFilterGroupByTable(filters, explore.name).and,
+                ...getFiltersFromTable(filters, explore.name).and,
             );
         }
         const metricQuery: MetricQuery = {

@@ -153,7 +153,7 @@ export enum FilterGroupOperator {
     or = 'or',
 }
 
-export const filterFilterGroupByTable = <T extends FilterGroup>(
+export const getFiltersFromTable = <T extends FilterGroup>(
     filterGroup: T,
     tableName: string,
 ): T => {
@@ -165,7 +165,7 @@ export const filterFilterGroupByTable = <T extends FilterGroup>(
         ...filterGroup,
         [groupProperty]: groupItems.reduce<FilterGroupItem[]>((acc, item) => {
             if (isFilterGroup(item)) {
-                return [...acc, filterFilterGroupByTable(item, tableName)];
+                return [...acc, getFiltersFromTable(item, tableName)];
             }
             if (
                 isDashboardFilterRule(item) &&
