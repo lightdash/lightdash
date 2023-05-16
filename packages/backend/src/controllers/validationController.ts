@@ -1,6 +1,7 @@
 import {
     ApiCsvUrlResponse,
     ApiErrorPayload,
+    ApiGenerateValidationResponse,
     ApiValidateResponse,
 } from '@lightdash/common';
 import { Get, Post } from '@tsoa/runtime';
@@ -34,7 +35,7 @@ export class ValidationController extends Controller {
     async post(
         @Path() projectUuid: string,
         @Request() req: express.Request,
-    ): Promise<ApiValidateResponse> {
+    ): Promise<ApiGenerateValidationResponse> {
         this.setStatus(200);
         return {
             status: 'ok',

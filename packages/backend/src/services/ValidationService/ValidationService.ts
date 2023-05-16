@@ -17,6 +17,7 @@ import {
     TableCalculation,
     ValidationResponse,
 } from '@lightdash/common';
+import { schedulerClient } from '../../clients/clients';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
@@ -380,7 +381,7 @@ export class ValidationService {
     async validate(
         user: SessionUser,
         projectUuid: string,
-    ): Promise<ValidationResponse[]> {
+    ): Promise<{ jobId: string }> {
         const { organizationUuid } = await this.projectModel.get(projectUuid);
 
         if (
@@ -395,14 +396,18 @@ export class ValidationService {
             throw new ForbiddenError();
         }
 
-        const validationErrors = await this.generateValidation(projectUuid);
+        const jobId = await schedulerClient.generateValidation({ projectUuid });
+        return jobId;
+    }
+
+    async storeValidation(
+        projectUuid: string,
+        validationErrors: CreateValidation[],
+    ) {
         await this.validationModel.delete(projectUuid);
 
         if (validationErrors.length > 0)
             await this.validationModel.create(validationErrors);
-
-        const validations = await this.validationModel.get(projectUuid);
-        return this.hidePrivateContent(user, projectUuid, validations);
     }
 
     async hidePrivateContent(
@@ -442,6 +447,14 @@ export class ValidationService {
         ) {
             throw new ForbiddenError();
         }
+        const validations = await this.validationModel.get(projectUuid);
+        return this.hidePrivateContent(user, projectUuid, validations);
+    }
+
+    async getJob(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<ValidationResponse[]> {
         const validations = await this.validationModel.get(projectUuid);
         return this.hidePrivateContent(user, projectUuid, validations);
     }

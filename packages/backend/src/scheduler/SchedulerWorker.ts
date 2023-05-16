@@ -16,6 +16,7 @@ import { tryJobOrTimeout } from './SchedulerJobTimeout';
 import {
     compileProject,
     downloadCsv,
+    generateValidation,
     handleScheduledDelivery,
     sendEmailNotification,
     sendSlackNotification,
@@ -198,6 +199,16 @@ export class SchedulerWorker {
                     helpers: JobHelpers,
                 ) => {
                     await testAndCompileProject(
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                    );
+                },
+                generateValidation: async (
+                    payload: any,
+                    helpers: JobHelpers,
+                ) => {
+                    await generateValidation(
                         helpers.job.id,
                         helpers.job.run_at,
                         payload,

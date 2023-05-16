@@ -501,4 +501,20 @@ export class SchedulerModel {
 
         return job;
     }
+
+    async getJobStatus(jobId: string, userUuid: string) {
+        const jobs = await this.database(SchedulerLogTableName)
+            .where(`job_id`, jobId)
+            .orderBy('scheduled_time', 'desc')
+            .returning('*');
+
+        const job = jobs.sort(
+            (a, b) =>
+                statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status),
+        )[0];
+        if (!job || job.details?.createdByUserUuid !== userUuid)
+            throw new NotFoundError('Job status not found');
+
+        return job;
+    }
 }

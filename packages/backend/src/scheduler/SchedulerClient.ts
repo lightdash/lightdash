@@ -12,16 +12,13 @@ import {
     SchedulerJobStatus,
     SchedulerSlackTarget,
     SlackNotificationPayload,
+    ValidateProjectPayload,
 } from '@lightdash/common';
 import { getSchedule, stringToArray } from 'cron-converter';
 import { makeWorkerUtils, WorkerUtils } from 'graphile-worker';
 import moment from 'moment';
-import { nanoid } from 'nanoid';
 import { analytics } from '../analytics/client';
-import {
-    DownloadCsv,
-    LightdashAnalytics,
-} from '../analytics/LightdashAnalytics';
+import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logger';
 import { SchedulerModel } from '../models/SchedulerModel';
@@ -272,6 +269,28 @@ export class SchedulerClient {
             scheduledTime: now,
             status: SchedulerJobStatus.SCHEDULED,
             details: { createdByUserUuid: payload.userUuid },
+        });
+
+        return { jobId };
+    }
+
+    async generateValidation(payload: ValidateProjectPayload) {
+        const graphileClient = await this.graphileUtils;
+        const now = new Date();
+        const { id: jobId } = await graphileClient.addJob(
+            'validateProject',
+            payload,
+            {
+                runAt: now, // now
+                maxAttempts: 1,
+            },
+        );
+        await this.schedulerModel.logSchedulerJob({
+            task: 'validateProject',
+            jobId,
+            scheduledTime: now,
+            status: SchedulerJobStatus.SCHEDULED,
+            details: {},
         });
 
         return { jobId };

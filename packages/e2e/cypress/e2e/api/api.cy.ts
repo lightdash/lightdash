@@ -137,13 +137,11 @@ describe('Lightdash API', () => {
         cy.request(`${apiUrl}/projects/${projectUuid}/dashboards`).then(
             (projectResponse) => {
                 expect(projectResponse.status).to.eq(200);
-                cy.log(projectResponse.body);
 
                 const dashboardUuid = projectResponse.body.results[0].uuid;
                 const endpoint = `${apiUrl}/dashboards/${dashboardUuid}`;
 
                 cy.request(endpoint).then((dashboardResponse) => {
-                    cy.log(dashboardResponse.body);
                     expect(dashboardResponse.status).to.eq(200);
                     expect(dashboardResponse.body.results).to.have.property(
                         'name',
@@ -161,7 +159,6 @@ describe('Lightdash API', () => {
                             filters: dashboard.filters,
                         },
                     }).then((resp) => {
-                        cy.log(resp.body);
                         expect(resp.status).to.eq(200);
                         expect(resp.body).to.have.property('status', 'ok');
                     });
@@ -174,7 +171,6 @@ describe('Lightdash API', () => {
         cy.request(`${apiUrl}/projects/${projectUuid}/spaces-and-content`).then(
             (projectResponse) => {
                 expect(projectResponse.status).to.eq(200);
-                cy.log(projectResponse.body);
 
                 const savedChartUuid =
                     projectResponse.body.results[0].queries[0].uuid;
@@ -186,7 +182,6 @@ describe('Lightdash API', () => {
 
                 endpoints.forEach((endpoint) => {
                     cy.request(`${apiUrl}${endpoint}`).then((resp) => {
-                        cy.log(resp.body);
                         expect(resp.status).to.eq(200);
                         expect(resp.body).to.have.property('status', 'ok');
                     });
@@ -208,7 +203,6 @@ describe('Lightdash API', () => {
                 url: `${apiUrl}${endpoint}`,
                 headers: { 'Content-type': 'application/json' },
             }).then((resp) => {
-                cy.log(resp.body);
                 expect(resp.status).to.eq(200);
                 expect(resp.body).to.have.property('status', 'ok');
             });

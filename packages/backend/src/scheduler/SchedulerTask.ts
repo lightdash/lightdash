@@ -14,6 +14,7 @@ import {
     SchedulerJobStatus,
     SchedulerLog,
     SlackNotificationPayload,
+    ValidateProjectPayload,
 } from '@lightdash/common';
 import { nanoid } from 'nanoid';
 import { analytics } from '../analytics/client';
@@ -37,6 +38,7 @@ import {
     schedulerService,
     unfurlService,
     userService,
+    validationService,
 } from '../services/services';
 
 const getChartOrDashboard = async (
@@ -447,6 +449,29 @@ export const compileProject = async (
     }
 };
 
+export const generateValidation = async (
+    jobId: string,
+    scheduledTime: Date,
+    payload: ValidateProjectPayload,
+) => {
+    schedulerService.logSchedulerJob({
+        task: 'validateProject',
+        jobId,
+        scheduledTime,
+        status: SchedulerJobStatus.STARTED,
+    });
+
+    const errors = await validationService.generateValidation(
+        payload.projectUuid,
+    );
+    await validationService.storeValidation(payload.projectUuid, errors);
+    schedulerService.logSchedulerJob({
+        task: 'validateProject',
+        jobId,
+        scheduledTime,
+        status: SchedulerJobStatus.COMPLETED,
+    });
+};
 export const downloadCsv = async (
     jobId: string,
     scheduledTime: Date,
