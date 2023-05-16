@@ -4,6 +4,7 @@ import {
     DashboardScheduler,
     ScheduledJobs,
     SchedulerAndTargets,
+    SchedulerFormat,
     SchedulerSlackTarget,
     SEED_PROJECT,
     UpdateSchedulerAndTargetsWithoutId,
@@ -16,7 +17,7 @@ const createSchedulerBody: CreateSchedulerAndTargetsWithoutIds = {
     name: 'test',
     cron,
     targets: [{ channel: 'C1' }, { channel: 'C2' }],
-    format: 'image',
+    format: SchedulerFormat.IMAGE,
     options: {},
 };
 
@@ -26,7 +27,7 @@ const getUpdateSchedulerBody = (
     name: 'test2',
     cron,
     targets: [{ schedulerSlackTargetUuid, channel: 'C1' }, { channel: 'C3' }],
-    format: 'image',
+    format: SchedulerFormat.IMAGE,
     options: {},
 });
 

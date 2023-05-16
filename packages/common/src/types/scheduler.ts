@@ -16,6 +16,11 @@ export enum SchedulerJobStatus {
     ERROR = 'error',
 }
 
+export enum SchedulerFormat {
+    CSV = 'csv',
+    IMAGE = 'image',
+}
+
 export type SchedulerLog = {
     task:
         | 'handleScheduledDelivery'
@@ -40,7 +45,7 @@ export type SchedulerBase = {
     createdAt: Date;
     updatedAt: Date;
     createdBy: string;
-    format: 'csv' | 'image';
+    format: SchedulerFormat;
     cron: string;
     savedChartUuid: string | null;
     dashboardUuid: string | null;
