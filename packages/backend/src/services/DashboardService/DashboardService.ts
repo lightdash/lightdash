@@ -78,6 +78,11 @@ export class DashboardService {
         ) {
             throw new ForbiddenError();
         }
+        const space = await this.spaceModel.getFullSpace(dashboard.spaceUuid);
+        if (!hasSpaceAccess(space, user.userUuid)) {
+            throw new ForbiddenError();
+        }
+
         return dashboard;
     }
 

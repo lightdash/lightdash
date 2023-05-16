@@ -1,4 +1,4 @@
-import { SavedChart, SEED_PROJECT, Space } from '@lightdash/common';
+import { Dashboard, SavedChart, SEED_PROJECT, Space } from '@lightdash/common';
 
 const apiUrl = '/api/v1';
 
@@ -21,6 +21,12 @@ const chartBody = {
     name: 'private chart',
 };
 
+const dashboardBody = {
+    name: 'private dashboard',
+    description: '',
+    tiles: [],
+};
+
 const createPrivateChart = (
     callback: (space: Space, chart: SavedChart) => void,
 ) => {
@@ -37,6 +43,30 @@ const createPrivateChart = (
             body: { ...chartBody, spaceUuid: spaceResponse.body.results.uuid },
         }).then((resp) => {
             expect(resp.status).to.eq(200);
+            callback(spaceResponse.body.results, resp.body.results);
+        });
+    });
+};
+
+const createPrivateDashboard = (
+    callback: (space: Space, dashboard: Dashboard) => void,
+) => {
+    cy.request({
+        url: `api/v1/projects/${SEED_PROJECT.project_uuid}/spaces`,
+        headers: { 'Content-type': 'application/json' },
+        method: 'POST',
+        body: { name: 'private space' },
+    }).then((spaceResponse) => {
+        cy.request({
+            url: `api/v1/projects/${SEED_PROJECT.project_uuid}/dashboards`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            body: {
+                ...dashboardBody,
+                spaceUuid: spaceResponse.body.results.uuid,
+            },
+        }).then((resp) => {
+            expect(resp.status).to.eq(201);
             callback(spaceResponse.body.results, resp.body.results);
         });
     });
@@ -84,12 +114,23 @@ describe('Lightdash API tests for my own private spaces as admin', () => {
             expect(chart).to.have.property('spaceUuid', space.uuid);
         });
     });
+
+    it('Should create dashboard in private space', () => {
+        createPrivateDashboard((space, dashboard) => {
+            expect(space).to.have.property('isPrivate', true);
+            expect(space).to.have.property('name', 'private space');
+
+            expect(dashboard).to.have.property('spaceName', 'private space');
+            expect(dashboard).to.have.property('spaceUuid', space.uuid);
+        });
+    });
 });
 
 describe('Lightdash API tests for an editor accessing other private spaces', () => {
     let privateChart: SavedChart;
     let privateSpace: Space;
     let email;
+    let privateDashboard: Dashboard;
 
     before(() => {
         cy.login();
@@ -98,7 +139,10 @@ describe('Lightdash API tests for an editor accessing other private spaces', () 
             privateChart = chart;
             privateSpace = space;
         });
-
+        createPrivateDashboard((space, dashboard) => {
+            privateDashboard = dashboard;
+            privateSpace = space;
+        });
         cy.loginWithPermissions('member', [
             {
                 role: 'editor',
@@ -169,6 +213,25 @@ describe('Lightdash API tests for an editor accessing other private spaces', () 
             headers: { 'Content-type': 'application/json' },
             method: 'PATCH',
             body: {},
+            failOnStatusCode: false,
+        }).then((resp) => {
+            expect(resp.status).to.eq(403);
+        });
+    });
+
+    it('Should not create scheduler for dashboard in other private spaces', () => {
+        const schedulerBody = {
+            format: 'image',
+            name: 'scheduler',
+            cron: '0 9 * * 1',
+            options: {},
+            targets: [],
+        };
+        cy.request({
+            url: `api/v1/dashboards/${privateDashboard.uuid}/schedulers`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            body: schedulerBody,
             failOnStatusCode: false,
         }).then((resp) => {
             expect(resp.status).to.eq(403);
