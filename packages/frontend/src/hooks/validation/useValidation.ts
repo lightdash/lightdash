@@ -4,7 +4,6 @@ import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../../api';
 import { useErrorLogs } from '../../providers/ErrorLogsProvider';
 import useToaster from '../toaster/useToaster';
-import { sortAlphabetically } from './utils';
 
 const getValidation = async (
     projectUuid: string,
@@ -18,10 +17,7 @@ const getValidation = async (
 export const useValidation = (projectUuid: string) =>
     useQuery<ValidationResponse[], ApiError>({
         queryKey: 'validation',
-        queryFn: () =>
-            getValidation(projectUuid).then((res) =>
-                res.sort(sortAlphabetically),
-            ),
+        queryFn: () => getValidation(projectUuid),
     });
 
 const updateValidation = async (
