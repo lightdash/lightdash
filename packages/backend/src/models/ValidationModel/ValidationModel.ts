@@ -191,9 +191,9 @@ export class ValidationModel {
         );
 
         return [
+            ...tableValidationErrors,
             ...chartValidationErrors,
             ...dashboardValidationErrors,
-            ...tableValidationErrors,
         ];
     }
 }
