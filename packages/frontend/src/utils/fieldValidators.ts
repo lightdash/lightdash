@@ -38,27 +38,27 @@ export const startWithHTTPSProtocol: FieldValidator<string> =
 export const isValidEmail: FieldValidator<string> = (fieldName) => (value) =>
     !value || validateEmail(value) ? undefined : `${fieldName} is not valid`;
 
-export const isValidEmailDomain: FieldValidator<string[]> =
-    (fieldName) => (value) => {
-        if (!Array.isArray(value) || !value?.length) {
-            return undefined;
-        }
+// eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
+const isValidEmailDomain: FieldValidator<string[]> = (fieldName) => (value) => {
+    if (!Array.isArray(value) || !value?.length) {
+        return undefined;
+    }
 
-        const hasInvalidValue = value.some((item: string) => item.match(/@/));
+    const hasInvalidValue = value.some((item: string) => item.match(/@/));
 
-        if (hasInvalidValue) {
-            return `${fieldName} should not contain @, eg: (gmail.com)`;
-        }
-    };
+    if (hasInvalidValue) {
+        return `${fieldName} should not contain @, eg: (gmail.com)`;
+    }
+};
 
-export const isValidOrganizationDomain: FieldValidator<string[]> =
-    (_) => (value) => {
-        if (!Array.isArray(value) || !value?.length) {
-            return undefined;
-        }
+// eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
+const isValidOrganizationDomain: FieldValidator<string[]> = (_) => (value) => {
+    if (!Array.isArray(value) || !value?.length) {
+        return undefined;
+    }
 
-        return validateOrganizationEmailDomains(value);
-    };
+    return validateOrganizationEmailDomains(value);
+};
 
 export const isOnlyNumbers: FieldValidator<string> = (fieldName) => (value) =>
     !value || value.match(/\D/)
