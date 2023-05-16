@@ -27,7 +27,6 @@ import {
     formatRows,
     getDimensions,
     getFields,
-    getFiltersFromTable,
     getItemId,
     getItemMap,
     getMetrics,
@@ -960,9 +959,7 @@ export class ProjectService {
             },
         ];
         if (filters) {
-            autocompleteDimensionFilters.push(
-                ...getFiltersFromTable(filters, explore.name).and,
-            );
+            autocompleteDimensionFilters.push(filters);
         }
         const metricQuery: MetricQuery = {
             dimensions: [],

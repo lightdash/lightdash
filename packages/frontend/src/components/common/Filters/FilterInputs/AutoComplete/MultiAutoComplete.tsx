@@ -43,16 +43,16 @@ const MultiAutoComplete: FC<Props> = ({
     disabled,
     onChange,
 }) => {
-    const { projectUuid, getRelatedFilterGroup } = useFiltersContext();
+    const { projectUuid, getAutocompleteFilterGroup } = useFiltersContext();
     if (!projectUuid) {
         throw new Error('projectUuid is required in FiltersProvider');
     }
 
     const [search, setSearch] = useState('');
 
-    const relatedFilterGroup = useMemo(
-        () => getRelatedFilterGroup(filterId),
-        [filterId, getRelatedFilterGroup],
+    const autocompleteFilterGroup = useMemo(
+        () => getAutocompleteFilterGroup(filterId, field),
+        [field, filterId, getAutocompleteFilterGroup],
     );
 
     const { isLoading, results: resultsSet } = useFieldValues(
@@ -60,7 +60,7 @@ const MultiAutoComplete: FC<Props> = ({
         initialSuggestionData,
         projectUuid,
         field,
-        relatedFilterGroup,
+        autocompleteFilterGroup,
         true,
         { refetchOnMount: 'always' },
     );

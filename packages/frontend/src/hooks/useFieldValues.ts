@@ -19,7 +19,7 @@ const getFieldValues = async (
     table: string | undefined,
     fieldId: string,
     search: string,
-    filters: AndFilterGroup,
+    filters: AndFilterGroup | undefined,
     limit: number = MAX_AUTOCOMPLETE_RESULTS,
 ) => {
     if (!table) {
@@ -43,7 +43,7 @@ export const useFieldValues = (
     initialData: string[],
     projectId: string,
     field: FilterableItem,
-    filters: AndFilterGroup,
+    filters: AndFilterGroup | undefined,
     debounce: boolean = true,
     useQueryOptions?: UseQueryOptions<FieldValueSearchResult, ApiError>,
 ) => {

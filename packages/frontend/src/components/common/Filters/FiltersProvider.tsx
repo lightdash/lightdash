@@ -2,7 +2,9 @@ import {
     AndFilterGroup,
     DashboardFilters,
     FilterableField,
+    FilterableItem,
     FilterRule,
+    isField,
     WeekDay,
 } from '@lightdash/common';
 import { uuid4 } from '@sentry/utils';
@@ -19,7 +21,10 @@ type FiltersContext = {
     fieldsMap: FieldsWithSuggestions;
     startOfWeek?: WeekDay | null;
     getField: (filterRule: FilterRule) => FieldWithSuggestions | undefined;
-    getRelatedFilterGroup: (filterId: string) => AndFilterGroup;
+    getAutocompleteFilterGroup: (
+        filterId: string,
+        item: FilterableItem,
+    ) => AndFilterGroup | undefined;
 };
 
 const Context = createContext<FiltersContext | undefined>(undefined);
@@ -46,21 +51,23 @@ export const FiltersProvider: FC<Props> = ({
         },
         [fieldsMap],
     );
-    const getRelatedFilterGroup = useCallback(
-        (filterId: string) => {
-            const filterGroup: AndFilterGroup = {
-                id: uuid4(),
-                and: [],
-            };
-            if (dashboardFilters) {
-                const relatedFilterRules = dashboardFilters.dimensions.filter(
-                    (dimensionFilterRule) => {
-                        return dimensionFilterRule.id !== filterId;
-                    },
-                );
-                filterGroup.and.push(...relatedFilterRules);
+    const getAutocompleteFilterGroup = useCallback(
+        (filterId: string, item: FilterableItem) => {
+            if (!dashboardFilters || !isField(item)) {
+                return undefined;
             }
-            return filterGroup;
+            return {
+                id: uuid4(),
+                and: dashboardFilters.dimensions.filter(
+                    (dimensionFilterRule) => {
+                        const isNotSelectedFilter =
+                            dimensionFilterRule.id !== filterId;
+                        const hasSameTable =
+                            dimensionFilterRule.target.tableName === item.table;
+                        return isNotSelectedFilter && hasSameTable;
+                    },
+                ),
+            };
         },
         [dashboardFilters],
     );
@@ -71,7 +78,7 @@ export const FiltersProvider: FC<Props> = ({
                 fieldsMap,
                 startOfWeek,
                 getField,
-                getRelatedFilterGroup,
+                getAutocompleteFilterGroup,
             }}
         >
             {children}

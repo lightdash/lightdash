@@ -153,31 +153,6 @@ export enum FilterGroupOperator {
     or = 'or',
 }
 
-export const getFiltersFromTable = <T extends FilterGroup>(
-    filterGroup: T,
-    tableName: string,
-): T => {
-    const groupProperty = isAndFilterGroup(filterGroup) ? 'and' : 'or';
-    const groupItems = isAndFilterGroup(filterGroup)
-        ? filterGroup.and
-        : filterGroup.or;
-    return {
-        ...filterGroup,
-        [groupProperty]: groupItems.reduce<FilterGroupItem[]>((acc, item) => {
-            if (isFilterGroup(item)) {
-                return [...acc, getFiltersFromTable(item, tableName)];
-            }
-            if (
-                isDashboardFilterRule(item) &&
-                item.target.tableName === tableName
-            ) {
-                return [...acc, item];
-            }
-            return acc;
-        }, []),
-    };
-};
-
 export const convertDashboardFiltersToFilters = (
     dashboardFilters: DashboardFilters,
 ): Filters => {
