@@ -1,10 +1,8 @@
 import { Colors, HTMLTable } from '@blueprintjs/core';
-import { darken, transparentize } from 'polished';
+import { transparentize } from 'polished';
 import styled, { css } from 'styled-components';
 
 export const TABLE_HEADER_BG = Colors.LIGHT_GRAY4;
-export const getTableHeaderDarkerBg = (depth: number) =>
-    darken(depth * 0.03, TABLE_HEADER_BG);
 
 export const TableScrollableWrapper = styled.div`
     display: flex;

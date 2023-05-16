@@ -34,7 +34,7 @@ export const isSummable = (item: Field | TableCalculation) => {
     return true;
 };
 
-export const getResultColumnTotals = (
+const getResultColumnTotals = (
     rows: ResultRow[],
     keys: Array<string>,
 ): Record<FieldId, number | undefined> => {

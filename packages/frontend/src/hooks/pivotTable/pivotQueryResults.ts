@@ -232,13 +232,18 @@ export const pivotQueryResults = ({
         }
     }
 
-    const headerValues = headerValuesT[0].map((_, colIndex) =>
-        headerValuesT.map((row) => row[colIndex]),
-    );
+    const headerValues =
+        headerValuesT[0]?.map((_, colIndex) =>
+            headerValuesT.map((row) => row[colIndex]),
+        ) ?? [];
+
+    const hasIndex = indexValueTypes.length > 0;
+    const hasHeader = headerValueTypes.length > 0;
 
     // Compute the size of the data values
-    const N_DATA_ROWS = rowCount;
-    const N_DATA_COLUMNS = columnCount;
+    const N_DATA_ROWS = hasIndex ? rowCount : 1;
+    const N_DATA_COLUMNS = hasHeader ? columnCount : 1;
+
     // Compute the data values
     const dataValues = create2DArray<ResultValue | null>(
         N_DATA_ROWS,
@@ -268,8 +273,12 @@ export const pivotQueryResults = ({
             const rowKeysString = rowKeys.map(String);
             const columnKeysString = columnKeys.map(String);
 
-            const rowIndex = getIndexByKey(rowIndices, rowKeysString);
-            const columnIndex = getIndexByKey(columnIndices, columnKeysString);
+            const rowIndex = hasIndex
+                ? getIndexByKey(rowIndices, rowKeysString)
+                : 0;
+            const columnIndex = hasHeader
+                ? getIndexByKey(columnIndices, columnKeysString)
+                : 0;
 
             dataValues[rowIndex][columnIndex] = value;
         }
@@ -278,64 +287,96 @@ export const pivotQueryResults = ({
     // compute row totals
     let rowTotalFields: PivotData['rowTotalFields'];
     let rowTotals: PivotData['rowTotals'];
-    if (pivotConfig.rowTotals && pivotConfig.metricsAsRows) {
-        const N_TOTAL_COLS = 1;
-        const N_TOTAL_ROWS = headerValues.length;
+    if (pivotConfig.rowTotals && hasHeader) {
+        if (pivotConfig.metricsAsRows) {
+            const N_TOTAL_COLS = 1;
+            const N_TOTAL_ROWS = headerValues.length;
 
-        rowTotalFields = create2DArray(N_TOTAL_ROWS, N_TOTAL_COLS);
-        rowTotals = create2DArray(N_DATA_ROWS, N_TOTAL_COLS);
+            rowTotalFields = create2DArray(N_TOTAL_ROWS, N_TOTAL_COLS);
+            rowTotals = create2DArray(N_DATA_ROWS, N_TOTAL_COLS);
 
-        // set the header last cell as the title total
-        rowTotalFields[N_TOTAL_ROWS - 1][N_TOTAL_COLS - 1] = {
-            fieldId: undefined,
-        };
+            // set the last header cell as the "Total"
+            rowTotalFields[N_TOTAL_ROWS - 1][N_TOTAL_COLS - 1] = {
+                fieldId: undefined,
+            };
 
-        rowTotals = rowTotals.map((row, rowIndex) =>
-            row.map(() =>
-                dataValues[rowIndex].reduce(
-                    (acc, value) => acc + parseNumericValue(value),
-                    0,
+            rowTotals = rowTotals.map((row, rowIndex) =>
+                row.map(() =>
+                    dataValues[rowIndex].reduce(
+                        (acc, value) => acc + parseNumericValue(value),
+                        0,
+                    ),
                 ),
-            ),
-        );
+            );
+        } else {
+            // TODO: implement row totals with metrics as columns
+        }
     }
 
     let columnTotalFields: PivotData['columnTotalFields'];
     let columnTotals: PivotData['columnTotals'];
-    if (pivotConfig.columnTotals && pivotConfig.metricsAsRows) {
-        const N_TOTAL_ROWS = metrics.length;
-        const N_TOTAL_COLS = indexValueTypes.length;
+    if (pivotConfig.columnTotals && hasIndex) {
+        if (pivotConfig.metricsAsRows) {
+            const N_TOTAL_ROWS = metrics.length;
+            const N_TOTAL_COLS = indexValueTypes.length;
 
-        columnTotalFields = create2DArray(N_TOTAL_ROWS, N_TOTAL_COLS);
-        columnTotals = create2DArray(N_TOTAL_ROWS, N_DATA_COLUMNS);
+            columnTotalFields = create2DArray(N_TOTAL_ROWS, N_TOTAL_COLS);
+            columnTotals = create2DArray(N_TOTAL_ROWS, N_DATA_COLUMNS);
 
-        metrics.forEach((metric, metricIndex) => {
-            columnTotalFields![metricIndex][N_TOTAL_COLS - 1] = {
-                fieldId: metric.fieldId,
+            metrics.forEach((metric, metricIndex) => {
+                columnTotalFields![metricIndex][N_TOTAL_COLS - 1] = {
+                    fieldId: metric.fieldId,
+                };
+            });
+
+            columnTotals = columnTotals.map((row, totalRowIndex) =>
+                row.map((_, totalColIndex) =>
+                    dataValues
+                        .filter(
+                            (__, index) =>
+                                index % N_TOTAL_ROWS === totalRowIndex,
+                        )
+                        .reduce(
+                            (acc, value) =>
+                                acc + parseNumericValue(value[totalColIndex]),
+                            0,
+                        ),
+                ),
+            );
+        } else {
+            const N_TOTAL_COLS = indexValues[0].length;
+            const N_TOTAL_ROWS = 1;
+
+            columnTotalFields = create2DArray(N_TOTAL_ROWS, N_TOTAL_COLS);
+            columnTotals = create2DArray(N_TOTAL_ROWS, N_DATA_COLUMNS);
+
+            // set the last index cell as the "Total"
+            columnTotalFields[N_TOTAL_ROWS - 1][N_TOTAL_COLS - 1] = {
+                fieldId: undefined,
             };
-        });
 
-        columnTotals = columnTotals.map((row, totalRowIndex) =>
-            row.map((_, totalColIndex) =>
-                dataValues
-                    .filter(
-                        (__, index) => index % N_TOTAL_ROWS === totalRowIndex,
-                    )
-                    .reduce(
-                        (acc, value) =>
-                            acc + parseNumericValue(value[totalColIndex]),
-                        0,
-                    ),
-            ),
-        );
+            columnTotals = columnTotals.map((row, _totalRowIndex) =>
+                row.map((_col, colIndex) =>
+                    dataValues
+                        .map((dataRow) => dataRow[colIndex])
+                        .reduce(
+                            (acc, value) => acc + parseNumericValue(value),
+                            0,
+                        ),
+                ),
+            );
+        }
     }
 
-    const titleFields: PivotData['titleFields'] = [
-        ...Array(headerValueTypes.length),
-    ].map(() => Array(indexValueTypes.length).fill(null));
+    const titleFields: PivotData['titleFields'] = create2DArray(
+        hasHeader ? headerValueTypes.length : 1,
+        hasIndex ? indexValueTypes.length : 1,
+    );
     headerValueTypes.forEach((headerValueType, headerIndex) => {
         if (headerValueType.type === FieldType.DIMENSION) {
-            titleFields[headerIndex][indexValueTypes.length - 1] = {
+            titleFields[headerIndex][
+                hasIndex ? indexValueTypes.length - 1 : 0
+            ] = {
                 fieldId: headerValueType.fieldId,
                 direction: 'header',
             };
@@ -343,7 +384,9 @@ export const pivotQueryResults = ({
     });
     indexValueTypes.forEach((indexValueType, indexIndex) => {
         if (indexValueType.type === FieldType.DIMENSION) {
-            titleFields[headerValueTypes.length - 1][indexIndex] = {
+            titleFields[hasHeader ? headerValueTypes.length - 1 : 0][
+                indexIndex
+            ] = {
                 fieldId: indexValueType.fieldId,
                 direction: 'index',
             };

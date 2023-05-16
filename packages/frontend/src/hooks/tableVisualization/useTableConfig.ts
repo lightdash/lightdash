@@ -17,7 +17,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { TableColumn, TableHeader } from '../../components/common/Table/types';
 import { pivotQueryResults } from '../pivotTable/pivotQueryResults';
 import getDataAndColumns from './getDataAndColumns';
-import getPivotDataAndColumns from './getPivotDataAndColumns';
 
 const useTableConfig = (
     tableChartConfig: TableChart | undefined,
@@ -141,18 +140,12 @@ const useTableConfig = (
         [columnProperties],
     );
 
-    const canUseMetricsAsRows = useMemo(() => {
-        if (
-            resultsData?.metricQuery &&
-            resultsData.metricQuery.metrics.length > 0 &&
-            resultsData.rows.length &&
-            pivotDimensions &&
-            pivotDimensions.length > 0
-        ) {
-            return true;
-        }
-        return false;
-    }, [resultsData, pivotDimensions]);
+    const canUsePivotTable =
+        resultsData?.metricQuery &&
+        resultsData.metricQuery.metrics.length > 0 &&
+        resultsData.rows.length &&
+        pivotDimensions &&
+        pivotDimensions.length > 0;
 
     const { rows, columns, error } = useMemo<{
         rows: ResultRow[];
@@ -165,36 +158,31 @@ const useTableConfig = (
                 columns: [],
             };
         }
+
         if (pivotDimensions && pivotDimensions.length > 0) {
-            return getPivotDataAndColumns({
-                columnOrder,
-                itemsMap,
-                resultsData,
-                pivotDimensions,
-                isColumnVisible,
-                getFieldLabel,
-            });
-        } else {
-            return getDataAndColumns({
-                itemsMap,
-                selectedItemIds,
-                resultsData,
-                isColumnVisible,
-                showTableNames,
-                getFieldLabelOverride,
-                isColumnFrozen,
-            });
+            return {
+                rows: [],
+                columns: [],
+            };
         }
+
+        return getDataAndColumns({
+            itemsMap,
+            selectedItemIds,
+            resultsData,
+            isColumnVisible,
+            showTableNames,
+            getFieldLabelOverride,
+            isColumnFrozen,
+        });
     }, [
         selectedItemIds,
-        columnOrder,
+        pivotDimensions,
         itemsMap,
         resultsData,
-        pivotDimensions,
         isColumnVisible,
         showTableNames,
         isColumnFrozen,
-        getFieldLabel,
         getFieldLabelOverride,
     ]);
 
@@ -202,53 +190,45 @@ const useTableConfig = (
         data: PivotData | undefined;
         error: undefined | string;
     }>(() => {
-        // Note: user can have metricsAsRows enabled but if the configuration isn't allowed, it'll be ignored
-        // In future we should change this to an error
         if (
-            canUseMetricsAsRows &&
-            metricsAsRows &&
-            resultsData?.metricQuery &&
-            pivotDimensions
+            !pivotDimensions ||
+            pivotDimensions.length === 0 ||
+            !resultsData ||
+            resultsData.rows.length === 0
         ) {
-            // Pivot V2. This will always trigger when the above conditions are met.
-            // The old pivot below will always trigger. So currently we pivot twice when the above conditions are met.
+            return { data: undefined, error: undefined };
+        }
 
-            const hiddenMetricFieldIds = selectedItemIds?.filter((fieldId) => {
-                const field = getField(fieldId);
+        const hiddenMetricFieldIds = selectedItemIds?.filter((fieldId) => {
+            const field = getField(fieldId);
 
-                return (
-                    !isColumnVisible(fieldId) &&
-                    isField(field) &&
-                    isMetric(field)
-                );
+            return (
+                !isColumnVisible(fieldId) && isField(field) && isMetric(field)
+            );
+        });
+
+        try {
+            const data = pivotQueryResults({
+                pivotConfig: {
+                    pivotDimensions,
+                    metricsAsRows,
+                    columnOrder,
+                    hiddenMetricFieldIds,
+                    columnTotals: tableChartConfig?.showColumnCalculation,
+                    rowTotals: tableChartConfig?.showRowCalculation,
+                },
+                metricQuery: resultsData.metricQuery,
+                rows: resultsData.rows,
             });
 
-            try {
-                const data = pivotQueryResults({
-                    pivotConfig: {
-                        pivotDimensions,
-                        metricsAsRows,
-                        columnOrder,
-                        hiddenMetricFieldIds,
-                        columnTotals: tableChartConfig?.showColumnCalculation,
-                        rowTotals: tableChartConfig?.showRowCalculation,
-                    },
-                    metricQuery: resultsData.metricQuery,
-                    rows: resultsData.rows,
-                });
-
-                return { data: data, error: undefined };
-            } catch (e) {
-                return { data: undefined, error: e.message };
-            }
-        } else {
-            return { data: undefined, error: undefined };
+            return { data: data, error: undefined };
+        } catch (e) {
+            return { data: undefined, error: e.message };
         }
     }, [
         resultsData,
         pivotDimensions,
         columnOrder,
-        canUseMetricsAsRows,
         metricsAsRows,
         selectedItemIds,
         isColumnVisible,
@@ -342,7 +322,7 @@ const useTableConfig = (
         pivotTableData,
         metricsAsRows,
         setMetricsAsRows,
-        canUseMetricsAsRows,
+        canUsePivotTable,
     };
 };
 
