@@ -1,6 +1,7 @@
 import {
     defineUserAbility,
     ForbiddenError,
+    ProjectMemberRole,
     SessionUser,
 } from '@lightdash/common';
 import { analytics } from '../../analytics/client';
@@ -290,8 +291,18 @@ describe('DashboardService', () => {
             async () => privateSpace,
         );
 
+        const userViewer = {
+            ...user,
+            ability: defineUserAbility(
+                {
+                    ...user,
+                    organizationUuid: 'another-org-uuid',
+                },
+                [{ projectUuid, role: ProjectMemberRole.VIEWER }],
+            ),
+        };
         await expect(
-            service.getById(user, dashboard.uuid),
+            service.getById(userViewer, dashboard.uuid),
         ).rejects.toThrowError(ForbiddenError);
     });
     test('should see dashboard from private space if you are admin', async () => {
