@@ -1,4 +1,4 @@
-import { CreateValidation, Space, ValidationResponse } from '@lightdash/common';
+import { CreateValidation, ValidationResponse } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     DashboardsTableName,
@@ -55,47 +55,49 @@ export class ValidationModel {
         const chartValidationErrorsRows: (DbValidationTable &
             Pick<SavedChartTable['base'], 'name'> &
             Pick<UserTable['base'], 'first_name' | 'last_name'> &
-            Pick<DbSpace, 'space_uuid'> &
-            Pick<SavedChartVersionsTable['base'], 'created_at'>)[] =
-            await this.database(ValidationTableName)
-                .leftJoin(
-                    SavedChartsTableName,
-                    `${SavedChartsTableName}.saved_query_uuid`,
-                    `${ValidationTableName}.saved_chart_uuid`,
-                )
-                .leftJoin(
-                    SpaceTableName,
-                    `${SpaceTableName}.space_id`,
-                    `${SavedChartsTableName}.space_id`,
-                )
-                .leftJoin(
-                    `${SavedChartVersionsTableName}`,
-                    `${SavedChartVersionsTableName}.saved_query_id`,
-                    `${SavedChartsTableName}.saved_query_id`,
-                )
-                .leftJoin(
-                    UserTableName,
-                    `${SavedChartVersionsTableName}.updated_by_user_uuid`,
-                    `${UserTableName}.user_uuid`,
-                )
-                .where('project_uuid', projectUuid)
-                .andWhereNot(`${ValidationTableName}.saved_chart_uuid`, null)
-
-                .select([
-                    `${ValidationTableName}.*`,
-                    `${SavedChartsTableName}.name`,
-                    `${SavedChartVersionsTableName}.created_at as last_updated_at`,
-                    `${UserTableName}.first_name`,
-                    `${UserTableName}.last_name`,
-                    `${SpaceTableName}.space_uuid`,
-                ])
-                .orderBy([
-                    {
-                        column: `${SavedChartVersionsTableName}.saved_query_id`,
-                        order: 'desc',
-                    },
-                ])
-                .distinctOn(`${SavedChartVersionsTableName}.saved_query_id`);
+            Pick<DbSpace, 'space_uuid'> & {
+                last_updated_at: Pick<
+                    SavedChartVersionsTable['base'],
+                    'created_at'
+                >;
+            })[] = await this.database(ValidationTableName)
+            .leftJoin(
+                SavedChartsTableName,
+                `${SavedChartsTableName}.saved_query_uuid`,
+                `${ValidationTableName}.saved_chart_uuid`,
+            )
+            .leftJoin(
+                SpaceTableName,
+                `${SpaceTableName}.space_id`,
+                `${SavedChartsTableName}.space_id`,
+            )
+            .leftJoin(
+                `${SavedChartVersionsTableName}`,
+                `${SavedChartVersionsTableName}.saved_query_id`,
+                `${SavedChartsTableName}.saved_query_id`,
+            )
+            .leftJoin(
+                UserTableName,
+                `${SavedChartVersionsTableName}.updated_by_user_uuid`,
+                `${UserTableName}.user_uuid`,
+            )
+            .where('project_uuid', projectUuid)
+            .andWhereNot(`${ValidationTableName}.saved_chart_uuid`, null)
+            .select([
+                `${ValidationTableName}.*`,
+                `${SavedChartsTableName}.name`,
+                `${SavedChartVersionsTableName}.created_at as last_updated_at`,
+                `${UserTableName}.first_name`,
+                `${UserTableName}.last_name`,
+                `${SpaceTableName}.space_uuid`,
+            ])
+            .orderBy([
+                {
+                    column: `${SavedChartVersionsTableName}.saved_query_id`,
+                    order: 'desc',
+                },
+            ])
+            .distinctOn(`${SavedChartVersionsTableName}.saved_query_id`);
 
         const chartValidationErrors = chartValidationErrorsRows.map(
             (validationError) => ({
@@ -107,7 +109,7 @@ export class ValidationModel {
                 lastUpdatedBy: validationError.first_name
                     ? `${validationError.first_name} ${validationError.last_name}`
                     : undefined,
-                lastUpdatedAt: validationError.created_at,
+                lastUpdatedAt: validationError.last_updated_at,
                 validationId: validationError.validation_id,
                 spaceUuid: validationError.space_uuid,
             }),
@@ -116,46 +118,49 @@ export class ValidationModel {
         const dashboardValidationErrorsRows: (DbValidationTable &
             Pick<DashboardTable['base'], 'name'> &
             Pick<UserTable['base'], 'first_name' | 'last_name'> &
-            Pick<DbSpace, 'space_uuid'> &
-            Pick<DashboardVersionTable['base'], 'created_at'>)[] =
-            await this.database(ValidationTableName)
-                .leftJoin(
-                    DashboardsTableName,
-                    `${DashboardsTableName}.dashboard_uuid`,
-                    `${ValidationTableName}.dashboard_uuid`,
-                )
-                .leftJoin(
-                    SpaceTableName,
-                    `${DashboardsTableName}.space_id`,
-                    `${SpaceTableName}.space_id`,
-                )
-                .leftJoin(
-                    `${DashboardVersionsTableName}`,
-                    `${DashboardsTableName}.dashboard_id`,
-                    `${DashboardVersionsTableName}.dashboard_id`,
-                )
-                .leftJoin(
-                    UserTableName,
-                    `${UserTableName}.user_uuid`,
-                    `${DashboardVersionsTableName}.updated_by_user_uuid`,
-                )
-                .where('project_uuid', projectUuid)
-                .andWhereNot(`${ValidationTableName}.dashboard_uuid`, null)
-                .select([
-                    `${ValidationTableName}.*`,
-                    `${DashboardsTableName}.name`,
-                    `${DashboardVersionsTableName}.created_at`,
-                    `${UserTableName}.first_name`,
-                    `${UserTableName}.last_name`,
-                    `${SpaceTableName}.space_uuid`,
-                ])
-                .orderBy([
-                    {
-                        column: `${DashboardVersionsTableName}.dashboard_id`,
-                        order: 'desc',
-                    },
-                ])
-                .distinctOn(`${DashboardVersionsTableName}.dashboard_id`);
+            Pick<DbSpace, 'space_uuid'> & {
+                last_updated_at: Pick<
+                    DashboardVersionTable['base'],
+                    'created_at'
+                >;
+            })[] = await this.database(ValidationTableName)
+            .leftJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${ValidationTableName}.dashboard_uuid`,
+            )
+            .leftJoin(
+                SpaceTableName,
+                `${DashboardsTableName}.space_id`,
+                `${SpaceTableName}.space_id`,
+            )
+            .leftJoin(
+                `${DashboardVersionsTableName}`,
+                `${DashboardsTableName}.dashboard_id`,
+                `${DashboardVersionsTableName}.dashboard_id`,
+            )
+            .leftJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${DashboardVersionsTableName}.updated_by_user_uuid`,
+            )
+            .where('project_uuid', projectUuid)
+            .andWhereNot(`${ValidationTableName}.dashboard_uuid`, null)
+            .select([
+                `${ValidationTableName}.*`,
+                `${DashboardsTableName}.name`,
+                `${DashboardVersionsTableName}.created_at as last_updated_at`,
+                `${UserTableName}.first_name`,
+                `${UserTableName}.last_name`,
+                `${SpaceTableName}.space_uuid`,
+            ])
+            .orderBy([
+                {
+                    column: `${DashboardVersionsTableName}.dashboard_id`,
+                    order: 'desc',
+                },
+            ])
+            .distinctOn(`${DashboardVersionsTableName}.dashboard_id`);
 
         const dashboardValidationErrors = dashboardValidationErrorsRows.map(
             (validationError) => ({
@@ -167,7 +172,7 @@ export class ValidationModel {
                 lastUpdatedBy: validationError.first_name
                     ? `${validationError.first_name} ${validationError.last_name}`
                     : undefined,
-                lastUpdatedAt: validationError.created_at,
+                lastUpdatedAt: validationError.last_updated_at,
                 validationId: validationError.validation_id,
                 spaceUuid: validationError.space_uuid,
             }),
