@@ -4,6 +4,7 @@ import {
     ChartType,
     DbtProjectType,
     LightdashInstallType,
+    LightdashMode,
     LightdashUser,
     OrganizationMemberRole,
     PinnedItem,
@@ -644,6 +645,10 @@ export class LightdashAnalytics extends Analytics {
             name: 'lightdash_server',
             version: VERSION,
             mode: lightdashConfig.mode,
+            siteUrl:
+                lightdashConfig.mode === LightdashMode.CLOUD_BETA
+                    ? lightdashConfig.siteUrl
+                    : null,
             installId: process.env.LIGHTDASH_INSTALL_ID || uuidv4(),
             installType:
                 process.env.LIGHTDASH_INSTALL_TYPE ||
