@@ -11,7 +11,6 @@ import {
     Text,
     useMantineTheme,
 } from '@mantine/core';
-import { useElementSize } from '@mantine/hooks';
 import {
     IconAlertCircle,
     IconChartBar,
@@ -19,7 +18,7 @@ import {
     IconLayoutDashboard,
     IconTable,
 } from '@tabler/icons-react';
-import { FC, useEffect, useState } from 'react';
+import { FC } from 'react';
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
 import { useTimeAgo } from '../../hooks/useTimeAgo';
 import {
@@ -65,25 +64,6 @@ const SettingsValidator: FC<{ projectUuid: string }> = ({ projectUuid }) => {
         return <IconBox icon={IconTable} color="indigo.6" />;
     };
 
-    const [maxTableHeight, setMaxTableHeight] = useState(0);
-    const { ref: firstRowRef, height: firstRowHeight } = useElementSize();
-
-    useEffect(() => {
-        if (firstRowRef.current && isSuccess) {
-            const firstRowComputedStyle = window.getComputedStyle(
-                firstRowRef.current,
-            );
-            const tableRowTotalHeight =
-                firstRowHeight +
-                parseInt(firstRowComputedStyle.paddingTop) +
-                parseInt(firstRowComputedStyle.paddingBottom);
-
-            setMaxTableHeight(
-                tableRowTotalHeight * MIN_ROWS_TO_ENABLE_SCROLLING,
-            );
-        }
-    }, [isSuccess, firstRowRef, firstRowHeight]);
-
     return (
         <>
             {isSuccess && (
@@ -119,7 +99,7 @@ const SettingsValidator: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                     : 'auto',
                             maxHeight:
                                 data.length > MIN_ROWS_TO_ENABLE_SCROLLING
-                                    ? `${maxTableHeight}px`
+                                    ? '500px'
                                     : 'auto',
                         }}
                     >
@@ -142,15 +122,9 @@ const SettingsValidator: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                             </thead>
                             <tbody>
                                 {data && data.length
-                                    ? data.map((validationError, index) => (
+                                    ? data.map((validationError) => (
                                           <tr key={validationError.name}>
-                                              <td
-                                                  ref={
-                                                      index === 0
-                                                          ? firstRowRef
-                                                          : null
-                                                  }
-                                              >
+                                              <td>
                                                   <Flex gap="sm" align="center">
                                                       <Icon
                                                           validationError={
