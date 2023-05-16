@@ -1,3 +1,10 @@
+# [0.553.0](https://github.com/lightdash/lightdash/compare/0.552.0...0.553.0) (2023-05-16)
+
+
+### Features
+
+* add validations view ([#5487](https://github.com/lightdash/lightdash/issues/5487)) ([1a5fff0](https://github.com/lightdash/lightdash/commit/1a5fff0d75bd5f0c525818175bbf43bc6e138b78))
+
 # [0.552.0](https://github.com/lightdash/lightdash/compare/0.551.2...0.552.0) (2023-05-16)
 
 
