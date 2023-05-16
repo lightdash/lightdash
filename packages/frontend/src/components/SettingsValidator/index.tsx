@@ -80,7 +80,6 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                         }}
                     >
                         <Text fw={500} fz="xs" c="gray.6">
-                            {/* TODO: show created at timestamp on hover of formatted date instead? */}
                             {!!data?.length
                                 ? `Last validated at: ${data[0].createdAt}`
                                 : null}
