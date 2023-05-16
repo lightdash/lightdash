@@ -1,3 +1,10 @@
+# [0.554.0](https://github.com/lightdash/lightdash/compare/0.553.0...0.554.0) (2023-05-16)
+
+
+### Features
+
+* fix space permission + e2e tests ([#5503](https://github.com/lightdash/lightdash/issues/5503)) ([462899a](https://github.com/lightdash/lightdash/commit/462899a07aadebc60fe907eb8916d33b5bb78de6))
+
 # [0.553.0](https://github.com/lightdash/lightdash/compare/0.552.0...0.553.0) (2023-05-16)
 
 
