@@ -1,3 +1,10 @@
+# [0.555.0](https://github.com/lightdash/lightdash/compare/0.554.0...0.555.0) (2023-05-16)
+
+
+### Features
+
+* add scroll if > 6 validation errors ([#5506](https://github.com/lightdash/lightdash/issues/5506)) ([b879acf](https://github.com/lightdash/lightdash/commit/b879acf13bfc37e03eff8a8c13b825b424bddc7b))
+
 # [0.554.0](https://github.com/lightdash/lightdash/compare/0.553.0...0.554.0) (2023-05-16)
 
 
