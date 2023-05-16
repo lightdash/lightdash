@@ -34,11 +34,10 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const { health: healthState } = useApp();
-    const hasUpdate =
+    const showUpdateBadge =
         healthState.data?.latest.version &&
-        healthState.data.version !== healthState.data.latest.version;
-
-    const isCloud = healthState.data?.mode === LightdashMode.CLOUD_BETA;
+        healthState.data.version !== healthState.data.latest.version &&
+        healthState.data?.mode === LightdashMode.DEFAULT;
 
     return (
         <TrackSection name={SectionName.PAGE_FOOTER}>
@@ -63,7 +62,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                     >
                         {!minimal && 'Lightdash - '}
                         {healthState.data && `v${healthState.data.version}`}
-                        {hasUpdate && !isCloud && (
+                        {showUpdateBadge && (
                             <Badge
                                 variant="light"
                                 ml="xs"
@@ -131,7 +130,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                                 ? `v${healthState.data.version}`
                                 : 'n/a'}
                         </Title>
-                        {hasUpdate && !isCloud && (
+                        {showUpdateBadge && (
                             <Alert
                                 title="New version available!"
                                 color="blue"
