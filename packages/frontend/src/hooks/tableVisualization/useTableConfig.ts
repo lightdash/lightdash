@@ -223,7 +223,6 @@ const useTableConfig = (
 
             return { data: data, error: undefined };
         } catch (e) {
-            console.error(e);
             return { data: undefined, error: e.message };
         }
     }, [

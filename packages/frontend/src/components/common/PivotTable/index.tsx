@@ -2,7 +2,7 @@ import {
     ConditionalFormattingConfig,
     Field,
     fieldId,
-    formatValue,
+    formatItemValue,
     isField,
     PivotData,
     ResultValue,
@@ -12,6 +12,7 @@ import { Table, TableProps } from '@mantine/core';
 import last from 'lodash-es/last';
 import React, { FC, useCallback } from 'react';
 
+import { isSummable } from '../../../hooks/useColumnTotals';
 import HeaderCell from './HeaderCell';
 import IndexCell from './IndexCell';
 import { usePivotTableCellStyles, usePivotTableStyles } from './tableStyles';
@@ -59,16 +60,15 @@ const PivotTable: FC<PivotTableProps> = ({
     );
 
     const getRowTotalValueFromAxis = useCallback(
-        (total: unknown, rowIndex: number): ResultValue => {
+        (total: unknown, rowIndex: number): ResultValue | null => {
             const value = last(data.indexValues[rowIndex]);
             if (!value || !value.fieldId) throw new Error('Invalid pivot data');
 
             const item = getField(value.fieldId);
-
-            const formattedValue = formatValue(
-                total,
-                isField(item) ? item : undefined,
-            );
+            if (!isSummable(item)) {
+                return null;
+            }
+            const formattedValue = formatItemValue(item, total);
 
             return {
                 raw: total,
@@ -79,16 +79,15 @@ const PivotTable: FC<PivotTableProps> = ({
     );
 
     const getColumnTotalValueFromAxis = useCallback(
-        (total: unknown, colIndex: number): ResultValue => {
+        (total: unknown, colIndex: number): ResultValue | null => {
             const value = last(data.headerValues)?.[colIndex];
             if (!value || !value.fieldId) throw new Error('Invalid pivot data');
 
             const item = getField(value.fieldId);
-
-            const formattedValue = formatValue(
-                total,
-                isField(item) ? item : undefined,
-            );
+            if (!isSummable(item)) {
+                return null;
+            }
+            const formattedValue = formatItemValue(item, total);
 
             return {
                 raw: total,
@@ -355,7 +354,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                                   rowIndex,
                                               );
 
-                                          return total ? (
+                                          return value ? (
                                               <TotalCell
                                                   value={value}
                                                   key={`index-total-${rowIndex}-${colIndex}`}
@@ -421,8 +420,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                     total,
                                     totalColIndex,
                                 );
-
-                                return total ? (
+                                return value ? (
                                     <TotalCell
                                         key={`column-total-${totalRowIndex}-${totalColIndex}`}
                                         value={value}

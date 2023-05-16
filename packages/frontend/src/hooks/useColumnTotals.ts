@@ -18,7 +18,7 @@ type Args = {
     itemsMap: Record<FieldId, Field | TableCalculation>;
 };
 
-const isSummable = (item: Field | TableCalculation) => {
+export const isSummable = (item: Field | TableCalculation) => {
     if (isField(item) || isAdditionalMetric(item)) {
         const numericTypes: string[] = [
             DimensionType.NUMBER,
