@@ -51,6 +51,8 @@ export const useSpaceSummaries = (
     );
 };
 
+// DEPRECATED: masks usage of `/spaces-and-content` endpoint
+// Use `useSpaceSummaries` where possible
 export const useSavedCharts = (projectUuid: string) => {
     const spaces = useSpaces(projectUuid);
     const allCharts = spaces.data?.flatMap((space) => space.queries);
