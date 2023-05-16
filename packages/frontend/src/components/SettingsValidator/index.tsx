@@ -66,8 +66,6 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
         return <IconBox icon={IconTable} color="indigo.6" />;
     };
 
-    // TODO: add error state
-
     return (
         <>
             {isSuccess && (

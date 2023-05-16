@@ -43,7 +43,6 @@ export const useValidationMutation = (projectUuid: string) => {
                 title: 'Success! Validation complete.',
             });
         },
-        // TODO: investigate error message
         onError: useCallback(
             (error) => {
                 const [title, ...rest] = error.error.message.split('\n');
