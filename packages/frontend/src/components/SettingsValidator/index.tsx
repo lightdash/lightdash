@@ -128,6 +128,7 @@ const SettingsValidator: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                 classes.root,
                                 classes.smallHeaderText,
                                 classes.smallPadding,
+                                classes.stickyHeader,
                             )}
                             fontSize="xs"
                             highlightOnHover
@@ -171,6 +172,7 @@ const SettingsValidator: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                                               }
                                                           />
                                                       }
+                                                      pos="unset"
                                                       color="red"
                                                       fw={500}
                                                   >
