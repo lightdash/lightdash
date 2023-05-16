@@ -2,7 +2,7 @@ import {
     ConditionalFormattingConfig,
     Field,
     fieldId,
-    formatValue,
+    formatItemValue,
     isField,
     PivotData,
     ResultValue,
@@ -12,6 +12,7 @@ import { Table, TableProps } from '@mantine/core';
 import last from 'lodash-es/last';
 import React, { FC, useCallback } from 'react';
 
+import { isSummable } from '../../../hooks/useColumnTotals';
 import HeaderCell from './HeaderCell';
 import IndexCell from './IndexCell';
 import { usePivotTableCellStyles, usePivotTableStyles } from './tableStyles';
@@ -58,27 +59,42 @@ const PivotTable: FC<PivotTableProps> = ({
         ],
     );
 
-    const getRowTotalItemFromAxis = useCallback(
-        (total: unknown, rowIndex: number, _colIndex: number): ResultValue => {
-            if (!data.pivotConfig.metricsAsRows)
-                throw new Error('not implemented');
-
+    const getRowTotalValueFromAxis = useCallback(
+        (total: unknown, rowIndex: number): ResultValue | null => {
             const value = last(data.indexValues[rowIndex]);
             if (!value || !value.fieldId) throw new Error('Invalid pivot data');
 
             const item = getField(value.fieldId);
-
-            const formattedValue = formatValue(
-                total,
-                isField(item) ? item : undefined,
-            );
+            if (!isSummable(item)) {
+                return null;
+            }
+            const formattedValue = formatItemValue(item, total);
 
             return {
                 raw: total,
                 formatted: formattedValue,
             };
         },
-        [data.pivotConfig.metricsAsRows, data.indexValues, getField],
+        [data.indexValues, getField],
+    );
+
+    const getColumnTotalValueFromAxis = useCallback(
+        (total: unknown, colIndex: number): ResultValue | null => {
+            const value = last(data.headerValues)?.[colIndex];
+            if (!value || !value.fieldId) throw new Error('Invalid pivot data');
+
+            const item = getField(value.fieldId);
+            if (!isSummable(item)) {
+                return null;
+            }
+            const formattedValue = formatItemValue(item, total);
+
+            return {
+                raw: total,
+                formatted: formattedValue,
+            };
+        },
+        [data.headerValues, getField],
     );
 
     const getUnderlyingFieldValues = useCallback(
@@ -104,14 +120,20 @@ const PivotTable: FC<PivotTableProps> = ({
         [data.indexValues, data.headerValues, data.dataValues, getItemFromAxis],
     );
 
+    const hasColumnTotals =
+        !data.pivotConfig.metricsAsRows && data.pivotConfig.columnTotals;
+
+    const hasRowTotals =
+        data.pivotConfig.metricsAsRows && data.pivotConfig.rowTotals;
+
     return (
         <Table
+            m="xs"
             cellSpacing={1}
             unstyled
             withBorder
             withColumnBorders
             className={tableCx(tableStyles.root, className)}
-            w="xs"
             {...tableProps}
         >
             <thead>
@@ -133,13 +155,8 @@ const PivotTable: FC<PivotTableProps> = ({
                                 )}
 
                                 {/* renders the title labels */}
-                                {data.indexValueTypes.map(
-                                    (_indexValueType, indexColIndex) => {
-                                        const titleField =
-                                            data.titleFields[headerRowIndex][
-                                                indexColIndex
-                                            ];
-
+                                {data.titleFields[headerRowIndex].map(
+                                    (titleField, titleFieldIndex) => {
                                         const field = titleField?.fieldId
                                             ? getField(titleField?.fieldId)
                                             : undefined;
@@ -151,7 +168,7 @@ const PivotTable: FC<PivotTableProps> = ({
 
                                         return (
                                             <TitleCell
-                                                key={`title-${headerRowIndex}-${indexColIndex}`}
+                                                key={`title-${headerRowIndex}-${titleFieldIndex}`}
                                                 className={cellCx(
                                                     cellStyles.root,
                                                     cellStyles.header,
@@ -211,7 +228,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                 )}
 
                                 {/* render the total label */}
-                                {data.pivotConfig.rowTotals
+                                {hasRowTotals
                                     ? data.rowTotalFields?.[headerRowIndex].map(
                                           (totalLabel, headerColIndex) =>
                                               totalLabel ? (
@@ -256,6 +273,17 @@ const PivotTable: FC<PivotTableProps> = ({
                                     {rowIndex + 1}
                                 </td>
                             )}
+
+                            {/* renders empty rows if there are no index values but titles */}
+                            {data.indexValueTypes.length === 0 &&
+                                data.titleFields[0].map(
+                                    (_titleField, titleFieldIndex) => (
+                                        <td
+                                            key={`empty-title-${rowIndex}-${titleFieldIndex}`}
+                                            className={cellCx(cellStyles.root)}
+                                        />
+                                    ),
+                                )}
 
                             {/* renders the index values or labels */}
                             {data.indexValueTypes.map(
@@ -317,16 +345,16 @@ const PivotTable: FC<PivotTableProps> = ({
                             })}
 
                             {/* render the total values */}
-                            {data.pivotConfig.rowTotals
+                            {hasRowTotals
                                 ? data.rowTotals?.[rowIndex].map(
                                       (total, colIndex) => {
-                                          const value = getRowTotalItemFromAxis(
-                                              total,
-                                              rowIndex,
-                                              colIndex,
-                                          );
+                                          const value =
+                                              getRowTotalValueFromAxis(
+                                                  total,
+                                                  rowIndex,
+                                              );
 
-                                          return total ? (
+                                          return value ? (
                                               <TotalCell
                                                   value={value}
                                                   key={`index-total-${rowIndex}-${colIndex}`}
@@ -347,6 +375,72 @@ const PivotTable: FC<PivotTableProps> = ({
                     </tr>
                 ))}
             </tbody>
+
+            {hasColumnTotals ? (
+                <tfoot>
+                    {data.columnTotals?.map((row, totalRowIndex) => (
+                        <tr key={`column-total-${totalRowIndex}`}>
+                            {/* shows empty cell if row numbers are visible */}
+                            {hideRowNumbers ? null : (
+                                <th
+                                    className={cellCx(
+                                        cellStyles.root,
+                                        cellStyles.rowNumber,
+                                    )}
+                                />
+                            )}
+
+                            {/* render the total label */}
+                            {data.columnTotalFields?.[totalRowIndex].map(
+                                (totalLabel, totalColIndex) =>
+                                    totalLabel ? (
+                                        <HeaderCell
+                                            key={`footer-total-${totalRowIndex}-${totalColIndex}`}
+                                            textAlign="right"
+                                            className={cellCx(
+                                                cellStyles.root,
+                                                cellStyles.header,
+                                            )}
+                                        >
+                                            {totalLabel.fieldId ?? 'Total'}
+                                        </HeaderCell>
+                                    ) : (
+                                        <th
+                                            key={`footer-total-${totalRowIndex}-${totalColIndex}`}
+                                            className={cellCx(
+                                                cellStyles.root,
+                                                cellStyles.rowNumber,
+                                            )}
+                                        />
+                                    ),
+                            )}
+
+                            {row.map((total, totalColIndex) => {
+                                const value = getColumnTotalValueFromAxis(
+                                    total,
+                                    totalColIndex,
+                                );
+                                return value ? (
+                                    <TotalCell
+                                        key={`column-total-${totalRowIndex}-${totalColIndex}`}
+                                        value={value}
+                                    >
+                                        {value.formatted}
+                                    </TotalCell>
+                                ) : (
+                                    <td
+                                        key={`footer-total-${totalRowIndex}-${totalColIndex}`}
+                                        className={cellCx(
+                                            cellStyles.root,
+                                            cellStyles.rowNumber,
+                                        )}
+                                    />
+                                );
+                            })}
+                        </tr>
+                    ))}
+                </tfoot>
+            ) : null}
         </Table>
     );
 };

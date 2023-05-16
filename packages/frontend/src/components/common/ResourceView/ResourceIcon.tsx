@@ -29,7 +29,7 @@ interface IconBoxProps extends MantineIconProps {
     icon: TablerIconType;
 }
 
-const IconBox: FC<IconBoxProps> = ({
+export const IconBox: FC<IconBoxProps> = ({
     color,
     icon,
     size = 'lg',

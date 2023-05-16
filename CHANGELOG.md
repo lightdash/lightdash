@@ -1,3 +1,33 @@
+# [0.553.0](https://github.com/lightdash/lightdash/compare/0.552.0...0.553.0) (2023-05-16)
+
+
+### Features
+
+* add validations view ([#5487](https://github.com/lightdash/lightdash/issues/5487)) ([1a5fff0](https://github.com/lightdash/lightdash/commit/1a5fff0d75bd5f0c525818175bbf43bc6e138b78))
+
+# [0.552.0](https://github.com/lightdash/lightdash/compare/0.551.2...0.552.0) (2023-05-16)
+
+
+### Features
+
+* enable new pivot table ([#5434](https://github.com/lightdash/lightdash/issues/5434)) ([8767946](https://github.com/lightdash/lightdash/commit/87679467056cb7e24b3cd210472434dfc5bc8f83))
+
+## [0.551.2](https://github.com/lightdash/lightdash/compare/0.551.1...0.551.2) (2023-05-16)
+
+
+### Bug Fixes
+
+* use space summaries where possible in frontend ([#5490](https://github.com/lightdash/lightdash/issues/5490)) ([8392277](https://github.com/lightdash/lightdash/commit/839227755fb46ff5388363bb88e4dc542942a470))
+
+## [0.551.1](https://github.com/lightdash/lightdash/compare/0.551.0...0.551.1) (2023-05-15)
+
+
+### Bug Fixes
+
+* add correct rendering logic fot empty pats list ([#5488](https://github.com/lightdash/lightdash/issues/5488)) ([852f582](https://github.com/lightdash/lightdash/commit/852f5827b13c456353261b73a55557bd3300eb7a))
+* only pass property if first name ([#5492](https://github.com/lightdash/lightdash/issues/5492)) ([af81e31](https://github.com/lightdash/lightdash/commit/af81e314d2ce1eb9080d294367873ddebc67165e))
+* remove new users from analytics ([#5489](https://github.com/lightdash/lightdash/issues/5489)) ([26c2582](https://github.com/lightdash/lightdash/commit/26c2582d160b65d52676b5340e9e4d4f88198189))
+
 # [0.551.0](https://github.com/lightdash/lightdash/compare/0.550.2...0.551.0) (2023-05-15)
 
 

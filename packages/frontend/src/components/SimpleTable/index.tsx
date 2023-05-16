@@ -57,24 +57,21 @@ const SimpleTable: FC<SimpleTableProps> = ({
     }
 
     if (pivotTableData.error || pivotTableData.data) {
-        return (
-            <Box w="100%" h="100%" p="xs" sx={{ overflowX: 'auto' }}>
-                {pivotTableData.error || !pivotTableData.data ? (
-                    <NonIdealState
-                        title="Results not available"
-                        description={pivotTableData.error}
-                        icon="error"
-                    />
-                ) : (
-                    <PivotTable
-                        w="100%"
-                        data={pivotTableData.data}
-                        conditionalFormattings={conditionalFormattings}
-                        getFieldLabel={getFieldLabel}
-                        getField={getField}
-                        hideRowNumbers={hideRowNumbers}
-                    />
-                )}
+        return pivotTableData.error || !pivotTableData.data ? (
+            <NonIdealState
+                title="Results not available"
+                description={pivotTableData.error}
+                icon="error"
+            />
+        ) : (
+            <Box miw="100%" h="100%" sx={{ overflow: 'auto' }}>
+                <PivotTable
+                    data={pivotTableData.data}
+                    conditionalFormattings={conditionalFormattings}
+                    getFieldLabel={getFieldLabel}
+                    getField={getField}
+                    hideRowNumbers={hideRowNumbers}
+                />
             </Box>
         );
     }

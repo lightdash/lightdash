@@ -30,4 +30,9 @@ export const useTableStyles = createStyles((theme) => ({
             textAlign: 'right',
         },
     },
+    smallPadding: {
+        '& thead tr th, & tbody tr td': {
+            padding: `${theme.spacing.xs} ${theme.spacing.md}`,
+        },
+    },
 }));
