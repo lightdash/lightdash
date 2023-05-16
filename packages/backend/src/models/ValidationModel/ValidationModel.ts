@@ -96,6 +96,10 @@ export class ValidationModel {
                     column: `${SavedChartVersionsTableName}.saved_query_id`,
                     order: 'desc',
                 },
+                {
+                    column: `${SavedChartsTableName}.name`,
+                    order: 'asc',
+                },
             ])
             .distinctOn(`${SavedChartVersionsTableName}.saved_query_id`);
 
