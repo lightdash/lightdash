@@ -3,14 +3,8 @@ import {
     ProjectType,
     validateOrganizationEmailDomains,
 } from '@lightdash/common';
-import {
-    Button,
-    MultiSelect as MantineMultiSelect,
-    Select,
-    Stack,
-    Text,
-} from '@mantine/core';
-import { useForm as mantineUseForm } from '@mantine/form';
+import { Button, MultiSelect, Select, Stack, Text } from '@mantine/core';
+import { useForm } from '@mantine/form';
 import { FC, ForwardedRef, forwardRef, useEffect, useMemo } from 'react';
 import {
     useAllowedEmailDomains,
@@ -33,7 +27,7 @@ const roleOptions = [
 ];
 
 const AllowedDomainsPanel: FC = () => {
-    const form = mantineUseForm({
+    const form = useForm({
         initialValues: {
             emailDomains: [] as string[],
             role: OrganizationMemberRole.VIEWER,
@@ -100,7 +94,7 @@ const AllowedDomainsPanel: FC = () => {
     return isSuccess ? (
         <form name="allowedEmailDomains" onSubmit={handleOnSubmit}>
             <Stack>
-                <MantineMultiSelect
+                <MultiSelect
                     name="emailDomains"
                     label="Allowed email domains"
                     placeholder="E.g. lightdash.com"
@@ -171,7 +165,7 @@ const AllowedDomainsPanel: FC = () => {
                         {projectOptions.length > 0 &&
                             form.values.role ===
                                 OrganizationMemberRole.MEMBER && (
-                                <MantineMultiSelect
+                                <MultiSelect
                                     label="Project Viewer Access"
                                     placeholder="Select projects"
                                     data={projectOptions}
