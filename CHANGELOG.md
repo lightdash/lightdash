@@ -1,3 +1,10 @@
+## [0.558.3](https://github.com/lightdash/lightdash/compare/0.558.2...0.558.3) (2023-05-17)
+
+
+### Bug Fixes
+
+* add break-all to validation erros ([#5521](https://github.com/lightdash/lightdash/issues/5521)) ([12c5a2b](https://github.com/lightdash/lightdash/commit/12c5a2b170ba10930958859f71d3614f2bbe92d3))
+
 ## [0.558.2](https://github.com/lightdash/lightdash/compare/0.558.1...0.558.2) (2023-05-17)
 
 
