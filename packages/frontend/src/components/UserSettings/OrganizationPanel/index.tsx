@@ -1,59 +1,56 @@
-import { Button, Intent } from '@blueprintjs/core';
-import { Organization } from '@lightdash/common';
+import { Button, Stack, TextInput } from '@mantine/core';
+import { useForm } from '@mantine/form';
 import { FC, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useOrganizationUpdateMutation } from '../../../hooks/organization/useOrganizationUpdateMutation';
-import Form from '../../ReactHookForm/Form';
-import Input from '../../ReactHookForm/Input';
-import { FormWrapper } from './OrganizationPanel.styles';
 
 const OrganizationPanel: FC = () => {
-    const { isLoading: isOrgLoading, data } = useOrganization();
-    const updateMutation = useOrganizationUpdateMutation();
-    const isLoading = updateMutation.isLoading || isOrgLoading;
-    const methods = useForm<Organization>({
-        mode: 'onSubmit',
+    const { isLoading: isOrganizationLoading, data } = useOrganization();
+    const {
+        isLoading: isOrganizationUpdateLoading,
+        mutate: updateOrganization,
+    } = useOrganizationUpdateMutation();
+    const isLoading = isOrganizationUpdateLoading || isOrganizationLoading;
+    const form = useForm({
+        initialValues: {
+            organizationName: '',
+        },
     });
-    const { setValue } = methods;
+
+    const { setFieldValue } = form;
 
     useEffect(() => {
         if (data) {
-            setValue('name', data?.name);
+            setFieldValue('organizationName', data?.name);
         }
-    }, [data, setValue]);
+    }, [data, data?.name, setFieldValue]);
 
-    const handleUpdate = (value: Organization) => {
-        updateMutation.mutate(value);
-    };
+    const handleOnSubmit = form.onSubmit(({ organizationName }) => {
+        updateOrganization({ name: organizationName });
+    });
 
     return (
-        <FormWrapper>
-            <Form
-                name="login"
-                methods={methods}
-                onSubmit={handleUpdate}
-                disableSubmitOnEnter
-            >
-                <Input
+        <form onSubmit={handleOnSubmit}>
+            <Stack>
+                <TextInput
                     label="Organization name"
-                    name="name"
+                    required
                     placeholder="Lightdash"
                     disabled={isLoading}
-                    rules={{
-                        required: 'Required field',
-                    }}
+                    {...form.getInputProps('organizationName')}
                 />
-                <div style={{ flex: 1 }} />
+
                 <Button
-                    style={{ alignSelf: 'flex-end', marginTop: 20 }}
-                    intent={Intent.PRIMARY}
-                    text="Update"
-                    loading={isLoading}
+                    display="block"
+                    ml="auto"
                     type="submit"
-                />
-            </Form>
-        </FormWrapper>
+                    disabled={isLoading}
+                    loading={isLoading}
+                >
+                    Update
+                </Button>
+            </Stack>
+        </form>
     );
 };
 
