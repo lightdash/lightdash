@@ -261,33 +261,22 @@ projectRouter.get(
     },
 );
 
-projectRouter.get(
+projectRouter.post(
     '/field/:fieldId/search',
     allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
         try {
-            const value: string =
-                typeof req.query.value === 'string'
-                    ? req.query.value.toString()
-                    : '';
-            const limit: number =
-                typeof req.query.limit === 'string'
-                    ? parseInt(req.query.limit.toString(), 10)
-                    : 100;
-
-            const table =
-                typeof req.query.table === 'string' ? req.query.table : '';
-
             const results = {
-                search: value,
+                search: req.body.search,
                 results: await projectService.searchFieldUniqueValues(
                     req.user!,
                     req.params.projectUuid,
-                    table,
+                    req.body.table,
                     req.params.fieldId,
-                    value,
-                    limit,
+                    req.body.search,
+                    req.body.limit,
+                    req.body.filters,
                 ),
             };
 

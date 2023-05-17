@@ -23,7 +23,7 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
 
     const project = useProject(projectUuid);
     const {
-        dashboardFilters,
+        allFilters,
         fieldsWithSuggestions,
         dashboardTiles,
         allFilterableFields,
@@ -44,6 +44,7 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
             projectUuid={projectUuid}
             fieldsMap={fieldsWithSuggestions}
             startOfWeek={project.data?.warehouseConnection?.startOfWeek}
+            dashboardFilters={allFilters}
         >
             <DashboardFilterWrapper>
                 <Popover2
@@ -90,7 +91,7 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
                     </Tooltip2>
                 </Popover2>
 
-                {dashboardFilters && <ActiveFilters isEditMode={isEditMode} />}
+                <ActiveFilters isEditMode={isEditMode} />
             </DashboardFilterWrapper>
         </FiltersProvider>
     );

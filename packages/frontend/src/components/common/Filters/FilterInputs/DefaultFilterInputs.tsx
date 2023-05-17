@@ -48,6 +48,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
             if (filterType === FilterType.STRING) {
                 return (
                     <MultiAutoComplete
+                        filterId={rule.id}
                         disabled={disabled}
                         field={field}
                         values={(rule.values || []).filter(isString)}

@@ -1,3 +1,17 @@
+# [0.558.0](https://github.com/lightdash/lightdash/compare/0.557.0...0.558.0) (2023-05-17)
+
+
+### Features
+
+* apply relevant dashboard filters to autocomplete search ([#5497](https://github.com/lightdash/lightdash/issues/5497)) ([efec86e](https://github.com/lightdash/lightdash/commit/efec86ea608a2eeb7e7e5c76dbaaf218ffd4e5c5))
+
+# [0.557.0](https://github.com/lightdash/lightdash/compare/0.556.0...0.557.0) (2023-05-17)
+
+
+### Features
+
+* change and move headway icon ([#5517](https://github.com/lightdash/lightdash/issues/5517)) ([18ff1e1](https://github.com/lightdash/lightdash/commit/18ff1e1d6860b565fc765538886a87b05cacb855))
+
 # [0.556.0](https://github.com/lightdash/lightdash/compare/0.555.0...0.556.0) (2023-05-17)
 
 

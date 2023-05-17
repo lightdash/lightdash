@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from 'uuid';
 import {
     ConditionalFormattingConfig,
     ConditionalFormattingRule,
@@ -18,6 +19,7 @@ import { getItemId, isNumericItem } from './item';
 
 export const createConditionalFormatingRule =
     (): ConditionalFormattingRule => ({
+        id: uuidv4(),
         operator: ConditionalOperator.EQUALS,
         values: [],
     });
