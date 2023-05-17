@@ -260,3 +260,116 @@ describe('Lightdash API tests for an editor accessing other private spaces', () 
         });
     });
 });
+
+describe.only('Lightdash API tests for admins accessing other private spaces', () => {
+    let privateChart: SavedChart;
+    let privateSpace: Space;
+    let email;
+    let privateDashboard: Dashboard;
+
+    before(() => {
+        cy.login();
+
+        createPrivateChart((space, chart) => {
+            privateChart = chart;
+            privateSpace = space;
+        });
+        createPrivateDashboard((space, dashboard) => {
+            privateDashboard = dashboard;
+            privateSpace = space;
+        });
+        cy.loginWithPermissions('admin', [
+            {
+                role: 'admin',
+                projectUuid: SEED_PROJECT.project_uuid,
+            },
+        ]).then((e) => {
+            email = e;
+        });
+    });
+    beforeEach(() => {
+        cy.loginWithEmail(email);
+    });
+
+    it('Should view charts in other private spaces', () => {
+        cy.request({
+            url: `${apiUrl}/saved/${privateChart.uuid}`,
+            failOnStatusCode: false,
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+        });
+    });
+
+    it('Should get results from  charts in other private spaces', () => {
+        cy.request({
+            url: `${apiUrl}/saved/${privateChart.uuid}/results`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            body: {},
+            failOnStatusCode: false,
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+        });
+    });
+
+    it('Should not updateMultiple charts in other private spaces', () => {
+        cy.request({
+            url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/saved/`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'PATCH',
+            body: [
+                {
+                    uuid: privateChart.uuid,
+                    name: 'udpated name',
+                    description: 'updated description',
+                    spaceUuid: privateSpace.uuid,
+                },
+            ],
+            failOnStatusCode: false,
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+        });
+    });
+
+    it('Should not create chart in other private spaces', () => {
+        cy.request({
+            url: `api/v1/projects/${SEED_PROJECT.project_uuid}/saved`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            body: { ...chartBody, spaceUuid: privateSpace.uuid },
+            failOnStatusCode: false,
+        }).then((resp) => {
+            expect(resp.status).to.eq(403);
+        });
+    });
+    it('Should toggle pinning on charts in other private spaces', () => {
+        cy.request({
+            url: `api/v1/saved/${privateChart.uuid}/pinning`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'PATCH',
+            body: {},
+            failOnStatusCode: false,
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+        });
+    });
+
+    it('Should not create scheduler for dashboard in other private spaces', () => {
+        const schedulerBody = {
+            format: 'image',
+            name: 'scheduler',
+            cron: '0 9 * * 1',
+            options: {},
+            targets: [],
+        };
+        cy.request({
+            url: `api/v1/dashboards/${privateDashboard.uuid}/schedulers`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            body: schedulerBody,
+            failOnStatusCode: false,
+        }).then((resp) => {
+            expect(resp.status).to.eq(403);
+        });
+    });
+});
