@@ -11,35 +11,49 @@ const ShowTotalsToggle: FC = () => {
             showRowCalculation,
             setShowRowCalculation,
             canUsePivotTable,
-            metricsAsRows,
         },
     } = useVisualizationContext();
 
-    const options =
-        canUsePivotTable && metricsAsRows
-            ? {
-                  label: 'Show row total',
-                  value: showRowCalculation,
-                  onChange: () => setShowRowCalculation(!showRowCalculation),
-              }
-            : {
-                  label: 'Show column total',
-                  value: showColumnCalculation,
-                  onChange: () =>
-                      setShowColumnCalculation(!showColumnCalculation),
-              };
+    const rowTotalOption = canUsePivotTable
+        ? {
+              label: 'Show row total',
+              value: showRowCalculation,
+              onChange: () => setShowRowCalculation(!showRowCalculation),
+          }
+        : undefined;
+
+    const columnTotalOption = {
+        label: 'Show column total',
+        value: showColumnCalculation,
+        onChange: () => setShowColumnCalculation(!showColumnCalculation),
+    };
 
     return (
-        <StyledSwitch
-            large
-            id="showTotals"
-            innerLabelChecked="Yes"
-            innerLabel="No"
-            alignIndicator="right"
-            label={options.label}
-            checked={options.value}
-            onChange={options.onChange}
-        />
+        <>
+            {rowTotalOption ? (
+                <StyledSwitch
+                    large
+                    id="showTotals"
+                    innerLabelChecked="Yes"
+                    innerLabel="No"
+                    alignIndicator="right"
+                    label={rowTotalOption.label}
+                    checked={rowTotalOption.value}
+                    onChange={rowTotalOption.onChange}
+                />
+            ) : null}
+
+            <StyledSwitch
+                large
+                id="showTotals"
+                innerLabelChecked="Yes"
+                innerLabel="No"
+                alignIndicator="right"
+                label={columnTotalOption.label}
+                checked={columnTotalOption.value}
+                onChange={columnTotalOption.onChange}
+            />
+        </>
     );
 };
 

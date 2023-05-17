@@ -6,6 +6,8 @@ import {
     ResultRow,
     ResultValue,
 } from '@lightdash/common';
+import { isNumber } from 'lodash-es';
+import { Entries } from 'type-fest';
 
 type PivotQueryResultsArgs = {
     pivotConfig: PivotConfig;
@@ -95,6 +97,21 @@ const getIndexByKey = (
             throw new Error('Expected a RecursiveRecord object');
         }
     }
+};
+
+const getAllIndicesForFieldId = (
+    obj: RecursiveRecord<number>,
+    fieldId: string,
+): number[] => {
+    const entries = Object.entries(obj) as Entries<typeof obj>;
+    return entries.reduce<number[]>((acc, [key, value]) => {
+        if (key === fieldId && isNumber(value)) {
+            return [...acc, value];
+        } else if (isRecursiveRecord(value)) {
+            return [...acc, ...getAllIndicesForFieldId(value, fieldId)];
+        }
+        return acc;
+    }, []);
 };
 
 export const pivotQueryResults = ({
@@ -309,7 +326,45 @@ export const pivotQueryResults = ({
                 ),
             );
         } else {
-            // TODO: implement row totals with metrics as columns
+            const N_TOTAL_COLS = metrics.length;
+            const N_TOTAL_ROWS = headerValues.length;
+
+            rowTotalFields = create2DArray(N_TOTAL_ROWS, N_TOTAL_COLS);
+            rowTotals = create2DArray(N_DATA_ROWS, N_TOTAL_COLS);
+
+            // set the last header cells as the "Total"
+            metrics.forEach((metric, metricIndex) => {
+                rowTotalFields![N_TOTAL_ROWS - 1][metricIndex] = {
+                    fieldId: metric.fieldId,
+                };
+            });
+            console.log('dataValues', columnIndices);
+            console.log('dataValues', dataValues);
+            // TODO: not working yet for multiple metrics
+            rowTotals = rowTotals.map((row, rowIndex) =>
+                row.map((_, colIndex) =>
+                    dataValues[rowIndex]
+                        .filter(() => {
+                            console.log('colIndex', {
+                                colIndex,
+                                columnIndices,
+                                rowTotalFields,
+                            });
+                            const indices = getAllIndicesForFieldId(
+                                columnIndices,
+                                rowTotalFields![N_TOTAL_ROWS - 1][colIndex]!
+                                    .fieldId!,
+                            );
+                            console.log('getAllIndicesForFieldId', indices);
+                            return indices.includes(colIndex);
+                        })
+                        .reduce(
+                            (acc, value) => acc + parseNumericValue(value),
+                            0,
+                        ),
+                ),
+            );
+            console.log('rowTotalFields, rowTotals', rowTotalFields, rowTotals);
         }
     }
 
