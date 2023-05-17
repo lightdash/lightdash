@@ -58,17 +58,13 @@ export type DashboardFieldTarget = {
 
 export type DashboardFilterRule<
     O = FilterOperator,
-    T = DashboardFieldTarget,
+    T extends DashboardFieldTarget = DashboardFieldTarget,
     V = any,
     S = any,
 > = FilterRule<O, T, V, S> & {
     tileTargets?: Record<string, DashboardFieldTarget>;
     label: undefined | string;
 };
-
-export const isDashboardFilterRule = (
-    value: ConditionalRule,
-): value is DashboardFilterRule => 'tileTargets' in value;
 
 export type DateFilterRule = FilterRule<
     FilterOperator,
@@ -146,6 +142,11 @@ export const getFilterRules = (filters: Filters): FilterRule[] => {
     }
     return rules;
 };
+
+export const isDashboardFilterRule = (
+    value: ConditionalRule,
+): value is DashboardFilterRule =>
+    isFilterRule(value) && 'tableName' in value.target;
 
 export enum FilterGroupOperator {
     and = 'and',

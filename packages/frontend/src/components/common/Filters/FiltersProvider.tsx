@@ -1,4 +1,13 @@
-import { FilterableField, FilterRule, WeekDay } from '@lightdash/common';
+import {
+    AndFilterGroup,
+    DashboardFilters,
+    FilterableField,
+    FilterableItem,
+    FilterRule,
+    isField,
+    WeekDay,
+} from '@lightdash/common';
+import { uuid4 } from '@sentry/utils';
 import React, { createContext, FC, useCallback, useContext } from 'react';
 
 export type FieldWithSuggestions = FilterableField & {
@@ -12,6 +21,10 @@ type FiltersContext = {
     fieldsMap: FieldsWithSuggestions;
     startOfWeek?: WeekDay | null;
     getField: (filterRule: FilterRule) => FieldWithSuggestions | undefined;
+    getAutocompleteFilterGroup: (
+        filterId: string,
+        item: FilterableItem,
+    ) => AndFilterGroup | undefined;
 };
 
 const Context = createContext<FiltersContext | undefined>(undefined);
@@ -20,12 +33,14 @@ type Props = {
     projectUuid?: string;
     fieldsMap?: Record<string, FieldWithSuggestions>;
     startOfWeek?: WeekDay | null;
+    dashboardFilters?: DashboardFilters;
 };
 
 export const FiltersProvider: FC<Props> = ({
     projectUuid,
     fieldsMap = {},
     startOfWeek,
+    dashboardFilters,
     children,
 }) => {
     const getField = useCallback(
@@ -36,9 +51,35 @@ export const FiltersProvider: FC<Props> = ({
         },
         [fieldsMap],
     );
+    const getAutocompleteFilterGroup = useCallback(
+        (filterId: string, item: FilterableItem) => {
+            if (!dashboardFilters || !isField(item)) {
+                return undefined;
+            }
+            return {
+                id: uuid4(),
+                and: dashboardFilters.dimensions.filter(
+                    (dimensionFilterRule) => {
+                        const isNotSelectedFilter =
+                            dimensionFilterRule.id !== filterId;
+                        const hasSameTable =
+                            dimensionFilterRule.target.tableName === item.table;
+                        return isNotSelectedFilter && hasSameTable;
+                    },
+                ),
+            };
+        },
+        [dashboardFilters],
+    );
     return (
         <Context.Provider
-            value={{ projectUuid, fieldsMap, startOfWeek, getField }}
+            value={{
+                projectUuid,
+                fieldsMap,
+                startOfWeek,
+                getField,
+                getAutocompleteFilterGroup,
+            }}
         >
             {children}
         </Context.Provider>
