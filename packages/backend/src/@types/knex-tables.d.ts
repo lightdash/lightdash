@@ -116,15 +116,15 @@ import {
     DbAnalyticsChartViews,
     DbAnalyticsDashboardViews,
 } from '../database/entities/analytics';
+import {
+    EmailOneTimePasscodesTableName,
+    EmailOneTimePasscodeTable,
+} from '../database/entities/email_one_time_passcodes';
 import { GroupTable, GroupTableName } from '../database/entities/groups';
 import {
     GroupMembershipTable,
     GroupMembershipTableName,
 } from '../database/entities/group_memberships';
-import {
-    EmailOneTimePasscodesTableName,
-    EmailOneTimePasscodeTable,
-} from '../database/entities/email_one_time_passcodes';
 import {
     OrganizationAllowedEmailDomainsTable,
     OrganizationAllowedEmailDomainsTableName,
