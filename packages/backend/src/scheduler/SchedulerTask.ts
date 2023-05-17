@@ -449,7 +449,7 @@ export const compileProject = async (
     }
 };
 
-export const generateValidation = async (
+export const validateProject = async (
     jobId: string,
     scheduledTime: Date,
     payload: ValidateProjectPayload,

@@ -44,8 +44,9 @@ const UpdatedAtAndBy: FC<
     );
 };
 
-// eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
-const SettingsValidator: FC<{ projectUuid: string }> = ({ projectUuid }) => {
+export const SettingsValidator: FC<{ projectUuid: string }> = ({
+    projectUuid,
+}) => {
     const { classes } = useTableStyles();
     const theme = useMantineTheme();
 

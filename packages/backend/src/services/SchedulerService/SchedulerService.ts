@@ -231,8 +231,8 @@ export class SchedulerService {
         return this.schedulerModel.getSchedulerLogs(projectUuid);
     }
 
-    async getJobStatus(user: SessionUser, jobId: string) {
-        const job = await this.schedulerModel.getCsvUrl(jobId, user.userUuid);
-        return job;
+    async getJobStatus(jobId: string): Promise<string> {
+        const job = await this.schedulerModel.getJobStatus(jobId);
+        return job.status;
     }
 }

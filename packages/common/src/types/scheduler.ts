@@ -249,6 +249,13 @@ export type ValidateProjectPayload = {
     projectUuid: string;
 };
 
+export type ApiJobScheduledResponse = {
+    status: 'ok';
+    results: {
+        jobId: string;
+    };
+};
+
 export type ApiJobStatusResponse = {
     status: 'ok';
     results: {

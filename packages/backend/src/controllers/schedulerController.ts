@@ -165,17 +165,16 @@ export class SchedulerController extends Controller {
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('/status/{jobId}')
+    @Get('job/{jobId}/status')
     @OperationId('getSchedulerJobStatus')
     async getSchedulerStatus(
         @Path() jobId: string,
         @Request() req: express.Request,
     ): Promise<ApiJobStatusResponse> {
         this.setStatus(200);
-        const jobStatus = await schedulerService.getJobStatus(req.user!, jobId);
         return {
             status: 'ok',
-            results: jobStatus,
+            results: { status: await schedulerService.getJobStatus(jobId) },
         };
     }
 }

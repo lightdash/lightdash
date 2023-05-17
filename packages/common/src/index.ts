@@ -67,7 +67,12 @@ import {
     WarehouseCredentials,
 } from './types/projects';
 import { ResultRow } from './types/results';
-import { SchedulerAndTargets, SchedulerWithLogs } from './types/scheduler';
+import {
+    ApiJobScheduledResponse,
+    ApiJobStatusResponse,
+    SchedulerAndTargets,
+    SchedulerWithLogs,
+} from './types/scheduler';
 import { SlackChannel } from './types/slack';
 import { Space } from './types/space';
 import { TableBase } from './types/table';
@@ -481,7 +486,9 @@ type ApiResults =
     | PinnedItems
     | ViewStatistics
     | SchedulerWithLogs
-    | ValidationResponse[];
+    | ValidationResponse[]
+    | ApiJobStatusResponse['results']
+    | ApiJobScheduledResponse['results'];
 
 export type ApiResponse = {
     status: 'ok';

@@ -378,10 +378,7 @@ export class ValidationService {
         return validationErrors;
     }
 
-    async validate(
-        user: SessionUser,
-        projectUuid: string,
-    ): Promise<{ jobId: string }> {
+    async validate(user: SessionUser, projectUuid: string): Promise<string> {
         const { organizationUuid } = await this.projectModel.get(projectUuid);
 
         if (

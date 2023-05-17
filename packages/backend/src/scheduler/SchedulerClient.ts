@@ -281,7 +281,7 @@ export class SchedulerClient {
             'validateProject',
             payload,
             {
-                runAt: now, // now
+                runAt: now,
                 maxAttempts: 1,
             },
         );
@@ -293,7 +293,7 @@ export class SchedulerClient {
             details: {},
         });
 
-        return { jobId };
+        return jobId;
     }
 
     async compileProject(payload: CompileProjectPayload) {

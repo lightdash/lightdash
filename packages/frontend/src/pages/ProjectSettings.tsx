@@ -1,4 +1,5 @@
 import { NonIdealState, Spinner, Tab, Tabs } from '@blueprintjs/core';
+import { subject } from '@casl/ability';
 import { FC } from 'react';
 import { Helmet } from 'react-helmet';
 import {
@@ -16,6 +17,7 @@ import { UpdateProjectConnection } from '../components/ProjectConnection';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
 import SettingsScheduledDeliveries from '../components/SettingsScheduledDeliveries';
 import SettingsUsageAnalytics from '../components/SettingsUsageAnalytics';
+import { SettingsValidator } from '../components/SettingsValidator';
 import { useProject } from '../hooks/useProject';
 import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
@@ -119,14 +121,13 @@ const ProjectSettings: FC = () => {
                         title="Scheduled Deliveries"
                     />
 
-                    {/* TODO: uncomment once validator gets moved to scheduler */}
-                    {/* {user.data?.ability?.can(
+                    {user.data?.ability?.can(
                         'manage',
                         subject('Validation', {
                             organizationUuid: project.organizationUuid,
                             projectUuid,
                         }),
-                    ) && <Tab id={SettingsTabs.VALIDATOR} title="Validator" />} */}
+                    ) && <Tab id={SettingsTabs.VALIDATOR} title="Validator" />}
                 </Tabs>
             </TabsWrapper>
 
@@ -167,10 +168,9 @@ const ProjectSettings: FC = () => {
                 >
                     <SettingsScheduledDeliveries projectUuid={projectUuid} />
                 </Route>
-                {/* TODO: uncomment once validator gets moved to scheduler */}
-                {/* <Route exact path={`${basePath}/${SettingsTabs.VALIDATOR}`}>
+                <Route exact path={`${basePath}/${SettingsTabs.VALIDATOR}`}>
                     <SettingsValidator projectUuid={projectUuid} />
-                </Route> */}
+                </Route>
                 <Redirect to={basePath} />
             </Switch>
         </>

@@ -16,11 +16,11 @@ import { tryJobOrTimeout } from './SchedulerJobTimeout';
 import {
     compileProject,
     downloadCsv,
-    generateValidation,
     handleScheduledDelivery,
     sendEmailNotification,
     sendSlackNotification,
     testAndCompileProject,
+    validateProject,
 } from './SchedulerTask';
 import schedulerWorkerEventEmitter from './SchedulerWorkerEventEmitter';
 
@@ -204,11 +204,8 @@ export class SchedulerWorker {
                         payload,
                     );
                 },
-                generateValidation: async (
-                    payload: any,
-                    helpers: JobHelpers,
-                ) => {
-                    await generateValidation(
+                validateProject: async (payload: any, helpers: JobHelpers) => {
+                    await validateProject(
                         helpers.job.id,
                         helpers.job.run_at,
                         payload,
