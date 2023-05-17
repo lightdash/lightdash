@@ -1,5 +1,6 @@
 import {
     ApiErrorPayload,
+    ApiGroupMembersResponse,
     ApiGroupResponse,
     ApiSuccessEmpty,
     UpdateGroup,
@@ -134,7 +135,7 @@ export class GroupsController extends Controller {
     async getGroupMembers(
         @Path() groupUuid: string,
         @Request() req: express.Request,
-    ): Promise<ApiGroupResponse> {
+    ): Promise<ApiGroupMembersResponse> {
         this.setStatus(200);
         return {
             status: 'ok',

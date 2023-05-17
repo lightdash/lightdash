@@ -59,6 +59,11 @@ export type GroupWithMembers = Group & {
     members: GroupMember[];
 };
 
+export type ApiGroupMembersResponse = {
+    status: 'ok';
+    results: GroupMember[];
+};
+
 export type ApiGroupResponse = {
     status: 'ok';
     results: Group;
