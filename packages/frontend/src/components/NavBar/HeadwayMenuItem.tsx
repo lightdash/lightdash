@@ -1,12 +1,11 @@
 import { Box, Button } from '@mantine/core';
-import { IconBell } from '@tabler/icons-react';
-import MantineIcon from '../common/MantineIcon';
-
+import { IconAccessPoint } from '@tabler/icons-react';
 import { FC, useEffect } from 'react';
 import useHeadway from '../../hooks/thirdPartyServices/useHeadway';
 import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
+import MantineIcon from '../common/MantineIcon';
 
 type Props = {
     projectUuid?: string;
@@ -66,7 +65,7 @@ const HeadwayMenuItem: FC<Props> = ({ projectUuid }) => {
 
     return (
         <Button variant="default" size="xs" pos="relative" id="headway-trigger">
-            <MantineIcon icon={IconBell} />
+            <MantineIcon icon={IconAccessPoint} size="lg" />
             <Box
                 id="headway-badge"
                 pos="absolute"
