@@ -1,3 +1,10 @@
+## [0.558.1](https://github.com/lightdash/lightdash/compare/0.558.0...0.558.1) (2023-05-17)
+
+
+### Bug Fixes
+
+* filter timezone when saving chart ([#5519](https://github.com/lightdash/lightdash/issues/5519)) ([776e65a](https://github.com/lightdash/lightdash/commit/776e65a9c5add399b8f04231708b3faec30a8e02))
+
 # [0.558.0](https://github.com/lightdash/lightdash/compare/0.557.0...0.558.0) (2023-05-17)
 
 
