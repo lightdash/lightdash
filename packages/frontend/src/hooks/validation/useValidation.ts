@@ -1,8 +1,13 @@
-import { ApiError, ValidationResponse } from '@lightdash/common';
+import {
+    ApiError,
+    ApiJobScheduledResponse,
+    ValidationResponse,
+} from '@lightdash/common';
 import { useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../../api';
 import { useErrorLogs } from '../../providers/ErrorLogsProvider';
+import { pollJobStatus } from '../scheduler/useScheduler';
 import useToaster from '../toaster/useToaster';
 
 const getValidation = async (
@@ -22,26 +27,39 @@ export const useValidation = (projectUuid: string) =>
 
 const updateValidation = async (
     projectUuid: string,
-): Promise<ValidationResponse[]> =>
-    lightdashApi<ValidationResponse[]>({
+): Promise<ApiJobScheduledResponse['results']> =>
+    lightdashApi<ApiJobScheduledResponse['results']>({
         url: `/projects/${projectUuid}/validate`,
         method: 'POST',
         body: undefined,
     });
 
-export const useValidationMutation = (projectUuid: string) => {
+export const useValidationMutation = (
+    projectUuid: string,
+    onComplete: () => void,
+) => {
     const queryClient = useQueryClient();
     const { showError } = useErrorLogs();
     const { showToastSuccess } = useToaster();
 
-    return useMutation<ValidationResponse[], ApiError>({
+    return useMutation<ApiJobScheduledResponse['results'], ApiError>({
         mutationKey: ['validation', projectUuid],
         mutationFn: () => updateValidation(projectUuid),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['validation'] });
-            showToastSuccess({
-                title: 'Success! Validation complete.',
-            });
+        onSuccess: (data) => {
+            // Wait until validation is complete
+            pollJobStatus(data.jobId)
+                .then(() => {
+                    onComplete();
+                    // Invalidate validation to get latest results
+                    queryClient.invalidateQueries({ queryKey: ['validation'] });
+                    showToastSuccess({ title: 'Validation completed' });
+                })
+                .catch((error: Error) => {
+                    showError({
+                        title: 'Unable to update validation',
+                        body: error.message,
+                    });
+                });
         },
         onError: useCallback(
             (error) => {

@@ -28,7 +28,8 @@ export type SchedulerLog = {
         | 'sendSlackNotification'
         | 'downloadCsv'
         | 'compileProject'
-        | 'testAndCompileProject';
+        | 'testAndCompileProject'
+        | 'validateProject';
     schedulerUuid?: string;
     jobId: string;
     jobGroup?: string;
@@ -247,4 +248,22 @@ export type CompileProjectPayload = {
     projectUuid: string;
     requestMethod: string;
     jobUuid: string;
+};
+
+export type ValidateProjectPayload = {
+    projectUuid: string;
+};
+
+export type ApiJobScheduledResponse = {
+    status: 'ok';
+    results: {
+        jobId: string;
+    };
+};
+
+export type ApiJobStatusResponse = {
+    status: 'ok';
+    results: {
+        status: string;
+    };
 };
