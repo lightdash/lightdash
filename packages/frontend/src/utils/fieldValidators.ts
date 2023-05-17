@@ -1,8 +1,4 @@
-import {
-    validateEmail,
-    validateGithubToken,
-    validateOrganizationEmailDomains,
-} from '@lightdash/common';
+import { validateEmail, validateGithubToken } from '@lightdash/common';
 
 type FieldValidator<T> = (
     fieldName: string,
@@ -38,28 +34,6 @@ export const startWithHTTPSProtocol: FieldValidator<string> =
 export const isValidEmail: FieldValidator<string> = (fieldName) => (value) =>
     !value || validateEmail(value) ? undefined : `${fieldName} is not valid`;
 
-// eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
-const isValidEmailDomain: FieldValidator<string[]> = (fieldName) => (value) => {
-    if (!Array.isArray(value) || !value?.length) {
-        return undefined;
-    }
-
-    const hasInvalidValue = value.some((item: string) => item.match(/@/));
-
-    if (hasInvalidValue) {
-        return `${fieldName} should not contain @, eg: (gmail.com)`;
-    }
-};
-
-// eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
-const isValidOrganizationDomain: FieldValidator<string[]> = (_) => (value) => {
-    if (!Array.isArray(value) || !value?.length) {
-        return undefined;
-    }
-
-    return validateOrganizationEmailDomains(value);
-};
-
 export const isOnlyNumbers: FieldValidator<string> = (fieldName) => (value) =>
     !value || value.match(/\D/)
         ? `${fieldName} should only contain numbers`
@@ -92,3 +66,5 @@ export const isInvalidCronExpression: FieldValidator<string> =
                 : undefined;
         }
     };
+
+export const isValidEmailDomain = (value: string) => value.match(/@/);
