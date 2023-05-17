@@ -1,3 +1,10 @@
+# [0.559.0](https://github.com/lightdash/lightdash/compare/0.558.3...0.559.0) (2023-05-17)
+
+
+### Features
+
+* migrate organization general settings to mantine ([#5500](https://github.com/lightdash/lightdash/issues/5500)) ([c7ff4a8](https://github.com/lightdash/lightdash/commit/c7ff4a86e5ee47bdbb2d57aebc13d443e03efb23))
+
 ## [0.558.3](https://github.com/lightdash/lightdash/compare/0.558.2...0.558.3) (2023-05-17)
 
 
