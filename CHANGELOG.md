@@ -1,3 +1,10 @@
+# [0.556.0](https://github.com/lightdash/lightdash/compare/0.555.0...0.556.0) (2023-05-17)
+
+
+### Features
+
+* move generate validation to scheduler ([#5509](https://github.com/lightdash/lightdash/issues/5509)) ([f19a097](https://github.com/lightdash/lightdash/commit/f19a0979376d902b2bad8505744c874bd5f5305a))
+
 # [0.555.0](https://github.com/lightdash/lightdash/compare/0.554.0...0.555.0) (2023-05-16)
 
 
