@@ -262,7 +262,16 @@ export class SavedChartService {
             throw new ForbiddenError();
         }
 
-        if (!(await this.hasChartSpaceAccess(spaceUuid, user.userUuid))) {
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            ) &&
+            !(await this.hasChartSpaceAccess(spaceUuid, user.userUuid))
+        ) {
             throw new ForbiddenError();
         }
 
@@ -315,8 +324,15 @@ export class SavedChartService {
             throw new ForbiddenError();
         }
 
-        const spaceAccessPromises = data.map(async (chart) =>
-            this.hasChartSpaceAccess(chart.spaceUuid, user.userUuid),
+        const spaceAccessPromises = data.map(
+            async (chart) =>
+                user.ability.can(
+                    'manage',
+                    subject('Project', {
+                        organizationUuid: project.organizationUuid,
+                        projectUuid,
+                    }),
+                ) || this.hasChartSpaceAccess(chart.spaceUuid, user.userUuid),
         );
 
         const hasAllAccess = await Promise.all(spaceAccessPromises);

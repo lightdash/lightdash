@@ -713,7 +713,16 @@ export class ProjectService {
 
         const space = await this.spaceModel.getFullSpace(savedChart.spaceUuid);
 
-        if (!hasSpaceAccess(space, user.userUuid)) {
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            ) &&
+            !hasSpaceAccess(space, user.userUuid)
+        ) {
             throw new ForbiddenError();
         }
 
