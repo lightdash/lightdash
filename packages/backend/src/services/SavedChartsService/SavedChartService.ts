@@ -401,7 +401,13 @@ export class SavedChartService {
         }
 
         if (
-            user.ability.cannot('manage', subject('Project', savedChart)) &&
+            user.ability.cannot(
+                'manage',
+                subject('Project', {
+                    projectUuid: savedChart.projectUuid,
+                    organizationUuid: savedChart.organizationUuid,
+                }),
+            ) &&
             !(await this.hasChartSpaceAccess(
                 savedChart.spaceUuid,
                 user.userUuid,
