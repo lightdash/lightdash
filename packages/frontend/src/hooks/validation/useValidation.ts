@@ -34,7 +34,10 @@ const updateValidation = async (
         body: undefined,
     });
 
-export const useValidationMutation = (projectUuid: string) => {
+export const useValidationMutation = (
+    projectUuid: string,
+    onComplete: () => void,
+) => {
     const queryClient = useQueryClient();
     const { showError } = useErrorLogs();
     const { showToastSuccess } = useToaster();
@@ -46,6 +49,7 @@ export const useValidationMutation = (projectUuid: string) => {
             // Wait until validation is complete
             pollJobStatus(data.jobId)
                 .then(() => {
+                    onComplete();
                     // Invalidate validation to get latest results
                     queryClient.invalidateQueries({ queryKey: ['validation'] });
                     showToastSuccess({ title: 'Validation completed' });

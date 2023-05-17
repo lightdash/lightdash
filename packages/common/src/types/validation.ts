@@ -16,11 +16,6 @@ export type CreateValidation = Pick<
     'name' | 'chartUuid' | 'dashboardUuid' | 'projectUuid' | 'error'
 >;
 
-export type ApiGenerateValidationResponse = {
-    status: 'ok';
-    results: { jobId: string };
-};
-
 export type ApiValidateResponse = {
     status: 'ok';
     results: ValidationResponse[];

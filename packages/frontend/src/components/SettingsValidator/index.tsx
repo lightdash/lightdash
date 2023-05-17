@@ -17,7 +17,7 @@ import {
     IconLayoutDashboard,
     IconTable,
 } from '@tabler/icons-react';
-import { FC } from 'react';
+import { FC, useState } from 'react';
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
 import { useTimeAgo } from '../../hooks/useTimeAgo';
 import {
@@ -49,10 +49,12 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
 }) => {
     const { classes } = useTableStyles();
     const theme = useMantineTheme();
+    const [isValidating, setIsValidating] = useState(false);
 
     const { data, isSuccess } = useValidation(projectUuid);
-    const { mutate: validateProject, isLoading: isValidating } =
-        useValidationMutation(projectUuid);
+    const { mutate: validateProject } = useValidationMutation(projectUuid, () =>
+        setIsValidating(false),
+    );
 
     const Icon = ({
         validationError,
@@ -85,7 +87,10 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                                 : null}
                         </Text>
                         <Button
-                            onClick={() => validateProject()}
+                            onClick={() => {
+                                setIsValidating(true);
+                                validateProject();
+                            }}
                             loading={isValidating}
                             disabled={isValidating}
                         >

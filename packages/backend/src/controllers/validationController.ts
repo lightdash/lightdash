@@ -1,7 +1,5 @@
 import {
-    ApiCsvUrlResponse,
     ApiErrorPayload,
-    ApiGenerateValidationResponse,
     ApiJobScheduledResponse,
     ApiValidateResponse,
 } from '@lightdash/common';
