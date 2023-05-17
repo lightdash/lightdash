@@ -4,10 +4,12 @@ import {
     ChartType,
     DbtProjectType,
     LightdashInstallType,
+    LightdashMode,
     LightdashUser,
     OrganizationMemberRole,
     PinnedItem,
     RequestMethod,
+    SchedulerFormat,
     TableSelectionType,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -498,6 +500,7 @@ export type SchedulerUpsertEvent = BaseTrack & {
         cronExpression: string;
         cronString: string;
         resourceId: string;
+        format: SchedulerFormat;
         targets: Array<{
             schedulerTargetId: string;
             type: 'slack' | 'email';
@@ -544,7 +547,7 @@ export type SchedulerNotificationJobEvent = BaseTrack & {
         schedulerTargetId: string;
         resourceType?: 'dashboard' | 'chart';
         type: 'slack' | 'email';
-        format?: 'csv' | 'image';
+        format?: SchedulerFormat;
     };
 };
 
@@ -573,7 +576,7 @@ export type DownloadCsv = BaseTrack & {
         organizationId?: string;
         projectId: string;
         tableId?: string;
-        fileType: 'csv';
+        fileType: SchedulerFormat.CSV;
         values?: 'raw' | 'formatted';
         limit?: 'results' | 'all' | 'custom';
         context?:
@@ -644,6 +647,10 @@ export class LightdashAnalytics extends Analytics {
             name: 'lightdash_server',
             version: VERSION,
             mode: lightdashConfig.mode,
+            siteUrl:
+                lightdashConfig.mode === LightdashMode.CLOUD_BETA
+                    ? lightdashConfig.siteUrl
+                    : null,
             installId: process.env.LIGHTDASH_INSTALL_ID || uuidv4(),
             installType:
                 process.env.LIGHTDASH_INSTALL_TYPE ||

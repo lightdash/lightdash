@@ -20,6 +20,7 @@ import {
     sendEmailNotification,
     sendSlackNotification,
     testAndCompileProject,
+    validateProject,
 } from './SchedulerTask';
 import schedulerWorkerEventEmitter from './SchedulerWorkerEventEmitter';
 
@@ -198,6 +199,13 @@ export class SchedulerWorker {
                     helpers: JobHelpers,
                 ) => {
                     await testAndCompileProject(
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                    );
+                },
+                validateProject: async (payload: any, helpers: JobHelpers) => {
+                    await validateProject(
                         helpers.job.id,
                         helpers.job.run_at,
                         payload,

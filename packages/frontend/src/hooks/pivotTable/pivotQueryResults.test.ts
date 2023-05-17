@@ -9,7 +9,7 @@ import {
 } from './pivotQueryResults.mock';
 
 describe('Should pivot data', () => {
-    it.skip('with 1 dimension, pivoted, metrics as cols (everything on columns)', () => {
+    it('with 1 dimension, pivoted, metrics as cols (everything on columns)', () => {
         const pivotConfig = {
             pivotDimensions: ['page'],
             metricsAsRows: false,
@@ -21,25 +21,49 @@ describe('Should pivot data', () => {
             ],
             headerValues: [
                 [
-                    { raw: '/home', formatted: '/home' },
-                    { raw: '/home', formatted: '/home' },
-                    { raw: '/about', formatted: '/about' },
-                    { raw: '/about', formatted: '/about' },
-                    { raw: '/first-post', formatted: '/first-post' },
-                    { raw: '/first-post', formatted: '/first-post' },
+                    {
+                        fieldId: 'page',
+                        type: 'value',
+                        value: { formatted: '/home', raw: '/home' },
+                    },
+                    {
+                        fieldId: 'page',
+                        type: 'value',
+                        value: { formatted: '/home', raw: '/home' },
+                    },
+                    {
+                        fieldId: 'page',
+                        type: 'value',
+                        value: { formatted: '/about', raw: '/about' },
+                    },
+                    {
+                        fieldId: 'page',
+                        type: 'value',
+                        value: { formatted: '/about', raw: '/about' },
+                    },
+                    {
+                        fieldId: 'page',
+                        type: 'value',
+                        value: { formatted: '/first-post', raw: '/first-post' },
+                    },
+                    {
+                        fieldId: 'page',
+                        type: 'value',
+                        value: { formatted: '/first-post', raw: '/first-post' },
+                    },
                 ],
                 [
-                    { raw: 'views', formatted: 'views' },
-                    { raw: 'devices', formatted: 'devices' },
-                    { raw: 'views', formatted: 'views' },
-                    { raw: 'devices', formatted: 'devices' },
-                    { raw: 'views', formatted: 'views' },
-                    { raw: 'devices', formatted: 'devices' },
+                    { fieldId: 'views', type: 'label' },
+                    { fieldId: 'devices', type: 'label' },
+                    { fieldId: 'views', type: 'label' },
+                    { fieldId: 'devices', type: 'label' },
+                    { fieldId: 'views', type: 'label' },
+                    { fieldId: 'devices', type: 'label' },
                 ],
             ],
             indexValueTypes: [],
             indexValues: [],
-            dataColumns: 6,
+            dataColumnCount: 6,
             dataValues: [
                 [
                     { raw: 6, formatted: '6.0' },
@@ -50,8 +74,14 @@ describe('Should pivot data', () => {
                     { raw: 1, formatted: '1.0' },
                 ],
             ],
+
+            rowTotalFields: undefined,
+            rowTotals: undefined,
+            columnTotalFields: undefined,
+            columnTotals: undefined,
+
             pivotConfig,
-            titleFields: [[], [], []],
+            titleFields: [[{ direction: 'header', fieldId: 'page' }], [null]],
         };
         const result = pivotQueryResults({
             pivotConfig,
@@ -60,6 +90,7 @@ describe('Should pivot data', () => {
         });
         expect(result).toEqual(expected);
     });
+
     it('with 1 dimension, metrics as cols', () => {
         const pivotConfig = {
             pivotDimensions: [],
@@ -128,6 +159,7 @@ describe('Should pivot data', () => {
         });
         expect(result).toEqual(expected);
     });
+
     it('with 1 dimension, 1 pivoted, metrics as rows', () => {
         const pivotConfig = {
             pivotDimensions: ['page'],
@@ -185,6 +217,7 @@ describe('Should pivot data', () => {
         });
         expect(result).toEqual(expected);
     });
+
     it('with 2 dimensions, 1 pivoted, metrics as columns', () => {
         const pivotConfig = {
             pivotDimensions: ['site'],
@@ -286,6 +319,7 @@ describe('Should pivot data', () => {
 
         expect(result).toEqual(expected);
     });
+
     it('with 2 dimensions, 1 pivoted, metrics as rows with totals', () => {
         const pivotConfig = {
             pivotDimensions: ['site'],
@@ -406,6 +440,7 @@ describe('Should pivot data', () => {
         });
         expect(result).toStrictEqual(expected);
     });
+
     it.skip('with 0 dimensions and 2 metrics as columns', () => {
         const pivotConfig = {
             pivotDimensions: [],

@@ -1,3 +1,54 @@
+# [0.556.0](https://github.com/lightdash/lightdash/compare/0.555.0...0.556.0) (2023-05-17)
+
+
+### Features
+
+* move generate validation to scheduler ([#5509](https://github.com/lightdash/lightdash/issues/5509)) ([f19a097](https://github.com/lightdash/lightdash/commit/f19a0979376d902b2bad8505744c874bd5f5305a))
+
+# [0.555.0](https://github.com/lightdash/lightdash/compare/0.554.0...0.555.0) (2023-05-16)
+
+
+### Features
+
+* add scroll if > 6 validation errors ([#5506](https://github.com/lightdash/lightdash/issues/5506)) ([b879acf](https://github.com/lightdash/lightdash/commit/b879acf13bfc37e03eff8a8c13b825b424bddc7b))
+
+# [0.554.0](https://github.com/lightdash/lightdash/compare/0.553.0...0.554.0) (2023-05-16)
+
+
+### Features
+
+* fix space permission + e2e tests ([#5503](https://github.com/lightdash/lightdash/issues/5503)) ([462899a](https://github.com/lightdash/lightdash/commit/462899a07aadebc60fe907eb8916d33b5bb78de6))
+
+# [0.553.0](https://github.com/lightdash/lightdash/compare/0.552.0...0.553.0) (2023-05-16)
+
+
+### Features
+
+* add validations view ([#5487](https://github.com/lightdash/lightdash/issues/5487)) ([1a5fff0](https://github.com/lightdash/lightdash/commit/1a5fff0d75bd5f0c525818175bbf43bc6e138b78))
+
+# [0.552.0](https://github.com/lightdash/lightdash/compare/0.551.2...0.552.0) (2023-05-16)
+
+
+### Features
+
+* enable new pivot table ([#5434](https://github.com/lightdash/lightdash/issues/5434)) ([8767946](https://github.com/lightdash/lightdash/commit/87679467056cb7e24b3cd210472434dfc5bc8f83))
+
+## [0.551.2](https://github.com/lightdash/lightdash/compare/0.551.1...0.551.2) (2023-05-16)
+
+
+### Bug Fixes
+
+* use space summaries where possible in frontend ([#5490](https://github.com/lightdash/lightdash/issues/5490)) ([8392277](https://github.com/lightdash/lightdash/commit/839227755fb46ff5388363bb88e4dc542942a470))
+
+## [0.551.1](https://github.com/lightdash/lightdash/compare/0.551.0...0.551.1) (2023-05-15)
+
+
+### Bug Fixes
+
+* add correct rendering logic fot empty pats list ([#5488](https://github.com/lightdash/lightdash/issues/5488)) ([852f582](https://github.com/lightdash/lightdash/commit/852f5827b13c456353261b73a55557bd3300eb7a))
+* only pass property if first name ([#5492](https://github.com/lightdash/lightdash/issues/5492)) ([af81e31](https://github.com/lightdash/lightdash/commit/af81e314d2ce1eb9080d294367873ddebc67165e))
+* remove new users from analytics ([#5489](https://github.com/lightdash/lightdash/issues/5489)) ([26c2582](https://github.com/lightdash/lightdash/commit/26c2582d160b65d52676b5340e9e4d4f88198189))
+
 # [0.551.0](https://github.com/lightdash/lightdash/compare/0.550.2...0.551.0) (2023-05-15)
 
 

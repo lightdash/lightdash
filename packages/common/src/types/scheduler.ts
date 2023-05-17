@@ -16,6 +16,11 @@ export enum SchedulerJobStatus {
     ERROR = 'error',
 }
 
+export enum SchedulerFormat {
+    CSV = 'csv',
+    IMAGE = 'image',
+}
+
 export type SchedulerLog = {
     task:
         | 'handleScheduledDelivery'
@@ -23,7 +28,8 @@ export type SchedulerLog = {
         | 'sendSlackNotification'
         | 'downloadCsv'
         | 'compileProject'
-        | 'testAndCompileProject';
+        | 'testAndCompileProject'
+        | 'validateProject';
     schedulerUuid?: string;
     jobId: string;
     jobGroup?: string;
@@ -40,7 +46,7 @@ export type SchedulerBase = {
     createdAt: Date;
     updatedAt: Date;
     createdBy: string;
-    format: 'csv' | 'image';
+    format: SchedulerFormat;
     cron: string;
     savedChartUuid: string | null;
     dashboardUuid: string | null;
@@ -242,4 +248,22 @@ export type CompileProjectPayload = {
     projectUuid: string;
     requestMethod: string;
     jobUuid: string;
+};
+
+export type ValidateProjectPayload = {
+    projectUuid: string;
+};
+
+export type ApiJobScheduledResponse = {
+    status: 'ok';
+    results: {
+        jobId: string;
+    };
+};
+
+export type ApiJobStatusResponse = {
+    status: 'ok';
+    results: {
+        status: string;
+    };
 };

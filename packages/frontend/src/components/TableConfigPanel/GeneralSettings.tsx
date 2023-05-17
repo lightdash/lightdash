@@ -34,7 +34,7 @@ const GeneralSettings: FC = () => {
             setShowRowCalculation,
             metricsAsRows,
             setMetricsAsRows,
-            canUseMetricsAsRows,
+            canUsePivotTable,
         },
         setPivotDimensions,
     } = useVisualizationContext();
@@ -199,7 +199,7 @@ const GeneralSettings: FC = () => {
                     }}
                 />
 
-                {canUseMetricsAsRows ? (
+                {canUsePivotTable ? (
                     <Checkbox
                         label="Show metrics as rows"
                         checked={metricsAsRows}
@@ -207,7 +207,7 @@ const GeneralSettings: FC = () => {
                     />
                 ) : null}
 
-                {canUseMetricsAsRows && metricsAsRows ? (
+                {canUsePivotTable && metricsAsRows ? (
                     <Checkbox
                         label="Show row total"
                         checked={showRowCalculation}

@@ -79,6 +79,11 @@ export class DashboardService {
         ) {
             throw new ForbiddenError();
         }
+        const space = await this.spaceModel.getFullSpace(dashboard.spaceUuid);
+        if (!hasSpaceAccess(space, user.userUuid)) {
+            throw new ForbiddenError();
+        }
+
         return dashboard;
     }
 
@@ -546,6 +551,7 @@ export class DashboardService {
                     ? 'chart'
                     : 'dashboard',
                 cronExpression: scheduler.cron,
+                format: scheduler.format,
                 cronString: cronstrue.toString(scheduler.cron, {
                     verbose: true,
                     throwExceptionOnParseError: false,

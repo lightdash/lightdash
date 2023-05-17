@@ -1,5 +1,6 @@
 import {
     ApiErrorPayload,
+    ApiJobStatusResponse,
     ApiScheduledJobsResponse,
     ApiSchedulerAndTargetsResponse,
     ApiSchedulerLogsResponse,
@@ -153,6 +154,27 @@ export class SchedulerController extends Controller {
                 req.user!,
                 schedulerUuid,
             ),
+        };
+    }
+
+    /**
+     * Get a generic job status
+     * This method can be used when polling from the frontend
+     * @param jobId the jobId for the status to check
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('job/{jobId}/status')
+    @OperationId('getSchedulerJobStatus')
+    async getSchedulerStatus(
+        @Path() jobId: string,
+        @Request() req: express.Request,
+    ): Promise<ApiJobStatusResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: { status: await schedulerService.getJobStatus(jobId) },
         };
     }
 }

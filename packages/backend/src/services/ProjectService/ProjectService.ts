@@ -710,6 +710,12 @@ export class ProjectService {
             throw new ForbiddenError();
         }
 
+        const space = await this.spaceModel.getFullSpace(savedChart.spaceUuid);
+
+        if (!hasSpaceAccess(space, user.userUuid)) {
+            throw new ForbiddenError();
+        }
+
         const metricQuery: MetricQuery = filters
             ? ProjectService.combineFilters(savedChart.metricQuery, filters)
             : savedChart.metricQuery;

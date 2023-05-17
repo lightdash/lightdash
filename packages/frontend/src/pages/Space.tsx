@@ -42,7 +42,8 @@ import { SpaceBrowserMenu } from '../components/Explorer/SpaceBrowser/SpaceBrows
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useDashboards } from '../hooks/dashboard/useDashboards';
 import { useSpacePinningMutation } from '../hooks/pinning/useSpaceMutation';
-import { useSavedCharts, useSpace } from '../hooks/useSpaces';
+import { useChartSummaries } from '../hooks/useChartSummaries';
+import { useSpace } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
 
 const Space: FC = () => {
@@ -54,7 +55,7 @@ const Space: FC = () => {
     const { data: dashboards = [], isLoading: dashboardsLoading } =
         useDashboards(projectUuid);
     const { data: savedCharts = [], isLoading: chartsLoading } =
-        useSavedCharts(projectUuid);
+        useChartSummaries(projectUuid);
     const { mutate: pinSpace } = useSpacePinningMutation(projectUuid);
     const { user, health } = useApp();
 

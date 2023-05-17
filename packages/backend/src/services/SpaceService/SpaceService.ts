@@ -20,12 +20,16 @@ type Dependencies = {
 export const hasSpaceAccess = (
     space: Pick<Space, 'isPrivate' | 'access'>,
     userUuid: string,
-): boolean =>
-    !space.isPrivate ||
-    space.access.find(
-        (userAccess) =>
-            userAccess.userUuid === userUuid && userAccess.role !== null,
-    ) !== undefined;
+): boolean => {
+    const hasAccess =
+        !space.isPrivate ||
+        space.access.find(
+            (userAccess) =>
+                userAccess.userUuid === userUuid && userAccess.role !== null,
+        ) !== undefined;
+
+    return hasAccess;
+};
 
 export class SpaceService {
     private readonly projectModel: ProjectModel;

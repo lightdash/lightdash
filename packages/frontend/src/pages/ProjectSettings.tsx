@@ -1,4 +1,5 @@
 import { NonIdealState, Spinner, Tab, Tabs } from '@blueprintjs/core';
+import { subject } from '@casl/ability';
 import { FC } from 'react';
 import { Helmet } from 'react-helmet';
 import {
@@ -16,6 +17,7 @@ import { UpdateProjectConnection } from '../components/ProjectConnection';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
 import SettingsScheduledDeliveries from '../components/SettingsScheduledDeliveries';
 import SettingsUsageAnalytics from '../components/SettingsUsageAnalytics';
+import { SettingsValidator } from '../components/SettingsValidator';
 import { useProject } from '../hooks/useProject';
 import { useApp } from '../providers/AppProvider';
 import { useTracking } from '../providers/TrackingProvider';
@@ -27,7 +29,8 @@ enum SettingsTabs {
     TABLES_CONFIGURATION = 'tablesConfiguration',
     PROJECT_ACCESS = 'projectAccess',
     USAGE_ANALYTICS = 'usageAnalytics',
-    SCHEDULED_DELIVERTIES = 'scheduledDeliveries',
+    SCHEDULED_DELIVERIES = 'scheduledDeliveries',
+    VALIDATOR = 'validator',
 }
 
 enum IntegrationsTabs {
@@ -114,9 +117,17 @@ const ProjectSettings: FC = () => {
                         />
                     )}
                     <Tab
-                        id={SettingsTabs.SCHEDULED_DELIVERTIES}
+                        id={SettingsTabs.SCHEDULED_DELIVERIES}
                         title="Scheduled Deliveries"
                     />
+
+                    {user.data?.ability?.can(
+                        'manage',
+                        subject('Validation', {
+                            organizationUuid: project.organizationUuid,
+                            projectUuid,
+                        }),
+                    ) && <Tab id={SettingsTabs.VALIDATOR} title="Validator" />}
                 </Tabs>
             </TabsWrapper>
 
@@ -153,9 +164,12 @@ const ProjectSettings: FC = () => {
                 </Route>
                 <Route
                     exact
-                    path={`${basePath}/${SettingsTabs.SCHEDULED_DELIVERTIES}`}
+                    path={`${basePath}/${SettingsTabs.SCHEDULED_DELIVERIES}`}
                 >
                     <SettingsScheduledDeliveries projectUuid={projectUuid} />
+                </Route>
+                <Route exact path={`${basePath}/${SettingsTabs.VALIDATOR}`}>
+                    <SettingsValidator projectUuid={projectUuid} />
                 </Route>
                 <Redirect to={basePath} />
             </Switch>

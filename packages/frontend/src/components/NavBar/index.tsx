@@ -98,8 +98,8 @@ const NavBar = memo(() => {
 
                     <Button.Group>
                         <SettingsMenu />
-                        <HeadwayMenuItem projectUuid={activeProjectUuid} />
                         <HelpMenu />
+                        <HeadwayMenuItem projectUuid={activeProjectUuid} />
                     </Button.Group>
 
                     <Divider orientation="vertical" my="xs" color="gray.8" />

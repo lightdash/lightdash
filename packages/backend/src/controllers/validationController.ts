@@ -1,6 +1,6 @@
 import {
-    ApiCsvUrlResponse,
     ApiErrorPayload,
+    ApiJobScheduledResponse,
     ApiValidateResponse,
 } from '@lightdash/common';
 import { Get, Post } from '@tsoa/runtime';
@@ -34,11 +34,13 @@ export class ValidationController extends Controller {
     async post(
         @Path() projectUuid: string,
         @Request() req: express.Request,
-    ): Promise<ApiValidateResponse> {
+    ): Promise<ApiJobScheduledResponse> {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await validationService.validate(req.user!, projectUuid),
+            results: {
+                jobId: await validationService.validate(req.user!, projectUuid),
+            },
         };
     }
 

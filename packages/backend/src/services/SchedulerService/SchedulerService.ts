@@ -126,6 +126,7 @@ export class SchedulerService {
                     ? 'chart'
                     : 'dashboard',
                 cronExpression: scheduler.cron,
+                format: scheduler.format,
                 cronString: cronstrue.toString(scheduler.cron, {
                     verbose: true,
                     throwExceptionOnParseError: false,
@@ -229,5 +230,10 @@ export class SchedulerService {
         }
 
         return this.schedulerModel.getSchedulerLogs(projectUuid);
+    }
+
+    async getJobStatus(jobId: string): Promise<string> {
+        const job = await this.schedulerModel.getJobStatus(jobId);
+        return job.status;
     }
 }

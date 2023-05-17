@@ -11,9 +11,11 @@ import {
     NotificationPayloadBase,
     ScheduledDeliveryPayload,
     Scheduler,
+    SchedulerFormat,
     SchedulerJobStatus,
     SchedulerLog,
     SlackNotificationPayload,
+    ValidateProjectPayload,
 } from '@lightdash/common';
 import { nanoid } from 'nanoid';
 import { analytics } from '../analytics/client';
@@ -37,6 +39,7 @@ import {
     schedulerService,
     unfurlService,
     userService,
+    validationService,
 } from '../services/services';
 
 const getChartOrDashboard = async (
@@ -103,7 +106,7 @@ export const getNotificationPageData = async (
         organizationUuid,
         projectUuid,
     } = await getChartOrDashboard(savedChartUuid, dashboardUuid);
-    if (format === 'image') {
+    if (format === SchedulerFormat.IMAGE) {
         imageUrl = await unfurlService.unfurlImage(
             minimalUrl,
             pageType,
@@ -122,7 +125,7 @@ export const getNotificationPageData = async (
             userId: userUuid,
             organizationId: user.organizationUuid,
             projectId: projectUuid,
-            fileType: 'csv',
+            fileType: SchedulerFormat.CSV,
             values: csvOptions?.formatted ? 'formatted' : 'raw',
             limit: parseAnalyticsLimit(csvOptions?.limit),
             storage: s3Service.isEnabled() ? 's3' : 'local',
@@ -265,7 +268,7 @@ export const sendSlackNotification = async (
             )} from Lightdash`,
         };
 
-        if (format === 'image') {
+        if (format === SchedulerFormat.IMAGE) {
             if (imageUrl === undefined) {
                 throw new Error('Missing image URL');
             }
@@ -447,6 +450,29 @@ export const compileProject = async (
     }
 };
 
+export const validateProject = async (
+    jobId: string,
+    scheduledTime: Date,
+    payload: ValidateProjectPayload,
+) => {
+    schedulerService.logSchedulerJob({
+        task: 'validateProject',
+        jobId,
+        scheduledTime,
+        status: SchedulerJobStatus.STARTED,
+    });
+
+    const errors = await validationService.generateValidation(
+        payload.projectUuid,
+    );
+    await validationService.storeValidation(payload.projectUuid, errors);
+    schedulerService.logSchedulerJob({
+        task: 'validateProject',
+        jobId,
+        scheduledTime,
+        status: SchedulerJobStatus.COMPLETED,
+    });
+};
 export const downloadCsv = async (
     jobId: string,
     scheduledTime: Date,
@@ -534,7 +560,7 @@ export const sendEmailNotification = async (
             (await getNotificationPageData(scheduler, jobId));
         const schedulerUrl = `${url}?scheduler_uuid=${schedulerUuid}`;
 
-        if (format === 'image') {
+        if (format === SchedulerFormat.IMAGE) {
             if (imageUrl === undefined) {
                 throw new Error('Missing image URL');
             }

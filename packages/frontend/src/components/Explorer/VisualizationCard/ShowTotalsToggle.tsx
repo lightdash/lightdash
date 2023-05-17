@@ -10,13 +10,13 @@ const ShowTotalsToggle: FC = () => {
             setShowColumnCalculation,
             showRowCalculation,
             setShowRowCalculation,
-            canUseMetricsAsRows,
+            canUsePivotTable,
             metricsAsRows,
         },
     } = useVisualizationContext();
 
     const options =
-        canUseMetricsAsRows && metricsAsRows
+        canUsePivotTable && metricsAsRows
             ? {
                   label: 'Show row total',
                   value: showRowCalculation,

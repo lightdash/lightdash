@@ -16,8 +16,11 @@ import {
     exploreWithoutDimension,
     exploreWithoutMetric,
     project,
-    user,
 } from './ValidationService.mock';
+
+jest.mock('../../clients/clients', () => ({
+    schedulerClient: {},
+}));
 
 jest.mock('../../models/models', () => ({
     savedChartModel: {

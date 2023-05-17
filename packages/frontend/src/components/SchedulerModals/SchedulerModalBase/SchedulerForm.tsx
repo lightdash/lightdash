@@ -8,7 +8,10 @@ import {
     RadioGroup,
 } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
-import { CreateSchedulerAndTargetsWithoutIds } from '@lightdash/common';
+import {
+    CreateSchedulerAndTargetsWithoutIds,
+    SchedulerFormat,
+} from '@lightdash/common';
 import { Anchor } from '@mantine/core';
 import React, { FC, useEffect, useMemo, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
@@ -221,7 +224,10 @@ const SchedulerForm: FC<{
     const isAddEmailDisabled = disabled || !health.data?.hasEmailClient;
     const isImageDisabled = !health.data?.hasHeadlessBrowser;
 
-    const format = methods.watch('format', isImageDisabled ? 'csv' : 'image');
+    const format = methods.watch(
+        'format',
+        isImageDisabled ? SchedulerFormat.CSV : SchedulerFormat.IMAGE,
+    );
 
     const [showDestinationLabel, setShowDestinationLabel] =
         useState<boolean>(true);
@@ -268,18 +274,19 @@ const SchedulerForm: FC<{
                                     );
 
                                     const isCsvValue =
-                                        e.currentTarget.value === 'csv';
+                                        e.currentTarget.value ===
+                                        SchedulerFormat.CSV;
                                     if (!isCsvValue)
                                         methods.setValue('options', {});
                                 },
                             })}
                             options={[
                                 {
-                                    value: 'image',
+                                    value: SchedulerFormat.IMAGE,
                                     label: 'Image',
                                     disabled: isImageDisabled,
                                 },
-                                { value: 'csv', label: 'CSV' },
+                                { value: SchedulerFormat.CSV, label: 'CSV' },
                             ]}
                         />
                         {isImageDisabled && (
@@ -305,7 +312,7 @@ const SchedulerForm: FC<{
                         )}
                     </InlinedInputs>
 
-                    {format === 'csv' && (
+                    {format === SchedulerFormat.CSV && (
                         <InlinedInputs>
                             <SchedulerOptions
                                 disabled={disabled}

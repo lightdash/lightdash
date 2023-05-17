@@ -250,7 +250,7 @@ export class SavedChartService {
         user: SessionUser,
         savedChartUuid: string,
     ): Promise<SavedChart> {
-        const { organizationUuid, projectUuid, pinnedListUuid } =
+        const { organizationUuid, projectUuid, pinnedListUuid, spaceUuid } =
             await this.savedChartModel.getSummary(savedChartUuid);
 
         if (
@@ -261,6 +261,11 @@ export class SavedChartService {
         ) {
             throw new ForbiddenError();
         }
+
+        if (!(await this.hasChartSpaceAccess(spaceUuid, user.userUuid))) {
+            throw new ForbiddenError();
+        }
+
         if (pinnedListUuid) {
             await this.pinnedListModel.deleteItem({
                 pinnedListUuid,
@@ -272,7 +277,6 @@ export class SavedChartService {
                 savedChartUuid,
             });
         }
-
         const pinnedList = await this.pinnedListModel.getPinnedListAndItems(
             projectUuid,
         );
@@ -310,6 +314,16 @@ export class SavedChartService {
         ) {
             throw new ForbiddenError();
         }
+
+        const spaceAccessPromises = data.map(async (chart) =>
+            this.hasChartSpaceAccess(chart.spaceUuid, user.userUuid),
+        );
+
+        const hasAllAccess = await Promise.all(spaceAccessPromises);
+        if (hasAllAccess.includes(false)) {
+            throw new ForbiddenError();
+        }
+
         const savedCharts = await this.savedChartModel.updateMultiple(data);
         analytics.track({
             event: 'saved_chart.updated_multiple',
@@ -385,6 +399,7 @@ export class SavedChartService {
         if (user.ability.cannot('view', subject('SavedChart', savedChart))) {
             throw new ForbiddenError();
         }
+
         if (
             user.ability.cannot('manage', subject('Project', savedChart)) &&
             !(await this.hasChartSpaceAccess(
@@ -429,6 +444,15 @@ export class SavedChartService {
         ) {
             throw new ForbiddenError();
         }
+        if (savedChart.spaceUuid) {
+            const space = await this.spaceModel.getFullSpace(
+                savedChart.spaceUuid,
+            );
+            if (!hasSpaceAccess(space, user.userUuid)) {
+                throw new ForbiddenError();
+            }
+        }
+
         const newSavedChart = await this.savedChartModel.create(
             projectUuid,
             user.userUuid,
@@ -531,6 +555,7 @@ export class SavedChartService {
                     ? 'chart'
                     : 'dashboard',
                 cronExpression: scheduler.cron,
+                format: scheduler.format,
                 cronString: cronstrue.toString(scheduler.cron, {
                     verbose: true,
                     throwExceptionOnParseError: false,
