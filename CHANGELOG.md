@@ -1,3 +1,10 @@
+## [0.558.2](https://github.com/lightdash/lightdash/compare/0.558.1...0.558.2) (2023-05-17)
+
+
+### Bug Fixes
+
+* default "show symbol" to true ([#5520](https://github.com/lightdash/lightdash/issues/5520)) ([7e614d2](https://github.com/lightdash/lightdash/commit/7e614d24195f268237a0d7aa5f26cfc56803a74b))
+
 ## [0.558.1](https://github.com/lightdash/lightdash/compare/0.558.0...0.558.1) (2023-05-17)
 
 
