@@ -18,6 +18,7 @@ import {
     isTableChartConfig,
     MetricQuery,
     SchedulerCsvOptions,
+    SchedulerFormat,
     SessionUser,
     TableCalculation,
 } from '@lightdash/common';
@@ -299,7 +300,7 @@ export class CsvService {
                   userId: user.userUuid,
                   organizationId: user.organizationUuid,
                   projectId: chart.projectUuid,
-                  fileType: 'csv',
+                  fileType: SchedulerFormat.CSV,
                   values: onlyRaw ? 'raw' : 'formatted',
                   limit: parseAnalyticsLimit(options?.limit),
                   storage: this.s3Service.isEnabled() ? 's3' : 'local',
@@ -419,7 +420,7 @@ export class CsvService {
             tableId: 'sql_runner',
             values: 'raw',
             context: 'sql runner',
-            fileType: 'csv',
+            fileType: SchedulerFormat.CSV,
             storage: this.s3Service.isEnabled() ? 's3' : 'local',
         };
         try {
@@ -547,7 +548,7 @@ export class CsvService {
             userId: userUuid,
             organizationId: user.organizationUuid,
             projectId: projectUuid,
-            fileType: 'csv',
+            fileType: SchedulerFormat.CSV,
             storage: this.s3Service.isEnabled() ? 's3' : 'local',
         };
         try {

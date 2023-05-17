@@ -11,6 +11,7 @@ import {
     NotificationPayloadBase,
     ScheduledDeliveryPayload,
     Scheduler,
+    SchedulerFormat,
     SchedulerJobStatus,
     SchedulerLog,
     SlackNotificationPayload,
@@ -103,7 +104,7 @@ export const getNotificationPageData = async (
         organizationUuid,
         projectUuid,
     } = await getChartOrDashboard(savedChartUuid, dashboardUuid);
-    if (format === 'image') {
+    if (format === SchedulerFormat.IMAGE) {
         imageUrl = await unfurlService.unfurlImage(
             minimalUrl,
             pageType,
@@ -122,7 +123,7 @@ export const getNotificationPageData = async (
             userId: userUuid,
             organizationId: user.organizationUuid,
             projectId: projectUuid,
-            fileType: 'csv',
+            fileType: SchedulerFormat.CSV,
             values: csvOptions?.formatted ? 'formatted' : 'raw',
             limit: parseAnalyticsLimit(csvOptions?.limit),
             storage: s3Service.isEnabled() ? 's3' : 'local',
@@ -265,7 +266,7 @@ export const sendSlackNotification = async (
             )} from Lightdash`,
         };
 
-        if (format === 'image') {
+        if (format === SchedulerFormat.IMAGE) {
             if (imageUrl === undefined) {
                 throw new Error('Missing image URL');
             }
@@ -534,7 +535,7 @@ export const sendEmailNotification = async (
             (await getNotificationPageData(scheduler, jobId));
         const schedulerUrl = `${url}?scheduler_uuid=${schedulerUuid}`;
 
-        if (format === 'image') {
+        if (format === SchedulerFormat.IMAGE) {
             if (imageUrl === undefined) {
                 throw new Error('Missing image URL');
             }

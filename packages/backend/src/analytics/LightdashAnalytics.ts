@@ -9,6 +9,7 @@ import {
     OrganizationMemberRole,
     PinnedItem,
     RequestMethod,
+    SchedulerFormat,
     TableSelectionType,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -499,6 +500,7 @@ export type SchedulerUpsertEvent = BaseTrack & {
         cronExpression: string;
         cronString: string;
         resourceId: string;
+        format: SchedulerFormat;
         targets: Array<{
             schedulerTargetId: string;
             type: 'slack' | 'email';
@@ -545,7 +547,7 @@ export type SchedulerNotificationJobEvent = BaseTrack & {
         schedulerTargetId: string;
         resourceType?: 'dashboard' | 'chart';
         type: 'slack' | 'email';
-        format?: 'csv' | 'image';
+        format?: SchedulerFormat;
     };
 };
 
@@ -574,7 +576,7 @@ export type DownloadCsv = BaseTrack & {
         organizationId?: string;
         projectId: string;
         tableId?: string;
-        fileType: 'csv';
+        fileType: SchedulerFormat.CSV;
         values?: 'raw' | 'formatted';
         limit?: 'results' | 'all' | 'custom';
         context?:
