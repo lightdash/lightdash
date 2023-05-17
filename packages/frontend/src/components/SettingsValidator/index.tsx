@@ -156,7 +156,13 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                                                       color="red"
                                                       fw={500}
                                                   >
-                                                      <Text fz="xs">
+                                                      <Text
+                                                          fz="xs"
+                                                          sx={{
+                                                              wordBreak:
+                                                                  'break-all',
+                                                          }}
+                                                      >
                                                           {
                                                               validationError.error
                                                           }
