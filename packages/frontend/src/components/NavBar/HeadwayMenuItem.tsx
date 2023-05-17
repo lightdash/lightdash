@@ -1,5 +1,5 @@
 import { Box, Button } from '@mantine/core';
-import { IconAccessPoint } from '@tabler/icons-react';
+import { IconSparkles } from '@tabler/icons-react';
 import { FC, useEffect } from 'react';
 import useHeadway from '../../hooks/thirdPartyServices/useHeadway';
 import { useApp } from '../../providers/AppProvider';
@@ -65,7 +65,7 @@ const HeadwayMenuItem: FC<Props> = ({ projectUuid }) => {
 
     return (
         <Button variant="default" size="xs" pos="relative" id="headway-trigger">
-            <MantineIcon icon={IconAccessPoint} size="lg" />
+            <MantineIcon icon={IconSparkles} size="lg" />
             <Box
                 id="headway-badge"
                 pos="absolute"
