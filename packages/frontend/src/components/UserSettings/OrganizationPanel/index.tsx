@@ -25,7 +25,7 @@ const OrganizationPanel: FC = () => {
     }, [data, data?.name]);
 
     const handleOnSubmit = form.onSubmit(({ organizationName }) => {
-        updateOrganization({ ...data, name: organizationName });
+        updateOrganization({ name: organizationName });
     });
 
     return (
