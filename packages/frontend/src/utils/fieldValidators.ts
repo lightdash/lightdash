@@ -67,4 +67,4 @@ export const isInvalidCronExpression: FieldValidator<string> =
         }
     };
 
-export const isValidEmailDomain = (value: string) => value.match(/@/);
+export const isValidEmailDomain = (value: string) => !value.match(/@/);

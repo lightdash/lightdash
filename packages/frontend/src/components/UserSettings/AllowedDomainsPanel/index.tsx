@@ -84,7 +84,6 @@ const AllowedDomainsPanel: FC = () => {
     }, [allowedEmailDomainsData]);
 
     const handleOnSubmit = form.onSubmit((values) => {
-        console.log({ values });
         const role =
             values.emailDomains.length > 0
                 ? values.role
@@ -115,8 +114,6 @@ const AllowedDomainsPanel: FC = () => {
                     getCreateLabel={(query: string) => `+ Add ${query} domain`}
                     defaultValue={form.values.emailDomains}
                     onCreate={(value) => {
-                        console.log({ value });
-
                         if (!isValidEmailDomain(value)) {
                             form.setFieldError(
                                 'emailDomains',
@@ -155,21 +152,17 @@ const AllowedDomainsPanel: FC = () => {
                                 (
                                     { subLabel, label, ...others }: any,
                                     ref: ForwardedRef<HTMLDivElement>,
-                                ) => {
-                                    console.log(others);
-
-                                    return (
-                                        <Stack
-                                            ref={ref}
-                                            spacing="xs"
-                                            p="xs"
-                                            {...others}
-                                        >
-                                            <Text size="sm">{label}</Text>
-                                            <Text size="xs">{subLabel}</Text>
-                                        </Stack>
-                                    );
-                                },
+                                ) => (
+                                    <Stack
+                                        ref={ref}
+                                        spacing="xs"
+                                        p="xs"
+                                        {...others}
+                                    >
+                                        <Text size="sm">{label}</Text>
+                                        <Text size="xs">{subLabel}</Text>
+                                    </Stack>
+                                ),
                             )}
                             defaultValue="viewer"
                             {...form.getInputProps('role')}
