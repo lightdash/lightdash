@@ -1,4 +1,8 @@
-import { OrganizationMemberRole, ProjectType } from '@lightdash/common';
+import {
+    OrganizationMemberRole,
+    ProjectType,
+    validateOrganizationEmailDomains,
+} from '@lightdash/common';
 import {
     Button,
     MultiSelect as MantineMultiSelect,
@@ -8,16 +12,12 @@ import {
 } from '@mantine/core';
 import { useForm as mantineUseForm } from '@mantine/form';
 import { FC, ForwardedRef, forwardRef, useEffect, useMemo } from 'react';
-
 import {
     useAllowedEmailDomains,
     useUpdateAllowedEmailDomains,
 } from '../../../hooks/organization/useAllowedDomains';
 import { useProjects } from '../../../hooks/useProjects';
-// import {
-//     isValidEmailDomain,
-//     isValidOrganizationDomain,
-// } from '../../../utils/fieldValidators';
+import { isValidEmailDomain } from '../../../utils/fieldValidators';
 
 const roleOptions = [
     {
@@ -37,10 +37,7 @@ const AllowedDomainsPanel: FC = () => {
         initialValues: {
             emailDomains: [] as string[],
             role: OrganizationMemberRole.VIEWER,
-            projects: [] as {
-                value: string;
-                label: string;
-            }[],
+            projects: [] as string[],
         },
     });
 
@@ -75,9 +72,11 @@ const AllowedDomainsPanel: FC = () => {
             form.setFieldValue('role', allowedEmailDomainsData.role);
             form.setFieldValue(
                 'projects',
-                projectOptions.filter(({ value }) =>
-                    allowedEmailDomainsData.projectUuids.includes(value),
-                ),
+                projectOptions
+                    .filter(({ value }) =>
+                        allowedEmailDomainsData.projectUuids.includes(value),
+                    )
+                    .map(({ value }) => value),
             );
         }
 
@@ -91,9 +90,7 @@ const AllowedDomainsPanel: FC = () => {
                 ? values.role
                 : OrganizationMemberRole.VIEWER;
         const projectUuids =
-            role === OrganizationMemberRole.MEMBER
-                ? values.projects.map(({ value }) => value)
-                : [];
+            role === OrganizationMemberRole.MEMBER ? values.projects : [];
         mutate({
             emailDomains: values.emailDomains,
             role,
@@ -117,15 +114,33 @@ const AllowedDomainsPanel: FC = () => {
                     creatable
                     getCreateLabel={(query: string) => `+ Add ${query} domain`}
                     defaultValue={form.values.emailDomains}
+                    onCreate={(value) => {
+                        console.log({ value });
+
+                        if (!isValidEmailDomain(value)) {
+                            form.setFieldError(
+                                'emailDomains',
+                                `${value} should not contain @, eg: (gmail.com)`,
+                            );
+                            return;
+                        }
+
+                        const isInvalidOrganizationEmailDomainMessage =
+                            validateOrganizationEmailDomains([
+                                ...form.values.emailDomains,
+                                value,
+                            ]);
+                        if (isInvalidOrganizationEmailDomainMessage) {
+                            form.setFieldError(
+                                'emailDomains',
+                                isInvalidOrganizationEmailDomainMessage,
+                            );
+                            return;
+                        }
+
+                        return value;
+                    }}
                     {...form.getInputProps('emailDomains')}
-                    // rules={{
-                    //     validate: {
-                    //         isValidEmailDomain:
-                    //             isValidEmailDomain('Email domains'),
-                    //         isValidOrganizationDomain:
-                    //             isValidOrganizationDomain('Email domains'),
-                    //     },
-                    // }}
                 />
 
                 {!!form.values.emailDomains.length && (
