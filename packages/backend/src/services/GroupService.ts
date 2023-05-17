@@ -2,9 +2,10 @@ import { subject } from '@casl/ability';
 import {
     ForbiddenError,
     Group,
+    GroupMember,
     GroupMembership,
-    GroupWithMembers,
     SessionUser,
+    UpdateGroup,
 } from '@lightdash/common';
 import { GroupsModel } from '../models/GroupsModel';
 
@@ -83,5 +84,43 @@ export class GroupsService {
             throw new ForbiddenError();
         }
         return group;
+    }
+
+    async update(
+        actor: SessionUser,
+        groupUuid: string,
+        update: UpdateGroup,
+    ): Promise<Group> {
+        const group = await this.groupsModel.getGroup(groupUuid);
+        if (
+            actor.ability.cannot(
+                'update',
+                subject('Group', {
+                    organizationUuid: group.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const newGroup = await this.groupsModel.updateGroup(groupUuid, update);
+        return newGroup;
+    }
+
+    async getGroupMembers(
+        actor: SessionUser,
+        groupUuid: string,
+    ): Promise<GroupMember[]> {
+        const group = await this.groupsModel.getGroupWithMembers(groupUuid);
+        if (
+            actor.ability.cannot(
+                'view',
+                subject('Group', {
+                    organizationUuid: group.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        return group.members;
     }
 }

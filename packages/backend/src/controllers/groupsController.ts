@@ -2,13 +2,16 @@ import {
     ApiErrorPayload,
     ApiGroupResponse,
     ApiSuccessEmpty,
+    UpdateGroup,
 } from '@lightdash/common';
 import { Controller, Delete, Put } from '@tsoa/runtime';
 import express from 'express';
 import {
+    Body,
     Get,
     Middlewares,
     OperationId,
+    Patch,
     Path,
     Request,
     Response,
@@ -118,6 +121,47 @@ export class GroupsController extends Controller {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    /**
+     * View members of a group
+     * @param groupUuid the UUID for the group to view the members of
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('{groupUuid}/members')
+    @OperationId('getGroupMembers')
+    async getGroupMembers(
+        @Path() groupUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiGroupResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await groupService.getGroupMembers(req.user!, groupUuid),
+        };
+    }
+
+    /**
+     * Update a group
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @Patch('{groupUuid}')
+    @OperationId('updateGroup')
+    async updateGroup(
+        @Path() groupUuid: string,
+        @Request() req: express.Request,
+        @Body() body: UpdateGroup,
+    ): Promise<ApiGroupResponse> {
+        const group = await groupService.update(req.user!, groupUuid, body);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: group,
         };
     }
 }

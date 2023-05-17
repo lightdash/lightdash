@@ -17,10 +17,9 @@ export type Group = {
     organizationUuid: string;
 };
 
-export type CreateGroup = {
-    name: string;
-    organizationUuid: string;
-};
+export type CreateGroup = Pick<Group, 'name' | 'organizationUuid'>;
+
+export type UpdateGroup = Pick<Group, 'name'>;
 
 /**
  * A summary for a Lightdash user within a group

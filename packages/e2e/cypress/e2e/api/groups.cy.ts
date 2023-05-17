@@ -4,7 +4,7 @@ describe('Groups API', () => {
     it('should return a group to admin', () => {
         cy.login();
         cy.request({
-            url: `api/v1/groups/${SEED_GROUP.uuid}`,
+            url: `api/v1/groups/${SEED_GROUP.groupUuid}`,
             method: 'GET',
         })
             .its('status')
@@ -14,7 +14,7 @@ describe('Groups API', () => {
     it('should forbid group outside the organization', () => {
         cy.anotherLogin();
         cy.request({
-            url: `api/v1/groups/${SEED_GROUP.uuid}`,
+            url: `api/v1/groups/${SEED_GROUP.groupUuid}`,
             method: 'GET',
         })
             .its('status')
@@ -59,8 +59,62 @@ describe('Groups API', () => {
     it('should add members to group', () => {
         cy.login();
         cy.request({
-            url: `api/v1/groups/${SEED_GROUP.uuid}/members/${SEED_ORG_1_ADMIN.user_uuid}`,
+            url: `api/v1/groups/${SEED_GROUP.groupUuid}/members/${SEED_ORG_1_ADMIN.user_uuid}`,
             method: 'PUT',
+        })
+            .its('status')
+            .should('eq', 200);
+    });
+
+    it('should delete group from organization', () => {
+        cy.login();
+        cy.request({
+            url: 'api/v1/org/groups',
+            method: 'POST',
+            body: {
+                name: 'Test group',
+            },
+        })
+            .its('response')
+            .then((response) =>
+                cy.request({
+                    url: `api/v1/groups/${response.body.results.uuid}`,
+                    method: 'DELETE',
+                }),
+            )
+            .its('response')
+            .should((r) => expect(r.statusCode).to.eq(200));
+    });
+
+    it('should update group name', () => {
+        cy.login();
+        cy.request({
+            url: 'api/v1/org/groups',
+            method: 'POST',
+            body: {
+                name: 'Test group',
+            },
+        })
+            .its('response')
+            .then((response) =>
+                cy.request({
+                    url: `api/v1/groups/${response.body.results.uuid}`,
+                    method: 'PATCH',
+                    body: {
+                        name: 'New name',
+                    },
+                }),
+            )
+            .its('response')
+            .should((r) => expect(r.statusCode).to.eq(200))
+            .should((r) => expect(r.body.results.name).to.eq('New name'));
+    });
+
+    it('should get group members', () => {
+        cy.login();
+        cy.request({
+            url: `api/v1/groups/${SEED_GROUP.groupUuid}/members`,
+            method: 'GET',
         })
             .its('status')
             .should('eq', 200);

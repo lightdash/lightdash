@@ -5,6 +5,7 @@ import {
     GroupWithMembers,
     NotFoundError,
     UnexpectedDatabaseError,
+    UpdateGroup,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 
@@ -120,8 +121,6 @@ export class GroupsModel {
         await this.database('groups').where('group_uuid', groupUuid).del();
     }
 
-    // TODO: do we need to enforce that only org_members from the same org can join or do we want to manage this as business logic?
-    // the current schema enforces that only org_members can be added to groups in the same org
     async addGroupMember(
         member: GroupMembership,
     ): Promise<GroupMembership | undefined> {
@@ -160,5 +159,33 @@ export class GroupsModel {
             .del()
             .returning('*');
         return deletedRows.length > 0;
+    }
+
+    async updateGroup(groupUuid: string, update: UpdateGroup): Promise<Group> {
+        // Updates with joins not supported by knex
+        const results = await this.database.raw(
+            `
+            UPDATE groups
+            SET name = :name
+            FROM organizations
+            WHERE groups.group_uuid = :groupUuid
+            AND groups.organization_id = organizations.organization_id
+            RETURNING groups.group_uuid, groups.name, groups.created_at, organizations.organization_uuid
+            `,
+            {
+                groupUuid,
+                name: update.name,
+            },
+        );
+        const [updatedGroup] = results.rows;
+        if (updatedGroup === undefined) {
+            throw new NotFoundError(`No group found`);
+        }
+        return {
+            uuid: updatedGroup.group_uuid,
+            name: updatedGroup.name,
+            createdAt: updatedGroup.created_at,
+            organizationUuid: updatedGroup.organization_uuid,
+        };
     }
 }
