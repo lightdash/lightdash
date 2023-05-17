@@ -107,7 +107,7 @@ const AllowedDomainsPanel: FC = () => {
                         if (!isValidEmailDomain(value)) {
                             form.setFieldError(
                                 'emailDomains',
-                                `${value} should not contain @, eg: (gmail.com)`,
+                                `${value} should not contain @, eg: (lightdash.com)`,
                             );
                             return;
                         }
