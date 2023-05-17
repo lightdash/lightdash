@@ -34,6 +34,7 @@ const AllowedDomainsPanel: FC = () => {
             projects: [] as string[],
         },
     });
+    const { setFieldValue } = form;
 
     const { data: projects, isLoading: isLoadingProjects } = useProjects();
     const {
@@ -59,12 +60,9 @@ const AllowedDomainsPanel: FC = () => {
 
     useEffect(() => {
         if (allowedEmailDomainsData) {
-            form.setFieldValue(
-                'emailDomains',
-                allowedEmailDomainsData.emailDomains,
-            );
-            form.setFieldValue('role', allowedEmailDomainsData.role);
-            form.setFieldValue(
+            setFieldValue('emailDomains', allowedEmailDomainsData.emailDomains);
+            setFieldValue('role', allowedEmailDomainsData.role);
+            setFieldValue(
                 'projects',
                 projectOptions
                     .filter(({ value }) =>
@@ -73,9 +71,7 @@ const AllowedDomainsPanel: FC = () => {
                     .map(({ value }) => value),
             );
         }
-
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [allowedEmailDomainsData]);
+    }, [allowedEmailDomainsData, projectOptions, setFieldValue]);
 
     const handleOnSubmit = form.onSubmit((values) => {
         const role =

@@ -17,12 +17,13 @@ const OrganizationPanel: FC = () => {
         },
     });
 
+    const { setFieldValue } = form;
+
     useEffect(() => {
         if (data) {
-            form.setFieldValue('organizationName', data?.name);
+            setFieldValue('organizationName', data?.name);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [data, data?.name]);
+    }, [data, data?.name, setFieldValue]);
 
     const handleOnSubmit = form.onSubmit(({ organizationName }) => {
         updateOrganization({ name: organizationName });
