@@ -14,18 +14,27 @@ import {
 } from 'react-query';
 import { useHistory, useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
+import { convertDateFilters } from '../utils/dateFilter';
 import useToaster from './toaster/useToaster';
 import useSearchParams from './useSearchParams';
 
 const createSavedQuery = async (
     projectUuid: string,
     payload: CreateSavedChart,
-): Promise<SavedChart> =>
-    lightdashApi<SavedChart>({
+): Promise<SavedChart> => {
+    const timezoneFixPayload: CreateSavedChart = {
+        ...payload,
+        metricQuery: {
+            ...payload.metricQuery,
+            filters: convertDateFilters(payload.metricQuery.filters),
+        },
+    };
+    return lightdashApi<SavedChart>({
         url: `/projects/${projectUuid}/saved`,
         method: 'POST',
-        body: JSON.stringify(payload),
+        body: JSON.stringify(timezoneFixPayload),
     });
+};
 
 const duplicateSavedQuery = async (
     projectUuid: string,
@@ -72,12 +81,20 @@ const addVersionSavedQuery = async ({
 }: {
     uuid: string;
     payload: CreateSavedChartVersion;
-}): Promise<SavedChart> =>
-    lightdashApi<SavedChart>({
+}): Promise<SavedChart> => {
+    const timezoneFixPayload: CreateSavedChartVersion = {
+        ...payload,
+        metricQuery: {
+            ...payload.metricQuery,
+            filters: convertDateFilters(payload.metricQuery.filters),
+        },
+    };
+    return lightdashApi<SavedChart>({
         url: `/saved/${uuid}/version`,
         method: 'POST',
-        body: JSON.stringify(payload),
+        body: JSON.stringify(timezoneFixPayload),
     });
+};
 
 interface Args {
     id?: string;
