@@ -168,12 +168,14 @@ describe('Lightdash API', () => {
     });
     it('Should get success response (200) from GET savedChartRouter endpoints', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
+
         cy.request(`${apiUrl}/projects/${projectUuid}/spaces-and-content`).then(
             (projectResponse) => {
                 expect(projectResponse.status).to.eq(200);
 
-                const savedChartUuid =
-                    projectResponse.body.results[0].queries[0].uuid;
+                const savedChartUuid = projectResponse.body.results.find(
+                    (result) => result.name === 'Jaffle shop',
+                ).queries[0].uuid;
 
                 const endpoints = [
                     `/saved/${savedChartUuid}`,
