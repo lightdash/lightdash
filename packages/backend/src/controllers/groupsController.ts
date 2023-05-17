@@ -15,7 +15,11 @@ import {
     Route,
 } from 'tsoa';
 import { groupService } from '../services/services';
-import { isAuthenticated } from './authentication';
+import {
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    unauthorisedInDemo,
+} from './authentication';
 
 @Route('/api/v1/groups')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -24,7 +28,7 @@ export class GroupsController extends Controller {
      * Get group details including a list of members
      * @param groupUuid unique id of the group
      */
-    @Middlewares([isAuthenticated])
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Get('{groupUuid}')
     @OperationId('getGroup')
     async getGroup(
@@ -42,7 +46,11 @@ export class GroupsController extends Controller {
      * Delete a group
      * @param unique id of the group to delete
      */
-    @Middlewares([isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @Delete('{groupUuid}')
     @OperationId('deleteGroup')
     async deleteGroup(
@@ -62,7 +70,11 @@ export class GroupsController extends Controller {
      * @param groupUuid the UUID for the group to add the user to
      * @param userUuid the UUID for the user to add to the group
      */
-    @Middlewares([isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @Put('{groupUuid}/members/{userUuid}')
     @OperationId('addUserToGroup')
     async addUserToGroup(
@@ -86,7 +98,11 @@ export class GroupsController extends Controller {
      * @param groupUuid the UUID for the group to remove the user from
      * @param userUuid the UUID for the user to remove from the group
      */
-    @Middlewares([isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @Delete('{groupUuid}/members/{userUuid}')
     @OperationId('removeUserFromGroup')
     async removeUserFromGroup(
