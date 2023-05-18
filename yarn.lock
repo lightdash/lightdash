@@ -16478,6 +16478,11 @@ use-latest@^1.2.1:
   dependencies:
     use-isomorphic-layout-effect "^1.1.1"
 
+use-local-storage-state@17:
+  version "17.3.0"
+  resolved "https://registry.yarnpkg.com/use-local-storage-state/-/use-local-storage-state-17.3.0.tgz#09853c138525822f1f8a2174cddbbc59affcfe33"
+  integrity sha512-PZruqtmMkYCgcC5t+0Mbka1rN2jjhC1SMA2UD8o6HbpblZf8E9aaXF0sEwlQAWlBpKGlNYvbqueB8dlbwX7n/g==
+
 use-memo-one@^1.1.1:
   version "1.1.2"
   resolved "https://registry.npmjs.org/use-memo-one/-/use-memo-one-1.1.2.tgz"
