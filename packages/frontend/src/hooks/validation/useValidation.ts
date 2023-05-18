@@ -11,6 +11,8 @@ import { useErrorLogs } from '../../providers/ErrorLogsProvider';
 import { pollJobStatus } from '../scheduler/useScheduler';
 import useToaster from '../toaster/useToaster';
 
+export const LAST_VALIDATION_NOTIFICATION_KEY = 'lastValidationTimestamp';
+
 const getValidation = async (
     projectUuid: string,
 ): Promise<ValidationResponse[]> =>
@@ -20,11 +22,26 @@ const getValidation = async (
         body: undefined,
     });
 
-export const useValidation = (projectUuid: string) =>
-    useQuery<ValidationResponse[], ApiError>({
+export const useValidation = (projectUuid: string) => {
+    const [lastValidationNotification, setLastValidationNotification] =
+        useLocalStorage({
+            key: LAST_VALIDATION_NOTIFICATION_KEY,
+        });
+    return useQuery<ValidationResponse[], ApiError>({
         queryKey: 'validation',
         queryFn: () => getValidation(projectUuid),
+        onSuccess: (data) => {
+            const previousTimestamp = lastValidationNotification?.split(';')[0];
+            const currentTimestamp = data[0].createdAt.toString();
+            const isSameAsPreviousTimestamp =
+                previousTimestamp === currentTimestamp;
+
+            if (isSameAsPreviousTimestamp) return;
+
+            setLastValidationNotification(`${currentTimestamp};unread`);
+        },
     });
+};
 
 const updateValidation = async (
     projectUuid: string,
@@ -35,15 +52,10 @@ const updateValidation = async (
         body: undefined,
     });
 
-export const LAST_VALIDATION_TIMESTAMP_KEY = 'lastValidationTimestamp';
-
 export const useValidationMutation = (
     projectUuid: string,
     onComplete: () => void,
 ) => {
-    const [, setLastValidationTimestamp] = useLocalStorage({
-        key: LAST_VALIDATION_TIMESTAMP_KEY,
-    });
     const queryClient = useQueryClient();
     const { showError } = useErrorLogs();
     const { showToastSuccess } = useToaster();
@@ -56,7 +68,6 @@ export const useValidationMutation = (
             pollJobStatus(data.jobId)
                 .then(() => {
                     onComplete();
-                    setLastValidationTimestamp(Date.now().toString());
                     // Invalidate validation to get latest results
                     queryClient.invalidateQueries({ queryKey: ['validation'] });
                     showToastSuccess({ title: 'Validation completed' });
