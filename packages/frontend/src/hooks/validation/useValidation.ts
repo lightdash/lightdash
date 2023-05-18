@@ -4,9 +4,9 @@ import {
     ApiJobScheduledResponse,
     ValidationResponse,
 } from '@lightdash/common';
-import { useLocalStorage } from '@mantine/hooks';
 import { useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
+import useLocalStorageState from 'use-local-storage-state';
 import { lightdashApi } from '../../api';
 import { useErrorLogs } from '../../providers/ErrorLogsProvider';
 import { pollJobStatus } from '../scheduler/useScheduler';
@@ -27,26 +27,29 @@ const getValidation = async (
 
 export const useValidation = (projectUuid: string) => {
     const [lastValidationNotification, setLastValidationNotification] =
-        useLocalStorage({
-            key: LAST_VALIDATION_NOTIFICATION_KEY,
-            getInitialValueInEffect: true,
-        });
+        useLocalStorageState<string>(LAST_VALIDATION_NOTIFICATION_KEY);
+
     return useQuery<ValidationResponse[], ApiError>({
         queryKey: 'validation',
         queryFn: () => getValidation(projectUuid),
         onSuccess: (data) => {
-            const previousTimestamp = lastValidationNotification.split(';')[0];
-            const currentTimestamp = data[0].createdAt.toString();
-            const isSameAsPreviousTimestamp =
-                previousTimestamp === currentTimestamp;
+            const latestValidationTimestamp = data[0].createdAt.toString();
+            const previousTimestamp = lastValidationNotification?.split(';')[0];
 
-            if (isSameAsPreviousTimestamp) return;
-            console.log('not the same timestamp', {
-                previousTimestamp,
-                currentTimestamp,
-            });
+            // When it's empty, no last validation
+            if (lastValidationNotification === '') {
+                setLastValidationNotification(
+                    `${latestValidationTimestamp};unread`,
+                );
+                return;
+            }
 
-            setLastValidationNotification(`${currentTimestamp};unread`);
+            if (latestValidationTimestamp === previousTimestamp) return;
+
+            // if they're not the same, update the last validation
+            setLastValidationNotification(
+                `${latestValidationTimestamp};unread`,
+            );
         },
     });
 };
@@ -118,10 +121,8 @@ export const useValidationUserAbility = (projectUuid: string) => {
 
 export const useValidationNotificationChecker = (): [boolean, () => void] => {
     const [lastValidationNotification, setLastValidationNotification] =
-        useLocalStorage({
-            key: LAST_VALIDATION_NOTIFICATION_KEY,
-            getInitialValueInEffect: true,
-        });
+        useLocalStorageState<string>(LAST_VALIDATION_NOTIFICATION_KEY);
+
     const [lastValidationTimestamp = '', lastValidationStatus = ''] =
         lastValidationNotification ? lastValidationNotification.split(';') : [];
 
@@ -129,6 +130,7 @@ export const useValidationNotificationChecker = (): [boolean, () => void] => {
         !!lastValidationNotification && lastValidationStatus === 'read';
 
     const setHasReadLastValidationNotification = () =>
+        lastValidationNotification &&
         setLastValidationNotification(`${lastValidationTimestamp};read`);
 
     return [

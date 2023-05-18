@@ -45,9 +45,7 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
                 <Button
                     variant="default"
                     size="xs"
-                    onClick={() => {
-                        setHasReadNotification();
-                    }}
+                    onClick={() => setHasReadNotification()}
                     sx={{
                         // NOTE: Revert overflow so badge doesn't get cropped off
                         '.mantine-Button-label': {
