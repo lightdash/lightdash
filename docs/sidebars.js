@@ -34,7 +34,8 @@ module.exports = {
                         'get-started/setup-lightdash/intro-metrics-dimensions',
                         'get-started/setup-lightdash/using-explores',
                         'get-started/setup-lightdash/how-to-create-metrics',
-                        'get-started/exploring-data/sharing-insights',
+                        'get-started/setup-lightdash/invite-new-users',
+                        'get-started/setup-lightdash/sharing-insights',
                     ],
                 },
                 {
@@ -50,6 +51,7 @@ module.exports = {
                         'get-started/develop-in-lightdash/using-explores',
                         'get-started/develop-in-lightdash/how-to-create-dimensions',
                         'get-started/develop-in-lightdash/how-to-create-metrics',
+                        'get-started/develop-in-lightdash/sharing-insights',
                     ],
                 },
                 {
