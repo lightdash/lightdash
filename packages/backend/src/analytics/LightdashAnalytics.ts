@@ -443,7 +443,7 @@ type ShareSlack = BaseTrack & {
     properties: {
         pageType?: string;
         error?: string;
-        organizationUuid?: string;
+        organizationId?: string;
     };
 };
 

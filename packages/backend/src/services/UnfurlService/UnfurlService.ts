@@ -15,11 +15,13 @@ import { S3Service } from '../../clients/Aws/s3';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { ShareModel } from '../../models/ShareModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { getAuthenticationToken } from '../../routers/headlessBrowser';
 import { EncryptionService } from '../EncryptionService/EncryptionService';
+import { organization } from '../OrganizationService/OrganizationService.mock';
 
 const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const uuidRegex = new RegExp(uuid, 'g');
@@ -37,6 +39,7 @@ export type Unfurl = {
     imageUrl: string | undefined;
     pageType: LightdashPage;
     minimalUrl: string;
+    organizationUuid: string;
 };
 
 export type ParsedUrl = {
@@ -58,6 +61,7 @@ type UnfurlServiceDependencies = {
     shareModel: ShareModel;
     encryptionService: EncryptionService;
     s3Service: S3Service;
+    projectModel: ProjectModel;
 };
 
 export class UnfurlService {
@@ -75,6 +79,8 @@ export class UnfurlService {
 
     s3Service: S3Service;
 
+    projectModel: ProjectModel;
+
     constructor({
         lightdashConfig,
         dashboardModel,
@@ -83,6 +89,7 @@ export class UnfurlService {
         shareModel,
         encryptionService,
         s3Service,
+        projectModel,
     }: UnfurlServiceDependencies) {
         this.lightdashConfig = lightdashConfig;
         this.dashboardModel = dashboardModel;
@@ -91,6 +98,7 @@ export class UnfurlService {
         this.shareModel = shareModel;
         this.encryptionService = encryptionService;
         this.s3Service = s3Service;
+        this.projectModel = projectModel;
     }
 
     private async saveScreenshot(
@@ -253,7 +261,7 @@ export class UnfurlService {
 
     async getTitleAndDescription(
         parsedUrl: ParsedUrl,
-    ): Promise<{ title: string; description?: string }> {
+    ): Promise<Pick<Unfurl, 'title' | 'description' | 'organizationUuid'>> {
         switch (parsedUrl.lightdashPage) {
             case LightdashPage.DASHBOARD:
                 if (!parsedUrl.dashboardUuid)
@@ -266,6 +274,7 @@ export class UnfurlService {
                 return {
                     title: dashboard.name,
                     description: dashboard.description,
+                    organizationUuid: dashboard.organizationUuid,
                 };
             case LightdashPage.CHART:
                 if (!parsedUrl.chartUuid)
@@ -275,12 +284,23 @@ export class UnfurlService {
                 const chart = await this.savedChartModel.getSummary(
                     parsedUrl.chartUuid,
                 );
-                return { title: chart.name, description: chart.description };
+                return {
+                    title: chart.name,
+                    description: chart.description,
+                    organizationUuid: chart.organizationUuid,
+                };
             case LightdashPage.EXPLORE:
+                const project = await this.projectModel.get(
+                    parsedUrl.projectUuid!,
+                );
+
                 const exploreName = parsedUrl.exploreModel
                     ? `Exploring ${parsedUrl.exploreModel}`
                     : 'Explore';
-                return { title: exploreName };
+                return {
+                    title: exploreName,
+                    organizationUuid: project.organizationUuid,
+                };
             case undefined:
                 throw new Error(`Unrecognized page for URL ${parsedUrl.url}`);
             default:
@@ -330,9 +350,8 @@ export class UnfurlService {
             return undefined;
         }
 
-        const { title, description } = await this.getTitleAndDescription(
-            parsedUrl,
-        );
+        const { title, description, organizationUuid } =
+            await this.getTitleAndDescription(parsedUrl);
 
         return {
             title,
@@ -340,6 +359,7 @@ export class UnfurlService {
             pageType: parsedUrl.lightdashPage,
             imageUrl: undefined,
             minimalUrl: parsedUrl.minimalUrl,
+            organizationUuid,
         };
     }
 
