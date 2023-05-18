@@ -333,7 +333,6 @@ export const pivotQueryResults = ({
             rowTotalFields = create2DArray(N_TOTAL_ROWS, N_TOTAL_COLS);
             rowTotals = create2DArray(N_DATA_ROWS, N_TOTAL_COLS);
 
-            // set the last header cells as the "Total"
             summableMetricFieldIds.forEach((fieldId, metricIndex) => {
                 rowTotalFields![N_TOTAL_ROWS - 1][metricIndex] = {
                     fieldId: fieldId,
