@@ -398,6 +398,10 @@ export const testAndCompileProject = async (
             details: {},
             status: SchedulerJobStatus.COMPLETED,
         });
+
+        schedulerClient.generateValidation({
+            projectUuid: payload.projectUuid,
+        });
     } catch (e) {
         schedulerService.logSchedulerJob({
             ...baseLog,
@@ -439,6 +443,10 @@ export const compileProject = async (
             ...baseLog,
             details: {},
             status: SchedulerJobStatus.COMPLETED,
+        });
+
+        schedulerClient.generateValidation({
+            projectUuid: payload.projectUuid,
         });
     } catch (e) {
         schedulerService.logSchedulerJob({
