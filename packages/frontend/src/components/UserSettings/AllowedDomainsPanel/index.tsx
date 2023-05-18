@@ -1,161 +1,186 @@
-import { Button, Intent } from '@blueprintjs/core';
-import { OrganizationMemberRole, ProjectType } from '@lightdash/common';
-import { FC, useEffect, useMemo } from 'react';
-import { useForm } from 'react-hook-form';
+import {
+    OrganizationMemberRole,
+    ProjectType,
+    validateOrganizationEmailDomains,
+} from '@lightdash/common';
+import { Button, MultiSelect, Select, Stack, Text } from '@mantine/core';
+import { useForm } from '@mantine/form';
+import { FC, ForwardedRef, forwardRef, useEffect, useMemo } from 'react';
 import {
     useAllowedEmailDomains,
     useUpdateAllowedEmailDomains,
 } from '../../../hooks/organization/useAllowedDomains';
 import { useProjects } from '../../../hooks/useProjects';
-import {
-    isValidEmailDomain,
-    isValidOrganizationDomain,
-} from '../../../utils/fieldValidators';
-import Form from '../../ReactHookForm/Form';
-import MultiSelect from '../../ReactHookForm/MultiSelect';
-import Select2 from '../../ReactHookForm/Select2';
-import TagInput from '../../ReactHookForm/TagInput';
-import { Description } from '../DeleteOrganizationPanel/DeleteOrganizationPanel.styles';
-import { FormWrapper } from '../OrganizationPanel/OrganizationPanel.styles';
-
-type FormData = {
-    emailDomains: string[];
-    role: OrganizationMemberRole;
-    projects: { value: string; label: string }[];
-};
+import { isValidEmailDomain } from '../../../utils/fieldValidators';
 
 const roleOptions = [
     {
         value: OrganizationMemberRole.VIEWER,
         label: 'Organization Viewer',
-        subLabel: (
-            <Description>
-                Has view access across all projects in the org
-            </Description>
-        ),
+        subLabel: 'Has view access across all projects in the org',
     },
     {
         value: OrganizationMemberRole.MEMBER,
         label: 'Organization Member',
-        subLabel: (
-            <Description>Has view access to selected projects only</Description>
-        ),
+        subLabel: 'Has view access to selected projects only',
     },
 ];
 
 const AllowedDomainsPanel: FC = () => {
-    const methods = useForm<FormData>({
-        mode: 'onSubmit',
-        defaultValues: {
-            emailDomains: [],
+    const form = useForm({
+        initialValues: {
+            emailDomains: [] as string[],
             role: OrganizationMemberRole.VIEWER,
-            projects: [],
+            projects: [] as string[],
         },
     });
+    const { setFieldValue } = form;
+
     const { data: projects, isLoading: isLoadingProjects } = useProjects();
-    const { data, isLoading: emailDomainsLoading } = useAllowedEmailDomains();
+    const {
+        data: allowedEmailDomainsData,
+        isLoading: emailDomainsLoading,
+        isSuccess,
+    } = useAllowedEmailDomains();
     const { mutate, isLoading: updateEmailDomainsLoading } =
         useUpdateAllowedEmailDomains();
     const isLoading =
         updateEmailDomainsLoading || emailDomainsLoading || isLoadingProjects;
 
-    const projectOptions = useMemo(() => {
-        return (projects || [])
-            .filter(({ type }) => type !== ProjectType.PREVIEW)
-            .map((item) => ({
-                value: item.projectUuid,
-                label: item.name,
-            }));
-    }, [projects]);
-
-    const selectedEmailDomains = methods.watch('emailDomains', []);
-    const selectedRole = methods.watch('role', OrganizationMemberRole.VIEWER);
+    const projectOptions = useMemo(
+        () =>
+            (projects || [])
+                .filter(({ type }) => type !== ProjectType.PREVIEW)
+                .map((item) => ({
+                    value: item.projectUuid,
+                    label: item.name,
+                })),
+        [projects],
+    );
 
     useEffect(() => {
-        if (data) {
-            methods.setValue('emailDomains', data.emailDomains);
-            methods.setValue('role', data.role);
-            methods.setValue(
+        if (allowedEmailDomainsData) {
+            setFieldValue('emailDomains', allowedEmailDomainsData.emailDomains);
+            setFieldValue('role', allowedEmailDomainsData.role);
+            setFieldValue(
                 'projects',
-                projectOptions.filter(({ value }) =>
-                    data.projectUuids.includes(value),
-                ),
+                projectOptions
+                    .filter(({ value }) =>
+                        allowedEmailDomainsData.projectUuids.includes(value),
+                    )
+                    .map(({ value }) => value),
             );
         }
-    }, [data, methods, projectOptions]);
+    }, [allowedEmailDomainsData, projectOptions, setFieldValue]);
 
-    const handleUpdate = (values: FormData) => {
+    const handleOnSubmit = form.onSubmit((values) => {
         const role =
             values.emailDomains.length > 0
                 ? values.role
                 : OrganizationMemberRole.VIEWER;
         const projectUuids =
-            role === OrganizationMemberRole.MEMBER
-                ? values.projects.map(({ value }) => value)
-                : [];
+            role === OrganizationMemberRole.MEMBER ? values.projects : [];
         mutate({
             emailDomains: values.emailDomains,
             role,
             projectUuids,
         });
-    };
+    });
 
-    return (
-        <FormWrapper>
-            <Form
-                name="login"
-                methods={methods}
-                onSubmit={handleUpdate}
-                disableSubmitOnEnter
-                isLoading={isLoading}
-            >
-                <TagInput
-                    label="Allowed email domains"
+    return isSuccess ? (
+        <form name="allowedEmailDomains" onSubmit={handleOnSubmit}>
+            <Stack>
+                <MultiSelect
                     name="emailDomains"
+                    label="Allowed email domains"
                     placeholder="E.g. lightdash.com"
                     disabled={isLoading}
-                    defaultValue={data?.emailDomains || []}
-                    rules={{
-                        validate: {
-                            isValidEmailDomain:
-                                isValidEmailDomain('Email domains'),
-                            isValidOrganizationDomain:
-                                isValidOrganizationDomain('Email domains'),
-                        },
+                    data={form.values.emailDomains.map((emailDomain) => ({
+                        value: emailDomain,
+                        label: emailDomain,
+                    }))}
+                    searchable
+                    creatable
+                    getCreateLabel={(query: string) => `+ Add ${query} domain`}
+                    defaultValue={form.values.emailDomains}
+                    onCreate={(value) => {
+                        if (!isValidEmailDomain(value)) {
+                            form.setFieldError(
+                                'emailDomains',
+                                `${value} should not contain @, eg: (lightdash.com)`,
+                            );
+                            return;
+                        }
+
+                        const isInvalidOrganizationEmailDomainMessage =
+                            validateOrganizationEmailDomains([
+                                ...form.values.emailDomains,
+                                value,
+                            ]);
+                        if (isInvalidOrganizationEmailDomainMessage) {
+                            form.setFieldError(
+                                'emailDomains',
+                                isInvalidOrganizationEmailDomainMessage,
+                            );
+                            return;
+                        }
+
+                        return value;
                     }}
+                    {...form.getInputProps('emailDomains')}
                 />
-                {selectedEmailDomains.length > 0 && (
+
+                {!!form.values.emailDomains.length && (
                     <>
-                        <Select2
+                        <Select
                             label="Default role"
                             name="role"
                             placeholder="Organization viewer"
                             disabled={isLoading}
-                            items={roleOptions}
+                            data={roleOptions}
+                            itemComponent={forwardRef(
+                                (
+                                    { subLabel, label, ...others }: any,
+                                    ref: ForwardedRef<HTMLDivElement>,
+                                ) => (
+                                    <Stack
+                                        ref={ref}
+                                        spacing="xs"
+                                        p="xs"
+                                        {...others}
+                                    >
+                                        <Text size="sm">{label}</Text>
+                                        <Text size="xs">{subLabel}</Text>
+                                    </Stack>
+                                ),
+                            )}
                             defaultValue="viewer"
+                            {...form.getInputProps('role')}
                         />
+
                         {projectOptions.length > 0 &&
-                            selectedRole === OrganizationMemberRole.MEMBER && (
+                            form.values.role ===
+                                OrganizationMemberRole.MEMBER && (
                                 <MultiSelect
                                     label="Project Viewer Access"
-                                    name="projects"
-                                    items={projectOptions}
                                     placeholder="Select projects"
+                                    data={projectOptions}
+                                    {...form.getInputProps('projects')}
                                 />
                             )}
                     </>
                 )}
-                <div style={{ flex: 1 }} />
                 <Button
-                    style={{ alignSelf: 'flex-end', marginTop: 20 }}
-                    intent={Intent.PRIMARY}
-                    text="Update"
-                    loading={isLoading}
                     type="submit"
-                />
-            </Form>
-        </FormWrapper>
-    );
+                    display="block"
+                    ml="auto"
+                    loading={isLoading}
+                >
+                    Update
+                </Button>
+            </Stack>
+        </form>
+    ) : null;
 };
 
 export default AllowedDomainsPanel;

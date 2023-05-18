@@ -133,6 +133,7 @@ export const unfurlService = new UnfurlService({
     shareModel,
     encryptionService,
     s3Service,
+    projectModel,
 });
 
 export const analyticsService = new AnalyticsService({

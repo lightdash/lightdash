@@ -75,5 +75,5 @@ export const validateOrganizationEmailDomains = (domains: string[]) => {
 
     return `${readableDomainList} ${
         invalidDomains.length === 1 ? 'is' : 'are'
-    } not allowed as organization email`;
+    } not allowed as organization email(s)`;
 };

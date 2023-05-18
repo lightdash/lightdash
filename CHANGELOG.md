@@ -1,3 +1,31 @@
+# [0.559.0](https://github.com/lightdash/lightdash/compare/0.558.3...0.559.0) (2023-05-17)
+
+
+### Features
+
+* migrate organization general settings to mantine ([#5500](https://github.com/lightdash/lightdash/issues/5500)) ([c7ff4a8](https://github.com/lightdash/lightdash/commit/c7ff4a86e5ee47bdbb2d57aebc13d443e03efb23))
+
+## [0.558.3](https://github.com/lightdash/lightdash/compare/0.558.2...0.558.3) (2023-05-17)
+
+
+### Bug Fixes
+
+* add break-all to validation erros ([#5521](https://github.com/lightdash/lightdash/issues/5521)) ([12c5a2b](https://github.com/lightdash/lightdash/commit/12c5a2b170ba10930958859f71d3614f2bbe92d3))
+
+## [0.558.2](https://github.com/lightdash/lightdash/compare/0.558.1...0.558.2) (2023-05-17)
+
+
+### Bug Fixes
+
+* default "show symbol" to true ([#5520](https://github.com/lightdash/lightdash/issues/5520)) ([7e614d2](https://github.com/lightdash/lightdash/commit/7e614d24195f268237a0d7aa5f26cfc56803a74b))
+
+## [0.558.1](https://github.com/lightdash/lightdash/compare/0.558.0...0.558.1) (2023-05-17)
+
+
+### Bug Fixes
+
+* filter timezone when saving chart ([#5519](https://github.com/lightdash/lightdash/issues/5519)) ([776e65a](https://github.com/lightdash/lightdash/commit/776e65a9c5add399b8f04231708b3faec30a8e02))
+
 # [0.558.0](https://github.com/lightdash/lightdash/compare/0.557.0...0.558.0) (2023-05-17)
 
 
