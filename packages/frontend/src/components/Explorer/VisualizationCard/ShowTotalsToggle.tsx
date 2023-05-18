@@ -14,32 +14,18 @@ const ShowTotalsToggle: FC = () => {
         },
     } = useVisualizationContext();
 
-    const rowTotalOption = canUsePivotTable
-        ? {
-              label: 'Show row total',
-              value: showRowCalculation,
-              onChange: () => setShowRowCalculation(!showRowCalculation),
-          }
-        : undefined;
-
-    const columnTotalOption = {
-        label: 'Show column total',
-        value: showColumnCalculation,
-        onChange: () => setShowColumnCalculation(!showColumnCalculation),
-    };
-
     return (
         <>
-            {rowTotalOption ? (
+            {canUsePivotTable ? (
                 <StyledSwitch
                     large
                     id="showTotals"
                     innerLabelChecked="Yes"
                     innerLabel="No"
                     alignIndicator="right"
-                    label={rowTotalOption.label}
-                    checked={rowTotalOption.value}
-                    onChange={rowTotalOption.onChange}
+                    label="Show row total"
+                    checked={showRowCalculation}
+                    onChange={() => setShowRowCalculation(!showRowCalculation)}
                 />
             ) : null}
 
@@ -49,9 +35,11 @@ const ShowTotalsToggle: FC = () => {
                 innerLabelChecked="Yes"
                 innerLabel="No"
                 alignIndicator="right"
-                label={columnTotalOption.label}
-                checked={columnTotalOption.value}
-                onChange={columnTotalOption.onChange}
+                label="Show column total"
+                checked={showColumnCalculation}
+                onChange={() =>
+                    setShowColumnCalculation(!showColumnCalculation)
+                }
             />
         </>
     );
