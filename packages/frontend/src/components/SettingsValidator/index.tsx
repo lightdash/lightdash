@@ -71,8 +71,8 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
     return (
         <Stack>
             <Text color="gray.6">
-                Use the project validator to check what content in your project
-                is broken.
+                Use the project validator to check what content is broken in
+                your project.
             </Text>
             {isSuccess && (
                 <Paper withBorder>
