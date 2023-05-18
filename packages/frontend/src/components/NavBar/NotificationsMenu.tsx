@@ -48,8 +48,18 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
                     variant="default"
                     size="xs"
                     onClick={() => setLastValidationTimestamp('')}
+                    sx={{
+                        // NOTE: Revert overflow so badge doesn't get cropped off
+                        '.mantine-Button-label': {
+                            overflow: 'revert',
+                        },
+                    }}
                 >
-                    <Indicator color="red" disabled={!lastValidationTimestamp}>
+                    <Indicator
+                        color="red"
+                        offset={2}
+                        disabled={!lastValidationTimestamp}
+                    >
                         <MantineIcon icon={IconBell} />
                     </Indicator>
                 </Button>
