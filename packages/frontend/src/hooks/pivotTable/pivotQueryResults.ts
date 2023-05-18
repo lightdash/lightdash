@@ -340,24 +340,25 @@ export const pivotQueryResults = ({
             });
 
             rowTotals = rowTotals.map((row, rowIndex) =>
-                row.map((_, colIndex) =>
-                    dataValues[rowIndex]
+                row.map((_, totalColIndex) => {
+                    const totalColFieldId =
+                        rowTotalFields![N_TOTAL_ROWS - 1][totalColIndex]
+                            ?.fieldId;
+                    const valueColIndices = totalColFieldId
+                        ? getAllIndicesForFieldId(
+                              columnIndices,
+                              totalColFieldId,
+                          )
+                        : [];
+                    return dataValues[rowIndex]
                         .filter((__, dataValueColIndex) => {
-                            const fieldId =
-                                rowTotalFields![N_TOTAL_ROWS - 1][colIndex]
-                                    ?.fieldId;
-                            if (!fieldId) return false;
-                            const indices = getAllIndicesForFieldId(
-                                columnIndices,
-                                fieldId,
-                            );
-                            return indices.includes(dataValueColIndex);
+                            return valueColIndices.includes(dataValueColIndex);
                         })
                         .reduce(
                             (acc, value) => acc + parseNumericValue(value),
                             0,
-                        ),
-                ),
+                        );
+                }),
             );
         }
     }
