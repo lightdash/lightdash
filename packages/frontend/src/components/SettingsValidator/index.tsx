@@ -96,7 +96,6 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                                 validateProject();
                             }}
                             loading={isValidating}
-                            disabled={isValidating}
                         >
                             Run validation
                         </Button>
