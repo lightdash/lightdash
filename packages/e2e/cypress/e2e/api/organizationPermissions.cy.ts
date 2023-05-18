@@ -135,8 +135,9 @@ describe('Lightdash API organization permission tests', () => {
         cy.request(`${apiUrl}/projects/${projectUuid}/spaces-and-content`).then(
             (projectResponse) => {
                 expect(projectResponse.status).to.eq(200);
-                const savedChartUuid =
-                    projectResponse.body.results[0].queries[0].uuid;
+                const savedChartUuid = projectResponse.body.results.find(
+                    (space) => space.queries.length > 0,
+                ).queries[0].uuid;
 
                 cy.anotherLogin(); // Now we login as another user
 

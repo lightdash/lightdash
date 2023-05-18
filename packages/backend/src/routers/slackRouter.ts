@@ -92,7 +92,7 @@ slackRouter.delete(
                 event: 'share_slack.delete',
                 userId: req.user?.userUuid,
                 properties: {
-                    organizationUuid: req.params.organizationUuid,
+                    organizationId: req.params.organizationUuid,
                 },
             });
 
@@ -132,7 +132,7 @@ slackRouter.get(
                 event: 'share_slack.install',
                 userId: req.user?.userUuid,
                 properties: {
-                    organizationUuid: req.params.organizationUuid,
+                    organizationId: req.params.organizationUuid,
                 },
             });
 

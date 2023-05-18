@@ -1,3 +1,25 @@
+# [0.560.0](https://github.com/lightdash/lightdash/compare/0.559.0...0.560.0) (2023-05-18)
+
+
+### Features
+
+* add description to validator tab ([#5527](https://github.com/lightdash/lightdash/issues/5527)) ([cba4141](https://github.com/lightdash/lightdash/commit/cba41413dbab776d2e59f915804fa3ad0079d92b))
+* add tooltip to headway menu item ([#5524](https://github.com/lightdash/lightdash/issues/5524)) ([3569ed5](https://github.com/lightdash/lightdash/commit/3569ed5b04e5a7aa5c99f2d0aad2895f248878f2))
+
+# [0.559.0](https://github.com/lightdash/lightdash/compare/0.558.3...0.559.0) (2023-05-17)
+
+
+### Features
+
+* migrate organization general settings to mantine ([#5500](https://github.com/lightdash/lightdash/issues/5500)) ([c7ff4a8](https://github.com/lightdash/lightdash/commit/c7ff4a86e5ee47bdbb2d57aebc13d443e03efb23))
+
+## [0.558.3](https://github.com/lightdash/lightdash/compare/0.558.2...0.558.3) (2023-05-17)
+
+
+### Bug Fixes
+
+* add break-all to validation erros ([#5521](https://github.com/lightdash/lightdash/issues/5521)) ([12c5a2b](https://github.com/lightdash/lightdash/commit/12c5a2b170ba10930958859f71d3614f2bbe92d3))
+
 ## [0.558.2](https://github.com/lightdash/lightdash/compare/0.558.1...0.558.2) (2023-05-17)
 
 
