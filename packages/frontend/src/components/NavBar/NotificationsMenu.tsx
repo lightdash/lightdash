@@ -8,7 +8,7 @@ import { useProject } from '../../hooks/useProject';
 import useUser from '../../hooks/user/useUser';
 import { useTimeAgo } from '../../hooks/useTimeAgo';
 import {
-    LAST_VALIDATION_TIMESTAMP_KEY,
+    LAST_VALIDATION_NOTIFICATION_KEY,
     useValidation,
 } from '../../hooks/validation/useValidation';
 import LargeMenuItem from '../common/LargeMenuItem';
@@ -44,11 +44,14 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
                 projectUuid,
             }),
         );
-    const [lastValidationTimestamp, setLastValidationTimestamp] =
+    const [lastValidationNotification, setLastValidationNotification] =
         useLocalStorage({
-            key: LAST_VALIDATION_TIMESTAMP_KEY,
-            getInitialValueInEffect: true,
+            key: LAST_VALIDATION_NOTIFICATION_KEY,
         });
+
+    const hasViewedLastValidation =
+        !!lastValidationNotification &&
+        lastValidationNotification.split(';')[1] === 'read';
 
     return (
         <Menu
@@ -62,7 +65,11 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
                 <Button
                     variant="default"
                     size="xs"
-                    onClick={() => setLastValidationTimestamp('')}
+                    onClick={() =>
+                        setLastValidationNotification(
+                            (value) => `${value.split(';')[0]};read`,
+                        )
+                    }
                     sx={{
                         // NOTE: Revert overflow so badge doesn't get cropped off
                         '.mantine-Button-label': {
@@ -73,7 +80,7 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
                     <Indicator
                         color="red"
                         offset={2}
-                        disabled={!lastValidationTimestamp}
+                        disabled={hasViewedLastValidation}
                     >
                         <MantineIcon icon={IconBell} />
                     </Indicator>
