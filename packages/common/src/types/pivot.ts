@@ -6,7 +6,7 @@ export type PivotConfig = {
     metricsAsRows: boolean;
     columnOrder?: string[];
     hiddenMetricFieldIds?: string[];
-
+    summableMetricFieldIds?: string[];
     columnTotals?: boolean;
     rowTotals?: boolean;
 };

@@ -124,6 +124,7 @@ export const pivotQueryResults = ({
     }
 
     const hiddenMetricFieldIds = pivotConfig.hiddenMetricFieldIds || [];
+    const summableMetricFieldIds = pivotConfig.summableMetricFieldIds || [];
 
     const columnOrder = (pivotConfig.columnOrder || []).filter((id) => {
         return !hiddenMetricFieldIds.includes(id);
@@ -326,16 +327,16 @@ export const pivotQueryResults = ({
                 ),
             );
         } else {
-            const N_TOTAL_COLS = metrics.length;
+            const N_TOTAL_COLS = summableMetricFieldIds.length;
             const N_TOTAL_ROWS = headerValues.length;
 
             rowTotalFields = create2DArray(N_TOTAL_ROWS, N_TOTAL_COLS);
             rowTotals = create2DArray(N_DATA_ROWS, N_TOTAL_COLS);
 
             // set the last header cells as the "Total"
-            metrics.forEach((metric, metricIndex) => {
+            summableMetricFieldIds.forEach((fieldId, metricIndex) => {
                 rowTotalFields![N_TOTAL_ROWS - 1][metricIndex] = {
-                    fieldId: metric.fieldId,
+                    fieldId: fieldId,
                 };
             });
 
@@ -367,31 +368,36 @@ export const pivotQueryResults = ({
     let columnTotals: PivotData['columnTotals'];
     if (pivotConfig.columnTotals && hasIndex) {
         if (pivotConfig.metricsAsRows) {
-            const N_TOTAL_ROWS = metrics.length;
+            const N_TOTAL_ROWS = summableMetricFieldIds.length;
             const N_TOTAL_COLS = indexValueTypes.length;
 
             columnTotalFields = create2DArray(N_TOTAL_ROWS, N_TOTAL_COLS);
             columnTotals = create2DArray(N_TOTAL_ROWS, N_DATA_COLUMNS);
 
-            metrics.forEach((metric, metricIndex) => {
+            summableMetricFieldIds.forEach((fieldId, metricIndex) => {
                 columnTotalFields![metricIndex][N_TOTAL_COLS - 1] = {
-                    fieldId: metric.fieldId,
+                    fieldId: fieldId,
                 };
             });
 
-            columnTotals = columnTotals.map((row, totalRowIndex) =>
-                row.map((_, totalColIndex) =>
-                    dataValues
-                        .filter(
-                            (__, index) =>
-                                index % N_TOTAL_ROWS === totalRowIndex,
+            columnTotals = columnTotals.map((row, rowIndex) =>
+                row.map((_, totalColIndex) => {
+                    const totalColFieldId =
+                        columnTotalFields![rowIndex][N_TOTAL_COLS - 1]?.fieldId;
+
+                    const valueColIndices = totalColFieldId
+                        ? getAllIndicesForFieldId(rowIndices, totalColFieldId)
+                        : [];
+                    return dataValues
+                        .filter((__, dataValueColIndex) =>
+                            valueColIndices.includes(dataValueColIndex),
                         )
                         .reduce(
                             (acc, value) =>
                                 acc + parseNumericValue(value[totalColIndex]),
                             0,
-                        ),
-                ),
+                        );
+                }),
             );
         } else {
             const N_TOTAL_COLS = indexValues[0].length;
