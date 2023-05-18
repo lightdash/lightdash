@@ -46,7 +46,7 @@ module.exports = {
                     },
                     items: [
                         'get-started/develop-in-lightdash/intro-metrics-dimensions',
-                        'get-started/developing-in-lightdash/using-explores',
+                        'get-started/develop-in-lightdash/using-explores',
                         'get-started/develop-in-lightdash/how-to-create-dimensions',
                         'guides/how-to-create-metrics',
                         'guides/exploring-your-content',
