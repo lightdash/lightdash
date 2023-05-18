@@ -229,7 +229,20 @@ export class SchedulerService {
             throw new ForbiddenError();
         }
 
-        return this.schedulerModel.getSchedulerLogs(projectUuid);
+        const schedulerLogs = await this.schedulerModel.getSchedulerLogs(
+            projectUuid,
+        );
+
+        analytics.track({
+            userId: user.userUuid,
+            event: 'scheduled_deliveries.dashboard_viewed',
+            properties: {
+                projectId: projectUuid,
+                organizationId: user.organizationUuid,
+                numScheduledDeliveries: schedulerLogs.schedulers.length,
+            },
+        });
+        return schedulerLogs;
     }
 
     async getJobStatus(jobId: string): Promise<string> {
