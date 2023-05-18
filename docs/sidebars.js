@@ -45,11 +45,11 @@ module.exports = {
                         id: 'get-started/develop-in-lightdash/intro',
                     },
                     items: [
+                        'get-started/develop-in-lightdash/exploring-your-content',
                         'get-started/develop-in-lightdash/intro-metrics-dimensions',
                         'get-started/develop-in-lightdash/using-explores',
                         'get-started/develop-in-lightdash/how-to-create-dimensions',
                         'get-started/develop-in-lightdash/how-to-create-metrics',
-                        'guides/exploring-your-content',
                     ],
                 },
                 {
@@ -60,7 +60,7 @@ module.exports = {
                         id: 'get-started/exploring-data/intro',
                     },
                     items: [
-                        'guides/exploring-your-content',
+                        'get-started/exploring-data/exploring-your-content',
                         'get-started/exploring-data/intro-metrics-dimensions',
                         'get-started/exploring-data/using-explores',
                         'get-started/exploring-data/sharing-insights',
@@ -87,7 +87,6 @@ module.exports = {
                         },
                     ],
                 },
-                'guides/exploring-your-content',
                 'guides/adding-tables-to-lightdash',
                 'guides/how-to-create-dimensions',
                 'guides/how-to-create-metrics',
