@@ -1,8 +1,11 @@
+import { subject } from '@casl/ability';
 import { Button, Indicator, Menu, Text } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { IconAlertCircle, IconBell } from '@tabler/icons-react';
 import { FC } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
+import { useProject } from '../../hooks/useProject';
+import useUser from '../../hooks/user/useUser';
 import { useTimeAgo } from '../../hooks/useTimeAgo';
 import {
     LAST_VALIDATION_TIMESTAMP_KEY,
@@ -28,7 +31,19 @@ const ValidationErrorNotificationDescription: FC<{
 export const NotificationsMenu: FC<{ projectUuid: string }> = ({
     projectUuid,
 }) => {
+    const { data: user } = useUser(true);
+    const { data: project } = useProject(projectUuid);
     const { data } = useValidation(projectUuid);
+    const canUserSeeValidationErrorsNotifications =
+        !!user &&
+        !!project &&
+        user.ability?.can(
+            'manage',
+            subject('Validation', {
+                organizationUuid: project.organizationUuid,
+                projectUuid,
+            }),
+        );
     const [lastValidationTimestamp, setLastValidationTimestamp] =
         useLocalStorage({
             key: LAST_VALIDATION_TIMESTAMP_KEY,
@@ -66,7 +81,9 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
             </Menu.Target>
 
             <Menu.Dropdown>
-                {data && data.length > 0 ? (
+                {canUserSeeValidationErrorsNotifications &&
+                data &&
+                data.length > 0 ? (
                     <LargeMenuItem
                         component={RouterLink}
                         to={`/generalSettings/projectManagement/${projectUuid}/validator`}
