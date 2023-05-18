@@ -1,4 +1,4 @@
-import { Box, Button } from '@mantine/core';
+import { Box, Button, Tooltip } from '@mantine/core';
 import { IconSparkles } from '@tabler/icons-react';
 import { FC, useEffect } from 'react';
 import useHeadway from '../../hooks/thirdPartyServices/useHeadway';
@@ -64,20 +64,27 @@ const HeadwayMenuItem: FC<Props> = ({ projectUuid }) => {
     if (!isHeadwayloaded || !projectUuid) return null;
 
     return (
-        <Button variant="default" size="xs" pos="relative" id="headway-trigger">
-            <MantineIcon icon={IconSparkles} size="lg" />
-            <Box
-                id="headway-badge"
-                pos="absolute"
-                sx={{
-                    pointerEvents: 'none',
-                    top: 8,
-                    '.HW_badge.HW_softHidden': {
-                        background: 'transparent',
-                    },
-                }}
-            />
-        </Button>
+        <Tooltip color="dark" label="What's new?">
+            <Button
+                variant="default"
+                size="xs"
+                pos="relative"
+                id="headway-trigger"
+            >
+                <MantineIcon icon={IconSparkles} size="lg" />
+                <Box
+                    id="headway-badge"
+                    pos="absolute"
+                    sx={{
+                        pointerEvents: 'none',
+                        top: 8,
+                        '.HW_badge.HW_softHidden': {
+                            background: 'transparent',
+                        },
+                    }}
+                />
+            </Button>
+        </Tooltip>
     );
 };
 
