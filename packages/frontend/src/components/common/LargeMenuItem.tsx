@@ -19,7 +19,7 @@ interface LargeMenuItemProps extends MenuItemProps {
 
 const LargeMenuItem = createPolymorphicComponent<'button', LargeMenuItemProps>(
     forwardRef<HTMLButtonElement, LargeMenuItemProps>(
-        ({ icon, title, description, ...rest }, ref) => {
+        ({ icon, title, description, iconProps, ...rest }, ref) => {
             return (
                 <Menu.Item<'button'>
                     ref={ref}
@@ -29,7 +29,7 @@ const LargeMenuItem = createPolymorphicComponent<'button', LargeMenuItemProps>(
                                 icon={icon}
                                 size="lg"
                                 color="dark.0"
-                                {...rest.iconProps}
+                                {...iconProps}
                             />
                         </Card>
                     }
