@@ -477,6 +477,16 @@ type AnalyticsDashboardView = BaseTrack & {
     };
 };
 
+type SchedulerDashboardView = BaseTrack & {
+    event: 'scheduled_deliveries.dashboard_viewed';
+    userId: string;
+    properties: {
+        projectId: string;
+        organizationId?: string;
+        numScheduledDeliveries: number;
+    };
+};
+
 type PinnedListUpdated = BaseTrack & {
     event: 'pinned_list.updated';
     userId: string;
@@ -638,7 +648,8 @@ type Track =
     | SchedulerJobEvent
     | SchedulerNotificationJobEvent
     | PinnedListUpdated
-    | DownloadCsv;
+    | DownloadCsv
+    | SchedulerDashboardView;
 
 export class LightdashAnalytics extends Analytics {
     static lightdashContext = {
