@@ -393,6 +393,7 @@ export const testAndCompileProject = async (
             getRequestMethod(payload.requestMethod),
             payload.jobUuid,
         );
+
         schedulerService.logSchedulerJob({
             ...baseLog,
             details: {},

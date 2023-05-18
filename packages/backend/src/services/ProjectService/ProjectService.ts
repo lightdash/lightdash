@@ -327,6 +327,8 @@ export class ProjectService {
         explores: (Explore | ExploreError)[],
     ): Promise<void> {
         await this.projectModel.saveExploresToCache(projectUuid, explores);
+
+        await schedulerClient.generateValidation({ projectUuid });
     }
 
     async updateAndScheduleAsyncWork(
