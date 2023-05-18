@@ -338,25 +338,20 @@ export const pivotQueryResults = ({
                     fieldId: metric.fieldId,
                 };
             });
-            console.log('dataValues', columnIndices);
-            console.log('dataValues', dataValues);
-            // TODO: not working yet for multiple metrics
+
             rowTotals = rowTotals.map((row, rowIndex) =>
                 row.map((_, colIndex) =>
                     dataValues[rowIndex]
-                        .filter(() => {
-                            console.log('colIndex', {
-                                colIndex,
-                                columnIndices,
-                                rowTotalFields,
-                            });
+                        .filter((__, dataValueColIndex) => {
+                            const fieldId =
+                                rowTotalFields![N_TOTAL_ROWS - 1][colIndex]
+                                    ?.fieldId;
+                            if (!fieldId) return false;
                             const indices = getAllIndicesForFieldId(
                                 columnIndices,
-                                rowTotalFields![N_TOTAL_ROWS - 1][colIndex]!
-                                    .fieldId!,
+                                fieldId,
                             );
-                            console.log('getAllIndicesForFieldId', indices);
-                            return indices.includes(colIndex);
+                            return indices.includes(dataValueColIndex);
                         })
                         .reduce(
                             (acc, value) => acc + parseNumericValue(value),
@@ -364,7 +359,6 @@ export const pivotQueryResults = ({
                         ),
                 ),
             );
-            console.log('rowTotalFields, rowTotals', rowTotalFields, rowTotals);
         }
     }
 
