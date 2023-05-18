@@ -489,6 +489,18 @@ const PivotTable: FC<PivotTableProps> = ({
                                     />
                                 );
                             })}
+
+                            {hasRowTotals
+                                ? data.rowTotalFields?.[0].map((_, index) => (
+                                      <td
+                                          key={`footer-empty-${totalRowIndex}-${index}`}
+                                          className={cellCx(
+                                              cellStyles.root,
+                                              cellStyles.rowNumber,
+                                          )}
+                                      />
+                                  ))
+                                : null}
                         </tr>
                     ))}
                 </tfoot>
