@@ -41,7 +41,10 @@ export type ApiSpaceSummaryListResponse = {
 
 export const getSpaceAccessFromSummary = (
     summary: SpaceSummary,
-): Pick<Space, 'isPrivate' | 'access'> => ({
+): Pick<
+    Space,
+    'isPrivate' | 'access' | 'organizationUuid' | 'projectUuid'
+> => ({
     isPrivate: summary.isPrivate,
     access: summary.access.map((access) => ({
         userUuid: access,
@@ -49,4 +52,6 @@ export const getSpaceAccessFromSummary = (
         firstName: '',
         lastName: '',
     })),
+    organizationUuid: summary.organizationUuid,
+    projectUuid: summary.projectUuid,
 });

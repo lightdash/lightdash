@@ -419,8 +419,7 @@ export class ValidationService {
         return validations.map((validation) => {
             const space = spaces.find((s) => s.uuid === validation.spaceUuid);
             const hasAccess =
-                space &&
-                hasSpaceAccess(getSpaceAccessFromSummary(space), user.userUuid);
+                space && hasSpaceAccess(user, getSpaceAccessFromSummary(space));
             if (hasAccess) return validation;
 
             return { ...validation, name: 'Private content' };
