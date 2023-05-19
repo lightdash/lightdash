@@ -1,4 +1,4 @@
-import { Box, Button, Tooltip } from '@mantine/core';
+import { Box, Button, Indicator, Tooltip } from '@mantine/core';
 import { IconSparkles } from '@tabler/icons-react';
 import { FC, useEffect } from 'react';
 import useHeadway from '../../hooks/thirdPartyServices/useHeadway';
@@ -65,25 +65,33 @@ const HeadwayMenuItem: FC<Props> = ({ projectUuid }) => {
 
     return (
         <Tooltip color="dark" label="What's new?">
-            <Button
-                variant="default"
-                size="xs"
-                pos="relative"
-                id="headway-trigger"
+            <Indicator
+                color="transparent"
+                offset={8}
+                label={
+                    <Box
+                        id="headway-badge"
+                        sx={{
+                            pointerEvents: 'none',
+                            '.HW_badge.HW_softHidden': {
+                                background: 'transparent !important',
+                            },
+                            '.HW_badge.HW_bounce': {
+                                animation: 'none !important',
+                            },
+                        }}
+                    />
+                }
             >
-                <MantineIcon icon={IconSparkles} size="lg" />
-                <Box
-                    id="headway-badge"
-                    pos="absolute"
-                    sx={{
-                        pointerEvents: 'none',
-                        top: 8,
-                        '.HW_badge.HW_softHidden': {
-                            background: 'transparent',
-                        },
-                    }}
-                />
-            </Button>
+                <Button
+                    variant="default"
+                    size="xs"
+                    pos="relative"
+                    id="headway-trigger"
+                >
+                    <MantineIcon icon={IconSparkles} size="lg" />
+                </Button>
+            </Indicator>
         </Tooltip>
     );
 };
