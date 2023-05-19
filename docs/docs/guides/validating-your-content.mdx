@@ -3,9 +3,9 @@ import ValidateDashboard from './assets/validate-dashboard.jpg';
 
 # Validating your content
 
-Broken content is useless content. So, we've built tools in Lightdash to help you validate your projects and make sure that all of your content is working as expected. 
+Broken content is not useful content. So, we've built tools in Lightdash to help you validate your projects so you can keep your content useful and we'll notify you when it isn't.
 
-In Lightdash, users with [admin or developer roles](../references/roles) can access a content validation dashboard from within the project settings. This dashboard gives you an overview of all of the broken content in your project and detailed information about what is causing the errors.
+In Lightdash, users with [admin or developer roles](../references/roles) can access the content validation dashboard from within a project's settings. This dashboard gives you an overview of all of the broken content in your project and detailed information about what is causing the errors.
 
 You can access the content validation dashboard by heading to `project settings`, then selecting the tab `validator`.
 
@@ -22,7 +22,7 @@ The content validator will run:
 
 ## What content is included in the validation? 
 
-The validator will show you any errors caused by metrics or dimensions which no longer exist, have been renamed, or have invalid definitions. The validator does not show errors caused by invalid SQL at run time (e.g. incorrect SQL queries, division by 0, trying to perform numeric calculations on a string value type).
+The validator will show you any errors caused by metrics or dimensions which no longer exist, have been renamed, or have invalid definitions. The validator does not show errors caused by invalid SQL at run time (e.g. invalid SQL syntax, division by 0, trying to perform numeric calculations on a string value type).
 
 Here are some examples of errors that would appear in your content validator:
 
@@ -35,5 +35,3 @@ The content types included in the validator dashboard are:
 - **Tables** - errors in tables are caused when dimensions or metrics that have been deleted or renamed but are still referenced in other places in the table.
 - **Charts** - errors in charts are caused when the results table or filters reference a metric or dimension which no longer exists.
 - **Dashboards** - errors in dashboards are caused when a chart is broken in the dashboard or a filter references a metric or dimension which no longer exists.
-
-
