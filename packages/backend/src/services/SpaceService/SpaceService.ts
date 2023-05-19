@@ -18,17 +18,30 @@ type Dependencies = {
 };
 
 export const hasSpaceAccess = (
-    space: Pick<Space, 'isPrivate' | 'access'>,
-    userUuid: string,
+    user: SessionUser,
+    space: Pick<
+        Space,
+        'isPrivate' | 'access' | 'organizationUuid' | 'projectUuid'
+    >,
+    checkAdminAccess: boolean = true,
 ): boolean => {
+    const hasAdminAccess = user.ability.can(
+        'manage',
+        subject('Project', {
+            organizationUuid: space.organizationUuid,
+            projectUuid: space.projectUuid,
+        }),
+    );
+
     const hasAccess =
         !space.isPrivate ||
         space.access.find(
             (userAccess) =>
-                userAccess.userUuid === userUuid && userAccess.role !== null,
+                userAccess.userUuid === user.userUuid &&
+                userAccess.role !== null,
         ) !== undefined;
 
-    return hasAccess;
+    return checkAdminAccess ? hasAdminAccess || hasAccess : hasAccess;
 };
 
 export class SpaceService {
@@ -57,7 +70,7 @@ export class SpaceService {
                         organizationUuid: space.organizationUuid,
                         projectUuid,
                     }),
-                ) && hasSpaceAccess(space, user.userUuid),
+                ) && hasSpaceAccess(user, space, false),
         );
     }
 
@@ -76,7 +89,7 @@ export class SpaceService {
                     projectUuid,
                 }),
             ) ||
-            !hasSpaceAccess(space, user.userUuid)
+            !hasSpaceAccess(user, space, false)
         ) {
             throw new ForbiddenError();
         }
@@ -143,7 +156,7 @@ export class SpaceService {
                     projectUuid: space.projectUuid,
                 }),
             ) ||
-            !hasSpaceAccess(space, user.userUuid)
+            !hasSpaceAccess(user, space, false)
         ) {
             throw new ForbiddenError();
         }
@@ -183,7 +196,7 @@ export class SpaceService {
                     projectUuid: space.projectUuid,
                 }),
             ) ||
-            !hasSpaceAccess(space, user.userUuid)
+            !hasSpaceAccess(user, space, false)
         ) {
             throw new ForbiddenError();
         }
@@ -214,7 +227,7 @@ export class SpaceService {
                     projectUuid: space.projectUuid,
                 }),
             ) ||
-            !hasSpaceAccess(space, user.userUuid)
+            !hasSpaceAccess(user, space, false)
         ) {
             throw new ForbiddenError();
         }
@@ -236,7 +249,7 @@ export class SpaceService {
                     projectUuid: space.projectUuid,
                 }),
             ) ||
-            !hasSpaceAccess(space, user.userUuid)
+            !hasSpaceAccess(user, space, false)
         ) {
             throw new ForbiddenError();
         }
