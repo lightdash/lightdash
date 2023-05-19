@@ -33,6 +33,7 @@ export const useValidation = (projectUuid: string) => {
         queryKey: 'validation',
         queryFn: () => getValidation(projectUuid),
         onSuccess: (data) => {
+            if (data.length === 0) return;
             const latestValidationTimestamp = data[0].createdAt.toString();
             const previousTimestamp = lastValidationNotification?.split(';')[0];
 
