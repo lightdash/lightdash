@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     ApiError,
     ApiJobScheduledResponse,
@@ -5,10 +6,15 @@ import {
 } from '@lightdash/common';
 import { useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
+import useLocalStorageState from 'use-local-storage-state';
 import { lightdashApi } from '../../api';
 import { useErrorLogs } from '../../providers/ErrorLogsProvider';
 import { pollJobStatus } from '../scheduler/useScheduler';
 import useToaster from '../toaster/useToaster';
+import { useProject } from '../useProject';
+import useUser from '../user/useUser';
+
+const LAST_VALIDATION_NOTIFICATION_KEY = 'lastValidationTimestamp';
 
 const getValidation = async (
     projectUuid: string,
@@ -19,11 +25,35 @@ const getValidation = async (
         body: undefined,
     });
 
-export const useValidation = (projectUuid: string) =>
-    useQuery<ValidationResponse[], ApiError>({
+export const useValidation = (projectUuid: string) => {
+    const [lastValidationNotification, setLastValidationNotification] =
+        useLocalStorageState<string>(LAST_VALIDATION_NOTIFICATION_KEY);
+
+    return useQuery<ValidationResponse[], ApiError>({
         queryKey: 'validation',
         queryFn: () => getValidation(projectUuid),
+        onSuccess: (data) => {
+            if (data.length === 0) return;
+            const latestValidationTimestamp = data[0].createdAt.toString();
+            const previousTimestamp = lastValidationNotification?.split(';')[0];
+
+            // When it's empty, no last validation
+            if (lastValidationNotification === '') {
+                setLastValidationNotification(
+                    `${latestValidationTimestamp};unread`,
+                );
+                return;
+            }
+
+            if (latestValidationTimestamp === previousTimestamp) return;
+
+            // if they're not the same, update the last validation
+            setLastValidationNotification(
+                `${latestValidationTimestamp};unread`,
+            );
+        },
     });
+};
 
 const updateValidation = async (
     projectUuid: string,
@@ -72,4 +102,40 @@ export const useValidationMutation = (
             [showError],
         ),
     });
+};
+
+export const useValidationUserAbility = (projectUuid: string) => {
+    const { data: user } = useUser(true);
+    const { data: project } = useProject(projectUuid);
+    const canUserSeeValidationErrorsNotifications =
+        !!user &&
+        !!project &&
+        user.ability?.can(
+            'manage',
+            subject('Validation', {
+                organizationUuid: project.organizationUuid,
+                projectUuid,
+            }),
+        );
+    return canUserSeeValidationErrorsNotifications;
+};
+
+export const useValidationNotificationChecker = (): [boolean, () => void] => {
+    const [lastValidationNotification, setLastValidationNotification] =
+        useLocalStorageState<string>(LAST_VALIDATION_NOTIFICATION_KEY);
+
+    const [lastValidationTimestamp = '', lastValidationStatus = ''] =
+        lastValidationNotification ? lastValidationNotification.split(';') : [];
+
+    const hasReadLastValidationNotification =
+        !!lastValidationNotification && lastValidationStatus === 'read';
+
+    const setHasReadLastValidationNotification = () =>
+        lastValidationNotification &&
+        setLastValidationNotification(`${lastValidationTimestamp};read`);
+
+    return [
+        hasReadLastValidationNotification,
+        setHasReadLastValidationNotification,
+    ];
 };

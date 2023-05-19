@@ -24,6 +24,7 @@ import ExploreMenu from './ExploreMenu';
 import GlobalSearch from './GlobalSearch';
 import HeadwayMenuItem from './HeadwayMenuItem';
 import HelpMenu from './HelpMenu';
+import { NotificationsMenu } from './NotificationsMenu';
 import SettingsMenu from './SettingsMenu';
 import UserMenu from './UserMenu';
 
@@ -98,6 +99,11 @@ const NavBar = memo(() => {
 
                     <Button.Group>
                         <SettingsMenu />
+                        {activeProjectUuid && (
+                            <NotificationsMenu
+                                projectUuid={activeProjectUuid}
+                            />
+                        )}
                         <HelpMenu />
                         <HeadwayMenuItem projectUuid={activeProjectUuid} />
                     </Button.Group>
