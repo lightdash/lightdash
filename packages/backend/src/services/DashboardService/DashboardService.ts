@@ -169,16 +169,7 @@ export class DashboardService {
         if (user.ability.cannot('view', subject('Dashboard', dashboard))) {
             throw new ForbiddenError();
         }
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('Project', {
-                    organizationUuid: dashboard.organizationUuid,
-                    projectUuid: dashboard.projectUuid,
-                }),
-            ) &&
-            !(await this.hasDashboardSpaceAccess(user, dashboard.spaceUuid))
-        ) {
+        if (!(await this.hasDashboardSpaceAccess(user, dashboard.spaceUuid))) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",
             );
@@ -316,13 +307,6 @@ export class DashboardService {
         }
 
         if (
-            user.ability.cannot(
-                'manage',
-                subject('Project', {
-                    organizationUuid: existingDashboard.organizationUuid,
-                    projectUuid: existingDashboard.projectUuid,
-                }),
-            ) &&
             !(await this.hasDashboardSpaceAccess(
                 user,
                 existingDashboard.spaceUuid,
