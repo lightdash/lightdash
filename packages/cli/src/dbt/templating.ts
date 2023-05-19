@@ -6,7 +6,7 @@ nunjucksEnv.addFilter('as_number', (str) => parseFloat(str));
 
 // jinja global functions
 const nunjucksContext = {
-    env_var: (key: string) => process.env[key],
+    env_var: (key: string, fallback?: string) => process.env[key] ?? fallback,
     var: (key: string) =>
         JSON.parse(process.argv[process.argv.indexOf('--vars') + 1])[key],
 };
