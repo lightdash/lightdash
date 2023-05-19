@@ -360,6 +360,20 @@ describe('Lightdash API tests for an project admin accessing other private space
             expect(privateSpace).to.eq(undefined);
         });
     });
+
+    it('Should not list private dashboards', () => {
+        cy.request({
+            url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/dashboards`,
+            failOnStatusCode: false,
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(
+                resp.body.results.find(
+                    (dashboard) => dashboard.name === 'private dashboard',
+                ),
+            ).to.eq(undefined);
+        });
+    });
     it('Should view charts in other private spaces', () => {
         cy.request({
             url: `${apiUrl}/saved/${privateChart.uuid}`,
