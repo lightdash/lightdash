@@ -1,3 +1,10 @@
+# [0.561.0](https://github.com/lightdash/lightdash/compare/0.560.0...0.561.0) (2023-05-19)
+
+
+### Features
+
+* validate project on dbt refresh + cli deploy ([#5534](https://github.com/lightdash/lightdash/issues/5534)) ([e7186e8](https://github.com/lightdash/lightdash/commit/e7186e87f5933f49e2a4760e5a11fcb3cfe53074))
+
 # [0.560.0](https://github.com/lightdash/lightdash/compare/0.559.0...0.560.0) (2023-05-18)
 
 
