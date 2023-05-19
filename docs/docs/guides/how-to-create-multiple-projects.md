@@ -1,4 +1,4 @@
-# How to create multiple Lightdash projects in your organization
+# Creating multiple projects
 
 With Lightdash, you can have a single organization (e.g. Lightdash), and multiple projects within that organization (e.g. Production, Jaffle Shop, etc.)
 
