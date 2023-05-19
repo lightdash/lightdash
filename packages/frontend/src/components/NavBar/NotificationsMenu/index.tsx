@@ -20,10 +20,9 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
     const hasValidationErrors = validationData && validationData?.length > 0;
 
     const disableBadge =
-        (!canUserManageValidations && !hasValidationErrors) ||
-        (canUserManageValidations &&
-            hasValidationErrors &&
-            hasReadValidationNotification);
+        !canUserManageValidations ||
+        !hasValidationErrors ||
+        hasReadValidationNotification;
 
     return validationData ? (
         <Menu
