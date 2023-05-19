@@ -1,3 +1,10 @@
+## [0.561.3](https://github.com/lightdash/lightdash/compare/0.561.2...0.561.3) (2023-05-19)
+
+
+### Bug Fixes
+
+* env_var() default value ([#5548](https://github.com/lightdash/lightdash/issues/5548)) ([1e9924b](https://github.com/lightdash/lightdash/commit/1e9924b48d136141fc51786a27c116eceab93d46))
+
 ## [0.561.2](https://github.com/lightdash/lightdash/compare/0.561.1...0.561.2) (2023-05-19)
 
 
