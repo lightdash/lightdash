@@ -1,3 +1,10 @@
+# [0.562.0](https://github.com/lightdash/lightdash/compare/0.561.3...0.562.0) (2023-05-19)
+
+
+### Features
+
+* allow admins view/edit private spaces ([#5493](https://github.com/lightdash/lightdash/issues/5493)) ([85fcaab](https://github.com/lightdash/lightdash/commit/85fcaab035ca790adc8c866afb1751d2e19015f8))
+
 ## [0.561.3](https://github.com/lightdash/lightdash/compare/0.561.2...0.561.3) (2023-05-19)
 
 
