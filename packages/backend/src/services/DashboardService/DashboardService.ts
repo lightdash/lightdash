@@ -156,7 +156,7 @@ export class DashboardService {
             return (
                 hasAbility &&
                 dashboardSpace &&
-                hasSpaceAccess(user, dashboardSpace)
+                hasSpaceAccess(user, dashboardSpace, false)
             );
         });
     }
