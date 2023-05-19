@@ -133,8 +133,8 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                             </thead>
                             <tbody>
                                 {data && data.length
-                                    ? data.map((validationError) => (
-                                          <tr key={validationError.name}>
+                                    ? data.map((validationError, index) => (
+                                          <tr key={index}>
                                               <td>
                                                   <Flex gap="sm" align="center">
                                                       <Icon
