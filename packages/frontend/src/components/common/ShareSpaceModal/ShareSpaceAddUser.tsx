@@ -4,6 +4,7 @@ import { ItemPredicate, ItemRenderer, MultiSelect2 } from '@blueprintjs/select';
 import {
     OrganizationMemberProfile,
     OrganizationMemberRole,
+    ProjectMemberRole,
     Space,
 } from '@lightdash/common';
 import { FC, useCallback, useMemo, useState } from 'react';
@@ -90,9 +91,17 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
             );
             if (!user) return null;
 
-            const isDisabled = space.access
-                .map((access) => access.userUuid)
-                .includes(userUuid);
+            const projectUser = projectAccess?.find(
+                (pUser) => pUser.userUuid === userUuid,
+            );
+            const isAdmin =
+                user.role === OrganizationMemberRole.ADMIN ||
+                projectUser?.role === ProjectMemberRole.ADMIN;
+            const isDisabled =
+                isAdmin ||
+                space.access
+                    .map((access) => access.userUuid)
+                    .includes(userUuid);
 
             const isSelected = usersSelected.includes(userUuid) && !isDisabled;
 
@@ -149,7 +158,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 />
             );
         },
-        [usersSelected, space, organizationUsers],
+        [usersSelected, space, organizationUsers, projectAccess],
     );
 
     return (

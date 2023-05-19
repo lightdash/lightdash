@@ -10,6 +10,7 @@ import {
     isChartScheduler,
     isSlackTarget,
     isUserWithOrg,
+    OrganizationMemberRole,
     SavedChart,
     SchedulerAndTargets,
     SessionUser,
@@ -74,12 +75,7 @@ export class SavedChartService {
         ) {
             throw new ForbiddenError();
         }
-        if (
-            !(await this.hasChartSpaceAccess(
-                savedChart.spaceUuid,
-                user.userUuid,
-            ))
-        ) {
+        if (!(await this.hasChartSpaceAccess(user, savedChart.spaceUuid))) {
             throw new ForbiddenError(
                 "You don't have access to the space this chart belongs to",
             );
@@ -88,12 +84,12 @@ export class SavedChartService {
     }
 
     async hasChartSpaceAccess(
+        user: SessionUser,
         spaceUuid: string,
-        userUuid: string,
     ): Promise<boolean> {
         try {
             const space = await this.spaceModel.getFullSpace(spaceUuid);
-            return hasSpaceAccess(space, userUuid);
+            return hasSpaceAccess(user, space);
         } catch (e) {
             return false;
         }
@@ -178,7 +174,8 @@ export class SavedChartService {
         ) {
             throw new ForbiddenError();
         }
-        if (!(await this.hasChartSpaceAccess(spaceUuid, user.userUuid))) {
+
+        if (!(await this.hasChartSpaceAccess(user, spaceUuid))) {
             throw new ForbiddenError(
                 "You don't have access to the space this chart belongs to",
             );
@@ -213,7 +210,8 @@ export class SavedChartService {
         ) {
             throw new ForbiddenError();
         }
-        if (!(await this.hasChartSpaceAccess(spaceUuid, user.userUuid))) {
+
+        if (!(await this.hasChartSpaceAccess(user, spaceUuid))) {
             throw new ForbiddenError(
                 "You don't have access to the space this chart belongs to",
             );
@@ -249,7 +247,7 @@ export class SavedChartService {
             throw new ForbiddenError();
         }
 
-        if (!(await this.hasChartSpaceAccess(spaceUuid, user.userUuid))) {
+        if (!(await this.hasChartSpaceAccess(user, spaceUuid))) {
             throw new ForbiddenError();
         }
 
@@ -303,7 +301,7 @@ export class SavedChartService {
         }
 
         const spaceAccessPromises = data.map(async (chart) =>
-            this.hasChartSpaceAccess(chart.spaceUuid, user.userUuid),
+            this.hasChartSpaceAccess(user, chart.spaceUuid),
         );
 
         const hasAllAccess = await Promise.all(spaceAccessPromises);
@@ -335,7 +333,7 @@ export class SavedChartService {
         ) {
             throw new ForbiddenError();
         }
-        if (!(await this.hasChartSpaceAccess(spaceUuid, user.userUuid))) {
+        if (!(await this.hasChartSpaceAccess(user, spaceUuid))) {
             throw new ForbiddenError(
                 "You don't have access to the space this chart belongs to",
             );
@@ -362,12 +360,7 @@ export class SavedChartService {
         if (user.ability.cannot('view', subject('SavedChart', savedChart))) {
             throw new ForbiddenError();
         }
-        if (
-            !(await this.hasChartSpaceAccess(
-                savedChart.spaceUuid,
-                user.userUuid,
-            ))
-        ) {
+        if (!(await this.hasChartSpaceAccess(user, savedChart.spaceUuid))) {
             throw new ForbiddenError(
                 "You don't have access to the space this chart belongs to",
             );
@@ -381,12 +374,7 @@ export class SavedChartService {
             throw new ForbiddenError();
         }
 
-        if (
-            !(await this.hasChartSpaceAccess(
-                savedChart.spaceUuid,
-                user.userUuid,
-            ))
-        ) {
+        if (!(await this.hasChartSpaceAccess(user, savedChart.spaceUuid))) {
             throw new ForbiddenError(
                 "You don't have access to the space this chart belongs to",
             );
@@ -428,7 +416,7 @@ export class SavedChartService {
             const space = await this.spaceModel.getFullSpace(
                 savedChart.spaceUuid,
             );
-            if (!hasSpaceAccess(space, user.userUuid)) {
+            if (!hasSpaceAccess(user, space)) {
                 throw new ForbiddenError();
             }
         }
@@ -459,7 +447,7 @@ export class SavedChartService {
         if (user.ability.cannot('create', subject('SavedChart', chart))) {
             throw new ForbiddenError();
         }
-        if (!(await this.hasChartSpaceAccess(chart.spaceUuid, user.userUuid))) {
+        if (!(await this.hasChartSpaceAccess(user, chart.spaceUuid))) {
             throw new ForbiddenError(
                 "You don't have access to the space this chart belongs to",
             );

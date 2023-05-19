@@ -74,7 +74,7 @@ export class SearchService {
             const spaceUuid: string =
                 'spaceUuid' in item ? item.spaceUuid : item.uuid;
             const itemSpace = spaces.find((s) => s.uuid === spaceUuid);
-            return itemSpace && hasSpaceAccess(itemSpace, user.userUuid);
+            return itemSpace && hasSpaceAccess(user, itemSpace, false);
         };
 
         const hasExploreAccess = user.ability.can(

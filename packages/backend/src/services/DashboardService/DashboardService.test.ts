@@ -1,4 +1,11 @@
-import { defineUserAbility, ForbiddenError } from '@lightdash/common';
+import { Ability } from '@casl/ability';
+import {
+    defineUserAbility,
+    ForbiddenError,
+    OrganizationMemberRole,
+    ProjectMemberRole,
+    SessionUser,
+} from '@lightdash/common';
 import { analytics } from '../../analytics/client';
 import {
     analyticsModel,
@@ -281,22 +288,54 @@ describe('DashboardService', () => {
         );
     });
 
-    test('should not see dashboard from private space', async () => {
+    test('should not see dashboard from private space if you are not admin', async () => {
         (spaceModel.getFullSpace as jest.Mock).mockImplementationOnce(
             async () => privateSpace,
         );
 
+        const userViewer = {
+            ...user,
+            ability: defineUserAbility(
+                {
+                    ...user,
+                    organizationUuid: 'another-org-uuid',
+                },
+                [{ projectUuid, role: ProjectMemberRole.VIEWER }],
+            ),
+        };
         await expect(
-            service.getById(user, dashboard.uuid),
+            service.getById(userViewer, dashboard.uuid),
         ).rejects.toThrowError(ForbiddenError);
     });
-
-    test('should not see dashboards from private space', async () => {
+    test('should see dashboard from private space if you are admin', async () => {
         (spaceModel.getFullSpace as jest.Mock).mockImplementationOnce(
             async () => privateSpace,
         );
+
+        const result = await service.getById(user, dashboard.uuid);
+
+        expect(result).toEqual(dashboard);
+        expect(dashboardModel.getById).toHaveBeenCalledTimes(1);
+        expect(dashboardModel.getById).toHaveBeenCalledWith(dashboard.uuid);
+    });
+
+    test('should not see dashboards from private space if you are not an admin', async () => {
+        (spaceModel.getFullSpace as jest.Mock).mockImplementationOnce(
+            async () => privateSpace,
+        );
+
+        const editorUser: SessionUser = {
+            ...user,
+            role: OrganizationMemberRole.EDITOR,
+            ability: new Ability([
+                {
+                    subject: 'Dashboard',
+                    action: ['view', 'update', 'delete', 'create'],
+                },
+            ]),
+        };
         const result = await service.getAllByProject(
-            user,
+            editorUser,
             projectUuid,
             undefined,
         );

@@ -66,7 +66,7 @@ export class PinningService {
 
         const spaces = await this.spaceModel.getAllSpaces(projectUuid);
         const allowedSpaceUuids = spaces
-            .filter((space) => hasSpaceAccess(space, user.userUuid))
+            .filter((space) => hasSpaceAccess(user, space))
             .map((space) => space.uuid);
 
         if (allowedSpaceUuids.length === 0) {

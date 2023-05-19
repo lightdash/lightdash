@@ -1,6 +1,13 @@
 import { Radio } from '@blueprintjs/core';
-import { FC, useState } from 'react';
+import {
+    OrganizationMemberRole,
+    ProjectMemberRole,
+    SpaceShare,
+} from '@lightdash/common';
+import upperFirst from 'lodash-es/upperFirst';
+import { FC, useMemo, useState } from 'react';
 import { CreateSpaceModalBody } from '.';
+import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import { useApp } from '../../../providers/AppProvider';
 import Input from '../../ReactHookForm/Input';
 import RadioGroup from '../../ReactHookForm/RadioGroup';
@@ -24,11 +31,34 @@ export enum CreateModalStep {
     SET_NAME = 'first',
     SET_ACCESS = 'second',
 }
+
+const renderUser = (user: {
+    isYou?: boolean;
+    userUuid: string;
+    firstName: string;
+    lastName: string;
+    role: string;
+}) => {
+    return (
+        <FlexWrapper key={user.userUuid}>
+            <UserCircle>
+                {user.firstName.substr(0, 1) + user.lastName.substr(0, 1)}
+            </UserCircle>
+
+            <PrimaryText>
+                {user.firstName + ' ' + user.lastName}
+                {user.isYou && <YouLabel> (you)</YouLabel>}
+            </PrimaryText>
+            <UserRole>{upperFirst(user.role)}</UserRole>
+        </FlexWrapper>
+    );
+};
 const CreateSpaceModalContent: FC<CreateSpaceModalBody> = ({
     modalStep,
     projectUuid,
     form,
     setIsShared,
+    organizationUsers,
 }) => {
     const {
         user: { data: sessionUser },
@@ -36,6 +66,41 @@ const CreateSpaceModalContent: FC<CreateSpaceModalBody> = ({
     const [selectedAccess, setSelectedAccess] = useState<AccessOption>(
         SpaceAccessOptions[0],
     );
+
+    const { data: projectAccess } = useProjectAccess(projectUuid);
+
+    const adminUsers = useMemo(() => {
+        const projectUserUuids =
+            projectAccess
+                ?.filter((access) => access.role === ProjectMemberRole.ADMIN)
+                .map((access) => access.userUuid) || [];
+        const organizationUserUuids =
+            organizationUsers
+                ?.filter(
+                    (access) => access.role === OrganizationMemberRole.ADMIN,
+                )
+                .map((access) => access.userUuid) || [];
+
+        const userUuids = [
+            ...new Set([...projectUserUuids, ...organizationUserUuids]),
+        ];
+        return userUuids.reduce<SpaceShare[]>((acc, userUuid) => {
+            const user = organizationUsers?.find(
+                (orgUser) => orgUser.userUuid === userUuid,
+            );
+            if (sessionUser?.userUuid === userUuid) return acc;
+            if (user) {
+                return [
+                    ...acc,
+                    {
+                        ...user,
+                        firstName: user.firstName || user.email,
+                        role: ProjectMemberRole.ADMIN,
+                    },
+                ];
+            } else return acc;
+        }, []);
+    }, [organizationUsers, projectAccess, sessionUser?.userUuid]);
 
     switch (modalStep) {
         case CreateModalStep.SET_NAME:
@@ -58,7 +123,7 @@ const CreateSpaceModalContent: FC<CreateSpaceModalBody> = ({
                             onClick={() => setIsShared(false)}
                         />
                         <RadioDescription>
-                            Only you can access this space.
+                            Only you and admins can access this space.
                         </RadioDescription>
                         <Radio
                             label="Shared"
@@ -94,23 +159,17 @@ const CreateSpaceModalContent: FC<CreateSpaceModalBody> = ({
                         }}
                     />
 
-                    {sessionUser &&
-                        selectedAccess?.value === SpaceAccessType.PRIVATE && (
-                            <FlexWrapper key={sessionUser.userUuid}>
-                                <UserCircle>
-                                    {sessionUser.firstName.substr(0, 1) +
-                                        sessionUser.lastName.substr(0, 1)}
-                                </UserCircle>
+                    {adminUsers?.map((user) =>
+                        renderUser({ ...user, role: ProjectMemberRole.ADMIN }),
+                    )}
 
-                                <PrimaryText>
-                                    {sessionUser.firstName +
-                                        ' ' +
-                                        sessionUser.lastName}
-                                    <YouLabel> (you)</YouLabel>
-                                </PrimaryText>
-                                <UserRole>{sessionUser.role}</UserRole>
-                            </FlexWrapper>
-                        )}
+                    {sessionUser &&
+                        selectedAccess?.value === SpaceAccessType.PRIVATE &&
+                        renderUser({
+                            ...sessionUser,
+                            role: sessionUser.role!,
+                            isYou: true,
+                        })}
                 </ShareSpaceWrapper>
             );
     }
