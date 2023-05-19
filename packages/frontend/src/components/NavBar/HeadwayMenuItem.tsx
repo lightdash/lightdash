@@ -1,10 +1,4 @@
-import {
-    Box,
-    Button,
-    Indicator,
-    Tooltip,
-    useMantineTheme,
-} from '@mantine/core';
+import { Box, Button, Tooltip, useMantineTheme } from '@mantine/core';
 import { IconSparkles } from '@tabler/icons-react';
 import { FC, useEffect } from 'react';
 import useHeadway from '../../hooks/thirdPartyServices/useHeadway';
@@ -71,52 +65,45 @@ const HeadwayMenuItem: FC<Props> = ({ projectUuid }) => {
     if (!isHeadwayloaded || !projectUuid) return null;
 
     return (
-        <Tooltip color="dark" label="What's new?">
-            <Indicator
-                color="transparent"
-                offset={10}
-                size={4}
-                label={
-                    <Box
-                        id="headway-badge"
-                        sx={{
-                            pointerEvents: 'none',
-                            '.HW_badge': {
-                                display: 'flex',
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                                top: '8px',
-                                left: '1px',
-                                width: '12px',
-                                height: '12px',
-                                fontSize: theme.fontSizes.xs,
-                                background: theme.colors.red[8],
-                            },
-                            '.HW_badge.HW_softHidden': {
-                                background: 'transparent !important',
-                            },
-                            '.HW_badge.HW_bounce': {
-                                animation: 'none !important',
-                            },
-                            '.HW_badge.HW_shake': {
-                                animation: 'none !important',
-                            },
-                            '.HW_badge.HW_wobble': {
-                                animation: 'none !important',
-                            },
-                        }}
-                    />
-                }
+        <Tooltip color="dark" label="What's new?" withinPortal>
+            <Button
+                variant="default"
+                size="xs"
+                pos="relative"
+                id="headway-trigger"
             >
-                <Button
-                    variant="default"
-                    size="xs"
-                    pos="relative"
-                    id="headway-trigger"
-                >
-                    <MantineIcon icon={IconSparkles} size="lg" />
-                </Button>
-            </Indicator>
+                <MantineIcon icon={IconSparkles} size="lg" />
+                <Box
+                    id="headway-badge"
+                    pos="absolute"
+                    sx={{
+                        pointerEvents: 'none',
+                        '.HW_badge': {
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            top: '4px',
+                            left: '12px',
+                            width: '12px',
+                            height: '12px',
+                            fontSize: theme.fontSizes.xs,
+                            background: theme.colors.red[8],
+                        },
+                        '.HW_badge.HW_softHidden': {
+                            background: 'transparent !important',
+                        },
+                        '.HW_badge.HW_bounce': {
+                            animation: 'none !important',
+                        },
+                        '.HW_badge.HW_shake': {
+                            animation: 'none !important',
+                        },
+                        '.HW_badge.HW_wobble': {
+                            animation: 'none !important',
+                        },
+                    }}
+                />
+            </Button>
         </Tooltip>
     );
 };
