@@ -22,7 +22,7 @@ export const InputWrapper = styled(FormGroup)`
 export const Wrapper = styled.div`
     max-width: 28.571em;
     max-height: 35em;
-    overflow: scroll;
+    overflow: auto;
     width: 25em;
     padding: 1.429em 1.429em 2.143em;
 `;
