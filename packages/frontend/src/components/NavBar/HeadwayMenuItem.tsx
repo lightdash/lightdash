@@ -1,4 +1,10 @@
-import { Box, Button, Indicator, Tooltip } from '@mantine/core';
+import {
+    Box,
+    Button,
+    Indicator,
+    Tooltip,
+    useMantineTheme,
+} from '@mantine/core';
 import { IconSparkles } from '@tabler/icons-react';
 import { FC, useEffect } from 'react';
 import useHeadway from '../../hooks/thirdPartyServices/useHeadway';
@@ -12,6 +18,7 @@ type Props = {
 };
 
 const HeadwayMenuItem: FC<Props> = ({ projectUuid }) => {
+    const theme = useMantineTheme();
     const { track } = useTracking();
     const { user } = useApp();
     const isHeadwayloaded = useHeadway();
@@ -67,16 +74,34 @@ const HeadwayMenuItem: FC<Props> = ({ projectUuid }) => {
         <Tooltip color="dark" label="What's new?">
             <Indicator
                 color="transparent"
-                offset={8}
+                offset={10}
+                size={4}
                 label={
                     <Box
                         id="headway-badge"
                         sx={{
                             pointerEvents: 'none',
+                            '.HW_badge': {
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                top: '8px',
+                                left: '1px',
+                                width: '12px',
+                                height: '12px',
+                                fontSize: theme.fontSizes.xs,
+                                background: theme.colors.red[8],
+                            },
                             '.HW_badge.HW_softHidden': {
                                 background: 'transparent !important',
                             },
                             '.HW_badge.HW_bounce': {
+                                animation: 'none !important',
+                            },
+                            '.HW_badge.HW_shake': {
+                                animation: 'none !important',
+                            },
+                            '.HW_badge.HW_wobble': {
                                 animation: 'none !important',
                             },
                         }}
