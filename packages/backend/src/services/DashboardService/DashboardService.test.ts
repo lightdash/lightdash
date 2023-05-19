@@ -1,6 +1,8 @@
+import { Ability } from '@casl/ability';
 import {
     defineUserAbility,
     ForbiddenError,
+    OrganizationMemberRole,
     ProjectMemberRole,
     SessionUser,
 } from '@lightdash/common';
@@ -317,12 +319,23 @@ describe('DashboardService', () => {
         expect(dashboardModel.getById).toHaveBeenCalledWith(dashboard.uuid);
     });
 
-    test('should not see dashboards from private space', async () => {
+    test('should not see dashboards from private space if you are not an admin', async () => {
         (spaceModel.getFullSpace as jest.Mock).mockImplementationOnce(
             async () => privateSpace,
         );
+
+        const editorUser: SessionUser = {
+            ...user,
+            role: OrganizationMemberRole.EDITOR,
+            ability: new Ability([
+                {
+                    subject: 'Dashboard',
+                    action: ['view', 'update', 'delete', 'create'],
+                },
+            ]),
+        };
         const result = await service.getAllByProject(
-            user,
+            editorUser,
             projectUuid,
             undefined,
         );
