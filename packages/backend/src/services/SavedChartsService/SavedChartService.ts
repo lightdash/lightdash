@@ -10,7 +10,6 @@ import {
     isChartScheduler,
     isSlackTarget,
     isUserWithOrg,
-    OrganizationMemberRole,
     SavedChart,
     SchedulerAndTargets,
     SessionUser,
@@ -88,7 +87,7 @@ export class SavedChartService {
         spaceUuid: string,
     ): Promise<boolean> {
         try {
-            const space = await this.spaceModel.getFullSpace(spaceUuid);
+            const space = await this.spaceModel.getSpaceSummary(spaceUuid);
             return hasSpaceAccess(user, space);
         } catch (e) {
             return false;
@@ -413,7 +412,7 @@ export class SavedChartService {
             throw new ForbiddenError();
         }
         if (savedChart.spaceUuid) {
-            const space = await this.spaceModel.getFullSpace(
+            const space = await this.spaceModel.getSpaceSummary(
                 savedChart.spaceUuid,
             );
             if (!hasSpaceAccess(user, space)) {

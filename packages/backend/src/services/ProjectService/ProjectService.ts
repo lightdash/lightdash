@@ -713,7 +713,9 @@ export class ProjectService {
             throw new ForbiddenError();
         }
 
-        const space = await this.spaceModel.getFullSpace(savedChart.spaceUuid);
+        const space = await this.spaceModel.getSpaceSummary(
+            savedChart.spaceUuid,
+        );
 
         if (!hasSpaceAccess(user, space)) {
             throw new ForbiddenError();
@@ -1473,7 +1475,7 @@ export class ProjectService {
                 throw new ForbiddenError();
             }
 
-            const space = await this.spaceModel.getFullSpace(
+            const space = await this.spaceModel.getSpaceSummary(
                 savedChart.spaceUuid,
             );
             if (!hasSpaceAccess(user, space)) {

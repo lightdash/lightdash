@@ -11,10 +11,9 @@ import {
     isDashboardVersionedFields,
     isSlackTarget,
     isUserWithOrg,
-    OrganizationMemberRole,
     SchedulerAndTargets,
     SessionUser,
-    Space,
+    SpaceSummary,
     UpdateDashboard,
     UpdateMultipleDashboards,
 } from '@lightdash/common';
@@ -79,8 +78,7 @@ export class DashboardService {
         ) {
             throw new ForbiddenError();
         }
-        const space = await this.spaceModel.getFullSpace(dashboard.spaceUuid);
-        if (!hasSpaceAccess(user, space)) {
+        if (!(await this.hasDashboardSpaceAccess(user, dashboard.spaceUuid))) {
             throw new ForbiddenError();
         }
 
@@ -91,10 +89,10 @@ export class DashboardService {
         user: SessionUser,
         spaceUuid: string,
     ): Promise<boolean> {
-        let space: Space;
+        let space: SpaceSummary;
 
         try {
-            space = await this.spaceModel.getFullSpace(spaceUuid);
+            space = await this.spaceModel.getSpaceSummary(spaceUuid);
         } catch (e) {
             Sentry.captureException(e);
             console.error(e);
@@ -142,7 +140,7 @@ export class DashboardService {
         ];
         const spaces = await Promise.all(
             spaceUuids.map((spaceUuid) =>
-                this.spaceModel.getFullSpace(spaceUuid),
+                this.spaceModel.getSpaceSummary(spaceUuid),
             ),
         );
         return dashboards.filter((dashboard) => {

@@ -7,7 +7,6 @@ import {
     fieldId as getFieldId,
     ForbiddenError,
     getFilterRules,
-    getSpaceAccessFromSummary,
     isDashboardChartTileType,
     isDimension,
     isExploreError,
@@ -217,11 +216,11 @@ export class ValidationService {
                 .filter(filterTableCalculations)
                 .filter(filterAdditionalMetrics)
                 .reduce<ValidationResponse[]>((acc, field) => {
-                    return containsFieldId(acc, existingFieldIds, field, 
-                        `Table error: the field '${field}' no longer exists`, 
+                    return containsFieldId(acc, existingFieldIds, field,
+                        `Table error: the field '${field}' no longer exists`,
                         `The field '${field}' no longer exists and is being used to order table columns.`)
                 }, []);
-               
+
 
             const tableCalculationErrors =
                 ValidationService.getTableCalculationFieldIds(
@@ -418,8 +417,7 @@ export class ValidationService {
         // Filter private content to developers
         return validations.map((validation) => {
             const space = spaces.find((s) => s.uuid === validation.spaceUuid);
-            const hasAccess =
-                space && hasSpaceAccess(user, getSpaceAccessFromSummary(space));
+            const hasAccess = space && hasSpaceAccess(user, space);
             if (hasAccess) return validation;
 
             return { ...validation, name: 'Private content' };
