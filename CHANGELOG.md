@@ -1,3 +1,10 @@
+## [0.561.1](https://github.com/lightdash/lightdash/compare/0.561.0...0.561.1) (2023-05-19)
+
+
+### Bug Fixes
+
+* change key to be index ([#5543](https://github.com/lightdash/lightdash/issues/5543)) ([942fa6e](https://github.com/lightdash/lightdash/commit/942fa6ee980c5874286991194ad4e0f0040880e8))
+
 # [0.561.0](https://github.com/lightdash/lightdash/compare/0.560.0...0.561.0) (2023-05-19)
 
 
