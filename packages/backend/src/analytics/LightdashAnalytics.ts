@@ -443,7 +443,7 @@ type ShareSlack = BaseTrack & {
     properties: {
         pageType?: string;
         error?: string;
-        organizationUuid?: string;
+        organizationId?: string;
     };
 };
 
@@ -474,6 +474,16 @@ type AnalyticsDashboardView = BaseTrack & {
         projectId: string;
         organizationId: string;
         dashboardType: 'user_activity';
+    };
+};
+
+type SchedulerDashboardView = BaseTrack & {
+    event: 'scheduled_deliveries.dashboard_viewed';
+    userId: string;
+    properties: {
+        projectId: string;
+        organizationId?: string;
+        numScheduledDeliveries: number;
     };
 };
 
@@ -638,7 +648,8 @@ type Track =
     | SchedulerJobEvent
     | SchedulerNotificationJobEvent
     | PinnedListUpdated
-    | DownloadCsv;
+    | DownloadCsv
+    | SchedulerDashboardView;
 
 export class LightdashAnalytics extends Analytics {
     static lightdashContext = {

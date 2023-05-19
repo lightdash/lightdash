@@ -231,6 +231,7 @@ export type EChartSeries = {
         valueFormatter?: (value: unknown) => string;
     };
     data?: unknown[];
+    showSymbol?: boolean;
 };
 
 const getFormattedValue = (
@@ -556,6 +557,7 @@ const getPivotSeries = ({
         tooltip: {
             valueFormatter: valueFormatter(series.encode.yRef.field, items),
         },
+        showSymbol: series.showSymbol ?? true,
         ...(series.label?.show && {
             label: {
                 ...series.label,
@@ -624,7 +626,7 @@ const getSimpleSeries = ({
     tooltip: {
         valueFormatter: valueFormatter(yFieldHash, items),
     },
-
+    showSymbol: series.showSymbol ?? true,
     ...(series.label?.show && {
         label: {
             ...series.label,

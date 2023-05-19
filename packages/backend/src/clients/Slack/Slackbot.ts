@@ -138,16 +138,17 @@ export class SlackService {
 
             try {
                 const { teamId } = context;
-
-                analytics.track({
-                    event: 'share_slack.unfurl',
-                    userId: eventUserId,
-                    properties: {},
-                });
-
                 const details = await unfurlService.unfurlDetails(l.url);
 
                 if (details) {
+                    analytics.track({
+                        event: 'share_slack.unfurl',
+                        userId: eventUserId,
+                        properties: {
+                            organizationId: details?.organizationUuid,
+                        },
+                    });
+
                     Logger.debug(
                         `Unfurling ${details.pageType} with URL ${details.minimalUrl}`,
                     );
@@ -181,7 +182,10 @@ export class SlackService {
                         analytics.track({
                             event: 'share_slack.unfurl_completed',
                             userId: eventUserId,
-                            properties: { pageType: details.pageType },
+                            properties: {
+                                pageType: details.pageType,
+                                organizationId: details?.organizationUuid,
+                            },
                         });
                     }
                 }
