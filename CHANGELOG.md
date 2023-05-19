@@ -1,3 +1,10 @@
+# [0.563.0](https://github.com/lightdash/lightdash/compare/0.562.0...0.563.0) (2023-05-19)
+
+
+### Features
+
+* add validation notification component ([#5530](https://github.com/lightdash/lightdash/issues/5530)) ([a24331c](https://github.com/lightdash/lightdash/commit/a24331cc04745d656c1b5020570f796d1fc2bf58))
+
 # [0.562.0](https://github.com/lightdash/lightdash/compare/0.561.3...0.562.0) (2023-05-19)
 
 
