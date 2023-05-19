@@ -1,3 +1,10 @@
+## [0.561.2](https://github.com/lightdash/lightdash/compare/0.561.1...0.561.2) (2023-05-19)
+
+
+### Bug Fixes
+
+* chart config scroll ([#5549](https://github.com/lightdash/lightdash/issues/5549)) ([8582af7](https://github.com/lightdash/lightdash/commit/8582af707c8c7785cf5f5fe4e1b37c0768190ec9))
+
 ## [0.561.1](https://github.com/lightdash/lightdash/compare/0.561.0...0.561.1) (2023-05-19)
 
 
