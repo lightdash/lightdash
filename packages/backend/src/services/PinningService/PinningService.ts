@@ -64,7 +64,7 @@ export class PinningService {
             throw new ForbiddenError();
         }
 
-        const spaces = await this.spaceModel.getAllSpaces(projectUuid);
+        const spaces = await this.spaceModel.find({ projectUuid });
         const allowedSpaceUuids = spaces
             .filter((space) => hasSpaceAccess(user, space))
             .map((space) => space.uuid);

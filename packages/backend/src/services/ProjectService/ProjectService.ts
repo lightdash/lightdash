@@ -399,7 +399,6 @@ export class ProjectService {
 
     async testAndCompileProject(
         user: SessionUser,
-
         projectUuid: string,
         method: RequestMethod,
         jobUuid: string,
@@ -1545,8 +1544,8 @@ export class ProjectService {
             throw new ForbiddenError();
         }
         try {
-            const spaces = await this.spaceModel.getAllSpaces(projectUuid);
-            return spaces.some((space) => space.queries.length > 0);
+            const charts = await this.savedChartModel.find({ projectUuid });
+            return charts.length > 0;
         } catch (e: any) {
             return false;
         }
