@@ -19,6 +19,8 @@ export default defineConfig({
             '*.loom.com',
             'analytics.lightdash.com',
         ],
-        trashAssetsBeforeRuns: false,
+        trashAssetsBeforeRuns: true,
+        videoUploadOnPasses: false,
+        videoCompression: 50,
     },
 });
