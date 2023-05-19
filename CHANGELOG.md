@@ -1,3 +1,10 @@
+# [0.564.0](https://github.com/lightdash/lightdash/compare/0.563.0...0.564.0) (2023-05-19)
+
+
+### Features
+
+* row totals ([#5532](https://github.com/lightdash/lightdash/issues/5532)) ([910a67d](https://github.com/lightdash/lightdash/commit/910a67d08d8d7c8bb2b549f92c343c89284a7546))
+
 # [0.563.0](https://github.com/lightdash/lightdash/compare/0.562.0...0.563.0) (2023-05-19)
 
 
