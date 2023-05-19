@@ -60,7 +60,7 @@ const PivotTable: FC<PivotTableProps> = ({
     );
 
     const getRowTotalValueFromAxis = useCallback(
-        (total: unknown, colIndex: number): ResultValue | null => {
+        (total: unknown, colIndex: number): ResultValue => {
             const value = last(data.rowTotalFields)?.[colIndex];
 
             if (!value || !value.fieldId) throw new Error('Invalid pivot data');
@@ -115,11 +115,8 @@ const PivotTable: FC<PivotTableProps> = ({
     );
 
     const getMetricAsRowColumnTotalValueFromAxis = useCallback(
-        (total: unknown, rowIndex: number): ResultValue | null => {
-            if (!data.columnTotalFields) {
-                return null;
-            }
-            const value = last(data.columnTotalFields[rowIndex]);
+        (total: unknown, rowIndex: number): ResultValue => {
+            const value = last(data.columnTotalFields?.[rowIndex]);
             if (!value || !value.fieldId) throw new Error('Invalid pivot data');
 
             const item = getField(value.fieldId);

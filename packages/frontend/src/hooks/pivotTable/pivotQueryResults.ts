@@ -335,7 +335,7 @@ export const pivotQueryResults = ({
 
             summableMetricFieldIds.forEach((fieldId, metricIndex) => {
                 rowTotalFields![N_TOTAL_ROWS - 1][metricIndex] = {
-                    fieldId: fieldId,
+                    fieldId,
                 };
             });
 
@@ -375,7 +375,7 @@ export const pivotQueryResults = ({
 
             summableMetricFieldIds.forEach((fieldId, metricIndex) => {
                 columnTotalFields![metricIndex][N_TOTAL_COLS - 1] = {
-                    fieldId: fieldId,
+                    fieldId,
                 };
             });
 
