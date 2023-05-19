@@ -374,16 +374,7 @@ export class SavedChartService {
             throw new ForbiddenError();
         }
 
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('Project', {
-                    projectUuid: savedChart.projectUuid,
-                    organizationUuid: savedChart.organizationUuid,
-                }),
-            ) &&
-            !(await this.hasChartSpaceAccess(user, savedChart.spaceUuid))
-        ) {
+        if (!(await this.hasChartSpaceAccess(user, savedChart.spaceUuid))) {
             throw new ForbiddenError(
                 "You don't have access to the space this chart belongs to",
             );

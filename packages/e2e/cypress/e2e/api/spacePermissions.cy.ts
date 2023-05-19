@@ -299,6 +299,67 @@ describe('Lightdash API tests for an project admin accessing other private space
         cy.loginWithEmail(email);
     });
 
+    it('Should not list charts or dashboards from private spaces', () => {
+        cy.request({
+            url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces-and-content`,
+            failOnStatusCode: false,
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+            const privateSpace = resp.body.results.find(
+                (space) => space.name === 'private space',
+            );
+            expect(privateSpace).to.eq(undefined);
+        });
+    });
+
+    it('Should not list private spaces', () => {
+        cy.request({
+            url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces`,
+            failOnStatusCode: false,
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+            const privateSpace = resp.body.results.find(
+                (space) => space.name === 'private space',
+            );
+            expect(privateSpace).to.eq(undefined);
+        });
+    });
+
+    it('Should not list private spaces or content in global search', () => {
+        cy.request({
+            url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/search/private`,
+            failOnStatusCode: false,
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(
+                resp.body.results.spaces.find(
+                    (space) => space.name === 'private space',
+                ),
+            ).to.eq(undefined);
+            expect(
+                resp.body.results.savedCharts.find(
+                    (chart) => chart.name === 'private chart',
+                ),
+            ).to.eq(undefined);
+            expect(
+                resp.body.results.dashboards.find(
+                    (dashboard) => dashboard.name === 'private dashboard',
+                ),
+            ).to.eq(undefined);
+        });
+    });
+    it('Should not list private spaces', () => {
+        cy.request({
+            url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces`,
+            failOnStatusCode: false,
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+            const privateSpace = resp.body.results.find(
+                (space) => space.name === 'private space',
+            );
+            expect(privateSpace).to.eq(undefined);
+        });
+    });
     it('Should view charts in other private spaces', () => {
         cy.request({
             url: `${apiUrl}/saved/${privateChart.uuid}`,
