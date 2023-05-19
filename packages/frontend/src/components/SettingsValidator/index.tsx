@@ -81,6 +81,16 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
         return;
     };
 
+    const handleOnValidationErrorClick = (
+        validationError: ValidationResponse,
+    ) => {
+        if (!validationError.chartUuid && !validationError.dashboardUuid)
+            return null;
+
+        const link = getLinkToResource(validationError);
+        if (link) history.push(link);
+    };
+
     return (
         <Stack>
             <Text color="gray.6">
@@ -146,22 +156,11 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                                 ? data.map((validationError, index) => (
                                       <tr
                                           key={index}
-                                          onClick={() => {
-                                              if (
-                                                  !validationError.chartUuid &&
-                                                  !validationError.dashboardUuid &&
-                                                  // TODO: this check needs should be moved to backend
-                                                  validationError.name !==
-                                                      'Private content'
+                                          onClick={() =>
+                                              handleOnValidationErrorClick(
+                                                  validationError,
                                               )
-                                                  return null;
-
-                                              const link =
-                                                  getLinkToResource(
-                                                      validationError,
-                                                  );
-                                              if (link) history.push(link);
-                                          }}
+                                          }
                                       >
                                           <td>
                                               <Flex gap="sm" align="center">
