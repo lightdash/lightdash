@@ -1,3 +1,25 @@
+## [0.561.1](https://github.com/lightdash/lightdash/compare/0.561.0...0.561.1) (2023-05-19)
+
+
+### Bug Fixes
+
+* change key to be index ([#5543](https://github.com/lightdash/lightdash/issues/5543)) ([942fa6e](https://github.com/lightdash/lightdash/commit/942fa6ee980c5874286991194ad4e0f0040880e8))
+
+# [0.561.0](https://github.com/lightdash/lightdash/compare/0.560.0...0.561.0) (2023-05-19)
+
+
+### Features
+
+* validate project on dbt refresh + cli deploy ([#5534](https://github.com/lightdash/lightdash/issues/5534)) ([e7186e8](https://github.com/lightdash/lightdash/commit/e7186e87f5933f49e2a4760e5a11fcb3cfe53074))
+
+# [0.560.0](https://github.com/lightdash/lightdash/compare/0.559.0...0.560.0) (2023-05-18)
+
+
+### Features
+
+* add description to validator tab ([#5527](https://github.com/lightdash/lightdash/issues/5527)) ([cba4141](https://github.com/lightdash/lightdash/commit/cba41413dbab776d2e59f915804fa3ad0079d92b))
+* add tooltip to headway menu item ([#5524](https://github.com/lightdash/lightdash/issues/5524)) ([3569ed5](https://github.com/lightdash/lightdash/commit/3569ed5b04e5a7aa5c99f2d0aad2895f248878f2))
+
 # [0.559.0](https://github.com/lightdash/lightdash/compare/0.558.3...0.559.0) (2023-05-17)
 
 

@@ -7,6 +7,7 @@ import {
     Flex,
     Group,
     Paper,
+    Stack,
     Table,
     Text,
     useMantineTheme,
@@ -68,7 +69,11 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
     };
 
     return (
-        <>
+        <Stack>
+            <Text color="gray.6">
+                Use the project validator to check what content is broken in
+                your project.
+            </Text>
             {isSuccess && (
                 <Paper withBorder>
                     <Group
@@ -128,8 +133,8 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                             </thead>
                             <tbody>
                                 {data && data.length
-                                    ? data.map((validationError) => (
-                                          <tr key={validationError.name}>
+                                    ? data.map((validationError, index) => (
+                                          <tr key={index}>
                                               <td>
                                                   <Flex gap="sm" align="center">
                                                       <Icon
@@ -200,6 +205,6 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                     </Box>
                 </Paper>
             )}
-        </>
+        </Stack>
     );
 };
