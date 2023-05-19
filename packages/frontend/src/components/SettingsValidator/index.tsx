@@ -20,6 +20,7 @@ import {
     IconTable,
 } from '@tabler/icons-react';
 import { FC, useState } from 'react';
+import { useHistory } from 'react-router-dom';
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
 import { useTimeAgo } from '../../hooks/useTimeAgo';
 import {
@@ -47,6 +48,7 @@ const UpdatedAtAndBy: FC<
 export const SettingsValidator: FC<{ projectUuid: string }> = ({
     projectUuid,
 }) => {
+    const history = useHistory();
     const { classes } = useTableStyles();
     const theme = useMantineTheme();
     const [isValidating, setIsValidating] = useState(false);
@@ -66,6 +68,17 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
         if (validationError.dashboardUuid)
             return <IconBox icon={IconLayoutDashboard} color="green.8" />;
         return <IconBox icon={IconTable} color="indigo.6" />;
+    };
+
+    // TODO: move to separate file? resourceUtils?
+    const getLinkToResource = (validationError: ValidationResponse) => {
+        if (validationError.chartUuid)
+            return `/projects/${projectUuid}/saved/${validationError.chartUuid}`;
+        if (validationError.dashboardUuid) {
+            return `/projects/${projectUuid}/dashboards/${validationError.dashboardUuid}/view`;
+        }
+
+        return;
     };
 
     return (
@@ -131,7 +144,25 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                         <tbody>
                             {data && data.length
                                 ? data.map((validationError, index) => (
-                                      <tr key={index}>
+                                      <tr
+                                          key={index}
+                                          onClick={() => {
+                                              if (
+                                                  !validationError.chartUuid &&
+                                                  !validationError.dashboardUuid &&
+                                                  // TODO: this check needs should be moved to backend
+                                                  validationError.name !==
+                                                      'Private content'
+                                              )
+                                                  return null;
+
+                                              const link =
+                                                  getLinkToResource(
+                                                      validationError,
+                                                  );
+                                              if (link) history.push(link);
+                                          }}
+                                      >
                                           <td>
                                               <Flex gap="sm" align="center">
                                                   <Icon
