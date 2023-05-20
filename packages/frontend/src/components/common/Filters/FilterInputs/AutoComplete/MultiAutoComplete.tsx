@@ -71,7 +71,6 @@ const MultiAutoComplete: FC<Props> = ({
 
     const handleItemSelect = useCallback(
         (value: string) => {
-            console.log({ value });
             onChange(toggleValueFromArray(values, value));
         },
         [onChange, values],
