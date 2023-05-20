@@ -12,11 +12,7 @@ import {
     useFieldValues,
 } from '../../../../../hooks/useFieldValues';
 import { useFiltersContext } from '../../FiltersProvider';
-import {
-    isMatch,
-    mergeUniqueValues,
-    toggleValueFromArray,
-} from './autoCompleteUtils';
+import { mergeUniqueValues, toggleValueFromArray } from './autoCompleteUtils';
 
 type Props = {
     filterId: string;
@@ -75,6 +71,7 @@ const MultiAutoComplete: FC<Props> = ({
 
     const handleItemSelect = useCallback(
         (value: string) => {
+            console.log({ value });
             onChange(toggleValueFromArray(values, value));
         },
         [onChange, values],
@@ -135,7 +132,6 @@ const MultiAutoComplete: FC<Props> = ({
             }}
             resetOnSelect
             tagRenderer={(name) => name}
-            itemsEqual={isMatch}
             itemListPredicate={(query, items) => {
                 if (query === '') return items;
 
