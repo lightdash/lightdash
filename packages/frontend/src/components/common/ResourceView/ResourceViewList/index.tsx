@@ -20,11 +20,13 @@ import { Link, useHistory, useParams } from 'react-router-dom';
 import { ResourceViewCommonProps } from '..';
 import { useTableStyles } from '../../../../hooks/styles/useTableStyles';
 import { useSpaceSummaries } from '../../../../hooks/useSpaces';
-import { ResourceIcon } from '../ResourceIcon';
+import { useValidation } from '../../../../hooks/validation/useValidation';
+import { ResourceIcon, ResourceIconWithIndicator } from '../ResourceIcon';
 import {
     getResourceTypeName,
     getResourceUrl,
     getResourceViewsSinceWhenDescription,
+    hasResourceValidationError,
 } from '../resourceUtils';
 import { ResourceViewItemActionState } from './../ResourceActionHandlers';
 import ResourceActionMenu from './../ResourceActionMenu';
@@ -86,6 +88,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: spaces = [] } = useSpaceSummaries(projectUuid);
+    const { data: validationErrors } = useValidation(projectUuid);
 
     const [columnSorts, setColumnSorts] = useState<SortingStateMap>(
         defaultSort ? new Map(Object.entries(defaultSort)) : new Map(),
@@ -133,7 +136,29 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                             onClick={(e) => e.stopPropagation()}
                         >
                             <Group noWrap>
-                                <ResourceIcon item={item} />
+                                <ResourceIconWithIndicator
+                                    disabled={
+                                        !hasResourceValidationError(
+                                            item,
+                                            validationErrors,
+                                        )
+                                    }
+                                    tooltipLabel={
+                                        <>
+                                            This content is broken. Learn more
+                                            about the validation error(s){' '}
+                                            <Anchor
+                                                component={Link}
+                                                to={`/generalSettings/projectManagement/${projectUuid}/validator`}
+                                            >
+                                                here
+                                            </Anchor>
+                                            .
+                                        </>
+                                    }
+                                >
+                                    <ResourceIcon item={item} />
+                                </ResourceIconWithIndicator>
 
                                 <Stack spacing={2}>
                                     <Tooltip
@@ -291,7 +316,14 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                 },
             },
         ],
-        [columnVisibility, enableSorting, spaces, projectUuid, onAction],
+        [
+            enableSorting,
+            columnVisibility,
+            projectUuid,
+            validationErrors,
+            spaces,
+            onAction,
+        ],
     );
 
     const visibleColumns = useMemo(() => {
