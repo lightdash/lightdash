@@ -100,7 +100,7 @@ projectRouter.put(
     unauthorisedInDemo,
     async (req, res, next) => {
         projectService
-            .setExplores(req.params.projectUuid, req.body)
+            .setExplores(req.user!, req.params.projectUuid, req.body)
             .then(() => {
                 res.json({
                     status: 'ok',

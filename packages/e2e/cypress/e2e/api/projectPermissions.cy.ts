@@ -1,4 +1,4 @@
-import { SEED_PROJECT } from '@lightdash/common';
+import { Explore, SEED_PROJECT, SummaryExplore } from '@lightdash/common';
 
 const apiUrl = '/api/v1';
 
@@ -12,6 +12,42 @@ const runqueryBody = {
     additionalMetrics: [],
 };
 const sqlQueryBody = { sql: 'select 1' };
+
+async function updateExplores(projectUuid: string) {
+    const endpoint = `/projects/${projectUuid}/explores`;
+
+    const exploresSummary = await new Promise((resolve) => {
+        cy.request(`${apiUrl}${endpoint}`).then(async (resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body).to.have.property('status', 'ok');
+            resolve(resp.body.results);
+        });
+    });
+    const explorePromises = (exploresSummary as SummaryExplore[]).map<
+        Promise<Explore>
+    >(
+        async (summary) =>
+            new Promise((resolve) => {
+                cy.request(`${apiUrl}${endpoint}/${summary.name}`).then(
+                    (exploreResp) => {
+                        resolve(exploreResp.body.results);
+                    },
+                );
+            }),
+    );
+    const explores = await Promise.all(explorePromises);
+    cy.request({
+        url: `${apiUrl}${endpoint}`,
+        headers: { 'Content-type': 'application/json' },
+        method: 'PUT',
+        body: explores,
+        failOnStatusCode: false,
+    }).then((resp2) => {
+        expect(resp2.status).to.eq(200);
+        expect(resp2.body).to.have.property('status', 'ok');
+    });
+}
+
 describe('Lightdash API tests for member user with admin project permissions', () => {
     let email;
     before(() => {
@@ -86,6 +122,11 @@ describe('Lightdash API tests for member user with admin project permissions', (
                 );
             },
         );
+    });
+
+    it('Should get success response (200) from POST explores', async () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+        await updateExplores(projectUuid);
     });
 
     it('Should get success response (200) from POST runQuery', () => {
@@ -385,6 +426,21 @@ describe('Lightdash API tests for member user with editor project permissions', 
         });
     });
 
+    it('Should get forbidden (403) from POST explores', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        const endpoint = `/projects/${projectUuid}/explores`;
+        cy.request({
+            url: `${apiUrl}${endpoint}`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'PUT',
+            body: [],
+            failOnStatusCode: false,
+        }).then((resp) => {
+            expect(resp.status).to.eq(403);
+        });
+    });
+
     it('Should get success response (200) from GET scheduler logs', () => {
         cy.request(
             `${apiUrl}/schedulers/${SEED_PROJECT.project_uuid}/logs`,
@@ -624,6 +680,11 @@ describe('Lightdash API tests for member user with developer project permissions
         cy.loginWithEmail(email);
     });
 
+    it('Should get success response (200) from POST explores', async () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+        await updateExplores(projectUuid);
+    });
+
     it('Should get success response (200) from GET scheduler logs', () => {
         cy.request(
             `${apiUrl}/schedulers/${SEED_PROJECT.project_uuid}/logs`,
@@ -695,6 +756,21 @@ describe('Lightdash API tests for member user with interactive_viewer project pe
             expect(resp.status).to.eq(200);
             expect(resp.body.results).to.have.property('email', email);
             expect(resp.body.results).to.have.property('role', 'member');
+        });
+    });
+
+    it('Should get forbidden (403) from POST explores', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        const endpoint = `/projects/${projectUuid}/explores`;
+        cy.request({
+            url: `${apiUrl}${endpoint}`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'PUT',
+            body: [],
+            failOnStatusCode: false,
+        }).then((resp) => {
+            expect(resp.status).to.eq(403);
         });
     });
 
@@ -937,6 +1013,21 @@ describe('Lightdash API tests for member user with viewer project permissions', 
                 );
             },
         );
+    });
+
+    it('Should get forbidden (403) from POST explores', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        const endpoint = `/projects/${projectUuid}/explores`;
+        cy.request({
+            url: `${apiUrl}${endpoint}`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'PUT',
+            body: [],
+            failOnStatusCode: false,
+        }).then((resp) => {
+            expect(resp.status).to.eq(403);
+        });
     });
 
     it('Should get forbidden (403) from POST runQuery', () => {
@@ -1235,6 +1326,21 @@ describe('Lightdash API tests for member user with NO project permissions', () =
                 expect(resp.body.results).to.have.length(0);
             },
         );
+    });
+
+    it('Should get forbidden (403) from POST explores', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        const endpoint = `/projects/${projectUuid}/explores`;
+        cy.request({
+            url: `${apiUrl}${endpoint}`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'PUT',
+            body: [],
+            failOnStatusCode: false,
+        }).then((resp) => {
+            expect(resp.status).to.eq(403);
+        });
     });
 
     it('Should get forbidden error (403) from POST runQuery', () => {
