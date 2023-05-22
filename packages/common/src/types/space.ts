@@ -31,27 +31,10 @@ export type SpaceShare = {
     userUuid: string;
     firstName: string;
     lastName: string;
-    role: ProjectMemberRole | null;
+    role: ProjectMemberRole;
 };
 
 export type ApiSpaceSummaryListResponse = {
     status: 'ok';
     results: SpaceSummary[];
 };
-
-export const getSpaceAccessFromSummary = (
-    summary: SpaceSummary,
-): Pick<
-    Space,
-    'isPrivate' | 'access' | 'organizationUuid' | 'projectUuid'
-> => ({
-    isPrivate: summary.isPrivate,
-    access: summary.access.map((access) => ({
-        userUuid: access,
-        role: ProjectMemberRole.VIEWER,
-        firstName: '',
-        lastName: '',
-    })),
-    organizationUuid: summary.organizationUuid,
-    projectUuid: summary.projectUuid,
-});

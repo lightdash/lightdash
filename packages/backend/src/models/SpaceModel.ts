@@ -58,7 +58,10 @@ export class SpaceModel {
         this.database = dependencies.database;
     }
 
-    async find(filters: { projectUuid?: string }): Promise<SpaceSummary[]> {
+    async find(filters: {
+        projectUuid?: string;
+        spaceUuid?: string;
+    }): Promise<SpaceSummary[]> {
         const transaction = Sentry.getCurrentHub()
             ?.getScope()
             ?.getTransaction();
@@ -105,6 +108,9 @@ export class SpaceModel {
                 });
             if (filters.projectUuid) {
                 query.where('projects.project_uuid', filters.projectUuid);
+            }
+            if (filters.spaceUuid) {
+                query.where('spaces.space_uuid', filters.spaceUuid);
             }
             return await query;
         } finally {
@@ -325,22 +331,37 @@ export class SpaceModel {
             .distinctOn(`users.user_uuid`)
             .where(`${SpaceTableName}.space_uuid`, spaceUuid);
 
-        return access.map(
-            ({
-                user_uuid,
-                first_name,
-                last_name,
-                project_role,
-                organization_role,
-            }) => ({
-                userUuid: user_uuid,
-                firstName: first_name,
-                lastName: last_name,
-                role: getProjectRoleOrInheritedFromOrganization(
+        return access.reduce<SpaceShare[]>(
+            (
+                acc,
+                {
+                    user_uuid,
+                    first_name,
+                    last_name,
                     project_role,
                     organization_role,
-                ),
-            }),
+                },
+            ) => {
+                const role = getProjectRoleOrInheritedFromOrganization(
+                    project_role,
+                    organization_role,
+                );
+                // exclude all users that were converted to organization members and have no space access
+                if (!role) {
+                    this.removeSpaceAccess(spaceUuid, user_uuid);
+                    return acc;
+                }
+                return [
+                    ...acc,
+                    {
+                        userUuid: user_uuid,
+                        firstName: first_name,
+                        lastName: last_name,
+                        role,
+                    },
+                ];
+            },
+            [],
         );
     }
 
@@ -487,6 +508,15 @@ export class SpaceModel {
                 access: await this.getSpaceAccess(row.space_uuid),
             })),
         );
+    }
+
+    async getSpaceSummary(spaceUuid: string): Promise<SpaceSummary> {
+        const [space] = await this.find({ spaceUuid });
+        if (space === undefined)
+            throw new NotFoundError(
+                `Space with spaceUuid ${spaceUuid} does not exist`,
+            );
+        return space;
     }
 
     async getFullSpace(spaceUuid: string): Promise<Space> {

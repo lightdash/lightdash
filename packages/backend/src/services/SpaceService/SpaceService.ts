@@ -4,6 +4,7 @@ import {
     ForbiddenError,
     SessionUser,
     Space,
+    SpaceSummary,
     UpdateSpace,
 } from '@lightdash/common';
 import { analytics } from '../../analytics/client';
@@ -20,7 +21,7 @@ type Dependencies = {
 export const hasSpaceAccess = (
     user: SessionUser,
     space: Pick<
-        Space,
+        SpaceSummary | Space,
         'isPrivate' | 'access' | 'organizationUuid' | 'projectUuid'
     >,
     checkAdminAccess: boolean = true,
@@ -33,13 +34,12 @@ export const hasSpaceAccess = (
         }),
     );
 
+    const userUuidsWithAccess = space.access.map((access) =>
+        typeof access === 'string' ? access : access.userUuid,
+    );
+
     const hasAccess =
-        !space.isPrivate ||
-        space.access.find(
-            (userAccess) =>
-                userAccess.userUuid === user.userUuid &&
-                userAccess.role !== null,
-        ) !== undefined;
+        !space.isPrivate || userUuidsWithAccess.includes(user.userUuid);
 
     return checkAdminAccess ? hasAdminAccess || hasAccess : hasAccess;
 };
@@ -147,7 +147,7 @@ export class SpaceService {
         spaceUuid: string,
         updateSpace: UpdateSpace,
     ): Promise<Space> {
-        const space = await this.spaceModel.getFullSpace(spaceUuid);
+        const space = await this.spaceModel.getSpaceSummary(spaceUuid);
         if (
             user.ability.cannot(
                 'manage',
@@ -187,7 +187,7 @@ export class SpaceService {
     }
 
     async deleteSpace(user: SessionUser, spaceUuid: string): Promise<void> {
-        const space = await this.spaceModel.getFullSpace(spaceUuid);
+        const space = await this.spaceModel.getSpaceSummary(spaceUuid);
         if (
             user.ability.cannot(
                 'delete',
@@ -218,7 +218,7 @@ export class SpaceService {
         spaceUuid: string,
         shareWithUserUuid: string,
     ): Promise<void> {
-        const space = await this.spaceModel.getFullSpace(spaceUuid);
+        const space = await this.spaceModel.getSpaceSummary(spaceUuid);
         if (
             user.ability.cannot(
                 'manage',
@@ -240,7 +240,7 @@ export class SpaceService {
         spaceUuid: string,
         shareWithUserUuid: string,
     ): Promise<void> {
-        const space = await this.spaceModel.getFullSpace(spaceUuid);
+        const space = await this.spaceModel.getSpaceSummary(spaceUuid);
         if (
             user.ability.cannot(
                 'manage',
@@ -255,9 +255,8 @@ export class SpaceService {
         }
 
         if (
-            space.access.filter(
-                (userAccess) => userAccess.userUuid !== shareWithUserUuid,
-            ).length === 0
+            space.access.filter((userUuid) => userUuid !== shareWithUserUuid)
+                .length === 0
         ) {
             throw new Error('There must be at least 1 user in this space');
         }

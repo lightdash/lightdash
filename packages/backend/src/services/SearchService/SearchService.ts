@@ -62,7 +62,7 @@ export class SearchService {
         ];
         const spaces = await Promise.all(
             spaceUuids.map((spaceUuid) =>
-                this.spaceModel.getFullSpace(spaceUuid),
+                this.spaceModel.getSpaceSummary(spaceUuid),
             ),
         );
         const filterItem = (
