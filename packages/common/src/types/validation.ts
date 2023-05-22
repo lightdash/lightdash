@@ -21,4 +21,11 @@ export type ApiValidateResponse = {
     results: ValidationResponse[];
 };
 
-export type ValidationSummary = Pick<ValidationResponse, 'error' | 'createdAt'>;
+export type ValidationSummary = {
+    validationError:
+        | {
+              error: ValidationResponse['error'];
+              createdAt: ValidationResponse['createdAt'];
+          }
+        | undefined;
+};
