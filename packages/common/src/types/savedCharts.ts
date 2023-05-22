@@ -287,7 +287,8 @@ export type SpaceQuery = Pick<
     | 'pinnedListUuid'
     | 'pinnedListOrder'
 > &
-    ViewStatistics & {
+    ViewStatistics &
+    ValidationSummary & {
         chartType: ChartKind | undefined;
         validationError?: ValidationSummary;
     };
