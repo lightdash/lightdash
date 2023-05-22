@@ -1,3 +1,10 @@
+## [0.565.1](https://github.com/lightdash/lightdash/compare/0.565.0...0.565.1) (2023-05-22)
+
+
+### Bug Fixes
+
+* Copying a list of IDs into filters makes it lowercase ([#5558](https://github.com/lightdash/lightdash/issues/5558)) ([3b107af](https://github.com/lightdash/lightdash/commit/3b107af06db1a90099fa5c5e990c987dba01b008))
+
 # [0.565.0](https://github.com/lightdash/lightdash/compare/0.564.0...0.565.0) (2023-05-22)
 
 
