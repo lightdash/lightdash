@@ -1,3 +1,10 @@
+# [0.565.0](https://github.com/lightdash/lightdash/compare/0.564.0...0.565.0) (2023-05-22)
+
+
+### Features
+
+* move headway badge to top right ([#5554](https://github.com/lightdash/lightdash/issues/5554)) ([e68b2f9](https://github.com/lightdash/lightdash/commit/e68b2f9b754ef0611d2f59fdb89e5b0d133eead1))
+
 # [0.564.0](https://github.com/lightdash/lightdash/compare/0.563.0...0.564.0) (2023-05-19)
 
 
