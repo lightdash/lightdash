@@ -218,6 +218,8 @@ export class ProjectModel {
                     organization_id: orgs[0].organization_id,
                     dbt_connection_type: data.dbtConnection.type,
                     dbt_connection: encryptedCredentials,
+                    copied_from_project_uuid:
+                        data.copiedFromProjectUuid || null,
                 })
                 .returning('*');
 

@@ -75,11 +75,13 @@ export const previewHandler = async (
     );
     let project: Project | undefined;
 
+    const config = await getConfig();
     try {
         project = await createProject({
             ...options,
             name,
             type: ProjectType.PREVIEW,
+            copiedFromProjectUuid: config.context?.project,
         });
     } catch (e) {
         GlobalState.debug(`> Unable to create project: ${e}`);
@@ -92,7 +94,6 @@ export const previewHandler = async (
         console.error(
             "To create your project, you'll need to manually enter your warehouse connection details.",
         );
-        const config = await getConfig();
         const createProjectUrl =
             config.context?.serverUrl &&
             new URL('/createProject', config.context.serverUrl);
@@ -236,19 +237,21 @@ export const startPreviewHandler = async (
             console.info(`::set-output name=url::${url}`);
         }
     } else {
+        const config = await getConfig();
+
         // Create
         console.error(`Creating new project preview ${projectName}`);
         const project = await createProject({
             ...options,
             name: projectName,
             type: ProjectType.PREVIEW,
+            copiedFromProjectUuid: config.context?.project,
         });
 
         if (!project) {
             console.error(
                 "To create your project, you'll need to manually enter your warehouse connection details.",
             );
-            const config = await getConfig();
             const createProjectUrl =
                 config.context?.serverUrl &&
                 new URL('/createProject', config.context.serverUrl);

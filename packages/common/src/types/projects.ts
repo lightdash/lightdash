@@ -241,6 +241,7 @@ export type Project = {
     dbtConnection: DbtProjectConfig;
     warehouseConnection?: WarehouseCredentials;
     pinnedListUuid?: string;
+    copiedFromProjectUuid?: string;
 };
 
 export type ApiProjectResponse = {

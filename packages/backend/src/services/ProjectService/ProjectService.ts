@@ -209,10 +209,9 @@ export class ProjectService {
             },
         });
 
-        this.copyContentOnPreview(
-            '3675b69e-8324-4110-bdca-059031aa8da3',
-            projectUuid,
-        ); // TODO set right projectuuid
+        // TODO move to scheduler
+        if (data.copiedFromProjectUuid)
+            this.copyContentOnPreview(data.copiedFromProjectUuid, projectUuid);
 
         return this.projectModel.get(projectUuid);
     }
