@@ -4,6 +4,7 @@ import { ConditionalFormattingConfig } from './conditionalFormatting';
 import { CompactOrAlias } from './field';
 import { MetricQuery } from './metricQuery';
 import { UpdatedByUser } from './user';
+import { ValidationSummary } from './validation';
 
 export enum ChartKind {
     LINE = 'line',
@@ -286,7 +287,8 @@ export type SpaceQuery = Pick<
     | 'pinnedListUuid'
     | 'pinnedListOrder'
 > &
-    ViewStatistics & {
+    ViewStatistics &
+    ValidationSummary & {
         chartType: ChartKind | undefined;
     };
 
