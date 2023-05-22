@@ -20,3 +20,12 @@ export type ApiValidateResponse = {
     status: 'ok';
     results: ValidationResponse[];
 };
+
+export type ValidationSummary = {
+    validationError:
+        | {
+              error: ValidationResponse['error'];
+              createdAt: ValidationResponse['createdAt'];
+          }
+        | undefined;
+};
