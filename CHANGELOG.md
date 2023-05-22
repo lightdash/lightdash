@@ -1,3 +1,10 @@
+## [0.566.1](https://github.com/lightdash/lightdash/compare/0.566.0...0.566.1) (2023-05-22)
+
+
+### Bug Fixes
+
+* performance improvements when checking space access ([#5556](https://github.com/lightdash/lightdash/issues/5556)) ([a830552](https://github.com/lightdash/lightdash/commit/a8305520f61ac410147f249cdab42f1633ca7178))
+
 # [0.566.0](https://github.com/lightdash/lightdash/compare/0.565.1...0.566.0) (2023-05-22)
 
 
