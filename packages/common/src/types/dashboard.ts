@@ -117,7 +117,9 @@ export type DashboardBasicDetails = Pick<
     | 'pinnedListOrder'
 >;
 
-export type SpaceDashboard = DashboardBasicDetails & ValidationSummary;
+export type SpaceDashboard = DashboardBasicDetails & {
+    validationError?: ValidationSummary;
+};
 
 export type DashboardUnversionedFields = Pick<
     CreateDashboard,
