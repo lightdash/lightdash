@@ -323,9 +323,19 @@ export class ProjectService {
     }
 
     async setExplores(
+        user: SessionUser,
         projectUuid: string,
         explores: (Explore | ExploreError)[],
     ): Promise<void> {
+        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        if (
+            user.ability.cannot(
+                'update',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
         await this.projectModel.saveExploresToCache(projectUuid, explores);
 
         await schedulerClient.generateValidation({ projectUuid });
@@ -410,6 +420,10 @@ export class ProjectService {
         const updatedProject = await this.projectModel.getWithSensitiveFields(
             projectUuid,
         );
+
+        if (user.ability.cannot('update', subject('Project', updatedProject))) {
+            throw new ForbiddenError();
+        }
 
         if (updatedProject.warehouseConnection === undefined) {
             throw new Error(
@@ -764,7 +778,7 @@ export class ProjectService {
         );
     }
 
-    async runQueryAndFormatRows(
+    private async runQueryAndFormatRows(
         user: SessionUser,
         metricQuery: MetricQuery,
         projectUuid: string,
@@ -829,6 +843,18 @@ export class ProjectService {
     ): Promise<Record<string, any>[]> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
+        }
+
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
         }
 
         const metricQueryWithLimit = ProjectService.metricQueryWithLimit(
