@@ -11,6 +11,7 @@ import {
     unauthorisedInDemo,
 } from '../controllers/authentication';
 import {
+    groupService,
     organizationService,
     projectService,
     userService,

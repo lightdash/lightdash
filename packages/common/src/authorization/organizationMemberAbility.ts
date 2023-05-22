@@ -107,5 +107,8 @@ export const organizationMemberAbilities: Record<
         can('manage', 'PinnedItems', {
             organizationUuid: member.organizationUuid,
         });
+        can('manage', 'Group', {
+            organizationUuid: member.organizationUuid,
+        });
     },
 };

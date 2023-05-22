@@ -1,8 +1,11 @@
 import { subject } from '@casl/ability';
 import {
     AllowedEmailDomains,
+    CreateGroup,
     CreateOrganization,
+    CreateProject,
     ForbiddenError,
+    Group,
     isUserWithOrg,
     LightdashMode,
     NotExistsError,
@@ -20,6 +23,7 @@ import {
 import { UpdateAllowedEmailDomains } from '@lightdash/common/src/types/organization';
 import { analytics } from '../../analytics/client';
 import { lightdashConfig } from '../../config/lightdashConfig';
+import { GroupsModel } from '../../models/GroupsModel';
 import { InviteLinkModel } from '../../models/InviteLinkModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { OrganizationAllowedEmailDomainsModel } from '../../models/OrganizationAllowedEmailDomainsModel';
@@ -35,6 +39,8 @@ type OrganizationServiceDependencies = {
     inviteLinkModel: InviteLinkModel;
     organizationMemberProfileModel: OrganizationMemberProfileModel;
     userModel: UserModel;
+
+    groupsModel: GroupsModel;
     organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
 };
 
@@ -53,6 +59,8 @@ export class OrganizationService {
 
     private readonly organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
 
+    private readonly groupsModel: GroupsModel;
+
     constructor({
         organizationModel,
         projectModel,
@@ -60,6 +68,7 @@ export class OrganizationService {
         inviteLinkModel,
         organizationMemberProfileModel,
         userModel,
+        groupsModel,
         organizationAllowedEmailDomainsModel,
     }: OrganizationServiceDependencies) {
         this.organizationModel = organizationModel;
@@ -70,6 +79,7 @@ export class OrganizationService {
         this.userModel = userModel;
         this.organizationAllowedEmailDomainsModel =
             organizationAllowedEmailDomainsModel;
+        this.groupsModel = groupsModel;
     }
 
     async get(user: SessionUser): Promise<Organization> {
@@ -395,5 +405,40 @@ export class OrganizationService {
                 projectIds: [],
             },
         });
+    }
+
+    async addGroupToOrganization(
+        actor: SessionUser,
+        createGroup: Pick<CreateGroup, 'name'>,
+    ): Promise<Group> {
+        if (
+            actor.organizationUuid === undefined ||
+            actor.ability.cannot(
+                'create',
+                subject('Group', {
+                    organizationUuid: actor.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const group = await this.groupsModel.createGroup({
+            organizationUuid: actor.organizationUuid,
+            ...createGroup,
+        });
+        return group;
+    }
+
+    async listGroupsInOrganization(actor: SessionUser): Promise<Group[]> {
+        if (actor.organizationUuid === undefined) {
+            throw new ForbiddenError();
+        }
+        const groups = await this.groupsModel.find({
+            organizationUuid: actor.organizationUuid,
+        });
+        const allowedGroups = groups.filter((group) =>
+            actor.ability.can('view', subject('Group', group)),
+        );
+        return allowedGroups;
     }
 }

@@ -32,6 +32,7 @@ type Subject =
     | 'CsvJobResult'
     | 'PinnedItems'
     | 'Validation'
+    | 'Group'
     | 'all';
 
 type PossibleAbilities = [

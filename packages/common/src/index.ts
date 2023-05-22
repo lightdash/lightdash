@@ -106,6 +106,7 @@ export * from './types/explore';
 export * from './types/field';
 export * from './types/fieldMatch';
 export * from './types/filter';
+export * from './types/groups';
 export * from './types/job';
 export * from './types/metricQuery';
 export * from './types/openIdIdentity';
@@ -198,6 +199,7 @@ export const SEED_ORG_1 = {
     organization_uuid: '172a2270-000f-42be-9c68-c4752c23ae51',
     organization_name: 'Jaffle Shop',
 };
+
 export const SEED_ORG_1_ADMIN = {
     user_uuid: 'b264d83a-9000-426a-85ec-3f9c20f368ce',
     first_name: 'David',
@@ -245,6 +247,11 @@ export const SEED_PROJECT = {
 };
 export const SEED_SPACE = {
     name: SEED_PROJECT.name,
+};
+
+export const SEED_GROUP = {
+    groupUuid: '9d615ede-5758-4954-9fb9-2a07fc415ba5',
+    name: 'Org 1 Group',
 };
 
 export type ArgumentsOf<F extends Function> = F extends (

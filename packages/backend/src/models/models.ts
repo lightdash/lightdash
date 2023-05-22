@@ -6,6 +6,7 @@ import { DashboardModel } from './DashboardModel/DashboardModel';
 import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';
 import { DbtCloudMetricsModel } from './DbtCloudMetricsModel';
 import { EmailModel } from './EmailModel';
+import { GroupsModel } from './GroupsModel';
 import { InviteLinkModel } from './InviteLinkModel';
 import { JobModel } from './JobModel/JobModel';
 import { OnboardingModel } from './OnboardingModel/OnboardingModel';
@@ -85,3 +86,5 @@ export const resourceViewItemModel = new ResourceViewItemModel({
 export const validationModel = new ValidationModel({
     database,
 });
+
+export const groupsModel = new GroupsModel({ database });
