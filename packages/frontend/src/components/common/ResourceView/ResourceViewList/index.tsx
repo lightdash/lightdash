@@ -15,7 +15,11 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
-import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
+import {
+    IconAlertTriangle,
+    IconChevronDown,
+    IconChevronUp,
+} from '@tabler/icons-react';
 import React, { FC, useMemo, useState } from 'react';
 import { Link, useHistory, useParams } from 'react-router-dom';
 import { ResourceViewCommonProps } from '..';
@@ -148,6 +152,17 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                         >
                             <Group noWrap>
                                 <ResourceIconWithIndicator
+                                    iconProps={{
+                                        fill: 'red',
+                                        icon: IconAlertTriangle,
+                                    }}
+                                    tooltipProps={{
+                                        w: 300,
+                                        withinPortal: true,
+                                        multiline: true,
+                                        offset: -2,
+                                        position: 'bottom',
+                                    }}
                                     disabled={!validationError}
                                     tooltipLabel={
                                         canUserManageValidation ? (

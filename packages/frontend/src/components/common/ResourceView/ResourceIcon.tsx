@@ -4,10 +4,16 @@ import {
     ResourceViewItem,
     ResourceViewItemType,
 } from '@lightdash/common';
-import { Center, Indicator, Paper, Tooltip } from '@mantine/core';
+import {
+    Center,
+    Indicator,
+    IndicatorProps,
+    Paper,
+    Tooltip,
+    TooltipProps,
+} from '@mantine/core';
 import {
     Icon as TablerIconType,
-    IconAlertTriangle,
     IconChartArea,
     IconChartAreaLine,
     IconChartBar,
@@ -142,11 +148,14 @@ export const ResourceTypeIcon: FC<ResourceTypeIconProps> = ({ type }) => {
     }
 };
 
-export const ResourceIconWithIndicator: FC<{
-    children: ReactNode;
-    disabled: boolean;
-    tooltipLabel: ReactNode;
-}> = ({ disabled, tooltipLabel, children }) => {
+export const ResourceIconWithIndicator: FC<
+    {
+        children: ReactNode;
+        tooltipLabel: ReactNode;
+        iconProps: MantineIconProps;
+        tooltipProps: Partial<TooltipProps>;
+    } & Pick<IndicatorProps, 'disabled'>
+> = ({ disabled, tooltipLabel, iconProps, tooltipProps, children }) => {
     // NOTE: Control the Tooltip visibility manually to allow hovering on Label.
     const [opened, setOpened] = useState(false);
     const [isHovering, setIsHovering] = useState(false);
@@ -184,11 +193,7 @@ export const ResourceIconWithIndicator: FC<{
             color="transparent"
             label={
                 <Tooltip
-                    w={300}
-                    withinPortal
-                    multiline
-                    offset={-2}
-                    position="bottom"
+                    {...tooltipProps}
                     sx={{ pointerEvents: 'auto' }}
                     label={
                         <div
@@ -201,8 +206,7 @@ export const ResourceIconWithIndicator: FC<{
                     opened={opened || isHovering}
                 >
                     <MantineIcon
-                        fill="red"
-                        icon={IconAlertTriangle}
+                        {...iconProps}
                         onMouseEnter={handleMouseEnter}
                         onMouseLeave={handleMouseLeave}
                     />
