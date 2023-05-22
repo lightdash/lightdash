@@ -22,7 +22,7 @@ export type ApiValidateResponse = {
 };
 
 export type ValidationSummary = {
-    validationError:
+    validationError?:
         | {
               error: ValidationResponse['error'];
               createdAt: ValidationResponse['createdAt'];
