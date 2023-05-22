@@ -1,3 +1,10 @@
+# [0.567.0](https://github.com/lightdash/lightdash/compare/0.566.2...0.567.0) (2023-05-22)
+
+
+### Features
+
+* add groups API ([#5491](https://github.com/lightdash/lightdash/issues/5491)) ([54a0de1](https://github.com/lightdash/lightdash/commit/54a0de17ccea0c4a11c628c22c1760f53990bc33))
+
 ## [0.566.2](https://github.com/lightdash/lightdash/compare/0.566.1...0.566.2) (2023-05-22)
 
 
