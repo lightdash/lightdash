@@ -7,6 +7,8 @@ import {
     fieldId as getFieldId,
     ForbiddenError,
     getFilterRules,
+    getSpaceAccessFromSummary,
+    InlineErrorType,
     isDashboardChartTileType,
     isDimension,
     isExploreError,
@@ -95,11 +97,16 @@ export class ValidationService {
         }
         const errors = explores.reduce<CreateValidation[]>((acc, explore) => {
             if (isExploreError(explore)) {
-                const exploreErrors = explore.errors.map((ee) => ({
-                    name: explore.name,
-                    error: ee.message,
-                    projectUuid,
-                }));
+                const exploreErrors = explore.errors
+                    .filter(
+                        (error) =>
+                            error.type !== InlineErrorType.NO_DIMENSIONS_FOUND,
+                    )
+                    .map((ee) => ({
+                        name: explore.name,
+                        error: ee.message,
+                        projectUuid,
+                    }));
                 return [...acc, ...exploreErrors];
             }
             return acc;
@@ -420,7 +427,12 @@ export class ValidationService {
             const hasAccess = space && hasSpaceAccess(user, space);
             if (hasAccess) return validation;
 
-            return { ...validation, name: 'Private content' };
+            return {
+                ...validation,
+                chartUuid: undefined,
+                dashboardUuid: undefined,
+                name: 'Private content',
+            };
         });
     }
 

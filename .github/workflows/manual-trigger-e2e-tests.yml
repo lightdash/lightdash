@@ -57,12 +57,10 @@ jobs:
       # After the test run completes
       # store videos and any screenshots
       - uses: actions/upload-artifact@v3
-        if: always()
+        if: failure()
         with:
-          name: cypress-screenshots
-          path: packages/e2e/cypress/screenshots
-      - uses: actions/upload-artifact@v3
-        if: always()
-        with:
-          name: cypress-videos
-          path: packages/e2e/cypress/videos
+          name: cypress-screenshots-and-videos
+          path: |
+            packages/e2e/cypress/screenshots
+            packages/e2e/cypress/videos
+          if-no-files-found: ignore

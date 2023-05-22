@@ -207,7 +207,7 @@ const GeneralSettings: FC = () => {
                     />
                 ) : null}
 
-                {canUsePivotTable && metricsAsRows ? (
+                {canUsePivotTable ? (
                     <Checkbox
                         label="Show row total"
                         checked={showRowCalculation}
@@ -215,15 +215,14 @@ const GeneralSettings: FC = () => {
                             setShowRowCalculation(!showRowCalculation);
                         }}
                     />
-                ) : (
-                    <Checkbox
-                        label="Show column total"
-                        checked={showColumnCalculation}
-                        onChange={() => {
-                            setShowColumnCalculation(!showColumnCalculation);
-                        }}
-                    />
-                )}
+                ) : null}
+                <Checkbox
+                    label="Show column total"
+                    checked={showColumnCalculation}
+                    onChange={() => {
+                        setShowColumnCalculation(!showColumnCalculation);
+                    }}
+                />
             </FormGroup>
 
             <SectionTitle>Columns</SectionTitle>

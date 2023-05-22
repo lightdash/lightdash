@@ -16,6 +16,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { TableColumn, TableHeader } from '../../components/common/Table/types';
 import { pivotQueryResults } from '../pivotTable/pivotQueryResults';
+import { isSummable } from '../useColumnTotals';
 import getDataAndColumns from './getDataAndColumns';
 
 const useTableConfig = (
@@ -207,6 +208,15 @@ const useTableConfig = (
             );
         });
 
+        const summableMetricFieldIds = selectedItemIds?.filter((fieldId) => {
+            const field = getField(fieldId);
+
+            return (
+                isSummable(field) &&
+                !(hiddenMetricFieldIds || []).includes(fieldId)
+            );
+        });
+
         try {
             const data = pivotQueryResults({
                 pivotConfig: {
@@ -214,6 +224,7 @@ const useTableConfig = (
                     metricsAsRows,
                     columnOrder,
                     hiddenMetricFieldIds,
+                    summableMetricFieldIds,
                     columnTotals: tableChartConfig?.showColumnCalculation,
                     rowTotals: tableChartConfig?.showRowCalculation,
                 },

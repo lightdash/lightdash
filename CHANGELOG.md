@@ -1,3 +1,32 @@
+# [0.566.0](https://github.com/lightdash/lightdash/compare/0.565.1...0.566.0) (2023-05-22)
+
+
+### Features
+
+* add links to each chart and dashboard errors ([#5555](https://github.com/lightdash/lightdash/issues/5555)) ([8a22e72](https://github.com/lightdash/lightdash/commit/8a22e72779856f4a437a89df4eaa09399ce9aa90))
+* remove NO_DIMENSIONS_FOUND from validation ([#5561](https://github.com/lightdash/lightdash/issues/5561)) ([a1a8919](https://github.com/lightdash/lightdash/commit/a1a891900d9ce3832e6cb4dee0467d5f0aadc296))
+
+## [0.565.1](https://github.com/lightdash/lightdash/compare/0.565.0...0.565.1) (2023-05-22)
+
+
+### Bug Fixes
+
+* Copying a list of IDs into filters makes it lowercase ([#5558](https://github.com/lightdash/lightdash/issues/5558)) ([3b107af](https://github.com/lightdash/lightdash/commit/3b107af06db1a90099fa5c5e990c987dba01b008))
+
+# [0.565.0](https://github.com/lightdash/lightdash/compare/0.564.0...0.565.0) (2023-05-22)
+
+
+### Features
+
+* move headway badge to top right ([#5554](https://github.com/lightdash/lightdash/issues/5554)) ([e68b2f9](https://github.com/lightdash/lightdash/commit/e68b2f9b754ef0611d2f59fdb89e5b0d133eead1))
+
+# [0.564.0](https://github.com/lightdash/lightdash/compare/0.563.0...0.564.0) (2023-05-19)
+
+
+### Features
+
+* row totals ([#5532](https://github.com/lightdash/lightdash/issues/5532)) ([910a67d](https://github.com/lightdash/lightdash/commit/910a67d08d8d7c8bb2b549f92c343c89284a7546))
+
 # [0.563.0](https://github.com/lightdash/lightdash/compare/0.562.0...0.563.0) (2023-05-19)
 
 

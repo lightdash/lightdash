@@ -1,4 +1,4 @@
-import { Box, Button, Tooltip } from '@mantine/core';
+import { Box, Button, Tooltip, useMantineTheme } from '@mantine/core';
 import { IconSparkles } from '@tabler/icons-react';
 import { FC, useEffect } from 'react';
 import useHeadway from '../../hooks/thirdPartyServices/useHeadway';
@@ -12,6 +12,7 @@ type Props = {
 };
 
 const HeadwayMenuItem: FC<Props> = ({ projectUuid }) => {
+    const theme = useMantineTheme();
     const { track } = useTracking();
     const { user } = useApp();
     const isHeadwayloaded = useHeadway();
@@ -64,7 +65,7 @@ const HeadwayMenuItem: FC<Props> = ({ projectUuid }) => {
     if (!isHeadwayloaded || !projectUuid) return null;
 
     return (
-        <Tooltip color="dark" label="What's new?">
+        <Tooltip color="dark" label="What's new?" withinPortal>
             <Button
                 variant="default"
                 size="xs"
@@ -77,9 +78,28 @@ const HeadwayMenuItem: FC<Props> = ({ projectUuid }) => {
                     pos="absolute"
                     sx={{
                         pointerEvents: 'none',
-                        top: 8,
+                        '.HW_badge': {
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            top: '4px',
+                            left: '12px',
+                            width: '12px',
+                            height: '12px',
+                            fontSize: theme.fontSizes.xs,
+                            background: theme.colors.red[8],
+                        },
                         '.HW_badge.HW_softHidden': {
-                            background: 'transparent',
+                            background: 'transparent !important',
+                        },
+                        '.HW_badge.HW_bounce': {
+                            animation: 'none !important',
+                        },
+                        '.HW_badge.HW_shake': {
+                            animation: 'none !important',
+                        },
+                        '.HW_badge.HW_wobble': {
+                            animation: 'none !important',
                         },
                     }}
                 />

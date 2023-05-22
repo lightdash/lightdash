@@ -60,6 +60,23 @@ const PivotTable: FC<PivotTableProps> = ({
     );
 
     const getRowTotalValueFromAxis = useCallback(
+        (total: unknown, colIndex: number): ResultValue => {
+            const value = last(data.rowTotalFields)?.[colIndex];
+
+            if (!value || !value.fieldId) throw new Error('Invalid pivot data');
+            const item = getField(value.fieldId);
+
+            const formattedValue = formatItemValue(item, total);
+
+            return {
+                raw: total,
+                formatted: formattedValue,
+            };
+        },
+        [data.rowTotalFields, getField],
+    );
+
+    const getMetricAsRowTotalValueFromAxis = useCallback(
         (total: unknown, rowIndex: number): ResultValue | null => {
             const value = last(data.indexValues[rowIndex]);
             if (!value || !value.fieldId) throw new Error('Invalid pivot data');
@@ -97,6 +114,23 @@ const PivotTable: FC<PivotTableProps> = ({
         [data.headerValues, getField],
     );
 
+    const getMetricAsRowColumnTotalValueFromAxis = useCallback(
+        (total: unknown, rowIndex: number): ResultValue => {
+            const value = last(data.columnTotalFields?.[rowIndex]);
+            if (!value || !value.fieldId) throw new Error('Invalid pivot data');
+
+            const item = getField(value.fieldId);
+
+            const formattedValue = formatItemValue(item, total);
+
+            return {
+                raw: total,
+                formatted: formattedValue,
+            };
+        },
+        [data.columnTotalFields, getField],
+    );
+
     const getUnderlyingFieldValues = useCallback(
         (rowIndex: number, colIndex: number) => {
             const item = getItemFromAxis(rowIndex, colIndex);
@@ -120,11 +154,9 @@ const PivotTable: FC<PivotTableProps> = ({
         [data.indexValues, data.headerValues, data.dataValues, getItemFromAxis],
     );
 
-    const hasColumnTotals =
-        !data.pivotConfig.metricsAsRows && data.pivotConfig.columnTotals;
+    const hasColumnTotals = data.pivotConfig.columnTotals;
 
-    const hasRowTotals =
-        data.pivotConfig.metricsAsRows && data.pivotConfig.rowTotals;
+    const hasRowTotals = data.pivotConfig.rowTotals;
 
     return (
         <Table
@@ -239,8 +271,11 @@ const PivotTable: FC<PivotTableProps> = ({
                                                           cellStyles.header,
                                                       )}
                                                   >
-                                                      {totalLabel.fieldId ??
-                                                          'Total'}
+                                                      {totalLabel.fieldId
+                                                          ? `Total ${getFieldLabel(
+                                                                totalLabel.fieldId,
+                                                            )}`
+                                                          : `Total`}
                                                   </HeaderCell>
                                               ) : (
                                                   <th
@@ -348,11 +383,16 @@ const PivotTable: FC<PivotTableProps> = ({
                             {hasRowTotals
                                 ? data.rowTotals?.[rowIndex].map(
                                       (total, colIndex) => {
-                                          const value =
-                                              getRowTotalValueFromAxis(
-                                                  total,
-                                                  rowIndex,
-                                              );
+                                          const value = data.pivotConfig
+                                              .metricsAsRows
+                                              ? getMetricAsRowTotalValueFromAxis(
+                                                    total,
+                                                    rowIndex,
+                                                )
+                                              : getRowTotalValueFromAxis(
+                                                    total,
+                                                    colIndex,
+                                                );
 
                                           return value ? (
                                               <TotalCell
@@ -402,7 +442,11 @@ const PivotTable: FC<PivotTableProps> = ({
                                                 cellStyles.header,
                                             )}
                                         >
-                                            {totalLabel.fieldId ?? 'Total'}
+                                            {totalLabel.fieldId
+                                                ? `Total ${getFieldLabel(
+                                                      totalLabel.fieldId,
+                                                  )}`
+                                                : `Total`}
                                         </HeaderCell>
                                     ) : (
                                         <th
@@ -416,10 +460,15 @@ const PivotTable: FC<PivotTableProps> = ({
                             )}
 
                             {row.map((total, totalColIndex) => {
-                                const value = getColumnTotalValueFromAxis(
-                                    total,
-                                    totalColIndex,
-                                );
+                                const value = data.pivotConfig.metricsAsRows
+                                    ? getMetricAsRowColumnTotalValueFromAxis(
+                                          total,
+                                          totalRowIndex,
+                                      )
+                                    : getColumnTotalValueFromAxis(
+                                          total,
+                                          totalColIndex,
+                                      );
                                 return value ? (
                                     <TotalCell
                                         key={`column-total-${totalRowIndex}-${totalColIndex}`}
@@ -437,6 +486,18 @@ const PivotTable: FC<PivotTableProps> = ({
                                     />
                                 );
                             })}
+
+                            {hasRowTotals
+                                ? data.rowTotalFields?.[0].map((_, index) => (
+                                      <td
+                                          key={`footer-empty-${totalRowIndex}-${index}`}
+                                          className={cellCx(
+                                              cellStyles.root,
+                                              cellStyles.rowNumber,
+                                          )}
+                                      />
+                                  ))
+                                : null}
                         </tr>
                     ))}
                 </tfoot>

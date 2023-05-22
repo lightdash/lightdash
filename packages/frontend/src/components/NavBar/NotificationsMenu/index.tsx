@@ -44,7 +44,12 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
                         },
                     }}
                 >
-                    <Indicator color="red" offset={2} disabled={disableBadge}>
+                    <Indicator
+                        size={12}
+                        color="red"
+                        offset={1}
+                        disabled={disableBadge}
+                    >
                         <MantineIcon icon={IconBell} />
                     </Indicator>
                 </Button>

@@ -255,7 +255,7 @@ export const exploreError: ExploreError = {
     errors: [
         {
             message: 'Explore error message',
-            type: InlineErrorType.NO_DIMENSIONS_FOUND,
+            type: InlineErrorType.METADATA_PARSE_ERROR,
         },
     ],
 };
