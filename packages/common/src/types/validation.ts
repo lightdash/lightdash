@@ -22,10 +22,6 @@ export type ApiValidateResponse = {
 };
 
 export type ValidationSummary = {
-    validationError?:
-        | {
-              error: ValidationResponse['error'];
-              createdAt: ValidationResponse['createdAt'];
-          }
-        | undefined;
+    error: ValidationResponse['error'];
+    createdAt: ValidationResponse['createdAt'];
 };
