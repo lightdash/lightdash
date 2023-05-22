@@ -29,7 +29,7 @@ import {
 @Response<ApiErrorPayload>('default', 'Error')
 export class GroupsController extends Controller {
     /**
-     * Get group details including a list of members
+     * Get group details
      * @param groupUuid unique id of the group
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])

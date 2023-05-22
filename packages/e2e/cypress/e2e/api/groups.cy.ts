@@ -16,6 +16,7 @@ describe('Groups API', () => {
         cy.request({
             url: `api/v1/groups/${SEED_GROUP.groupUuid}`,
             method: 'GET',
+            failOnStatusCode: false,
         })
             .its('status')
             .should('eq', 403);

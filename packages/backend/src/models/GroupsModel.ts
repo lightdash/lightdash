@@ -40,9 +40,9 @@ export class GroupsModel {
     }
 
     async createGroup(group: CreateGroup): Promise<Group> {
-        const [row] = await this.database.raw<
-            { created_at: Date; group_uuid: string }[]
-        >(
+        const results = await this.database.raw<{
+            rows: { created_at: Date; group_uuid: string }[];
+        }>(
             `
             INSERT INTO groups (name, organization_id)
             SELECT ?, organization_id
@@ -52,6 +52,7 @@ export class GroupsModel {
         `,
             [group.name, group.organizationUuid],
         );
+        const [row] = results.rows;
         if (row === undefined) {
             throw new UnexpectedDatabaseError(`Failed to create organization`);
         }
@@ -85,20 +86,32 @@ export class GroupsModel {
 
     async getGroupWithMembers(groupUuid: string): Promise<GroupWithMembers> {
         const rows = await this.database('groups')
-            .innerJoin(
-                'group_memberships',
-                'groups.group_uuid',
-                'group_memberships.group_uuid',
-            )
-            .innerJoin('users', 'group_memberships.user_id', 'users.user_id')
-            .innerJoin('emails', 'users.user_id', 'emails.user_id')
+            .with('members', (query) => {
+                query
+                    .from('group_memberships')
+                    .innerJoin(
+                        'users',
+                        'group_memberships.user_id',
+                        'users.user_id',
+                    )
+                    .innerJoin('emails', 'users.user_id', 'emails.user_id')
+                    .where('group_memberships.group_uuid', groupUuid)
+                    .andWhere('emails.is_primary', true)
+                    .select(
+                        'group_memberships.group_uuid',
+                        'users.user_uuid',
+                        'users.first_name',
+                        'users.last_name',
+                        'emails.email',
+                    );
+            })
             .innerJoin(
                 'organizations',
                 'groups.organization_id',
                 'organizations.organization_id',
             )
+            .leftJoin('members', 'groups.group_uuid', 'members.group_uuid')
             .where('groups.group_uuid', groupUuid)
-            .andWhere('emails.is_primary', true)
             .select();
         if (rows.length === 0) {
             throw new NotFoundError(`No group found`);
@@ -108,7 +121,7 @@ export class GroupsModel {
             name: rows[0].name,
             createdAt: rows[0].created_at,
             organizationUuid: rows[0].organization_uuid,
-            members: rows.map((row) => ({
+            members: (rows[0].user_uuid ? rows : []).map((row) => ({
                 userUuid: row.user_uuid,
                 email: row.email,
                 firstName: row.first_name,
@@ -129,7 +142,9 @@ export class GroupsModel {
         // - the user uuid doesn't exist
         // - the user is already a member of the group
         // - the user is not a member of the group's parent organization
-        const [insertedMembership] = await this.database.raw(
+        const {
+            rows: [insertedMembership],
+        } = await this.database.raw(
             `
             INSERT INTO group_memberships (group_uuid, user_id, organization_id)
             SELECT groups.group_uuid, users.user_id, organization_memberships.organization_id
@@ -139,16 +154,11 @@ export class GroupsModel {
                 AND users.user_uuid = :userUuid
             WHERE groups.group_uuid = :groupUuid
             ON CONFLICT DO NOTHING
-            RETURNING users.user_id, groups.group_uuid
+            RETURNING *
         `,
             member,
         );
-        return insertedMembership === undefined
-            ? insertedMembership
-            : {
-                  groupUuid: insertedMembership.group_uuid,
-                  userUuid: insertedMembership.user_uuid,
-              };
+        return insertedMembership === undefined ? undefined : member;
     }
 
     async removeGroupMember(member: GroupMembership): Promise<boolean> {
@@ -163,7 +173,14 @@ export class GroupsModel {
 
     async updateGroup(groupUuid: string, update: UpdateGroup): Promise<Group> {
         // Updates with joins not supported by knex
-        const results = await this.database.raw(
+        const results = await this.database.raw<{
+            rows: {
+                group_uuid: string;
+                name: string;
+                created_at: Date;
+                organization_uuid: string;
+            }[];
+        }>(
             `
             UPDATE groups
             SET name = :name
