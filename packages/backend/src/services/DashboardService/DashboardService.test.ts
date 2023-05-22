@@ -61,6 +61,7 @@ jest.mock('../../models/models', () => ({
 
     spaceModel: {
         getFullSpace: jest.fn(async () => publicSpace),
+        getSpaceSummary: jest.fn(async () => publicSpace),
     },
     analyticsModel: {
         addDashboardViewEvent: jest.fn(async () => null),
@@ -289,7 +290,7 @@ describe('DashboardService', () => {
     });
 
     test('should not see dashboard from private space if you are not admin', async () => {
-        (spaceModel.getFullSpace as jest.Mock).mockImplementationOnce(
+        (spaceModel.getSpaceSummary as jest.Mock).mockImplementationOnce(
             async () => privateSpace,
         );
 
@@ -320,7 +321,7 @@ describe('DashboardService', () => {
     });
 
     test('should not see dashboards from private space if you are not an admin', async () => {
-        (spaceModel.getFullSpace as jest.Mock).mockImplementationOnce(
+        (spaceModel.getSpaceSummary as jest.Mock).mockImplementationOnce(
             async () => privateSpace,
         );
 

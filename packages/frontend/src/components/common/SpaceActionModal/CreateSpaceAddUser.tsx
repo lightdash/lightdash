@@ -86,7 +86,7 @@ export const CreateSpaceAddUser: FC<CreateSpaceAddUserProps> = ({
                 userUuid: userUuid,
                 firstName: '',
                 lastName: '',
-                role: null,
+                role: ProjectMemberRole.VIEWER,
             })),
         );
     }, [form, usersSelected]);
