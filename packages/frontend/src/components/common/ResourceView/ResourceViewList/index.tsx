@@ -150,7 +150,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                 <ResourceIconWithIndicator
                                     disabled={!validationError}
                                     tooltipLabel={
-                                        !canUserManageValidation ? (
+                                        canUserManageValidation ? (
                                             <>
                                                 This content is broken. Learn
                                                 more about the validation
