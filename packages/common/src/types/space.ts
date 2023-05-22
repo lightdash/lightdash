@@ -1,5 +1,4 @@
-import { get } from 'http';
-import { DashboardBasicDetails } from './dashboard';
+import { SpaceDashboard } from './dashboard';
 import { ProjectMemberRole } from './projectMemberProfile';
 import { SpaceQuery } from './savedCharts';
 
@@ -10,7 +9,7 @@ export type Space = {
     isPrivate: boolean;
     queries: SpaceQuery[];
     projectUuid: string;
-    dashboards: DashboardBasicDetails[];
+    dashboards: SpaceDashboard[];
     access: SpaceShare[];
     pinnedListUuid: string | null;
     pinnedListOrder: number | null;
