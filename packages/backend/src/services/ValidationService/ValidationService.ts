@@ -7,7 +7,6 @@ import {
     fieldId as getFieldId,
     ForbiddenError,
     getFilterRules,
-    getSpaceAccessFromSummary,
     InlineErrorType,
     isDashboardChartTileType,
     isDimension,
