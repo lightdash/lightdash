@@ -157,7 +157,9 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                                 error(s){' '}
                                                 <Anchor
                                                     component={Link}
+                                                    fw={600}
                                                     to={`/generalSettings/projectManagement/${projectUuid}/validator`}
+                                                    color="blue.4"
                                                 >
                                                     here
                                                 </Anchor>
