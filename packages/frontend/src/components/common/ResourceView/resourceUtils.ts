@@ -87,21 +87,21 @@ export const getResourceViewsSinceWhenDescription = (
         : undefined;
 };
 
-export const hasResourceValidationError = (
+export const getResourceValidationError = (
     item: ResourceViewItem,
     validationErrors: ValidationResponse[] | undefined,
 ) => {
     switch (item.type) {
         case ResourceViewItemType.CHART:
-            return !!validationErrors?.find(
+            return validationErrors?.find(
                 (error) => error.chartUuid === item.data.uuid,
             );
         case ResourceViewItemType.DASHBOARD:
-            return !!validationErrors?.find(
+            return validationErrors?.find(
                 (error) => error.dashboardUuid === item.data.uuid,
             );
         case ResourceViewItemType.SPACE:
         default:
-            return false;
+            return undefined;
     }
 };
