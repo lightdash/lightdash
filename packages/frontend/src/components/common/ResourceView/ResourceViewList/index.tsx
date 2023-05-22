@@ -179,7 +179,12 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                                             ? 'teal'
                                                             : 'blue.4'
                                                     }
-                                                    onClickCapture={(e) => {
+                                                    onClickCapture={(
+                                                        e: React.MouseEvent<
+                                                            HTMLSpanElement,
+                                                            MouseEvent
+                                                        >,
+                                                    ) => {
                                                         e.stopPropagation();
 
                                                         clipboard.copy(
