@@ -428,7 +428,12 @@ export class ValidationService {
                 space && hasSpaceAccess(user, getSpaceAccessFromSummary(space));
             if (hasAccess) return validation;
 
-            return { ...validation, name: 'Private content' };
+            return {
+                ...validation,
+                chartUuid: undefined,
+                dashboardUuid: undefined,
+                name: 'Private content',
+            };
         });
     }
 
