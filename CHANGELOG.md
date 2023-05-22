@@ -1,3 +1,11 @@
+# [0.566.0](https://github.com/lightdash/lightdash/compare/0.565.1...0.566.0) (2023-05-22)
+
+
+### Features
+
+* add links to each chart and dashboard errors ([#5555](https://github.com/lightdash/lightdash/issues/5555)) ([8a22e72](https://github.com/lightdash/lightdash/commit/8a22e72779856f4a437a89df4eaa09399ce9aa90))
+* remove NO_DIMENSIONS_FOUND from validation ([#5561](https://github.com/lightdash/lightdash/issues/5561)) ([a1a8919](https://github.com/lightdash/lightdash/commit/a1a891900d9ce3832e6cb4dee0467d5f0aadc296))
+
 ## [0.565.1](https://github.com/lightdash/lightdash/compare/0.565.0...0.565.1) (2023-05-22)
 
 
