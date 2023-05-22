@@ -26,6 +26,7 @@ import {
 } from '@lightdash/warehouses';
 import { Knex } from 'knex';
 import { DatabaseError } from 'pg';
+import { v4 as uuid4 } from 'uuid';
 import { LightdashConfig } from '../../config/parseConfig';
 import { OrganizationTableName } from '../../database/entities/organizations';
 import { PinnedListTableName } from '../../database/entities/pinnedList';
@@ -40,6 +41,7 @@ import {
 } from '../../database/entities/projects';
 import { DbUser } from '../../database/entities/users';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
+import Logger from '../../logger';
 import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
 import Transaction = Knex.Transaction;
 
@@ -748,14 +750,60 @@ export class ProjectModel {
     }
 
     async duplicateContent(projectUuid: string, previewProjectUuid: string) {
+        Logger.debug(
+            `Duplicating content from ${projectUuid} to ${previewProjectUuid}`,
+        );
+
         return this.database.transaction(async (trx) => {
-            const [space] = await trx('spaces')
+            const previewProject = await trx('projects')
+                .where('project_uuid', previewProjectUuid)
+                .first();
+            const spaces = await trx('spaces')
                 .leftJoin(
                     'projects',
                     'projects.project_id',
                     'spaces.project_id',
                 )
-                .where('projects.project_uuid', previewProjectUuid);
+                .where('projects.project_uuid', projectUuid)
+                .select('spaces.*');
+
+            Logger.debug(
+                `Duplicating ${spaces.length} spaces on ${previewProjectUuid}`,
+            );
+            const spaceIds = spaces.map((s) => s.space_id);
+
+            const newSpaces = await trx('spaces')
+                .insert(
+                    spaces.map((d) => ({
+                        ...d,
+                        space_id: undefined,
+                        space_uuid: undefined,
+                        project_id: previewProject?.project_id,
+                    })),
+                )
+                .returning('*');
+
+            const spaceMapping = spaces.map((s, i) => ({
+                space_id: s.space_id,
+                space_uuid: s.space_uuid,
+                new_space_id: newSpaces[i].space_id,
+                new_space_uuid: newSpaces[i].space_uuid,
+            }));
+            const spaceShares = await trx('space_share').whereIn(
+                'space_id',
+                spaceIds,
+            );
+
+            const newSpaceShare = await trx('space_share')
+                .insert(
+                    spaceShares.map((d) => ({
+                        ...d,
+                        space_id: spaceMapping.find(
+                            (s) => s.space_id === d.space_id,
+                        )?.new_space_id!,
+                    })),
+                )
+                .returning('*');
 
             const charts = await trx('saved_queries')
                 .leftJoin('spaces', 'saved_queries.space_id', 'spaces.space_id')
@@ -768,6 +816,9 @@ export class ProjectModel {
                 .select('saved_queries.*');
 
             const chartIds = charts.map((d) => d.saved_query_id);
+            Logger.debug(
+                `Duplicating ${charts.length} charts on ${previewProjectUuid}`,
+            );
 
             const newCharts = await trx('saved_queries')
                 .insert(
@@ -775,7 +826,9 @@ export class ProjectModel {
                         ...d,
                         saved_query_id: undefined,
                         saved_query_uuid: undefined,
-                        space_id: space.space_id,
+                        space_id: spaceMapping.find(
+                            (s) => s.space_id === d.space_id,
+                        )?.new_space_id,
                     })),
                 )
                 .returning('*');
@@ -853,21 +906,22 @@ export class ProjectModel {
 
             const dashboardIds = dashboards.map((d) => d.dashboard_id);
 
+            Logger.debug(
+                `Duplicating ${chartVersions.length} dashboards on ${previewProjectUuid}`,
+            );
+
             const newDashboards = await trx('dashboards')
                 .insert(
                     dashboards.map((d) => ({
                         ...d,
                         dashboard_id: undefined,
                         dashboard_uuid: undefined,
-                        space_id: space.space_id,
+                        space_id: spaceMapping.find(
+                            (s) => s.space_id === d.space_id,
+                        )?.new_space_id,
                     })),
                 )
                 .returning('*');
-
-            const dashboardTiles = await trx('dashboard_tiles').whereIn(
-                'dashboard_id',
-                dashboardIds,
-            );
 
             const dashboardMapping = dashboards.map((c, i) => ({
                 dashboard_id: c.dashboard_id,
@@ -875,6 +929,122 @@ export class ProjectModel {
                 dashboard_uuid: c.dashboard_uuid,
                 new_dashboard_uuid: newDashboards[i].dashboard_uuid,
             }));
+
+            const dashboardVersions = await trx('dashboard_versions').whereIn(
+                'dashboard_id',
+                dashboardIds,
+            );
+
+            const dashboardVersionIds = dashboardVersions.map(
+                (dv) => dv.dashboard_version_id,
+            );
+            const newDashboardVersions = await trx('dashboard_versions')
+                .insert(
+                    dashboardVersions.map((d) => ({
+                        ...d,
+                        dashboard_version_id: undefined,
+                        dashboard_id: dashboardMapping.find(
+                            (m) => m.dashboard_id === d.dashboard_id,
+                        )?.new_dashboard_id!,
+                    })),
+                )
+                .returning('*');
+
+            // TODO insert latest version ?
+            const dashboardVersionsMapping = dashboardVersions.map((c, i) => ({
+                dashboard_version_id: c.dashboard_version_id,
+                new_dashboard_version_id:
+                    newDashboardVersions[i].dashboard_version_id,
+            }));
+
+            const dashboardTiles = await trx('dashboard_tiles').whereIn(
+                'dashboard_version_id',
+                dashboardVersionIds,
+            );
+
+            const dashboardTileUuids = dashboardTiles.map(
+                (dv) => dv.dashboard_tile_uuid,
+            );
+
+            const newDashboardTiles = await trx('dashboard_tiles')
+                .insert(
+                    dashboardTiles.map((d) => ({
+                        ...d,
+                        dashboard_tile_uuid: uuid4(),
+                        dashboard_version_id: dashboardVersionsMapping.find(
+                            (m) =>
+                                m.dashboard_version_id ===
+                                d.dashboard_version_id,
+                        )?.new_dashboard_version_id!,
+                    })),
+                )
+                .returning('*');
+
+            const dashboardTilesMapping = dashboardTiles.map((c, i) => ({
+                dashboard_tile_uuid: c.dashboard_tile_uuid,
+                new_dashboard_tile_uuid:
+                    newDashboardTiles[i].dashboard_tile_uuid,
+            }));
+
+            // Tile charts
+            const tileCharts = await trx('dashboard_tile_charts').whereIn(
+                'dashboard_tile_uuid',
+                dashboardTileUuids,
+            );
+
+            const newTileCharts = await trx('dashboard_tile_charts').insert(
+                tileCharts.map((d) => ({
+                    ...d,
+                    saved_chart_id: chartMapping.find(
+                        (c) => c.chart_id === d.saved_chart_id,
+                    )?.new_chart_id,
+                    dashboard_version_id: dashboardVersionsMapping.find(
+                        (m) =>
+                            m.dashboard_version_id === d.dashboard_version_id,
+                    )?.new_dashboard_version_id!,
+                    dashboard_tile_uuid: dashboardTilesMapping.find(
+                        (m) => m.dashboard_tile_uuid === d.dashboard_tile_uuid,
+                    )?.new_dashboard_tile_uuid!,
+                })),
+            );
+            // Tile looms
+            const tileLooms = await trx('dashboard_tile_looms').whereIn(
+                'dashboard_tile_uuid',
+                dashboardTileUuids,
+            );
+
+            const newTileLooms = await trx('dashboard_tile_looms').insert(
+                tileLooms.map((d) => ({
+                    ...d,
+                    dashboard_version_id: dashboardVersionsMapping.find(
+                        (m) =>
+                            m.dashboard_version_id === d.dashboard_version_id,
+                    )?.new_dashboard_version_id!,
+                    dashboard_tile_uuid: dashboardTilesMapping.find(
+                        (m) => m.dashboard_tile_uuid === d.dashboard_tile_uuid,
+                    )?.new_dashboard_tile_uuid!,
+                })),
+            );
+            // Tile markdowns
+            const tileMarkdowns = await trx('dashboard_tile_markdowns').whereIn(
+                'dashboard_tile_uuid',
+                dashboardTileUuids,
+            );
+
+            const newTileMarkdowns = await trx(
+                'dashboard_tile_markdowns',
+            ).insert(
+                tileMarkdowns.map((d) => ({
+                    ...d,
+                    dashboard_version_id: dashboardVersionsMapping.find(
+                        (m) =>
+                            m.dashboard_version_id === d.dashboard_version_id,
+                    )?.new_dashboard_version_id!,
+                    dashboard_tile_uuid: dashboardTilesMapping.find(
+                        (m) => m.dashboard_tile_uuid === d.dashboard_tile_uuid,
+                    )?.new_dashboard_tile_uuid!,
+                })),
+            );
         });
     }
 
