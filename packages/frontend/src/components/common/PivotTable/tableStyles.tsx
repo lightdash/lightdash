@@ -1,5 +1,6 @@
 import { createStyles } from '@mantine/core';
 import { darken } from 'polished';
+import { isHexCodeColor } from '../../../utils/colorUtils';
 
 export const usePivotTableStyles = createStyles((theme) => ({
     root: {
@@ -84,13 +85,19 @@ export const usePivotTableCellStyles = createStyles<
               backgroundColor: props.conditionalFormatting?.backgroundColor,
 
               '&[data-expanded="true"]:not([data-copied="true"])': {
-                  backgroundColor: darken(0.1)(
+                  backgroundColor: isHexCodeColor(
                       props.conditionalFormatting.backgroundColor,
-                  ),
+                  )
+                      ? darken(0.1)(props.conditionalFormatting.backgroundColor)
+                      : undefined,
 
-                  outline: `1px solid ${darken(0.3)(
+                  outline: isHexCodeColor(
                       props.conditionalFormatting.backgroundColor,
-                  )}`,
+                  )
+                      ? `1px solid ${darken(0.3)(
+                            props.conditionalFormatting.backgroundColor ?? '',
+                        )}`
+                      : undefined,
               },
           }
         : {},

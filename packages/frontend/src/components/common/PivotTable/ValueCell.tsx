@@ -17,7 +17,7 @@ import {
     useState,
 } from 'react';
 
-import { readableColor } from '../../../utils/colorUtils';
+import { isHexCodeColor, readableColor } from '../../../utils/colorUtils';
 import { getConditionalRuleLabel } from '../Filters/configs';
 import { usePivotTableCellStyles } from './tableStyles';
 import ValueCellMenu from './ValueCellMenu';
@@ -67,7 +67,11 @@ const ValueCell: FC<ValueCellProps> = ({
             getConditionalRuleLabel,
         );
 
-        if (!conditionalFormattingConfig) return undefined;
+        if (
+            !conditionalFormattingConfig ||
+            !isHexCodeColor(conditionalFormattingConfig.color)
+        )
+            return undefined;
 
         return {
             tooltipContent,

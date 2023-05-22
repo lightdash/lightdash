@@ -6,9 +6,8 @@ import { useForm } from '@mantine/form';
 import { FC, useEffect } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useOrganizationUpdateMutation } from '../../../hooks/organization/useOrganizationUpdateMutation';
+import { isHexCodeColor } from '../../../utils/colorUtils';
 import { Can, useAbilityContext } from '../../common/Authorization';
-
-const IS_HEX_CODE_COLOR_REGEX = /^#([a-fA-F0-9]{3}|[a-fA-F0-9]{6})$/;
 
 const getColorFormFields = (colors: string[]) =>
     colors.reduce(
@@ -28,7 +27,7 @@ const AppearancePanel: FC = () => {
         ).reduce(
             (acc, key) => ({
                 [key]: (value: string) =>
-                    !IS_HEX_CODE_COLOR_REGEX.test(value)
+                    !isHexCodeColor(value)
                         ? 'Invalid color, ensure it is in hex format (e.g. #ff000 or #fff)'
                         : null,
                 ...acc,
