@@ -1,3 +1,10 @@
+## [0.567.2](https://github.com/lightdash/lightdash/compare/0.567.1...0.567.2) (2023-05-22)
+
+
+### Bug Fixes
+
+* conditional formatting with empty color ([#5575](https://github.com/lightdash/lightdash/issues/5575)) ([e9987e9](https://github.com/lightdash/lightdash/commit/e9987e98bf12bfcf7a1f3547734148d750be1916))
+
 ## [0.567.1](https://github.com/lightdash/lightdash/compare/0.567.0...0.567.1) (2023-05-22)
 
 
