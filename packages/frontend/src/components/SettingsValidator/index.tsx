@@ -1,55 +1,26 @@
-import { ValidationResponse } from '@lightdash/common';
 import {
-    Alert,
     Box,
     Button,
-    clsx,
-    Flex,
     Group,
     Paper,
     Stack,
-    Table,
     Text,
     useMantineTheme,
 } from '@mantine/core';
-import {
-    IconAlertCircle,
-    IconChartBar,
-    IconCheck,
-    IconLayoutDashboard,
-    IconTable,
-} from '@tabler/icons-react';
+import { IconCheck } from '@tabler/icons-react';
 import { FC, useState } from 'react';
-import { useHistory } from 'react-router-dom';
-import { useTableStyles } from '../../hooks/styles/useTableStyles';
-import { useTimeAgo } from '../../hooks/useTimeAgo';
 import {
     useValidation,
     useValidationMutation,
 } from '../../hooks/validation/useValidation';
 import MantineIcon from '../common/MantineIcon';
-import { IconBox } from '../common/ResourceView/ResourceIcon';
+import { ValidatorTable } from './ValidatorTable';
 
 const MIN_ROWS_TO_ENABLE_SCROLLING = 6;
-
-const UpdatedAtAndBy: FC<
-    Required<Pick<ValidationResponse, 'lastUpdatedAt' | 'lastUpdatedBy'>>
-> = ({ lastUpdatedAt, lastUpdatedBy }) => {
-    const timeAgo = useTimeAgo(lastUpdatedAt);
-
-    return (
-        <>
-            <Text fw={500}>{timeAgo}</Text>
-            <Text color="gray.6">by {lastUpdatedBy}</Text>
-        </>
-    );
-};
 
 export const SettingsValidator: FC<{ projectUuid: string }> = ({
     projectUuid,
 }) => {
-    const history = useHistory();
-    const { classes } = useTableStyles();
     const theme = useMantineTheme();
     const [isValidating, setIsValidating] = useState(false);
 
@@ -57,39 +28,6 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
     const { mutate: validateProject } = useValidationMutation(projectUuid, () =>
         setIsValidating(false),
     );
-
-    const Icon = ({
-        validationError,
-    }: {
-        validationError: ValidationResponse;
-    }) => {
-        if (validationError.chartUuid)
-            return <IconBox icon={IconChartBar} color="blue.8" />;
-        if (validationError.dashboardUuid)
-            return <IconBox icon={IconLayoutDashboard} color="green.8" />;
-        return <IconBox icon={IconTable} color="indigo.6" />;
-    };
-
-    // TODO: move to separate file? resourceUtils?
-    const getLinkToResource = (validationError: ValidationResponse) => {
-        if (validationError.chartUuid)
-            return `/projects/${projectUuid}/saved/${validationError.chartUuid}`;
-        if (validationError.dashboardUuid) {
-            return `/projects/${projectUuid}/dashboards/${validationError.dashboardUuid}/view`;
-        }
-
-        return;
-    };
-
-    const handleOnValidationErrorClick = (
-        validationError: ValidationResponse,
-    ) => {
-        if (!validationError.chartUuid && !validationError.dashboardUuid)
-            return null;
-
-        const link = getLinkToResource(validationError);
-        if (link) history.push(link);
-    };
 
     return (
         <Stack>
@@ -134,90 +72,9 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                                 : 'auto',
                     }}
                 >
-                    <Table
-                        className={clsx(
-                            classes.root,
-                            classes.smallHeaderText,
-                            classes.smallPadding,
-                            classes.stickyHeader,
-                        )}
-                        fontSize="xs"
-                        highlightOnHover
-                    >
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Error</th>
-                                <th>Last edited</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {data && data.length
-                                ? data.map((validationError, index) => (
-                                      <tr
-                                          key={index}
-                                          onClick={() =>
-                                              handleOnValidationErrorClick(
-                                                  validationError,
-                                              )
-                                          }
-                                      >
-                                          <td>
-                                              <Flex gap="sm" align="center">
-                                                  <Icon
-                                                      validationError={
-                                                          validationError
-                                                      }
-                                                  />
-
-                                                  <Text fw={600}>
-                                                      {validationError.name}
-                                                  </Text>
-                                              </Flex>
-                                          </td>
-                                          <td>
-                                              <Alert
-                                                  icon={
-                                                      <MantineIcon
-                                                          icon={IconAlertCircle}
-                                                      />
-                                                  }
-                                                  pos="unset"
-                                                  color="red"
-                                                  fw={500}
-                                              >
-                                                  <Text
-                                                      fz="xs"
-                                                      sx={{
-                                                          wordBreak:
-                                                              'break-all',
-                                                      }}
-                                                  >
-                                                      {validationError.error}
-                                                  </Text>
-                                              </Alert>
-                                          </td>
-                                          <td>
-                                              {validationError.lastUpdatedAt &&
-                                              validationError.lastUpdatedBy ? (
-                                                  <UpdatedAtAndBy
-                                                      lastUpdatedAt={
-                                                          validationError.lastUpdatedAt
-                                                      }
-                                                      lastUpdatedBy={
-                                                          validationError.lastUpdatedBy
-                                                      }
-                                                  />
-                                              ) : (
-                                                  <Text fw={500}>N/A</Text>
-                                              )}
-                                          </td>
-                                      </tr>
-                                  ))
-                                : null}
-                        </tbody>
-                    </Table>
-                    {!data?.length && (
+                    {!!data?.length ? (
+                        <ValidatorTable data={data} projectUuid={projectUuid} />
+                    ) : (
                         <Group position="center" spacing="xs" p="md">
                             <MantineIcon icon={IconCheck} color="green" />
                             <Text fw={500} c="gray.7">
