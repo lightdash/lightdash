@@ -1,3 +1,10 @@
+## [0.567.1](https://github.com/lightdash/lightdash/compare/0.567.0...0.567.1) (2023-05-22)
+
+
+### Bug Fixes
+
+* check permission on explores update ([#5568](https://github.com/lightdash/lightdash/issues/5568)) ([6c55929](https://github.com/lightdash/lightdash/commit/6c55929affb16c54e65b4d54c54c56f14d4509d7))
+
 # [0.567.0](https://github.com/lightdash/lightdash/compare/0.566.2...0.567.0) (2023-05-22)
 
 
