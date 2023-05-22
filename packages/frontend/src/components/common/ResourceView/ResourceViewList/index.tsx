@@ -14,19 +14,23 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
+import { useClipboard } from '@mantine/hooks';
 import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
 import React, { FC, useMemo, useState } from 'react';
 import { Link, useHistory, useParams } from 'react-router-dom';
 import { ResourceViewCommonProps } from '..';
 import { useTableStyles } from '../../../../hooks/styles/useTableStyles';
 import { useSpaceSummaries } from '../../../../hooks/useSpaces';
-import { useValidation } from '../../../../hooks/validation/useValidation';
+import {
+    useValidation,
+    useValidationUserAbility,
+} from '../../../../hooks/validation/useValidation';
 import { ResourceIcon, ResourceIconWithIndicator } from '../ResourceIcon';
 import {
     getResourceTypeName,
     getResourceUrl,
+    getResourceValidationError,
     getResourceViewsSinceWhenDescription,
-    hasResourceValidationError,
 } from '../resourceUtils';
 import { ResourceViewItemActionState } from './../ResourceActionHandlers';
 import ResourceActionMenu from './../ResourceActionMenu';
@@ -89,6 +93,8 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: spaces = [] } = useSpaceSummaries(projectUuid);
     const { data: validationErrors } = useValidation(projectUuid);
+    const canUserManageValidation = useValidationUserAbility(projectUuid);
+    const clipboard = useClipboard({ timeout: 500 });
 
     const [columnSorts, setColumnSorts] = useState<SortingStateMap>(
         defaultSort ? new Map(Object.entries(defaultSort)) : new Map(),
@@ -122,6 +128,11 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                         isResourceViewItemChart(item) ||
                         isResourceViewItemDashboard(item);
 
+                    const validationError = getResourceValidationError(
+                        item,
+                        validationErrors,
+                    );
+
                     return (
                         <Anchor
                             component={Link}
@@ -137,24 +148,50 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                         >
                             <Group noWrap>
                                 <ResourceIconWithIndicator
-                                    disabled={
-                                        !hasResourceValidationError(
-                                            item,
-                                            validationErrors,
-                                        )
-                                    }
+                                    disabled={!validationError}
                                     tooltipLabel={
-                                        <>
-                                            This content is broken. Learn more
-                                            about the validation error(s){' '}
-                                            <Anchor
-                                                component={Link}
-                                                to={`/generalSettings/projectManagement/${projectUuid}/validator`}
-                                            >
-                                                here
-                                            </Anchor>
-                                            .
-                                        </>
+                                        !canUserManageValidation ? (
+                                            <>
+                                                This content is broken. Learn
+                                                more about the validation
+                                                error(s){' '}
+                                                <Anchor
+                                                    component={Link}
+                                                    to={`/generalSettings/projectManagement/${projectUuid}/validator`}
+                                                >
+                                                    here
+                                                </Anchor>
+                                                .
+                                            </>
+                                        ) : (
+                                            <>
+                                                This content is broken. Click{' '}
+                                                <Text
+                                                    span
+                                                    sx={{
+                                                        cursor: 'pointer',
+                                                    }}
+                                                    fw={600}
+                                                    color={
+                                                        clipboard.copied
+                                                            ? 'teal'
+                                                            : 'blue.4'
+                                                    }
+                                                    onClickCapture={(e) => {
+                                                        e.stopPropagation();
+
+                                                        clipboard.copy(
+                                                            validationError?.error,
+                                                        );
+                                                    }}
+                                                >
+                                                    here to copy the error
+                                                </Text>{' '}
+                                                then share it with a developer
+                                                or admin in your project to get
+                                                more details.
+                                            </>
+                                        )
                                     }
                                 >
                                     <ResourceIcon item={item} />
@@ -319,8 +356,10 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
         [
             enableSorting,
             columnVisibility,
-            projectUuid,
             validationErrors,
+            projectUuid,
+            canUserManageValidation,
+            clipboard,
             spaces,
             onAction,
         ],
