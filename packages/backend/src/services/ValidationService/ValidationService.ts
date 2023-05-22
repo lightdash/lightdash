@@ -8,6 +8,7 @@ import {
     ForbiddenError,
     getFilterRules,
     getSpaceAccessFromSummary,
+    InlineErrorType,
     isDashboardChartTileType,
     isDimension,
     isExploreError,
@@ -96,11 +97,16 @@ export class ValidationService {
         }
         const errors = explores.reduce<CreateValidation[]>((acc, explore) => {
             if (isExploreError(explore)) {
-                const exploreErrors = explore.errors.map((ee) => ({
-                    name: explore.name,
-                    error: ee.message,
-                    projectUuid,
-                }));
+                const exploreErrors = explore.errors
+                    .filter(
+                        (error) =>
+                            error.type !== InlineErrorType.NO_DIMENSIONS_FOUND,
+                    )
+                    .map((ee) => ({
+                        name: explore.name,
+                        error: ee.message,
+                        projectUuid,
+                    }));
                 return [...acc, ...exploreErrors];
             }
             return acc;
