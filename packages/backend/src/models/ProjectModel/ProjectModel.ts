@@ -747,6 +747,137 @@ export class ProjectModel {
         }
     }
 
+    async duplicateContent(projectUuid: string, previewProjectUuid: string) {
+        return this.database.transaction(async (trx) => {
+            const [space] = await trx('spaces')
+                .leftJoin(
+                    'projects',
+                    'projects.project_id',
+                    'spaces.project_id',
+                )
+                .where('projects.project_uuid', previewProjectUuid);
+
+            const charts = await trx('saved_queries')
+                .leftJoin('spaces', 'saved_queries.space_id', 'spaces.space_id')
+                .leftJoin(
+                    'projects',
+                    'projects.project_id',
+                    'spaces.project_id',
+                )
+                .where('projects.project_uuid', projectUuid)
+                .select('saved_queries.*');
+
+            const chartIds = charts.map((d) => d.saved_query_id);
+
+            const newCharts = await trx('saved_queries')
+                .insert(
+                    charts.map((d) => ({
+                        ...d,
+                        saved_query_id: undefined,
+                        saved_query_uuid: undefined,
+                        space_id: space.space_id,
+                    })),
+                )
+                .returning('*');
+
+            const chartMapping = charts.map((c, i) => ({
+                chart_id: c.saved_query_id,
+                new_chart_id: newCharts[i].saved_query_id,
+                chart_uuid: c.saved_query_uuid,
+                new_chart_uuid: newCharts[i].saved_query_uuid,
+            }));
+
+            const chartVersions = await trx('saved_queries_versions')
+                .whereIn('saved_query_id', chartIds)
+
+                .select('saved_queries_versions.*');
+
+            const chartVersionIds = chartVersions.map(
+                (d) => d.saved_queries_version_id,
+            );
+
+            // TODO only insert last chart version
+            const newChartVersions = await trx('saved_queries_versions')
+                .insert(
+                    chartVersions.map((d) => ({
+                        ...d,
+                        saved_queries_version_id: undefined,
+                        saved_queries_version_uuid: undefined,
+                        saved_query_id: chartMapping.find(
+                            (m) => m.chart_id === d.saved_query_id,
+                        )?.new_chart_id,
+                    })),
+                )
+                .returning('*');
+
+            const chartVersionMapping = chartVersions.map((c, i) => ({
+                chart_id: c.saved_query_id,
+                new_chart_id: newChartVersions[i].saved_query_id,
+                chart_version_id: c.saved_queries_version_id,
+                new_chart_version_id:
+                    newChartVersions[i].saved_queries_version_id,
+                chart_version_uuid: c.saved_queries_version_uuid,
+                new_chart_version_uuid:
+                    newChartVersions[i].saved_queries_version_uuid,
+            }));
+
+            const chartVersionFields = await trx('saved_queries_version_fields')
+                .whereIn('saved_queries_version_id', chartVersionIds)
+                .select('saved_queries_version_fields.*');
+
+            const newChartVersionFields = await trx(
+                'saved_queries_version_fields',
+            )
+                .insert(
+                    chartVersionFields.map((d) => ({
+                        ...d,
+                        saved_queries_version_field_id: undefined,
+                        saved_queries_version_id: chartVersionMapping.find(
+                            (m) =>
+                                m.chart_version_id ===
+                                d.saved_queries_version_id,
+                        )?.new_chart_version_id,
+                    })),
+                )
+                .returning('*');
+
+            const dashboards = await trx('dashboards')
+                .leftJoin('spaces', 'dashboards.space_id', 'spaces.space_id')
+                .leftJoin(
+                    'projects',
+                    'projects.project_id',
+                    'spaces.project_id',
+                )
+                .where('projects.project_uuid', projectUuid)
+                .select('dashboards.*');
+
+            const dashboardIds = dashboards.map((d) => d.dashboard_id);
+
+            const newDashboards = await trx('dashboards')
+                .insert(
+                    dashboards.map((d) => ({
+                        ...d,
+                        dashboard_id: undefined,
+                        dashboard_uuid: undefined,
+                        space_id: space.space_id,
+                    })),
+                )
+                .returning('*');
+
+            const dashboardTiles = await trx('dashboard_tiles').whereIn(
+                'dashboard_id',
+                dashboardIds,
+            );
+
+            const dashboardMapping = dashboards.map((c, i) => ({
+                dashboard_id: c.dashboard_id,
+                new_dashboard_id: newDashboards[i].dashboard_id,
+                dashboard_uuid: c.dashboard_uuid,
+                new_dashboard_uuid: newDashboards[i].dashboard_uuid,
+            }));
+        });
+    }
+
     // Easier to mock in ProjectService
     // eslint-disable-next-line class-methods-use-this
     getWarehouseClientFromCredentials(credentials: CreateWarehouseCredentials) {

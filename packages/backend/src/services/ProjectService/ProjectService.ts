@@ -209,6 +209,11 @@ export class ProjectService {
             },
         });
 
+        this.copyContentOnPreview(
+            '3675b69e-8324-4110-bdca-059031aa8da3',
+            projectUuid,
+        ); // TODO set right projectuuid
+
         return this.projectModel.get(projectUuid);
     }
 
@@ -1788,5 +1793,18 @@ export class ProjectService {
         );
 
         return allowedSpaces;
+    }
+
+    async copyContentOnPreview(
+        projectUuid: string,
+        previewProjectUuid: string,
+    ): Promise<void> {
+        Logger.debug(
+            `Copying content from project ${projectUuid} to preview project ${previewProjectUuid}`,
+        );
+        await this.projectModel.duplicateContent(
+            projectUuid,
+            previewProjectUuid,
+        );
     }
 }
