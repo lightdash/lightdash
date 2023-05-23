@@ -9,6 +9,7 @@ import {
     ExploreError,
     NotExistsError,
     OrganizationProject,
+    PreviewContentMapping,
     Project,
     ProjectMemberProfile,
     ProjectMemberRole,
@@ -786,11 +787,12 @@ export class ProjectModel {
                 .returning('*');
 
             const spaceMapping = spaces.map((s, i) => ({
-                space_id: s.space_id,
-                space_uuid: s.space_uuid,
-                new_space_id: newSpaces[i].space_id,
-                new_space_uuid: newSpaces[i].space_uuid,
+                id: s.space_id,
+                newId: newSpaces[i].space_id,
             }));
+
+            const getNewSpace = (oldSpaceId: number): number =>
+                spaceMapping.find((s) => s.id === oldSpaceId)?.newId!;
             const spaceShares = await trx('space_share').whereIn(
                 'space_id',
                 spaceIds,
@@ -800,9 +802,7 @@ export class ProjectModel {
                 .insert(
                     spaceShares.map((d) => ({
                         ...d,
-                        space_id: spaceMapping.find(
-                            (s) => s.space_id === d.space_id,
-                        )?.new_space_id!,
+                        space_id: getNewSpace(d.space_id),
                     })),
                 )
                 .returning('*');
@@ -828,30 +828,33 @@ export class ProjectModel {
                         ...d,
                         saved_query_id: undefined,
                         saved_query_uuid: undefined,
-                        space_id: spaceMapping.find(
-                            (s) => s.space_id === d.space_id,
-                        )?.new_space_id,
+                        space_id: getNewSpace(d.space_id),
                     })),
                 )
                 .returning('*');
 
             const chartMapping = charts.map((c, i) => ({
-                chart_id: c.saved_query_id,
-                new_chart_id: newCharts[i].saved_query_id,
-                chart_uuid: c.saved_query_uuid,
-                new_chart_uuid: newCharts[i].saved_query_uuid,
+                id: c.saved_query_id,
+                newId: newCharts[i].saved_query_id,
             }));
 
-            const chartVersions = await trx('saved_queries_versions')
+            // only get last chart version
+            const lastVersionIds = await trx('saved_queries_versions')
                 .whereIn('saved_query_id', chartIds)
+                .groupBy('saved_query_id')
+                .max('saved_queries_version_id');
 
+            const chartVersions = await trx('saved_queries_versions')
+                .whereIn(
+                    'saved_queries_version_id',
+                    lastVersionIds.map((d) => d.max),
+                )
                 .select('saved_queries_versions.*');
 
             const chartVersionIds = chartVersions.map(
                 (d) => d.saved_queries_version_id,
             );
 
-            // TODO only insert last chart version
             const newChartVersions = await trx('saved_queries_versions')
                 .insert(
                     chartVersions.map((d) => ({
@@ -859,42 +862,58 @@ export class ProjectModel {
                         saved_queries_version_id: undefined,
                         saved_queries_version_uuid: undefined,
                         saved_query_id: chartMapping.find(
-                            (m) => m.chart_id === d.saved_query_id,
-                        )?.new_chart_id,
+                            (m) => m.id === d.saved_query_id,
+                        )?.newId,
                     })),
                 )
                 .returning('*');
 
             const chartVersionMapping = chartVersions.map((c, i) => ({
-                chart_id: c.saved_query_id,
-                new_chart_id: newChartVersions[i].saved_query_id,
-                chart_version_id: c.saved_queries_version_id,
-                new_chart_version_id:
-                    newChartVersions[i].saved_queries_version_id,
-                chart_version_uuid: c.saved_queries_version_uuid,
-                new_chart_version_uuid:
-                    newChartVersions[i].saved_queries_version_uuid,
+                id: c.saved_queries_version_id,
+                newId: newChartVersions[i].saved_queries_version_id,
             }));
 
-            const chartVersionFields = await trx('saved_queries_version_fields')
-                .whereIn('saved_queries_version_id', chartVersionIds)
-                .select('saved_queries_version_fields.*');
+            const copyChartVersionContent = async (
+                table: string,
+                fieldId: string,
+            ) => {
+                const content = await trx(table)
+                    .whereIn('saved_queries_version_id', chartVersionIds)
+                    .select(`*`);
 
-            const newChartVersionFields = await trx(
+                if (content.length === 0) return undefined;
+
+                const newContent = await trx(table)
+                    .insert(
+                        content.map((d) => ({
+                            ...d,
+                            [fieldId]: undefined,
+                            saved_queries_version_id: chartVersionMapping.find(
+                                (m) => m.id === d.saved_queries_version_id,
+                            )?.newId,
+                        })),
+                    )
+                    .returning('*');
+
+                return newContent;
+            };
+
+            await copyChartVersionContent(
+                'saved_queries_version_table_calculations',
+                'saved_queries_version_table_calculation_id',
+            );
+            await copyChartVersionContent(
+                'saved_queries_version_sorts',
+                'saved_queries_version_sort_id',
+            );
+            await copyChartVersionContent(
                 'saved_queries_version_fields',
-            )
-                .insert(
-                    chartVersionFields.map((d) => ({
-                        ...d,
-                        saved_queries_version_field_id: undefined,
-                        saved_queries_version_id: chartVersionMapping.find(
-                            (m) =>
-                                m.chart_version_id ===
-                                d.saved_queries_version_id,
-                        )?.new_chart_version_id,
-                    })),
-                )
-                .returning('*');
+                'saved_queries_version_field_id',
+            );
+            await copyChartVersionContent(
+                'saved_queries_version_additional_metrics',
+                'saved_queries_additional_metric_id',
+            );
 
             const dashboards = await trx('dashboards')
                 .leftJoin('spaces', 'dashboards.space_id', 'spaces.space_id')
@@ -918,18 +937,14 @@ export class ProjectModel {
                         ...d,
                         dashboard_id: undefined,
                         dashboard_uuid: undefined,
-                        space_id: spaceMapping.find(
-                            (s) => s.space_id === d.space_id,
-                        )?.new_space_id,
+                        space_id: getNewSpace(d.space_id),
                     })),
                 )
                 .returning('*');
 
             const dashboardMapping = dashboards.map((c, i) => ({
-                dashboard_id: c.dashboard_id,
-                new_dashboard_id: newDashboards[i].dashboard_id,
-                dashboard_uuid: c.dashboard_uuid,
-                new_dashboard_uuid: newDashboards[i].dashboard_uuid,
+                id: c.dashboard_id,
+                newId: newDashboards[i].dashboard_id,
             }));
 
             const dashboardVersions = await trx('dashboard_versions').whereIn(
@@ -946,17 +961,16 @@ export class ProjectModel {
                         ...d,
                         dashboard_version_id: undefined,
                         dashboard_id: dashboardMapping.find(
-                            (m) => m.dashboard_id === d.dashboard_id,
-                        )?.new_dashboard_id!,
+                            (m) => m.id === d.dashboard_id,
+                        )?.newId!,
                     })),
                 )
                 .returning('*');
 
             // TODO insert latest version ?
             const dashboardVersionsMapping = dashboardVersions.map((c, i) => ({
-                dashboard_version_id: c.dashboard_version_id,
-                new_dashboard_version_id:
-                    newDashboardVersions[i].dashboard_version_id,
+                id: c.dashboard_version_id,
+                newId: newDashboardVersions[i].dashboard_version_id,
             }));
 
             const dashboardTiles = await trx('dashboard_tiles').whereIn(
@@ -974,10 +988,8 @@ export class ProjectModel {
                         ...d,
                         dashboard_tile_uuid: uuid4(),
                         dashboard_version_id: dashboardVersionsMapping.find(
-                            (m) =>
-                                m.dashboard_version_id ===
-                                d.dashboard_version_id,
-                        )?.new_dashboard_version_id!,
+                            (m) => m.id === d.dashboard_version_id,
+                        )?.newId!,
                     })),
                 )
                 .returning('*');
@@ -988,65 +1000,54 @@ export class ProjectModel {
                     newDashboardTiles[i].dashboard_tile_uuid,
             }));
 
-            // Tile charts
-            const tileCharts = await trx('dashboard_tile_charts').whereIn(
-                'dashboard_tile_uuid',
-                dashboardTileUuids,
-            );
+            const copyDashboardTileContent = async (table: string) => {
+                const content = await trx(table).whereIn(
+                    'dashboard_tile_uuid',
+                    dashboardTileUuids,
+                );
 
-            const newTileCharts = await trx('dashboard_tile_charts').insert(
-                tileCharts.map((d) => ({
-                    ...d,
-                    saved_chart_id: chartMapping.find(
-                        (c) => c.chart_id === d.saved_chart_id,
-                    )?.new_chart_id,
-                    dashboard_version_id: dashboardVersionsMapping.find(
-                        (m) =>
-                            m.dashboard_version_id === d.dashboard_version_id,
-                    )?.new_dashboard_version_id!,
-                    dashboard_tile_uuid: dashboardTilesMapping.find(
-                        (m) => m.dashboard_tile_uuid === d.dashboard_tile_uuid,
-                    )?.new_dashboard_tile_uuid!,
-                })),
-            );
-            // Tile looms
-            const tileLooms = await trx('dashboard_tile_looms').whereIn(
-                'dashboard_tile_uuid',
-                dashboardTileUuids,
-            );
+                if (content.length === 0) return undefined;
 
-            const newTileLooms = await trx('dashboard_tile_looms').insert(
-                tileLooms.map((d) => ({
-                    ...d,
-                    dashboard_version_id: dashboardVersionsMapping.find(
-                        (m) =>
-                            m.dashboard_version_id === d.dashboard_version_id,
-                    )?.new_dashboard_version_id!,
-                    dashboard_tile_uuid: dashboardTilesMapping.find(
-                        (m) => m.dashboard_tile_uuid === d.dashboard_tile_uuid,
-                    )?.new_dashboard_tile_uuid!,
-                })),
-            );
-            // Tile markdowns
-            const tileMarkdowns = await trx('dashboard_tile_markdowns').whereIn(
-                'dashboard_tile_uuid',
-                dashboardTileUuids,
-            );
+                const newContent = await trx(table).insert(
+                    content.map((d) => ({
+                        ...d,
 
-            const newTileMarkdowns = await trx(
-                'dashboard_tile_markdowns',
-            ).insert(
-                tileMarkdowns.map((d) => ({
-                    ...d,
-                    dashboard_version_id: dashboardVersionsMapping.find(
-                        (m) =>
-                            m.dashboard_version_id === d.dashboard_version_id,
-                    )?.new_dashboard_version_id!,
-                    dashboard_tile_uuid: dashboardTilesMapping.find(
-                        (m) => m.dashboard_tile_uuid === d.dashboard_tile_uuid,
-                    )?.new_dashboard_tile_uuid!,
-                })),
-            );
+                        // only applied to tile charts
+                        ...(d.saved_chart_id && {
+                            saved_chart_id: chartMapping.find(
+                                (c) => c.id === d.saved_chart_id,
+                            )?.newId,
+                        }),
+
+                        dashboard_version_id: dashboardVersionsMapping.find(
+                            (m) => m.id === d.dashboard_version_id,
+                        )?.newId!,
+                        dashboard_tile_uuid: dashboardTilesMapping.find(
+                            (m) =>
+                                m.dashboard_tile_uuid === d.dashboard_tile_uuid,
+                        )?.new_dashboard_tile_uuid!,
+                    })),
+                );
+                return newContent;
+            };
+
+            await copyDashboardTileContent('dashboard_tile_charts');
+            await copyDashboardTileContent('dashboard_tile_looms');
+            await copyDashboardTileContent('dashboard_tile_markdowns');
+
+            const contentMapping: PreviewContentMapping = {
+                charts: chartMapping,
+                chartVersions: chartVersionMapping,
+                spaces: spaceMapping,
+                dashboards: dashboardMapping,
+                dashboardVersions: dashboardVersionsMapping,
+            };
+            // Insert mapping on database
+            await trx('preview_content').insert({
+                project_uuid: projectUuid,
+                preview_project_uuid: previewProjectUuid,
+                content_mapping: contentMapping,
+            });
         });
     }
 
