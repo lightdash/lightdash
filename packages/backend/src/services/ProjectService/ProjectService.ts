@@ -210,7 +210,10 @@ export class ProjectService {
         });
 
         if (data.copiedFromProjectUuid)
-            this.copyContentOnPreview(data.copiedFromProjectUuid, projectUuid);
+            await this.copyContentOnPreview(
+                data.copiedFromProjectUuid,
+                projectUuid,
+            );
 
         return this.projectModel.get(projectUuid);
     }
