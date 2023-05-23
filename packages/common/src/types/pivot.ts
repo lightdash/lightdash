@@ -17,7 +17,7 @@ type Field =
 
 type FieldValue =
     | { type: 'value'; fieldId: string; value: ResultValue; colSpan: number }
-    | { type: 'label'; fieldId: string; colSpan: number };
+    | { type: 'label'; fieldId: string };
 
 type TitleField = null | {
     fieldId: string;

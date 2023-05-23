@@ -280,7 +280,6 @@ export const pivotQueryResults = ({
                               {
                                   type: 'label',
                                   fieldId: metric.fieldId,
-                                  colSpan: 1,
                               },
                           ]
                         : [],
@@ -300,7 +299,6 @@ export const pivotQueryResults = ({
                               {
                                   type: 'label',
                                   fieldId: metric.fieldId,
-                                  colSpan: 1,
                               },
                           ],
                 );
