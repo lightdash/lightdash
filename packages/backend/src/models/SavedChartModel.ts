@@ -34,6 +34,10 @@ import {
     SpaceTableName,
 } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
+import {
+    ValidationSummaryQuery,
+    ValidationTableName,
+} from '../database/entities/validation';
 
 type DbSavedChartDetails = {
     project_uuid: string;
@@ -362,11 +366,16 @@ export class SavedChartModel {
                     `${PinnedListTableName}.pinned_list_uuid`,
                     `${PinnedChartTableName}.pinned_list_uuid`,
                 )
+                .leftJoin(
+                    ValidationTableName,
+                    `${ValidationTableName}.saved_chart_uuid`,
+                    `${SavedChartsTableName}.saved_query_uuid`,
+                )
                 .select<
                     (DbSavedChartDetails & {
                         space_uuid: string;
                         spaceName: string;
-                    })[]
+                    } & ValidationSummaryQuery)[]
                 >([
                     `${ProjectTableName}.project_uuid`,
                     `${SavedChartsTableName}.saved_query_id`,
@@ -388,6 +397,8 @@ export class SavedChartModel {
                     `${SpaceTableName}.space_uuid`,
                     `${SpaceTableName}.name as spaceName`,
                     `${PinnedListTableName}.pinned_list_uuid`,
+                    `${ValidationTableName}.error as validation_error`,
+                    `${ValidationTableName}.created_at as validation_created_at`,
                 ])
                 .where(
                     `${SavedChartsTableName}.saved_query_uuid`,
@@ -395,6 +406,7 @@ export class SavedChartModel {
                 )
                 .orderBy('saved_queries_versions.created_at', 'desc')
                 .limit(1);
+
             if (savedQuery === undefined) {
                 throw new NotFoundError('Saved query not found');
             }
@@ -522,6 +534,12 @@ export class SavedChartModel {
                 spaceName: savedQuery.spaceName,
                 pinnedListUuid: savedQuery.pinned_list_uuid,
                 pinnedListOrder: null,
+                validationError: savedQuery.validation_error
+                    ? {
+                          error: savedQuery.validation_error,
+                          createdAt: savedQuery.validation_created_at,
+                      }
+                    : undefined,
             };
         } finally {
             span?.finish();

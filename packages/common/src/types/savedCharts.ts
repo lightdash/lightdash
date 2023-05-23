@@ -236,6 +236,7 @@ export type SavedChart = {
     spaceName: string;
     pinnedListUuid: string | null;
     pinnedListOrder: number | null;
+    validationError?: ValidationSummary;
 };
 
 export type CreateSavedChart = Omit<
