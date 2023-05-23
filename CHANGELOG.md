@@ -1,3 +1,10 @@
+## [0.568.1](https://github.com/lightdash/lightdash/compare/0.568.0...0.568.1) (2023-05-23)
+
+
+### Bug Fixes
+
+* get space summary sql to exclude null values from access array ([#5580](https://github.com/lightdash/lightdash/issues/5580)) ([0b6cb23](https://github.com/lightdash/lightdash/commit/0b6cb23df664ccbb4635cdff10f807e91212b2aa))
+
 # [0.568.0](https://github.com/lightdash/lightdash/compare/0.567.2...0.568.0) (2023-05-23)
 
 
