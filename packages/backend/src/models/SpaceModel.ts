@@ -107,7 +107,7 @@ export class SpaceModel {
                     name: this.database.raw('max(spaces.name)'),
                     isPrivate: this.database.raw('bool_or(spaces.is_private)'),
                     access: this.database.raw(
-                        'jsonb_agg(shared_with.user_uuid)',
+                        "COALESCE(json_agg(shared_with.user_uuid) FILTER (WHERE shared_with.user_uuid IS NOT NULL), '[]')",
                     ),
                 });
             if (filters.projectUuid) {
