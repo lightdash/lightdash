@@ -21,7 +21,4 @@ export type ApiValidateResponse = {
     results: ValidationResponse[];
 };
 
-export type ValidationSummary = {
-    error: ValidationResponse['error'];
-    createdAt: ValidationResponse['createdAt'];
-};
+export type ValidationSummary = Pick<ValidationResponse, 'error' | 'createdAt'>;
