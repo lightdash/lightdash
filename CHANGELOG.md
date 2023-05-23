@@ -1,3 +1,10 @@
+## [0.568.2](https://github.com/lightdash/lightdash/compare/0.568.1...0.568.2) (2023-05-23)
+
+
+### Bug Fixes
+
+* fix rollback role migration ([#5581](https://github.com/lightdash/lightdash/issues/5581)) ([bbdcef0](https://github.com/lightdash/lightdash/commit/bbdcef0967c04844dea78a846adeb189d593cac6))
+
 ## [0.568.1](https://github.com/lightdash/lightdash/compare/0.568.0...0.568.1) (2023-05-23)
 
 
