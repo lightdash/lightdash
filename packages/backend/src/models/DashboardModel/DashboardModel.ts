@@ -264,6 +264,11 @@ export class DashboardModel {
                         `${PinnedListTableName}.pinned_list_uuid`,
                         `${PinnedDashboardTableName}.pinned_list_uuid`,
                     )
+                    .leftJoin(
+                        ValidationTableName,
+                        `${ValidationTableName}.dashboard_uuid`,
+                        `${DashboardsTableName}.dashboard_uuid`,
+                    )
                     .select<GetDashboardDetailsQuery[]>([
                         `${DashboardsTableName}.dashboard_uuid`,
                         `${DashboardsTableName}.name`,
@@ -284,6 +289,8 @@ export class DashboardModel {
                         this.database.raw(
                             `(SELECT ${AnalyticsDashboardViewsTableName}.timestamp FROM ${AnalyticsDashboardViewsTableName} where ${AnalyticsDashboardViewsTableName}.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid ORDER BY ${AnalyticsDashboardViewsTableName}.timestamp ASC LIMIT 1) as first_viewed_at`,
                         ),
+                        `${ValidationTableName}.error as validation_error`,
+                        `${ValidationTableName}.created_at as validation_created_at`,
                     ])
                     .orderBy([
                         {
@@ -340,6 +347,8 @@ export class DashboardModel {
                 order,
                 views,
                 first_viewed_at,
+                validation_error,
+                validation_created_at,
             }) => ({
                 organizationUuid: organization_uuid,
                 name,
@@ -357,6 +366,12 @@ export class DashboardModel {
                 pinnedListOrder: order,
                 views: parseInt(views, 10) || 0,
                 firstViewedAt: first_viewed_at,
+                validationError: validation_error
+                    ? {
+                          error: validation_error,
+                          createdAt: validation_created_at,
+                      }
+                    : undefined,
             }),
         );
     }

@@ -116,6 +116,7 @@ export type DashboardBasicDetails = Pick<
     | 'firstViewedAt'
     | 'pinnedListUuid'
     | 'pinnedListOrder'
+    | 'validationError'
 >;
 
 export type SpaceDashboard = DashboardBasicDetails & {
