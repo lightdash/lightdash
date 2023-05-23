@@ -20,3 +20,5 @@ export type ApiValidateResponse = {
     status: 'ok';
     results: ValidationResponse[];
 };
+
+export type ValidationSummary = Pick<ValidationResponse, 'error' | 'createdAt'>;
