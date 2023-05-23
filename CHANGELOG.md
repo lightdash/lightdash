@@ -1,3 +1,10 @@
+## [0.568.4](https://github.com/lightdash/lightdash/compare/0.568.3...0.568.4) (2023-05-23)
+
+
+### Bug Fixes
+
+* get all errors per chart, dashboard ([#5586](https://github.com/lightdash/lightdash/issues/5586)) ([3b2fa19](https://github.com/lightdash/lightdash/commit/3b2fa19285a045060a0bd136dd077628d1221b0e))
+
 ## [0.568.3](https://github.com/lightdash/lightdash/compare/0.568.2...0.568.3) (2023-05-23)
 
 
