@@ -6,6 +6,7 @@ import {
     ResourceViewSpaceItem,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { ValidationTableName } from '../database/entities/validation';
 
 type Dependencies = {
     database: Knex;
@@ -77,12 +78,33 @@ const getCharts = async (
             'analytics_chart_views.chart_uuid',
         )
         .leftJoin('users', 'sqv.updated_by_user_uuid', 'users.user_uuid')
+        .leftJoin(
+            ValidationTableName,
+            `${ValidationTableName}.saved_chart_uuid`,
+            'pinned_chart.saved_chart_uuid',
+        )
+        .select({
+            validation_error: `${ValidationTableName}.error`, // Add validation_error column
+            validation_created_at: `${ValidationTableName}.created_at`, // Add validation_createdat column
+        })
         .whereIn('spaces.space_uuid', allowedSpaceUuids)
         .andWhere('pinned_list.pinned_list_uuid', pinnedListUuid)
         .andWhere('pinned_list.project_uuid', projectUuid)
         .orderBy('pinned_chart.order', 'asc')
-        .groupBy(1, 2, 3, 4, 5, 6, 7)) as Record<string, any>[];
+        .groupBy(
+            'pinned_list.project_uuid',
+            'pinned_list.pinned_list_uuid',
+            'spaces.space_uuid',
+            'pinned_chart.saved_chart_uuid',
+            'users.user_uuid',
+            'sqv.chart_config',
+            'pinned_chart.order',
+            `${ValidationTableName}.error`,
+            `${ValidationTableName}.created_at`,
+        )) as Record<string, any>[];
+
     const resourceType: ResourceViewItemType.CHART = ResourceViewItemType.CHART;
+
     const items = rows.map((row) => ({
         type: resourceType,
         data: {
@@ -100,6 +122,10 @@ const getCharts = async (
                 userUuid: row.updated_by_user_uuid,
                 firstName: row.updated_by_user_first_name,
                 lastName: row.updated_by_user_last_name,
+            },
+            validationError: row.validation_error && {
+                error: row.validation_error,
+                createdAt: row.validation_created_at,
             },
         },
     }));
@@ -147,6 +173,11 @@ const getDashboards = async (
             'analytics_dashboard_views.dashboard_uuid',
         )
         .leftJoin('users', 'dv.updated_by_user_uuid', 'users.user_uuid')
+        .leftJoin(
+            ValidationTableName,
+            `${ValidationTableName}.saved_chart_uuid`,
+            'pinned_dashboard.dashboard_uuid',
+        )
         .whereIn('spaces.space_uuid', allowedSpaceUuids)
         .andWhere('pinned_list.pinned_list_uuid', pinnedListUuid)
         .andWhere('pinned_list.project_uuid', projectUuid)
@@ -157,6 +188,8 @@ const getDashboards = async (
             'pinned_dashboard.dashboard_uuid',
             'users.user_uuid as updated_by_user_uuid',
             'pinned_dashboard.order',
+            `${ValidationTableName}.error as validation_error`, // Add validation_error column
+            `${ValidationTableName}.created_at as validation_created_at`, // Add validation_createdat column
         )
         .max({
             name: 'dashboards.name',
@@ -170,7 +203,17 @@ const getDashboards = async (
         })
         .count({ views: 'analytics_dashboard_views.timestamp' })
         .orderBy('pinned_dashboard.order', 'asc')
-        .groupBy(1, 2, 3, 4, 5, 6)) as Record<string, any>[];
+        .groupBy(
+            'pinned_list.project_uuid',
+            'pinned_list.pinned_list_uuid',
+            'spaces.space_uuid',
+            'pinned_dashboard.dashboard_uuid',
+            'users.user_uuid',
+            'pinned_dashboard.order',
+            `${ValidationTableName}.error`,
+            `${ValidationTableName}.created_at`,
+        )) as Record<string, any>[];
+
     const resourceType: ResourceViewItemType.DASHBOARD =
         ResourceViewItemType.DASHBOARD;
     const items = rows.map((row) => ({
@@ -189,6 +232,10 @@ const getDashboards = async (
                 userUuid: row.updated_by_user_uuid,
                 firstName: row.updated_by_user_first_name,
                 lastName: row.updated_by_user_last_name,
+            },
+            validationError: row.validation_error && {
+                error: row.validation_error,
+                createdAt: row.validation_created_at,
             },
         },
     }));
