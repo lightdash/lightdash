@@ -209,7 +209,6 @@ export class ProjectService {
             },
         });
 
-        // TODO move to scheduler
         if (data.copiedFromProjectUuid)
             this.copyContentOnPreview(data.copiedFromProjectUuid, projectUuid);
 

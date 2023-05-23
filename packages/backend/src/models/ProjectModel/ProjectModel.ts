@@ -775,16 +775,19 @@ export class ProjectModel {
             );
             const spaceIds = spaces.map((s) => s.space_id);
 
-            const newSpaces = await trx('spaces')
-                .insert(
-                    spaces.map((d) => ({
-                        ...d,
-                        space_id: undefined,
-                        space_uuid: undefined,
-                        project_id: previewProject?.project_id,
-                    })),
-                )
-                .returning('*');
+            const newSpaces =
+                spaces.length > 0
+                    ? await trx('spaces')
+                          .insert(
+                              spaces.map((d) => ({
+                                  ...d,
+                                  space_id: undefined,
+                                  space_uuid: undefined,
+                                  project_id: previewProject?.project_id,
+                              })),
+                          )
+                          .returning('*')
+                    : [];
 
             const spaceMapping = spaces.map((s, i) => ({
                 id: s.space_id,
@@ -798,14 +801,17 @@ export class ProjectModel {
                 spaceIds,
             );
 
-            const newSpaceShare = await trx('space_share')
-                .insert(
-                    spaceShares.map((d) => ({
-                        ...d,
-                        space_id: getNewSpace(d.space_id),
-                    })),
-                )
-                .returning('*');
+            const newSpaceShare =
+                spaceShares.length > 0
+                    ? await trx('space_share')
+                          .insert(
+                              spaceShares.map((d) => ({
+                                  ...d,
+                                  space_id: getNewSpace(d.space_id),
+                              })),
+                          )
+                          .returning('*')
+                    : [];
 
             const charts = await trx('saved_queries')
                 .leftJoin('spaces', 'saved_queries.space_id', 'spaces.space_id')
@@ -822,16 +828,19 @@ export class ProjectModel {
                 `Duplicating ${charts.length} charts on ${previewProjectUuid}`,
             );
 
-            const newCharts = await trx('saved_queries')
-                .insert(
-                    charts.map((d) => ({
-                        ...d,
-                        saved_query_id: undefined,
-                        saved_query_uuid: undefined,
-                        space_id: getNewSpace(d.space_id),
-                    })),
-                )
-                .returning('*');
+            const newCharts =
+                charts.length > 0
+                    ? await trx('saved_queries')
+                          .insert(
+                              charts.map((d) => ({
+                                  ...d,
+                                  saved_query_id: undefined,
+                                  saved_query_uuid: undefined,
+                                  space_id: getNewSpace(d.space_id),
+                              })),
+                          )
+                          .returning('*')
+                    : [];
 
             const chartMapping = charts.map((c, i) => ({
                 id: c.saved_query_id,
@@ -855,18 +864,21 @@ export class ProjectModel {
                 (d) => d.saved_queries_version_id,
             );
 
-            const newChartVersions = await trx('saved_queries_versions')
-                .insert(
-                    chartVersions.map((d) => ({
-                        ...d,
-                        saved_queries_version_id: undefined,
-                        saved_queries_version_uuid: undefined,
-                        saved_query_id: chartMapping.find(
-                            (m) => m.id === d.saved_query_id,
-                        )?.newId,
-                    })),
-                )
-                .returning('*');
+            const newChartVersions =
+                chartVersions.length > 0
+                    ? await trx('saved_queries_versions')
+                          .insert(
+                              chartVersions.map((d) => ({
+                                  ...d,
+                                  saved_queries_version_id: undefined,
+                                  saved_queries_version_uuid: undefined,
+                                  saved_query_id: chartMapping.find(
+                                      (m) => m.id === d.saved_query_id,
+                                  )?.newId,
+                              })),
+                          )
+                          .returning('*')
+                    : [];
 
             const chartVersionMapping = chartVersions.map((c, i) => ({
                 id: c.saved_queries_version_id,
@@ -931,16 +943,19 @@ export class ProjectModel {
                 `Duplicating ${chartVersions.length} dashboards on ${previewProjectUuid}`,
             );
 
-            const newDashboards = await trx('dashboards')
-                .insert(
-                    dashboards.map((d) => ({
-                        ...d,
-                        dashboard_id: undefined,
-                        dashboard_uuid: undefined,
-                        space_id: getNewSpace(d.space_id),
-                    })),
-                )
-                .returning('*');
+            const newDashboards =
+                dashboards.length > 0
+                    ? await trx('dashboards')
+                          .insert(
+                              dashboards.map((d) => ({
+                                  ...d,
+                                  dashboard_id: undefined,
+                                  dashboard_uuid: undefined,
+                                  space_id: getNewSpace(d.space_id),
+                              })),
+                          )
+                          .returning('*')
+                    : [];
 
             const dashboardMapping = dashboards.map((c, i) => ({
                 id: c.dashboard_id,
@@ -955,17 +970,20 @@ export class ProjectModel {
             const dashboardVersionIds = dashboardVersions.map(
                 (dv) => dv.dashboard_version_id,
             );
-            const newDashboardVersions = await trx('dashboard_versions')
-                .insert(
-                    dashboardVersions.map((d) => ({
-                        ...d,
-                        dashboard_version_id: undefined,
-                        dashboard_id: dashboardMapping.find(
-                            (m) => m.id === d.dashboard_id,
-                        )?.newId!,
-                    })),
-                )
-                .returning('*');
+            const newDashboardVersions =
+                dashboardVersions.length > 0
+                    ? await trx('dashboard_versions')
+                          .insert(
+                              dashboardVersions.map((d) => ({
+                                  ...d,
+                                  dashboard_version_id: undefined,
+                                  dashboard_id: dashboardMapping.find(
+                                      (m) => m.id === d.dashboard_id,
+                                  )?.newId!,
+                              })),
+                          )
+                          .returning('*')
+                    : [];
 
             // TODO insert latest version ?
             const dashboardVersionsMapping = dashboardVersions.map((c, i) => ({
@@ -982,17 +1000,22 @@ export class ProjectModel {
                 (dv) => dv.dashboard_tile_uuid,
             );
 
-            const newDashboardTiles = await trx('dashboard_tiles')
-                .insert(
-                    dashboardTiles.map((d) => ({
-                        ...d,
-                        dashboard_tile_uuid: uuid4(),
-                        dashboard_version_id: dashboardVersionsMapping.find(
-                            (m) => m.id === d.dashboard_version_id,
-                        )?.newId!,
-                    })),
-                )
-                .returning('*');
+            const newDashboardTiles =
+                dashboardTiles.length > 0
+                    ? await trx('dashboard_tiles')
+                          .insert(
+                              dashboardTiles.map((d) => ({
+                                  ...d,
+                                  dashboard_tile_uuid: uuid4(),
+                                  dashboard_version_id:
+                                      dashboardVersionsMapping.find(
+                                          (m) =>
+                                              m.id === d.dashboard_version_id,
+                                      )?.newId!,
+                              })),
+                          )
+                          .returning('*')
+                    : [];
 
             const dashboardTilesMapping = dashboardTiles.map((c, i) => ({
                 dashboard_tile_uuid: c.dashboard_tile_uuid,
