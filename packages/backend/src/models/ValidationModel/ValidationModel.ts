@@ -100,10 +100,6 @@ export class ValidationModel {
                     column: `${SavedChartVersionsTableName}.saved_query_id`,
                     order: 'desc',
                 },
-            ])
-            .distinctOn([
-                `${SavedChartsTableName}.name`,
-                `${SavedChartVersionsTableName}.saved_query_id`,
             ]);
 
         const chartValidationErrors = chartValidationErrorsRows.map(
@@ -170,10 +166,6 @@ export class ValidationModel {
                     column: `${DashboardVersionsTableName}.dashboard_id`,
                     order: 'desc',
                 },
-            ])
-            .distinctOn([
-                `${DashboardsTableName}.name`,
-                `${DashboardVersionsTableName}.dashboard_id`,
             ]);
 
         const dashboardValidationErrors = dashboardValidationErrorsRows.map(
