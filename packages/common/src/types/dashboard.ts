@@ -99,6 +99,7 @@ export type Dashboard = {
     firstViewedAt: Date | string | null;
     pinnedListUuid: string | null;
     pinnedListOrder: number | null;
+    validationError?: ValidationSummary;
 };
 
 export type DashboardBasicDetails = Pick<

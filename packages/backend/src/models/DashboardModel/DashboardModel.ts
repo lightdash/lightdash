@@ -48,6 +48,10 @@ import {
 } from '../../database/entities/savedCharts';
 import { getSpaceId, SpaceTableName } from '../../database/entities/spaces';
 import { UserTable, UserTableName } from '../../database/entities/users';
+import {
+    ValidationSummaryQuery,
+    ValidationTableName,
+} from '../../database/entities/validation';
 import Transaction = Knex.Transaction;
 
 export type GetDashboardQuery = Pick<
@@ -394,11 +398,17 @@ export class DashboardModel {
                 `${PinnedListTableName}.pinned_list_uuid`,
                 `${PinnedDashboardTableName}.pinned_list_uuid`,
             )
+            .leftJoin(
+                ValidationTableName,
+                `${ValidationTableName}.dashboard_uuid`,
+                `${DashboardsTableName}.dashboard_uuid`,
+            )
             .select<
-                (GetDashboardQuery & {
-                    space_uuid: string;
-                    spaceName: string;
-                })[]
+                (GetDashboardQuery &
+                    ValidationSummaryQuery & {
+                        space_uuid: string;
+                        spaceName: string;
+                    })[]
             >([
                 `${ProjectTableName}.project_uuid`,
                 `${DashboardsTableName}.dashboard_id`,
@@ -423,6 +433,8 @@ export class DashboardModel {
                     `(SELECT ${AnalyticsDashboardViewsTableName}.timestamp FROM ${AnalyticsDashboardViewsTableName} where ${AnalyticsDashboardViewsTableName}.dashboard_uuid = ? ORDER BY ${AnalyticsDashboardViewsTableName}.timestamp ASC LIMIT 1) as first_viewed_at`,
                     dashboardUuid,
                 ),
+                `${ValidationTableName}.error as validation_error`,
+                `${ValidationTableName}.created_at as validation_created_at`,
             ])
             .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
             .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
@@ -615,6 +627,12 @@ export class DashboardModel {
                 firstName: dashboard.first_name,
                 lastName: dashboard.last_name,
             },
+            validationError: dashboard.validation_error
+                ? {
+                      error: dashboard.validation_error,
+                      createdAt: dashboard.validation_created_at,
+                  }
+                : undefined,
         };
     }
 
