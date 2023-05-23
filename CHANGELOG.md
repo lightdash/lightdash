@@ -1,3 +1,10 @@
+## [0.568.3](https://github.com/lightdash/lightdash/compare/0.568.2...0.568.3) (2023-05-23)
+
+
+### Bug Fixes
+
+* replace truncate function for Bigquery timestamps ([#5576](https://github.com/lightdash/lightdash/issues/5576)) ([8d5b38c](https://github.com/lightdash/lightdash/commit/8d5b38ccc29ce1e7828725467f7985775f18aba3)), closes [#5559](https://github.com/lightdash/lightdash/issues/5559)
+
 ## [0.568.2](https://github.com/lightdash/lightdash/compare/0.568.1...0.568.2) (2023-05-23)
 
 
