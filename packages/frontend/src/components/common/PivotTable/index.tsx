@@ -238,6 +238,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                                 ? field.description
                                                 : undefined;
 
+                                        if (headerValue.span <= 0) return null;
                                         return (
                                             <HeaderCell
                                                 key={`header-${headerRowIndex}-${headerColIndex}`}
@@ -247,6 +248,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                                 )}
                                                 level={headerLevel}
                                                 description={description}
+                                                colSpan={headerValue.span}
                                             >
                                                 {isLabel
                                                     ? getFieldLabel(

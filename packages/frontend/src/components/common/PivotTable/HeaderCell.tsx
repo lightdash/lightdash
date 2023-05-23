@@ -6,6 +6,7 @@ interface HeaderCellProps {
     level?: number;
     description?: string;
     textAlign?: 'left' | 'right';
+    colSpan?: number;
 }
 
 const HeaderCell: FC<HeaderCellProps> = ({
@@ -14,6 +15,7 @@ const HeaderCell: FC<HeaderCellProps> = ({
     description,
     level = 0,
     textAlign = 'left',
+    colSpan,
 }) => {
     return (
         <Tooltip
@@ -29,6 +31,7 @@ const HeaderCell: FC<HeaderCellProps> = ({
                     backgroundColor: theme.colors.gray[level],
                     textAlign,
                 })}
+                colSpan={colSpan}
             >
                 {children}
             </Box>
