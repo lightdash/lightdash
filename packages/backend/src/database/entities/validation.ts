@@ -9,7 +9,7 @@ export type DbValidationTable = {
     error: string;
 };
 
-export type ValidationSummaryQuery = {
+export type DbValidationSummary = {
     validation_error: DbValidationTable['error'];
     validation_created_at: DbValidationTable['created_at'];
 };

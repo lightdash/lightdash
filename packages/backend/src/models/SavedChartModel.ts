@@ -35,7 +35,7 @@ import {
 } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
 import {
-    ValidationSummaryQuery,
+    DbValidationSummary,
     ValidationTableName,
 } from '../database/entities/validation';
 
@@ -375,7 +375,7 @@ export class SavedChartModel {
                     (DbSavedChartDetails & {
                         space_uuid: string;
                         spaceName: string;
-                    } & ValidationSummaryQuery)[]
+                    } & DbValidationSummary)[]
                 >([
                     `${ProjectTableName}.project_uuid`,
                     `${SavedChartsTableName}.saved_query_id`,

@@ -46,7 +46,7 @@ import {
 } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
 import {
-    ValidationSummaryQuery,
+    DbValidationSummary,
     ValidationTableName,
 } from '../database/entities/validation';
 import { GetDashboardDetailsQuery } from './DashboardModel/DashboardModel';
@@ -221,7 +221,7 @@ export class SpaceModel {
                 (GetDashboardDetailsQuery & {
                     views: string;
                     first_viewed_at: Date | null;
-                } & ValidationSummaryQuery)[]
+                } & DbValidationSummary)[]
             >([
                 `${DashboardsTableName}.dashboard_uuid`,
                 `${DashboardsTableName}.name`,
@@ -429,7 +429,7 @@ export class SpaceModel {
                     chart_type: ChartType;
                     pinned_list_uuid: string;
                     order: number;
-                } & ValidationSummaryQuery)[]
+                } & DbValidationSummary)[]
             >([
                 `saved_queries.saved_query_uuid`,
                 `saved_queries.name`,
