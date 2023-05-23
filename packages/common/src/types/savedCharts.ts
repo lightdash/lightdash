@@ -289,7 +289,7 @@ export type SpaceQuery = Pick<
 > &
     ViewStatistics & {
         chartType: ChartKind | undefined;
-        validationError?: ValidationSummary;
+        validationErrors?: ValidationSummary[];
     };
 
 export const isCompleteLayout = (

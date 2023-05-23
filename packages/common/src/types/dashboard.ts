@@ -118,7 +118,7 @@ export type DashboardBasicDetails = Pick<
 >;
 
 export type SpaceDashboard = DashboardBasicDetails & {
-    validationError?: ValidationSummary;
+    validationErrors?: ValidationSummary[];
 };
 
 export type DashboardUnversionedFields = Pick<
