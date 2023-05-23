@@ -45,11 +45,8 @@ import {
     SpaceTableName,
 } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
-import {
-    ValidationSummaryQuery,
-    ValidationTableName,
-} from '../database/entities/validation';
 import { GetDashboardDetailsQuery } from './DashboardModel/DashboardModel';
+import { ValidationModel } from './ValidationModel/ValidationModel';
 
 type Dependencies = {
     database: Knex;
@@ -212,16 +209,11 @@ export class SpaceModel {
                 `${PinnedListTableName}.pinned_list_uuid`,
                 `${PinnedDashboardTableName}.pinned_list_uuid`,
             )
-            .leftJoin(
-                ValidationTableName,
-                `${ValidationTableName}.dashboard_uuid`,
-                `${DashboardsTableName}.dashboard_uuid`,
-            )
             .select<
                 (GetDashboardDetailsQuery & {
                     views: string;
                     first_viewed_at: Date | null;
-                } & ValidationSummaryQuery)[]
+                })[]
             >([
                 `${DashboardsTableName}.dashboard_uuid`,
                 `${DashboardsTableName}.name`,
@@ -241,8 +233,6 @@ export class SpaceModel {
                 ),
                 `${PinnedListTableName}.pinned_list_uuid`,
                 `${PinnedDashboardTableName}.order`,
-                `${ValidationTableName}.error as validation_error`,
-                `${ValidationTableName}.created_at as validation_created_at`,
             ])
             .orderBy([
                 {
@@ -256,47 +246,46 @@ export class SpaceModel {
             .distinctOn(`${DashboardVersionsTableName}.dashboard_id`)
             .where(`${SpaceTableName}.space_uuid`, spaceUuid);
 
-        return dashboards.map(
-            ({
-                name,
-                description,
-                dashboard_uuid,
-                created_at,
-                project_uuid,
-                user_uuid,
-                first_name,
-                last_name,
-                organization_uuid,
-                views,
-                first_viewed_at,
-                pinned_list_uuid,
-                order,
-                validation_error,
-                validation_created_at,
-            }) => ({
-                organizationUuid: organization_uuid,
-                name,
-                description,
-                uuid: dashboard_uuid,
-                projectUuid: project_uuid,
-                updatedAt: created_at,
-                updatedByUser: {
-                    userUuid: user_uuid,
-                    firstName: first_name,
-                    lastName: last_name,
-                },
-                spaceUuid,
-                views: parseInt(views, 10),
-                firstViewedAt: first_viewed_at,
-                pinnedListUuid: pinned_list_uuid,
-                pinnedListOrder: order,
-                validationError: validation_error
-                    ? {
-                          error: validation_error,
-                          createdAt: validation_created_at,
-                      }
-                    : undefined,
-            }),
+        return Promise.all(
+            dashboards.map(
+                async ({
+                    name,
+                    description,
+                    dashboard_uuid,
+                    created_at,
+                    project_uuid,
+                    user_uuid,
+                    first_name,
+                    last_name,
+                    organization_uuid,
+                    views,
+                    first_viewed_at,
+                    pinned_list_uuid,
+                    order,
+                }) => ({
+                    organizationUuid: organization_uuid,
+                    name,
+                    description,
+                    uuid: dashboard_uuid,
+                    projectUuid: project_uuid,
+                    updatedAt: created_at,
+                    updatedByUser: {
+                        userUuid: user_uuid,
+                        firstName: first_name,
+                        lastName: last_name,
+                    },
+                    spaceUuid,
+                    views: parseInt(views, 10),
+                    firstViewedAt: first_viewed_at,
+                    pinnedListUuid: pinned_list_uuid,
+                    pinnedListOrder: order,
+                    validationErrors:
+                        await ValidationModel.getValidationErrorSummaries(
+                            this.database,
+                            { dashboardUuid: dashboard_uuid },
+                        ),
+                }),
+            ),
         );
     }
 
@@ -333,7 +322,6 @@ export class SpaceModel {
                     user_uuid: string;
                     first_name: string;
                     last_name: string;
-
                     project_role: ProjectMemberRole;
                     organization_role: OrganizationMemberRole;
                 }[]
@@ -409,13 +397,8 @@ export class SpaceModel {
                 `${PinnedListTableName}.pinned_list_uuid`,
                 `${PinnedChartTableName}.pinned_list_uuid`,
             )
-            .leftJoin(
-                ValidationTableName,
-                `${ValidationTableName}.saved_chart_uuid`,
-                `${SavedChartsTableName}.saved_query_uuid`,
-            )
             .select<
-                ({
+                {
                     saved_query_uuid: string;
                     name: string;
                     description?: string;
@@ -429,7 +412,7 @@ export class SpaceModel {
                     chart_type: ChartType;
                     pinned_list_uuid: string;
                     order: number;
-                } & ValidationSummaryQuery)[]
+                }[]
             >([
                 `saved_queries.saved_query_uuid`,
                 `saved_queries.name`,
@@ -448,8 +431,6 @@ export class SpaceModel {
                 `saved_queries_versions.chart_type`,
                 `${PinnedListTableName}.pinned_list_uuid`,
                 `${PinnedChartTableName}.order`,
-                `${ValidationTableName}.error as validation_error`,
-                `${ValidationTableName}.created_at as validation_created_at`,
             ])
             .orderBy([
                 {
@@ -463,32 +444,35 @@ export class SpaceModel {
             .distinctOn(`saved_queries_versions.saved_query_id`)
             .where(`${SpaceTableName}.space_uuid`, spaceUuid);
 
-        return savedQueries.map((savedQuery) => ({
-            uuid: savedQuery.saved_query_uuid,
-            name: savedQuery.name,
-            description: savedQuery.description,
-            updatedAt: savedQuery.created_at,
-            updatedByUser: {
-                userUuid: savedQuery.user_uuid,
-                firstName: savedQuery.first_name,
-                lastName: savedQuery.last_name,
-            },
-            spaceUuid,
-            views: parseInt(savedQuery.views, 10),
-            firstViewedAt: savedQuery.first_viewed_at,
-            chartType: getChartType(
-                savedQuery.chart_type,
-                savedQuery.chart_config,
-            ),
-            pinnedListUuid: savedQuery.pinned_list_uuid,
-            pinnedListOrder: savedQuery.order,
-            validationError: savedQuery.validation_error
-                ? {
-                      error: savedQuery.validation_error,
-                      createdAt: savedQuery.validation_created_at,
-                  }
-                : undefined,
-        }));
+        return Promise.all(
+            savedQueries.map(async (savedQuery) => ({
+                uuid: savedQuery.saved_query_uuid,
+                name: savedQuery.name,
+                description: savedQuery.description,
+                updatedAt: savedQuery.created_at,
+                updatedByUser: {
+                    userUuid: savedQuery.user_uuid,
+                    firstName: savedQuery.first_name,
+                    lastName: savedQuery.last_name,
+                },
+                spaceUuid,
+                views: parseInt(savedQuery.views, 10),
+                firstViewedAt: savedQuery.first_viewed_at,
+                chartType: getChartType(
+                    savedQuery.chart_type,
+                    savedQuery.chart_config,
+                ),
+                pinnedListUuid: savedQuery.pinned_list_uuid,
+                pinnedListOrder: savedQuery.order,
+                validationErrors:
+                    await ValidationModel.getValidationErrorSummaries(
+                        this.database,
+                        {
+                            chartUuid: savedQuery.saved_query_uuid,
+                        },
+                    ),
+            })),
+        );
     }
 
     async getAllSpaces(projectUuid: string): Promise<Space[]> {
