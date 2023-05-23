@@ -1,3 +1,10 @@
+# [0.568.0](https://github.com/lightdash/lightdash/compare/0.567.2...0.568.0) (2023-05-23)
+
+
+### Features
+
+* add validation status to spaceModel ([#5577](https://github.com/lightdash/lightdash/issues/5577)) ([82e0e9b](https://github.com/lightdash/lightdash/commit/82e0e9bbc1cb965727a1e984a285cda8d69fff63))
+
 ## [0.567.2](https://github.com/lightdash/lightdash/compare/0.567.1...0.567.2) (2023-05-22)
 
 
