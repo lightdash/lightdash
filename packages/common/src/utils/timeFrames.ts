@@ -85,7 +85,7 @@ const bigqueryConfig: WarehouseConfig = {
                 ? `${timeFrame}(${bigqueryStartOfWeekMap[startOfWeek]})`
                 : timeFrame;
         if (type === DimensionType.TIMESTAMP) {
-            return `DATETIME_TRUNC(${originalSql}, ${datePart})`;
+            return `TIMESTAMP_TRUNC(${originalSql}, ${datePart})`;
         }
         return `DATE_TRUNC(${originalSql}, ${datePart})`;
     },
