@@ -858,7 +858,7 @@ export class ProjectModel {
                     'saved_queries_version_id',
                     lastVersionIds.map((d) => d.max),
                 )
-                .select('saved_queries_versions.*');
+                .select('*');
 
             const chartVersionIds = chartVersions.map(
                 (d) => d.saved_queries_version_id,
@@ -940,7 +940,7 @@ export class ProjectModel {
             const dashboardIds = dashboards.map((d) => d.dashboard_id);
 
             Logger.debug(
-                `Duplicating ${chartVersions.length} dashboards on ${previewProjectUuid}`,
+                `Duplicating ${dashboards.length} dashboards on ${previewProjectUuid}`,
             );
 
             const newDashboards =
@@ -962,14 +962,20 @@ export class ProjectModel {
                 newId: newDashboards[i].dashboard_id,
             }));
 
-            const dashboardVersions = await trx('dashboard_versions').whereIn(
-                'dashboard_id',
-                dashboardIds,
+            // Get last version of a dashboard
+            const lastDashboardVersionsIds = await trx('dashboard_versions')
+                .whereIn('dashboard_id', dashboardIds)
+                .groupBy('dashboard_id')
+                .max('dashboard_version_id');
+
+            const dashboardVersionIds = lastDashboardVersionsIds.map(
+                (d) => d.max,
             );
 
-            const dashboardVersionIds = dashboardVersions.map(
-                (dv) => dv.dashboard_version_id,
-            );
+            const dashboardVersions = await trx('dashboard_versions')
+                .whereIn('dashboard_version_id', dashboardVersionIds)
+                .select('*');
+
             const newDashboardVersions =
                 dashboardVersions.length > 0
                     ? await trx('dashboard_versions')
@@ -985,7 +991,6 @@ export class ProjectModel {
                           .returning('*')
                     : [];
 
-            // TODO insert latest version ?
             const dashboardVersionsMapping = dashboardVersions.map((c, i) => ({
                 id: c.dashboard_version_id,
                 newId: newDashboardVersions[i].dashboard_version_id,
@@ -993,7 +998,11 @@ export class ProjectModel {
 
             const dashboardTiles = await trx('dashboard_tiles').whereIn(
                 'dashboard_version_id',
-                dashboardVersionIds,
+                lastDashboardVersionsIds.map((d) => d.max),
+            );
+
+            Logger.debug(
+                `Duplicating ${dashboardTiles.length} dashboard tiles on ${previewProjectUuid}`,
             );
 
             const dashboardTileUuids = dashboardTiles.map(
@@ -1018,16 +1027,14 @@ export class ProjectModel {
                     : [];
 
             const dashboardTilesMapping = dashboardTiles.map((c, i) => ({
-                dashboard_tile_uuid: c.dashboard_tile_uuid,
-                new_dashboard_tile_uuid:
-                    newDashboardTiles[i].dashboard_tile_uuid,
+                id: c.dashboard_tile_uuid,
+                newId: newDashboardTiles[i].dashboard_tile_uuid,
             }));
 
             const copyDashboardTileContent = async (table: string) => {
-                const content = await trx(table).whereIn(
-                    'dashboard_tile_uuid',
-                    dashboardTileUuids,
-                );
+                const content = await trx(table)
+                    .whereIn('dashboard_tile_uuid', dashboardTileUuids)
+                    .and.whereIn('dashboard_version_id', dashboardVersionIds);
 
                 if (content.length === 0) return undefined;
 
@@ -1046,9 +1053,8 @@ export class ProjectModel {
                             (m) => m.id === d.dashboard_version_id,
                         )?.newId!,
                         dashboard_tile_uuid: dashboardTilesMapping.find(
-                            (m) =>
-                                m.dashboard_tile_uuid === d.dashboard_tile_uuid,
-                        )?.new_dashboard_tile_uuid!,
+                            (m) => m.id === d.dashboard_tile_uuid,
+                        )?.newId!,
                     })),
                 );
                 return newContent;
@@ -1064,6 +1070,7 @@ export class ProjectModel {
                 spaces: spaceMapping,
                 dashboards: dashboardMapping,
                 dashboardVersions: dashboardVersionsMapping,
+                dashboardTiles: dashboardTilesMapping,
             };
             // Insert mapping on database
             await trx('preview_content').insert({
