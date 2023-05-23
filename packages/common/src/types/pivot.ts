@@ -16,8 +16,8 @@ type Field =
     | { type: FieldType.DIMENSION; fieldId: string };
 
 type FieldValue =
-    | { type: 'value'; fieldId: string; value: ResultValue; span: number }
-    | { type: 'label'; fieldId: string; span: number };
+    | { type: 'value'; fieldId: string; value: ResultValue; colSpan: number }
+    | { type: 'label'; fieldId: string; colSpan: number };
 
 type TitleField = null | {
     fieldId: string;
