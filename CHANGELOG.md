@@ -1,3 +1,16 @@
+# [0.570.0](https://github.com/lightdash/lightdash/compare/0.569.1...0.570.0) (2023-05-24)
+
+
+### Bug Fixes
+
+* Improve copy project types and remove undefined db fields ([#5598](https://github.com/lightdash/lightdash/issues/5598)) ([24afa0b](https://github.com/lightdash/lightdash/commit/24afa0b941ac679eebe8936dcc564bfa57b85c3a))
+
+
+### Features
+
+* add analytics to validation ([#5594](https://github.com/lightdash/lightdash/issues/5594)) ([04d2ccb](https://github.com/lightdash/lightdash/commit/04d2ccb4f314288dc8ab6fa4687428341ee438d2))
+* add validationErrors to space queries in model ([#5593](https://github.com/lightdash/lightdash/issues/5593)) ([98a1ac0](https://github.com/lightdash/lightdash/commit/98a1ac027e05cfd85387fafd8922db492ed3cdd2))
+
 ## [0.569.1](https://github.com/lightdash/lightdash/compare/0.569.0...0.569.1) (2023-05-24)
 
 
