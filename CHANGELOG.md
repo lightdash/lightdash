@@ -1,3 +1,10 @@
+## [0.570.2](https://github.com/lightdash/lightdash/compare/0.570.1...0.570.2) (2023-05-24)
+
+
+### Bug Fixes
+
+* distinct on validation error ([#5604](https://github.com/lightdash/lightdash/issues/5604)) ([1ccb04b](https://github.com/lightdash/lightdash/commit/1ccb04b04b06179d2f5929cefe5579a811b3c078))
+
 ## [0.570.1](https://github.com/lightdash/lightdash/compare/0.570.0...0.570.1) (2023-05-24)
 
 
