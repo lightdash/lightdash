@@ -238,6 +238,7 @@ type ProjectEvent = BaseTrack & {
         dbtConnectionType: DbtProjectType;
         isPreview: boolean;
         method: RequestMethod;
+        copiedFromProjectUuid?: string;
     };
 };
 

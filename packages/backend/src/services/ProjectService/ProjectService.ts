@@ -1803,9 +1803,17 @@ export class ProjectService {
         Logger.debug(
             `Copying content from project ${projectUuid} to preview project ${previewProjectUuid}`,
         );
-        await this.projectModel.duplicateContent(
-            projectUuid,
-            previewProjectUuid,
+        await wrapSentryTransaction<void>(
+            'duplicateContent',
+            {
+                projectUuid,
+            },
+            async () => {
+                await this.projectModel.duplicateContent(
+                    projectUuid,
+                    previewProjectUuid,
+                );
+            },
         );
     }
 }

@@ -1070,7 +1070,6 @@ export class ProjectModel {
                 spaces: spaceMapping,
                 dashboards: dashboardMapping,
                 dashboardVersions: dashboardVersionsMapping,
-                dashboardTiles: dashboardTilesMapping,
             };
             // Insert mapping on database
             await trx('preview_content').insert({
