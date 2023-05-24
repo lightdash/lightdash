@@ -581,7 +581,7 @@ export class ProjectService {
         await sshTunnel.connect();
         const adapter = await projectAdapterFromConfig(
             data.dbtConnection,
-            data.warehouseConnection,
+            sshTunnel.overrideCredentials,
             {
                 warehouseCatalog: undefined,
                 onWarehouseCatalogChange: () => {},
