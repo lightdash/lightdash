@@ -619,6 +619,7 @@ export type Validation = BaseTrack & {
         context?: ValidateProjectPayload['context'];
         numErrorsDetected?: number;
         numContentAffected?: number;
+        error?: string;
     };
 };
 
