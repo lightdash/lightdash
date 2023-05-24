@@ -241,9 +241,22 @@ export type Project = {
     dbtConnection: DbtProjectConfig;
     warehouseConnection?: WarehouseCredentials;
     pinnedListUuid?: string;
+    copiedFromProjectUuid?: string;
 };
 
 export type ApiProjectResponse = {
     status: 'ok';
     results: Project;
+};
+
+export type IdContentMapping = {
+    id: number | string;
+    newId: number | string;
+};
+export type PreviewContentMapping = {
+    charts: IdContentMapping[];
+    chartVersions: IdContentMapping[];
+    spaces: IdContentMapping[];
+    dashboards: IdContentMapping[];
+    dashboardVersions: IdContentMapping[];
 };

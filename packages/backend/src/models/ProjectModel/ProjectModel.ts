@@ -9,6 +9,7 @@ import {
     ExploreError,
     NotExistsError,
     OrganizationProject,
+    PreviewContentMapping,
     Project,
     ProjectMemberProfile,
     ProjectMemberRole,
@@ -26,6 +27,7 @@ import {
 } from '@lightdash/warehouses';
 import { Knex } from 'knex';
 import { DatabaseError } from 'pg';
+import { v4 as uuid4 } from 'uuid';
 import { LightdashConfig } from '../../config/parseConfig';
 import { OrganizationTableName } from '../../database/entities/organizations';
 import { PinnedListTableName } from '../../database/entities/pinnedList';
@@ -40,6 +42,7 @@ import {
 } from '../../database/entities/projects';
 import { DbUser } from '../../database/entities/users';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
+import Logger from '../../logger';
 import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
 import Transaction = Knex.Transaction;
 
@@ -216,6 +219,8 @@ export class ProjectModel {
                     organization_id: orgs[0].organization_id,
                     dbt_connection_type: data.dbtConnection.type,
                     dbt_connection: encryptedCredentials,
+                    copied_from_project_uuid:
+                        data.copiedFromProjectUuid || null,
                 })
                 .returning('*');
 
@@ -745,6 +750,334 @@ export class ProjectModel {
                 'Unexpected error: failed to parse warehouse credentials',
             );
         }
+    }
+
+    async duplicateContent(projectUuid: string, previewProjectUuid: string) {
+        Logger.debug(
+            `Duplicating content from ${projectUuid} to ${previewProjectUuid}`,
+        );
+
+        return this.database.transaction(async (trx) => {
+            const previewProject = await trx('projects')
+                .where('project_uuid', previewProjectUuid)
+                .first();
+            const spaces = await trx('spaces')
+                .leftJoin(
+                    'projects',
+                    'projects.project_id',
+                    'spaces.project_id',
+                )
+                .where('projects.project_uuid', projectUuid)
+                .select('spaces.*');
+
+            Logger.debug(
+                `Duplicating ${spaces.length} spaces on ${previewProjectUuid}`,
+            );
+            const spaceIds = spaces.map((s) => s.space_id);
+
+            const newSpaces =
+                spaces.length > 0
+                    ? await trx('spaces')
+                          .insert(
+                              spaces.map((d) => ({
+                                  ...d,
+                                  space_id: undefined,
+                                  space_uuid: undefined,
+                                  project_id: previewProject?.project_id,
+                              })),
+                          )
+                          .returning('*')
+                    : [];
+
+            const spaceMapping = spaces.map((s, i) => ({
+                id: s.space_id,
+                newId: newSpaces[i].space_id,
+            }));
+
+            const getNewSpace = (oldSpaceId: number): number =>
+                spaceMapping.find((s) => s.id === oldSpaceId)?.newId!;
+            const spaceShares = await trx('space_share').whereIn(
+                'space_id',
+                spaceIds,
+            );
+
+            const newSpaceShare =
+                spaceShares.length > 0
+                    ? await trx('space_share')
+                          .insert(
+                              spaceShares.map((d) => ({
+                                  ...d,
+                                  space_id: getNewSpace(d.space_id),
+                              })),
+                          )
+                          .returning('*')
+                    : [];
+
+            const charts = await trx('saved_queries')
+                .leftJoin('spaces', 'saved_queries.space_id', 'spaces.space_id')
+                .leftJoin(
+                    'projects',
+                    'projects.project_id',
+                    'spaces.project_id',
+                )
+                .where('projects.project_uuid', projectUuid)
+                .select('saved_queries.*');
+
+            const chartIds = charts.map((d) => d.saved_query_id);
+            Logger.debug(
+                `Duplicating ${charts.length} charts on ${previewProjectUuid}`,
+            );
+
+            const newCharts =
+                charts.length > 0
+                    ? await trx('saved_queries')
+                          .insert(
+                              charts.map((d) => ({
+                                  ...d,
+                                  saved_query_id: undefined,
+                                  saved_query_uuid: undefined,
+                                  space_id: getNewSpace(d.space_id),
+                              })),
+                          )
+                          .returning('*')
+                    : [];
+
+            const chartMapping = charts.map((c, i) => ({
+                id: c.saved_query_id,
+                newId: newCharts[i].saved_query_id,
+            }));
+
+            // only get last chart version
+            const lastVersionIds = await trx('saved_queries_versions')
+                .whereIn('saved_query_id', chartIds)
+                .groupBy('saved_query_id')
+                .max('saved_queries_version_id');
+
+            const chartVersions = await trx('saved_queries_versions')
+                .whereIn(
+                    'saved_queries_version_id',
+                    lastVersionIds.map((d) => d.max),
+                )
+                .select('*');
+
+            const chartVersionIds = chartVersions.map(
+                (d) => d.saved_queries_version_id,
+            );
+
+            const newChartVersions =
+                chartVersions.length > 0
+                    ? await trx('saved_queries_versions')
+                          .insert(
+                              chartVersions.map((d) => ({
+                                  ...d,
+                                  saved_queries_version_id: undefined,
+                                  saved_queries_version_uuid: undefined,
+                                  saved_query_id: chartMapping.find(
+                                      (m) => m.id === d.saved_query_id,
+                                  )?.newId,
+                              })),
+                          )
+                          .returning('*')
+                    : [];
+
+            const chartVersionMapping = chartVersions.map((c, i) => ({
+                id: c.saved_queries_version_id,
+                newId: newChartVersions[i].saved_queries_version_id,
+            }));
+
+            const copyChartVersionContent = async (
+                table: string,
+                fieldId: string,
+            ) => {
+                const content = await trx(table)
+                    .whereIn('saved_queries_version_id', chartVersionIds)
+                    .select(`*`);
+
+                if (content.length === 0) return undefined;
+
+                const newContent = await trx(table)
+                    .insert(
+                        content.map((d) => ({
+                            ...d,
+                            [fieldId]: undefined,
+                            saved_queries_version_id: chartVersionMapping.find(
+                                (m) => m.id === d.saved_queries_version_id,
+                            )?.newId,
+                        })),
+                    )
+                    .returning('*');
+
+                return newContent;
+            };
+
+            await copyChartVersionContent(
+                'saved_queries_version_table_calculations',
+                'saved_queries_version_table_calculation_id',
+            );
+            await copyChartVersionContent(
+                'saved_queries_version_sorts',
+                'saved_queries_version_sort_id',
+            );
+            await copyChartVersionContent(
+                'saved_queries_version_fields',
+                'saved_queries_version_field_id',
+            );
+            await copyChartVersionContent(
+                'saved_queries_version_additional_metrics',
+                'saved_queries_additional_metric_id',
+            );
+
+            const dashboards = await trx('dashboards')
+                .leftJoin('spaces', 'dashboards.space_id', 'spaces.space_id')
+                .leftJoin(
+                    'projects',
+                    'projects.project_id',
+                    'spaces.project_id',
+                )
+                .where('projects.project_uuid', projectUuid)
+                .select('dashboards.*');
+
+            const dashboardIds = dashboards.map((d) => d.dashboard_id);
+
+            Logger.debug(
+                `Duplicating ${dashboards.length} dashboards on ${previewProjectUuid}`,
+            );
+
+            const newDashboards =
+                dashboards.length > 0
+                    ? await trx('dashboards')
+                          .insert(
+                              dashboards.map((d) => ({
+                                  ...d,
+                                  dashboard_id: undefined,
+                                  dashboard_uuid: undefined,
+                                  space_id: getNewSpace(d.space_id),
+                              })),
+                          )
+                          .returning('*')
+                    : [];
+
+            const dashboardMapping = dashboards.map((c, i) => ({
+                id: c.dashboard_id,
+                newId: newDashboards[i].dashboard_id,
+            }));
+
+            // Get last version of a dashboard
+            const lastDashboardVersionsIds = await trx('dashboard_versions')
+                .whereIn('dashboard_id', dashboardIds)
+                .groupBy('dashboard_id')
+                .max('dashboard_version_id');
+
+            const dashboardVersionIds = lastDashboardVersionsIds.map(
+                (d) => d.max,
+            );
+
+            const dashboardVersions = await trx('dashboard_versions')
+                .whereIn('dashboard_version_id', dashboardVersionIds)
+                .select('*');
+
+            const newDashboardVersions =
+                dashboardVersions.length > 0
+                    ? await trx('dashboard_versions')
+                          .insert(
+                              dashboardVersions.map((d) => ({
+                                  ...d,
+                                  dashboard_version_id: undefined,
+                                  dashboard_id: dashboardMapping.find(
+                                      (m) => m.id === d.dashboard_id,
+                                  )?.newId!,
+                              })),
+                          )
+                          .returning('*')
+                    : [];
+
+            const dashboardVersionsMapping = dashboardVersions.map((c, i) => ({
+                id: c.dashboard_version_id,
+                newId: newDashboardVersions[i].dashboard_version_id,
+            }));
+
+            const dashboardTiles = await trx('dashboard_tiles').whereIn(
+                'dashboard_version_id',
+                lastDashboardVersionsIds.map((d) => d.max),
+            );
+
+            Logger.debug(
+                `Duplicating ${dashboardTiles.length} dashboard tiles on ${previewProjectUuid}`,
+            );
+
+            const dashboardTileUuids = dashboardTiles.map(
+                (dv) => dv.dashboard_tile_uuid,
+            );
+
+            const newDashboardTiles =
+                dashboardTiles.length > 0
+                    ? await trx('dashboard_tiles')
+                          .insert(
+                              dashboardTiles.map((d) => ({
+                                  ...d,
+                                  dashboard_tile_uuid: uuid4(),
+                                  dashboard_version_id:
+                                      dashboardVersionsMapping.find(
+                                          (m) =>
+                                              m.id === d.dashboard_version_id,
+                                      )?.newId!,
+                              })),
+                          )
+                          .returning('*')
+                    : [];
+
+            const dashboardTilesMapping = dashboardTiles.map((c, i) => ({
+                id: c.dashboard_tile_uuid,
+                newId: newDashboardTiles[i].dashboard_tile_uuid,
+            }));
+
+            const copyDashboardTileContent = async (table: string) => {
+                const content = await trx(table)
+                    .whereIn('dashboard_tile_uuid', dashboardTileUuids)
+                    .and.whereIn('dashboard_version_id', dashboardVersionIds);
+
+                if (content.length === 0) return undefined;
+
+                const newContent = await trx(table).insert(
+                    content.map((d) => ({
+                        ...d,
+
+                        // only applied to tile charts
+                        ...(d.saved_chart_id && {
+                            saved_chart_id: chartMapping.find(
+                                (c) => c.id === d.saved_chart_id,
+                            )?.newId,
+                        }),
+
+                        dashboard_version_id: dashboardVersionsMapping.find(
+                            (m) => m.id === d.dashboard_version_id,
+                        )?.newId!,
+                        dashboard_tile_uuid: dashboardTilesMapping.find(
+                            (m) => m.id === d.dashboard_tile_uuid,
+                        )?.newId!,
+                    })),
+                );
+                return newContent;
+            };
+
+            await copyDashboardTileContent('dashboard_tile_charts');
+            await copyDashboardTileContent('dashboard_tile_looms');
+            await copyDashboardTileContent('dashboard_tile_markdowns');
+
+            const contentMapping: PreviewContentMapping = {
+                charts: chartMapping,
+                chartVersions: chartVersionMapping,
+                spaces: spaceMapping,
+                dashboards: dashboardMapping,
+                dashboardVersions: dashboardVersionsMapping,
+            };
+            // Insert mapping on database
+            await trx('preview_content').insert({
+                project_uuid: projectUuid,
+                preview_project_uuid: previewProjectUuid,
+                content_mapping: contentMapping,
+            });
+        });
     }
 
     // Easier to mock in ProjectService

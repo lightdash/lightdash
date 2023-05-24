@@ -20,6 +20,7 @@ export type DbProject = {
     dbt_connection: Buffer | null;
     table_selection_type: TableSelectionType;
     table_selection_value: string[] | null;
+    copied_from_project_uuid: string | null;
 };
 
 type CreateDbProject = Pick<
@@ -29,6 +30,7 @@ type CreateDbProject = Pick<
     | 'project_type'
     | 'dbt_connection'
     | 'dbt_connection_type'
+    | 'copied_from_project_uuid'
 >;
 type UpdateDbProject = Partial<
     Pick<

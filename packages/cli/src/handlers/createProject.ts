@@ -72,6 +72,7 @@ type CreateProjectOptions = {
     profile: string | undefined;
     type: ProjectType;
     startOfWeek?: number;
+    copiedFromProjectUuid?: string;
 };
 export const createProject = async (
     options: CreateProjectOptions,
@@ -131,6 +132,7 @@ export const createProject = async (
             type: DbtProjectType.NONE,
             target: targetName,
         },
+        copiedFromProjectUuid: options.copiedFromProjectUuid,
     };
     const createdProject = await lightdashApi<Project>({
         method: 'POST',

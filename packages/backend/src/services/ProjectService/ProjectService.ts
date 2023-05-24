@@ -206,8 +206,15 @@ export class ProjectService {
                 dbtConnectionType: data.dbtConnection.type,
                 isPreview: data.type === ProjectType.PREVIEW,
                 method,
+                copiedFromProjectUuid: data.copiedFromProjectUuid,
             },
         });
+
+        if (data.copiedFromProjectUuid)
+            await this.copyContentOnPreview(
+                data.copiedFromProjectUuid,
+                projectUuid,
+            );
 
         return this.projectModel.get(projectUuid);
     }
@@ -1815,5 +1822,26 @@ export class ProjectService {
         );
 
         return allowedSpaces;
+    }
+
+    async copyContentOnPreview(
+        projectUuid: string,
+        previewProjectUuid: string,
+    ): Promise<void> {
+        Logger.debug(
+            `Copying content from project ${projectUuid} to preview project ${previewProjectUuid}`,
+        );
+        await wrapSentryTransaction<void>(
+            'duplicateContent',
+            {
+                projectUuid,
+            },
+            async () => {
+                await this.projectModel.duplicateContent(
+                    projectUuid,
+                    previewProjectUuid,
+                );
+            },
+        );
     }
 }
