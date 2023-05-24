@@ -467,9 +467,10 @@ export class SpaceModel {
             pinnedListUuid: savedQuery.pinned_list_uuid,
             pinnedListOrder: savedQuery.order,
             validationErrors: savedQuery.validation_errors.map(
-                ({ error, created_at }) => ({
+                ({ error, created_at, validation_id }) => ({
                     error,
                     createdAt: created_at,
+                    validationId: validation_id,
                 }),
             ),
         }));

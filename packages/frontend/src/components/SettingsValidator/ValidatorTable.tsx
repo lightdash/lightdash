@@ -6,8 +6,8 @@ import {
     IconLayoutDashboard,
     IconTable,
 } from '@tabler/icons-react';
-import { FC } from 'react';
-import { useHistory } from 'react-router-dom';
+import { createRef, FC, RefObject, useEffect, useState } from 'react';
+import { useHistory, useLocation } from 'react-router-dom';
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
 import { useTimeAgo } from '../../hooks/useTimeAgo';
 import MantineIcon from '../common/MantineIcon';
@@ -51,6 +51,8 @@ export const ValidatorTable: FC<{
     data: ValidationResponse[];
     projectUuid: string;
 }> = ({ data, projectUuid }) => {
+    const location = useLocation<{ validationId: number }>();
+    console.log(location);
     const history = useHistory();
     const { classes } = useTableStyles();
 
@@ -63,6 +65,29 @@ export const ValidatorTable: FC<{
         const link = getLinkToResource(validationError, projectUuid);
         if (link) history.push(link);
     };
+
+    const [activeRow, setActiveRow] = useState<number | null>(null);
+
+    const refs = data.reduce(
+        (acc: { [key: string]: RefObject<HTMLTableRowElement> }, value) => {
+            acc[value.validationId] = createRef();
+            return acc;
+        },
+        {},
+    );
+
+    useEffect(() => {
+        if (location.state?.validationId) {
+            setActiveRow(location.state.validationId);
+            refs[location.state.validationId]?.current?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'nearest',
+            });
+            setTimeout(() => {
+                setActiveRow(null);
+            }, 2000);
+        }
+    }, [location, refs]);
 
     return (
         <Table
@@ -84,9 +109,16 @@ export const ValidatorTable: FC<{
             </thead>
             <tbody>
                 {data && data.length
-                    ? data.map((validationError, index) => (
+                    ? data.map((validationError) => (
                           <tr
-                              key={index}
+                              key={validationError.validationId}
+                              ref={refs[validationError.validationId]}
+                              style={{
+                                  color:
+                                      activeRow === validationError.validationId
+                                          ? 'red'
+                                          : 'black',
+                              }}
                               onClick={() =>
                                   handleOnValidationErrorClick(validationError)
                               }
