@@ -51,37 +51,6 @@ export class ValidationModel {
             .delete();
     }
 
-    static async getValidationErrorSummaries(
-        db: Knex,
-        item: { chartUuid?: string; dashboardUuid?: string },
-    ): Promise<Pick<ValidationResponse, 'error' | 'createdAt'>[]> {
-        if (item.chartUuid) {
-            const rows = await db
-                .table(ValidationTableName)
-                .where('saved_chart_uuid', item.chartUuid)
-                .select('*');
-
-            return rows.map((row) => ({
-                error: row.error,
-                createdAt: row.created_at,
-            }));
-        }
-
-        if (item.dashboardUuid) {
-            const rows = await db
-                .table(ValidationTableName)
-                .where('dashboard_uuid', item.dashboardUuid)
-                .select('*');
-
-            return rows.map((row) => ({
-                error: row.error,
-                createdAt: row.created_at,
-            }));
-        }
-
-        return [];
-    }
-
     async get(projectUuid: string): Promise<ValidationResponse[]> {
         const chartValidationErrorsRows: (DbValidationTable &
             Pick<SavedChartTable['base'], 'name'> &
