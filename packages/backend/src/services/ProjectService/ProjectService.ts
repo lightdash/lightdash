@@ -11,6 +11,7 @@ import {
     CreateJob,
     CreateProject,
     CreateProjectMember,
+    CreateWarehouseCredentials,
     DashboardAvailableFilters,
     DbtProjectType,
     deepEqual,
@@ -59,7 +60,9 @@ import {
     UpdateProject,
     UpdateProjectMember,
     WarehouseClient,
+    WarehouseTypes,
 } from '@lightdash/common';
+import { SshTunnel } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
@@ -76,6 +79,7 @@ import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { SshKeyPairModel } from '../../models/SshKeyPairModel';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { buildQuery } from '../../queryBuilder';
 import { compileMetricQuery } from '../../queryCompiler';
@@ -90,6 +94,7 @@ type ProjectServiceDependencies = {
     jobModel: JobModel;
     emailClient: EmailClient;
     spaceModel: SpaceModel;
+    sshKeyPairModel: SshKeyPairModel;
 };
 
 export class ProjectService {
@@ -107,6 +112,8 @@ export class ProjectService {
 
     spaceModel: SpaceModel;
 
+    sshKeyPairModel: SshKeyPairModel;
+
     constructor({
         projectModel,
         onboardingModel,
@@ -114,6 +121,7 @@ export class ProjectService {
         jobModel,
         emailClient,
         spaceModel,
+        sshKeyPairModel,
     }: ProjectServiceDependencies) {
         this.projectModel = projectModel;
         this.onboardingModel = onboardingModel;
@@ -122,32 +130,60 @@ export class ProjectService {
         this.jobModel = jobModel;
         this.emailClient = emailClient;
         this.spaceModel = spaceModel;
+        this.sshKeyPairModel = sshKeyPairModel;
     }
 
-    private async _getWarehouseClient(
-        projectUuid: string,
-    ): Promise<WarehouseClient> {
+    private async _resolveWarehouseClientSshKeys<
+        T extends { warehouseConnection: CreateWarehouseCredentials },
+    >(args: T): Promise<T> {
+        if (
+            (args.warehouseConnection.type === WarehouseTypes.REDSHIFT ||
+                args.warehouseConnection.type === WarehouseTypes.POSTGRES) &&
+            args.warehouseConnection.useSshTunnel
+        ) {
+            const publicKey = args.warehouseConnection.sshTunnelPublicKey || '';
+            const { privateKey } = await this.sshKeyPairModel.get(publicKey);
+            return {
+                ...args,
+                warehouseConnection: {
+                    ...args.warehouseConnection,
+                    sshTunnelPrivateKey: privateKey,
+                },
+            };
+        }
+        return args;
+    }
+
+    private async _getWarehouseClient(projectUuid: string): Promise<{
+        warehouseClient: WarehouseClient;
+        sshTunnel: SshTunnel<CreateWarehouseCredentials>;
+    }> {
         // Always load the latest credentials from the database
         const credentials =
             await this.projectModel.getWarehouseCredentialsForProject(
                 projectUuid,
             );
-        // Check cache for existing client
+        // Setup SSH tunnel for client (user needs to close this)
+        const sshTunnel = new SshTunnel(credentials);
+        const warehouseSshCredentials = await sshTunnel.connect();
+
+        // Check cache for existing client (always false if ssh tunnel was connected)
         const existingClient = this.warehouseClients[projectUuid] as
             | typeof this.warehouseClients[string]
             | undefined;
         if (
             existingClient &&
-            deepEqual(existingClient.credentials, credentials)
+            deepEqual(existingClient.credentials, warehouseSshCredentials)
         ) {
             // if existing client uses identical credentials, use it
-            return existingClient;
+            return { warehouseClient: existingClient, sshTunnel };
         }
         // otherwise create a new client and cache for future use
-        const client =
-            this.projectModel.getWarehouseClientFromCredentials(credentials);
+        const client = this.projectModel.getWarehouseClientFromCredentials(
+            warehouseSshCredentials,
+        );
         this.warehouseClients[projectUuid] = client;
-        return client;
+        return { warehouseClient: client, sshTunnel };
     }
 
     async getProject(projectUuid: string, user: SessionUser): Promise<Project> {
@@ -181,9 +217,10 @@ export class ProjectService {
         ) {
             throw new ForbiddenError();
         }
+        const createProject = await this._resolveWarehouseClientSshKeys(data);
         const projectUuid = await this.projectModel.create(
             user.organizationUuid,
-            data,
+            createProject,
         );
 
         // Give admin user permissions to user who created this project even if he is an admin
@@ -198,13 +235,13 @@ export class ProjectService {
             event: 'project.created',
             userId: user.userUuid,
             properties: {
-                projectName: data.name,
+                projectName: createProject.name,
                 projectId: projectUuid,
-                projectType: data.dbtConnection.type,
-                warehouseConnectionType: data.warehouseConnection.type,
+                projectType: createProject.dbtConnection.type,
+                warehouseConnectionType: createProject.warehouseConnection.type,
                 organizationId: user.organizationUuid,
-                dbtConnectionType: data.dbtConnection.type,
-                isPreview: data.type === ProjectType.PREVIEW,
+                dbtConnectionType: createProject.dbtConnection.type,
+                isPreview: createProject.type === ProjectType.PREVIEW,
                 method,
                 copiedFromProjectUuid: data.copiedFromProjectUuid,
             },
@@ -240,6 +277,8 @@ export class ProjectService {
             throw new ForbiddenError();
         }
 
+        const createProject = await this._resolveWarehouseClientSshKeys(data);
+
         const job: CreateJob = {
             jobUuid: uuidv4(),
             jobType: JobType.CREATE_PROJECT,
@@ -258,10 +297,11 @@ export class ProjectService {
                 await this.jobModel.update(job.jobUuid, {
                     jobStatus: JobStatusType.RUNNING,
                 });
-                const adapter = await this.jobModel.tryJobStep(
+                const { adapter, sshTunnel } = await this.jobModel.tryJobStep(
                     job.jobUuid,
                     JobStepType.TESTING_ADAPTOR,
-                    async () => ProjectService.testProjectAdapter(data),
+                    async () =>
+                        ProjectService.testProjectAdapter(createProject),
                 );
 
                 const explores = await this.jobModel.tryJobStep(
@@ -272,6 +312,7 @@ export class ProjectService {
                             return await adapter.compileAllExplores();
                         } finally {
                             await adapter.destroy();
+                            await sshTunnel.disconnect();
                         }
                     },
                 );
@@ -280,7 +321,10 @@ export class ProjectService {
                     job.jobUuid,
                     JobStepType.CREATING_PROJECT,
                     async () =>
-                        this.projectModel.create(user.organizationUuid, data),
+                        this.projectModel.create(
+                            user.organizationUuid,
+                            createProject,
+                        ),
                 );
 
                 // Give admin user permissions to user who created this project even if he is an admin
@@ -307,13 +351,14 @@ export class ProjectService {
                     event: 'project.created',
                     userId: user.userUuid,
                     properties: {
-                        projectName: data.name,
+                        projectName: createProject.name,
                         projectId: projectUuid,
-                        projectType: data.dbtConnection.type,
-                        warehouseConnectionType: data.warehouseConnection.type,
+                        projectType: createProject.dbtConnection.type,
+                        warehouseConnectionType:
+                            createProject.warehouseConnection.type,
                         organizationId: user.organizationUuid,
-                        dbtConnectionType: data.dbtConnection.type,
-                        isPreview: data.type === ProjectType.PREVIEW,
+                        dbtConnectionType: createProject.dbtConnection.type,
+                        isPreview: createProject.type === ProjectType.PREVIEW,
                         method,
                     },
                 });
@@ -396,8 +441,9 @@ export class ProjectService {
                     : [{ stepType: JobStepType.COMPILING }]),
             ],
         };
+        const createProject = await this._resolveWarehouseClientSshKeys(data);
         const updatedProject = ProjectModel.mergeMissingProjectConfigSecrets(
-            data,
+            createProject,
             savedProject,
         );
 
@@ -470,7 +516,7 @@ export class ProjectService {
             await this.jobModel.update(job.jobUuid, {
                 jobStatus: JobStatusType.RUNNING,
             });
-            const adapter = await this.jobModel.tryJobStep(
+            const { adapter, sshTunnel } = await this.jobModel.tryJobStep(
                 job.jobUuid,
                 JobStepType.TESTING_ADAPTOR,
                 async () =>
@@ -487,6 +533,7 @@ export class ProjectService {
                             return await adapter.compileAllExplores();
                         } finally {
                             await adapter.destroy();
+                            await sshTunnel.disconnect();
                         }
                     },
                 );
@@ -526,9 +573,12 @@ export class ProjectService {
         }
     }
 
-    private static async testProjectAdapter(
-        data: UpdateProject,
-    ): Promise<ProjectAdapter> {
+    private static async testProjectAdapter(data: UpdateProject): Promise<{
+        adapter: ProjectAdapter;
+        sshTunnel: SshTunnel<CreateWarehouseCredentials>;
+    }> {
+        const sshTunnel = new SshTunnel(data.warehouseConnection);
+        await sshTunnel.connect();
         const adapter = await projectAdapterFromConfig(
             data.dbtConnection,
             data.warehouseConnection,
@@ -541,9 +591,10 @@ export class ProjectService {
             await adapter.test();
         } catch (e) {
             await adapter.destroy();
+            await sshTunnel.disconnect();
             throw e;
         }
-        return adapter;
+        return { adapter, sshTunnel };
     }
 
     async delete(projectUuid: string, user: SessionUser): Promise<void> {
@@ -571,7 +622,10 @@ export class ProjectService {
         });
     }
 
-    private async buildAdapter(projectUuid: string): Promise<ProjectAdapter> {
+    private async buildAdapter(projectUuid: string): Promise<{
+        sshTunnel: SshTunnel<CreateWarehouseCredentials>;
+        adapter: ProjectAdapter;
+    }> {
         const project = await this.projectModel.getWithSensitiveFields(
             projectUuid,
         );
@@ -582,9 +636,11 @@ export class ProjectService {
         }
         const cachedWarehouseCatalog =
             await this.projectModel.getWarehouseFromCache(projectUuid);
+        const sshTunnel = new SshTunnel(project.warehouseConnection);
+        await sshTunnel.connect();
         const adapter = await projectAdapterFromConfig(
             project.dbtConnection,
-            project.warehouseConnection,
+            sshTunnel.overrideCredentials,
             {
                 warehouseCatalog: cachedWarehouseCatalog,
                 onWarehouseCatalogChange: async (warehouseCatalog) => {
@@ -595,7 +651,24 @@ export class ProjectService {
                 },
             },
         );
-        return adapter;
+        return { adapter, sshTunnel };
+    }
+
+    private static async _compileQuery(
+        metricQuery: MetricQuery,
+        explore: Explore,
+        warehouseClient: WarehouseClient,
+    ): Promise<{ query: string; hasExampleMetric: boolean }> {
+        const compiledMetricQuery = compileMetricQuery({
+            explore,
+            metricQuery,
+            warehouseClient,
+        });
+        return buildQuery({
+            explore,
+            compiledMetricQuery,
+            warehouseClient,
+        });
     }
 
     async compileQuery(
@@ -615,18 +688,17 @@ export class ProjectService {
         ) {
             throw new ForbiddenError();
         }
-        const warehouseClient = await this._getWarehouseClient(projectUuid);
+        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            projectUuid,
+        );
         const explore = await this.getExplore(user, projectUuid, exploreName);
-        const compiledMetricQuery = compileMetricQuery({
-            explore,
+        const compiledQuery = ProjectService._compileQuery(
             metricQuery,
-            warehouseClient,
-        });
-        return buildQuery({
             explore,
-            compiledMetricQuery,
             warehouseClient,
-        });
+        );
+        await sshTunnel.disconnect();
+        return compiledQuery;
     }
 
     static metricQueryWithLimit(
@@ -880,11 +952,14 @@ export class ProjectService {
             csvLimit,
         );
 
-        const { query, hasExampleMetric } = await this.compileQuery(
-            user,
-            metricQueryWithLimit,
+        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
-            exploreName,
+        );
+        const explore = await this.getExplore(user, projectUuid, exploreName);
+        const { query, hasExampleMetric } = await ProjectService._compileQuery(
+            metricQueryWithLimit,
+            explore,
+            warehouseClient,
         );
 
         const onboardingRecord =
@@ -916,9 +991,9 @@ export class ProjectService {
             },
         });
 
-        const warehouseClient = await this._getWarehouseClient(projectUuid);
         Logger.debug(`Run query against warehouse`);
         const { rows } = await warehouseClient.runQuery(query);
+        await sshTunnel.disconnect();
         return rows;
     }
 
@@ -946,9 +1021,13 @@ export class ProjectService {
                 projectId: projectUuid,
             },
         });
-        const warehouseClient = await this._getWarehouseClient(projectUuid);
+        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            projectUuid,
+        );
         Logger.debug(`Run query against warehouse`);
-        return warehouseClient.runQuery(sql);
+        const results = warehouseClient.runQuery(sql);
+        await sshTunnel.disconnect();
+        return results;
     }
 
     async searchFieldUniqueValues(
@@ -1034,16 +1113,18 @@ export class ProjectService {
             limit,
         };
 
-        const { query } = await this.compileQuery(
-            user,
-            metricQuery,
+        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
-            explore.name,
+        );
+        const { query } = await ProjectService._compileQuery(
+            metricQuery,
+            explore,
+            warehouseClient,
         );
 
-        const warehouseClient = await this._getWarehouseClient(projectUuid);
         Logger.debug(`Run query against warehouse`);
         const { rows } = await warehouseClient.runQuery(query);
+        await sshTunnel.disconnect();
 
         analytics.track({
             event: 'field_value.search',
@@ -1070,7 +1151,7 @@ export class ProjectService {
 
         // Force refresh adapter (refetch git repos, check for changed credentials, etc.)
         // Might want to cache parts of this in future if slow
-        const adapter = await this.buildAdapter(projectUuid);
+        const { adapter, sshTunnel } = await this.buildAdapter(projectUuid);
         const packages = await adapter.getDbtPackages();
         try {
             const explores = await adapter.compileAllExplores();
@@ -1176,6 +1257,7 @@ export class ProjectService {
             throw errorResponse;
         } finally {
             await adapter.destroy();
+            await sshTunnel.disconnect();
         }
     }
 

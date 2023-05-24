@@ -24,6 +24,15 @@ export enum WarehouseTypes {
     TRINO = 'trino',
 }
 
+export type SshTunnelConfiguration = {
+    useSshTunnel?: boolean;
+    sshTunnelHost?: string;
+    sshTunnelPort?: number;
+    sshTunnelUser?: string;
+    sshTunnelPublicKey?: string;
+    sshTunnelPrivateKey?: string;
+};
+
 export type CreateBigqueryCredentials = {
     type: WarehouseTypes.BIGQUERY;
     project: string;
@@ -44,6 +53,7 @@ export const sensitiveCredentialsFieldNames = [
     'personalAccessToken',
     'privateKey',
     'privateKeyPass',
+    'sshTunnelPrivateKey',
 ] as const;
 export type SensitiveCredentialsFieldNames =
     typeof sensitiveCredentialsFieldNames[number];
@@ -65,7 +75,7 @@ export type DatabricksCredentials = Omit<
     CreateDatabricksCredentials,
     SensitiveCredentialsFieldNames
 >;
-export type CreatePostgresCredentials = {
+export type CreatePostgresCredentials = SshTunnelConfiguration & {
     type: WarehouseTypes.POSTGRES;
     host: string;
     user: string;
@@ -99,7 +109,7 @@ export type TrinoCredentials = Omit<
     CreateTrinoCredentials,
     SensitiveCredentialsFieldNames
 >;
-export type CreateRedshiftCredentials = {
+export type CreateRedshiftCredentials = SshTunnelConfiguration & {
     type: WarehouseTypes.REDSHIFT;
     host: string;
     user: string;
@@ -152,6 +162,10 @@ export type WarehouseCredentials =
     | BigqueryCredentials
     | DatabricksCredentials
     | TrinoCredentials;
+
+export type CreatePostgresLikeCredentials =
+    | CreateRedshiftCredentials
+    | CreatePostgresCredentials;
 
 export interface DbtProjectConfigBase {
     type: DbtProjectType;

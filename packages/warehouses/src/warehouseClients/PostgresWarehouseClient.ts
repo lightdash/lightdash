@@ -1,14 +1,13 @@
 import {
     CreatePostgresCredentials,
-    CreateWarehouseCredentials,
+    CreatePostgresLikeCredentials,
     DimensionType,
     Metric,
     MetricType,
-    WarehouseConnectionError,
     WarehouseQueryError,
 } from '@lightdash/common';
 import * as pg from 'pg';
-import { PoolConfig } from 'pg';
+import { Pool, PoolConfig } from 'pg';
 import WarehouseBaseClient from './WarehouseBaseClient';
 
 export enum PostgresTypes {
@@ -122,23 +121,20 @@ const convertDataTypeIdToDimensionType = (
 };
 
 export class PostgresClient<
-    T extends CreateWarehouseCredentials,
+    T extends CreatePostgresLikeCredentials,
 > extends WarehouseBaseClient<T> {
-    pool: pg.Pool;
+    config: PoolConfig;
 
     constructor(credentials: T, config: PoolConfig) {
         super(credentials);
-        try {
-            const pool = new pg.Pool(config);
-            this.pool = pool;
-        } catch (e) {
-            throw new WarehouseConnectionError(e.message);
-        }
+        this.config = config;
     }
 
     async runQuery(sql: string) {
+        let pool: Pool | undefined;
         try {
-            const results = await this.pool.query(sql); // automatically checkouts client and cleans up
+            pool = new Pool(this.config);
+            const results = await pool.query(sql); // automatically checkouts client and cleans up
             const fields = results.fields.reduce(
                 (acc, { name, dataTypeID }) => ({
                     ...acc,
@@ -150,7 +146,9 @@ export class PostgresClient<
             );
             return { fields, rows: results.rows };
         } catch (e) {
-            throw new WarehouseQueryError(e.message);
+            throw new WarehouseQueryError(`Error running postgres query: ${e}`);
+        } finally {
+            pool?.end();
         }
     }
 
