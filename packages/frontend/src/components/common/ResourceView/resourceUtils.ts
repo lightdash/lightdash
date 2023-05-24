@@ -3,7 +3,6 @@ import {
     ChartKind,
     ResourceViewItem,
     ResourceViewItemType,
-    ValidationResponse,
 } from '@lightdash/common';
 import moment from 'moment';
 
@@ -85,23 +84,4 @@ export const getResourceViewsSinceWhenDescription = (
               item.data.firstViewedAt,
           ).format('MMM D, YYYY h:mm A')}`
         : undefined;
-};
-
-export const getResourceValidationError = (
-    item: ResourceViewItem,
-    validationErrors: ValidationResponse[] | undefined,
-) => {
-    switch (item.type) {
-        case ResourceViewItemType.CHART:
-            return validationErrors?.find(
-                (error) => error.chartUuid === item.data.uuid,
-            );
-        case ResourceViewItemType.DASHBOARD:
-            return validationErrors?.find(
-                (error) => error.dashboardUuid === item.data.uuid,
-            );
-        case ResourceViewItemType.SPACE:
-        default:
-            return undefined;
-    }
 };

@@ -25,15 +25,11 @@ import { Link, useHistory, useParams } from 'react-router-dom';
 import { ResourceViewCommonProps } from '..';
 import { useTableStyles } from '../../../../hooks/styles/useTableStyles';
 import { useSpaceSummaries } from '../../../../hooks/useSpaces';
-import {
-    useValidation,
-    useValidationUserAbility,
-} from '../../../../hooks/validation/useValidation';
+import { useValidationUserAbility } from '../../../../hooks/validation/useValidation';
 import { ResourceIcon, ResourceIconWithIndicator } from '../ResourceIcon';
 import {
     getResourceTypeName,
     getResourceUrl,
-    getResourceValidationError,
     getResourceViewsSinceWhenDescription,
 } from '../resourceUtils';
 import { ResourceViewItemActionState } from './../ResourceActionHandlers';
@@ -96,7 +92,6 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: spaces = [] } = useSpaceSummaries(projectUuid);
-    const { data: validationErrors } = useValidation(projectUuid);
     const canUserManageValidation = useValidationUserAbility(projectUuid);
     const clipboard = useClipboard({ timeout: 500 });
 
@@ -128,14 +123,10 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                 id: 'name',
                 label: 'Name',
                 cell: (item: ResourceViewItem) => {
+                    console.log(item);
                     const canBelongToSpace =
                         isResourceViewItemChart(item) ||
                         isResourceViewItemDashboard(item);
-
-                    const validationError = getResourceValidationError(
-                        item,
-                        validationErrors,
-                    );
 
                     return (
                         <Anchor
@@ -151,73 +142,81 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                             onClick={(e) => e.stopPropagation()}
                         >
                             <Group noWrap>
-                                <ResourceIconWithIndicator
-                                    iconProps={{
-                                        fill: 'red',
-                                        icon: IconAlertTriangle,
-                                    }}
-                                    tooltipProps={{
-                                        w: 300,
-                                        withinPortal: true,
-                                        multiline: true,
-                                        offset: -2,
-                                        position: 'bottom',
-                                    }}
-                                    disabled={!validationError}
-                                    tooltipLabel={
-                                        canUserManageValidation ? (
-                                            <>
-                                                This content is broken. Learn
-                                                more about the validation
-                                                error(s){' '}
-                                                <Anchor
-                                                    component={Link}
-                                                    fw={600}
-                                                    to={`/generalSettings/projectManagement/${projectUuid}/validator`}
-                                                    color="blue.4"
-                                                >
-                                                    here
-                                                </Anchor>
-                                                .
-                                            </>
-                                        ) : (
-                                            <>
-                                                This content is broken. Click{' '}
-                                                <Text
-                                                    span
-                                                    sx={{
-                                                        cursor: 'pointer',
-                                                    }}
-                                                    fw={600}
-                                                    color={
-                                                        clipboard.copied
-                                                            ? 'teal'
-                                                            : 'blue.4'
-                                                    }
-                                                    onClickCapture={(
-                                                        e: React.MouseEvent<
-                                                            HTMLSpanElement,
-                                                            MouseEvent
-                                                        >,
-                                                    ) => {
-                                                        e.stopPropagation();
+                                {canBelongToSpace ? (
+                                    <ResourceIconWithIndicator
+                                        iconProps={{
+                                            fill: 'red',
+                                            icon: IconAlertTriangle,
+                                        }}
+                                        tooltipProps={{
+                                            w: 300,
+                                            withinPortal: true,
+                                            multiline: true,
+                                            offset: -2,
+                                            position: 'bottom',
+                                        }}
+                                        disabled={
+                                            !item.data.validationErrors?.length
+                                        }
+                                        tooltipLabel={
+                                            canUserManageValidation ? (
+                                                <>
+                                                    This content is broken.
+                                                    Learn more about the
+                                                    validation error(s){' '}
+                                                    <Anchor
+                                                        component={Link}
+                                                        fw={600}
+                                                        to={`/generalSettings/projectManagement/${projectUuid}/validator`}
+                                                        color="blue.4"
+                                                    >
+                                                        here
+                                                    </Anchor>
+                                                    .
+                                                </>
+                                            ) : (
+                                                <>
+                                                    This content is broken.
+                                                    Click{' '}
+                                                    <Text
+                                                        span
+                                                        sx={{
+                                                            cursor: 'pointer',
+                                                        }}
+                                                        fw={600}
+                                                        color={
+                                                            clipboard.copied
+                                                                ? 'teal'
+                                                                : 'blue.4'
+                                                        }
+                                                        onClickCapture={(
+                                                            e: React.MouseEvent<
+                                                                HTMLSpanElement,
+                                                                MouseEvent
+                                                            >,
+                                                        ) => {
+                                                            e.stopPropagation();
+                                                            // TODO: improve message / or change
 
-                                                        clipboard.copy(
-                                                            validationError?.error,
-                                                        );
-                                                    }}
-                                                >
-                                                    here to copy the error
-                                                </Text>{' '}
-                                                then share it with a developer
-                                                or admin in your project to get
-                                                more details.
-                                            </>
-                                        )
-                                    }
-                                >
+                                                            // clipboard.copy(
+                                                            //     validationError?.error,
+                                                            // );
+                                                        }}
+                                                    >
+                                                        here to copy the error
+                                                    </Text>{' '}
+                                                    then share it with a
+                                                    developer or admin in your
+                                                    project to get more details.
+                                                </>
+                                            )
+                                        }
+                                    >
+                                        <ResourceIcon item={item} />
+                                    </ResourceIconWithIndicator>
+                                ) : (
                                     <ResourceIcon item={item} />
-                                </ResourceIconWithIndicator>
+                                )}
 
                                 <Stack spacing={2}>
                                     <Tooltip
@@ -378,7 +377,6 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
         [
             enableSorting,
             columnVisibility,
-            validationErrors,
             projectUuid,
             canUserManageValidation,
             clipboard,
