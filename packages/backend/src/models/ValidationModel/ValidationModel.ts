@@ -93,10 +93,6 @@ export class ValidationModel {
             ])
             .orderBy([
                 {
-                    column: `${ValidationTableName}.error`,
-                    order: 'asc',
-                },
-                {
                     column: `${SavedChartsTableName}.name`,
                     order: 'asc',
                 },
@@ -104,8 +100,16 @@ export class ValidationModel {
                     column: `${SavedChartVersionsTableName}.saved_query_id`,
                     order: 'desc',
                 },
+                {
+                    column: `${ValidationTableName}.error`,
+                    order: 'asc',
+                },
             ])
-            .distinctOn(`${ValidationTableName}.error`);
+            .distinctOn([
+                `${SavedChartsTableName}.name`,
+                `${SavedChartVersionsTableName}.saved_query_id`,
+                `${ValidationTableName}.error`,
+            ]);
 
         const chartValidationErrors = chartValidationErrorsRows.map(
             (validationError) => ({
@@ -164,10 +168,6 @@ export class ValidationModel {
             ])
             .orderBy([
                 {
-                    column: `${ValidationTableName}.error`,
-                    order: 'asc',
-                },
-                {
                     column: `${DashboardsTableName}.name`,
                     order: 'asc',
                 },
@@ -175,8 +175,16 @@ export class ValidationModel {
                     column: `${DashboardVersionsTableName}.dashboard_id`,
                     order: 'desc',
                 },
+                {
+                    column: `${ValidationTableName}.error`,
+                    order: 'asc',
+                },
             ])
-            .distinctOn(`${ValidationTableName}.error`);
+            .distinctOn([
+                `${DashboardsTableName}.name`,
+                `${DashboardVersionsTableName}.dashboard_id`,
+                `${ValidationTableName}.error`,
+            ]);
 
         const dashboardValidationErrors = dashboardValidationErrorsRows.map(
             (validationError) => ({
