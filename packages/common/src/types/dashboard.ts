@@ -2,7 +2,6 @@ import { FilterableField } from './field';
 import { DashboardFilters } from './filter';
 import { SavedChartType } from './savedCharts';
 import { UpdatedByUser } from './user';
-import { ValidationSummary } from './validation';
 
 export enum DashboardTileTypes {
     SAVED_CHART = 'saved_chart',
@@ -117,9 +116,7 @@ export type DashboardBasicDetails = Pick<
     | 'pinnedListOrder'
 >;
 
-export type SpaceDashboard = DashboardBasicDetails & {
-    validationErrors?: ValidationSummary[];
-};
+export type SpaceDashboard = DashboardBasicDetails;
 
 export type DashboardUnversionedFields = Pick<
     CreateDashboard,
