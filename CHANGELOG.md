@@ -1,3 +1,10 @@
+## [0.570.1](https://github.com/lightdash/lightdash/compare/0.570.0...0.570.1) (2023-05-24)
+
+
+### Bug Fixes
+
+* fix additional metric copy typo ([#5605](https://github.com/lightdash/lightdash/issues/5605)) ([fbecc0b](https://github.com/lightdash/lightdash/commit/fbecc0b6f6419ca56210facb7523b71bcc1c33bb))
+
 # [0.570.0](https://github.com/lightdash/lightdash/compare/0.569.1...0.570.0) (2023-05-24)
 
 
