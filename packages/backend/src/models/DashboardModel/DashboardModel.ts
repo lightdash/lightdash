@@ -48,6 +48,7 @@ import {
 } from '../../database/entities/savedCharts';
 import { getSpaceId, SpaceTableName } from '../../database/entities/spaces';
 import { UserTable, UserTableName } from '../../database/entities/users';
+import { DbValidationTable } from '../../database/entities/validation';
 import Transaction = Knex.Transaction;
 
 export type GetDashboardQuery = Pick<
@@ -280,6 +281,15 @@ export class DashboardModel {
                         this.database.raw(
                             `(SELECT ${AnalyticsDashboardViewsTableName}.timestamp FROM ${AnalyticsDashboardViewsTableName} where ${AnalyticsDashboardViewsTableName}.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid ORDER BY ${AnalyticsDashboardViewsTableName}.timestamp ASC LIMIT 1) as first_viewed_at`,
                         ),
+                        this.database.raw(`
+                            COALESCE(
+                                (
+                                    SELECT json_agg(validations.*) 
+                                    FROM validations 
+                                    WHERE validations.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid
+                                ), '[]'
+                            ) as validation_errors
+                        `),
                     ])
                     .orderBy([
                         {
@@ -336,6 +346,7 @@ export class DashboardModel {
                 order,
                 views,
                 first_viewed_at,
+                validation_errors,
             }) => ({
                 organizationUuid: organization_uuid,
                 name,
@@ -353,6 +364,12 @@ export class DashboardModel {
                 pinnedListOrder: order,
                 views: parseInt(views, 10) || 0,
                 firstViewedAt: first_viewed_at,
+                validationErrors: validation_errors.map(
+                    (error: DbValidationTable) => ({
+                        error: error.error,
+                        createdAt: error.created_at,
+                    }),
+                ),
             }),
         );
     }
