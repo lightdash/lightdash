@@ -364,7 +364,7 @@ export class DashboardModel {
                 pinnedListOrder: order,
                 views: parseInt(views, 10) || 0,
                 firstViewedAt: first_viewed_at,
-                validationErrors: validation_errors.map(
+                validationErrors: validation_errors?.map(
                     (error: DbValidationTable) => ({
                         error: error.error,
                         createdAt: error.created_at,
