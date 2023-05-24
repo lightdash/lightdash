@@ -45,8 +45,8 @@ import {
     SpaceTableName,
 } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
+import { DbValidationTable } from '../database/entities/validation';
 import { GetDashboardDetailsQuery } from './DashboardModel/DashboardModel';
-import { ValidationModel } from './ValidationModel/ValidationModel';
 
 type Dependencies = {
     database: Knex;
@@ -279,11 +279,6 @@ export class SpaceModel {
                     firstViewedAt: first_viewed_at,
                     pinnedListUuid: pinned_list_uuid,
                     pinnedListOrder: order,
-                    validationErrors:
-                        await ValidationModel.getValidationErrorSummaries(
-                            this.database,
-                            { dashboardUuid: dashboard_uuid },
-                        ),
                 }),
             ),
         );
@@ -412,6 +407,7 @@ export class SpaceModel {
                     chart_type: ChartType;
                     pinned_list_uuid: string;
                     order: number;
+                    validation_errors: DbValidationTable[];
                 }[]
             >([
                 `saved_queries.saved_query_uuid`,
@@ -431,6 +427,15 @@ export class SpaceModel {
                 `saved_queries_versions.chart_type`,
                 `${PinnedListTableName}.pinned_list_uuid`,
                 `${PinnedChartTableName}.order`,
+                this.database.raw(`
+                    COALESCE(
+                        (
+                            SELECT json_agg(validations.*) 
+                            FROM validations 
+                            WHERE validations.saved_chart_uuid = saved_queries.saved_query_uuid
+                        ), '[]'
+                    ) as validation_errors
+                `),
             ])
             .orderBy([
                 {
@@ -464,13 +469,12 @@ export class SpaceModel {
                 ),
                 pinnedListUuid: savedQuery.pinned_list_uuid,
                 pinnedListOrder: savedQuery.order,
-                validationErrors:
-                    await ValidationModel.getValidationErrorSummaries(
-                        this.database,
-                        {
-                            chartUuid: savedQuery.saved_query_uuid,
-                        },
-                    ),
+                validationErrors: savedQuery.validation_errors.map(
+                    ({ error, created_at }) => ({
+                        error,
+                        createdAt: created_at,
+                    }),
+                ),
             })),
         );
     }
