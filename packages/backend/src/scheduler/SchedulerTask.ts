@@ -401,7 +401,10 @@ export const testAndCompileProject = async (
         });
 
         schedulerClient.generateValidation({
+            userUuid: payload.createdByUserUuid,
             projectUuid: payload.projectUuid,
+            context: 'test_and_compile',
+            organizationUuid: user.organizationUuid,
         });
     } catch (e) {
         schedulerService.logSchedulerJob({
@@ -448,6 +451,9 @@ export const compileProject = async (
 
         schedulerClient.generateValidation({
             projectUuid: payload.projectUuid,
+            context: 'dbt_refresh',
+            userUuid: payload.createdByUserUuid,
+            organizationUuid: user.organizationUuid,
         });
     } catch (e) {
         schedulerService.logSchedulerJob({
@@ -471,9 +477,37 @@ export const validateProject = async (
         status: SchedulerJobStatus.STARTED,
     });
 
+    analytics.track({
+        event: 'validation.run',
+        userId: payload.userUuid,
+        properties: {
+            context: payload.context,
+            organizationId: payload.organizationUuid,
+            projectId: payload.projectUuid,
+        },
+    });
+
     const errors = await validationService.generateValidation(
         payload.projectUuid,
     );
+
+    const contentIds = errors.map(
+        (validation) =>
+            validation.chartUuid || validation.dashboardUuid || validation.name,
+    );
+
+    analytics.track({
+        event: 'validation.completed',
+        userId: payload.userUuid,
+        properties: {
+            context: payload.context,
+            organizationId: payload.organizationUuid,
+            projectId: payload.projectUuid,
+            numContentAffected: new Set(contentIds).size,
+            numErrorsDetected: errors.length,
+        },
+    });
+
     await validationService.storeValidation(payload.projectUuid, errors);
     schedulerService.logSchedulerJob({
         task: 'validateProject',

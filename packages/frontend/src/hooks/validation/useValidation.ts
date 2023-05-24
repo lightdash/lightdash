@@ -18,20 +18,24 @@ const LAST_VALIDATION_NOTIFICATION_KEY = 'lastValidationTimestamp';
 
 const getValidation = async (
     projectUuid: string,
+    fromSettings: boolean,
 ): Promise<ValidationResponse[]> =>
     lightdashApi<ValidationResponse[]>({
-        url: `/projects/${projectUuid}/validate`,
+        url: `/projects/${projectUuid}/validate?fromSettings=${fromSettings.toString()}`,
         method: 'GET',
         body: undefined,
     });
 
-export const useValidation = (projectUuid: string) => {
+export const useValidation = (
+    projectUuid: string,
+    fromSettings: boolean = false,
+) => {
     const [lastValidationNotification, setLastValidationNotification] =
         useLocalStorageState<string>(LAST_VALIDATION_NOTIFICATION_KEY);
 
     return useQuery<ValidationResponse[], ApiError>({
-        queryKey: 'validation',
-        queryFn: () => getValidation(projectUuid),
+        queryKey: ['validation', fromSettings],
+        queryFn: () => getValidation(projectUuid, fromSettings),
         onSuccess: (data) => {
             if (data.length === 0) return;
             const latestValidationTimestamp = data[0].createdAt.toString();

@@ -24,7 +24,7 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
     const theme = useMantineTheme();
     const [isValidating, setIsValidating] = useState(false);
 
-    const { data } = useValidation(projectUuid);
+    const { data } = useValidation(projectUuid, true);
     const { mutate: validateProject } = useValidationMutation(projectUuid, () =>
         setIsValidating(false),
     );
