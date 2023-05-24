@@ -1,3 +1,10 @@
+## [0.569.1](https://github.com/lightdash/lightdash/compare/0.569.0...0.569.1) (2023-05-24)
+
+
+### Bug Fixes
+
+* add try-catch to copy content ([#5595](https://github.com/lightdash/lightdash/issues/5595)) ([ffbc505](https://github.com/lightdash/lightdash/commit/ffbc5058a38685b642f0a3d0fe4529cd7ec852ae))
+
 # [0.569.0](https://github.com/lightdash/lightdash/compare/0.568.4...0.569.0) (2023-05-24)
 
 
