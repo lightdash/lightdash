@@ -27,7 +27,6 @@ import {
 } from '@lightdash/warehouses';
 import { Knex } from 'knex';
 import { DatabaseError } from 'pg';
-import { v4 as uuid4 } from 'uuid';
 import { LightdashConfig } from '../../config/parseConfig';
 import { DbDashboard } from '../../database/entities/dashboards';
 import { OrganizationTableName } from '../../database/entities/organizations';
@@ -1023,7 +1022,7 @@ export class ProjectModel {
 
             const dashboardTiles = await trx('dashboard_tiles').whereIn(
                 'dashboard_version_id',
-                lastDashboardVersionsIds.map((d) => d.max),
+                dashboardVersionIds,
             );
 
             Logger.debug(
@@ -1040,7 +1039,7 @@ export class ProjectModel {
                           .insert(
                               dashboardTiles.map((d) => ({
                                   ...d,
-                                  dashboard_tile_uuid: uuid4(),
+                                  // we keep the same dashboard_tile_uuid
                                   dashboard_version_id:
                                       dashboardVersionsMapping.find(
                                           (m) =>
