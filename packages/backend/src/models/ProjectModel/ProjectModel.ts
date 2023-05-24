@@ -945,7 +945,7 @@ export class ProjectModel {
             );
             await copyChartVersionContent(
                 'saved_queries_version_additional_metrics',
-                'saved_queries_additional_metric_id',
+                'saved_queries_version_additional_metric_id',
             );
 
             const dashboards = await trx('dashboards')
