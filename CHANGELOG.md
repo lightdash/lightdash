@@ -1,3 +1,10 @@
+# [0.569.0](https://github.com/lightdash/lightdash/compare/0.568.4...0.569.0) (2023-05-24)
+
+
+### Features
+
+* copy content preview ([#5571](https://github.com/lightdash/lightdash/issues/5571)) ([1915618](https://github.com/lightdash/lightdash/commit/191561867bf8fd2e6b9973a9349b4fd319fb0b4a))
+
 ## [0.568.4](https://github.com/lightdash/lightdash/compare/0.568.3...0.568.4) (2023-05-23)
 
 
