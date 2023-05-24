@@ -1,17 +1,18 @@
 import { ValidationResponse } from '@lightdash/common';
-import { Alert, clsx, Flex, Table, Text } from '@mantine/core';
+import { Alert, clsx, Flex, Table, Text, useMantineTheme } from '@mantine/core';
 import {
     IconAlertCircle,
     IconChartBar,
     IconLayoutDashboard,
     IconTable,
 } from '@tabler/icons-react';
-import { createRef, FC, RefObject, useEffect, useState } from 'react';
+import { createRef, FC, RefObject, useMemo } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
 import { useTimeAgo } from '../../hooks/useTimeAgo';
 import MantineIcon from '../common/MantineIcon';
 import { IconBox } from '../common/ResourceView/ResourceIcon';
+import { useScrollAndHighlight } from './hooks/useScrollAndHighlight';
 
 const getLinkToResource = (
     validationError: ValidationResponse,
@@ -51,43 +52,31 @@ export const ValidatorTable: FC<{
     data: ValidationResponse[];
     projectUuid: string;
 }> = ({ data, projectUuid }) => {
-    const location = useLocation<{ validationId: number }>();
-    console.log(location);
-    const history = useHistory();
     const { classes } = useTableStyles();
+    const { colors } = useMantineTheme();
+
+    const history = useHistory();
+    const location = useLocation<{ validationId: number }>();
+    const searchParams = new URLSearchParams(location.search);
+    const validationId = searchParams.get('validationId');
+
+    const refs = useMemo(
+        () =>
+            data.reduce((acc, value) => {
+                acc[value.validationId.toString()] = createRef();
+                return acc;
+            }, {} as { [key: string]: RefObject<HTMLTableRowElement> }),
+        [data],
+    );
+
+    useScrollAndHighlight(refs, validationId, colors);
 
     const handleOnValidationErrorClick = (
         validationError: ValidationResponse,
     ) => {
-        if (!validationError.chartUuid && !validationError.dashboardUuid)
-            return null;
-
         const link = getLinkToResource(validationError, projectUuid);
         if (link) history.push(link);
     };
-
-    const [activeRow, setActiveRow] = useState<number | null>(null);
-
-    const refs = data.reduce(
-        (acc: { [key: string]: RefObject<HTMLTableRowElement> }, value) => {
-            acc[value.validationId] = createRef();
-            return acc;
-        },
-        {},
-    );
-
-    useEffect(() => {
-        if (location.state?.validationId) {
-            setActiveRow(location.state.validationId);
-            refs[location.state.validationId]?.current?.scrollIntoView({
-                behavior: 'smooth',
-                block: 'nearest',
-            });
-            setTimeout(() => {
-                setActiveRow(null);
-            }, 2000);
-        }
-    }, [location, refs]);
 
     return (
         <Table
@@ -113,12 +102,6 @@ export const ValidatorTable: FC<{
                           <tr
                               key={validationError.validationId}
                               ref={refs[validationError.validationId]}
-                              style={{
-                                  color:
-                                      activeRow === validationError.validationId
-                                          ? 'red'
-                                          : 'black',
-                              }}
                               onClick={() =>
                                   handleOnValidationErrorClick(validationError)
                               }
