@@ -89,7 +89,7 @@ describe('DashboardModel', () => {
                 {
                     ...dashboardWithVersionEntry,
                     space_uuid: 'spaceUuid',
-                    spaceName: 'space name',
+                    space_name: 'space name',
                 },
             ]);
         tracker.on
