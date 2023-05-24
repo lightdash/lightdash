@@ -206,6 +206,7 @@ export class ProjectService {
                 dbtConnectionType: data.dbtConnection.type,
                 isPreview: data.type === ProjectType.PREVIEW,
                 method,
+                copiedFromProjectUuid: data.copiedFromProjectUuid,
             },
         });
 
