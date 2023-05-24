@@ -30,7 +30,7 @@ export type DbSpace = {
     created_by_user_id?: number;
 };
 
-type CreateDbSpace = Pick<
+export type CreateDbSpace = Pick<
     DbSpace,
     'name' | 'project_id' | 'is_private' | 'created_by_user_id'
 >;
