@@ -121,8 +121,6 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                 id: 'name',
                 label: 'Name',
                 cell: (item: ResourceViewItem) => {
-                    console.log(item);
-
                     const canBelongToSpace =
                         isResourceViewItemChart(item) ||
                         isResourceViewItemDashboard(item);
@@ -169,12 +167,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                                         fw={600}
                                                         to={{
                                                             pathname: `/generalSettings/projectManagement/${projectUuid}/validator`,
-                                                            state: {
-                                                                validationId:
-                                                                    item.data
-                                                                        .validationErrors[0]
-                                                                        .validationId,
-                                                            },
+                                                            search: `?validationId=${item.data.validationErrors[0].validationId}`,
                                                         }}
                                                         color="blue.4"
                                                     >
