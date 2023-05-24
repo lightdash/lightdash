@@ -4,7 +4,7 @@ import { Knex } from 'knex';
 export const SavedChartsTableName = 'saved_queries';
 export const SavedChartVersionsTableName = 'saved_queries_versions';
 
-type DbSavedChart = {
+export type DbSavedChart = {
     saved_query_id: number;
     saved_query_uuid: string;
     space_id: number;
