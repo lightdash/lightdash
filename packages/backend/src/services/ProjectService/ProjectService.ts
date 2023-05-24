@@ -210,11 +210,17 @@ export class ProjectService {
             },
         });
 
-        if (data.copiedFromProjectUuid)
-            await this.copyContentOnPreview(
-                data.copiedFromProjectUuid,
-                projectUuid,
-            );
+        if (data.copiedFromProjectUuid) {
+            try {
+                await this.copyContentOnPreview(
+                    data.copiedFromProjectUuid,
+                    projectUuid,
+                );
+            } catch (e) {
+                Sentry.captureException(e);
+                Logger.error(`Unable to copy content on preview ${e}`);
+            }
+        }
 
         return this.projectModel.get(projectUuid);
     }
