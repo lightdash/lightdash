@@ -45,10 +45,7 @@ import {
     SpaceTableName,
 } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
-import {
-    ValidationSummaryQuery,
-    ValidationTableName,
-} from '../database/entities/validation';
+import { DbValidationTable } from '../database/entities/validation';
 import { GetDashboardDetailsQuery } from './DashboardModel/DashboardModel';
 
 type Dependencies = {
@@ -212,16 +209,11 @@ export class SpaceModel {
                 `${PinnedListTableName}.pinned_list_uuid`,
                 `${PinnedDashboardTableName}.pinned_list_uuid`,
             )
-            .leftJoin(
-                ValidationTableName,
-                `${ValidationTableName}.dashboard_uuid`,
-                `${DashboardsTableName}.dashboard_uuid`,
-            )
             .select<
                 (GetDashboardDetailsQuery & {
                     views: string;
                     first_viewed_at: Date | null;
-                } & ValidationSummaryQuery)[]
+                })[]
             >([
                 `${DashboardsTableName}.dashboard_uuid`,
                 `${DashboardsTableName}.name`,
@@ -241,8 +233,6 @@ export class SpaceModel {
                 ),
                 `${PinnedListTableName}.pinned_list_uuid`,
                 `${PinnedDashboardTableName}.order`,
-                `${ValidationTableName}.error as validation_error`,
-                `${ValidationTableName}.created_at as validation_created_at`,
             ])
             .orderBy([
                 {
@@ -271,8 +261,6 @@ export class SpaceModel {
                 first_viewed_at,
                 pinned_list_uuid,
                 order,
-                validation_error,
-                validation_created_at,
             }) => ({
                 organizationUuid: organization_uuid,
                 name,
@@ -290,12 +278,6 @@ export class SpaceModel {
                 firstViewedAt: first_viewed_at,
                 pinnedListUuid: pinned_list_uuid,
                 pinnedListOrder: order,
-                validationError: validation_error
-                    ? {
-                          error: validation_error,
-                          createdAt: validation_created_at,
-                      }
-                    : undefined,
             }),
         );
     }
@@ -333,7 +315,6 @@ export class SpaceModel {
                     user_uuid: string;
                     first_name: string;
                     last_name: string;
-
                     project_role: ProjectMemberRole;
                     organization_role: OrganizationMemberRole;
                 }[]
@@ -409,13 +390,8 @@ export class SpaceModel {
                 `${PinnedListTableName}.pinned_list_uuid`,
                 `${PinnedChartTableName}.pinned_list_uuid`,
             )
-            .leftJoin(
-                ValidationTableName,
-                `${ValidationTableName}.saved_chart_uuid`,
-                `${SavedChartsTableName}.saved_query_uuid`,
-            )
             .select<
-                ({
+                {
                     saved_query_uuid: string;
                     name: string;
                     description?: string;
@@ -429,7 +405,8 @@ export class SpaceModel {
                     chart_type: ChartType;
                     pinned_list_uuid: string;
                     order: number;
-                } & ValidationSummaryQuery)[]
+                    validation_errors: DbValidationTable[];
+                }[]
             >([
                 `saved_queries.saved_query_uuid`,
                 `saved_queries.name`,
@@ -448,8 +425,15 @@ export class SpaceModel {
                 `saved_queries_versions.chart_type`,
                 `${PinnedListTableName}.pinned_list_uuid`,
                 `${PinnedChartTableName}.order`,
-                `${ValidationTableName}.error as validation_error`,
-                `${ValidationTableName}.created_at as validation_created_at`,
+                this.database.raw(`
+                    COALESCE(
+                        (
+                            SELECT json_agg(validations.*) 
+                            FROM validations 
+                            WHERE validations.saved_chart_uuid = saved_queries.saved_query_uuid
+                        ), '[]'
+                    ) as validation_errors
+                `),
             ])
             .orderBy([
                 {
@@ -482,12 +466,12 @@ export class SpaceModel {
             ),
             pinnedListUuid: savedQuery.pinned_list_uuid,
             pinnedListOrder: savedQuery.order,
-            validationError: savedQuery.validation_error
-                ? {
-                      error: savedQuery.validation_error,
-                      createdAt: savedQuery.validation_created_at,
-                  }
-                : undefined,
+            validationErrors: savedQuery.validation_errors.map(
+                ({ error, created_at }) => ({
+                    error,
+                    createdAt: created_at,
+                }),
+            ),
         }));
     }
 
