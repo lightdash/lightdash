@@ -93,6 +93,10 @@ export class ValidationModel {
             ])
             .orderBy([
                 {
+                    column: `${ValidationTableName}.error`,
+                    order: 'asc',
+                },
+                {
                     column: `${SavedChartsTableName}.name`,
                     order: 'asc',
                 },
@@ -100,7 +104,8 @@ export class ValidationModel {
                     column: `${SavedChartVersionsTableName}.saved_query_id`,
                     order: 'desc',
                 },
-            ]);
+            ])
+            .distinctOn(`${ValidationTableName}.error`);
 
         const chartValidationErrors = chartValidationErrorsRows.map(
             (validationError) => ({
@@ -159,6 +164,10 @@ export class ValidationModel {
             ])
             .orderBy([
                 {
+                    column: `${ValidationTableName}.error`,
+                    order: 'asc',
+                },
+                {
                     column: `${DashboardsTableName}.name`,
                     order: 'asc',
                 },
@@ -166,7 +175,8 @@ export class ValidationModel {
                     column: `${DashboardVersionsTableName}.dashboard_id`,
                     order: 'desc',
                 },
-            ]);
+            ])
+            .distinctOn(`${ValidationTableName}.error`);
 
         const dashboardValidationErrors = dashboardValidationErrorsRows.map(
             (validationError) => ({
@@ -189,7 +199,8 @@ export class ValidationModel {
                 .select(`${ValidationTableName}.*`)
                 .where('project_uuid', projectUuid)
                 .whereNull('saved_chart_uuid')
-                .whereNull('dashboard_uuid');
+                .whereNull('dashboard_uuid')
+                .distinctOn(`${ValidationTableName}.error`);
 
         const tableValidationErrors = tableValidationErrorsRows.map(
             (validationError) => ({
