@@ -401,7 +401,10 @@ export const testAndCompileProject = async (
         });
 
         schedulerClient.generateValidation({
+            userUuid: payload.createdByUserUuid,
             projectUuid: payload.projectUuid,
+            context: 'test_and_compile',
+            organizationUuid: user.organizationUuid,
         });
     } catch (e) {
         schedulerService.logSchedulerJob({
@@ -448,6 +451,9 @@ export const compileProject = async (
 
         schedulerClient.generateValidation({
             projectUuid: payload.projectUuid,
+            context: 'dbt_refresh',
+            userUuid: payload.createdByUserUuid,
+            organizationUuid: user.organizationUuid,
         });
     } catch (e) {
         schedulerService.logSchedulerJob({
@@ -471,16 +477,67 @@ export const validateProject = async (
         status: SchedulerJobStatus.STARTED,
     });
 
-    const errors = await validationService.generateValidation(
-        payload.projectUuid,
-    );
-    await validationService.storeValidation(payload.projectUuid, errors);
-    schedulerService.logSchedulerJob({
-        task: 'validateProject',
-        jobId,
-        scheduledTime,
-        status: SchedulerJobStatus.COMPLETED,
+    analytics.track({
+        event: 'validation.run',
+        userId: payload.userUuid,
+        properties: {
+            context: payload.context,
+            organizationId: payload.organizationUuid,
+            projectId: payload.projectUuid,
+        },
     });
+    try {
+        const errors = await validationService.generateValidation(
+            payload.projectUuid,
+        );
+
+        const contentIds = errors.map(
+            (validation) =>
+                validation.chartUuid ||
+                validation.dashboardUuid ||
+                validation.name,
+        );
+
+        await validationService.storeValidation(payload.projectUuid, errors);
+
+        analytics.track({
+            event: 'validation.completed',
+            userId: payload.userUuid,
+            properties: {
+                context: payload.context,
+                organizationId: payload.organizationUuid,
+                projectId: payload.projectUuid,
+                numContentAffected: new Set(contentIds).size,
+                numErrorsDetected: errors.length,
+            },
+        });
+
+        schedulerService.logSchedulerJob({
+            task: 'validateProject',
+            jobId,
+            scheduledTime,
+            status: SchedulerJobStatus.COMPLETED,
+        });
+    } catch (e) {
+        analytics.track({
+            event: 'validation.error',
+            userId: payload.userUuid,
+            properties: {
+                context: payload.context,
+                organizationId: payload.organizationUuid,
+                projectId: payload.projectUuid,
+                error: e.message,
+            },
+        });
+
+        schedulerService.logSchedulerJob({
+            task: 'validateProject',
+            jobId,
+            scheduledTime,
+            status: SchedulerJobStatus.ERROR,
+            details: { error: e.message },
+        });
+    }
 };
 export const downloadCsv = async (
     jobId: string,

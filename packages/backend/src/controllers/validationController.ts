@@ -3,7 +3,7 @@ import {
     ApiJobScheduledResponse,
     ApiValidateResponse,
 } from '@lightdash/common';
-import { Get, Post } from '@tsoa/runtime';
+import { Get, Post, Query } from '@tsoa/runtime';
 import express from 'express';
 import {
     Body,
@@ -48,6 +48,7 @@ export class ValidationController extends Controller {
      * Get validation for a project
      * @param projectUuid the projectId for the validation
      * @param req express request
+     * @param fromSettings boolean to know if this request is made from the settings page, for analytics
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -56,11 +57,16 @@ export class ValidationController extends Controller {
     async get(
         @Path() projectUuid: string,
         @Request() req: express.Request,
+        @Query() fromSettings?: boolean,
     ): Promise<ApiValidateResponse> {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await validationService.get(req.user!, projectUuid),
+            results: await validationService.get(
+                req.user!,
+                projectUuid,
+                fromSettings,
+            ),
         };
     }
 }

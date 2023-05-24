@@ -11,6 +11,7 @@ import {
     RequestMethod,
     SchedulerFormat,
     TableSelectionType,
+    ValidateProjectPayload,
     WarehouseTypes,
 } from '@lightdash/common';
 import Analytics, {
@@ -604,6 +605,25 @@ export type DownloadCsv = BaseTrack & {
     };
 };
 
+export type Validation = BaseTrack & {
+    event:
+        | 'validation.page_viewed'
+        | 'validation.run'
+        | 'validation.completed'
+        | 'validation.error';
+    userId: string;
+    properties: {
+        organizationId?: string;
+        projectId: string;
+        validationRunId?: number;
+
+        context?: ValidateProjectPayload['context'];
+        numErrorsDetected?: number;
+        numContentAffected?: number;
+        error?: string;
+    };
+};
+
 type Track =
     | TrackSimpleEvent
     | CreateUserEvent
@@ -650,7 +670,8 @@ type Track =
     | SchedulerNotificationJobEvent
     | PinnedListUpdated
     | DownloadCsv
-    | SchedulerDashboardView;
+    | SchedulerDashboardView
+    | Validation;
 
 export class LightdashAnalytics extends Analytics {
     static lightdashContext = {

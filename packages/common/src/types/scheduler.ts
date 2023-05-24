@@ -252,6 +252,9 @@ export type CompileProjectPayload = {
 
 export type ValidateProjectPayload = {
     projectUuid: string;
+    context: 'lightdash_app' | 'dbt_refresh' | 'test_and_compile' | 'cli';
+    userUuid: string;
+    organizationUuid: string | undefined;
 };
 
 export type ApiJobScheduledResponse = {

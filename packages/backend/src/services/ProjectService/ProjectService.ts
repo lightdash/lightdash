@@ -351,7 +351,12 @@ export class ProjectService {
         }
         await this.projectModel.saveExploresToCache(projectUuid, explores);
 
-        await schedulerClient.generateValidation({ projectUuid });
+        await schedulerClient.generateValidation({
+            userUuid: user.userUuid,
+            projectUuid,
+            context: 'cli',
+            organizationUuid: user.organizationUuid,
+        });
     }
 
     async updateAndScheduleAsyncWork(

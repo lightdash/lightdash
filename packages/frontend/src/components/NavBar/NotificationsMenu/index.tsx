@@ -12,7 +12,7 @@ import { ValidationErrorNotification } from './ValidationErrorNotification';
 export const NotificationsMenu: FC<{ projectUuid: string }> = ({
     projectUuid,
 }) => {
-    const { data: validationData } = useValidation(projectUuid);
+    const { data: validationData } = useValidation(projectUuid, false);
     const canUserManageValidations = useValidationUserAbility(projectUuid);
     const [hasReadValidationNotification, setHasReadValidationNotification] =
         useValidationNotificationChecker();

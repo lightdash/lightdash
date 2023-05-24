@@ -15,8 +15,10 @@ import {
     OrganizationMemberRole,
     SessionUser,
     TableCalculation,
+    ValidateProjectPayload,
     ValidationResponse,
 } from '@lightdash/common';
+import { analytics } from '../../analytics/client';
 import { schedulerClient } from '../../clients/clients';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logger';
@@ -380,6 +382,7 @@ export class ValidationService {
             ...chartErrors,
             ...dashboardErrors,
         ];
+
         return validationErrors;
     }
 
@@ -398,7 +401,12 @@ export class ValidationService {
             throw new ForbiddenError();
         }
 
-        const jobId = await schedulerClient.generateValidation({ projectUuid });
+        const jobId = await schedulerClient.generateValidation({
+            userUuid: user.userUuid,
+            projectUuid,
+            context: 'lightdash_app',
+            organizationUuid: user.organizationUuid,
+        });
         return jobId;
     }
 
@@ -438,6 +446,7 @@ export class ValidationService {
     async get(
         user: SessionUser,
         projectUuid: string,
+        fromSettings = false,
     ): Promise<ValidationResponse[]> {
         const { organizationUuid } = await this.projectModel.get(projectUuid);
 
@@ -453,6 +462,27 @@ export class ValidationService {
             throw new ForbiddenError();
         }
         const validations = await this.validationModel.get(projectUuid);
+
+        if (fromSettings) {
+            const contentIds = validations.map(
+                (validation) =>
+                    validation.chartUuid ||
+                    validation.dashboardUuid ||
+                    validation.name,
+            );
+            analytics.track({
+                event: 'validation.page_viewed',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+
+                    numErrorsDetected: validations.length,
+                    numContentAffected: new Set(contentIds).size,
+                },
+            });
+        }
+
         return this.hidePrivateContent(user, projectUuid, validations);
     }
 
