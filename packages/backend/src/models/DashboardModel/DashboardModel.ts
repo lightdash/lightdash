@@ -414,7 +414,7 @@ export class DashboardModel {
             .select<
                 (GetDashboardQuery & {
                     space_uuid: string;
-                    spaceName: string;
+                    space_name: string;
                 })[]
             >([
                 `${ProjectTableName}.project_uuid`,
@@ -429,7 +429,7 @@ export class DashboardModel {
                 `${UserTableName}.last_name`,
                 `${OrganizationTableName}.organization_uuid`,
                 `${SpaceTableName}.space_uuid`,
-                `${SpaceTableName}.name as spaceName`,
+                `${SpaceTableName}.name as space_name`,
                 `${PinnedListTableName}.pinned_list_uuid`,
                 `${PinnedDashboardTableName}.order`,
                 this.database.raw(
@@ -624,7 +624,7 @@ export class DashboardModel {
                 metrics: [],
             },
             spaceUuid: dashboard.space_uuid,
-            spaceName: dashboard.spaceName,
+            spaceName: dashboard.space_name,
             views: parseInt(dashboard.views, 10) || 0,
             firstViewedAt: dashboard.first_viewed_at,
             updatedByUser: {
