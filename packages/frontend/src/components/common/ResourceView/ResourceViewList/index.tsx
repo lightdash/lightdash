@@ -14,7 +14,6 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import { useClipboard } from '@mantine/hooks';
 import {
     IconAlertTriangle,
     IconChevronDown,
@@ -93,7 +92,6 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: spaces = [] } = useSpaceSummaries(projectUuid);
     const canUserManageValidation = useValidationUserAbility(projectUuid);
-    const clipboard = useClipboard({ timeout: 500 });
 
     const [columnSorts, setColumnSorts] = useState<SortingStateMap>(
         defaultSort ? new Map(Object.entries(defaultSort)) : new Map(),
@@ -124,6 +122,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                 label: 'Name',
                 cell: (item: ResourceViewItem) => {
                     console.log(item);
+
                     const canBelongToSpace =
                         isResourceViewItemChart(item) ||
                         isResourceViewItemDashboard(item);
@@ -142,21 +141,22 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                             onClick={(e) => e.stopPropagation()}
                         >
                             <Group noWrap>
-                                {canBelongToSpace ? (
+                                {canBelongToSpace &&
+                                item.data.validationErrors?.length ? (
                                     <ResourceIconWithIndicator
                                         iconProps={{
                                             fill: 'red',
                                             icon: IconAlertTriangle,
                                         }}
                                         tooltipProps={{
-                                            w: 300,
+                                            maw: 300,
                                             withinPortal: true,
                                             multiline: true,
                                             offset: -2,
                                             position: 'bottom',
                                         }}
                                         disabled={
-                                            !item.data.validationErrors?.length
+                                            !item.data.validationErrors.length
                                         }
                                         tooltipLabel={
                                             canUserManageValidation ? (
@@ -167,7 +167,15 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                                     <Anchor
                                                         component={Link}
                                                         fw={600}
-                                                        to={`/generalSettings/projectManagement/${projectUuid}/validator`}
+                                                        to={{
+                                                            pathname: `/generalSettings/projectManagement/${projectUuid}/validator`,
+                                                            state: {
+                                                                validationId:
+                                                                    item.data
+                                                                        .validationErrors[0]
+                                                                        .validationId,
+                                                            },
+                                                        }}
                                                         color="blue.4"
                                                     >
                                                         here
@@ -176,38 +184,13 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                                 </>
                                             ) : (
                                                 <>
-                                                    This content is broken.
-                                                    Click{' '}
-                                                    <Text
-                                                        span
-                                                        sx={{
-                                                            cursor: 'pointer',
-                                                        }}
-                                                        fw={600}
-                                                        color={
-                                                            clipboard.copied
-                                                                ? 'teal'
-                                                                : 'blue.4'
-                                                        }
-                                                        onClickCapture={(
-                                                            e: React.MouseEvent<
-                                                                HTMLSpanElement,
-                                                                MouseEvent
-                                                            >,
-                                                        ) => {
-                                                            e.stopPropagation();
-                                                            // TODO: improve message / or change
-
-                                                            // clipboard.copy(
-                                                            //     validationError?.error,
-                                                            // );
-                                                        }}
-                                                    >
-                                                        here to copy the error
-                                                    </Text>{' '}
-                                                    then share it with a
-                                                    developer or admin in your
-                                                    project to get more details.
+                                                    There's an error with this{' '}
+                                                    {isResourceViewItemChart(
+                                                        item,
+                                                    )
+                                                        ? 'chart'
+                                                        : 'dashboard'}
+                                                    .
                                                 </>
                                             )
                                         }
@@ -379,7 +362,6 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
             columnVisibility,
             projectUuid,
             canUserManageValidation,
-            clipboard,
             spaces,
             onAction,
         ],
