@@ -29,6 +29,7 @@ import { Knex } from 'knex';
 import { DatabaseError } from 'pg';
 import { v4 as uuid4 } from 'uuid';
 import { LightdashConfig } from '../../config/parseConfig';
+import { DbDashboard } from '../../database/entities/dashboards';
 import { OrganizationTableName } from '../../database/entities/organizations';
 import { PinnedListTableName } from '../../database/entities/pinnedList';
 import { DbProjectMembership } from '../../database/entities/projectMemberships';
@@ -40,6 +41,7 @@ import {
     DbProject,
     ProjectTableName,
 } from '../../database/entities/projects';
+import { DbSavedChart } from '../../database/entities/savedCharts';
 import { DbUser } from '../../database/entities/users';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
 import Logger from '../../logger';
@@ -758,17 +760,17 @@ export class ProjectModel {
         );
 
         return this.database.transaction(async (trx) => {
-            const previewProject = await trx('projects')
-                .where('project_uuid', previewProjectUuid)
-                .first();
-            const spaces = await trx('spaces')
-                .leftJoin(
-                    'projects',
-                    'projects.project_id',
-                    'spaces.project_id',
-                )
-                .where('projects.project_uuid', projectUuid)
-                .select('spaces.*');
+            const [previewProject] = await trx('projects').where(
+                'project_uuid',
+                previewProjectUuid,
+            );
+
+            const [project] = await trx('projects')
+                .where('project_uuid', projectUuid)
+                .select('project_id');
+            const projectId = project.project_id;
+
+            const spaces = await trx('spaces').where('project_id', projectId);
 
             Logger.debug(
                 `Duplicating ${spaces.length} spaces on ${previewProjectUuid}`,
@@ -783,7 +785,7 @@ export class ProjectModel {
                                   ...d,
                                   space_id: undefined,
                                   space_uuid: undefined,
-                                  project_id: previewProject?.project_id,
+                                  project_id: previewProject.project_id,
                               })),
                           )
                           .returning('*')
@@ -815,13 +817,8 @@ export class ProjectModel {
 
             const charts = await trx('saved_queries')
                 .leftJoin('spaces', 'saved_queries.space_id', 'spaces.space_id')
-                .leftJoin(
-                    'projects',
-                    'projects.project_id',
-                    'spaces.project_id',
-                )
-                .where('projects.project_uuid', projectUuid)
-                .select('saved_queries.*');
+                .where('spaces.project_id', projectId)
+                .select<DbSavedChart[]>('saved_queries.*');
 
             const chartIds = charts.map((d) => d.saved_query_id);
             Logger.debug(
@@ -929,13 +926,8 @@ export class ProjectModel {
 
             const dashboards = await trx('dashboards')
                 .leftJoin('spaces', 'dashboards.space_id', 'spaces.space_id')
-                .leftJoin(
-                    'projects',
-                    'projects.project_id',
-                    'spaces.project_id',
-                )
-                .where('projects.project_uuid', projectUuid)
-                .select('dashboards.*');
+                .where('spaces.project_id', projectId)
+                .select<DbDashboard[]>('dashboards.*');
 
             const dashboardIds = dashboards.map((d) => d.dashboard_id);
 

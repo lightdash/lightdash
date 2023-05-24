@@ -10,7 +10,7 @@ export const DashboardTileChartTableName = 'dashboard_tile_charts';
 export const DashboardTileMarkdownsTableName = 'dashboard_tile_markdowns';
 export const DashboardTileLoomsTableName = 'dashboard_tile_looms';
 
-type DbDashboard = {
+export type DbDashboard = {
     dashboard_id: number;
     dashboard_uuid: string;
     name: string;
