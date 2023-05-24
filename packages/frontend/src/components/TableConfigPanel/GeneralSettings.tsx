@@ -1,29 +1,110 @@
-import { Checkbox, FormGroup } from '@blueprintjs/core';
+import { Checkbox, Colors, FormGroup, Icon } from '@blueprintjs/core';
+import React, { FC, useCallback, useMemo, useState } from 'react';
 import {
-    CompiledDimension,
-    fieldId,
-    getDimensions,
-    getItemId,
-    replaceStringInArray,
-} from '@lightdash/common';
-import { FC, useCallback, useMemo } from 'react';
-import {
-    AxisFieldDropdown,
-    DeleteFieldButton,
-} from '../ChartConfigPanel/ChartConfigPanel.styles';
-import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
+    DragDropContext,
+    Draggable,
+    DraggableStateSnapshot,
+    Droppable,
+    DropResult,
+} from 'react-beautiful-dnd';
+import { createPortal } from 'react-dom';
+import useToaster from '../../hooks/toaster/useToaster';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
+import { Spacer } from '../SortButton/SortButton.styles';
 import ColumnConfiguration from './ColumnConfiguration';
-import { AddPivotButton, SectionTitle } from './TableConfig.styles';
+import { SectionTitle } from './TableConfig.styles';
 
 export const MAX_PIVOTS = 3;
 
+type DraggablePortalHandlerProps = {
+    snapshot: DraggableStateSnapshot;
+};
+
+const DraggablePortalHandler: FC<DraggablePortalHandlerProps> = ({
+    children,
+    snapshot,
+}) => {
+    if (snapshot.isDragging) return createPortal(children, document.body);
+    return <>{children}</>;
+};
+
+enum DroppableIds {
+    COLUMNS = 'COLUMNS',
+    ROWS = 'ROWS',
+}
+
+type DroppableItemsListProps = {
+    droppableId: string;
+    itemIds: string[];
+    isDragging: boolean;
+};
+
+const DroppableItemsList: FC<DroppableItemsListProps> = ({
+    droppableId,
+    itemIds,
+    isDragging,
+}) => {
+    return (
+        <Droppable droppableId={droppableId}>
+            {(dropProps, droppableSnapshot) => (
+                <div
+                    {...dropProps.droppableProps}
+                    ref={dropProps.innerRef}
+                    style={{
+                        background: droppableSnapshot.isDraggingOver
+                            ? Colors.LIGHT_GRAY4
+                            : isDragging
+                            ? Colors.LIGHT_GRAY5
+                            : undefined,
+                    }}
+                >
+                    {itemIds.map((itemId, index) => (
+                        <Draggable
+                            key={itemId}
+                            draggableId={itemId}
+                            index={index}
+                        >
+                            {(
+                                { draggableProps, dragHandleProps, innerRef },
+                                snapshot,
+                            ) => (
+                                <DraggablePortalHandler snapshot={snapshot}>
+                                    <div
+                                        ref={innerRef}
+                                        {...draggableProps}
+                                        style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            width: '100%',
+                                            margin: '0.357em 0',
+                                            ...draggableProps.style,
+                                        }}
+                                    >
+                                        <Icon
+                                            tagName="div"
+                                            icon="drag-handle-vertical"
+                                            {...dragHandleProps}
+                                        />
+                                        <Spacer $width={6} />
+                                        <ColumnConfiguration fieldId={itemId} />
+                                    </div>
+                                </DraggablePortalHandler>
+                            )}
+                        </Draggable>
+                    ))}
+                    {dropProps.placeholder}
+                </div>
+            )}
+        </Droppable>
+    );
+};
+
 const GeneralSettings: FC = () => {
     const {
-        explore,
         resultsData,
         pivotDimensions,
         tableConfig: {
+            selectedItemIds,
             showTableNames,
             setShowTableNames,
             hideRowNumbers,
@@ -38,35 +119,31 @@ const GeneralSettings: FC = () => {
         },
         setPivotDimensions,
     } = useVisualizationContext();
-
+    const [isDragging, setIsDragging] = useState<boolean>(false);
+    const { showToastPrimary, showToastError } = useToaster();
     const {
         metricQuery: { dimensions },
     } = resultsData || { metricQuery: { dimensions: [] as string[] } };
 
-    const availableDimensions = useMemo(
-        () =>
-            explore
-                ? getDimensions(explore).filter((field) =>
-                      dimensions.includes(fieldId(field)),
-                  )
-                : [],
-        [explore, dimensions],
-    );
-
-    const availableGroupByDimensions = useMemo(
-        () =>
-            availableDimensions.filter(
-                (item) => !pivotDimensions?.includes(getItemId(item)),
-            ),
-        [availableDimensions, pivotDimensions],
-    );
-
-    const canAddPivot = useMemo(
-        () =>
-            availableGroupByDimensions.length > 0 &&
-            (!pivotDimensions || pivotDimensions.length < MAX_PIVOTS),
-        [availableGroupByDimensions.length, pivotDimensions],
-    );
+    const {
+        columns,
+        rows,
+        metrics,
+    }: { columns: string[]; rows: string[]; metrics: string[] } =
+        useMemo(() => {
+            const columnFields = pivotDimensions ?? [];
+            const rowsFields = dimensions?.filter(
+                (itemId) => !pivotDimensions?.includes(itemId),
+            );
+            const metricsFields = (selectedItemIds ?? []).filter(
+                (id) => ![...columnFields, ...rowsFields].includes(id),
+            );
+            return {
+                columns: columnFields,
+                rows: rowsFields,
+                metrics: metricsFields,
+            };
+        }, [pivotDimensions, dimensions, selectedItemIds]);
 
     const handleToggleMetricsAsRows = useCallback(() => {
         const newValue = !metricsAsRows;
@@ -89,99 +166,111 @@ const GeneralSettings: FC = () => {
         setShowRowCalculation,
     ]);
 
-    const handleAddPivotDimension = useCallback(
-        (item: CompiledDimension, pivotKey: string) => {
-            setPivotDimensions(
-                pivotDimensions
-                    ? replaceStringInArray(
-                          pivotDimensions,
-                          pivotKey,
-                          getItemId(item),
-                      )
-                    : [getItemId(item)],
-            );
-        },
-        [pivotDimensions, setPivotDimensions],
-    );
+    const onDragEnd = useCallback(
+        ({ source, destination }: DropResult) => {
+            setIsDragging(false);
+            if (!destination) return;
 
-    const handleRemovePivotDimension = useCallback(
-        (pivotKey: string) => {
-            const newPivotDimensions = pivotDimensions?.filter(
-                (key) => key !== pivotKey,
-            );
+            if (source.droppableId !== destination.droppableId) {
+                if (destination.droppableId === DroppableIds.COLUMNS) {
+                    if (columns.length >= MAX_PIVOTS) {
+                        showToastError({
+                            title: 'Maximum number of pivots reached',
+                        });
+                        return;
+                    }
+                    // Add pivot
+                    const fieldId = rows[source.index];
+                    setPivotDimensions([
+                        ...columns.slice(0, destination.index),
+                        fieldId,
+                        ...columns.slice(destination.index),
+                    ]);
+                } else {
+                    // Remove pivot
+                    const fieldId = columns[source.index];
+                    const newPivotDimensions = columns.filter(
+                        (key) => key !== fieldId,
+                    );
 
-            if (
-                metricsAsRows &&
-                (!newPivotDimensions || newPivotDimensions.length === 0)
-            ) {
-                handleToggleMetricsAsRows();
+                    if (
+                        metricsAsRows &&
+                        (!newPivotDimensions || newPivotDimensions.length === 0)
+                    ) {
+                        handleToggleMetricsAsRows();
+                    }
+                    setPivotDimensions(newPivotDimensions);
+                }
+            } else if (destination.droppableId === DroppableIds.COLUMNS) {
+                // Reorder pivot
+                const fieldId = columns[source.index];
+                const columnsWithoutReorderField = columns.filter(
+                    (key) => key !== fieldId,
+                );
+                setPivotDimensions([
+                    ...columnsWithoutReorderField.slice(0, destination.index),
+                    fieldId,
+                    ...columnsWithoutReorderField.slice(destination.index),
+                ]);
+            } else {
+                showToastPrimary({
+                    title: 'Reordering rows is not supported yet',
+                });
             }
-
-            setPivotDimensions(newPivotDimensions);
         },
-
         [
-            pivotDimensions,
-            setPivotDimensions,
-            metricsAsRows,
+            columns,
             handleToggleMetricsAsRows,
+            metricsAsRows,
+            rows,
+            setPivotDimensions,
+            showToastPrimary,
+            showToastError,
         ],
     );
 
     return (
         <>
-            <SectionTitle>Pivot column</SectionTitle>
-            {pivotDimensions &&
-                pivotDimensions.map((pivotKey) => {
-                    // Group series logic
-                    const groupSelectedField = availableDimensions.find(
-                        (item) => getItemId(item) === pivotKey,
-                    );
+            <DragDropContext
+                onDragStart={() => setIsDragging(true)}
+                onDragEnd={onDragEnd}
+            >
+                <SectionTitle>Columns</SectionTitle>
+                <FormGroup>
+                    <DroppableItemsList
+                        droppableId={DroppableIds.COLUMNS}
+                        itemIds={columns}
+                        isDragging={isDragging}
+                    />
+                </FormGroup>
 
-                    return (
-                        <AxisFieldDropdown key={pivotKey}>
-                            <FieldAutoComplete
-                                fields={
-                                    groupSelectedField
-                                        ? [
-                                              groupSelectedField,
-                                              ...availableGroupByDimensions,
-                                          ]
-                                        : availableGroupByDimensions
-                                }
-                                placeholder="Select a field to group by"
-                                activeField={groupSelectedField}
-                                onChange={(item) => {
-                                    handleAddPivotDimension(item, pivotKey);
-                                }}
-                            />
-                            {groupSelectedField && (
-                                <DeleteFieldButton
-                                    minimal
-                                    icon="cross"
-                                    onClick={() => {
-                                        handleRemovePivotDimension(pivotKey);
-                                    }}
-                                />
-                            )}
-                        </AxisFieldDropdown>
-                    );
-                })}
-            {canAddPivot && (
-                <AddPivotButton
-                    minimal
-                    intent="primary"
-                    onClick={() =>
-                        setPivotDimensions([
-                            ...(pivotDimensions || []),
-                            getItemId(availableGroupByDimensions[0]),
-                        ])
-                    }
-                >
-                    + Add
-                </AddPivotButton>
-            )}
+                <SectionTitle>Rows</SectionTitle>
+                <FormGroup>
+                    <DroppableItemsList
+                        droppableId={DroppableIds.ROWS}
+                        itemIds={rows}
+                        isDragging={isDragging}
+                    />
+                </FormGroup>
+            </DragDropContext>
 
+            <SectionTitle>Metrics</SectionTitle>
+            <FormGroup>
+                {metrics.map((itemId) => (
+                    <div
+                        key={itemId}
+                        style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            width: '100%',
+                            margin: '0.357em 0',
+                        }}
+                    >
+                        <ColumnConfiguration fieldId={itemId} />
+                    </div>
+                ))}
+            </FormGroup>
+            <SectionTitle>Options</SectionTitle>
             <FormGroup>
                 <Checkbox
                     label="Show table names"
@@ -224,10 +313,6 @@ const GeneralSettings: FC = () => {
                     }}
                 />
             </FormGroup>
-
-            <SectionTitle>Columns</SectionTitle>
-
-            <ColumnConfiguration />
         </>
     );
 };
