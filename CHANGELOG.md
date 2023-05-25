@@ -1,3 +1,10 @@
+## [0.571.4](https://github.com/lightdash/lightdash/compare/0.571.3...0.571.4) (2023-05-25)
+
+
+### Bug Fixes
+
+* show custom metrics when at least 1 is defined ([#5627](https://github.com/lightdash/lightdash/issues/5627)) ([79efc74](https://github.com/lightdash/lightdash/commit/79efc74f54892cf389687287a46251c0a18410f0))
+
 ## [0.571.3](https://github.com/lightdash/lightdash/compare/0.571.2...0.571.3) (2023-05-25)
 
 
