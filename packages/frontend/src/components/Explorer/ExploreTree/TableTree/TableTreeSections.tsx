@@ -34,11 +34,13 @@ const TableTreeSections: FC<Props> = ({
     }, [table.metrics]);
 
     const customMetrics = useMemo(() => {
-        return additionalMetrics.reduce<Record<string, AdditionalMetric>>(
-            (acc, item) => ({ ...acc, [getItemId(item)]: item }),
-            {},
-        );
-    }, [additionalMetrics]);
+        return additionalMetrics
+            .filter((metric) => metric.table === table.name)
+            .reduce<Record<string, AdditionalMetric>>(
+                (acc, item) => ({ ...acc, [getItemId(item)]: item }),
+                {},
+            );
+    }, [additionalMetrics, table]);
 
     const isSearching = !!searchQuery && searchQuery !== '';
 
@@ -117,8 +119,11 @@ const TableTreeSections: FC<Props> = ({
                 </TreeProvider>
             ) : null}
 
-            {isSearching &&
-            getSearchResults(customMetrics, searchQuery).size === 0 ? null : (
+            {hasCustomMetrics &&
+            !(
+                isSearching &&
+                getSearchResults(customMetrics, searchQuery).size === 0
+            ) ? (
                 <Group position="apart" mt="sm" mb="xs" pr="sm">
                     <Text fw={600} color="yellow.9">
                         Custom metrics
@@ -141,7 +146,7 @@ const TableTreeSections: FC<Props> = ({
                         }}
                     />
                 </Group>
-            )}
+            ) : null}
 
             {!hasMetrics || hasCustomMetrics ? (
                 <TreeProvider

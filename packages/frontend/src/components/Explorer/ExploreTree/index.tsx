@@ -81,9 +81,7 @@ const ExploreTree: FC<ExploreTreeProps> = ({
                                 Object.keys(explore.tables).length > 1
                             }
                             table={table}
-                            additionalMetrics={additionalMetrics?.filter(
-                                (metric) => metric.table === table.name,
-                            )}
+                            additionalMetrics={additionalMetrics}
                             selectedItems={selectedNodes}
                             onSelectedNodeChange={onSelectedFieldChange}
                         />
