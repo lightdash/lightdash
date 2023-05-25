@@ -312,7 +312,7 @@ export class ValidationService {
                         acc,
                         existingFieldIds,
                         filter.target.fieldId,
-                        `Filter error: the field '${filter}' no longer exists`,
+                        `Filter error: the field '${filter.target.fieldId}' no longer exists`,
                     ),
                 [],
             );
