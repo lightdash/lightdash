@@ -37,12 +37,14 @@ type DroppableItemsListProps = {
     droppableId: string;
     itemIds: string[];
     isDragging: boolean;
+    disableReorder: boolean;
 };
 
 const DroppableItemsList: FC<DroppableItemsListProps> = ({
     droppableId,
     itemIds,
     isDragging,
+    disableReorder,
 }) => {
     return (
         <Droppable droppableId={droppableId}>
@@ -51,6 +53,8 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
                     {...dropProps.droppableProps}
                     ref={dropProps.innerRef}
                     style={{
+                        minHeight: isDragging ? '30px' : undefined,
+                        marginBottom: '15px',
                         background: droppableSnapshot.isDraggingOver
                             ? Colors.LIGHT_GRAY4
                             : isDragging
@@ -77,6 +81,12 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
                                             alignItems: 'center',
                                             width: '100%',
                                             margin: '0.357em 0',
+                                            visibility:
+                                                isDragging &&
+                                                disableReorder &&
+                                                !snapshot.isDragging
+                                                    ? 'hidden'
+                                                    : undefined,
                                             ...draggableProps.style,
                                         }}
                                     >
@@ -120,7 +130,7 @@ const GeneralSettings: FC = () => {
         setPivotDimensions,
     } = useVisualizationContext();
     const [isDragging, setIsDragging] = useState<boolean>(false);
-    const { showToastPrimary, showToastError } = useToaster();
+    const { showToastError } = useToaster();
     const {
         metricQuery: { dimensions },
     } = resultsData || { metricQuery: { dimensions: [] as string[] } };
@@ -212,10 +222,6 @@ const GeneralSettings: FC = () => {
                     fieldId,
                     ...columnsWithoutReorderField.slice(destination.index),
                 ]);
-            } else {
-                showToastPrimary({
-                    title: 'Reordering rows is not supported yet',
-                });
             }
         },
         [
@@ -224,7 +230,6 @@ const GeneralSettings: FC = () => {
             metricsAsRows,
             rows,
             setPivotDimensions,
-            showToastPrimary,
             showToastError,
         ],
     );
@@ -236,22 +241,19 @@ const GeneralSettings: FC = () => {
                 onDragEnd={onDragEnd}
             >
                 <SectionTitle>Columns</SectionTitle>
-                <FormGroup>
-                    <DroppableItemsList
-                        droppableId={DroppableIds.COLUMNS}
-                        itemIds={columns}
-                        isDragging={isDragging}
-                    />
-                </FormGroup>
-
+                <DroppableItemsList
+                    droppableId={DroppableIds.COLUMNS}
+                    itemIds={columns}
+                    isDragging={isDragging}
+                    disableReorder={false}
+                />
                 <SectionTitle>Rows</SectionTitle>
-                <FormGroup>
-                    <DroppableItemsList
-                        droppableId={DroppableIds.ROWS}
-                        itemIds={rows}
-                        isDragging={isDragging}
-                    />
-                </FormGroup>
+                <DroppableItemsList
+                    droppableId={DroppableIds.ROWS}
+                    itemIds={rows}
+                    isDragging={isDragging}
+                    disableReorder={true}
+                />
             </DragDropContext>
 
             <SectionTitle>Metrics</SectionTitle>
