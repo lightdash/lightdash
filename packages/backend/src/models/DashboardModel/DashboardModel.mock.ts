@@ -298,6 +298,7 @@ export const expectedAllDashboards: DashboardBasicDetails[] = [
         pinnedListOrder: 0,
         views: 1,
         firstViewedAt: new Date(1),
+        validationErrors: [],
     },
 ];
 

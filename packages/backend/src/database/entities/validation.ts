@@ -9,11 +9,6 @@ export type DbValidationTable = {
     error: string;
 };
 
-export type ValidationSummaryQuery = {
-    validation_error: DbValidationTable['error'];
-    validation_created_at: DbValidationTable['created_at'];
-};
-
 export type ValidationTable = Knex.CompositeTableType<DbValidationTable>;
 
 export const ValidationTableName = 'validations';
