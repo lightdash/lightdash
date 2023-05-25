@@ -1,3 +1,10 @@
+## [0.570.3](https://github.com/lightdash/lightdash/compare/0.570.2...0.570.3) (2023-05-25)
+
+
+### Bug Fixes
+
+* duplicated tile uuids ([#5606](https://github.com/lightdash/lightdash/issues/5606)) ([f76abf2](https://github.com/lightdash/lightdash/commit/f76abf24739629638a901a532718650584433379))
+
 ## [0.570.2](https://github.com/lightdash/lightdash/compare/0.570.1...0.570.2) (2023-05-24)
 
 
