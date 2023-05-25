@@ -1,3 +1,10 @@
+# [0.571.0](https://github.com/lightdash/lightdash/compare/0.570.3...0.571.0) (2023-05-25)
+
+
+### Features
+
+* add validation errors to dashboards in model ([#5603](https://github.com/lightdash/lightdash/issues/5603)) ([8f3b928](https://github.com/lightdash/lightdash/commit/8f3b928dda4d40b2a9e4b0ece1107fd81497330d))
+
 ## [0.570.3](https://github.com/lightdash/lightdash/compare/0.570.2...0.570.3) (2023-05-25)
 
 
