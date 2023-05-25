@@ -3,6 +3,7 @@ import { Anchor } from '@mantine/core';
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
+import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
 import FormSection from '../../ReactHookForm/FormSection';
 import Input from '../../ReactHookForm/Input';
 import NumericInput from '../../ReactHookForm/NumericInput';
@@ -181,6 +182,31 @@ const PostgresForm: FC<{
                 />
                 <Input name="warehouse.role" label="Role" disabled={disabled} />
                 <StartOfWeekSelect disabled={disabled} />
+                <BooleanSwitch
+                    name="warehouse.useSshTunnel"
+                    label="Use SSH tunnel"
+                    disabled={disabled}
+                />
+                <Input
+                    name="warehouse.sshTunnelHost"
+                    label="SSH Remote Host"
+                    disabled={disabled}
+                />
+                <NumericInput
+                    name="warehouse.sshTunnelPort"
+                    label="SSH Remote Port"
+                    disabled={disabled}
+                />
+                <Input
+                    name="warehouse.sshTunnelUser"
+                    label="SSH Username"
+                    disabled={disabled}
+                />
+                <Input
+                    name="warehouse.sshTunnelPublicKey"
+                    label="Generated SSH Public Key"
+                    disabled={disabled}
+                />
             </FormSection>
             <AdvancedButtonWrapper>
                 <AdvancedButton
