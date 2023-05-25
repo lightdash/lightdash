@@ -1,4 +1,5 @@
-// Setup OpenTelemetry
+// organize-imports-ignore
+import './otel'; // must be imported first
 
 import { LightdashMode, SessionUser } from '@lightdash/common';
 import apiSpec from '@lightdash/common/dist/openapibundle.json';
@@ -32,16 +33,9 @@ import { RegisterRoutes } from './generated/routes';
 import Logger from './logger';
 import { slackAuthenticationModel, userModel } from './models/models';
 import morganMiddleware from './morganMiddleware';
-import { setupTracing } from './otel';
 import { apiV1Router } from './routers/apiV1Router';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import { VERSION } from './version';
-
-if (process.env.LIGHTDASH_OTEL === 'true') {
-    setupTracing('lightdash', {
-        ignoreHealthChecks: false,
-    });
-}
 
 // @ts-ignore
 // eslint-disable-next-line no-extend-native, func-names
