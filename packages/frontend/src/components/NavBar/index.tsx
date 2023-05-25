@@ -35,7 +35,7 @@ export const NAVBAR_HEIGHT = 50;
 const PREVIEW_BANNER_HEIGHT = 20;
 
 const PreviewBanner = () => (
-    <Center w="100%" h={PREVIEW_BANNER_HEIGHT} bg="blue.6">
+    <Center pos="fixed" w="100%" h={PREVIEW_BANNER_HEIGHT} bg="blue.6">
         <MantineIcon icon={IconTool} color="white" size="sm" />
         <Text color="white" fw={500} fz="xs">
             This is a preview environment. Any changes you make here will not
@@ -66,7 +66,12 @@ const NavBar = memo(() => {
         <MantineProvider inherit theme={{ colorScheme: 'dark' }}>
             {isCurrentProjectPreview ? <PreviewBanner /> : null}
             {/* hack to make navbar fixed and maintain space */}
-            <Box h={NAVBAR_HEIGHT} />
+            <Box
+                h={
+                    NAVBAR_HEIGHT +
+                    (isCurrentProjectPreview ? PREVIEW_BANNER_HEIGHT : 0)
+                }
+            />
             <Header
                 height={NAVBAR_HEIGHT}
                 fixed
