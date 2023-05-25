@@ -1,3 +1,10 @@
+# [0.573.0](https://github.com/lightdash/lightdash/compare/0.572.0...0.573.0) (2023-05-25)
+
+
+### Features
+
+* add validation error indicator for resource items ([#5570](https://github.com/lightdash/lightdash/issues/5570)) ([e448631](https://github.com/lightdash/lightdash/commit/e448631732cb747f8fe5909397b58edca3d7903c))
+
 # [0.572.0](https://github.com/lightdash/lightdash/compare/0.571.5...0.572.0) (2023-05-25)
 
 
