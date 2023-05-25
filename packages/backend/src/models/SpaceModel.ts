@@ -213,6 +213,7 @@ export class SpaceModel {
                 (GetDashboardDetailsQuery & {
                     views: string;
                     first_viewed_at: Date | null;
+                    validation_errors: DbValidationTable[];
                 })[]
             >([
                 `${DashboardsTableName}.dashboard_uuid`,
@@ -233,6 +234,15 @@ export class SpaceModel {
                 ),
                 `${PinnedListTableName}.pinned_list_uuid`,
                 `${PinnedDashboardTableName}.order`,
+                this.database.raw(`
+                    COALESCE(
+                        (
+                            SELECT json_agg(validations.*) 
+                            FROM validations 
+                            WHERE validations.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid
+                        ), '[]'
+                    ) as validation_errors
+                `),
             ])
             .orderBy([
                 {
@@ -261,6 +271,7 @@ export class SpaceModel {
                 first_viewed_at,
                 pinned_list_uuid,
                 order,
+                validation_errors,
             }) => ({
                 organizationUuid: organization_uuid,
                 name,
@@ -278,6 +289,13 @@ export class SpaceModel {
                 firstViewedAt: first_viewed_at,
                 pinnedListUuid: pinned_list_uuid,
                 pinnedListOrder: order,
+                validationErrors: validation_errors?.map(
+                    (error: DbValidationTable) => ({
+                        validationId: error.validation_id,
+                        error: error.error,
+                        createdAt: error.created_at,
+                    }),
+                ),
             }),
         );
     }
