@@ -1,6 +1,5 @@
 import { AdditionalMetric, CompiledTable } from '@lightdash/common';
 import {
-    Badge,
     Group,
     MantineProvider,
     MantineThemeOverride,
@@ -9,7 +8,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconTable } from '@tabler/icons-react';
-import { FC, useMemo } from 'react';
+import { FC } from 'react';
 import { useToggle } from 'react-use';
 
 import { TrackSection } from '../../../../providers/TrackingProvider';
@@ -19,24 +18,10 @@ import TableTreeSections from './TableTreeSections';
 
 type TableTreeWrapperProps = {
     table: CompiledTable;
-    additionalMetrics: AdditionalMetric[];
 };
 
-const TableTreeWrapper: FC<TableTreeWrapperProps> = ({
-    table,
-    additionalMetrics,
-    children,
-}) => {
+const TableTreeWrapper: FC<TableTreeWrapperProps> = ({ table, children }) => {
     const [isOpen, toggle] = useToggle(true);
-
-    const tableItemsCount = useMemo(() => {
-        return (
-            Object.values(table.dimensions).filter((i) => !i.hidden).length +
-            Object.values(table.metrics).filter((i) => !i.hidden).length +
-            additionalMetrics.length
-        );
-    }, [table, additionalMetrics]);
-
     return (
         <NavLink
             opened={isOpen}
@@ -52,8 +37,6 @@ const TableTreeWrapper: FC<TableTreeWrapperProps> = ({
                         <Text truncate fw={600}>
                             {table.label}
                         </Text>
-
-                        {!isOpen && <Badge>{tableItemsCount}</Badge>}
                     </Group>
                 </Tooltip>
             }
@@ -102,7 +85,7 @@ const TableTree: FC<Props> = ({
     return (
         <TrackSection name={SectionName.SIDEBAR}>
             <MantineProvider inherit theme={themeOverride}>
-                <Wrapper table={table} additionalMetrics={additionalMetrics}>
+                <Wrapper table={table}>
                     <TableTreeSections
                         table={table}
                         additionalMetrics={additionalMetrics}
