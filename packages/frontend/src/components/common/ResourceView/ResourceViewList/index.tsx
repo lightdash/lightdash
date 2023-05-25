@@ -25,7 +25,7 @@ import { ResourceViewCommonProps } from '..';
 import { useTableStyles } from '../../../../hooks/styles/useTableStyles';
 import { useSpaceSummaries } from '../../../../hooks/useSpaces';
 import { useValidationUserAbility } from '../../../../hooks/validation/useValidation';
-import { ResourceIcon, ResourceIconWithIndicator } from '../ResourceIcon';
+import { ResourceIcon, ResourceIndicator } from '../ResourceIcon';
 import {
     getResourceTypeName,
     getResourceUrl,
@@ -141,7 +141,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                             <Group noWrap>
                                 {canBelongToSpace &&
                                 item.data.validationErrors?.length ? (
-                                    <ResourceIconWithIndicator
+                                    <ResourceIndicator
                                         iconProps={{
                                             fill: 'red',
                                             icon: IconAlertTriangle,
@@ -153,9 +153,6 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                             offset: -2,
                                             position: 'bottom',
                                         }}
-                                        disabled={
-                                            !item.data.validationErrors.length
-                                        }
                                         tooltipLabel={
                                             canUserManageValidation ? (
                                                 <>
@@ -189,7 +186,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                         }
                                     >
                                         <ResourceIcon item={item} />
-                                    </ResourceIconWithIndicator>
+                                    </ResourceIndicator>
                                 ) : (
                                     <ResourceIcon item={item} />
                                 )}

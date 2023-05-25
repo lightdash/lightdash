@@ -148,7 +148,7 @@ export const ResourceTypeIcon: FC<ResourceTypeIconProps> = ({ type }) => {
     }
 };
 
-export const ResourceIconWithIndicator: FC<
+export const ResourceIndicator: FC<
     {
         children: ReactNode;
         tooltipLabel: ReactNode;
