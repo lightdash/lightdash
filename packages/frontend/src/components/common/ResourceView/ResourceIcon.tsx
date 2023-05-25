@@ -4,7 +4,14 @@ import {
     ResourceViewItem,
     ResourceViewItemType,
 } from '@lightdash/common';
-import { Center, Paper } from '@mantine/core';
+import {
+    Center,
+    Indicator,
+    IndicatorProps,
+    Paper,
+    Tooltip,
+    TooltipProps,
+} from '@mantine/core';
 import {
     Icon as TablerIconType,
     IconChartArea,
@@ -17,7 +24,7 @@ import {
     IconSquareNumber1,
     IconTable,
 } from '@tabler/icons-react';
-import { FC } from 'react';
+import { FC, ReactNode, useRef, useState } from 'react';
 import MantineIcon, { MantineIconProps } from '../MantineIcon';
 
 interface ResourceIconProps {
@@ -56,7 +63,7 @@ export const IconBox: FC<IconBoxProps> = ({
     </Paper>
 );
 
-const ResourceIcon: FC<ResourceIconProps> = ({ item }) => {
+export const ResourceIcon: FC<ResourceIconProps> = ({ item }) => {
     switch (item.type) {
         case ResourceViewItemType.DASHBOARD:
             return <IconBox icon={IconLayoutDashboard} color="green.8" />;
@@ -107,7 +114,7 @@ const COMMON_ICON_PROPS = {
     fillOpacity: 0.1,
 };
 
-const ResourceTypeIcon: FC<ResourceTypeIconProps> = ({ type }) => {
+export const ResourceTypeIcon: FC<ResourceTypeIconProps> = ({ type }) => {
     switch (type) {
         case ResourceViewItemType.DASHBOARD:
             return (
@@ -141,4 +148,72 @@ const ResourceTypeIcon: FC<ResourceTypeIconProps> = ({ type }) => {
     }
 };
 
-export { ResourceIcon, ResourceTypeIcon };
+export const ResourceIndicator: FC<
+    {
+        children: ReactNode;
+        tooltipLabel: ReactNode;
+        iconProps: MantineIconProps;
+        tooltipProps: Partial<TooltipProps>;
+    } & Pick<IndicatorProps, 'disabled'>
+> = ({ disabled, tooltipLabel, iconProps, tooltipProps, children }) => {
+    // NOTE: Control the Tooltip visibility manually to allow hovering on Label.
+    const [opened, setOpened] = useState(false);
+    const [isHovering, setIsHovering] = useState(false);
+    const closeTimeoutId = useRef<number | undefined>(undefined);
+
+    const handleMouseEnter = () => {
+        clearTimeout(closeTimeoutId.current);
+        setOpened(true);
+    };
+
+    const handleMouseLeave = () => {
+        // NOTE: Provide similar delay as Tooltip component
+        closeTimeoutId.current = window.setTimeout(() => {
+            setOpened(false);
+        }, 100);
+    };
+
+    const handleLabelMouseEnter = () => {
+        setIsHovering(true);
+        clearTimeout(closeTimeoutId.current);
+    };
+
+    const handleLabelMouseLeave = () => {
+        setIsHovering(false);
+        // NOTE: Provide similar delay as Tooltip component
+        closeTimeoutId.current = window.setTimeout(() => {
+            setOpened(false);
+        }, 100);
+    };
+
+    return (
+        <Indicator
+            disabled={disabled}
+            position="bottom-end"
+            color="transparent"
+            label={
+                <Tooltip
+                    {...tooltipProps}
+                    sx={{ pointerEvents: 'auto' }}
+                    label={
+                        <div
+                            onMouseEnter={handleLabelMouseEnter}
+                            onMouseLeave={handleLabelMouseLeave}
+                        >
+                            {tooltipLabel}
+                        </div>
+                    }
+                    opened={opened || isHovering}
+                >
+                    <MantineIcon
+                        {...iconProps}
+                        onMouseEnter={handleMouseEnter}
+                        onMouseLeave={handleMouseLeave}
+                    />
+                </Tooltip>
+            }
+        >
+            {children}
+        </Indicator>
+    );
+};

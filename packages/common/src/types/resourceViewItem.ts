@@ -24,6 +24,7 @@ export type ResourceViewChartItem = {
         | 'description'
         | 'updatedAt'
         | 'updatedByUser'
+        | 'validationErrors'
     >;
 };
 
@@ -41,6 +42,7 @@ export type ResourceViewDashboardItem = {
         | 'pinnedListOrder'
         | 'updatedAt'
         | 'updatedByUser'
+        | 'validationErrors'
     >;
 };
 

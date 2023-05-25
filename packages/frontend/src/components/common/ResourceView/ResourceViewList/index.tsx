@@ -14,13 +14,18 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
+import {
+    IconAlertTriangle,
+    IconChevronDown,
+    IconChevronUp,
+} from '@tabler/icons-react';
 import React, { FC, useMemo, useState } from 'react';
 import { Link, useHistory, useParams } from 'react-router-dom';
 import { ResourceViewCommonProps } from '..';
 import { useTableStyles } from '../../../../hooks/styles/useTableStyles';
 import { useSpaceSummaries } from '../../../../hooks/useSpaces';
-import { ResourceIcon } from '../ResourceIcon';
+import { useValidationUserAbility } from '../../../../hooks/validation/useValidation';
+import { ResourceIcon, ResourceIndicator } from '../ResourceIcon';
 import {
     getResourceTypeName,
     getResourceUrl,
@@ -86,6 +91,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: spaces = [] } = useSpaceSummaries(projectUuid);
+    const canUserManageValidation = useValidationUserAbility(projectUuid);
 
     const [columnSorts, setColumnSorts] = useState<SortingStateMap>(
         defaultSort ? new Map(Object.entries(defaultSort)) : new Map(),
@@ -133,7 +139,57 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                             onClick={(e) => e.stopPropagation()}
                         >
                             <Group noWrap>
-                                <ResourceIcon item={item} />
+                                {canBelongToSpace &&
+                                item.data.validationErrors?.length ? (
+                                    <ResourceIndicator
+                                        iconProps={{
+                                            fill: 'red',
+                                            icon: IconAlertTriangle,
+                                        }}
+                                        tooltipProps={{
+                                            maw: 300,
+                                            withinPortal: true,
+                                            multiline: true,
+                                            offset: -2,
+                                            position: 'bottom',
+                                        }}
+                                        tooltipLabel={
+                                            canUserManageValidation ? (
+                                                <>
+                                                    This content is broken.
+                                                    Learn more about the
+                                                    validation error(s){' '}
+                                                    <Anchor
+                                                        component={Link}
+                                                        fw={600}
+                                                        to={{
+                                                            pathname: `/generalSettings/projectManagement/${projectUuid}/validator`,
+                                                            search: `?validationId=${item.data.validationErrors[0].validationId}`,
+                                                        }}
+                                                        color="blue.4"
+                                                    >
+                                                        here
+                                                    </Anchor>
+                                                    .
+                                                </>
+                                            ) : (
+                                                <>
+                                                    There's an error with this{' '}
+                                                    {isResourceViewItemChart(
+                                                        item,
+                                                    )
+                                                        ? 'chart'
+                                                        : 'dashboard'}
+                                                    .
+                                                </>
+                                            )
+                                        }
+                                    >
+                                        <ResourceIcon item={item} />
+                                    </ResourceIndicator>
+                                ) : (
+                                    <ResourceIcon item={item} />
+                                )}
 
                                 <Stack spacing={2}>
                                     <Tooltip
@@ -291,7 +347,14 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                 },
             },
         ],
-        [columnVisibility, enableSorting, spaces, projectUuid, onAction],
+        [
+            enableSorting,
+            columnVisibility,
+            projectUuid,
+            canUserManageValidation,
+            spaces,
+            onAction,
+        ],
     );
 
     const visibleColumns = useMemo(() => {
