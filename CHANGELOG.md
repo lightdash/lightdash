@@ -1,3 +1,10 @@
+# [0.572.0](https://github.com/lightdash/lightdash/compare/0.571.5...0.572.0) (2023-05-25)
+
+
+### Features
+
+* group headers in pivot tables ([#5585](https://github.com/lightdash/lightdash/issues/5585)) ([3d7fa6f](https://github.com/lightdash/lightdash/commit/3d7fa6f472fa50e001522d256a39bd86291c52ed))
+
 ## [0.571.5](https://github.com/lightdash/lightdash/compare/0.571.4...0.571.5) (2023-05-25)
 
 
