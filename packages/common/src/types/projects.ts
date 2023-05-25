@@ -153,6 +153,10 @@ export type WarehouseCredentials =
     | DatabricksCredentials
     | TrinoCredentials;
 
+export type CreatePostgresLikeCredentials =
+    | CreateRedshiftCredentials
+    | CreatePostgresCredentials;
+
 export interface DbtProjectConfigBase {
     type: DbtProjectType;
 }
