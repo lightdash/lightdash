@@ -149,7 +149,7 @@ const getColSpanByKey = (
     obj: RecursiveRecord<number>,
     keys: string[],
 ): number => {
-    const allIndices = getAllIndicesByKey(obj, keys).sort();
+    const allIndices = getAllIndicesByKey(obj, keys).sort((a, b) => a - b);
 
     if (allIndices.length === 0) {
         throw new Error('Cannot get span from empty indices array');
