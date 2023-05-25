@@ -18,6 +18,7 @@ jest.mock('pg', () => ({
             fields: queryColumnsMock,
             rows: [expectedRow],
         })),
+        end: jest.fn(),
     })),
 }));
 
