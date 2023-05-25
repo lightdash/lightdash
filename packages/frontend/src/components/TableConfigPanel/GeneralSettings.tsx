@@ -1,4 +1,5 @@
 import { Checkbox, Colors, FormGroup, Icon } from '@blueprintjs/core';
+import { Text, Title } from '@mantine/core';
 import React, { FC, useCallback, useMemo, useState } from 'react';
 import {
     DragDropContext,
@@ -12,7 +13,6 @@ import useToaster from '../../hooks/toaster/useToaster';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import { Spacer } from '../SortButton/SortButton.styles';
 import ColumnConfiguration from './ColumnConfiguration';
-import { SectionTitle } from './TableConfig.styles';
 
 export const MAX_PIVOTS = 3;
 
@@ -38,6 +38,7 @@ type DroppableItemsListProps = {
     itemIds: string[];
     isDragging: boolean;
     disableReorder: boolean;
+    placeholder?: string;
 };
 
 const DroppableItemsList: FC<DroppableItemsListProps> = ({
@@ -45,6 +46,7 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
     itemIds,
     isDragging,
     disableReorder,
+    placeholder,
 }) => {
     return (
         <Droppable droppableId={droppableId}>
@@ -54,7 +56,7 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
                     ref={dropProps.innerRef}
                     style={{
                         minHeight: isDragging ? '30px' : undefined,
-                        marginBottom: '15px',
+                        margin: '7px 0',
                         background: droppableSnapshot.isDraggingOver
                             ? Colors.LIGHT_GRAY4
                             : isDragging
@@ -62,6 +64,11 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
                             : undefined,
                     }}
                 >
+                    {!isDragging && itemIds.length <= 0 ? (
+                        <Text size="xs" color="gray.6" m="xs" ta="center">
+                            {placeholder}
+                        </Text>
+                    ) : null}
                     {itemIds.map((itemId, index) => (
                         <Draggable
                             key={itemId}
@@ -80,7 +87,7 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
                                             display: 'inline-flex',
                                             alignItems: 'center',
                                             width: '100%',
-                                            margin: '0.357em 0',
+                                            marginBottom: '10px',
                                             visibility:
                                                 isDragging &&
                                                 disableReorder &&
@@ -240,14 +247,17 @@ const GeneralSettings: FC = () => {
                 onDragStart={() => setIsDragging(true)}
                 onDragEnd={onDragEnd}
             >
-                <SectionTitle>Columns</SectionTitle>
+                <Title order={6}>Columns</Title>
                 <DroppableItemsList
                     droppableId={DroppableIds.COLUMNS}
                     itemIds={columns}
                     isDragging={isDragging}
                     disableReorder={false}
+                    placeholder={
+                        'Move dimensions to columns to pivot your table'
+                    }
                 />
-                <SectionTitle>Rows</SectionTitle>
+                <Title order={6}>Rows</Title>
                 <DroppableItemsList
                     droppableId={DroppableIds.ROWS}
                     itemIds={rows}
@@ -256,7 +266,14 @@ const GeneralSettings: FC = () => {
                 />
             </DragDropContext>
 
-            <SectionTitle>Metrics</SectionTitle>
+            <Title order={6}>Metrics</Title>
+            {canUsePivotTable ? (
+                <Checkbox
+                    label="Show metrics as rows"
+                    checked={metricsAsRows}
+                    onChange={() => handleToggleMetricsAsRows()}
+                />
+            ) : null}
             <FormGroup>
                 {metrics.map((itemId) => (
                     <div
@@ -265,14 +282,14 @@ const GeneralSettings: FC = () => {
                             display: 'inline-flex',
                             alignItems: 'center',
                             width: '100%',
-                            margin: '0.357em 0',
+                            marginBottom: '10px',
                         }}
                     >
                         <ColumnConfiguration fieldId={itemId} />
                     </div>
                 ))}
             </FormGroup>
-            <SectionTitle>Options</SectionTitle>
+            <Title order={6}>Options</Title>
             <FormGroup>
                 <Checkbox
                     label="Show table names"
@@ -289,14 +306,6 @@ const GeneralSettings: FC = () => {
                         setHideRowNumbers(!hideRowNumbers);
                     }}
                 />
-
-                {canUsePivotTable ? (
-                    <Checkbox
-                        label="Show metrics as rows"
-                        checked={metricsAsRows}
-                        onChange={() => handleToggleMetricsAsRows()}
-                    />
-                ) : null}
 
                 {canUsePivotTable ? (
                     <Checkbox
