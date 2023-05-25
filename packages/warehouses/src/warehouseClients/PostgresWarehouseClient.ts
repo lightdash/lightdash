@@ -7,7 +7,6 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import * as pg from 'pg';
-import { Pool, PoolConfig } from 'pg';
 import WarehouseBaseClient from './WarehouseBaseClient';
 
 export enum PostgresTypes {
@@ -123,17 +122,19 @@ const convertDataTypeIdToDimensionType = (
 export class PostgresClient<
     T extends CreatePostgresLikeCredentials,
 > extends WarehouseBaseClient<T> {
-    config: PoolConfig;
+    config: pg.PoolConfig;
 
-    constructor(credentials: T, config: PoolConfig) {
+    constructor(credentials: T, config: pg.PoolConfig) {
         super(credentials);
         this.config = config;
     }
 
     async runQuery(sql: string) {
-        let pool: Pool | undefined;
+        let pool: pg.Pool | undefined;
         try {
-            pool = new Pool(this.config);
+            pool = new pg.Pool(this.config);
+            // CodeQL: This will raise a security warning because user defined raw SQL is being passed into the database module.
+            //         In this case this is exactly what we want to do. We're hitting the user's warehouse not the application's database.
             const results = await pool.query(sql); // automatically checkouts client and cleans up
             const fields = results.fields.reduce(
                 (acc, { name, dataTypeID }) => ({
@@ -148,7 +149,7 @@ export class PostgresClient<
         } catch (e) {
             throw new WarehouseQueryError(`Error running postgres query: ${e}`);
         } finally {
-            pool?.end();
+            await pool?.end();
         }
     }
 
