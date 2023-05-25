@@ -187,6 +187,11 @@ export class ValidationService {
                     [],
                 );
 
+            const filterTableCalculations = (fieldId: string) =>
+                !chart.metricQuery.tableCalculations
+                    ?.map((tableCalculation) => tableCalculation.name)
+                    ?.includes(fieldId);
+
             const filterErrors = getFilterRules(
                 chart.metricQuery.filters,
             ).reduce<CreateValidation[]>(
@@ -200,25 +205,26 @@ export class ValidationService {
                 [],
             );
 
-            const sortErrors = chart.metricQuery.sorts.reduce<
-                CreateValidation[]
-            >(
-                (acc, field) =>
-                    containsFieldId(
-                        acc,
-                        existingFieldIds,
-                        field.fieldId,
-                        `Sorting error: the field '${field.fieldId}' no longer exists`,
-                    ),
-                [],
-            );
+            const sortErrors = chart.metricQuery.sorts
+                .filter(
+                    (sort) =>
+                        filterTableCalculations(sort.fieldId) &&
+                        filterAdditionalMetrics(sort.fieldId),
+                )
+                .reduce<CreateValidation[]>(
+                    (acc, field) =>
+                        containsFieldId(
+                            acc,
+                            existingFieldIds,
+                            field.fieldId,
+                            `Sorting error: the field '${field.fieldId}' no longer exists`,
+                        ),
+                    [],
+                );
 
             /*
             // I think these are redundant, as we already check dimension/metrics
-            const filterTableCalculations = (metric: string) =>
-                !chart.metricQuery.tableCalculations
-                    ?.map((tableCalculation) => tableCalculation.name)
-                    ?.includes(metric);
+
 
             const errorColumnOrder = chart.tableConfig.columnOrder
                 .filter(filterTableCalculations)
