@@ -1,3 +1,10 @@
+## [0.571.2](https://github.com/lightdash/lightdash/compare/0.571.1...0.571.2) (2023-05-25)
+
+
+### Bug Fixes
+
+* big number comp arrow margin ([#5619](https://github.com/lightdash/lightdash/issues/5619)) ([107ba6e](https://github.com/lightdash/lightdash/commit/107ba6ebc2fbadd1b6849150ee365e96c00190d5))
+
 ## [0.571.1](https://github.com/lightdash/lightdash/compare/0.571.0...0.571.1) (2023-05-25)
 
 
