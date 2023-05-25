@@ -114,6 +114,77 @@ const getAllIndicesForFieldId = (
     }, []);
 };
 
+const getAllIndices = (obj: RecursiveRecord<number>): number[] => {
+    return Object.values(obj).reduce<number[]>((acc, value) => {
+        if (isNumber(value)) {
+            return [...acc, value];
+        }
+        return [...acc, ...getAllIndices(value)];
+    }, []);
+};
+
+const getAllIndicesByKey = (
+    obj: RecursiveRecord<number>,
+    keys: string[],
+): number[] => {
+    const [key, ...rest] = keys;
+    if (rest.length === 0) {
+        const value = obj[key];
+        if (isNumber(value)) {
+            return [value];
+        }
+        return getAllIndices(value);
+    } else {
+        const nextObj = obj[key];
+        if (isRecursiveRecord(nextObj)) {
+            return getAllIndicesByKey(nextObj, rest);
+        } else {
+            throw new Error('Expected a RecursiveRecord object');
+        }
+    }
+};
+
+const getColSpanByKey = (
+    currentColumnPosition: number,
+    obj: RecursiveRecord<number>,
+    keys: string[],
+): number => {
+    const allIndices = getAllIndicesByKey(obj, keys).sort((a, b) => a - b);
+
+    if (allIndices.length === 0) {
+        throw new Error('Cannot get span from empty indices array');
+    }
+
+    const currentColumnPositionIndex: number | undefined = allIndices.indexOf(
+        currentColumnPosition,
+    );
+    const previousColumnPosition: number | undefined =
+        allIndices[currentColumnPositionIndex - 1];
+
+    if (currentColumnPositionIndex < 0) {
+        throw new Error(
+            'Cannot get span for index that does not exist in indices array',
+        );
+    }
+
+    const isFirstColInSpan =
+        !isNumber(previousColumnPosition) ||
+        previousColumnPosition !== currentColumnPosition - 1;
+
+    if (!isFirstColInSpan) {
+        return 0;
+    }
+
+    return allIndices
+        .slice(currentColumnPositionIndex)
+        .reduce<number>((acc, curr, i) => {
+            if (curr === currentColumnPosition + i) {
+                return acc + 1;
+            }
+            return acc;
+        }, 0);
+};
+
 export const pivotQueryResults = ({
     pivotConfig,
     metricQuery,
@@ -201,10 +272,16 @@ export const pivotQueryResults = ({
                     type: 'value',
                     fieldId: fieldId,
                     value: row[fieldId].value,
+                    colSpan: 1,
                 }))
                 .concat(
                     pivotConfig.metricsAsRows
-                        ? [{ type: 'label', fieldId: metric.fieldId }]
+                        ? [
+                              {
+                                  type: 'label',
+                                  fieldId: metric.fieldId,
+                              },
+                          ]
                         : [],
                 );
 
@@ -213,11 +290,17 @@ export const pivotQueryResults = ({
                     type: 'value',
                     fieldId: fieldId,
                     value: row[fieldId].value,
+                    colSpan: 1,
                 }))
                 .concat(
                     pivotConfig.metricsAsRows
                         ? []
-                        : [{ type: 'label', fieldId: metric.fieldId }],
+                        : [
+                              {
+                                  type: 'label',
+                                  fieldId: metric.fieldId,
+                              },
+                          ],
                 );
 
             // Write the index values
@@ -249,10 +332,35 @@ export const pivotQueryResults = ({
             }
         }
     }
-
     const headerValues =
         headerValuesT[0]?.map((_, colIndex) =>
-            headerValuesT.map((row) => row[colIndex]),
+            headerValuesT.map<PivotData['headerValues'][number][number]>(
+                (row, rowIndex) => {
+                    const cell = row[colIndex];
+                    if (cell.type === 'label') {
+                        return cell;
+                    }
+                    const keys = row
+                        .slice(0, colIndex + 1)
+                        .reduce<string[]>(
+                            (acc, l) =>
+                                l.type === 'value'
+                                    ? [...acc, String(l.value.raw)]
+                                    : acc,
+                            [],
+                        );
+                    const cellWithSpan: PivotData['headerValues'][number][number] =
+                        {
+                            ...cell,
+                            colSpan: getColSpanByKey(
+                                rowIndex,
+                                columnIndices,
+                                keys,
+                            ),
+                        };
+                    return cellWithSpan;
+                },
+            ),
         ) ?? [];
 
     const hasIndex = indexValueTypes.length > 0;
