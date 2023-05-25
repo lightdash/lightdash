@@ -1,3 +1,10 @@
+## [0.571.3](https://github.com/lightdash/lightdash/compare/0.571.2...0.571.3) (2023-05-25)
+
+
+### Bug Fixes
+
+* get fieldId for dashboard error filter ([#5622](https://github.com/lightdash/lightdash/issues/5622)) ([2ca2c79](https://github.com/lightdash/lightdash/commit/2ca2c79363e08e625cb00956ba69243f15ba2b34))
+
 ## [0.571.2](https://github.com/lightdash/lightdash/compare/0.571.1...0.571.2) (2023-05-25)
 
 
