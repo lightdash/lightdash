@@ -1,3 +1,10 @@
+## [0.571.1](https://github.com/lightdash/lightdash/compare/0.571.0...0.571.1) (2023-05-25)
+
+
+### Bug Fixes
+
+* fix validation sorting false positives ([#5613](https://github.com/lightdash/lightdash/issues/5613)) ([19b0760](https://github.com/lightdash/lightdash/commit/19b07602f51154899b381259d85fad539a119e06))
+
 # [0.571.0](https://github.com/lightdash/lightdash/compare/0.570.3...0.571.0) (2023-05-25)
 
 
