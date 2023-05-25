@@ -1,3 +1,11 @@
+## [0.571.5](https://github.com/lightdash/lightdash/compare/0.571.4...0.571.5) (2023-05-25)
+
+
+### Bug Fixes
+
+* help menu links are broken ([#5630](https://github.com/lightdash/lightdash/issues/5630)) ([70a10ab](https://github.com/lightdash/lightdash/commit/70a10ab61302b4ed0d5abed66743253e1e2b46b3))
+* hide collapsed tables pill ([#5624](https://github.com/lightdash/lightdash/issues/5624)) ([e0942ec](https://github.com/lightdash/lightdash/commit/e0942ec4c02bae45a3976087611dcbe096009fed))
+
 ## [0.571.4](https://github.com/lightdash/lightdash/compare/0.571.3...0.571.4) (2023-05-25)
 
 
