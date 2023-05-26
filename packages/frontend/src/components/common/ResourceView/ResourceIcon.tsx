@@ -63,6 +63,39 @@ export const IconBox: FC<IconBoxProps> = ({
     </Paper>
 );
 
+export const getChartIcon = (chartType: ChartKind | undefined) => {
+    switch (chartType) {
+        case undefined:
+        case ChartKind.VERTICAL_BAR:
+            return <IconBox icon={IconChartBar} color="blue.8" />;
+        case ChartKind.HORIZONTAL_BAR:
+            return (
+                <IconBox
+                    icon={IconChartBar}
+                    color="blue.8"
+                    transform="rotate(90)"
+                />
+            );
+        case ChartKind.LINE:
+            return <IconBox icon={IconChartLine} color="blue.8" />;
+        case ChartKind.SCATTER:
+            return <IconBox icon={IconChartDots} color="blue.8" />;
+        case ChartKind.AREA:
+            return <IconBox icon={IconChartArea} color="blue.8" />;
+        case ChartKind.MIXED:
+            return <IconBox icon={IconChartAreaLine} color="blue.8" />;
+        case ChartKind.TABLE:
+            return <IconBox icon={IconTable} color="blue.8" />;
+        case ChartKind.BIG_NUMBER:
+            return <IconBox icon={IconSquareNumber1} color="blue.8" />;
+        default:
+            return assertUnreachable(
+                chartType,
+                `Chart type ${chartType} not supported`,
+            );
+    }
+};
+
 export const ResourceIcon: FC<ResourceIconProps> = ({ item }) => {
     switch (item.type) {
         case ResourceViewItemType.DASHBOARD:
@@ -70,36 +103,7 @@ export const ResourceIcon: FC<ResourceIconProps> = ({ item }) => {
         case ResourceViewItemType.SPACE:
             return <IconBox icon={IconFolder} color="violet.8" />;
         case ResourceViewItemType.CHART:
-            switch (item.data.chartType) {
-                case undefined:
-                case ChartKind.VERTICAL_BAR:
-                    return <IconBox icon={IconChartBar} color="blue.8" />;
-                case ChartKind.HORIZONTAL_BAR:
-                    return (
-                        <IconBox
-                            icon={IconChartBar}
-                            color="blue.8"
-                            style={{ rotate: '90deg' }}
-                        />
-                    );
-                case ChartKind.LINE:
-                    return <IconBox icon={IconChartLine} color="blue.8" />;
-                case ChartKind.SCATTER:
-                    return <IconBox icon={IconChartDots} color="blue.8" />;
-                case ChartKind.AREA:
-                    return <IconBox icon={IconChartArea} color="blue.8" />;
-                case ChartKind.MIXED:
-                    return <IconBox icon={IconChartAreaLine} color="blue.8" />;
-                case ChartKind.TABLE:
-                    return <IconBox icon={IconTable} color="blue.8" />;
-                case ChartKind.BIG_NUMBER:
-                    return <IconBox icon={IconSquareNumber1} color="blue.8" />;
-                default:
-                    return assertUnreachable(
-                        item.data.chartType,
-                        `Chart type ${item.data.chartType} not supported`,
-                    );
-            }
+            return getChartIcon(item.data.chartType);
         default:
             return assertUnreachable(item, 'Resource type not supported');
     }

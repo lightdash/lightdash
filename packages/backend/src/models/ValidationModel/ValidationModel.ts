@@ -1,4 +1,8 @@
-import { CreateValidation, ValidationResponse } from '@lightdash/common';
+import {
+    CreateValidation,
+    getChartType,
+    ValidationResponse,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     DashboardsTableName,
@@ -55,7 +59,11 @@ export class ValidationModel {
         const chartValidationErrorsRows: (DbValidationTable &
             Pick<SavedChartTable['base'], 'name'> &
             Pick<UserTable['base'], 'first_name' | 'last_name'> &
-            Pick<DbSpace, 'space_uuid'> & {
+            Pick<DbSpace, 'space_uuid'> &
+            Pick<
+                SavedChartVersionsTable['base'],
+                'chart_config' | 'chart_type'
+            > & {
                 last_updated_at: Pick<
                     SavedChartVersionsTable['base'],
                     'created_at'
@@ -87,6 +95,8 @@ export class ValidationModel {
                 `${ValidationTableName}.*`,
                 `${SavedChartsTableName}.name`,
                 `${SavedChartVersionsTableName}.created_at as last_updated_at`,
+                `${SavedChartVersionsTableName}.chart_type`,
+                `${SavedChartVersionsTableName}.chart_config`,
                 `${UserTableName}.first_name`,
                 `${UserTableName}.last_name`,
                 `${SpaceTableName}.space_uuid`,
@@ -124,6 +134,10 @@ export class ValidationModel {
                 lastUpdatedAt: validationError.last_updated_at,
                 validationId: validationError.validation_id,
                 spaceUuid: validationError.space_uuid,
+                chartType: getChartType(
+                    validationError.chart_type,
+                    validationError.chart_config,
+                ),
             }),
         );
 

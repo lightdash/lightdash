@@ -2,7 +2,6 @@ import { ValidationResponse } from '@lightdash/common';
 import { Alert, clsx, Flex, Table, Text, useMantineTheme } from '@mantine/core';
 import {
     IconAlertCircle,
-    IconChartBar,
     IconLayoutDashboard,
     IconTable,
 } from '@tabler/icons-react';
@@ -11,7 +10,7 @@ import { useHistory, useLocation } from 'react-router-dom';
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
 import { useTimeAgo } from '../../hooks/useTimeAgo';
 import MantineIcon from '../common/MantineIcon';
-import { IconBox } from '../common/ResourceView/ResourceIcon';
+import { getChartIcon, IconBox } from '../common/ResourceView/ResourceIcon';
 import { useScrollAndHighlight } from './hooks/useScrollAndHighlight';
 
 const getLinkToResource = (
@@ -29,7 +28,7 @@ const getLinkToResource = (
 
 const Icon = ({ validationError }: { validationError: ValidationResponse }) => {
     if (validationError.chartUuid)
-        return <IconBox icon={IconChartBar} color="blue.8" />;
+        return getChartIcon(validationError.chartType);
     if (validationError.dashboardUuid)
         return <IconBox icon={IconLayoutDashboard} color="green.8" />;
     return <IconBox icon={IconTable} color="indigo.6" />;
