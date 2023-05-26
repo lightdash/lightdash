@@ -1,3 +1,10 @@
+# [0.578.0](https://github.com/lightdash/lightdash/compare/0.577.0...0.578.0) (2023-05-26)
+
+
+### Features
+
+* add correct icon for charts in validator table ([#5644](https://github.com/lightdash/lightdash/issues/5644)) ([56e7147](https://github.com/lightdash/lightdash/commit/56e7147163ce8098e585628e78cec9615ee2b78e))
+
 # [0.577.0](https://github.com/lightdash/lightdash/compare/0.576.0...0.577.0) (2023-05-26)
 
 
