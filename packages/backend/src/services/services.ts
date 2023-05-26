@@ -24,6 +24,7 @@ import {
     sessionModel,
     shareModel,
     spaceModel,
+    sshKeyPairModel,
     userModel,
     validationModel,
 } from '../models/models';
@@ -42,6 +43,7 @@ import { SchedulerService } from './SchedulerService/SchedulerService';
 import { SearchService } from './SearchService/SearchService';
 import { ShareService } from './ShareService/ShareService';
 import { SpaceService } from './SpaceService/SpaceService';
+import { SshKeyPairService } from './SshKeyPairService';
 import { UnfurlService } from './UnfurlService/UnfurlService';
 import { UserService } from './UserService';
 import { ValidationService } from './ValidationService/ValidationService';
@@ -179,4 +181,8 @@ export const validationService = new ValidationService({
 
 export const groupService = new GroupsService({
     groupsModel,
+});
+
+export const sshKeyPairService = new SshKeyPairService({
+    sshKeyPairModel,
 });
