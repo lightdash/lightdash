@@ -61,9 +61,9 @@ const TablePagination = () => {
                         disabled={!table.getCanNextPage()}
                     />
                 </PaginationWrapper>
-            ) : (
+            ) : pagination?.showResultsTotal ? (
                 <ResultCount count={table.getRowModel().rows.length} />
-            )}
+            ) : null}
         </TableFooter>
     );
 };

@@ -63,6 +63,7 @@ export type TableChart = {
     showRowCalculation?: boolean;
     showTableNames?: boolean;
     hideRowNumbers?: boolean;
+    showResultsTotal?: boolean;
     columns?: Record<string, ColumnProperties>;
     conditionalFormattings?: ConditionalFormattingConfig[];
     metricsAsRows?: boolean;

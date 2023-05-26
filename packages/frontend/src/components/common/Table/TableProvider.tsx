@@ -38,6 +38,7 @@ type Props = {
     pagination?: {
         show?: boolean;
         defaultScroll?: boolean;
+        showResultsTotal?: boolean;
     };
     hideRowNumbers?: boolean;
     showColumnCalculation?: boolean;
