@@ -9,7 +9,7 @@ import {
 } from 'unique-names-generator';
 import { URL } from 'url';
 import { LightdashAnalytics } from '../analytics/analytics';
-import { getConfig } from '../config';
+import { getConfig, setPreviewProject } from '../config';
 import { getDbtContext } from '../dbt/context';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
@@ -262,6 +262,9 @@ export const startPreviewHandler = async (
             }
             return;
         }
+
+        setPreviewProject(project.projectUuid, projectName);
+
         await LightdashAnalytics.track({
             event: 'start_preview.create',
             properties: {
@@ -276,6 +279,7 @@ export const startPreviewHandler = async (
             ignoreErrors: true,
         });
         const url = await projectUrl(project);
+
         console.error(`New project created on ${url}`);
         if (process.env.CI === 'true') {
             console.info(`::set-output name=url::${url}`);

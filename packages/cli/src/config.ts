@@ -18,6 +18,8 @@ export type Config = {
         project?: string;
         apiKey?: string;
         proxyAuthorization?: string;
+        previewProject?: string;
+        previewName?: string;
     };
     answers?: {
         permissionToStoreWarehouseCredentials?: boolean;
@@ -82,6 +84,18 @@ export const setProjectUuid = async (projectUuid: string) => {
         context: {
             ...(config.context || {}),
             project: projectUuid,
+        },
+    });
+};
+
+export const setPreviewProject = async (projectUuid: string, name: string) => {
+    const config = await getRawConfig();
+    await setConfig({
+        ...config,
+        context: {
+            ...(config.context || {}),
+            previewProject: projectUuid,
+            previewName: name,
         },
     });
 };

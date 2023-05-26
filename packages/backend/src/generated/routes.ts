@@ -525,7 +525,28 @@ const models: TsoaRoute.Models = {
         additionalProperties: false,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_DashboardBasicDetails.uuid-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser_':
+    'Pick_ValidationResponse.error-or-createdAt-or-validationId_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                error: { dataType: 'string', required: true },
+                createdAt: { dataType: 'datetime', required: true },
+                validationId: { dataType: 'double', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ValidationSummary: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Pick_ValidationResponse.error-or-createdAt-or-validationId_',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_DashboardBasicDetails.uuid-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors_':
         {
             dataType: 'refAlias',
             type: {
@@ -563,6 +584,13 @@ const models: TsoaRoute.Models = {
                         ],
                         required: true,
                     },
+                    validationErrors: {
+                        dataType: 'array',
+                        array: {
+                            dataType: 'refAlias',
+                            ref: 'ValidationSummary',
+                        },
+                    },
                 },
                 validators: {},
             },
@@ -574,7 +602,7 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 data: {
-                    ref: 'Pick_DashboardBasicDetails.uuid-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser_',
+                    ref: 'Pick_DashboardBasicDetails.uuid-or-spaceUuid-or-description-or-name-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder-or-updatedAt-or-updatedByUser-or-validationErrors_',
                     required: true,
                 },
                 type: { ref: 'ResourceViewItemType.DASHBOARD', required: true },
@@ -602,7 +630,7 @@ const models: TsoaRoute.Models = {
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_SpaceQuery.uuid-or-name-or-chartType-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser_':
+    'Pick_SpaceQuery.uuid-or-name-or-chartType-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser-or-validationErrors_':
         {
             dataType: 'refAlias',
             type: {
@@ -640,6 +668,13 @@ const models: TsoaRoute.Models = {
                         ],
                         required: true,
                     },
+                    validationErrors: {
+                        dataType: 'array',
+                        array: {
+                            dataType: 'refAlias',
+                            ref: 'ValidationSummary',
+                        },
+                    },
                     chartType: {
                         dataType: 'union',
                         subSchemas: [
@@ -659,7 +694,7 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 data: {
-                    ref: 'Pick_SpaceQuery.uuid-or-name-or-chartType-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser_',
+                    ref: 'Pick_SpaceQuery.uuid-or-name-or-chartType-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser-or-validationErrors_',
                     required: true,
                 },
                 type: { ref: 'ResourceViewItemType.CHART', required: true },
@@ -3769,6 +3804,17 @@ export function RegisterRoutes(app: express.Router) {
                     name: 'req',
                     required: true,
                     dataType: 'object',
+                },
+                context: {
+                    in: 'query',
+                    name: 'context',
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['lightdash_app'] },
+                        { dataType: 'enum', enums: ['dbt_refresh'] },
+                        { dataType: 'enum', enums: ['test_and_compile'] },
+                        { dataType: 'enum', enums: ['cli'] },
+                    ],
                 },
             };
 

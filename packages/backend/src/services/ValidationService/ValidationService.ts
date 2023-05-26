@@ -392,7 +392,11 @@ export class ValidationService {
         return validationErrors;
     }
 
-    async validate(user: SessionUser, projectUuid: string): Promise<string> {
+    async validate(
+        user: SessionUser,
+        projectUuid: string,
+        context?: ValidateProjectPayload['context'],
+    ): Promise<string> {
         const { organizationUuid } = await this.projectModel.get(projectUuid);
 
         if (
@@ -410,7 +414,7 @@ export class ValidationService {
         const jobId = await schedulerClient.generateValidation({
             userUuid: user.userUuid,
             projectUuid,
-            context: 'lightdash_app',
+            context: context || 'lightdash_app',
             organizationUuid: user.organizationUuid,
         });
         return jobId;
