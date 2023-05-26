@@ -133,12 +133,26 @@ describe('CLI', () => {
                         PGDATABASE: 'postgres',
                     },
                 },
-            )
-                .its('stderr')
-                .should('contain', 'Successfully deployed');
-
-            // Clean project
-            cy.deleteProjectsByName([newProjectName]);
+            ).then((result) => {
+                expect(result.stderr).to.contain('Successfully deployed');
+                // Delete project
+                const matches = result.stderr.match(
+                    /\/projects\/([\w-]*)\/home/,
+                );
+                const projectUuid = matches?.[1];
+                if (!projectUuid) {
+                    throw new Error(
+                        'Could not find project uuid in success message',
+                    );
+                }
+                cy.request({
+                    url: `api/v1/org/projects/${projectUuid}`,
+                    headers: { 'Content-type': 'application/json' },
+                    method: 'DELETE',
+                }).then((deleteResp) => {
+                    expect(deleteResp.status).to.eq(200);
+                });
+            });
         });
     });
 

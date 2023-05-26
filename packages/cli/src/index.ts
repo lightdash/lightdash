@@ -403,7 +403,6 @@ program
     .option('--verbose', undefined, false)
 
     .option('--create', 'Create a new project on your organization', false)
-    .option('--name', 'New project name')
     .option('--ignore-errors', 'Allows deploy with errors on compile', false)
     .option(
         '--start-of-week <number>',
