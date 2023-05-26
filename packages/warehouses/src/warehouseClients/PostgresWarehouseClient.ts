@@ -1,14 +1,12 @@
 import {
     CreatePostgresCredentials,
-    CreateWarehouseCredentials,
+    CreatePostgresLikeCredentials,
     DimensionType,
     Metric,
     MetricType,
-    WarehouseConnectionError,
     WarehouseQueryError,
 } from '@lightdash/common';
 import * as pg from 'pg';
-import { PoolConfig } from 'pg';
 import WarehouseBaseClient from './WarehouseBaseClient';
 
 export enum PostgresTypes {
@@ -122,23 +120,22 @@ const convertDataTypeIdToDimensionType = (
 };
 
 export class PostgresClient<
-    T extends CreateWarehouseCredentials,
+    T extends CreatePostgresLikeCredentials,
 > extends WarehouseBaseClient<T> {
-    pool: pg.Pool;
+    config: pg.PoolConfig;
 
-    constructor(credentials: T, config: PoolConfig) {
+    constructor(credentials: T, config: pg.PoolConfig) {
         super(credentials);
-        try {
-            const pool = new pg.Pool(config);
-            this.pool = pool;
-        } catch (e) {
-            throw new WarehouseConnectionError(e.message);
-        }
+        this.config = config;
     }
 
     async runQuery(sql: string) {
+        let pool: pg.Pool | undefined;
         try {
-            const results = await this.pool.query(sql); // automatically checkouts client and cleans up
+            pool = new pg.Pool(this.config);
+            // CodeQL: This will raise a security warning because user defined raw SQL is being passed into the database module.
+            //         In this case this is exactly what we want to do. We're hitting the user's warehouse not the application's database.
+            const results = await pool.query(sql); // automatically checkouts client and cleans up
             const fields = results.fields.reduce(
                 (acc, { name, dataTypeID }) => ({
                     ...acc,
@@ -150,7 +147,9 @@ export class PostgresClient<
             );
             return { fields, rows: results.rows };
         } catch (e) {
-            throw new WarehouseQueryError(e.message);
+            throw new WarehouseQueryError(`Error running postgres query: ${e}`);
+        } finally {
+            await pool?.end();
         }
     }
 

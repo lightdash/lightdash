@@ -1,3 +1,10 @@
+## [0.574.1](https://github.com/lightdash/lightdash/compare/0.574.0...0.574.1) (2023-05-26)
+
+
+### Bug Fixes
+
+* project dropdown styling ([#5629](https://github.com/lightdash/lightdash/issues/5629)) ([707a7f9](https://github.com/lightdash/lightdash/commit/707a7f92140cfb06efd078f54c14f5665345272c))
+
 # [0.574.0](https://github.com/lightdash/lightdash/compare/0.573.0...0.574.0) (2023-05-26)
 
 
