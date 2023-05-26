@@ -168,7 +168,9 @@ const GeneralSettings: FC = () => {
             <Title order={6}>Metrics</Title>
             <Tooltip2
                 disabled={!!canUsePivotTable}
-                content={'to use metrics as rows, you need to pivot your table'}
+                content={
+                    'To use metrics as rows, you need to move a dimension to "Columns".'
+                }
                 position="top"
             >
                 <Checkbox
@@ -210,20 +212,15 @@ const GeneralSettings: FC = () => {
                         setHideRowNumbers(!hideRowNumbers);
                     }}
                 />
-                <Tooltip2
-                    disabled={!!canUsePivotTable}
-                    content={'to use rows totals, you need to pivot your table'}
-                    position="top"
-                >
+                {canUsePivotTable ? (
                     <Checkbox
-                        disabled={!canUsePivotTable}
                         label="Show row total"
                         checked={showRowCalculation}
                         onChange={() => {
                             setShowRowCalculation(!showRowCalculation);
                         }}
                     />
-                </Tooltip2>
+                ) : null}
                 <Checkbox
                     label="Show column total"
                     checked={showColumnCalculation}
