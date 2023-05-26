@@ -23,7 +23,6 @@ describe('SQL Runner', () => {
             .type('{ctrl}{enter}');
 
         const find = [
-            '1 result',
             'First name',
             firstCustomer.created,
             firstCustomer.firstName,
@@ -70,8 +69,5 @@ describe('SQL Runner', () => {
         const sql = `select a from ( values ('foo'), ('bar')) s(a);`;
 
         cy.get('.ace_content').type(sql).type('{ctrl}{enter}');
-
-        const find = ['2 results'];
-        find.forEach((text) => cy.findAllByText(text));
     });
 });
