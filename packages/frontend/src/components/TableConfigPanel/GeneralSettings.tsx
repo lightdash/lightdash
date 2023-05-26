@@ -1,121 +1,19 @@
-import { Checkbox, Colors, FormGroup, Icon } from '@blueprintjs/core';
+import { Checkbox, FormGroup } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
-import { Text, Title } from '@mantine/core';
+import { Title } from '@mantine/core';
 import React, { FC, useCallback, useMemo, useState } from 'react';
-import {
-    DragDropContext,
-    Draggable,
-    DraggableStateSnapshot,
-    Droppable,
-    DropResult,
-} from 'react-beautiful-dnd';
-import { createPortal } from 'react-dom';
+import { DragDropContext, DropResult } from 'react-beautiful-dnd';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
-import { Spacer } from '../SortButton/SortButton.styles';
 import ColumnConfiguration from './ColumnConfiguration';
+import DroppableItemsList from './DroppableItemsList';
 
 export const MAX_PIVOTS = 3;
-
-type DraggablePortalHandlerProps = {
-    snapshot: DraggableStateSnapshot;
-};
-
-const DraggablePortalHandler: FC<DraggablePortalHandlerProps> = ({
-    children,
-    snapshot,
-}) => {
-    if (snapshot.isDragging) return createPortal(children, document.body);
-    return <>{children}</>;
-};
 
 enum DroppableIds {
     COLUMNS = 'COLUMNS',
     ROWS = 'ROWS',
 }
-
-type DroppableItemsListProps = {
-    droppableId: string;
-    itemIds: string[];
-    isDragging: boolean;
-    disableReorder: boolean;
-    placeholder?: string;
-};
-
-const DroppableItemsList: FC<DroppableItemsListProps> = ({
-    droppableId,
-    itemIds,
-    isDragging,
-    disableReorder,
-    placeholder,
-}) => {
-    return (
-        <Droppable droppableId={droppableId}>
-            {(dropProps, droppableSnapshot) => (
-                <div
-                    {...dropProps.droppableProps}
-                    ref={dropProps.innerRef}
-                    style={{
-                        minHeight: isDragging ? '30px' : undefined,
-                        margin: '7px 0',
-                        background: droppableSnapshot.isDraggingOver
-                            ? Colors.LIGHT_GRAY4
-                            : isDragging
-                            ? Colors.LIGHT_GRAY5
-                            : undefined,
-                    }}
-                >
-                    {!isDragging && itemIds.length <= 0 ? (
-                        <Text size="xs" color="gray.6" m="xs" ta="center">
-                            {placeholder}
-                        </Text>
-                    ) : null}
-                    {itemIds.map((itemId, index) => (
-                        <Draggable
-                            key={itemId}
-                            draggableId={itemId}
-                            index={index}
-                        >
-                            {(
-                                { draggableProps, dragHandleProps, innerRef },
-                                snapshot,
-                            ) => (
-                                <DraggablePortalHandler snapshot={snapshot}>
-                                    <div
-                                        ref={innerRef}
-                                        {...draggableProps}
-                                        style={{
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            width: '100%',
-                                            marginBottom: '10px',
-                                            visibility:
-                                                isDragging &&
-                                                disableReorder &&
-                                                !snapshot.isDragging
-                                                    ? 'hidden'
-                                                    : undefined,
-                                            ...draggableProps.style,
-                                        }}
-                                    >
-                                        <Icon
-                                            tagName="div"
-                                            icon="drag-handle-vertical"
-                                            {...dragHandleProps}
-                                        />
-                                        <Spacer $width={6} />
-                                        <ColumnConfiguration fieldId={itemId} />
-                                    </div>
-                                </DraggablePortalHandler>
-                            )}
-                        </Draggable>
-                    ))}
-                    {dropProps.placeholder}
-                </div>
-            )}
-        </Droppable>
-    );
-};
 
 const GeneralSettings: FC = () => {
     const {
