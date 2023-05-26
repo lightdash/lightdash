@@ -1,5 +1,7 @@
-import { Button, Card, Colors } from '@blueprintjs/core';
+import { Button, Colors } from '@blueprintjs/core';
+import { Card } from '@mantine/core';
 import styled from 'styled-components';
+
 import SimpleButton from '../common/SimpleButton';
 import Form from '../ReactHookForm/Form';
 

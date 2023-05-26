@@ -167,7 +167,7 @@ const ProjectTablesConfiguration: FC<{
             onSubmit={onSubmit}
             disableSubmitOnEnter
         >
-            <CardWrapper elevation={1}>
+            <CardWrapper shadow="sm" withBorder>
                 <LeftPanel>
                     <H5>Table selection</H5>
                     <TextP>

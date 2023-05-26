@@ -72,7 +72,7 @@ const ProjectForm: FC<Props> = ({
     return (
         <>
             {showGeneralSettings && (
-                <ProjectConnectionCard elevation={1}>
+                <ProjectConnectionCard shadow="sm" withBorder>
                     <LeftPanel>
                         <H5>General settings</H5>
                     </LeftPanel>
@@ -88,7 +88,7 @@ const ProjectForm: FC<Props> = ({
                     </RightPanel>
                 </ProjectConnectionCard>
             )}
-            <ProjectConnectionCard elevation={1}>
+            <ProjectConnectionCard shadow="sm" withBorder>
                 <LeftPanel>
                     {hasWarehouse && getWarehouseLabel(hasWarehouse).icon}
                     <LeftPanelTitle>
@@ -112,7 +112,7 @@ const ProjectForm: FC<Props> = ({
                     />
                 </RightPanel>
             </ProjectConnectionCard>
-            <ProjectConnectionCard elevation={1}>
+            <ProjectConnectionCard shadow="sm" withBorder>
                 <LeftPanel>
                     <WarehouseIcon src={DbtLogo} alt="dbt icon" />
                     <LeftPanelTitle>

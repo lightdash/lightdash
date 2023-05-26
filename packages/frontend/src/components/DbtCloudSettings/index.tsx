@@ -1,6 +1,6 @@
-import { Card, Intent, NonIdealState } from '@blueprintjs/core';
+import { Intent, NonIdealState } from '@blueprintjs/core';
 import { CreateDbtCloudIntegration } from '@lightdash/common/dist/types/dbtCloud';
-import { Anchor } from '@mantine/core';
+import { Anchor, Card } from '@mantine/core';
 import { FC } from 'react';
 import { useForm } from 'react-hook-form';
 import {
@@ -53,7 +53,7 @@ const DbtCloudSettings: FC<DbtCloudSettingsProps> = ({ projectUuid }) => {
                 </Anchor>{' '}
                 in the Lightdash docs.
             </Subtitle>
-            <Card>
+            <Card shadow="sm" withBorder>
                 {dbtCloudSettings.error ? (
                     <NonIdealState
                         title={dbtCloudSettings.error.error.message}

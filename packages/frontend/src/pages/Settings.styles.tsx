@@ -1,4 +1,4 @@
-import { Card } from '@blueprintjs/core';
+import { Card } from '@mantine/core';
 import styled from 'styled-components';
 
 export const CardContainer = styled(Card)`

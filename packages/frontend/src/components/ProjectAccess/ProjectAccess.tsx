@@ -53,7 +53,7 @@ const UserListItem: FC<{
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
     return (
-        <UserListItemWrapper>
+        <UserListItemWrapper shadow="sm" withBorder>
             <ItemContent>
                 <SectionWrapper>
                     <UserInfo>

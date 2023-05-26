@@ -1,4 +1,5 @@
-import { Button, Card, HTMLSelect, Icon, Tag } from '@blueprintjs/core';
+import { Button, HTMLSelect, Icon, Tag } from '@blueprintjs/core';
+import { Card } from '@mantine/core';
 import styled from 'styled-components';
 
 export const ProjectAccessWrapper = styled.div`

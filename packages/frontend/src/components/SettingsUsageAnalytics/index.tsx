@@ -1,9 +1,10 @@
 import { Colors, H5 } from '@blueprintjs/core';
+import { Card } from '@mantine/core';
 import { IconLayoutDashboard } from '@tabler/icons-react';
 import { FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import { Subtitle } from '../../pages/CreateProject.styles';
-import { CardContent, CardWrapper } from './SettingsUsageAnalytics.styles';
+import { CardContent } from './SettingsUsageAnalytics.styles';
 
 interface ProjectUserAccessProps {
     projectUuid: string;
@@ -23,7 +24,9 @@ const SettingsUsageAnalytics: FC<ProjectUserAccessProps> = ({
                 </Subtitle>
 
                 <>
-                    <CardWrapper
+                    <Card
+                        shadow="sm"
+                        withBorder
                         onClick={() => {
                             history.push(
                                 `/projects/${projectUuid}/user-activity`,
@@ -37,7 +40,7 @@ const SettingsUsageAnalytics: FC<ProjectUserAccessProps> = ({
                             />
                             <H5>User activity</H5>
                         </CardContent>
-                    </CardWrapper>
+                    </Card>
                 </>
             </>
         </>

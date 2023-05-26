@@ -1,4 +1,5 @@
-import { Card, Colors } from '@blueprintjs/core';
+import { Colors } from '@blueprintjs/core';
+import { Card } from '@mantine/core';
 import styled from 'styled-components';
 import { BigButton } from '../common/BigButton';
 
