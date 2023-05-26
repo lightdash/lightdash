@@ -23,13 +23,6 @@ process.env.AWS_SDK_JS_SUPPRESS_MAINTENANCE_MODE_MESSAGE = '1';
 const nodeVersion = require('parse-node-version')(process.version);
 
 const OPTIMIZED_NODE_VERSION = 16;
-if (nodeVersion.major !== OPTIMIZED_NODE_VERSION) {
-    console.warn(
-        styles.warning(
-            `⚠️ You are using Node.js version ${process.version}. Lightdash CLI is optimized for v${OPTIMIZED_NODE_VERSION} so you might experience issues.`,
-        ),
-    );
-}
 
 const { version: VERSION } = require('../package.json');
 
@@ -513,6 +506,20 @@ const errorHandler = (err: Error) => {
             `  🐛 https://github.com/lightdash/lightdash/issues/new?assignees=&labels=🐛+bug&template=bug_report.md&title=${encodeURIComponent(
                 err.message,
             )}`,
+        );
+    }
+    if (err.message.includes('ENOENT: dbt')) {
+        console.error(
+            styles.error(
+                `\n You must have dbt installed to use this command. See https://docs.getdbt.com/docs/core/installation for installation instructions`,
+            ),
+        );
+    }
+    if (nodeVersion.major !== OPTIMIZED_NODE_VERSION) {
+        console.warn(
+            styles.warning(
+                `⚠️ You are using Node.js version ${process.version}. Lightdash CLI is optimized for v${OPTIMIZED_NODE_VERSION} so you might experience issues.`,
+            ),
         );
     }
     process.exit(1);
