@@ -5,6 +5,7 @@ import {
     ParameterError,
     SchedulerJobStatus,
 } from '@lightdash/common';
+import columnify from 'columnify';
 import { getConfig } from '../../config';
 import GlobalState from '../../globalState';
 import * as styles from '../../styles';
@@ -100,11 +101,13 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
     } else {
         spinner?.fail(`  Validation finished with errors\n`);
 
-        validation.forEach((v) => {
-            console.error(
-                `- ${styles.error(v.name)}: ${styles.warning(v.error)}`,
-            );
-        });
+        const validationOutput = validation.map((v) => ({
+            name: styles.error(v.name),
+            error: styles.warning(v.error),
+        }));
+
+        const columns = columnify(validationOutput);
+        console.error(columns);
 
         console.error(
             `\nFor more details, visit ${styles.bold(
