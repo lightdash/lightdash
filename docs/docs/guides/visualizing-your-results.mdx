@@ -25,6 +25,8 @@ import ReferenceLineConfig from './assets/reference-line-config.png';
 import LockedColumn from './assets/locked-column.jpg';
 import ConditionalFormatting from './assets/conditional-formatting.png';
 import ConditionalFormattingRule from './assets/conditional-formatting-rule.png';
+import ColumnsRowsMetricsExample from './assets/column-rows-metrics-example.jpg';
+import MetricsAsRows from './assets/metrics-as-rows.jpg';
 
 # Visualizing your results
 
@@ -81,11 +83,40 @@ The options for Tables include:
 - Showing/hiding the columns in your table.
 - Showing/hiding the table name from the column labels.
 - Showing/hiding the totals for your columns. 
-- Pivoting by a column. 
+- Pivoting by a column.
+- Transposing your table (a.k.a. pivoting your metrics) 
 - Locking a column from scrolling in your table.
 - Adding conditional formatting to your cells.
 
 By default, we attach the table name to your field name (just in case you've got any duplicate fields from joined tables). But, you can easily turn this off in your table viz with a toggle.
+
+#### Columns, Rows, and Metrics
+
+Table visualizations have three components:
+
+- **Rows**: When a field is chosen for the row area, all of the unique values for that field are populated as values in the _rows_ of your table. 
+
+- **Columns**: When a field is chosen for the column area, all of the unique values for that field are populated as values in the _columns_ of your table.
+
+- **Metrics**: If you have metrics in your table, then each metric cell shows the summarized information for a given row + column combination.
+
+<img src={ColumnsRowsMetricsExample} width="1558" height="410" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+#### Pivot tables (dimensions as columns)
+
+Pivot tables help you more easily summarize larger sets of data in table visualizations. They're also helpful to identify trends between two dimensions in your data using a table visualization.
+
+To pivot your table, you want to move the dimension you want to pivot by to the `column` section of your table configuration. This will change the dimension from having its values populate the rows values of your table, to having it populate the column values of your table. 
+
+You can move up to 3 dimensions as columns and there is a limit of 60 column values in your table (e.g. pivoting by a dimension with 30 months, and another with 4 statuses won't work because that will generate 4 x 30 = 120 column values).
+
+### Transposing your table (metrics as rows)
+
+You can transpose your table so that your metrics become rows in your table instead of columns. This can be helpful if you want to compare a lot of metrics to each other (e.g. how my metrics are changing over time).
+
+To move your metrics to rows in your table, you need to have at least 1 dimension as a column (i.e. at least one pivot) then, you can click on `show metrics as rows` in the table configuration.
+
+<img src={MetricsAsRows} width="1120" height="893" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 #### Locking columns from scroll
 
