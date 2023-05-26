@@ -1,3 +1,10 @@
+# [0.577.0](https://github.com/lightdash/lightdash/compare/0.576.0...0.577.0) (2023-05-26)
+
+
+### Features
+
+* table configuration with drag and drop  ([#5611](https://github.com/lightdash/lightdash/issues/5611)) ([aba555a](https://github.com/lightdash/lightdash/commit/aba555ac21b071d01ab03eca1c46104c4b4c9f5e))
+
 # [0.576.0](https://github.com/lightdash/lightdash/compare/0.575.0...0.576.0) (2023-05-26)
 
 
