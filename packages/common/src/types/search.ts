@@ -1,7 +1,7 @@
 import { Dashboard } from './dashboard';
 import { Table } from './explore';
 import { Dimension, Metric } from './field';
-import { SavedChart } from './savedCharts';
+import { ChartKind, SavedChart } from './savedCharts';
 import { Space } from './space';
 
 export type SpaceSearchResult = Pick<Space, 'uuid' | 'name' | 'uuid'>;
@@ -12,7 +12,9 @@ export type DashboardSearchResult = Pick<
 export type SavedChartSearchResult = Pick<
     SavedChart,
     'uuid' | 'name' | 'description' | 'spaceUuid'
->;
+> & {
+    chartType: ChartKind;
+};
 export type TableSearchResult = Pick<
     Table,
     'name' | 'label' | 'description'
