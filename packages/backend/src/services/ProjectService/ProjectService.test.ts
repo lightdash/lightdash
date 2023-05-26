@@ -13,6 +13,7 @@ import {
     projectModel,
     savedChartModel,
     spaceModel,
+    sshKeyPairModel,
 } from '../../models/models';
 import { METRIC_QUERY, warehouseClientMock } from '../../queryBuilder.mock';
 import { projectService } from '../services';
@@ -69,6 +70,7 @@ jest.mock('../../models/models', () => ({
     spaceModel: {
         getAllSpaces: jest.fn(async () => spacesWithSavedCharts),
     },
+    sshKeyPairModel: {},
 }));
 
 describe('ProjectService', () => {
@@ -82,6 +84,7 @@ describe('ProjectService', () => {
             lightdashConfig: lightdashConfigWithNoSMTP,
         }),
         spaceModel,
+        sshKeyPairModel,
     });
     afterEach(() => {
         jest.clearAllMocks();
