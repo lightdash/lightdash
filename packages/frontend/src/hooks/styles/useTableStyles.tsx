@@ -37,6 +37,7 @@ export const useTableStyles = createStyles((theme) => ({
     },
     stickyHeader: {
         '& thead tr th': {
+            zIndex: 1,
             borderBottom: 'none',
             // NOTE: This allows the sticky header to have a border-bottom when table is scrolled and border-collapse: collapse is set
             boxShadow: `inset 0px -1px 0px 0px ${theme.colors.gray[3]}`,
