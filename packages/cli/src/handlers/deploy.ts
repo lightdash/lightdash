@@ -21,6 +21,7 @@ import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
 
 type DeployHandlerOptions = DbtCompileOptions & {
+    name?: string;
     projectDir: string;
     profilesDir: string;
     target: string | undefined;
@@ -80,7 +81,9 @@ const createNewProject = async (
     const dbtName = friendlyName(context.projectName);
 
     let projectName = dbtName;
-    if (process.env.CI !== 'true') {
+    if (options.name) {
+        projectName = options.name;
+    } else if (process.env.CI !== 'true') {
         const answers = await inquirer.prompt([
             {
                 type: 'input',

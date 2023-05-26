@@ -1,5 +1,15 @@
 const warehouseConfig = {
     postgresSQL: {
+        name: 'Jaffle PostgreSQL test',
+        host: Cypress.env('PGHOST') || 'db-dev',
+        user: 'postgres',
+        password: Cypress.env('PGPASSWORD') || 'password',
+        database: 'postgres',
+        port: '5432',
+        schema: 'jaffle',
+    },
+    redshift: {
+        name: 'Jaffle Redshift test',
         host: Cypress.env('PGHOST') || 'db-dev',
         user: 'postgres',
         password: Cypress.env('PGPASSWORD') || 'password',
@@ -8,18 +18,21 @@ const warehouseConfig = {
         schema: 'jaffle',
     },
     bigQuery: {
+        name: 'Jaffle Bigquery test',
         project: 'lightdash-database-staging',
         location: 'europe-west1',
         dataset: 'e2e_jaffle_shop',
         keyFile: 'credentials.json',
     },
     databricks: {
+        name: 'Jaffle Databricks test',
         host: Cypress.env('DATABRICKS_HOST'),
         token: Cypress.env('DATABRICKS_TOKEN'),
         httpPath: Cypress.env('DATABRICKS_PATH'),
         schema: 'jaffle',
     },
     snowflake: {
+        name: 'Jaffle Snowflake test',
         account: Cypress.env('SNOWFLAKE_ACCOUNT'),
         user: Cypress.env('SNOWFLAKE_USER'),
         password: Cypress.env('SNOWFLAKE_PASSWORD'),
@@ -29,6 +42,7 @@ const warehouseConfig = {
         schema: 'jaffle',
     },
     trino: {
+        name: 'Jaffle Trino test',
         host: Cypress.env('TRINO_HOST'),
         port: Cypress.env('TRINO_PORT'),
         user: Cypress.env('TRINO_USER'),
@@ -293,6 +307,15 @@ const testTimeIntervalsResults = (rowValues = defaultRowValues) => {
 };
 
 describe('Create projects', () => {
+    before(() => {
+        cy.login();
+        // clean previous e2e projects
+        const projectNames = Object.values(warehouseConfig).map<string>(
+            ({ name }) => name,
+        );
+        cy.deleteProjectsByName(projectNames);
+    });
+
     beforeEach(() => {
         cy.login();
     });
@@ -319,7 +342,7 @@ describe('Create projects', () => {
         cy.contains('a', 'Create project manually').click();
         cy.contains('button', 'I’ve defined them!').click();
 
-        cy.get('[name="name"]').clear().type('Jaffle PostgreSQL test');
+        cy.get('[name="name"]').clear().type(warehouseConfig.postgresSQL.name);
         configurePostgresWarehouse(warehouseConfig.postgresSQL);
 
         testCompile();
@@ -340,8 +363,8 @@ describe('Create projects', () => {
         cy.contains('a', 'Create project manually').click();
         cy.contains('button', 'I’ve defined them!').click();
 
-        cy.get('[name="name"]').clear().type('Jaffle Redshift test');
-        configurePostgresWarehouse(warehouseConfig.postgresSQL);
+        cy.get('[name="name"]').clear().type(warehouseConfig.redshift.name);
+        configurePostgresWarehouse(warehouseConfig.redshift);
 
         testCompile();
         testQuery();
@@ -357,7 +380,7 @@ describe('Create projects', () => {
         cy.contains('a', 'Create project manually').click();
         cy.contains('button', 'I’ve defined them!').click();
 
-        cy.get('[name="name"]').clear().type('Jaffle Bigquery test');
+        cy.get('[name="name"]').clear().type(warehouseConfig.bigQuery.name);
         configureBigqueryWarehouse(warehouseConfig.bigQuery);
 
         testCompile();
@@ -399,7 +422,7 @@ describe('Create projects', () => {
         cy.contains('a', 'Create project manually').click();
         cy.contains('button', 'I’ve defined them!').click();
 
-        cy.get('[name="name"]').clear().type('Jaffle Trino test');
+        cy.get('[name="name"]').clear().type(warehouseConfig.trino.name);
         configureTrinoWarehouse(warehouseConfig.trino);
 
         testCompile();
@@ -439,7 +462,7 @@ describe('Create projects', () => {
         cy.contains('a', 'Create project manually').click();
         cy.contains('button', 'I’ve defined them!').click();
 
-        cy.get('[name="name"]').clear().type('Jaffle Databricks test');
+        cy.get('[name="name"]').clear().type(warehouseConfig.databricks.name);
         configureDatabricksWarehouse(warehouseConfig.databricks);
 
         testCompile();
@@ -479,7 +502,7 @@ describe('Create projects', () => {
         cy.contains('a', 'Create project manually').click();
         cy.contains('button', 'I’ve defined them!').click();
 
-        cy.get('[name="name"]').clear().type('Jaffle Snowflake test');
+        cy.get('[name="name"]').clear().type(warehouseConfig.snowflake.name);
         configureSnowflakeWarehouse(warehouseConfig.snowflake);
 
         testCompile();

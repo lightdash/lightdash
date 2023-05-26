@@ -24,6 +24,7 @@
 // -- This will overwrite an existing command --
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
 import {
+    OrganizationProject,
     SEED_ORG_1_ADMIN_EMAIL,
     SEED_ORG_1_ADMIN_PASSWORD,
     SEED_ORG_2_ADMIN_EMAIL,
@@ -49,6 +50,7 @@ declare global {
             ): Chainable<Element>;
             loginWithEmail: (email) => Chainable<Element>;
             getApiToken(): Chainable<string>;
+            deleteProjectsByName(names: string[]): Chainable;
         }
     }
 }
@@ -245,5 +247,26 @@ Cypress.Commands.add('getApiToken', () => {
     }).then((resp) => {
         expect(resp.status).to.eq(200);
         cy.wrap(resp.body.results.token, { log: false });
+    });
+});
+Cypress.Commands.add('deleteProjectsByName', (names: string[]) => {
+    cy.request({
+        url: `api/v1/org/projects`,
+        headers: { 'Content-type': 'application/json' },
+    }).then((resp) => {
+        expect(resp.status).to.eq(200);
+        (resp.body.results as OrganizationProject[]).forEach(
+            ({ projectUuid, name }) => {
+                if (names.includes(name)) {
+                    cy.request({
+                        url: `api/v1/org/projects/${projectUuid}`,
+                        headers: { 'Content-type': 'application/json' },
+                        method: 'DELETE',
+                    }).then((deleteResp) => {
+                        expect(deleteResp.status).to.eq(200);
+                    });
+                }
+            },
+        );
     });
 });
