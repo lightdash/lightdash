@@ -209,12 +209,12 @@ const Settings: FC = () => {
             <Switch>
                 {allowPasswordAuthentication && (
                     <Route exact path={`/generalSettings/password`}>
-                        <CardContainer>
+                        <CardContainer shadow="sm" withBorder>
                             <Title order={4}>Password settings</Title>
                             <PasswordPanel />
                         </CardContainer>
                         {hasSocialLogin && (
-                            <CardContainer>
+                            <CardContainer shadow="sm" withBorder>
                                 <Title order={4}>Social logins</Title>
                                 <SocialLoginsPanel />
                             </CardContainer>
@@ -224,11 +224,11 @@ const Settings: FC = () => {
 
                 {user.ability.can('manage', 'Organization') && (
                     <Route exact path={`/generalSettings/organization`}>
-                        <CardContainer>
+                        <CardContainer shadow="sm" withBorder>
                             <Title order={4}>General</Title>
                             <OrganizationPanel />
                         </CardContainer>
-                        <CardContainer>
+                        <CardContainer shadow="sm" withBorder>
                             <div>
                                 <Title order={4}>Allowed email domains</Title>
                                 <Description>
@@ -239,7 +239,7 @@ const Settings: FC = () => {
                             <AllowedDomainsPanel />
                         </CardContainer>
                         {user.ability?.can('delete', 'Organization') && (
-                            <CardContainer>
+                            <CardContainer shadow="sm" withBorder>
                                 <div>
                                     <Title order={4}>Danger zone </Title>
                                     <Description>
@@ -288,7 +288,7 @@ const Settings: FC = () => {
                     )}
 
                 <Route exact path={`/generalSettings/appearance`}>
-                    <CardContainer>
+                    <CardContainer shadow="sm" withBorder>
                         <Title order={4}>Appearance settings</Title>
                         <AppearancePanel />
                     </CardContainer>
@@ -300,14 +300,14 @@ const Settings: FC = () => {
 
                 {health.hasSlack && user.ability.can('manage', 'Organization') && (
                     <Route exact path={`/generalSettings/integrations/slack`}>
-                        <CardContainer>
+                        <CardContainer shadow="sm" withBorder>
                             <SlackSettingsPanel />
                         </CardContainer>
                     </Route>
                 )}
 
                 <Route exact path={`/generalSettings`}>
-                    <CardContainer>
+                    <CardContainer shadow="sm" withBorder>
                         <Title order={4}>Profile settings</Title>
                         <ProfilePanel />
                     </CardContainer>

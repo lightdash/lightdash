@@ -136,12 +136,12 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
     };
 
     return (
-        <Card withBorder shadow="xs" style={{ overflow: 'visible' }}>
-            <Tabs
-                keepMounted={false}
-                defaultValue="scheduled-deliveries"
-                mb="sm"
-            >
+        <Card
+            withBorder
+            shadow="xs"
+            style={{ overflow: 'visible', padding: 0 }}
+        >
+            <Tabs keepMounted={false} defaultValue="scheduled-deliveries">
                 <Tabs.List>
                     <Tabs.Tab
                         value="scheduled-deliveries"
@@ -162,7 +162,11 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
                     </Tabs.Tab>
                 </Tabs.List>
                 <Tabs.Panel value="scheduled-deliveries">
-                    <Table my="sm" horizontalSpacing="sm" fontSize={'xs'}>
+                    <Table
+                        horizontalSpacing="sm"
+                        fontSize={'xs'}
+                        highlightOnHover
+                    >
                         <thead>
                             <tr>
                                 <th>Name</th>
@@ -296,6 +300,7 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
                                                 ta="center"
                                                 fw={500}
                                                 color="gray.6"
+                                                my={'sm'}
                                             >
                                                 Scheduled deliveries loading...
                                             </Title>
@@ -310,6 +315,7 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
                                             ta="center"
                                             fw={500}
                                             color="gray.6"
+                                            my={'sm'}
                                         >
                                             No scheduled deliveries on this
                                             project yet.
@@ -322,7 +328,6 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
                 </Tabs.Panel>
                 <Tabs.Panel value="run-history">
                     <Table
-                        my="xs"
                         horizontalSpacing="sm"
                         highlightOnHover
                         fontSize={'xs'}
@@ -407,6 +412,7 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
                                                 ta="center"
                                                 fw={500}
                                                 color="gray.6"
+                                                my={'sm'}
                                             >
                                                 Scheduled deliveries loading...
                                             </Title>
@@ -421,6 +427,7 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
                                             ta="center"
                                             fw={500}
                                             color="gray.6"
+                                            my={'sm'}
                                         >
                                             No scheduled deliveries on this
                                             project yet.
