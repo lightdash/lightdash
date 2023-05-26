@@ -1,29 +1,26 @@
 import { Checkbox, FormGroup } from '@blueprintjs/core';
-import {
-    CompiledDimension,
-    fieldId,
-    getDimensions,
-    getItemId,
-    replaceStringInArray,
-} from '@lightdash/common';
-import { FC, useCallback, useMemo } from 'react';
-import {
-    AxisFieldDropdown,
-    DeleteFieldButton,
-} from '../ChartConfigPanel/ChartConfigPanel.styles';
-import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
+import { Tooltip2 } from '@blueprintjs/popover2';
+import { Title } from '@mantine/core';
+import React, { FC, useCallback, useMemo, useState } from 'react';
+import { DragDropContext, DropResult } from 'react-beautiful-dnd';
+import useToaster from '../../hooks/toaster/useToaster';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import ColumnConfiguration from './ColumnConfiguration';
-import { AddPivotButton, SectionTitle } from './TableConfig.styles';
+import DroppableItemsList from './DroppableItemsList';
 
 export const MAX_PIVOTS = 3;
 
+enum DroppableIds {
+    COLUMNS = 'COLUMNS',
+    ROWS = 'ROWS',
+}
+
 const GeneralSettings: FC = () => {
     const {
-        explore,
         resultsData,
         pivotDimensions,
         tableConfig: {
+            selectedItemIds,
             showTableNames,
             setShowTableNames,
             hideRowNumbers,
@@ -38,35 +35,31 @@ const GeneralSettings: FC = () => {
         },
         setPivotDimensions,
     } = useVisualizationContext();
-
+    const [isDragging, setIsDragging] = useState<boolean>(false);
+    const { showToastError } = useToaster();
     const {
         metricQuery: { dimensions },
     } = resultsData || { metricQuery: { dimensions: [] as string[] } };
 
-    const availableDimensions = useMemo(
-        () =>
-            explore
-                ? getDimensions(explore).filter((field) =>
-                      dimensions.includes(fieldId(field)),
-                  )
-                : [],
-        [explore, dimensions],
-    );
-
-    const availableGroupByDimensions = useMemo(
-        () =>
-            availableDimensions.filter(
-                (item) => !pivotDimensions?.includes(getItemId(item)),
-            ),
-        [availableDimensions, pivotDimensions],
-    );
-
-    const canAddPivot = useMemo(
-        () =>
-            availableGroupByDimensions.length > 0 &&
-            (!pivotDimensions || pivotDimensions.length < MAX_PIVOTS),
-        [availableGroupByDimensions.length, pivotDimensions],
-    );
+    const {
+        columns,
+        rows,
+        metrics,
+    }: { columns: string[]; rows: string[]; metrics: string[] } =
+        useMemo(() => {
+            const columnFields = pivotDimensions ?? [];
+            const rowsFields = dimensions?.filter(
+                (itemId) => !pivotDimensions?.includes(itemId),
+            );
+            const metricsFields = (selectedItemIds ?? []).filter(
+                (id) => ![...columnFields, ...rowsFields].includes(id),
+            );
+            return {
+                columns: columnFields,
+                rows: rowsFields,
+                metrics: metricsFields,
+            };
+        }, [pivotDimensions, dimensions, selectedItemIds]);
 
     const handleToggleMetricsAsRows = useCallback(() => {
         const newValue = !metricsAsRows;
@@ -89,99 +82,120 @@ const GeneralSettings: FC = () => {
         setShowRowCalculation,
     ]);
 
-    const handleAddPivotDimension = useCallback(
-        (item: CompiledDimension, pivotKey: string) => {
-            setPivotDimensions(
-                pivotDimensions
-                    ? replaceStringInArray(
-                          pivotDimensions,
-                          pivotKey,
-                          getItemId(item),
-                      )
-                    : [getItemId(item)],
-            );
-        },
-        [pivotDimensions, setPivotDimensions],
-    );
+    const onDragEnd = useCallback(
+        ({ source, destination }: DropResult) => {
+            setIsDragging(false);
+            if (!destination) return;
 
-    const handleRemovePivotDimension = useCallback(
-        (pivotKey: string) => {
-            const newPivotDimensions = pivotDimensions?.filter(
-                (key) => key !== pivotKey,
-            );
+            if (source.droppableId !== destination.droppableId) {
+                if (destination.droppableId === DroppableIds.COLUMNS) {
+                    if (columns.length >= MAX_PIVOTS) {
+                        showToastError({
+                            title: 'Maximum number of pivots reached',
+                        });
+                        return;
+                    }
+                    // Add pivot
+                    const fieldId = rows[source.index];
+                    setPivotDimensions([
+                        ...columns.slice(0, destination.index),
+                        fieldId,
+                        ...columns.slice(destination.index),
+                    ]);
+                } else {
+                    // Remove pivot
+                    const fieldId = columns[source.index];
+                    const newPivotDimensions = columns.filter(
+                        (key) => key !== fieldId,
+                    );
 
-            if (
-                metricsAsRows &&
-                (!newPivotDimensions || newPivotDimensions.length === 0)
-            ) {
-                handleToggleMetricsAsRows();
+                    if (
+                        metricsAsRows &&
+                        (!newPivotDimensions || newPivotDimensions.length === 0)
+                    ) {
+                        handleToggleMetricsAsRows();
+                    }
+                    setPivotDimensions(newPivotDimensions);
+                }
+            } else if (destination.droppableId === DroppableIds.COLUMNS) {
+                // Reorder pivot
+                const fieldId = columns[source.index];
+                const columnsWithoutReorderField = columns.filter(
+                    (key) => key !== fieldId,
+                );
+                setPivotDimensions([
+                    ...columnsWithoutReorderField.slice(0, destination.index),
+                    fieldId,
+                    ...columnsWithoutReorderField.slice(destination.index),
+                ]);
             }
-
-            setPivotDimensions(newPivotDimensions);
         },
-
         [
-            pivotDimensions,
-            setPivotDimensions,
-            metricsAsRows,
+            columns,
             handleToggleMetricsAsRows,
+            metricsAsRows,
+            rows,
+            setPivotDimensions,
+            showToastError,
         ],
     );
 
     return (
         <>
-            <SectionTitle>Pivot column</SectionTitle>
-            {pivotDimensions &&
-                pivotDimensions.map((pivotKey) => {
-                    // Group series logic
-                    const groupSelectedField = availableDimensions.find(
-                        (item) => getItemId(item) === pivotKey,
-                    );
-
-                    return (
-                        <AxisFieldDropdown key={pivotKey}>
-                            <FieldAutoComplete
-                                fields={
-                                    groupSelectedField
-                                        ? [
-                                              groupSelectedField,
-                                              ...availableGroupByDimensions,
-                                          ]
-                                        : availableGroupByDimensions
-                                }
-                                placeholder="Select a field to group by"
-                                activeField={groupSelectedField}
-                                onChange={(item) => {
-                                    handleAddPivotDimension(item, pivotKey);
-                                }}
-                            />
-                            {groupSelectedField && (
-                                <DeleteFieldButton
-                                    minimal
-                                    icon="cross"
-                                    onClick={() => {
-                                        handleRemovePivotDimension(pivotKey);
-                                    }}
-                                />
-                            )}
-                        </AxisFieldDropdown>
-                    );
-                })}
-            {canAddPivot && (
-                <AddPivotButton
-                    minimal
-                    intent="primary"
-                    onClick={() =>
-                        setPivotDimensions([
-                            ...(pivotDimensions || []),
-                            getItemId(availableGroupByDimensions[0]),
-                        ])
+            <DragDropContext
+                onDragStart={() => setIsDragging(true)}
+                onDragEnd={onDragEnd}
+            >
+                <Title order={6}>Columns</Title>
+                <DroppableItemsList
+                    droppableId={DroppableIds.COLUMNS}
+                    itemIds={columns}
+                    isDragging={isDragging}
+                    disableReorder={false}
+                    placeholder={
+                        'Move dimensions to columns to pivot your table'
                     }
-                >
-                    + Add
-                </AddPivotButton>
-            )}
+                />
+                <Title order={6}>Rows</Title>
+                <DroppableItemsList
+                    droppableId={DroppableIds.ROWS}
+                    itemIds={rows}
+                    isDragging={isDragging}
+                    disableReorder={true}
+                />
+            </DragDropContext>
 
+            <Title order={6}>Metrics</Title>
+            <Tooltip2
+                disabled={!!canUsePivotTable}
+                content={
+                    'To use metrics as rows, you need to move a dimension to "Columns".'
+                }
+                position="top"
+            >
+                <Checkbox
+                    disabled={!canUsePivotTable}
+                    label="Show metrics as rows"
+                    checked={metricsAsRows}
+                    onChange={() => handleToggleMetricsAsRows()}
+                />
+            </Tooltip2>
+            <FormGroup>
+                {metrics.map((itemId) => (
+                    <div
+                        key={itemId}
+                        style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            width: '100%',
+                            marginBottom: '10px',
+                        }}
+                    >
+                        <ColumnConfiguration fieldId={itemId} />
+                    </div>
+                ))}
+            </FormGroup>
+            <Title order={6}>Options</Title>
             <FormGroup>
                 <Checkbox
                     label="Show table names"
@@ -198,15 +212,6 @@ const GeneralSettings: FC = () => {
                         setHideRowNumbers(!hideRowNumbers);
                     }}
                 />
-
-                {canUsePivotTable ? (
-                    <Checkbox
-                        label="Show metrics as rows"
-                        checked={metricsAsRows}
-                        onChange={() => handleToggleMetricsAsRows()}
-                    />
-                ) : null}
-
                 {canUsePivotTable ? (
                     <Checkbox
                         label="Show row total"
@@ -224,10 +229,6 @@ const GeneralSettings: FC = () => {
                     }}
                 />
             </FormGroup>
-
-            <SectionTitle>Columns</SectionTitle>
-
-            <ColumnConfiguration />
         </>
     );
 };
