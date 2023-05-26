@@ -1,4 +1,9 @@
-import { ChartConfig, CompactOrAlias, DBFieldTypes } from '@lightdash/common';
+import {
+    ChartConfig,
+    ChartType,
+    CompactOrAlias,
+    DBFieldTypes,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 
 export const SavedChartsTableName = 'saved_queries';
@@ -26,7 +31,7 @@ export type DbSavedChartVersion = {
     explore_name: string;
     filters: any;
     row_limit: number;
-    chart_type: 'big_number' | 'table' | 'cartesian';
+    chart_type: ChartType;
     saved_query_id: number;
     chart_config: ChartConfig['config'] | undefined;
     pivot_dimensions: string[] | undefined;
