@@ -1,8 +1,11 @@
+import type { ChartKind } from './savedCharts';
+
 export type ValidationResponse = {
     validationId: number;
     createdAt: Date;
     name: string;
     chartUuid?: string;
+    chartType?: ChartKind;
     dashboardUuid?: string;
     projectUuid: string;
     spaceUuid?: string;
