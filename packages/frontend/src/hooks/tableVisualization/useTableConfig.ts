@@ -43,8 +43,9 @@ const useTableConfig = (
             ? true
             : tableChartConfig.showTableNames,
     );
-
-   const [showResultsTotal, setShowResultsTotal] = useState<boolean>(tableChartConfig?.showResultsTotal ?? false);
+    const [showResultsTotal, setShowResultsTotal] = useState<boolean>(
+        tableChartConfig?.showResultsTotal ?? false,
+    );
     const [hideRowNumbers, setHideRowNumbers] = useState<boolean>(
         tableChartConfig?.hideRowNumbers === undefined
             ? false

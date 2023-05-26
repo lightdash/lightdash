@@ -105,9 +105,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                     );
                 return <CellContextMenu {...props} />;
             }}
-            pagination={{
-                showResultsTotal,
-            }}
+            pagination={{ showResultsTotal }}
             {...rest}
         />
     );
