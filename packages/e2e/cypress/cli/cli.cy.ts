@@ -116,9 +116,8 @@ describe('CLI', () => {
     it('Should create new project', () => {
         cy.login();
         cy.getApiToken().then((apiToken) => {
-            const newProjectName = 'Jaffle CLI test';
             cy.exec(
-                `${cliCommand} deploy --create --project-dir ${projectDir} --profiles-dir ${profilesDir} --name ${newProjectName}`,
+                `${cliCommand} deploy --create --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
                 {
                     failOnNonZeroExit: false,
                     env: {
