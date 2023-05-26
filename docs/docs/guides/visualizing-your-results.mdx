@@ -19,7 +19,6 @@ import MixedChartConvertToOne from './assets/mixed-chart-convert-to-one.png';
 import ConfigureLayout from './assets/configure-layout.png';
 import ConfigureSeries from './assets/series-configure.png';
 import ConfigureMultipleSeries from './assets/multiple-series-configure.png';
-import PivotTable from './assets/pivot-table-config.jpg';
 import AddReferenceLine from './assets/add-reference-line.png';
 import ReferenceLineConfig from './assets/reference-line-config.png';
 import LockedColumn from './assets/locked-column.jpg';
@@ -107,13 +106,13 @@ Table visualizations have three components:
 
 Pivot tables help you more easily summarize larger sets of data in table visualizations. They're also helpful to identify trends between two dimensions in your data using a table visualization.
 
-To pivot your table, you want to move the dimension you want to pivot by to the `column` section of your table configuration. This will change the dimension from having its values populate the rows values of your table, to having it populate the column values of your table. 
+To add a pivot in your table, move a dimension to the `column` section of your table configuration. This will change the dimension from having its values populate the rows values of your table, to having it populate the column values of your table. 
 
 <img src={PivotedTable} width="1076" height="596" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 You can move up to 3 dimensions as columns and there is a limit of 60 column values in your table (e.g. pivoting by a dimension with 30 months, and another with 4 statuses won't work because that will generate 4 x 30 = 120 column values).
 
-### Transposing your table (metrics as rows)
+#### Transposing your table (metrics as rows)
 
 You can transpose your table so that your metrics become rows in your table instead of columns. This can be helpful if you want to compare a lot of metrics to each other (e.g. how my metrics are changing over time).
 
@@ -138,14 +137,6 @@ When you add a new rule, you’ll first need to pick which column should be affe
 <img src={ConditionalFormattingRule} width="349" height="563" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 You can set as many rules on a table as you want. If two or more rules disagree with each other, the rule that’s on the bottom of your list of rules will win.
-
-#### Pivoting
-
-To pivot by a column in your table, just add the column you want to pivot by to the `group` option in the config panel. This will rotate the rows from this dimension into columns. You can pivot by up to 3 columns in your table.
-
-<img src={PivotTable} width="648" height="844" style={{display: "block", margin: "0 auto 20px auto"}}/>
-
-Note that pivoted tables have a limit of 60 columns that can be displayed.
 
 ### Bar chart
 
