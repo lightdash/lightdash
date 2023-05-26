@@ -1,4 +1,5 @@
 import { Checkbox, Colors, FormGroup, Icon } from '@blueprintjs/core';
+import { Tooltip2 } from '@blueprintjs/popover2';
 import { Text, Title } from '@mantine/core';
 import React, { FC, useCallback, useMemo, useState } from 'react';
 import {
@@ -267,13 +268,18 @@ const GeneralSettings: FC = () => {
             </DragDropContext>
 
             <Title order={6}>Metrics</Title>
-            {canUsePivotTable ? (
+            <Tooltip2
+                disabled={!!canUsePivotTable}
+                content={'to use metrics as rows, you need to pivot your table'}
+                position="top"
+            >
                 <Checkbox
+                    disabled={!canUsePivotTable}
                     label="Show metrics as rows"
                     checked={metricsAsRows}
                     onChange={() => handleToggleMetricsAsRows()}
                 />
-            ) : null}
+            </Tooltip2>
             <FormGroup>
                 {metrics.map((itemId) => (
                     <div
@@ -306,16 +312,20 @@ const GeneralSettings: FC = () => {
                         setHideRowNumbers(!hideRowNumbers);
                     }}
                 />
-
-                {canUsePivotTable ? (
+                <Tooltip2
+                    disabled={!!canUsePivotTable}
+                    content={'to use rows totals, you need to pivot your table'}
+                    position="top"
+                >
                     <Checkbox
+                        disabled={!canUsePivotTable}
                         label="Show row total"
                         checked={showRowCalculation}
                         onChange={() => {
                             setShowRowCalculation(!showRowCalculation);
                         }}
                     />
-                ) : null}
+                </Tooltip2>
                 <Checkbox
                     label="Show column total"
                     checked={showColumnCalculation}
