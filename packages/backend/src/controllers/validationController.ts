@@ -2,6 +2,8 @@ import {
     ApiErrorPayload,
     ApiJobScheduledResponse,
     ApiValidateResponse,
+    getRequestMethod,
+    LightdashRequestMethodHeader,
     ValidateProjectPayload,
 } from '@lightdash/common';
 import { Get, Post, Query } from '@tsoa/runtime';
@@ -35,9 +37,11 @@ export class ValidationController extends Controller {
     async post(
         @Path() projectUuid: string,
         @Request() req: express.Request,
-        @Query() context?: ValidateProjectPayload['context'],
     ): Promise<ApiJobScheduledResponse> {
         this.setStatus(200);
+        const context = getRequestMethod(
+            req.header(LightdashRequestMethodHeader),
+        );
         return {
             status: 'ok',
             results: {

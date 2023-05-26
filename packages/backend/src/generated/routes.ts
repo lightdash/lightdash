@@ -3805,17 +3805,6 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'object',
                 },
-                context: {
-                    in: 'query',
-                    name: 'context',
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'enum', enums: ['lightdash_app'] },
-                        { dataType: 'enum', enums: ['dbt_refresh'] },
-                        { dataType: 'enum', enums: ['test_and_compile'] },
-                        { dataType: 'enum', enums: ['cli'] },
-                    ],
-                },
             };
 
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa

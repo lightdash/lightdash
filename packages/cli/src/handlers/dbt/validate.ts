@@ -13,7 +13,7 @@ import { checkLightdashVersion, lightdashApi } from './apiClient';
 const requestValidation = async (projectUuid: string) =>
     lightdashApi<ApiJobScheduledResponse['results']>({
         method: 'POST',
-        url: `/api/v1/projects/${projectUuid}/validate?context=cli`,
+        url: `/api/v1/projects/${projectUuid}/validate`,
         body: undefined,
     });
 

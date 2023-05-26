@@ -13,6 +13,7 @@ import {
     isExploreError,
     isMetric,
     OrganizationMemberRole,
+    RequestMethod,
     SessionUser,
     TableCalculation,
     ValidateProjectPayload,
@@ -395,7 +396,7 @@ export class ValidationService {
     async validate(
         user: SessionUser,
         projectUuid: string,
-        context?: ValidateProjectPayload['context'],
+        context?: RequestMethod,
     ): Promise<string> {
         const { organizationUuid } = await this.projectModel.get(projectUuid);
 
@@ -411,10 +412,12 @@ export class ValidationService {
             throw new ForbiddenError();
         }
 
+        const fromCLI =
+            context === RequestMethod.CLI_CI || context === RequestMethod.CLI;
         const jobId = await schedulerClient.generateValidation({
             userUuid: user.userUuid,
             projectUuid,
-            context: context || 'lightdash_app',
+            context: fromCLI ? 'cli' : 'lightdash_app',
             organizationUuid: user.organizationUuid,
         });
         return jobId;
