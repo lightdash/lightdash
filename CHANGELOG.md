@@ -1,3 +1,10 @@
+# [0.574.0](https://github.com/lightdash/lightdash/compare/0.573.0...0.574.0) (2023-05-26)
+
+
+### Features
+
+* show dbt install link on cli ([#5573](https://github.com/lightdash/lightdash/issues/5573)) ([f6ce50a](https://github.com/lightdash/lightdash/commit/f6ce50aaf047168f7a4368bdf8fa001125af4cb4)), closes [#4678](https://github.com/lightdash/lightdash/issues/4678)
+
 # [0.573.0](https://github.com/lightdash/lightdash/compare/0.572.0...0.573.0) (2023-05-25)
 
 
