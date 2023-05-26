@@ -1,3 +1,10 @@
+# [0.576.0](https://github.com/lightdash/lightdash/compare/0.575.0...0.576.0) (2023-05-26)
+
+
+### Features
+
+* add preview banner for preview projects ([#5638](https://github.com/lightdash/lightdash/issues/5638)) ([c1963d2](https://github.com/lightdash/lightdash/commit/c1963d2a5d6825576db161a8cdf841a6e41d561d))
+
 # [0.575.0](https://github.com/lightdash/lightdash/compare/0.574.1...0.575.0) (2023-05-26)
 
 
