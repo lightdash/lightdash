@@ -1,3 +1,10 @@
+# [0.575.0](https://github.com/lightdash/lightdash/compare/0.574.1...0.575.0) (2023-05-26)
+
+
+### Features
+
+* add ssh keypairs api (stacked 2) ([#5616](https://github.com/lightdash/lightdash/issues/5616)) ([34e695b](https://github.com/lightdash/lightdash/commit/34e695b086cce8ec2d2c87a97ed2a681f18a487b))
+
 ## [0.574.1](https://github.com/lightdash/lightdash/compare/0.574.0...0.574.1) (2023-05-26)
 
 

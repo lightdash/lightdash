@@ -3215,6 +3215,13 @@
   resolved "https://registry.npmjs.org/@types/aria-query/-/aria-query-4.2.1.tgz"
   integrity sha512-S6oPal772qJZHoRZLFc/XoZW2gFvwXusYUmXPXkgxJLuEk2vOt7jc4Yo6z/vtI0EBkbPBVrJJ0B+prLIKiWqHg==
 
+"@types/asn1@*":
+  version "0.2.0"
+  resolved "https://registry.yarnpkg.com/@types/asn1/-/asn1-0.2.0.tgz#23b568688b321740bd4eafef49e6b13ffc101b31"
+  integrity sha512-5TMxIpYbIA9c1J0hYQjQDX3wr+rTgQEAXaW2BI8ECM8FO53wSW4HFZplTalrKSHuZUc76NtXcePRhwuOHqGD5g==
+  dependencies:
+    "@types/node" "*"
+
 "@types/async@^3.2.16":
   version "3.2.16"
   resolved "https://registry.yarnpkg.com/@types/async/-/async-3.2.16.tgz#7473aa015cf8a60584a94dc79b9203d465c32b41"
@@ -3887,6 +3894,14 @@
   resolved "https://registry.npmjs.org/@types/snowflake-sdk/-/snowflake-sdk-1.6.1.tgz"
   integrity sha512-eftM0eWFiphyrbQFLNOacx7CjYGlwEQXDQxixhn8m/hi0DSdPmlSEv272OInVFLnju80ZVE6JOnNfiX8gyHS1Q==
   dependencies:
+    "@types/node" "*"
+
+"@types/sshpk@^1.17.1":
+  version "1.17.1"
+  resolved "https://registry.yarnpkg.com/@types/sshpk/-/sshpk-1.17.1.tgz#2eb4fee514dc41fa9b904390a20eb02a58de5e10"
+  integrity sha512-bOJek/W++DvWRNAeHmpvgX8Q1ypAq4nmeVi3nJ+pjDcMB214S8kSGkxRUw/Uz+zau4VwxcfNp0xUq4s/3DLjLw==
+  dependencies:
+    "@types/asn1" "*"
     "@types/node" "*"
 
 "@types/stack-utils@^2.0.0":
@@ -15091,7 +15106,7 @@ sprintf-js@~1.0.2:
   resolved "https://registry.npmjs.org/sprintf-js/-/sprintf-js-1.0.3.tgz"
   integrity sha1-BOaSb2YolTVPPdAVIDYzuFcpfiw=
 
-sshpk@^1.14.1:
+sshpk@^1.14.1, sshpk@^1.17.0:
   version "1.17.0"
   resolved "https://registry.npmjs.org/sshpk/-/sshpk-1.17.0.tgz"
   integrity sha512-/9HIEs1ZXGhSPE8X6Ccm7Nam1z8KcoCqPdI7ecm1N33EzAetWahvQWVqLZtaZQ+IDKX4IyA2o0gBzqIMkAagHQ==

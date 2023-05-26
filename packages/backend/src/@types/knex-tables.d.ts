@@ -140,6 +140,10 @@ import {
     SchedulerTableName,
 } from '../database/entities/scheduler';
 import {
+    SshKeyPairTable,
+    SshKeyPairTableName,
+} from '../database/entities/ssh_key_pairs';
+import {
     DbValidationTable,
     ValidationTableName,
 } from '../database/entities/validation';
@@ -197,5 +201,6 @@ declare module 'knex/types/tables' {
         [ValidationTableName]: DbValidationTable;
         [GroupTableName]: GroupTable;
         [GroupMembershipTableName]: GroupMembershipTable;
+        [SshKeyPairTableName]: SshKeyPairTable;
     }
 }
