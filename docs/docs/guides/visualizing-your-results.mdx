@@ -27,6 +27,7 @@ import ConditionalFormatting from './assets/conditional-formatting.png';
 import ConditionalFormattingRule from './assets/conditional-formatting-rule.png';
 import ColumnsRowsMetricsExample from './assets/columns-rows-metrics-example.jpg';
 import MetricsAsRows from './assets/metrics-as-rows.jpg';
+import PivotedTable from './assets/pivoted-table.jpg';
 
 # Visualizing your results
 
@@ -107,6 +108,8 @@ Table visualizations have three components:
 Pivot tables help you more easily summarize larger sets of data in table visualizations. They're also helpful to identify trends between two dimensions in your data using a table visualization.
 
 To pivot your table, you want to move the dimension you want to pivot by to the `column` section of your table configuration. This will change the dimension from having its values populate the rows values of your table, to having it populate the column values of your table. 
+
+<img src={PivotedTable} width="1076" height="596" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 You can move up to 3 dimensions as columns and there is a limit of 60 column values in your table (e.g. pivoting by a dimension with 30 months, and another with 4 statuses won't work because that will generate 4 x 30 = 120 column values).
 
