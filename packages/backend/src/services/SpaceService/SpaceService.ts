@@ -89,7 +89,7 @@ export class SpaceService {
                     projectUuid,
                 }),
             ) ||
-            !hasSpaceAccess(user, space, false)
+            !hasSpaceAccess(user, space, true) // admins can also view private spaces
         ) {
             throw new ForbiddenError();
         }
