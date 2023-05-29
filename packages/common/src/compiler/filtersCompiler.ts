@@ -46,9 +46,9 @@ export const renderStringFilterSql = (
         case FilterOperator.NOT_EQUALS:
             return !escapedFilterValues || escapedFilterValues.length === 0
                 ? 'true'
-                : `(${dimensionSql}) NOT IN (${escapedFilterValues
+                : `((${dimensionSql}) NOT IN (${escapedFilterValues
                       .map((v) => `${stringQuoteChar}${v}${stringQuoteChar}`)
-                      .join(',')})`;
+                      .join(',')} ) OR (${dimensionSql}) IS NULL)`;
         case FilterOperator.INCLUDE:
             const includesQuery = escapedFilterValues?.map(
                 (v) => `LOWER(${dimensionSql}) LIKE LOWER('%${v}%')`,
