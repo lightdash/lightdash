@@ -18,6 +18,7 @@ import {
     getMarkLineAxis,
     ReferenceLineField,
 } from '../../components/common/ReferenceLine';
+import { useExplorerContext } from '../../providers/ExplorerProvider';
 import {
     getExpectedSeriesMap,
     mergeExistingAndExpectedSeries,
@@ -120,6 +121,13 @@ const useCartesianChartConfig = ({
         (series: Series) => series.stack !== undefined,
     );
     const [isStacked, setIsStacked] = useState<boolean>(isInitiallyStacked);
+
+    const addSortField = useExplorerContext(
+        (context) => context.actions.addSortField,
+    );
+    const setSortField = useExplorerContext(
+        (context) => context.actions.setSortFields,
+    );
 
     const setLegend = useCallback((legend: EchartsLegend) => {
         const removePropertiesWithAuto = Object.entries(
@@ -358,6 +366,26 @@ const useCartesianChartConfig = ({
             columnOrder,
         );
     }, [resultsData?.metricQuery.dimensions, explore, columnOrder]);
+
+    useEffect(() => {
+        if (sortedDimensions.length > 0) {
+            const newSort = resultsData?.metricQuery.sorts.find(
+                (sort) => sortedDimensions[0] === sort.fieldId,
+            );
+            if (newSort === undefined) {
+                addSortField(sortedDimensions[0]);
+                setSortField([
+                    { fieldId: sortedDimensions[0], descending: false },
+                    ...(resultsData?.metricQuery.sorts || []),
+                ]);
+            }
+        }
+    }, [
+        resultsData?.metricQuery.sorts,
+        sortedDimensions,
+        addSortField,
+        setSortField,
+    ]);
 
     const [
         availableFields,

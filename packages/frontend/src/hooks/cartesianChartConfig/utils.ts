@@ -220,6 +220,7 @@ export const sortDimensions = (
             return dimensionIds; // No dates, we return the same order
         case 1: // Only 1 date, we return this date first
             const dateDimensionId = getItemId(dateDimensions[0]);
+
             return [
                 dateDimensionId,
                 ...dimensionIds.filter(
@@ -234,6 +235,7 @@ export const sortDimensions = (
                     columnOrder.indexOf(getItemId(b)),
             );
             const sortedDateDimensionIds = sortedDateDimensions.map(getItemId);
+
             return [
                 ...sortedDateDimensionIds,
                 ...dimensionIds.filter(
