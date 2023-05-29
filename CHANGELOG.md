@@ -1,3 +1,17 @@
+# [0.579.0-alpha.1](https://github.com/lightdash/lightdash/compare/0.578.0...0.579.0-alpha.1) (2023-05-29)
+
+
+### Bug Fixes
+
+* release on merge ([20dd254](https://github.com/lightdash/lightdash/commit/20dd254c96c7e8ffdfeca97e293a8315ef0091eb))
+
+
+### Features
+
+* add open telemetry instrumentation ([#5633](https://github.com/lightdash/lightdash/issues/5633)) ([8e5bc30](https://github.com/lightdash/lightdash/commit/8e5bc3078984ad2232882ae2c8f88df94edde392))
+* admins can access private space ([#5643](https://github.com/lightdash/lightdash/issues/5643)) ([9e47c36](https://github.com/lightdash/lightdash/commit/9e47c368e71d8d1bfab44f4c2417f9452a8643d7))
+* cli validate command ([#5642](https://github.com/lightdash/lightdash/issues/5642)) ([2e77ff5](https://github.com/lightdash/lightdash/commit/2e77ff52c66a9f10861fae574fb669ffe74d982a))
+
 # [0.578.0](https://github.com/lightdash/lightdash/compare/0.577.0...0.578.0) (2023-05-26)
 
 
