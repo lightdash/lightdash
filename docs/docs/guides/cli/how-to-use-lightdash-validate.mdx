@@ -2,8 +2,11 @@ import AutomaticallyDeployChangesGithub from './../../snippets/github-secrets.md
 
 # Lightdash Validate
 
-You can trigger a validation on a project from the CLI, this will allow you to block a release (using Github actions) if a table/chart/dashboard is broken. 
+You can trigger a validation on a project from the CLI, this will allow you to block a release (using Github actions) 
+if a table/chart/dashboard is broken on a [preview environment](/guides/cli/how-to-use-lightdash-preview). 
 
+Preview environments will copy all spaces/charts/dashboards into your new preview environment. 
+This is only copied on preview creation, you can't sync the content afterwards. 
 
 ## Usage 
 
