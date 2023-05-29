@@ -1,3 +1,6 @@
+// organize-imports-ignore
+import './otel'; // must be imported first
+
 import { LightdashMode, SessionUser } from '@lightdash/common';
 import apiSpec from '@lightdash/common/dist/openapibundle.json';
 import * as Sentry from '@sentry/node';
@@ -72,6 +75,7 @@ const tracesSampler = (context: SamplingContext): boolean | number => {
     }
     return 0.2;
 };
+
 Sentry.init({
     release: VERSION,
     dsn: process.env.SENTRY_DSN,
