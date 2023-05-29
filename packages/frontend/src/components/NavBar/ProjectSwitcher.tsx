@@ -6,7 +6,7 @@ import useToaster from '../../hooks/toaster/useToaster';
 import { useActiveProjectUuid } from '../../hooks/useProject';
 import {
     useProjects,
-    useSetLastProjectMutation,
+    useUpdateActiveProjectMutation,
 } from '../../hooks/useProjects';
 
 const routesToReplace = (activeProjectUuid: string) => [
@@ -35,7 +35,7 @@ const ProjectSwitcher = () => {
     const { isLoading: isLoadingProjects, data: projects = [] } = useProjects();
     const { isLoading: isLoadingActiveProjectUuid, activeProjectUuid } =
         useActiveProjectUuid();
-    const { mutate: setLastProjectMutation } = useSetLastProjectMutation();
+    const { mutate: setLastProjectMutation } = useUpdateActiveProjectMutation();
 
     const isHomePage = useRouteMatch({
         path: '/projects/:projectUuid/home',

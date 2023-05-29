@@ -27,9 +27,9 @@ export const useProjects = (
 
 const LAST_PROJECT_KEY = 'lastProject';
 
-export const useLastProject = () => {
+export const useActiveProject = () => {
     return useQuery<string | undefined>({
-        queryKey: ['lastProject'],
+        queryKey: ['activeProject'],
         queryFn: () =>
             Promise.resolve(
                 localStorage.getItem(LAST_PROJECT_KEY) || undefined,
@@ -37,7 +37,7 @@ export const useLastProject = () => {
     });
 };
 
-export const useSetLastProjectMutation = () => {
+export const useUpdateActiveProjectMutation = () => {
     const queryClient = useQueryClient();
 
     return useMutation<void, Error, string>({
@@ -47,12 +47,12 @@ export const useSetLastProjectMutation = () => {
             );
         },
         onSuccess: async () => {
-            await queryClient.invalidateQueries('lastProject');
+            await queryClient.invalidateQueries('activeProject');
         },
     });
 };
 
-export const useDeleteLastProjectMutation = () => {
+export const useDeleteActiveProjectMutation = () => {
     const queryClient = useQueryClient();
 
     return useMutation<void, Error>({
@@ -60,7 +60,7 @@ export const useDeleteLastProjectMutation = () => {
             return Promise.resolve(localStorage.removeItem(LAST_PROJECT_KEY));
         },
         onSuccess: async () => {
-            await queryClient.invalidateQueries('lastProject');
+            await queryClient.invalidateQueries('activeProject');
         },
     });
 };

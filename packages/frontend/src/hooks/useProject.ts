@@ -10,7 +10,11 @@ import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { useActiveJob } from '../providers/ActiveJobProvider';
 import useToaster from './toaster/useToaster';
-import { useDefaultProject, useLastProject, useProjects } from './useProjects';
+import {
+    useActiveProject,
+    useDefaultProject,
+    useProjects,
+} from './useProjects';
 import useQueryError from './useQueryError';
 
 const createProject = async (data: CreateProject) =>
@@ -99,7 +103,7 @@ export const useActiveProjectUuid = () => {
     const { data: defaultProject, isLoading: isLoadingDefaultProject } =
         useDefaultProject();
     const { data: lastProjectUuid, isLoading: isLoadingLastProject } =
-        useLastProject();
+        useActiveProject();
 
     if (isLoadingProjects || isLoadingDefaultProject || isLoadingLastProject) {
         return {

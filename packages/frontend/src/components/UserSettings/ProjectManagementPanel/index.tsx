@@ -11,9 +11,9 @@ import { Stack } from '@mantine/core';
 import { FC, useState } from 'react';
 import { Redirect, useHistory } from 'react-router-dom';
 import {
-    useDeleteLastProjectMutation,
+    useActiveProject,
+    useDeleteActiveProjectMutation,
     useDeleteProjectMutation,
-    useLastProject,
     useProjects,
 } from '../../../hooks/useProjects';
 import { useApp } from '../../../providers/AppProvider';
@@ -39,7 +39,7 @@ const ProjectListItem: FC<{
     const { mutate: deleteProjectMutation, isLoading: isDeleting } =
         useDeleteProjectMutation();
     const { mutate: deleteLastProjectMutation } =
-        useDeleteLastProjectMutation();
+        useDeleteActiveProjectMutation();
 
     return (
         <SettingsCard shadow="sm">
@@ -133,7 +133,7 @@ const ProjectManagementPanel: FC = () => {
     const history = useHistory();
     const { data: projects = [], isLoading: isLoadingProjects } = useProjects();
     const { data: lastProjectUuid, isLoading: isLoadingLastProject } =
-        useLastProject();
+        useActiveProject();
 
     if (isLoadingProjects || isLoadingLastProject) return null;
 
