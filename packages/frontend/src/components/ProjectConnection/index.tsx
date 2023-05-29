@@ -24,7 +24,7 @@ import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { useAbilityContext } from '../common/Authorization';
-import { SettingsCard } from '../common/Settings/SettingsCard';
+import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import DocumentationHelpButton from '../DocumentationHelpButton';
 import Input from '../ReactHookForm/Input';
 import DbtSettingsForm from './DbtSettingsForm';
@@ -34,10 +34,8 @@ import { getWarehouseLabel } from './ProjectConnectFlow/SelectWarehouse';
 import {
     CompileProjectButton,
     FormContainer,
-    LeftPanel,
     LeftPanelMessage,
     LeftPanelTitle,
-    RightPanel,
 } from './ProjectConnection.styles';
 import { ProjectFormProvider } from './ProjectFormProvider';
 import ProjectStatusCallout from './ProjectStatusCallout';
@@ -72,11 +70,12 @@ const ProjectForm: FC<Props> = ({
     return (
         <Stack spacing="xl">
             {showGeneralSettings && (
-                <SettingsCard>
-                    <LeftPanel>
+                <SettingsGridCard>
+                    <div>
                         <H5>General settings</H5>
-                    </LeftPanel>
-                    <RightPanel>
+                    </div>
+
+                    <div>
                         <Input
                             name="name"
                             label="Project name"
@@ -85,12 +84,12 @@ const ProjectForm: FC<Props> = ({
                             }}
                             disabled={disabled}
                         />
-                    </RightPanel>
-                </SettingsCard>
+                    </div>
+                </SettingsGridCard>
             )}
 
-            <SettingsCard>
-                <LeftPanel>
+            <SettingsGridCard>
+                <div>
                     {hasWarehouse && getWarehouseLabel(hasWarehouse).icon}
                     <LeftPanelTitle>
                         <H5>Warehouse connection</H5>
@@ -103,19 +102,20 @@ const ProjectForm: FC<Props> = ({
                             allow-list, use <b>{health.data?.staticIp}</b>
                         </LeftPanelMessage>
                     )}
-                </LeftPanel>
-                <RightPanel>
+                </div>
+
+                <div>
                     <WarehouseSettingsForm
                         disabled={disabled}
                         setSelectedWarehouse={setHasWarehouse}
                         selectedWarehouse={hasWarehouse}
                         isProjectUpdate={isProjectUpdate}
                     />
-                </RightPanel>
-            </SettingsCard>
+                </div>
+            </SettingsGridCard>
 
-            <SettingsCard>
-                <LeftPanel>
+            <SettingsGridCard>
+                <div>
                     <WarehouseIcon src={DbtLogo} alt="dbt icon" />
                     <LeftPanelTitle>
                         <H5>dbt connection</H5>
@@ -132,15 +132,16 @@ const ProjectForm: FC<Props> = ({
                             dbt version <b>1.4.1</b>
                         </Anchor>
                     </LeftPanelMessage>
-                </LeftPanel>
-                <RightPanel>
+                </div>
+
+                <div>
                     <DbtSettingsForm
                         disabled={disabled}
                         defaultType={defaultType}
                         selectedWarehouse={hasWarehouse}
                     />
-                </RightPanel>
-            </SettingsCard>
+                </div>
+            </SettingsGridCard>
         </Stack>
     );
 };

@@ -27,14 +27,6 @@ export const AdvancedButton = styled(SimpleButton)`
     padding-right: 2px;
 `;
 
-export const LeftPanel = styled.div`
-    flex: 1;
-`;
-
-export const RightPanel = styled.div`
-    flex: 1;
-`;
-
 export const LeftPanelTitle = styled.div`
     margin-bottom: 10px;
     margin-top: 10px;

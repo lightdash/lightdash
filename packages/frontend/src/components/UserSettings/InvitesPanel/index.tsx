@@ -1,5 +1,4 @@
 import { CreateInviteLink, OrganizationMemberRole } from '@lightdash/common';
-import { Card } from '@mantine/core';
 import { FC, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
@@ -7,6 +6,7 @@ import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import { isValidEmail } from '../../../utils/fieldValidators';
+import { SettingsCard } from '../../common/Settings/SettingsCard';
 import InviteSuccess from '../UserManagementPanel/InviteSuccess';
 import {
     BackButton,
@@ -56,7 +56,7 @@ const InvitePanel: FC<{
                 onClick={onBackClick}
             />
 
-            <Card>
+            <SettingsCard>
                 <InviteForm
                     name="invite-form"
                     methods={methods}
@@ -100,7 +100,7 @@ const InvitePanel: FC<{
                         disabled={isLoading}
                     />
                 </InviteForm>
-            </Card>
+            </SettingsCard>
 
             {data && <InviteSuccess invite={data} hasMarginTop />}
         </Panel>
