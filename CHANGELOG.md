@@ -1,3 +1,24 @@
+# [0.578.0](https://github.com/lightdash/lightdash/compare/0.577.0...0.578.0) (2023-05-26)
+
+
+### Features
+
+* add correct icon for charts in validator table ([#5644](https://github.com/lightdash/lightdash/issues/5644)) ([56e7147](https://github.com/lightdash/lightdash/commit/56e7147163ce8098e585628e78cec9615ee2b78e))
+
+# [0.577.0](https://github.com/lightdash/lightdash/compare/0.576.0...0.577.0) (2023-05-26)
+
+
+### Features
+
+* table configuration with drag and drop  ([#5611](https://github.com/lightdash/lightdash/issues/5611)) ([aba555a](https://github.com/lightdash/lightdash/commit/aba555ac21b071d01ab03eca1c46104c4b4c9f5e))
+
+# [0.576.0](https://github.com/lightdash/lightdash/compare/0.575.0...0.576.0) (2023-05-26)
+
+
+### Features
+
+* add preview banner for preview projects ([#5638](https://github.com/lightdash/lightdash/issues/5638)) ([c1963d2](https://github.com/lightdash/lightdash/commit/c1963d2a5d6825576db161a8cdf841a6e41d561d))
+
 # [0.575.0](https://github.com/lightdash/lightdash/compare/0.574.1...0.575.0) (2023-05-26)
 
 
