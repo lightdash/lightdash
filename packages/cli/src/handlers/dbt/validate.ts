@@ -85,6 +85,7 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
         );
     }
 
+    const timeStart = new Date();
     const validationJob = await requestValidation(projectUuid);
     const { jobId } = validationJob;
 
@@ -99,7 +100,26 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
     if (validation.length === 0) {
         spinner?.succeed(`  Validation finished without errors`);
     } else {
-        spinner?.fail(`  Validation finished with errors\n`);
+        const timeInSeconds = new Date().getTime() - timeStart.getTime();
+        spinner?.fail(
+            `  Successfully validated in ${Math.trunc(
+                timeInSeconds / 1000,
+            )}s with ${validation.length} errors`,
+        );
+
+        const tableErrors = validation.filter(
+            (v) => v.chartUuid === undefined && v.dashboardUuid === undefined,
+        );
+        const chartErrors = validation.filter((v) => v.chartUuid !== undefined);
+        const dashboardErrors = validation.filter(
+            (v) => v.dashboardUuid !== undefined,
+        );
+
+        console.error(`
+- Tables: ${styles.bold(tableErrors.length)} errors
+- Charts: ${styles.bold(chartErrors.length)} errors
+- Dashboards: ${styles.bold(dashboardErrors.length)} errors
+        `);
 
         const validationOutput = validation.map((v) => ({
             name: styles.error(v.name),
