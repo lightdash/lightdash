@@ -7,9 +7,10 @@ import { useProjects } from '../hooks/useProjects';
 
 const Projects: FC = () => {
     const { isLoading, data, error } = useProjects();
-    const activeProjectUuid = useActiveProjectUuid();
+    const { isLoading: isActiveProjectLoading, activeProjectUuid } =
+        useActiveProjectUuid();
 
-    if (isLoading) {
+    if (isLoading || isActiveProjectLoading || !activeProjectUuid) {
         return <PageSpinner />;
     }
     if (error && error.error) {

@@ -10,7 +10,7 @@ import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { useActiveJob } from '../providers/ActiveJobProvider';
 import useToaster from './toaster/useToaster';
-import { getLastProject, useDefaultProject, useProjects } from './useProjects';
+import { useDefaultProject, useLastProject, useProjects } from './useProjects';
 import useQueryError from './useQueryError';
 
 const createProject = async (data: CreateProject) =>
@@ -95,17 +95,28 @@ export const useCreateMutation = () => {
 
 export const useActiveProjectUuid = () => {
     const params = useParams<{ projectUuid?: string }>();
-    const { data: defaultProject } = useDefaultProject();
-    const { data: projects } = useProjects();
+    const { data: projects, isLoading: isLoadingProjects } = useProjects();
+    const { data: defaultProject, isLoading: isLoadingDefaultProject } =
+        useDefaultProject();
+    const { data: lastProjectUuid, isLoading: isLoadingLastProject } =
+        useLastProject();
 
-    const lastProjectUuid = getLastProject();
+    if (isLoadingProjects || isLoadingDefaultProject || isLoadingLastProject) {
+        return {
+            isLoading: true,
+            activeProjectUuid: undefined,
+        };
+    }
+
     const lastProject = projects?.find(
         (project) => project.projectUuid === lastProjectUuid,
     );
 
-    return (
-        params.projectUuid ||
-        lastProject?.projectUuid ||
-        defaultProject?.projectUuid
-    );
+    return {
+        isLoading: false,
+        activeProjectUuid:
+            params.projectUuid ||
+            lastProject?.projectUuid ||
+            defaultProject?.projectUuid,
+    };
 };

@@ -27,16 +27,42 @@ export const useProjects = (
 
 const LAST_PROJECT_KEY = 'lastProject';
 
-export const getLastProject = (): string | undefined => {
-    return localStorage.getItem(LAST_PROJECT_KEY) || undefined;
+export const useLastProject = () => {
+    return useQuery<string | undefined>({
+        queryKey: ['lastProject'],
+        queryFn: () =>
+            Promise.resolve(
+                localStorage.getItem(LAST_PROJECT_KEY) || undefined,
+            ),
+    });
 };
 
-export const setLastProject = (projectUuid: string) => {
-    localStorage.setItem(LAST_PROJECT_KEY, projectUuid);
+export const useSetLastProjectMutation = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation<void, Error, string>({
+        mutationFn: (projectUuid) => {
+            return Promise.resolve(
+                localStorage.setItem(LAST_PROJECT_KEY, projectUuid),
+            );
+        },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries('lastProject');
+        },
+    });
 };
 
-export const deleteLastProject = () => {
-    localStorage.removeItem(LAST_PROJECT_KEY);
+export const useDeleteLastProjectMutation = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation<void, Error>({
+        mutationFn: () => {
+            return Promise.resolve(localStorage.removeItem(LAST_PROJECT_KEY));
+        },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries('lastProject');
+        },
+    });
 };
 
 export const useDefaultProject = () => {
