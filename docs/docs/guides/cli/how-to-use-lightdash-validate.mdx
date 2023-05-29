@@ -1,0 +1,35 @@
+import AutomaticallyDeployChangesGithub from './../../snippets/github-secrets.mdx';
+
+# Lightdash Validate
+
+You can trigger a validation on a project from the CLI, this will allow you to block a release (using Github actions) if a table/chart/dashboard is broken. 
+
+
+## Usage 
+
+```
+# This will trigger a validation for the last preview project you create using `lightdash start-preview`
+lightdash validate 
+```
+
+or 
+
+```
+# Trigger validation for any project UUID 
+lightdash validate --project <project uuid> 
+``` 
+
+![CLI validate](./assets/cli-validate.png)
+
+
+## Configure Github actions  
+
+This command will return an error (return code 1) if there is at least 1 validation error on your project. 
+You can use this output to block a deploy on Github actions like this 
+
+```
+- name: Start preview 
+  run: lightdash start-preview 
+- name: Validate 
+  run: lightdash validate 
+```
