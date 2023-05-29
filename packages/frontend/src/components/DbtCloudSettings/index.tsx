@@ -1,6 +1,6 @@
 import { Intent, NonIdealState } from '@blueprintjs/core';
 import { CreateDbtCloudIntegration } from '@lightdash/common/dist/types/dbtCloud';
-import { Anchor, Card } from '@mantine/core';
+import { Anchor } from '@mantine/core';
 import { FC } from 'react';
 import { useForm } from 'react-hook-form';
 import {
@@ -10,6 +10,7 @@ import {
 } from '../../hooks/dbtCloud/useProjectDbtCloudSettings';
 import { Subtitle } from '../../pages/CreateProject.styles';
 import { ButtonsWrapper, SaveButton } from '../../pages/ProjectSettings.styles';
+import { SettingsCard } from '../common/Settings/SettingsCard';
 import Form from '../ReactHookForm/Form';
 import Input from '../ReactHookForm/Input';
 import PasswordInput from '../ReactHookForm/PasswordInput';
@@ -53,7 +54,8 @@ const DbtCloudSettings: FC<DbtCloudSettingsProps> = ({ projectUuid }) => {
                 </Anchor>{' '}
                 in the Lightdash docs.
             </Subtitle>
-            <Card shadow="sm" withBorder>
+
+            <SettingsCard>
                 {dbtCloudSettings.error ? (
                     <NonIdealState
                         title={dbtCloudSettings.error.error.message}
@@ -101,7 +103,7 @@ const DbtCloudSettings: FC<DbtCloudSettingsProps> = ({ projectUuid }) => {
                         </ButtonsWrapper>
                     </Form>
                 )}
-            </Card>
+            </SettingsCard>
         </>
     );
 };
