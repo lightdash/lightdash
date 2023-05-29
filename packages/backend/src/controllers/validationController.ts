@@ -2,6 +2,9 @@ import {
     ApiErrorPayload,
     ApiJobScheduledResponse,
     ApiValidateResponse,
+    getRequestMethod,
+    LightdashRequestMethodHeader,
+    ValidateProjectPayload,
 } from '@lightdash/common';
 import { Get, Post, Query } from '@tsoa/runtime';
 import express from 'express';
@@ -36,10 +39,17 @@ export class ValidationController extends Controller {
         @Request() req: express.Request,
     ): Promise<ApiJobScheduledResponse> {
         this.setStatus(200);
+        const context = getRequestMethod(
+            req.header(LightdashRequestMethodHeader),
+        );
         return {
             status: 'ok',
             results: {
-                jobId: await validationService.validate(req.user!, projectUuid),
+                jobId: await validationService.validate(
+                    req.user!,
+                    projectUuid,
+                    context,
+                ),
             },
         };
     }

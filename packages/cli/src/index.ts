@@ -6,6 +6,7 @@ import * as path from 'path';
 import { compileHandler } from './handlers/compile';
 import { refreshHandler } from './handlers/dbt/refresh';
 import { dbtRunHandler } from './handlers/dbt/run';
+import { validateHandler } from './handlers/dbt/validate';
 import { deployHandler } from './handlers/deploy';
 import { generateHandler } from './handlers/generate';
 import { login } from './handlers/login';
@@ -422,6 +423,16 @@ ${styles.bold('Examples:')}
     )
     .option('--verbose', undefined, false)
     .action(refreshHandler);
+
+program
+    .command('validate')
+    .description('Validate a project')
+    .option(
+        '--project <project uuid>',
+        'Project UUID to validate, if not provided, the last preview will be used',
+    )
+    .option('--verbose', undefined, false)
+    .action(validateHandler);
 
 program
     .command('generate')
