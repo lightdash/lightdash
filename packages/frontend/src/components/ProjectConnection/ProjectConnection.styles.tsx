@@ -1,5 +1,4 @@
 import { Button, Colors } from '@blueprintjs/core';
-import { Card } from '@mantine/core';
 import styled from 'styled-components';
 
 import SimpleButton from '../common/SimpleButton';
@@ -26,12 +25,6 @@ export const AdvancedButtonWrapper = styled.div`
 
 export const AdvancedButton = styled(SimpleButton)`
     padding-right: 2px;
-`;
-
-export const ProjectConnectionCard = styled(Card)`
-    display: flex;
-    flex-direction: row;
-    gap: 20px;
 `;
 
 export const LeftPanel = styled.div`

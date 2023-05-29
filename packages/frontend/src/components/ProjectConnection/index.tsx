@@ -8,7 +8,7 @@ import {
     ProjectType,
     WarehouseTypes,
 } from '@lightdash/common';
-import { Anchor, Card, Flex } from '@mantine/core';
+import { Anchor, Card, Flex, Stack } from '@mantine/core';
 import { FC, useEffect, useMemo, useState } from 'react';
 import { FieldErrors, useForm } from 'react-hook-form';
 import { SubmitErrorHandler } from 'react-hook-form/dist/types/form';
@@ -24,6 +24,7 @@ import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { useAbilityContext } from '../common/Authorization';
+import { SettingsCard } from '../common/Settings/SettingsCard';
 import DocumentationHelpButton from '../DocumentationHelpButton';
 import Input from '../ReactHookForm/Input';
 import DbtSettingsForm from './DbtSettingsForm';
@@ -36,7 +37,6 @@ import {
     LeftPanel,
     LeftPanelMessage,
     LeftPanelTitle,
-    ProjectConnectionCard,
     RightPanel,
 } from './ProjectConnection.styles';
 import { ProjectFormProvider } from './ProjectFormProvider';
@@ -70,9 +70,9 @@ const ProjectForm: FC<Props> = ({
     const [hasWarehouse, setHasWarehouse] = useState(selectedWarehouse);
 
     return (
-        <>
+        <Stack spacing="xl">
             {showGeneralSettings && (
-                <ProjectConnectionCard shadow="sm" withBorder>
+                <SettingsCard>
                     <LeftPanel>
                         <H5>General settings</H5>
                     </LeftPanel>
@@ -86,9 +86,10 @@ const ProjectForm: FC<Props> = ({
                             disabled={disabled}
                         />
                     </RightPanel>
-                </ProjectConnectionCard>
+                </SettingsCard>
             )}
-            <ProjectConnectionCard shadow="sm" withBorder>
+
+            <SettingsCard>
                 <LeftPanel>
                     {hasWarehouse && getWarehouseLabel(hasWarehouse).icon}
                     <LeftPanelTitle>
@@ -111,8 +112,9 @@ const ProjectForm: FC<Props> = ({
                         isProjectUpdate={isProjectUpdate}
                     />
                 </RightPanel>
-            </ProjectConnectionCard>
-            <ProjectConnectionCard shadow="sm" withBorder>
+            </SettingsCard>
+
+            <SettingsCard>
                 <LeftPanel>
                     <WarehouseIcon src={DbtLogo} alt="dbt icon" />
                     <LeftPanelTitle>
@@ -138,8 +140,8 @@ const ProjectForm: FC<Props> = ({
                         selectedWarehouse={hasWarehouse}
                     />
                 </RightPanel>
-            </ProjectConnectionCard>
-        </>
+            </SettingsCard>
+        </Stack>
     );
 };
 

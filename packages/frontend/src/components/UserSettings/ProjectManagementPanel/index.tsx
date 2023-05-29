@@ -7,6 +7,7 @@ import {
 } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { OrganizationProject, ProjectType } from '@lightdash/common';
+import { Stack } from '@mantine/core';
 import { FC, useState } from 'react';
 import { Redirect, useHistory } from 'react-router-dom';
 import {
@@ -18,12 +19,12 @@ import {
 import { useApp } from '../../../providers/AppProvider';
 import { Can } from '../../common/Authorization';
 import LinkButton from '../../common/LinkButton';
+import { SettingsCard } from '../../common/Settings/SettingsCard';
 import {
     HeaderActions,
     ItemContent,
     PanelTitle,
     ProjectInfo,
-    ProjectListItemWrapper,
     ProjectManagementPanelWrapper,
     ProjectName,
     ProjectTag,
@@ -37,8 +38,9 @@ const ProjectListItem: FC<{
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const { mutate: deleteProjectMutation, isLoading: isDeleting } =
         useDeleteProjectMutation();
+
     return (
-        <ProjectListItemWrapper elevation={0}>
+        <SettingsCard shadow="sm">
             <ItemContent>
                 <ProjectInfo>
                     <ProjectName
@@ -121,7 +123,7 @@ const ProjectListItem: FC<{
                     </div>
                 </div>
             </Dialog>
-        </ProjectListItemWrapper>
+        </SettingsCard>
     );
 };
 
@@ -153,15 +155,17 @@ const ProjectManagementPanel: FC = () => {
                 </Can>
             </HeaderActions>
 
-            {data.map((project) => (
-                <ProjectListItem
-                    key={project.projectUuid}
-                    isCurrentProject={
-                        lastProject?.projectUuid === project.projectUuid
-                    }
-                    project={project}
-                />
-            ))}
+            <Stack>
+                {data.map((project) => (
+                    <ProjectListItem
+                        key={project.projectUuid}
+                        isCurrentProject={
+                            lastProject?.projectUuid === project.projectUuid
+                        }
+                        project={project}
+                    />
+                ))}
+            </Stack>
         </ProjectManagementPanelWrapper>
     );
 };

@@ -1,4 +1,4 @@
-import { Card, H5, Tag } from '@blueprintjs/core';
+import { H5, Tag } from '@blueprintjs/core';
 import styled from 'styled-components';
 
 export const ProjectManagementPanelWrapper = styled.div`
@@ -12,13 +12,6 @@ export const HeaderActions = styled.div`
     display: flex;
     justify-content: space-between;
     align-items: center;
-`;
-
-export const ProjectListItemWrapper = styled(Card)`
-    display: flex;
-    flex-direction: column;
-    margin-bottom: 1.25em;
-    width: 100%;
 `;
 
 export const ItemContent = styled.div`

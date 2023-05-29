@@ -35,7 +35,7 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                 Use the project validator to check what content is broken in
                 your project.
             </Text>
-            <Paper withBorder>
+            <Paper withBorder shadow="sm">
                 <Group
                     position="apart"
                     p="md"

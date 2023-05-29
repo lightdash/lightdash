@@ -1,4 +1,4 @@
-import { Button, Card, H5, HTMLSelect, Tag } from '@blueprintjs/core';
+import { Button, H5, HTMLSelect, Tag } from '@blueprintjs/core';
 import styled from 'styled-components';
 import SimpleButton from '../../common/SimpleButton';
 
@@ -6,13 +6,6 @@ export const UserManagementPanelWrapper = styled.div`
     width: 100%;
     display: flex;
     flex-direction: column;
-`;
-
-export const UserListItemWrapper = styled(Card)`
-    display: flex;
-    flex-direction: column;
-    margin-bottom: 1.25em;
-    width: 100%;
 `;
 
 export const ItemContent = styled.div`

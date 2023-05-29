@@ -1,13 +1,9 @@
 import { Colors } from '@blueprintjs/core';
 import { FC } from 'react';
 import LinkButton from '../../common/LinkButton';
+import { ProjectCreationCard } from '../../common/Settings/SettingsCard';
 import InviteExpertFooter from './InviteExpertFooter';
-import {
-    ConnectWarehouseWrapper,
-    StyledSuccessIcon,
-    Title,
-    Wrapper,
-} from './ProjectConnectFlow.styles';
+import { StyledSuccessIcon, Title, Wrapper } from './ProjectConnectFlow.styles';
 
 interface ConnectSuccessProps {
     projectUuid: string;
@@ -16,7 +12,7 @@ interface ConnectSuccessProps {
 const ConnectSuccess: FC<ConnectSuccessProps> = ({ projectUuid }) => {
     return (
         <Wrapper>
-            <ConnectWarehouseWrapper>
+            <ProjectCreationCard>
                 <Title>Your project's been created! 🎉</Title>
 
                 <StyledSuccessIcon
@@ -32,7 +28,7 @@ const ConnectSuccess: FC<ConnectSuccessProps> = ({ projectUuid }) => {
                 >
                     Let's do some data!
                 </LinkButton>
-            </ConnectWarehouseWrapper>
+            </ProjectCreationCard>
 
             <InviteExpertFooter />
         </Wrapper>

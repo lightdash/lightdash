@@ -18,6 +18,7 @@ import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import RouterNavLink from '../components/common/RouterNavLink';
+import { SettingsGridCard } from '../components/common/Settings/SettingsCard';
 import PageSpinner from '../components/PageSpinner';
 import AccessTokensPanel from '../components/UserSettings/AccessTokensPanel';
 import AllowedDomainsPanel from '../components/UserSettings/AllowedDomainsPanel';
@@ -36,7 +37,6 @@ import { useApp } from '../providers/AppProvider';
 import { TrackPage } from '../providers/TrackingProvider';
 import { PageName } from '../types/Events';
 import ProjectSettings from './ProjectSettings';
-import { CardContainer } from './Settings.styles';
 
 const Settings: FC = () => {
     const {
@@ -209,48 +209,59 @@ const Settings: FC = () => {
             <Switch>
                 {allowPasswordAuthentication && (
                     <Route exact path={`/generalSettings/password`}>
-                        <CardContainer>
-                            <Title order={4}>Password settings</Title>
-                            <PasswordPanel />
-                        </CardContainer>
-                        {hasSocialLogin && (
-                            <CardContainer>
-                                <Title order={4}>Social logins</Title>
-                                <SocialLoginsPanel />
-                            </CardContainer>
-                        )}
+                        <Stack spacing="xl">
+                            <SettingsGridCard>
+                                <Title order={4}>Password settings</Title>
+                                <PasswordPanel />
+                            </SettingsGridCard>
+
+                            {hasSocialLogin && (
+                                <SettingsGridCard>
+                                    <Title order={4}>Social logins</Title>
+                                    <SocialLoginsPanel />
+                                </SettingsGridCard>
+                            )}
+                        </Stack>
                     </Route>
                 )}
 
                 {user.ability.can('manage', 'Organization') && (
                     <Route exact path={`/generalSettings/organization`}>
-                        <CardContainer>
-                            <Title order={4}>General</Title>
-                            <OrganizationPanel />
-                        </CardContainer>
-                        <CardContainer>
-                            <div>
-                                <Title order={4}>Allowed email domains</Title>
-                                <Description>
-                                    Anyone with email addresses at these domains
-                                    can automatically join the organization.
-                                </Description>
-                            </div>
-                            <AllowedDomainsPanel />
-                        </CardContainer>
-                        {user.ability?.can('delete', 'Organization') && (
-                            <CardContainer>
+                        <Stack spacing="xl">
+                            <SettingsGridCard>
+                                <Title order={4}>General</Title>
+                                <OrganizationPanel />
+                            </SettingsGridCard>
+
+                            <SettingsGridCard>
                                 <div>
-                                    <Title order={4}>Danger zone </Title>
+                                    <Title order={4}>
+                                        Allowed email domains
+                                    </Title>
                                     <Description>
-                                        This action deletes the whole workspace
-                                        and all its content, including users.
-                                        This action is not reversible.
+                                        Anyone with email addresses at these
+                                        domains can automatically join the
+                                        organization.
                                     </Description>
                                 </div>
-                                <DeleteOrganizationPanel />
-                            </CardContainer>
-                        )}
+                                <AllowedDomainsPanel />
+                            </SettingsGridCard>
+
+                            {user.ability?.can('delete', 'Organization') && (
+                                <SettingsGridCard>
+                                    <div>
+                                        <Title order={4}>Danger zone </Title>
+                                        <Description>
+                                            This action deletes the whole
+                                            workspace and all its content,
+                                            including users. This action is not
+                                            reversible.
+                                        </Description>
+                                    </div>
+                                    <DeleteOrganizationPanel />
+                                </SettingsGridCard>
+                            )}
+                        </Stack>
                     </Route>
                 )}
 
@@ -288,10 +299,10 @@ const Settings: FC = () => {
                     )}
 
                 <Route exact path={`/generalSettings/appearance`}>
-                    <CardContainer>
+                    <SettingsGridCard>
                         <Title order={4}>Appearance settings</Title>
                         <AppearancePanel />
-                    </CardContainer>
+                    </SettingsGridCard>
                 </Route>
 
                 <Route exact path={`/generalSettings/personalAccessTokens`}>
@@ -300,17 +311,17 @@ const Settings: FC = () => {
 
                 {health.hasSlack && user.ability.can('manage', 'Organization') && (
                     <Route exact path={`/generalSettings/integrations/slack`}>
-                        <CardContainer>
+                        <SettingsGridCard>
                             <SlackSettingsPanel />
-                        </CardContainer>
+                        </SettingsGridCard>
                     </Route>
                 )}
 
                 <Route exact path={`/generalSettings`}>
-                    <CardContainer>
+                    <SettingsGridCard>
                         <Title order={4}>Profile settings</Title>
                         <ProfilePanel />
-                    </CardContainer>
+                    </SettingsGridCard>
                 </Route>
 
                 <Redirect to={basePath} />

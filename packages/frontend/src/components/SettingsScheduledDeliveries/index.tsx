@@ -9,7 +9,6 @@ import {
     ActionIcon,
     Anchor,
     Badge,
-    Card,
     Group,
     Loader,
     Table,
@@ -22,6 +21,7 @@ import { IconClock, IconHelp, IconPencil, IconSend } from '@tabler/icons-react';
 import { FC } from 'react';
 import { useSchedulerLogs } from '../../hooks/scheduler/useScheduler';
 import MantineIcon from '../common/MantineIcon';
+import { SettingsCard } from '../common/Settings/SettingsCard';
 
 interface ProjectUserAccessProps {
     projectUuid: string;
@@ -136,7 +136,7 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
     };
 
     return (
-        <Card withBorder shadow="xs" style={{ overflow: 'visible' }}>
+        <SettingsCard style={{ overflow: 'visible' }}>
             <Tabs
                 keepMounted={false}
                 defaultValue="scheduled-deliveries"
@@ -432,7 +432,7 @@ const SettingsScheduledDeliveries: FC<ProjectUserAccessProps> = ({
                     </Table>
                 </Tabs.Panel>
             </Tabs>
-        </Card>
+        </SettingsCard>
     );
 };
 

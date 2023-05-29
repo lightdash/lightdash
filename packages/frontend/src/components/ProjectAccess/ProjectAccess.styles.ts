@@ -1,18 +1,5 @@
 import { Button, HTMLSelect, Icon, Tag } from '@blueprintjs/core';
-import { Card } from '@mantine/core';
 import styled from 'styled-components';
-
-export const ProjectAccessWrapper = styled.div`
-    margin-top: 20px;
-    padding-bottom: 50px;
-`;
-
-export const UserListItemWrapper = styled(Card)`
-    display: flex;
-    flex-direction: column;
-    margin-bottom: 1.25em;
-    width: 100%;
-`;
 
 export const ItemContent = styled.div`
     display: flex;
