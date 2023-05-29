@@ -1061,6 +1061,15 @@
         "code",
         "infra"
       ]
+    },
+    {
+      "login": "aggmoulik",
+      "name": "Moulik Aggarwal",
+      "avatar_url": "https://avatars.githubusercontent.com/u/22260031?v=4",
+      "profile": "https://pullstack.ninja/",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
