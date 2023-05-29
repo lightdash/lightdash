@@ -12,7 +12,7 @@ import {
     OrganizationMemberProfile,
     OrganizationMemberRole,
 } from '@lightdash/common';
-import { Anchor } from '@mantine/core';
+import { Anchor, Stack } from '@mantine/core';
 import { FC, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
@@ -29,6 +29,7 @@ import {
     PageName,
     PageType,
 } from '../../../types/Events';
+import { SettingsCard } from '../../common/Settings/SettingsCard';
 import InvitesPanel from '../InvitesPanel';
 import InviteSuccess from './InviteSuccess';
 import {
@@ -44,7 +45,6 @@ import {
     TitleWrapper,
     UserEmail,
     UserInfo,
-    UserListItemWrapper,
     UserManagementPanelWrapper,
     UserName,
 } from './UserManagementPanel.styles';
@@ -81,7 +81,7 @@ const UserListItem: FC<{
     };
 
     return (
-        <UserListItemWrapper elevation={0}>
+        <SettingsCard shadow="sm">
             <ItemContent>
                 <SectionWrapper>
                     {isActive ? (
@@ -182,7 +182,7 @@ const UserListItem: FC<{
                     </div>
                 </div>
             </Dialog>
-        </UserListItemWrapper>
+        </SettingsCard>
     );
 };
 
@@ -238,16 +238,18 @@ const UserManagementPanel: FC = () => {
             {isLoading ? (
                 <NonIdealState title="Loading users" icon={<Spinner />} />
             ) : (
-                organizationUsers?.map((orgUser) => (
-                    <UserListItem
-                        key={orgUser.email}
-                        user={orgUser}
-                        disabled={
-                            user.data?.userUuid === orgUser.userUuid ||
-                            organizationUsers.length <= 1
-                        }
-                    />
-                ))
+                <Stack>
+                    {organizationUsers?.map((orgUser) => (
+                        <UserListItem
+                            key={orgUser.email}
+                            user={orgUser}
+                            disabled={
+                                user.data?.userUuid === orgUser.userUuid ||
+                                organizationUsers.length <= 1
+                            }
+                        />
+                    ))}
+                </Stack>
             )}
         </UserManagementPanelWrapper>
     );

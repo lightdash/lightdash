@@ -16,6 +16,7 @@ import {
     ProjectMemberProfile,
     ProjectMemberRole,
 } from '@lightdash/common';
+import { Stack } from '@mantine/core';
 import { FC, useMemo, useState } from 'react';
 import { useOrganizationUsers } from '../../hooks/useOrganizationUsers';
 import {
@@ -25,15 +26,14 @@ import {
 } from '../../hooks/useProjectAccess';
 import { useApp } from '../../providers/AppProvider';
 import { useAbilityContext } from '../common/Authorization';
+import { SettingsCard } from '../common/Settings/SettingsCard';
 import {
     ItemContent,
-    ProjectAccessWrapper,
     RelevantOrgRoleIcon,
     RoleSelectButton,
     SectionWrapper,
     UserEmail,
     UserInfo,
-    UserListItemWrapper,
     UserName,
 } from './ProjectAccess.styles';
 
@@ -53,7 +53,7 @@ const UserListItem: FC<{
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
     return (
-        <UserListItemWrapper>
+        <SettingsCard>
             <ItemContent>
                 <SectionWrapper>
                     <UserInfo>
@@ -138,7 +138,7 @@ const UserListItem: FC<{
                     </div>
                 </div>
             </Dialog>
-        </UserListItemWrapper>
+        </SettingsCard>
     );
 };
 
@@ -213,7 +213,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
         return <NonIdealState title="Loading..." icon={<Spinner />} />;
     }
     return (
-        <ProjectAccessWrapper>
+        <Stack>
             {projectAccess?.map((projectMember) => (
                 <UserListItem
                     key={projectMember.email}
@@ -250,7 +250,7 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
                     roleTooltip={`This user inherits the organization role: ${orgUser.role}`}
                 />
             ))}
-        </ProjectAccessWrapper>
+        </Stack>
     );
 };
 

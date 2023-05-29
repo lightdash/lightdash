@@ -1,12 +1,12 @@
-import { Card, Intent } from '@blueprintjs/core';
 import { CreateInviteLink, OrganizationMemberRole } from '@lightdash/common';
-import React, { FC, useEffect } from 'react';
+import { FC, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import { isValidEmail } from '../../../utils/fieldValidators';
+import { SettingsCard } from '../../common/Settings/SettingsCard';
 import InviteSuccess from '../UserManagementPanel/InviteSuccess';
 import {
     BackButton,
@@ -55,7 +55,8 @@ const InvitePanel: FC<{
                 text="Back to all users"
                 onClick={onBackClick}
             />
-            <Card>
+
+            <SettingsCard>
                 <InviteForm
                     name="invite-form"
                     methods={methods}
@@ -89,7 +90,7 @@ const InvitePanel: FC<{
                         />
                     )}
                     <SubmitButton
-                        intent={Intent.PRIMARY}
+                        intent="primary"
                         text={
                             health.data?.hasEmailClient
                                 ? 'Send invite'
@@ -99,7 +100,8 @@ const InvitePanel: FC<{
                         disabled={isLoading}
                     />
                 </InviteForm>
-            </Card>
+            </SettingsCard>
+
             {data && <InviteSuccess invite={data} hasMarginTop />}
         </Panel>
     );

@@ -14,33 +14,26 @@ const ConnectManually: FC<ConnectManuallyProps> = ({
     selectedWarehouse,
 }) => {
     const history = useHistory();
-
     const [hasDimensions, setHasDimensions] = useState<boolean>();
 
-    return (
-        <>
-            {!hasDimensions && (
-                <ConnectManuallyStep1
-                    isCreatingFirstProject={isCreatingFirstProject}
-                    onBack={() => {
-                        history.goBack();
-                    }}
-                    onForward={() => {
-                        setHasDimensions(true);
-                    }}
-                />
-            )}
-
-            {hasDimensions && (
-                <ConnectManuallyStep2
-                    isCreatingFirstProject={isCreatingFirstProject}
-                    selectedWarehouse={selectedWarehouse}
-                    onBack={() => {
-                        setHasDimensions(false);
-                    }}
-                />
-            )}
-        </>
+    return !hasDimensions ? (
+        <ConnectManuallyStep1
+            isCreatingFirstProject={isCreatingFirstProject}
+            onBack={() => {
+                history.goBack();
+            }}
+            onForward={() => {
+                setHasDimensions(true);
+            }}
+        />
+    ) : (
+        <ConnectManuallyStep2
+            isCreatingFirstProject={isCreatingFirstProject}
+            selectedWarehouse={selectedWarehouse}
+            onBack={() => {
+                setHasDimensions(false);
+            }}
+        />
     );
 };
 

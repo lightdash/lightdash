@@ -1,13 +1,6 @@
-import { Card, Colors } from '@blueprintjs/core';
+import { Colors } from '@blueprintjs/core';
 import styled from 'styled-components';
 import { BigButton } from '../common/BigButton';
-
-export const CardWrapper = styled(Card)`
-    padding: 30px 27px;
-    display: flex;
-    flex-direction: row;
-    margin-bottom: 20px;
-`;
 
 export const SaveButton = styled(BigButton)`
     width: 170px;
@@ -16,17 +9,6 @@ export const SaveButton = styled(BigButton)`
 
 export const TextP = styled.p`
     color: ${Colors.GRAY1};
-`;
-
-export const LeftPanel = styled.div`
-    flex: 1;
-    width: 50%;
-    padding-right: 20px;
-`;
-
-export const RightPanel = styled.div`
-    flex: 1;
-    width: 50%;
 `;
 
 export const ListTrigger = styled.b`

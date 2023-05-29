@@ -1,6 +1,7 @@
 import { Colors } from '@blueprintjs/core';
 import { WarehouseTypes } from '@lightdash/common';
-import React, { FC } from 'react';
+import { FC } from 'react';
+import { ProjectCreationCard } from '../../common/Settings/SettingsCard';
 import BigQuery from './Assets/bigquery.svg';
 import Databricks from './Assets/databricks.svg';
 import PostgressLogo from './Assets/postgresql.svg';
@@ -10,7 +11,6 @@ import Trino from './Assets/trino.svg';
 import ConnectTitle from './ConnectTitle';
 import InviteExpertFooter from './InviteExpertFooter';
 import {
-    ConnectWarehouseWrapper,
     OtherIcon,
     Subtitle,
     WarehouseButton,
@@ -78,7 +78,7 @@ const SelectWarehouse: FC<SelectWarehouseProps> = ({
 }) => {
     return (
         <Wrapper>
-            <ConnectWarehouseWrapper>
+            <ProjectCreationCard>
                 <ConnectTitle isCreatingFirstProject={isCreatingFirstProject} />
 
                 <Subtitle>Select your warehouse:</Subtitle>
@@ -95,7 +95,7 @@ const SelectWarehouse: FC<SelectWarehouseProps> = ({
                         </WarehouseButton>
                     ))}
                 </WarehouseGrid>
-            </ConnectWarehouseWrapper>
+            </ProjectCreationCard>
 
             <InviteExpertFooter />
         </Wrapper>

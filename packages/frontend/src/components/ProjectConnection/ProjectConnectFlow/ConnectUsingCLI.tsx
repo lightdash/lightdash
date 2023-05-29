@@ -10,12 +10,12 @@ import { FloatingBackButton } from '../../../pages/CreateProject.styles';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import LinkButton from '../../common/LinkButton';
+import { ProjectCreationCard } from '../../common/Settings/SettingsCard';
 import ConnectTitle from './ConnectTitle';
 import InviteExpertFooter from './InviteExpertFooter';
 import {
     Codeblock,
     CodeLabel,
-    ConnectWarehouseWrapper,
     Spacer,
     StyledNonIdealState,
     Subtitle,
@@ -98,7 +98,8 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                 text="Back"
                 onClick={onBack}
             />
-            <ConnectWarehouseWrapper>
+
+            <ProjectCreationCard>
                 <ConnectTitle isCreatingFirstProject={isCreatingFirstProject} />
 
                 <Subtitle>
@@ -149,7 +150,7 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                     title="Waiting for data"
                     icon="stopwatch"
                 />
-            </ConnectWarehouseWrapper>
+            </ProjectCreationCard>
 
             <LinkButton
                 minimal

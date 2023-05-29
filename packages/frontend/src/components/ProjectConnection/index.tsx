@@ -8,7 +8,7 @@ import {
     ProjectType,
     WarehouseTypes,
 } from '@lightdash/common';
-import { Anchor, Card, Flex } from '@mantine/core';
+import { Anchor, Card, Flex, Stack } from '@mantine/core';
 import { FC, useEffect, useMemo, useState } from 'react';
 import { FieldErrors, useForm } from 'react-hook-form';
 import { SubmitErrorHandler } from 'react-hook-form/dist/types/form';
@@ -24,6 +24,7 @@ import { useApp } from '../../providers/AppProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { useAbilityContext } from '../common/Authorization';
+import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import DocumentationHelpButton from '../DocumentationHelpButton';
 import Input from '../ReactHookForm/Input';
 import DbtSettingsForm from './DbtSettingsForm';
@@ -33,11 +34,8 @@ import { getWarehouseLabel } from './ProjectConnectFlow/SelectWarehouse';
 import {
     CompileProjectButton,
     FormContainer,
-    LeftPanel,
     LeftPanelMessage,
     LeftPanelTitle,
-    ProjectConnectionCard,
-    RightPanel,
 } from './ProjectConnection.styles';
 import { ProjectFormProvider } from './ProjectFormProvider';
 import ProjectStatusCallout from './ProjectStatusCallout';
@@ -70,13 +68,14 @@ const ProjectForm: FC<Props> = ({
     const [hasWarehouse, setHasWarehouse] = useState(selectedWarehouse);
 
     return (
-        <>
+        <Stack spacing="xl">
             {showGeneralSettings && (
-                <ProjectConnectionCard elevation={1}>
-                    <LeftPanel>
+                <SettingsGridCard>
+                    <div>
                         <H5>General settings</H5>
-                    </LeftPanel>
-                    <RightPanel>
+                    </div>
+
+                    <div>
                         <Input
                             name="name"
                             label="Project name"
@@ -85,11 +84,12 @@ const ProjectForm: FC<Props> = ({
                             }}
                             disabled={disabled}
                         />
-                    </RightPanel>
-                </ProjectConnectionCard>
+                    </div>
+                </SettingsGridCard>
             )}
-            <ProjectConnectionCard elevation={1}>
-                <LeftPanel>
+
+            <SettingsGridCard>
+                <div>
                     {hasWarehouse && getWarehouseLabel(hasWarehouse).icon}
                     <LeftPanelTitle>
                         <H5>Warehouse connection</H5>
@@ -102,18 +102,20 @@ const ProjectForm: FC<Props> = ({
                             allow-list, use <b>{health.data?.staticIp}</b>
                         </LeftPanelMessage>
                     )}
-                </LeftPanel>
-                <RightPanel>
+                </div>
+
+                <div>
                     <WarehouseSettingsForm
                         disabled={disabled}
                         setSelectedWarehouse={setHasWarehouse}
                         selectedWarehouse={hasWarehouse}
                         isProjectUpdate={isProjectUpdate}
                     />
-                </RightPanel>
-            </ProjectConnectionCard>
-            <ProjectConnectionCard elevation={1}>
-                <LeftPanel>
+                </div>
+            </SettingsGridCard>
+
+            <SettingsGridCard>
+                <div>
                     <WarehouseIcon src={DbtLogo} alt="dbt icon" />
                     <LeftPanelTitle>
                         <H5>dbt connection</H5>
@@ -130,16 +132,17 @@ const ProjectForm: FC<Props> = ({
                             dbt version <b>1.4.1</b>
                         </Anchor>
                     </LeftPanelMessage>
-                </LeftPanel>
-                <RightPanel>
+                </div>
+
+                <div>
                     <DbtSettingsForm
                         disabled={disabled}
                         defaultType={defaultType}
                         selectedWarehouse={hasWarehouse}
                     />
-                </RightPanel>
-            </ProjectConnectionCard>
-        </>
+                </div>
+            </SettingsGridCard>
+        </Stack>
     );
 };
 

@@ -48,7 +48,7 @@ describe('Settings - Invites', () => {
 
         cy.contains('User management').click();
         cy.findByText('demo+marygreen@lightdash.com')
-            .parents('.bp4-card')
+            .parents('.mantine-Card-root')
             .find('[icon="delete"]')
             .click();
         cy.findByText('Are you sure you want to delete this user ?')

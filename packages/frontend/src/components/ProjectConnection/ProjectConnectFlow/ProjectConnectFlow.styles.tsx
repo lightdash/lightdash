@@ -1,11 +1,4 @@
-import {
-    Button,
-    Card,
-    Colors,
-    H3,
-    Icon,
-    NonIdealState,
-} from '@blueprintjs/core';
+import { Button, Colors, H3, Icon, NonIdealState } from '@blueprintjs/core';
 import styled, { keyframes } from 'styled-components';
 
 export const Wrapper = styled.div`
@@ -15,14 +8,6 @@ export const Wrapper = styled.div`
     flex: 1;
     margin: 80px auto 0;
     position: relative;
-`;
-
-export const ConnectWarehouseWrapper = styled(Card)`
-    padding: 30px;
-    margin-bottom: 10px;
-    display: flex;
-    flex-direction: column;
-    text-align: center;
 `;
 
 const bounceIn = keyframes`
