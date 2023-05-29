@@ -21,8 +21,8 @@ const ProjectCreationCard: FC<CardProps> = ({ children, ...rest }) => {
     return (
         <SettingsCard
             p="lg"
-            display="flex"
             mb="lg"
+            display="flex"
             {...rest}
             sx={{
                 flexDirection: 'column',
