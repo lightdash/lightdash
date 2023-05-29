@@ -16,7 +16,7 @@ import {
     ProjectMemberProfile,
     ProjectMemberRole,
 } from '@lightdash/common';
-import { Card, Stack } from '@mantine/core';
+import { Stack } from '@mantine/core';
 import { FC, useMemo, useState } from 'react';
 import { useOrganizationUsers } from '../../hooks/useOrganizationUsers';
 import {
@@ -26,6 +26,7 @@ import {
 } from '../../hooks/useProjectAccess';
 import { useApp } from '../../providers/AppProvider';
 import { useAbilityContext } from '../common/Authorization';
+import { SettingsCard } from '../common/Settings/SettingsCard';
 import {
     ItemContent,
     RelevantOrgRoleIcon,
@@ -52,7 +53,7 @@ const UserListItem: FC<{
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
     return (
-        <Card shadow="xs">
+        <SettingsCard>
             <ItemContent>
                 <SectionWrapper>
                     <UserInfo>
@@ -137,7 +138,7 @@ const UserListItem: FC<{
                     </div>
                 </div>
             </Dialog>
-        </Card>
+        </SettingsCard>
     );
 };
 
