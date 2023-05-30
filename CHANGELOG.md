@@ -1,3 +1,10 @@
+## [0.581.1](https://github.com/lightdash/lightdash/compare/0.581.0...0.581.1) (2023-05-30)
+
+
+### Bug Fixes
+
+* fixes typo in start-preview ([#5677](https://github.com/lightdash/lightdash/issues/5677)) ([13623fb](https://github.com/lightdash/lightdash/commit/13623fb23be558c087ba1d3baea18a3aa20f228c))
+
 # [0.581.0](https://github.com/lightdash/lightdash/compare/0.580.1...0.581.0) (2023-05-30)
 
 
