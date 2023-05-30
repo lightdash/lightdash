@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from 'react-query';
+import {
+    QueryClient,
+    useMutation,
+    useQuery,
+    useQueryClient,
+} from 'react-query';
 import { useParams } from 'react-router-dom';
 import { useDefaultProject, useProjects } from './useProjects';
 
@@ -20,6 +25,12 @@ export const useActiveProject = () => {
     );
 };
 
+const clearProjectCache = (queryClient: QueryClient) => {
+    queryClient.removeQueries(['project']);
+    queryClient.removeQueries(['projects']);
+    queryClient.invalidateQueries();
+};
+
 export const useUpdateActiveProjectMutation = () => {
     const queryClient = useQueryClient();
 
@@ -28,7 +39,7 @@ export const useUpdateActiveProjectMutation = () => {
             Promise.resolve(
                 localStorage.setItem(LAST_PROJECT_KEY, projectUuid),
             ),
-        onSuccess: () => queryClient.clear(),
+        onSuccess: () => clearProjectCache(queryClient),
     });
 };
 
@@ -38,7 +49,7 @@ export const useDeleteActiveProjectMutation = () => {
     return useMutation<void, Error>({
         mutationFn: () =>
             Promise.resolve(localStorage.removeItem(LAST_PROJECT_KEY)),
-        onSuccess: () => queryClient.clear(),
+        onSuccess: () => clearProjectCache(queryClient),
     });
 };
 
