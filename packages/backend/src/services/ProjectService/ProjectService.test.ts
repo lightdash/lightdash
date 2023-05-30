@@ -55,7 +55,7 @@ jest.mock('../../models/models', () => ({
         getWarehouseCredentialsForProject: jest.fn(
             async () => warehouseClientMock.credentials,
         ),
-        getWarehouseClientFromCredentials: jest.fn(async () => ({
+        getWarehouseClientFromCredentials: jest.fn(() => ({
             ...warehouseClientMock,
             runQuery: jest.fn(async () => expectedSqlResults),
         })),
@@ -89,7 +89,7 @@ describe('ProjectService', () => {
     afterEach(() => {
         jest.clearAllMocks();
     });
-    test('should get dashboard by uuid', async () => {
+    test('should run sql query', async () => {
         const result = await service.runSqlQuery(user, projectUuid, 'fake sql');
 
         expect(result).toEqual(expectedSqlResults);
