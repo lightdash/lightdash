@@ -1279,41 +1279,55 @@ const useEcharts = () => {
                       [EMPTY_X_AXIS]: ' ',
                   }))
                 : getResultValueArray(rows, true);
+        try {
+            if (!explore) return results;
+            const dimensions = getDimensions(explore);
 
-        if (!explore) return results;
-        const dimensions = getDimensions(explore);
+            const sortedDimensions = sortDimensions(
+                resultsData?.metricQuery.dimensions || [],
+                explore,
+                context.columnOrder,
+            );
+            const currentSort = resultsData?.metricQuery.sorts?.[0];
 
-        const sortedDimensions = sortDimensions(
-            resultsData?.metricQuery.dimensions || [],
-            explore,
-            context.columnOrder,
-        );
-        const currentSort = resultsData?.metricQuery.sorts?.[0];
+            const sortDimensionId = sortedDimensions[0];
+            const sortDimension = dimensions.find(
+                (dimension) => getItemId(dimension) === sortDimensionId,
+            );
 
-        const sortDimension = dimensions.find(
-            (dimension) => getItemId(dimension) === sortedDimensions[0],
-        );
-
-        if (
-            currentSort === undefined ||
-            sortedDimensions.length === 0 ||
-            results.length == 0 ||
-            sortDimension === undefined
-        )
-            return results;
-
-        if (
-            currentSort.fieldId != sortedDimensions[0] &&
-            [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
-                sortDimension.type,
+            if (
+                currentSort === undefined ||
+                sortedDimensions.length === 0 ||
+                results.length == 0 ||
+                sortDimension === undefined
             )
-        ) {
-            /* results.sort((a, b) => {
-                return a[sortDimension].localCompare( b[sortDimension])
-            })*/
-        }
+                return results;
 
-        return results;
+            if (
+                validCartesianConfig?.layout?.xField === sortDimensionId && // only sort if xaxis is the unsorted date dimension
+                currentSort.fieldId != sortDimensionId &&
+                [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
+                    sortDimension.type,
+                )
+            ) {
+                return results.sort((a, b) => {
+                    if (
+                        typeof a[sortDimensionId] === 'string' &&
+                        typeof b[sortDimensionId] === 'string'
+                    ) {
+                        return (a[sortDimensionId] as string).localeCompare(
+                            b[sortDimensionId] as string,
+                        );
+                    }
+                    return 0;
+                });
+            }
+
+            return results;
+        } catch (e) {
+            console.error('Unable to sort date results', e);
+            return results;
+        }
     }, [
         rows,
         validCartesianConfig?.layout?.xField,
