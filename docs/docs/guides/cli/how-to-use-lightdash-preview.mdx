@@ -9,10 +9,23 @@ without affecting your production project.
     <img src="https://cdn.loom.com/sessions/thumbnails/fddc9adab0694f60a85d0a48d67469be-with-play.gif" />
 </a>
 
+Preview environments will copy all spaces/charts/dashboards into your new preview environment, so you can test the content 
+and also run [validation](/guides/cli/how-to-use-lightdash-validate). This is only copied on preview creation, you can't sync the content afterwards. 
+
+
 ### Run `lightdash preview` from inside your project
 
+
 ```shell
+# This will create a preview and will wait until you press a key to delete the preview project
 lightdash preview
+```
+
+or 
+
+```shell
+# This will create a preview and exit, you will have to run lightdash stop-preview to delete it
+lightdash start-preview 
 ```
 
 Then `cmd` + `click` to open the preview link from your terminal. Once you're in Lightdash go to `Explore` --> `Tables`, then click on the model(s) you just updated to see your changes and play around with them.

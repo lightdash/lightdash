@@ -1,0 +1,42 @@
+import AutomaticallyDeployChangesGithub from './../../snippets/github-secrets.mdx';
+
+# Lightdash Validate
+
+You can check to see if your changes break any of the content in your project using `lightdash validate`. This command will run the validator which will return a list of content in your project that is broken and details about the errors. 
+
+You can trigger a validation on a project using the Lightdash CLI so you can check locally if your changes will break anything. You can also add `lightdash validate` to your [GitHub Actions](/guides/cli/how-to-use-lightdash-validate.mdx/configure-github-actions) so changes can't be merged unless they pass the validation. 
+if a table/chart/dashboard is broken on a [preview environment](/guides/cli/how-to-use-lightdash-preview). 
+
+Preview environments will copy all spaces/charts/dashboards into your new preview environment. 
+This is only copied on preview creation, you can't sync the content afterwards. 
+
+## Usage 
+
+```
+# This will trigger a validation for the last preview project you create using `lightdash start-preview`
+lightdash validate 
+```
+
+or 
+
+```
+# Trigger validation for any project UUID 
+lightdash validate --project <project uuid> 
+``` 
+
+![CLI validate](./assets/cli-validate.png)
+
+
+## Configure Github actions  
+
+This command will return an error (return code 1) if there is at least 1 validation error on your project. 
+You can use this output to block a deploy on Github actions like this 
+
+```
+- name: Start preview 
+  run: lightdash start-preview 
+- name: Validate 
+  run: lightdash validate 
+```
+
+To learn more about setting up GitHub actions for Lightdash, check out the docs [here](/snippets/automatically-deploy-your-changes-using-github-action)
