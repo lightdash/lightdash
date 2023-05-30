@@ -1,3 +1,10 @@
+# [0.582.0](https://github.com/lightdash/lightdash/compare/0.581.1...0.582.0) (2023-05-30)
+
+
+### Features
+
+* make otlp endpoint configurable ([#5671](https://github.com/lightdash/lightdash/issues/5671)) ([3595808](https://github.com/lightdash/lightdash/commit/35958084de67f83404943f1343857fbd2eaffa93))
+
 ## [0.581.1](https://github.com/lightdash/lightdash/compare/0.581.0...0.581.1) (2023-05-30)
 
 
