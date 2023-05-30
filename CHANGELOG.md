@@ -1,3 +1,15 @@
+# [0.580.0](https://github.com/lightdash/lightdash/compare/0.579.0...0.580.0) (2023-05-30)
+
+
+### Bug Fixes
+
+* toggle tables results total ([#5645](https://github.com/lightdash/lightdash/issues/5645)) ([d9e7800](https://github.com/lightdash/lightdash/commit/d9e78002c3c4ffde87958a54601e65932c53fdac))
+
+
+### Features
+
+* make dashboard the default tab in spaces ([#5647](https://github.com/lightdash/lightdash/issues/5647)) ([23f8039](https://github.com/lightdash/lightdash/commit/23f8039d4b8cecdef3bd974b99b355976b836d94))
+
 # [0.579.0](https://github.com/lightdash/lightdash/compare/0.578.0...0.579.0) (2023-05-29)
 
 
