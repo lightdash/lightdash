@@ -13,7 +13,7 @@ import {
 import { IconTool } from '@tabler/icons-react';
 import { memo } from 'react';
 import { Link } from 'react-router-dom';
-import { useActiveProjectUuid } from '../../hooks/useProject';
+import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProjects } from '../../hooks/useProjects';
 import { useErrorLogs } from '../../providers/ErrorLogsProvider';
 import { ReactComponent as Logo } from '../../svgs/logo-icon.svg';

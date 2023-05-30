@@ -8,7 +8,7 @@ import { FC } from 'react';
 
 import { Button, Menu } from '@mantine/core';
 import { Link } from 'react-router-dom';
-import { useActiveProjectUuid } from '../../hooks/useProject';
+import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useApp } from '../../providers/AppProvider';
 import MantineIcon from '../common/MantineIcon';
 

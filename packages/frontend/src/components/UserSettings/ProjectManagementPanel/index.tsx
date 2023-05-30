@@ -13,6 +13,8 @@ import { Redirect, useHistory } from 'react-router-dom';
 import {
     useActiveProject,
     useDeleteActiveProjectMutation,
+} from '../../../hooks/useActiveProject';
+import {
     useDeleteProjectMutation,
     useProjects,
 } from '../../../hooks/useProjects';

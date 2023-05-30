@@ -25,46 +25,6 @@ export const useProjects = (
     });
 };
 
-const LAST_PROJECT_KEY = 'lastProject';
-
-export const useActiveProject = () => {
-    return useQuery<string | undefined>({
-        queryKey: ['activeProject'],
-        queryFn: () =>
-            Promise.resolve(
-                localStorage.getItem(LAST_PROJECT_KEY) || undefined,
-            ),
-    });
-};
-
-export const useUpdateActiveProjectMutation = () => {
-    const queryClient = useQueryClient();
-
-    return useMutation<void, Error, string>({
-        mutationFn: (projectUuid) => {
-            return Promise.resolve(
-                localStorage.setItem(LAST_PROJECT_KEY, projectUuid),
-            );
-        },
-        onSuccess: async () => {
-            await queryClient.invalidateQueries('activeProject');
-        },
-    });
-};
-
-export const useDeleteActiveProjectMutation = () => {
-    const queryClient = useQueryClient();
-
-    return useMutation<void, Error>({
-        mutationFn: () => {
-            return Promise.resolve(localStorage.removeItem(LAST_PROJECT_KEY));
-        },
-        onSuccess: async () => {
-            await queryClient.invalidateQueries('activeProject');
-        },
-    });
-};
-
 export const useDefaultProject = () => {
     const query = useProjects();
 

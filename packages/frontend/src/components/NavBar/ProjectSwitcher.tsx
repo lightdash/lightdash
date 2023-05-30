@@ -3,11 +3,11 @@ import { Select } from '@mantine/core';
 import { useQueryClient } from 'react-query';
 import { useHistory, useRouteMatch } from 'react-router-dom';
 import useToaster from '../../hooks/toaster/useToaster';
-import { useActiveProjectUuid } from '../../hooks/useProject';
 import {
-    useProjects,
+    useActiveProjectUuid,
     useUpdateActiveProjectMutation,
-} from '../../hooks/useProjects';
+} from '../../hooks/useActiveProject';
+import { useProjects } from '../../hooks/useProjects';
 
 const routesToReplace = (activeProjectUuid: string) => [
     `/projects/${activeProjectUuid}/home`,
