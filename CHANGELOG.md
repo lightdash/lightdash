@@ -1,3 +1,10 @@
+# [0.581.0](https://github.com/lightdash/lightdash/compare/0.580.1...0.581.0) (2023-05-30)
+
+
+### Features
+
+* update icons in global search ([#5663](https://github.com/lightdash/lightdash/issues/5663)) ([5f2653e](https://github.com/lightdash/lightdash/commit/5f2653e9f1bd2e2c6226526a0f71a7249d57cc15))
+
 ## [0.580.1](https://github.com/lightdash/lightdash/compare/0.580.0...0.580.1) (2023-05-30)
 
 
