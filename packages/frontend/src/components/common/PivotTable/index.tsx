@@ -12,6 +12,7 @@ import { Table, TableProps } from '@mantine/core';
 import last from 'lodash-es/last';
 import React, { FC, useCallback } from 'react';
 
+import { useVirtual } from '@tanstack/react-virtual';
 import { isSummable } from '../../../hooks/useColumnTotals';
 import HeaderCell from './HeaderCell';
 import IndexCell from './IndexCell';
@@ -20,8 +21,29 @@ import TitleCell from './TitleCell';
 import TotalCell from './TotalCell';
 import ValueCell from './ValueCell';
 
+const VirtualizedArea: FC<{
+    cellCount: number;
+    padding: number;
+    cellClassName: string;
+}> = ({ cellCount, padding, cellClassName }) => {
+    return (
+        <tr>
+            {[...Array(cellCount)].map((_, index) => (
+                <td
+                    key={index}
+                    style={{
+                        height: `${padding}px`,
+                    }}
+                    className={cellClassName}
+                />
+            ))}
+        </tr>
+    );
+};
+
 type PivotTableProps = TableProps &
     React.RefAttributes<HTMLTableElement> & {
+        containerRef: React.RefObject<HTMLDivElement>;
         data: PivotData;
         conditionalFormattings: ConditionalFormattingConfig[];
         hideRowNumbers: boolean;
@@ -30,6 +52,7 @@ type PivotTableProps = TableProps &
     };
 
 const PivotTable: FC<PivotTableProps> = ({
+    containerRef,
     data,
     conditionalFormattings,
     hideRowNumbers = false,
@@ -157,6 +180,25 @@ const PivotTable: FC<PivotTableProps> = ({
     const hasColumnTotals = data.pivotConfig.columnTotals;
 
     const hasRowTotals = data.pivotConfig.rowTotals;
+
+    const rowVirtualizer = useVirtual({
+        parentRef: containerRef,
+        size: data.dataValues.length,
+        overscan: 10,
+    });
+    const { virtualItems: virtualRows, totalSize } = rowVirtualizer;
+    const paddingTop =
+        virtualRows.length > 0 ? virtualRows?.[0]?.start || 0 : 0;
+    const paddingBottom =
+        virtualRows.length > 0
+            ? totalSize - (virtualRows?.[virtualRows.length - 1]?.end || 0)
+            : 0;
+    const cellsCount =
+        (hideRowNumbers ? 0 : 1) +
+        (data.indexValueTypes.length === 0 ? data.titleFields[0].length : 0) +
+        data.indexValueTypes.length +
+        data.dataValues[0].length +
+        (hasRowTotals && data.rowTotals ? data.rowTotals[0].length : 0);
 
     return (
         <Table
@@ -305,125 +347,154 @@ const PivotTable: FC<PivotTableProps> = ({
             </thead>
 
             <tbody>
-                {data.dataValues.map((row, rowIndex) => (
-                    <tr key={`row-${rowIndex}`}>
-                        <>
-                            {!hideRowNumbers && (
-                                <td
-                                    className={cellCx(
-                                        cellStyles.root,
-                                        cellStyles.rowNumber,
-                                    )}
-                                >
-                                    {rowIndex + 1}
-                                </td>
-                            )}
-
-                            {/* renders empty rows if there are no index values but titles */}
-                            {data.indexValueTypes.length === 0 &&
-                                data.titleFields[0].map(
-                                    (_titleField, titleFieldIndex) => (
-                                        <td
-                                            key={`empty-title-${rowIndex}-${titleFieldIndex}`}
-                                            className={cellCx(cellStyles.root)}
-                                        />
-                                    ),
+                {paddingTop > 0 && (
+                    <VirtualizedArea
+                        cellCount={cellsCount}
+                        padding={paddingTop}
+                        cellClassName={cellCx(
+                            cellStyles.root,
+                            cellStyles.rowNumber,
+                        )}
+                    />
+                )}
+                {virtualRows.map(({ index: rowIndex }) => {
+                    const row = data.dataValues[rowIndex];
+                    return (
+                        <tr key={`row-${rowIndex}`}>
+                            <>
+                                {!hideRowNumbers && (
+                                    <td
+                                        className={cellCx(
+                                            cellStyles.root,
+                                            cellStyles.rowNumber,
+                                        )}
+                                    >
+                                        {rowIndex + 1}
+                                    </td>
                                 )}
 
-                            {/* renders the index values or labels */}
-                            {data.indexValueTypes.map(
-                                (_indexValueType, indexColIndex) => {
-                                    const indexValue =
-                                        data.indexValues[rowIndex][
-                                            indexColIndex
-                                        ];
-                                    const field = getField(indexValue.fieldId);
-                                    const isLabel = indexValue.type === 'label';
+                                {/* renders empty rows if there are no index values but titles */}
+                                {data.indexValueTypes.length === 0 &&
+                                    data.titleFields[0].map(
+                                        (_titleField, titleFieldIndex) => (
+                                            <td
+                                                key={`empty-title-${rowIndex}-${titleFieldIndex}`}
+                                                className={cellCx(
+                                                    cellStyles.root,
+                                                )}
+                                            />
+                                        ),
+                                    )}
 
-                                    const description =
-                                        isLabel && isField(field)
-                                            ? field.description
-                                            : undefined;
+                                {/* renders the index values or labels */}
+                                {data.indexValueTypes.map(
+                                    (_indexValueType, indexColIndex) => {
+                                        const indexValue =
+                                            data.indexValues[rowIndex][
+                                                indexColIndex
+                                            ];
+                                        const field = getField(
+                                            indexValue.fieldId,
+                                        );
+                                        const isLabel =
+                                            indexValue.type === 'label';
+
+                                        const description =
+                                            isLabel && isField(field)
+                                                ? field.description
+                                                : undefined;
+
+                                        return (
+                                            <IndexCell
+                                                key={`index-${rowIndex}-${indexColIndex}`}
+                                                className={cellCx(
+                                                    cellStyles.root,
+                                                    cellStyles.header,
+                                                )}
+                                                description={description}
+                                            >
+                                                {isLabel
+                                                    ? getFieldLabel(
+                                                          indexValue.fieldId,
+                                                      )
+                                                    : indexValue.value
+                                                          .formatted}
+                                            </IndexCell>
+                                        );
+                                    },
+                                )}
+
+                                {/* renders the pivot values */}
+                                {row.map((value, colIndex) => {
+                                    const item = getItemFromAxis(
+                                        rowIndex,
+                                        colIndex,
+                                    );
 
                                     return (
-                                        <IndexCell
-                                            key={`index-${rowIndex}-${indexColIndex}`}
-                                            className={cellCx(
-                                                cellStyles.root,
-                                                cellStyles.header,
-                                            )}
-                                            description={description}
-                                        >
-                                            {isLabel
-                                                ? getFieldLabel(
-                                                      indexValue.fieldId,
-                                                  )
-                                                : indexValue.value.formatted}
-                                        </IndexCell>
+                                        <ValueCell
+                                            key={`value-${rowIndex}-${colIndex}`}
+                                            item={item}
+                                            value={value}
+                                            colIndex={colIndex}
+                                            rowIndex={rowIndex}
+                                            getField={getField}
+                                            getUnderlyingFieldValues={
+                                                getUnderlyingFieldValues
+                                            }
+                                            conditionalFormattings={
+                                                conditionalFormattings
+                                            }
+                                        />
                                     );
-                                },
-                            )}
+                                })}
 
-                            {/* renders the pivot values */}
-                            {row.map((value, colIndex) => {
-                                const item = getItemFromAxis(
-                                    rowIndex,
-                                    colIndex,
-                                );
+                                {/* render the total values */}
+                                {hasRowTotals
+                                    ? data.rowTotals?.[rowIndex].map(
+                                          (total, colIndex) => {
+                                              const value = data.pivotConfig
+                                                  .metricsAsRows
+                                                  ? getMetricAsRowTotalValueFromAxis(
+                                                        total,
+                                                        rowIndex,
+                                                    )
+                                                  : getRowTotalValueFromAxis(
+                                                        total,
+                                                        colIndex,
+                                                    );
 
-                                return (
-                                    <ValueCell
-                                        key={`value-${rowIndex}-${colIndex}`}
-                                        item={item}
-                                        value={value}
-                                        colIndex={colIndex}
-                                        rowIndex={rowIndex}
-                                        getField={getField}
-                                        getUnderlyingFieldValues={
-                                            getUnderlyingFieldValues
-                                        }
-                                        conditionalFormattings={
-                                            conditionalFormattings
-                                        }
-                                    />
-                                );
-                            })}
-
-                            {/* render the total values */}
-                            {hasRowTotals
-                                ? data.rowTotals?.[rowIndex].map(
-                                      (total, colIndex) => {
-                                          const value = data.pivotConfig
-                                              .metricsAsRows
-                                              ? getMetricAsRowTotalValueFromAxis(
-                                                    total,
-                                                    rowIndex,
-                                                )
-                                              : getRowTotalValueFromAxis(
-                                                    total,
-                                                    colIndex,
-                                                );
-
-                                          return value ? (
-                                              <TotalCell
-                                                  value={value}
-                                                  key={`index-total-${rowIndex}-${colIndex}`}
-                                              >
-                                                  {value.formatted}
-                                              </TotalCell>
-                                          ) : (
-                                              <td
-                                                  className={cellCx(
-                                                      cellStyles.root,
-                                                  )}
-                                              />
-                                          );
-                                      },
-                                  )
-                                : null}
-                        </>
-                    </tr>
-                ))}
+                                              return value ? (
+                                                  <TotalCell
+                                                      value={value}
+                                                      key={`index-total-${rowIndex}-${colIndex}`}
+                                                  >
+                                                      {value.formatted}
+                                                  </TotalCell>
+                                              ) : (
+                                                  <td
+                                                      className={cellCx(
+                                                          cellStyles.root,
+                                                      )}
+                                                  />
+                                              );
+                                          },
+                                      )
+                                    : null}
+                            </>
+                        </tr>
+                    );
+                })}
+                {paddingBottom > 0 && (
+                    <VirtualizedArea
+                        cellCount={cellsCount}
+                        padding={paddingBottom}
+                        cellClassName={cellCx(
+                            cellStyles.root,
+                            cellStyles.rowNumber,
+                        )}
+                    />
+                )}
             </tbody>
 
             {hasColumnTotals ? (
