@@ -1,3 +1,10 @@
+## [0.582.2](https://github.com/lightdash/lightdash/compare/0.582.1...0.582.2) (2023-05-30)
+
+
+### Bug Fixes
+
+* show correct default space when creating resource ([#5669](https://github.com/lightdash/lightdash/issues/5669)) ([a3ff8e3](https://github.com/lightdash/lightdash/commit/a3ff8e3649eba70c8216049e10b7021b86f448a2))
+
 ## [0.582.1](https://github.com/lightdash/lightdash/compare/0.582.0...0.582.1) (2023-05-30)
 
 
