@@ -52,7 +52,10 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
         {
             onSuccess: (data) => {
                 if (data.length > 0) {
-                    setSpaceUuid(data[0].uuid);
+                    const currentSpace = spaceUuid
+                        ? data.find((space) => space.uuid === spaceUuid)
+                        : data[0];
+                    setSpaceUuid(currentSpace?.uuid);
                 } else {
                     setIsCreatingnewSpace(true);
                 }
@@ -205,7 +208,6 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                         >
                             Cancel
                         </Button>
-
                         <Button
                             intent={Intent.PRIMARY}
                             text="Create"

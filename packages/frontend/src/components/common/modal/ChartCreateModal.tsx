@@ -8,7 +8,7 @@ import {
     InputGroup,
 } from '@blueprintjs/core';
 import { CreateSavedChartVersion } from '@lightdash/common';
-import { FC, useCallback, useEffect, useState } from 'react';
+import { FC, useCallback, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useCreateMutation } from '../../../hooks/useSavedQuery';
 import {
@@ -23,33 +23,44 @@ import {
 interface ChartCreateModalProps extends DialogProps {
     savedData: CreateSavedChartVersion;
     onClose?: () => void;
+    spaceUuid?: string;
     onConfirm: (savedData: CreateSavedChartVersion) => void;
 }
 
 const ChartCreateModal: FC<ChartCreateModalProps> = ({
     savedData,
     onClose,
+    spaceUuid,
     ...modalProps
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { data: spaces } = useSpaceSummaries(projectUuid);
+    // const { data: spaces } = useSpaceSummaries(projectUuid);
     const { mutateAsync, isLoading: isCreating } = useCreateMutation();
     const { mutateAsync: createSpaceAsync, isLoading: isCreatingSpace } =
         useSpaceCreateMutation(projectUuid);
 
-    const [spaceUuid, setSpaceUuid] = useState<string | undefined>();
+    const [selectedSpaceUuid, setSpaceUuid] = useState<string | undefined>();
     const [name, setName] = useState('');
     const [description, setDescription] = useState<string>();
     const [newSpaceName, setNewSpaceName] = useState('');
     const [shouldCreateNewSpace, setShouldCreateNewSpace] = useState(false);
 
+    const { data: spaces, isLoading: isLoadingSpaces } = useSpaceSummaries(
+        projectUuid,
+        {
+            onSuccess: (data) => {
+                if (data.length > 0) {
+                    const currentSpace = spaceUuid
+                        ? data.find((space) => space.uuid === spaceUuid)
+                        : data[0];
+                    setSpaceUuid(currentSpace?.uuid);
+                } else {
+                    setShouldCreateNewSpace(true);
+                }
+            },
+        },
+    );
     const showSpaceInput = shouldCreateNewSpace || spaces?.length === 0;
-
-    useEffect(() => {
-        if (spaceUuid === undefined && spaces && spaces.length > 0) {
-            setSpaceUuid(spaces[0].uuid);
-        }
-    }, [spaces, spaceUuid]);
 
     const handleClose = useCallback(() => {
         setName('');
@@ -74,7 +85,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
             ...savedData,
             name,
             description,
-            spaceUuid: newSpace?.uuid || spaceUuid,
+            spaceUuid: newSpace?.uuid || selectedSpaceUuid,
         });
 
         setName('');
@@ -88,12 +99,14 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         name,
         description,
         savedData,
-        spaceUuid,
+        selectedSpaceUuid,
         newSpaceName,
         createSpaceAsync,
         mutateAsync,
         showSpaceInput,
     ]);
+
+    if (isLoadingSpaces || !spaces) return null;
 
     return (
         <Dialog
@@ -138,18 +151,14 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                             <HTMLSelect
                                 id="select-space"
                                 fill={true}
-                                value={spaceUuid}
+                                value={selectedSpaceUuid}
                                 onChange={(e) =>
                                     setSpaceUuid(e.currentTarget.value)
                                 }
-                                options={
-                                    spaces
-                                        ? spaces?.map((space) => ({
-                                              value: space.uuid,
-                                              label: space.name,
-                                          }))
-                                        : []
-                                }
+                                options={spaces?.map((space) => ({
+                                    value: space.uuid,
+                                    label: space.name,
+                                }))}
                             />
                         </FormGroupWrapper>
 

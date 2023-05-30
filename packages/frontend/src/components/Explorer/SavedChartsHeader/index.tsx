@@ -47,8 +47,11 @@ import SaveChartButton from '../SaveChartButton';
 
 const SavedChartsHeader: FC = () => {
     const { search } = useLocation();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { projectUuid } = useParams<{
+        projectUuid: string;
+    }>();
     const dashboardUuid = useSearchParams('fromDashboard');
+    const spaceUuid = useSearchParams('fromSpace');
 
     const history = useHistory();
     const isEditMode = useExplorerContext(
@@ -253,7 +256,6 @@ const SavedChartsHeader: FC = () => {
                         ) : (
                             <>
                                 <SaveChartButton />
-
                                 <Button
                                     onClick={() => {
                                         reset();
@@ -392,6 +394,7 @@ const SavedChartsHeader: FC = () => {
                     savedData={unsavedChartVersion}
                     onClose={() => setIsQueryModalOpen(false)}
                     onConfirm={() => setIsQueryModalOpen(false)}
+                    spaceUuid={spaceUuid ?? undefined}
                 />
             )}
             {savedChart && isAddToDashboardModalOpen && (
