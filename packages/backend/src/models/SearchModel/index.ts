@@ -98,7 +98,7 @@ export class SearchModel {
                 `${SavedChartsTableName}.space_id`,
                 `${SpaceTableName}.space_id`,
             )
-            .innerJoin(
+            .leftJoin(
                 'saved_queries_versions',
                 `${SavedChartsTableName}.saved_query_id`,
                 'saved_queries_versions.saved_query_id',
@@ -116,6 +116,7 @@ export class SearchModel {
                 { chartType: 'saved_queries_versions.chart_type' },
                 { chartConfig: 'saved_queries_versions.chart_config' },
             )
+            .distinctOn(`saved_queries_versions.saved_query_id`)
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .andWhere((qB) =>
                 qB
