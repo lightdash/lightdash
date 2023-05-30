@@ -200,6 +200,9 @@ export type CreateSavedChartOrVersionEvent = BaseTrack & {
         };
         table?: {
             conditionalFormattingRulesCount: number;
+            hasMetricsAsRows: boolean;
+            hasRowCalculation: boolean;
+            hasColumnCalculations: boolean;
         };
         duplicated?: boolean;
     };

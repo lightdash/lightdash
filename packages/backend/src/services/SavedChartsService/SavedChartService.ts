@@ -122,6 +122,10 @@ export class SavedChartService {
                     ? {
                           conditionalFormattingRulesCount:
                               tableConfig?.conditionalFormattings?.length || 0,
+                          hasMetricsAsRows: !!tableConfig?.metricsAsRows,
+                          hasRowCalculation: !!tableConfig?.showRowCalculation,
+                          hasColumnCalculations:
+                              !!tableConfig?.showColumnCalculation,
                       }
                     : undefined,
             cartesian:
