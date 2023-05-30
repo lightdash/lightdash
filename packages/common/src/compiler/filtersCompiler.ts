@@ -91,7 +91,7 @@ export const renderNumberFilterSql = (
                 ? 'true'
                 : `((${dimensionSql}) NOT IN (${filter.values.join(
                       ',',
-                  )})  OR (${dimensionSql}) IS NULL)`;
+                  )}) OR (${dimensionSql}) IS NULL)`;
         case FilterOperator.NULL:
             return `(${dimensionSql}) IS NULL`;
         case FilterOperator.NOT_NULL:
@@ -126,7 +126,7 @@ export const renderDateFilterSql = (
         case 'notEquals':
             return `((${dimensionSql}) != ('${dateFormatter(
                 filter.values?.[0],
-            )}')  OR (${dimensionSql}) IS NULL)`;
+            )}') OR (${dimensionSql}) IS NULL)`;
         case 'isNull':
             return `(${dimensionSql}) IS NULL`;
         case 'notNull':
