@@ -3,6 +3,7 @@ import {
     Explore,
     ExploreError,
     FieldSearchResult,
+    getChartType,
     hasIntersection,
     isExploreError,
     NotExistsError,
@@ -97,6 +98,11 @@ export class SearchModel {
                 `${SavedChartsTableName}.space_id`,
                 `${SpaceTableName}.space_id`,
             )
+            .leftJoin(
+                'saved_queries_versions',
+                `${SavedChartsTableName}.saved_query_id`,
+                'saved_queries_versions.saved_query_id',
+            )
             .innerJoin(
                 ProjectTableName,
                 `${ProjectTableName}.project_id`,
@@ -107,7 +113,10 @@ export class SearchModel {
                 `${SavedChartsTableName}.name`,
                 `${SavedChartsTableName}.description`,
                 { spaceUuid: 'space_uuid' },
+                { chartType: 'saved_queries_versions.chart_type' },
+                { chartConfig: 'saved_queries_versions.chart_config' },
             )
+            .distinctOn(`saved_queries_versions.saved_query_id`)
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .andWhere((qB) =>
                 qB
@@ -119,6 +128,12 @@ export class SearchModel {
                         `LOWER(${SavedChartsTableName}.description) like LOWER(?)`,
                         [`%${query}%`],
                     ),
+            )
+            .then((results) =>
+                results.map(({ chartType, chartConfig, ...result }) => ({
+                    ...result,
+                    chartType: getChartType(chartType, chartConfig),
+                })),
             );
     }
 

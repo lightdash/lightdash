@@ -27,8 +27,8 @@ import LoadingState from '../components/common/LoadingState';
 import DashboardCreateModal from '../components/common/modal/DashboardCreateModal';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
+import { ResourceTypeIcon } from '../components/common/ResourceIcon';
 import ResourceView from '../components/common/ResourceView';
-import { ResourceTypeIcon } from '../components/common/ResourceView/ResourceIcon';
 import ShareSpaceModal from '../components/common/ShareSpaceModal';
 import SpaceActionModal, {
     ActionType,

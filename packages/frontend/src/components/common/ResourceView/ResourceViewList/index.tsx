@@ -25,7 +25,7 @@ import { ResourceViewCommonProps } from '..';
 import { useTableStyles } from '../../../../hooks/styles/useTableStyles';
 import { useSpaceSummaries } from '../../../../hooks/useSpaces';
 import { useValidationUserAbility } from '../../../../hooks/validation/useValidation';
-import { ResourceIcon, ResourceIndicator } from '../ResourceIcon';
+import { ResourceIcon, ResourceIndicator } from '../../ResourceIcon';
 import {
     getResourceTypeName,
     getResourceUrl,

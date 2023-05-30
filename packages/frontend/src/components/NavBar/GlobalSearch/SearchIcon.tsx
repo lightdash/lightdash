@@ -1,37 +1,44 @@
+import { SavedChartSearchResult } from '@lightdash/common';
 import {
     Icon123,
     IconAbc,
     IconAppWindow,
-    IconChartAreaLine,
     IconFolder,
     IconLayoutDashboard,
     IconTable,
 } from '@tabler/icons-react';
 import { FC } from 'react';
-import MantineIcon, { MantineIconProps } from '../../common/MantineIcon';
+import { getChartIcon, IconBox } from '../../common/ResourceIcon';
 import { SearchItem } from './hooks';
 
-type SearchIconProps = Omit<MantineIconProps, 'icon'> & {
-    item: SearchItem;
+type SearchIconProps = {
+    searchItem: SearchItem;
 };
 
-export const SearchIcon: FC<SearchIconProps> = ({ item, ...iconProps }) => {
-    switch (item.type) {
+export const SearchIcon: FC<SearchIconProps> = ({ searchItem }) => {
+    switch (searchItem.type) {
         case 'field':
-            return item.typeLabel.toLowerCase() === 'dimension' ? (
-                <MantineIcon icon={IconAbc} {...iconProps} />
-            ) : (
-                <MantineIcon icon={Icon123} {...iconProps} />
+            return (
+                <IconBox
+                    color="gray.7"
+                    icon={
+                        searchItem.typeLabel.toLowerCase() === 'dimension'
+                            ? IconAbc
+                            : Icon123
+                    }
+                />
             );
         case 'dashboard':
-            return <MantineIcon icon={IconLayoutDashboard} {...iconProps} />;
+            return <IconBox icon={IconLayoutDashboard} color="green.8" />;
         case 'saved_chart':
-            return <MantineIcon icon={IconChartAreaLine} {...iconProps} />;
+            return getChartIcon(
+                (searchItem.item as SavedChartSearchResult)?.chartType,
+            );
         case 'space':
-            return <MantineIcon icon={IconFolder} {...iconProps} />;
+            return <IconBox icon={IconFolder} color="violet.8" />;
         case 'table':
-            return <MantineIcon icon={IconTable} {...iconProps} />;
+            return <IconBox icon={IconTable} color="blue.8" />;
         case 'page':
-            return <MantineIcon icon={IconAppWindow} {...iconProps} />;
+            return <IconBox icon={IconAppWindow} color="gray.7" />;
     }
 };
