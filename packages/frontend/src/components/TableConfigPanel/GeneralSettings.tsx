@@ -239,7 +239,7 @@ const GeneralSettings: FC = () => {
                 />
             </FormGroup>
             <FormGroup label="Columns">
-                <ColumnConfiguration />
+                <ColumnConfiguration fieldId={''} />
             </FormGroup>
         </>
     );
