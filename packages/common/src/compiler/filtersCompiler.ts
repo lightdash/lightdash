@@ -46,9 +46,9 @@ export const renderStringFilterSql = (
         case FilterOperator.NOT_EQUALS:
             return !escapedFilterValues || escapedFilterValues.length === 0
                 ? 'true'
-                : `(${dimensionSql}) NOT IN (${escapedFilterValues
+                : `((${dimensionSql}) NOT IN (${escapedFilterValues
                       .map((v) => `${stringQuoteChar}${v}${stringQuoteChar}`)
-                      .join(',')})`;
+                      .join(',')} ) OR (${dimensionSql}) IS NULL)`;
         case FilterOperator.INCLUDE:
             const includesQuery = escapedFilterValues?.map(
                 (v) => `LOWER(${dimensionSql}) LIKE LOWER('%${v}%')`,
@@ -89,7 +89,9 @@ export const renderNumberFilterSql = (
         case FilterOperator.NOT_EQUALS:
             return !filter.values || filter.values.length === 0
                 ? 'true'
-                : `(${dimensionSql}) NOT IN (${filter.values.join(',')})`;
+                : `((${dimensionSql}) NOT IN (${filter.values.join(
+                      ',',
+                  )}) OR (${dimensionSql}) IS NULL)`;
         case FilterOperator.NULL:
             return `(${dimensionSql}) IS NULL`;
         case FilterOperator.NOT_NULL:
@@ -122,9 +124,9 @@ export const renderDateFilterSql = (
                 filter.values?.[0],
             )}')`;
         case 'notEquals':
-            return `(${dimensionSql}) != ('${dateFormatter(
+            return `((${dimensionSql}) != ('${dateFormatter(
                 filter.values?.[0],
-            )}')`;
+            )}') OR (${dimensionSql}) IS NULL)`;
         case 'isNull':
             return `(${dimensionSql}) IS NULL`;
         case 'notNull':
