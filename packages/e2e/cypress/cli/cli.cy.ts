@@ -135,13 +135,11 @@ describe('CLI', () => {
             ).then((result) => {
                 expect(result.stderr).to.contain('Successfully deployed');
                 // Delete project
-                const matches = result.stderr.match(
-                    /\/projects\/([\w-]*)\/home/,
-                );
+                const matches = result.stderr.match(/projectUuid=([\w-]*)/);
                 const projectUuid = matches?.[1];
                 if (!projectUuid) {
                     throw new Error(
-                        'Could not find project uuid in success message',
+                        `Could not find project uuid in success message: ${result.stderr}`,
                     );
                 }
                 cy.request({
