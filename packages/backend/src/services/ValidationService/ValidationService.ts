@@ -1,14 +1,20 @@
 import { subject } from '@casl/ability';
 import {
     CompiledField,
+    CreateChartValidation,
+    CreateDashboardValidation,
+    CreateTableValidation,
     CreateValidation,
+    ErrorType,
     Explore,
     ExploreError,
     fieldId as getFieldId,
     ForbiddenError,
     getFilterRules,
     InlineErrorType,
+    isChartValidationError,
     isDashboardChartTileType,
+    isDashboardValidationError,
     isDimension,
     isExploreError,
     isMetric,
@@ -16,7 +22,6 @@ import {
     RequestMethod,
     SessionUser,
     TableCalculation,
-    ValidateProjectPayload,
     ValidationResponse,
 } from '@lightdash/common';
 import { analytics } from '../../analytics/client';
@@ -92,34 +97,48 @@ export class ValidationService {
     private static async validateTables(
         projectUuid: string,
         explores: (Explore | ExploreError)[] | undefined,
-    ): Promise<CreateValidation[]> {
+    ): Promise<CreateTableValidation[]> {
         // Get existing errors from ExploreError and convert to ValidationInsert
         if (explores === undefined) {
             return [];
         }
-        const errors = explores.reduce<CreateValidation[]>((acc, explore) => {
-            if (isExploreError(explore)) {
-                const exploreErrors = explore.errors
-                    .filter(
-                        (error) =>
-                            error.type !== InlineErrorType.NO_DIMENSIONS_FOUND,
-                    )
-                    .map((ee) => ({
-                        name: explore.name,
-                        error: ee.message,
-                        projectUuid,
-                    }));
-                return [...acc, ...exploreErrors];
-            }
-            return acc;
-        }, []);
+        const errors = explores.reduce<CreateTableValidation[]>(
+            (acc, explore) => {
+                if (isExploreError(explore)) {
+                    const exploreErrors = explore.errors
+                        .filter(
+                            (error) =>
+                                error.type !==
+                                InlineErrorType.NO_DIMENSIONS_FOUND,
+                        )
+                        .map((ee) => {
+                            const dimensionNameMatch =
+                                ee.message.match(/\$\{([^}]*)\}/);
+
+                            return {
+                                name: explore.name,
+                                error: ee.message,
+                                errorType: ErrorType.Model,
+                                modelName: explore.name,
+                                dimensionName: dimensionNameMatch
+                                    ? dimensionNameMatch[1]
+                                    : undefined,
+                                projectUuid,
+                            };
+                        });
+                    return [...acc, ...exploreErrors];
+                }
+                return acc;
+            },
+            [],
+        );
         return errors;
     }
 
     private async validateCharts(
         projectUuid: string,
         existingFields: CompiledField[],
-    ): Promise<CreateValidation[]> {
+    ): Promise<CreateChartValidation[]> {
         const existingFieldIds = existingFields.map(getFieldId);
 
         const existingDimensionIds = existingFields
@@ -146,45 +165,61 @@ export class ValidationService {
                 name: chart.name,
                 projectUuid: chart.projectUuid,
             };
-            const containsFieldId = (
-                acc: CreateValidation[],
-                fieldIds: string[],
-                fieldId: string,
-                error: string,
-            ) => {
+            const containsFieldId = ({
+                acc,
+                fieldIds,
+                fieldId,
+                error,
+                errorType,
+                fieldName,
+            }: {
+                acc: CreateChartValidation[];
+                fieldIds: string[];
+                fieldId: string;
+            } & Pick<
+                CreateChartValidation,
+                'error' | 'errorType' | 'fieldName'
+            >) => {
                 if (!fieldIds?.includes(fieldId)) {
                     return [
                         ...acc,
                         {
                             ...commonValidation,
+                            errorType,
                             error,
+                            fieldName,
                         },
                     ];
                 }
                 return acc;
             };
+
             const dimensionErrors = chart.metricQuery.dimensions.reduce<
-                CreateValidation[]
+                CreateChartValidation[]
             >(
                 (acc, field) =>
-                    containsFieldId(
+                    containsFieldId({
                         acc,
-                        existingDimensionIds,
-                        field,
-                        `Dimension error: the field '${field}' no longer exists`,
-                    ),
+                        fieldIds: existingDimensionIds,
+                        fieldId: field,
+                        error: `Dimension error: the field '${field}' no longer exists`,
+                        errorType: ErrorType.Dimension,
+                        fieldName: field,
+                    }),
                 [],
             );
             const metricErrors = chart.metricQuery.metrics
                 .filter(filterAdditionalMetrics)
-                .reduce<CreateValidation[]>(
+                .reduce<CreateChartValidation[]>(
                     (acc, field) =>
-                        containsFieldId(
+                        containsFieldId({
                             acc,
-                            existingMetricIds,
-                            field,
-                            `Metric error: the field '${field}' no longer exists`,
-                        ),
+                            fieldIds: existingMetricIds,
+                            fieldId: field,
+                            error: `Metric error: the field '${field}' no longer exists`,
+                            errorType: ErrorType.Metric,
+                            fieldName: field,
+                        }),
                     [],
                 );
 
@@ -195,14 +230,16 @@ export class ValidationService {
 
             const filterErrors = getFilterRules(
                 chart.metricQuery.filters,
-            ).reduce<CreateValidation[]>(
+            ).reduce<CreateChartValidation[]>(
                 (acc, field) =>
-                    containsFieldId(
+                    containsFieldId({
                         acc,
-                        existingFieldIds,
-                        field.target.fieldId,
-                        `Filter error: the field '${field.target.fieldId}' no longer exists`,
-                    ),
+                        fieldIds: existingFieldIds,
+                        fieldId: field.target.fieldId,
+                        error: `Filter error: the field '${field.target.fieldId}' no longer exists`,
+                        errorType: ErrorType.Filter,
+                        fieldName: field.target.fieldId,
+                    }),
                 [],
             );
 
@@ -212,14 +249,16 @@ export class ValidationService {
                         filterTableCalculations(sort.fieldId) &&
                         filterAdditionalMetrics(sort.fieldId),
                 )
-                .reduce<CreateValidation[]>(
+                .reduce<CreateChartValidation[]>(
                     (acc, field) =>
-                        containsFieldId(
+                        containsFieldId({
                             acc,
-                            existingFieldIds,
-                            field.fieldId,
-                            `Sorting error: the field '${field.fieldId}' no longer exists`,
-                        ),
+                            fieldIds: existingFieldIds,
+                            fieldId: field.fieldId,
+                            error: `Sorting error: the field '${field.fieldId}' no longer exists`,
+                            errorType: ErrorType.Sorting,
+                            fieldName: field.fieldId,
+                        }),
                     [],
                 );
 
@@ -266,8 +305,8 @@ export class ValidationService {
     private async validateDashboards(
         projectUuid: string,
         existingFields: CompiledField[],
-        brokenCharts: Pick<CreateValidation, 'chartUuid' | 'name'>[],
-    ): Promise<CreateValidation[]> {
+        brokenCharts: Pick<CreateChartValidation, 'chartUuid' | 'name'>[],
+    ): Promise<CreateDashboardValidation[]> {
         const existingFieldIds = existingFields.map(getFieldId);
 
         const dashboardSummaries = await this.dashboardModel.getAllByProject(
@@ -278,49 +317,68 @@ export class ValidationService {
                 this.dashboardModel.getById(dashboardSummary.uuid),
             ),
         );
-        const results: CreateValidation[] = dashboards.flatMap((dashboard) => {
-            const commonValidation = {
-                name: dashboard.name,
-                dashboardUuid: dashboard.uuid,
-                projectUuid: dashboard.projectUuid,
-            };
-            const containsFieldId = (
-                acc: CreateValidation[],
-                fieldIds: string[],
-                fieldId: string,
-                error: string,
-            ) => {
-                if (!fieldIds?.includes(fieldId)) {
-                    return [
-                        ...acc,
-                        {
-                            ...commonValidation,
-                            error,
-                        },
-                    ];
-                }
-                return acc;
-            };
-            const dashboardFilterRules = [
-                ...dashboard.filters.dimensions,
-                ...dashboard.filters.metrics,
-            ];
-            const filterErrors = dashboardFilterRules.reduce<
-                CreateValidation[]
-            >(
-                (acc, filter) =>
-                    containsFieldId(
-                        acc,
-                        existingFieldIds,
-                        filter.target.fieldId,
-                        `Filter error: the field '${filter.target.fieldId}' no longer exists`,
-                    ),
-                [],
-            );
+        const results: CreateDashboardValidation[] = dashboards.flatMap(
+            (dashboard) => {
+                const commonValidation = {
+                    name: dashboard.name,
+                    dashboardUuid: dashboard.uuid,
+                    projectUuid: dashboard.projectUuid,
+                };
 
-            const chartTiles = dashboard.tiles.filter(isDashboardChartTileType);
-            const chartErrors = chartTiles.reduce<CreateValidation[]>(
-                (acc, chart) => {
+                const containsFieldId = ({
+                    acc,
+                    fieldIds,
+                    fieldId,
+                    error,
+                    errorType,
+                    fieldName,
+                }: {
+                    acc: CreateDashboardValidation[];
+                    fieldIds: string[];
+                    fieldId: string;
+                } & Pick<
+                    CreateDashboardValidation,
+                    'error' | 'errorType' | 'fieldName'
+                >) => {
+                    if (!fieldIds?.includes(fieldId)) {
+                        return [
+                            ...acc,
+                            {
+                                ...commonValidation,
+                                errorType,
+                                error,
+                                fieldName,
+                            },
+                        ];
+                    }
+                    return acc;
+                };
+
+                const dashboardFilterRules = [
+                    ...dashboard.filters.dimensions,
+                    ...dashboard.filters.metrics,
+                ];
+                const filterErrors = dashboardFilterRules.reduce<
+                    CreateDashboardValidation[]
+                >(
+                    (acc, filter) =>
+                        containsFieldId({
+                            acc,
+                            fieldIds: existingFieldIds,
+                            fieldId: filter.target.fieldId,
+                            error: `Filter error: the field '${filter.target.fieldId}' no longer exists`,
+                            errorType: ErrorType.Filter,
+                            fieldName: filter.target.fieldId,
+                        }),
+                    [],
+                );
+
+                const chartTiles = dashboard.tiles.filter(
+                    isDashboardChartTileType,
+                );
+                const chartErrors = chartTiles.reduce<
+                    CreateDashboardValidation[]
+                >((acc, chart) => {
                     const brokenChart = brokenCharts.find(
                         (c) => c.chartUuid === chart.properties.savedChartUuid,
                     );
@@ -330,15 +388,17 @@ export class ValidationService {
                             {
                                 ...commonValidation,
                                 error: `The chart '${brokenChart.name}' is broken on this dashboard.`,
+                                errorType: ErrorType.Chart,
+                                chartName: brokenChart.name,
                             },
                         ];
                     }
                     return acc;
-                },
-                [],
-            );
-            return [...filterErrors, ...chartErrors];
-        });
+                }, []);
+
+                return [...filterErrors, ...chartErrors];
+            },
+        );
 
         return results;
     }
@@ -477,19 +537,20 @@ export class ValidationService {
         const validations = await this.validationModel.get(projectUuid);
 
         if (fromSettings) {
-            const contentIds = validations.map(
-                (validation) =>
-                    validation.chartUuid ||
-                    validation.dashboardUuid ||
-                    validation.name,
-            );
+            const contentIds = validations.map((validation) => {
+                if (isChartValidationError(validation))
+                    return validation.chartUuid;
+                if (isDashboardValidationError(validation))
+                    return validation.dashboardUuid;
+                return validation.name;
+            });
+
             analytics.track({
                 event: 'validation.page_viewed',
                 userId: user.userUuid,
                 properties: {
                     organizationId: organizationUuid,
                     projectId: projectUuid,
-
                     numErrorsDetected: validations.length,
                     numContentAffected: new Set(contentIds).size,
                 },
