@@ -29,6 +29,8 @@ const GeneralSettings: FC = () => {
             setShowColumnCalculation,
             showRowCalculation,
             setShowRowCalculation,
+            showResultsTotal,
+            setShowResultsTotal,
             metricsAsRows,
             setMetricsAsRows,
             canUsePivotTable,
@@ -228,6 +230,16 @@ const GeneralSettings: FC = () => {
                         setShowColumnCalculation(!showColumnCalculation);
                     }}
                 />
+                <Checkbox
+                    label="Show results total"
+                    checked={showResultsTotal}
+                    onChange={() => {
+                        setShowResultsTotal(!showResultsTotal);
+                    }}
+                />
+            </FormGroup>
+            <FormGroup label="Columns">
+                <ColumnConfiguration fieldId={''} />
             </FormGroup>
         </>
     );

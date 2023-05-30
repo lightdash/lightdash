@@ -43,7 +43,9 @@ const useTableConfig = (
             ? true
             : tableChartConfig.showTableNames,
     );
-
+    const [showResultsTotal, setShowResultsTotal] = useState<boolean>(
+        tableChartConfig?.showResultsTotal ?? false,
+    );
     const [hideRowNumbers, setHideRowNumbers] = useState<boolean>(
         tableChartConfig?.hideRowNumbers === undefined
             ? false
@@ -288,6 +290,7 @@ const useTableConfig = (
             showColumnCalculation,
             showRowCalculation,
             showTableNames,
+            showResultsTotal,
             columns: columnProperties,
             hideRowNumbers,
             conditionalFormattings,
@@ -298,6 +301,7 @@ const useTableConfig = (
             showRowCalculation,
             hideRowNumbers,
             showTableNames,
+            showResultsTotal,
             columnProperties,
             conditionalFormattings,
             metricsAsRows,
@@ -316,6 +320,8 @@ const useTableConfig = (
         setShowTableNames,
         hideRowNumbers,
         setHideRowNumbers,
+        showResultsTotal,
+        setShowResultsTotal,
         columnProperties,
         setColumnProperties,
         updateColumnProperty,

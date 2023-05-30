@@ -39,6 +39,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
             pivotTableData,
             getFieldLabel,
             getField,
+            showResultsTotal,
         },
         isSqlRunner,
         explore,
@@ -104,6 +105,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                     );
                 return <CellContextMenu {...props} />;
             }}
+            pagination={{ showResultsTotal }}
             {...rest}
         />
     );
