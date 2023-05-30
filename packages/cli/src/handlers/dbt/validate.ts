@@ -70,7 +70,7 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
             `No project specified, select a project to validate using ${styles.bold(
                 `--project <projectUuid>`,
             )} or create a preview environment using ${styles.bold(
-                `lightdash star-preview`,
+                `lightdash start-preview`,
             )}`,
         );
     }
