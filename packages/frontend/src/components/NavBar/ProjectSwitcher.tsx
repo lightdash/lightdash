@@ -1,6 +1,5 @@
 import { ProjectType } from '@lightdash/common';
 import { Select } from '@mantine/core';
-import { useQueryClient } from 'react-query';
 import { useHistory, useRouteMatch } from 'react-router-dom';
 import useToaster from '../../hooks/toaster/useToaster';
 import {
@@ -28,7 +27,6 @@ const swappableProjectRoutes = (activeProjectUuid: string) => [
 ];
 
 const ProjectSwitcher = () => {
-    const queryClient = useQueryClient();
     const { showToastSuccess } = useToaster();
     const history = useHistory();
 
@@ -59,9 +57,6 @@ const ProjectSwitcher = () => {
 
         const project = projects?.find((p) => p.projectUuid === newUuid);
         if (!project) return;
-
-        queryClient.removeQueries('project');
-        queryClient.removeQueries('projects');
 
         setLastProjectMutation(project.projectUuid);
 
