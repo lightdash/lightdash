@@ -1,3 +1,10 @@
+## [0.582.1](https://github.com/lightdash/lightdash/compare/0.582.0...0.582.1) (2023-05-30)
+
+
+### Bug Fixes
+
+* is not equal return null values ([#5658](https://github.com/lightdash/lightdash/issues/5658)) ([7587efc](https://github.com/lightdash/lightdash/commit/7587efc5134a90b9c49edd41a0d8d8b92c16a92c))
+
 # [0.582.0](https://github.com/lightdash/lightdash/compare/0.581.1...0.582.0) (2023-05-30)
 
 
