@@ -12,18 +12,22 @@ import { NodeSDK } from '@opentelemetry/sdk-node';
 import { ConsoleSpanExporter } from '@opentelemetry/sdk-trace-node';
 import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
 
-if (['console', 'otlp'].includes(process.env.LIGHTDASH_OTEL || '')) {
+if (['console', 'otlp'].includes(process.env.OTEL_TRACES_EXPORTER || '')) {
     diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.INFO);
 
     const sdk = new NodeSDK({
         // Exporters configure where and how data is exported.
         traceExporter:
-            process.env.LIGHTDASH_OTEL === 'console'
+            process.env.OTEL_TRACES_EXPORTER === 'console'
                 ? new ConsoleSpanExporter()
-                : new OTLPTraceExporter(),
+                : new OTLPTraceExporter({
+                      url:
+                          process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT ||
+                          undefined,
+                  }),
         metricReader: new PeriodicExportingMetricReader({
             exporter:
-                process.env.LIGHTDASH_OTEL === 'console'
+                process.env.OTEL_TRACES_EXPORTER === 'console'
                     ? new ConsoleMetricExporter()
                     : new OTLPMetricExporter(),
         }),
