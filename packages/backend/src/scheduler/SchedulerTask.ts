@@ -4,6 +4,8 @@ import {
     EmailNotificationPayload,
     getHumanReadableCronExpression,
     getRequestMethod,
+    isChartValidationError,
+    isDashboardValidationError,
     isEmailTarget,
     isSchedulerCsvOptions,
     isSlackTarget,
@@ -491,12 +493,13 @@ export const validateProject = async (
             payload.projectUuid,
         );
 
-        const contentIds = errors.map(
-            (validation) =>
-                validation.chartUuid ||
-                validation.dashboardUuid ||
-                validation.name,
-        );
+        const contentIds = errors.map((validation) => {
+            if (isChartValidationError(validation)) return validation.chartUuid;
+            if (isDashboardValidationError(validation))
+                return validation.dashboardUuid;
+
+            return validation.name;
+        });
 
         await validationService.storeValidation(payload.projectUuid, errors);
 
