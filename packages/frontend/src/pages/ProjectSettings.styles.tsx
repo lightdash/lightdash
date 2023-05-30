@@ -24,7 +24,3 @@ export const ButtonsWrapper = styled.div`
 export const SaveButton = styled(BigButton)`
     width: 170px;
 `;
-
-export const TabsWrapper = styled.div`
-    margin: 30px 0 20px 0;
-`;
