@@ -20,9 +20,10 @@ const swappableProjectRoutes = (activeProjectUuid: string) => [
     `/generalSettings/projectManagement/${activeProjectUuid}/settings`,
     `/generalSettings/projectManagement/${activeProjectUuid}/tablesConfiguration`,
     `/generalSettings/projectManagement/${activeProjectUuid}/projectAccess`,
-    `/generalSettings/projectManagement/${activeProjectUuid}/integrations/dbt-cloud`,
+    `/generalSettings/projectManagement/${activeProjectUuid}/integrations/dbtCloud`,
     `/generalSettings/projectManagement/${activeProjectUuid}/usageAnalytics`,
     `/generalSettings/projectManagement/${activeProjectUuid}/scheduledDeliveries`,
+    `/generalSettings/projectManagement/${activeProjectUuid}/validator`,
     `/generalSettings/projectManagement/${activeProjectUuid}`,
 ];
 
