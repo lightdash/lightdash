@@ -212,6 +212,20 @@ export class ProjectService {
 
         if (data.copiedFromProjectUuid) {
             try {
+                const project = await this.projectModel.get(
+                    data.copiedFromProjectUuid,
+                );
+                if (
+                    user.ability.cannot(
+                        'view',
+                        subject('Project', {
+                            organizationUuid: project.organizationUuid,
+                            projectUuid: data.copiedFromProjectUuid,
+                        }),
+                    )
+                ) {
+                    throw new ForbiddenError();
+                }
                 await this.copyContentOnPreview(
                     data.copiedFromProjectUuid,
                     projectUuid,
