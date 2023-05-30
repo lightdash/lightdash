@@ -112,6 +112,7 @@ module.exports = {
                         'guides/cli/how-to-use-lightdash-preview',
                         'guides/cli/how-to-use-lightdash-deploy',
                         'guides/cli/how-to-compile-your-lightdash-project',
+                        'guides/cli/how-to-use-lightdash-validate',
                     ],
                 },
                 'guides/visualizing-your-results',

@@ -1,10 +1,11 @@
 import AutomaticallyDeployChangesGithub from './../../snippets/github-secrets.mdx';
+import ProjectId from './assets/project-id.png';
 
 # Lightdash Validate
 
 You can check to see if your changes break any of the content in your project using `lightdash validate`. This command will run the validator which will return a list of content in your project that is broken and details about the errors. 
 
-You can trigger a validation on a project using the Lightdash CLI so you can check locally if your changes will break anything. You can also add `lightdash validate` to your [GitHub Actions](/guides/cli/how-to-use-lightdash-validate.mdx/configure-github-actions) so changes can't be merged unless they pass the validation. 
+You can trigger a validation on a project using the Lightdash CLI so you can check locally if your changes will break anything. You can also add `lightdash validate` to your [GitHub Actions](#configure-github-actions) so changes can't be merged unless they pass the validation. 
 if a table/chart/dashboard is broken on a [preview environment](/guides/cli/how-to-use-lightdash-preview). 
 
 Preview environments will copy all spaces/charts/dashboards into your new preview environment. 
@@ -12,19 +13,27 @@ This is only copied on preview creation, you can't sync the content afterwards.
 
 ## Usage 
 
+![CLI validate](./assets/cli-validate.png)
+
+### Validate your most recently created preview environment
+
+If you just created a preview environment and you want to validate it, you can run `lightdash validate` to check its content. To learn more about using preview environments, [check out the docs here](/guides/cli/how-to-use-lightdash-preview).
+
 ```
-# This will trigger a validation for the last preview project you create using `lightdash start-preview`
 lightdash validate 
 ```
 
-or 
+### Validate any project using the project UUID
+
+You can run a validation on any project by specifying the project UUID in the `lightdash validate` command.
 
 ```
-# Trigger validation for any project UUID 
 lightdash validate --project <project uuid> 
 ``` 
 
-![CLI validate](./assets/cli-validate.png)
+**Note:** you can get your project UUID from the Lightdash URL by selecting the ID after the `projects/`
+
+<img src={ProjectId} width="518" height="30" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 
 ## Configure Github actions  
