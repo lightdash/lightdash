@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
-import { Anchor, Group } from '@mantine/core';
+import { Anchor, Group, Text } from '@mantine/core';
 import { FC, useState } from 'react';
-import { Subtitle } from '../../pages/ProjectSettings.styles';
 import { useApp } from '../../providers/AppProvider';
 import { Can } from '../common/Authorization';
 import ProjectAccess from './ProjectAccess';
@@ -29,7 +28,7 @@ const ProjectUserAccess: FC<ProjectUserAccessProps> = ({ projectUuid }) => {
             ) : (
                 <>
                     <Group position="apart">
-                        <Subtitle>
+                        <Text color="dimmed">
                             Learn more about permissions in our{' '}
                             <Anchor
                                 role="button"
@@ -39,7 +38,7 @@ const ProjectUserAccess: FC<ProjectUserAccessProps> = ({ projectUuid }) => {
                             >
                                 docs
                             </Anchor>
-                        </Subtitle>
+                        </Text>
 
                         {!showProjectAccessCreate && (
                             <Can

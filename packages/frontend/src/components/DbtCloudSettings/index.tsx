@@ -1,6 +1,6 @@
 import { Intent, NonIdealState } from '@blueprintjs/core';
 import { CreateDbtCloudIntegration } from '@lightdash/common/dist/types/dbtCloud';
-import { Anchor } from '@mantine/core';
+import { Anchor, Text } from '@mantine/core';
 import { FC } from 'react';
 import { useForm } from 'react-hook-form';
 import {
@@ -44,7 +44,7 @@ const DbtCloudSettings: FC<DbtCloudSettingsProps> = ({ projectUuid }) => {
 
     return (
         <>
-            <div>
+            <Text color="dimmed">
                 Connect Lightdash to your dbt Cloud account to start consuming
                 metrics from the dbt semantic layer and using dbt jinja in your
                 queries. To get started we recommend following the{' '}
@@ -52,7 +52,7 @@ const DbtCloudSettings: FC<DbtCloudSettingsProps> = ({ projectUuid }) => {
                     dbt cloud semantic layer guide
                 </Anchor>{' '}
                 in the Lightdash docs.
-            </div>
+            </Text>
 
             <SettingsCard>
                 {dbtCloudSettings.error ? (
