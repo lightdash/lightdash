@@ -287,10 +287,6 @@ const Space: FC = () => {
                     }}
                     tabs={[
                         {
-                            id: 'all-items',
-                            name: 'All items',
-                        },
-                        {
                             id: 'dashboards',
                             icon: (
                                 <ResourceTypeIcon
@@ -311,6 +307,10 @@ const Space: FC = () => {
                             name: 'Charts',
                             filter: (item) =>
                                 item.type === ResourceViewItemType.CHART,
+                        },
+                        {
+                            id: 'all-items',
+                            name: 'All items',
                         },
                     ]}
                     emptyStateProps={{
