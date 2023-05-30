@@ -9,7 +9,7 @@ import {
 } from '../../hooks/useActiveProject';
 import { useProjects } from '../../hooks/useProjects';
 
-const routesToReplace = (activeProjectUuid: string) => [
+const swappableProjectRoutes = (activeProjectUuid: string) => [
     `/projects/${activeProjectUuid}/home`,
     `/projects/${activeProjectUuid}/saved`,
     `/projects/${activeProjectUuid}/dashboards`,
@@ -37,15 +37,18 @@ const ProjectSwitcher = () => {
         useActiveProjectUuid();
     const { mutate: setLastProjectMutation } = useUpdateActiveProjectMutation();
 
-    const isHomePage = useRouteMatch({
+    const isHomePage = !!useRouteMatch({
         path: '/projects/:projectUuid/home',
         exact: true,
     });
-    const replaceRouteMatch = useRouteMatch(
+
+    const swappableRouteMatch = useRouteMatch(
         activeProjectUuid
-            ? { path: routesToReplace(activeProjectUuid), exact: true }
+            ? { path: swappableProjectRoutes(activeProjectUuid), exact: true }
             : [],
     );
+
+    const shouldSwapProjectRoute = !!swappableRouteMatch && activeProjectUuid;
 
     if (isLoadingProjects || isLoadingActiveProjectUuid) {
         return null;
@@ -65,20 +68,23 @@ const ProjectSwitcher = () => {
         showToastSuccess({
             icon: 'tick',
             title: `You are now viewing ${project.name}`,
-            action: isHomePage
-                ? undefined
-                : {
-                      text: 'Go to project home',
-                      icon: 'arrow-right',
-                      onClick: () => {
-                          history.push(`/projects/${project.projectUuid}/home`);
-                      },
-                  },
+            action:
+                !isHomePage && shouldSwapProjectRoute
+                    ? {
+                          text: 'Go to project home',
+                          icon: 'arrow-right',
+                          onClick: () => {
+                              history.push(
+                                  `/projects/${project.projectUuid}/home`,
+                              );
+                          },
+                      }
+                    : undefined,
         });
 
-        if (activeProjectUuid && replaceRouteMatch) {
+        if (shouldSwapProjectRoute) {
             history.push(
-                replaceRouteMatch.path.replace(
+                swappableRouteMatch.path.replace(
                     activeProjectUuid,
                     project.projectUuid,
                 ),
