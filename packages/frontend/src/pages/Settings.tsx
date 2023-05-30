@@ -188,21 +188,6 @@ const Settings: FC = () => {
                                     />
                                 )}
 
-                                {organization &&
-                                    !organization.needsProject &&
-                                    user.ability.can('view', 'Project') && (
-                                        <RouterNavLink
-                                            label="Projects"
-                                            to="/generalSettings/projectManagement"
-                                            exact
-                                            icon={
-                                                <MantineIcon
-                                                    icon={IconDatabase}
-                                                />
-                                            }
-                                        />
-                                    )}
-
                                 <RouterNavLink
                                     label="Appearance"
                                     exact
@@ -221,6 +206,21 @@ const Settings: FC = () => {
                                             to="/generalSettings/integrations/slack"
                                             icon={
                                                 <MantineIcon icon={IconPlug} />
+                                            }
+                                        />
+                                    )}
+
+                                {organization &&
+                                    !organization.needsProject &&
+                                    user.ability.can('view', 'Project') && (
+                                        <RouterNavLink
+                                            label="All projects"
+                                            to="/generalSettings/projectManagement"
+                                            exact
+                                            icon={
+                                                <MantineIcon
+                                                    icon={IconDatabase}
+                                                />
                                             }
                                         />
                                     )}
