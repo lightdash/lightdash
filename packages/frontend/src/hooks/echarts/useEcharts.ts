@@ -40,7 +40,6 @@ import { useMemo } from 'react';
 import { defaultGrid } from '../../components/ChartConfigPanel/Grid';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
 import { EMPTY_X_AXIS } from '../cartesianChartConfig/useCartesianChartConfig';
-import { sortDimensions } from '../cartesianChartConfig/utils';
 import { useOrganization } from '../organization/useOrganization';
 import usePlottedData from '../plottedData/usePlottedData';
 
@@ -1283,40 +1282,32 @@ const useEcharts = () => {
             if (!explore) return results;
             const dimensions = getDimensions(explore);
 
-            const sortedDimensions = sortDimensions(
-                resultsData?.metricQuery.dimensions || [],
-                explore,
-                context.columnOrder,
-            );
-            const currentSort = resultsData?.metricQuery.sorts?.[0];
+            const xFieldId = validCartesianConfig?.layout?.xField;
+            if (xFieldId === undefined) return results;
 
-            const sortDimensionId = sortedDimensions[0];
-            const sortDimension = dimensions.find(
-                (dimension) => getItemId(dimension) === sortDimensionId,
+            const alreadySorted = resultsData?.metricQuery.sorts?.find(
+                (sort) => sort.fieldId === xFieldId,
+            );
+            if (alreadySorted !== undefined) return results;
+
+            const xField = dimensions.find(
+                (dimension) => getItemId(dimension) === xFieldId,
             );
 
             if (
-                currentSort === undefined ||
-                sortedDimensions.length === 0 ||
-                results.length == 0 ||
-                sortDimension === undefined
-            )
-                return results;
-
-            if (
-                validCartesianConfig?.layout?.xField === sortDimensionId && // only sort if xaxis is the unsorted date dimension
-                currentSort.fieldId != sortDimensionId &&
+                xField !== undefined &&
+                results.length >= 0 &&
                 [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
-                    sortDimension.type,
+                    xField.type,
                 )
             ) {
                 return results.sort((a, b) => {
                     if (
-                        typeof a[sortDimensionId] === 'string' &&
-                        typeof b[sortDimensionId] === 'string'
+                        typeof a[xFieldId] === 'string' &&
+                        typeof b[xFieldId] === 'string'
                     ) {
-                        return (a[sortDimensionId] as string).localeCompare(
-                            b[sortDimensionId] as string,
+                        return (a[xFieldId] as string).localeCompare(
+                            b[xFieldId] as string,
                         );
                     }
                     return 0;
@@ -1332,9 +1323,7 @@ const useEcharts = () => {
         rows,
         validCartesianConfig?.layout?.xField,
         resultsData?.metricQuery.sorts,
-        resultsData?.metricQuery.dimensions,
         explore,
-        context.columnOrder,
     ]);
 
     const eChartsOptions = useMemo(
