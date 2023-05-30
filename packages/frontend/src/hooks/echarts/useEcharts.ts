@@ -13,6 +13,7 @@ import {
     friendlyName,
     getAxisName,
     getDefaultSeriesColor,
+    getDimensions,
     getFieldMap,
     getFields,
     getItemId,
@@ -39,6 +40,7 @@ import { useMemo } from 'react';
 import { defaultGrid } from '../../components/ChartConfigPanel/Grid';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
 import { EMPTY_X_AXIS } from '../cartesianChartConfig/useCartesianChartConfig';
+import { sortDimensions } from '../cartesianChartConfig/utils';
 import { useOrganization } from '../organization/useOrganization';
 import usePlottedData from '../plottedData/usePlottedData';
 
@@ -1269,6 +1271,57 @@ const useEcharts = () => {
               )
             : allColors;
     }, [organizationData?.chartColors, validCartesianConfig]);
+    const sortedResults = useMemo(() => {
+        const results =
+            validCartesianConfig?.layout?.xField === EMPTY_X_AXIS
+                ? getResultValueArray(rows, true).map((s) => ({
+                      ...s,
+                      [EMPTY_X_AXIS]: ' ',
+                  }))
+                : getResultValueArray(rows, true);
+
+        if (!explore) return results;
+        const dimensions = getDimensions(explore);
+
+        const sortedDimensions = sortDimensions(
+            resultsData?.metricQuery.dimensions || [],
+            explore,
+            context.columnOrder,
+        );
+        const currentSort = resultsData?.metricQuery.sorts?.[0];
+
+        const sortDimension = dimensions.find(
+            (dimension) => getItemId(dimension) === sortedDimensions[0],
+        );
+
+        if (
+            currentSort === undefined ||
+            sortedDimensions.length === 0 ||
+            results.length == 0 ||
+            sortDimension === undefined
+        )
+            return results;
+
+        if (
+            currentSort.fieldId != sortedDimensions[0] &&
+            [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
+                sortDimension.type,
+            )
+        ) {
+            /* results.sort((a, b) => {
+                return a[sortDimension].localCompare( b[sortDimension])
+            })*/
+        }
+
+        return results;
+    }, [
+        rows,
+        validCartesianConfig?.layout?.xField,
+        resultsData?.metricQuery.sorts,
+        resultsData?.metricQuery.dimensions,
+        explore,
+        context.columnOrder,
+    ]);
 
     const eChartsOptions = useMemo(
         () => ({
@@ -1284,13 +1337,7 @@ const useEcharts = () => {
             },
             dataset: {
                 id: 'lightdashResults',
-                source:
-                    validCartesianConfig?.layout?.xField === EMPTY_X_AXIS
-                        ? getResultValueArray(rows, true).map((s) => ({
-                              ...s,
-                              [EMPTY_X_AXIS]: ' ',
-                          }))
-                        : getResultValueArray(rows, true),
+                source: sortedResults,
             },
             tooltip: {
                 show: true,
@@ -1309,7 +1356,14 @@ const useEcharts = () => {
             },
             color: colors,
         }),
-        [axis, colors, rows, series, stackedSeries, validCartesianConfig],
+        [
+            axis,
+            colors,
+            series,
+            stackedSeries,
+            validCartesianConfig,
+            sortedResults,
+        ],
     );
     if (
         !explore ||
