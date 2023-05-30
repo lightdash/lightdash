@@ -55,7 +55,6 @@ const ProjectSwitcher = () => {
         if (!newUuid) return;
 
         const project = projects?.find((p) => p.projectUuid === newUuid);
-
         if (!project) return;
 
         queryClient.removeQueries('project');
@@ -78,7 +77,7 @@ const ProjectSwitcher = () => {
         });
 
         if (activeProjectUuid && replaceRouteMatch) {
-            history.replace(
+            history.push(
                 replaceRouteMatch.path.replace(
                     activeProjectUuid,
                     project.projectUuid,
