@@ -1,3 +1,10 @@
+## [0.580.1](https://github.com/lightdash/lightdash/compare/0.580.0...0.580.1) (2023-05-30)
+
+
+### Bug Fixes
+
+* check copy project access ([#5665](https://github.com/lightdash/lightdash/issues/5665)) ([a548347](https://github.com/lightdash/lightdash/commit/a548347d26c46faa28865016c69bb4dcd7ace9d9))
+
 # [0.580.0](https://github.com/lightdash/lightdash/compare/0.579.0...0.580.0) (2023-05-30)
 
 
