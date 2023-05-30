@@ -23,23 +23,22 @@ import {
 interface ChartCreateModalProps extends DialogProps {
     savedData: CreateSavedChartVersion;
     onClose?: () => void;
-    spaceUuid?: string;
+    defaultSpaceUuid?: string;
     onConfirm: (savedData: CreateSavedChartVersion) => void;
 }
 
 const ChartCreateModal: FC<ChartCreateModalProps> = ({
     savedData,
     onClose,
-    spaceUuid,
+    defaultSpaceUuid,
     ...modalProps
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    // const { data: spaces } = useSpaceSummaries(projectUuid);
     const { mutateAsync, isLoading: isCreating } = useCreateMutation();
     const { mutateAsync: createSpaceAsync, isLoading: isCreatingSpace } =
         useSpaceCreateMutation(projectUuid);
 
-    const [selectedSpaceUuid, setSpaceUuid] = useState<string | undefined>();
+    const [spaceUuid, setSpaceUuid] = useState<string | undefined>();
     const [name, setName] = useState('');
     const [description, setDescription] = useState<string>();
     const [newSpaceName, setNewSpaceName] = useState('');
@@ -50,8 +49,8 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         {
             onSuccess: (data) => {
                 if (data.length > 0) {
-                    const currentSpace = spaceUuid
-                        ? data.find((space) => space.uuid === spaceUuid)
+                    const currentSpace = defaultSpaceUuid
+                        ? data.find((space) => space.uuid === defaultSpaceUuid)
                         : data[0];
                     setSpaceUuid(currentSpace?.uuid);
                 } else {
@@ -85,7 +84,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
             ...savedData,
             name,
             description,
-            spaceUuid: newSpace?.uuid || selectedSpaceUuid,
+            spaceUuid: newSpace?.uuid || spaceUuid,
         });
 
         setName('');
@@ -99,7 +98,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         name,
         description,
         savedData,
-        selectedSpaceUuid,
+        spaceUuid,
         newSpaceName,
         createSpaceAsync,
         mutateAsync,
@@ -151,7 +150,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                             <HTMLSelect
                                 id="select-space"
                                 fill={true}
-                                value={selectedSpaceUuid}
+                                value={spaceUuid}
                                 onChange={(e) =>
                                     setSpaceUuid(e.currentTarget.value)
                                 }

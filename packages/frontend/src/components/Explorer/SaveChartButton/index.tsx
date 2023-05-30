@@ -48,7 +48,7 @@ const SaveChartButton: FC<{ isExplorer?: boolean }> = ({ isExplorer }) => {
                     savedData={unsavedChartVersion}
                     onClose={() => setIsQueryModalOpen(false)}
                     onConfirm={() => setIsQueryModalOpen(false)}
-                    spaceUuid={spaceUuid ?? undefined}
+                    defaultSpaceUuid={spaceUuid ?? undefined}
                 />
             )}
         </>

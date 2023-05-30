@@ -333,7 +333,7 @@ const Space: FC = () => {
 
                 <DashboardCreateModal
                     projectUuid={projectUuid}
-                    spaceUuid={space.uuid}
+                    defaultSpaceUuid={space.uuid}
                     isOpen={isCreateDashboardOpen}
                     onClose={() => setIsCreateDashboardOpen(false)}
                     onConfirm={(dashboard) => {
