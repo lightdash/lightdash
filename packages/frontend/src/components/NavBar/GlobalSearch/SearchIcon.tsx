@@ -8,7 +8,7 @@ import {
     IconTable,
 } from '@tabler/icons-react';
 import { FC } from 'react';
-import { getChartIcon, IconBox } from '../../common/ResourceView/ResourceIcon';
+import { getChartIcon, IconBox } from '../../common/ResourceIcon';
 import { SearchItem } from './hooks';
 
 type SearchIconProps = {

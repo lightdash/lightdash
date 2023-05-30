@@ -11,10 +11,10 @@ import {
 import { useDisclosure, useHover } from '@mantine/hooks';
 import { IconEye } from '@tabler/icons-react';
 import { FC } from 'react';
+import { ResourceIcon } from '../../ResourceIcon';
 import ResourceViewActionMenu, {
     ResourceViewActionMenuCommonProps,
 } from '../ResourceActionMenu';
-import { ResourceIcon } from '../ResourceIcon';
 import { getResourceViewsSinceWhenDescription } from '../resourceUtils';
 
 interface ResourceViewGridDashboardItemProps

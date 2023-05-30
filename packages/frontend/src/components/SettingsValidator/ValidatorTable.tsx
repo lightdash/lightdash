@@ -10,7 +10,7 @@ import { useHistory, useLocation } from 'react-router-dom';
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
 import { useTimeAgo } from '../../hooks/useTimeAgo';
 import MantineIcon from '../common/MantineIcon';
-import { getChartIcon, IconBox } from '../common/ResourceView/ResourceIcon';
+import { getChartIcon, IconBox } from '../common/ResourceIcon';
 import { useScrollAndHighlight } from './hooks/useScrollAndHighlight';
 
 const getLinkToResource = (

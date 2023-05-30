@@ -20,10 +20,10 @@ import {
 } from '@tabler/icons-react';
 import { FC, useMemo } from 'react';
 
+import { ResourceIcon } from '../../ResourceIcon';
 import ResourceViewActionMenu, {
     ResourceViewActionMenuCommonProps,
 } from '../ResourceActionMenu';
-import { ResourceIcon } from '../ResourceIcon';
 
 interface ResourceViewGridSpaceItemProps
     extends Pick<ResourceViewActionMenuCommonProps, 'onAction'> {
