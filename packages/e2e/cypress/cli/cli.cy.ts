@@ -5,6 +5,17 @@ const cliCommand = `lightdash`;
 
 describe('CLI', () => {
     const previewName = `e2e preview ${new Date().getTime()}`;
+    let projectToDelete: string;
+
+    after(() => {
+        if (projectToDelete) {
+            cy.request({
+                url: `api/v1/org/projects/${projectToDelete}`,
+                headers: { 'Content-type': 'application/json' },
+                method: 'DELETE',
+            });
+        }
+    });
 
     it('Should test lightdash command help', () => {
         cy.exec(`${cliCommand} help`)
@@ -132,9 +143,20 @@ describe('CLI', () => {
                         PGDATABASE: 'postgres',
                     },
                 },
-            )
-                .its('stderr')
-                .should('contain', 'Successfully deployed');
+            ).then((result) => {
+                expect(result.stderr).to.contain('Successfully deployed');
+                // Delete project
+                const matches = result.stderr.match(/projectUuid=([\w-]*)/);
+                const projectUuid = matches?.[1];
+                if (!projectUuid) {
+                    throw new Error(
+                        `Could not find project uuid in success message: ${result.stderr}`,
+                    );
+                }
+
+                // save project uuid to delete after all tests
+                projectToDelete = projectUuid;
+            });
         });
     });
 
