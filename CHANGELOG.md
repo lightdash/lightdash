@@ -1,3 +1,10 @@
+# [0.583.0](https://github.com/lightdash/lightdash/compare/0.582.2...0.583.0) (2023-05-31)
+
+
+### Features
+
+* add ssh tunnel (stacked 3) ([#5617](https://github.com/lightdash/lightdash/issues/5617)) ([e9af15d](https://github.com/lightdash/lightdash/commit/e9af15dd21bc7f6e0043f4ba251892f75a771ff5))
+
 ## [0.582.2](https://github.com/lightdash/lightdash/compare/0.582.1...0.582.2) (2023-05-30)
 
 
