@@ -11,7 +11,7 @@ import inquirer from 'inquirer';
 import path from 'path';
 import { URL } from 'url';
 import { LightdashAnalytics } from '../analytics/analytics';
-import { getConfig, setProjectUuid } from '../config';
+import { getConfig, setProject } from '../config';
 import { getDbtContext } from '../dbt/context';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
@@ -160,7 +160,7 @@ export const deployHandler = async (options: DeployHandlerOptions) => {
             return;
         }
         projectUuid = project.projectUuid;
-        await setProjectUuid(projectUuid);
+        await setProject(projectUuid, project.name);
     } else {
         if (!(config.context?.project && config.context.serverUrl)) {
             throw new AuthorizationError(

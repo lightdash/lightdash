@@ -6,10 +6,10 @@ import {
     SchedulerJobStatus,
 } from '@lightdash/common';
 import columnify from 'columnify';
-import { getConfig } from '../../config';
-import GlobalState from '../../globalState';
-import * as styles from '../../styles';
-import { checkLightdashVersion, lightdashApi } from './apiClient';
+import { getConfig } from '../config';
+import GlobalState from '../globalState';
+import * as styles from '../styles';
+import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 
 const requestValidation = async (projectUuid: string) =>
     lightdashApi<ApiJobScheduledResponse['results']>({
@@ -63,7 +63,10 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
 
     const config = await getConfig();
 
-    const projectUuid = options.project || config.context?.previewProject;
+    const projectUuid =
+        options.project ||
+        config.context?.previewProject ||
+        config.context?.project;
 
     if (projectUuid === undefined) {
         throw new ParameterError(
@@ -71,17 +74,25 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
                 `--project <projectUuid>`,
             )} or create a preview environment using ${styles.bold(
                 `lightdash start-preview`,
+            )} or configure your default project using ${styles.bold(
+                `lightdash config set-project`,
             )}`,
         );
     }
 
     if (options.project) {
         console.error(`Validating project ${projectUuid}\n`);
-    } else {
+    } else if (config.context?.previewProject) {
         console.error(
             `Validating preview project ${styles.bold(
                 config.context?.previewName,
-            )} with projectUuid ${config.context?.previewProject}\n`,
+            )}\n`,
+        );
+    } else {
+        console.error(
+            `Validating project ${styles.bold(
+                config.context?.projectName || projectUuid,
+            )}\n`,
         );
     }
 
