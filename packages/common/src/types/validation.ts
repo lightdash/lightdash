@@ -93,8 +93,8 @@ export const isTableValidationError = (
     !(
         'chartUuid' in error &&
         'dashboardUuid' in error &&
-        !error.chartUuid &&
-        !error.dashboardUuid
+        error.chartUuid &&
+        error.dashboardUuid
     );
 
 export const isChartValidationError = (
