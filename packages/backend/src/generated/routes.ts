@@ -1789,6 +1789,7 @@ const models: TsoaRoute.Models = {
                 spaceUuid: { dataType: 'string' },
                 projectUuid: { dataType: 'string', required: true },
                 dashboardUuid: { dataType: 'string' },
+                chartType: { ref: 'ChartKind' },
                 chartUuid: { dataType: 'string' },
                 name: { dataType: 'string', required: true },
                 createdAt: { dataType: 'datetime', required: true },
