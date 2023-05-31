@@ -7,6 +7,7 @@ export const useTableStyles = createStyles((theme) => ({
         },
 
         '& thead tr th': {
+            fontSize: theme.fontSizes.xs,
             color: theme.colors.gray[6],
             fontWeight: 600,
         },
@@ -19,11 +20,6 @@ export const useTableStyles = createStyles((theme) => ({
             cursor: 'pointer',
             backgroundColor: theme.fn.rgba(theme.colors.gray[0], 0.5),
         }),
-    },
-    smallHeaderText: {
-        '& thead tr th': {
-            fontSize: theme.fontSizes.xs,
-        },
     },
     alignLastTdRight: {
         '& tr td:last-child': {

@@ -4,16 +4,7 @@ import {
     isResourceViewSpaceItem,
     ResourceViewItem,
 } from '@lightdash/common';
-import {
-    Anchor,
-    Box,
-    clsx,
-    Group,
-    Stack,
-    Table,
-    Text,
-    Tooltip,
-} from '@mantine/core';
+import { Anchor, Box, Group, Stack, Table, Text, Tooltip } from '@mantine/core';
 import {
     IconAlertTriangle,
     IconChevronDown,
@@ -399,10 +390,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
     }, [items, columnSorts, columns]);
 
     return (
-        <Table
-            className={clsx(classes.root, classes.smallHeaderText)}
-            highlightOnHover
-        >
+        <Table className={classes.root} highlightOnHover>
             <thead>
                 <tr>
                     {visibleColumns.map((column) => {

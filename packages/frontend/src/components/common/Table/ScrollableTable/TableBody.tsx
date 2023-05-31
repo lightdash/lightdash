@@ -13,6 +13,8 @@ import BodyCell from '../BodyCell';
 import { Tr } from '../Table.styles';
 import { TableContext, useTableContext } from '../TableProvider';
 
+const ROW_HEIGHT_PX = 30;
+
 const VirtualizedArea: FC<{ cellCount: number; padding: number }> = ({
     cellCount,
     padding,
@@ -136,7 +138,7 @@ const VirtualizedTableBody: FC<{
     const rowVirtualizer = useVirtualizer({
         getScrollElement: () => tableContainerRef.current,
         count: rows.length,
-        estimateSize: () => 30,
+        estimateSize: () => ROW_HEIGHT_PX,
         overscan: 25,
     });
 
