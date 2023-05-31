@@ -5,18 +5,13 @@ import {
     ValidationErrorDashboardResponse,
     ValidationResponse,
 } from '@lightdash/common';
-import { Alert, Flex, Table, Text, useMantineTheme } from '@mantine/core';
-import {
-    IconAlertCircle,
-    IconLayoutDashboard,
-    IconTable,
-} from '@tabler/icons-react';
+import { Flex, Stack, Table, Text, useMantineTheme } from '@mantine/core';
+import { IconLayoutDashboard, IconTable } from '@tabler/icons-react';
 import { createRef, FC, RefObject, useMemo } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
-import { useTableStyles } from '../../hooks/styles/useTableStyles';
-import { useTimeAgo } from '../../hooks/useTimeAgo';
-import MantineIcon from '../common/MantineIcon';
-import { getChartIcon, IconBox } from '../common/ResourceIcon';
+import { useTableStyles } from '../../../hooks/styles/useTableStyles';
+import { getChartIcon, IconBox } from '../../common/ResourceIcon';
+import { ErrorMessage } from './ErrorMessage';
 import { useScrollAndHighlight } from './hooks/useScrollAndHighlight';
 
 const getLinkToResource = (
@@ -40,22 +35,19 @@ const Icon = ({ validationError }: { validationError: ValidationResponse }) => {
     return <IconBox icon={IconTable} color="indigo.6" />;
 };
 
-const UpdatedAtAndBy: FC<
+const UpdatedBy: FC<
     Required<
-        | Pick<ValidationErrorChartResponse, 'lastUpdatedAt' | 'lastUpdatedBy'>
-        | Pick<
-              ValidationErrorDashboardResponse,
-              'lastUpdatedAt' | 'lastUpdatedBy'
-          >
+        | Pick<ValidationErrorChartResponse, 'lastUpdatedBy'>
+        | Pick<ValidationErrorDashboardResponse, 'lastUpdatedBy'>
     >
-> = ({ lastUpdatedAt, lastUpdatedBy }) => {
-    const timeAgo = useTimeAgo(lastUpdatedAt);
-
+> = ({ lastUpdatedBy }) => {
     return (
-        <>
-            <Text fw={500}>{timeAgo}</Text>
-            <Text color="gray.6">by {lastUpdatedBy}</Text>
-        </>
+        <Text fz={11} color="gray.6">
+            Last edited by{' '}
+            <Text span fw={500}>
+                {lastUpdatedBy}
+            </Text>
+        </Text>
     );
 };
 
@@ -103,7 +95,6 @@ export const ValidatorTable: FC<{
                 <tr>
                     <th>Name</th>
                     <th>Error</th>
-                    <th>Last edited</th>
                 </tr>
             </thead>
             <tbody>
@@ -120,48 +111,31 @@ export const ValidatorTable: FC<{
                                   <Flex gap="sm" align="center">
                                       <Icon validationError={validationError} />
 
-                                      <Text fw={600}>
-                                          {validationError.name}
-                                      </Text>
+                                      <Stack spacing={4}>
+                                          <Text fw={600}>
+                                              {validationError.name}
+                                          </Text>
+                                          {(isChartValidationError(
+                                              validationError,
+                                          ) ||
+                                              isDashboardValidationError(
+                                                  validationError,
+                                              )) &&
+                                          validationError.lastUpdatedAt &&
+                                          validationError.lastUpdatedBy ? (
+                                              <UpdatedBy
+                                                  lastUpdatedBy={
+                                                      validationError.lastUpdatedBy
+                                                  }
+                                              />
+                                          ) : null}
+                                      </Stack>
                                   </Flex>
                               </td>
                               <td>
-                                  <Alert
-                                      icon={
-                                          <MantineIcon icon={IconAlertCircle} />
-                                      }
-                                      pos="unset"
-                                      color="red"
-                                      fw={500}
-                                  >
-                                      <Text
-                                          fz="xs"
-                                          sx={{
-                                              wordBreak: 'break-all',
-                                          }}
-                                      >
-                                          {validationError.error}
-                                      </Text>
-                                  </Alert>
-                              </td>
-                              <td>
-                                  {(isChartValidationError(validationError) ||
-                                      isDashboardValidationError(
-                                          validationError,
-                                      )) &&
-                                  validationError.lastUpdatedAt &&
-                                  validationError.lastUpdatedBy ? (
-                                      <UpdatedAtAndBy
-                                          lastUpdatedAt={
-                                              validationError.lastUpdatedAt
-                                          }
-                                          lastUpdatedBy={
-                                              validationError.lastUpdatedBy
-                                          }
-                                      />
-                                  ) : (
-                                      <Text fw={500}>N/A</Text>
-                                  )}
+                                  <ErrorMessage
+                                      validationError={validationError}
+                                  />
                               </td>
                           </tr>
                       ))
