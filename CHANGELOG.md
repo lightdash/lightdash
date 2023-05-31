@@ -1,3 +1,10 @@
+## [0.586.2](https://github.com/lightdash/lightdash/compare/0.586.1...0.586.2) (2023-05-31)
+
+
+### Bug Fixes
+
+* virtual table with empty ref ([#5699](https://github.com/lightdash/lightdash/issues/5699)) ([88ad368](https://github.com/lightdash/lightdash/commit/88ad3682a407a4cdd60dbd7567742a1b8c52683b))
+
 ## [0.586.1](https://github.com/lightdash/lightdash/compare/0.586.0...0.586.1) (2023-05-31)
 
 
