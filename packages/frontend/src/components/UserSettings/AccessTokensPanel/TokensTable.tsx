@@ -1,7 +1,6 @@
 import { ApiPersonalAccessTokenResponse, formatDate } from '@lightdash/common';
 import {
     Button,
-    clsx,
     Flex,
     Modal,
     Paper,
@@ -50,7 +49,7 @@ const TokenItem: FC<{
 export const TokensTable = () => {
     const { data } = useAccessToken();
 
-    const { classes } = useTableStyles();
+    const { cx, classes } = useTableStyles();
 
     const [tokenToDelete, setTokenToDelete] = useState<
         ApiPersonalAccessTokenResponse | undefined
@@ -67,7 +66,7 @@ export const TokensTable = () => {
         <>
             <Paper withBorder sx={{ overflow: 'hidden' }}>
                 <Table
-                    className={clsx(classes.root, classes.alignLastTdRight)}
+                    className={cx(classes.root, classes.alignLastTdRight)}
                     highlightOnHover
                 >
                     <thead>
