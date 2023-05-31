@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { Box, NavLink, Stack, Title } from '@mantine/core';
+import { Box, Stack, Title } from '@mantine/core';
 import {
     IconBuildingSkyscraper,
     IconCalendarStats,
@@ -116,12 +116,12 @@ const Settings: FC = () => {
                         items={[{ title: 'Settings', active: true }]}
                     />
 
-                    <Box sx={{ flexGrow: 1, overflow: 'auto' }}>
-                        <NavLink
-                            label="Your settings"
-                            opened
-                            childrenOffset={0}
-                        >
+                    <Stack spacing="lg" sx={{ flexGrow: 1, overflow: 'auto' }}>
+                        <Box>
+                            <Title order={6} fw={600} mb="xs">
+                                Your settings
+                            </Title>
+
                             <RouterNavLink
                                 exact
                                 to="/generalSettings"
@@ -148,7 +148,7 @@ const Settings: FC = () => {
                                 to="/generalSettings/personalAccessTokens"
                                 icon={<MantineIcon icon={IconKey} />}
                             />
-                        </NavLink>
+                        </Box>
 
                         <Can
                             I="create"
@@ -156,11 +156,11 @@ const Settings: FC = () => {
                                 organizationUuid: organization.organizationUuid,
                             })}
                         >
-                            <NavLink
-                                label="Organization settings"
-                                opened
-                                childrenOffset={0}
-                            >
+                            <Box>
+                                <Title order={6} fw={600} mb="xs">
+                                    Organization settings
+                                </Title>
+
                                 {user.ability.can('manage', 'Organization') && (
                                     <RouterNavLink
                                         label="General"
@@ -224,7 +224,7 @@ const Settings: FC = () => {
                                             }
                                         />
                                     )}
-                            </NavLink>
+                            </Box>
                         </Can>
 
                         {organization &&
@@ -237,11 +237,11 @@ const Settings: FC = () => {
                                 projectUuid: project.projectUuid,
                             }),
                         ) ? (
-                            <NavLink
-                                label={`Current project (${project?.name})`}
-                                opened
-                                childrenOffset={0}
-                            >
+                            <Box>
+                                <Title order={6} fw={600} mb="xs">
+                                    Current project ({project?.name})
+                                </Title>
+
                                 <RouterNavLink
                                     label="Project settings"
                                     exact
@@ -327,9 +327,9 @@ const Settings: FC = () => {
                                         }
                                     />
                                 ) : null}
-                            </NavLink>
+                            </Box>
                         ) : null}
-                    </Box>
+                    </Stack>
                 </Stack>
             }
         >
