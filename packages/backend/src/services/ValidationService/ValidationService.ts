@@ -537,13 +537,14 @@ export class ValidationService {
         const validations = await this.validationModel.get(projectUuid);
 
         if (fromSettings) {
-            const contentIds = validations.map((validation) => {
-                if (isChartValidationError(validation))
-                    return validation.chartUuid;
-                if (isDashboardValidationError(validation))
-                    return validation.dashboardUuid;
-                return validation.name;
-            });
+            const contentIds = validations.map(
+                (validation) =>
+                    // NOTE: chart and dashboard uuids might be undefined for private content, so default to name if not present
+                    ('chartUuid' in validation && validation.chartUuid) ||
+                    ('dashboardUuid' in validation &&
+                        validation.dashboardUuid) ||
+                    validation.name,
+            );
 
             analytics.track({
                 event: 'validation.page_viewed',
