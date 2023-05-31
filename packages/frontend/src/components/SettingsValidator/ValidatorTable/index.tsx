@@ -35,22 +35,6 @@ const Icon = ({ validationError }: { validationError: ValidationResponse }) => {
     return <IconBox icon={IconTable} color="indigo.6" />;
 };
 
-const UpdatedBy: FC<
-    Required<
-        | Pick<ValidationErrorChartResponse, 'lastUpdatedBy'>
-        | Pick<ValidationErrorDashboardResponse, 'lastUpdatedBy'>
-    >
-> = ({ lastUpdatedBy }) => {
-    return (
-        <Text fz={11} color="gray.6">
-            Last edited by{' '}
-            <Text span fw={500}>
-                {lastUpdatedBy}
-            </Text>
-        </Text>
-    );
-};
-
 export const ValidatorTable: FC<{
     data: ValidationResponse[];
     projectUuid: string;
@@ -79,6 +63,16 @@ export const ValidatorTable: FC<{
     ) => {
         const link = getLinkToResource(validationError, projectUuid);
         if (link) history.push(link);
+    };
+
+    const getViews = (
+        validationError:
+            | ValidationErrorChartResponse
+            | ValidationErrorDashboardResponse,
+    ) => {
+        if ('chartViews' in validationError) return validationError.chartViews;
+        if ('dashboardViews' in validationError)
+            return validationError.dashboardViews;
     };
 
     return (
@@ -115,19 +109,33 @@ export const ValidatorTable: FC<{
                                           <Text fw={600}>
                                               {validationError.name}
                                           </Text>
+
                                           {(isChartValidationError(
                                               validationError,
                                           ) ||
                                               isDashboardValidationError(
                                                   validationError,
-                                              )) &&
-                                          validationError.lastUpdatedBy ? (
-                                              <UpdatedBy
-                                                  lastUpdatedBy={
-                                                      validationError.lastUpdatedBy
-                                                  }
-                                              />
-                                          ) : null}
+                                              )) && (
+                                              <Text fz={11} color="gray.6">
+                                                  {getViews(validationError)}{' '}
+                                                  view
+                                                  {getViews(validationError) ===
+                                                  1
+                                                      ? ''
+                                                      : 's'}
+                                                  {' • '}
+                                                  {validationError.lastUpdatedBy ? (
+                                                      <>
+                                                          Last edited by{' '}
+                                                          <Text span fw={500}>
+                                                              {
+                                                                  validationError.lastUpdatedBy
+                                                              }
+                                                          </Text>
+                                                      </>
+                                                  ) : null}
+                                              </Text>
+                                          )}
                                       </Stack>
                                   </Flex>
                               </td>
