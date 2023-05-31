@@ -21,6 +21,8 @@ import TitleCell from './TitleCell';
 import TotalCell from './TotalCell';
 import ValueCell from './ValueCell';
 
+const ROW_HEIGHT_PX = 34;
+
 const VirtualizedArea: FC<{
     cellCount: number;
     padding: number;
@@ -184,7 +186,7 @@ const PivotTable: FC<PivotTableProps> = ({
     const rowVirtualizer = useVirtualizer({
         getScrollElement: () => containerRef.current,
         count: data.dataValues.length,
-        estimateSize: () => 34,
+        estimateSize: () => ROW_HEIGHT_PX,
         overscan: 25,
     });
     const virtualRows = rowVirtualizer.getVirtualItems();
