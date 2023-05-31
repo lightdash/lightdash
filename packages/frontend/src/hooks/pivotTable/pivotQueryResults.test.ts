@@ -88,6 +88,7 @@ describe('Should pivot data', () => {
 
             pivotConfig,
             titleFields: [[{ direction: 'header', fieldId: 'page' }], [null]],
+            cellsCount: 7,
         };
         const result = pivotQueryResults({
             pivotConfig,
@@ -160,6 +161,7 @@ describe('Should pivot data', () => {
             ],
             pivotConfig,
             titleFields: [[{ fieldId: 'page', direction: 'index' }]],
+            cellsCount: 3,
         };
         const result = pivotQueryResults({
             pivotConfig,
@@ -221,6 +223,7 @@ describe('Should pivot data', () => {
                 metricsAsRows: true,
             },
             titleFields: [[{ fieldId: 'page', direction: 'header' }]],
+            cellsCount: 4,
         };
         const result = pivotQueryResults({
             pivotConfig,
@@ -329,6 +332,7 @@ describe('Should pivot data', () => {
             ],
             columnTotals: undefined,
             rowTotals: undefined,
+            cellsCount: 5,
         };
         const result = pivotQueryResults({
             pivotConfig,
@@ -468,6 +472,7 @@ describe('Should pivot data', () => {
             rowTotalFields: [[{ fieldId: undefined }]],
             columnTotals: undefined,
             rowTotals: [[8], [17], [14], [13], [11], [1]],
+            cellsCount: 5,
         };
         const result = pivotQueryResults({
             pivotConfig,

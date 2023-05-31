@@ -49,6 +49,6 @@ export type PivotData = {
 
     rowTotals?: TotalValue[][];
     columnTotals?: TotalValue[][];
-
+    cellsCount: number;
     pivotConfig: PivotConfig;
 };

@@ -1,6 +1,6 @@
 import { NonIdealState } from '@blueprintjs/core';
 import { Box } from '@mantine/core';
-import { FC } from 'react';
+import { FC, useRef } from 'react';
 import PivotTable from '../common/PivotTable';
 import Table from '../common/Table';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
@@ -44,7 +44,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
         isSqlRunner,
         explore,
     } = useVisualizationContext();
-
+    const scrollableContainerRef = useRef<HTMLDivElement>(null);
     if (isLoading) return <LoadingChart />;
 
     if (error) {
@@ -65,8 +65,14 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 icon="error"
             />
         ) : (
-            <Box miw="100%" h="100%" sx={{ overflow: 'auto' }}>
+            <Box
+                ref={scrollableContainerRef}
+                miw="100%"
+                h="100%"
+                sx={{ overflow: 'auto' }}
+            >
                 <PivotTable
+                    containerRef={scrollableContainerRef}
                     data={pivotTableData.data}
                     conditionalFormattings={conditionalFormattings}
                     getFieldLabel={getFieldLabel}
