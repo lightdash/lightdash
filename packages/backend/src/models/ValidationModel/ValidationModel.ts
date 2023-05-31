@@ -147,6 +147,7 @@ export class ValidationModel {
             chartValidationErrorsRows.map((validationError) => ({
                 createdAt: validationError.created_at,
                 chartUuid: validationError.saved_chart_uuid!,
+                chartViews: parseInt(validationError.views, 10) || 0,
                 projectUuid: validationError.project_uuid,
                 error: validationError.error,
                 name: validationError.name,
@@ -162,7 +163,6 @@ export class ValidationModel {
                 ),
                 errorType: validationError.error_type ?? undefined,
                 fieldName: validationError.field_name ?? undefined,
-                views: parseInt(validationError.views, 10) || 0,
             }));
 
         const dashboardValidationErrorsRows: (DbValidationTable &
@@ -229,6 +229,7 @@ export class ValidationModel {
             dashboardValidationErrorsRows.map((validationError) => ({
                 createdAt: validationError.created_at,
                 dashboardUuid: validationError.dashboard_uuid!,
+                dashboardViews: parseInt(validationError.views, 10) || 0,
                 projectUuid: validationError.project_uuid,
                 error: validationError.error,
                 name: validationError.name,
@@ -241,7 +242,6 @@ export class ValidationModel {
                 errorType: validationError.error_type ?? undefined,
                 fieldName: validationError.field_name ?? undefined,
                 chartName: validationError.chart_name ?? undefined,
-                views: parseInt(validationError.views, 10) || 0,
             }));
 
         const tableValidationErrorsRows: DbValidationTable[] =

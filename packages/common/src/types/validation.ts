@@ -16,7 +16,7 @@ export type ValidationErrorChartResponse = ValidationResponseBase & {
     fieldName?: string;
     lastUpdatedBy?: string;
     lastUpdatedAt?: Date;
-    views?: number;
+    chartViews: number;
 };
 
 export type ValidationErrorDashboardResponse = ValidationResponseBase & {
@@ -25,7 +25,7 @@ export type ValidationErrorDashboardResponse = ValidationResponseBase & {
     fieldName?: string;
     lastUpdatedBy?: string;
     lastUpdatedAt?: Date;
-    views?: number;
+    dashboardViews: number;
 };
 
 export type ValidationErrorTableResponse = ValidationResponseBase & {
