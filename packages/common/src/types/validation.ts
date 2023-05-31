@@ -8,29 +8,28 @@ type ValidationResponseBase = {
     errorType: ValidationErrorType | null;
     projectUuid: string;
     spaceUuid?: string;
-
-    // TODO: refactor these
-} & {
-    chartName?: string | null;
-    fieldName?: string | null;
-    modelName?: string | null;
-    dimensionName?: string | null;
 };
 
 export type ValidationErrorChartResponse = ValidationResponseBase & {
-    chartUuid: string;
+    chartUuid: string | undefined; // NOTE: can be undefined if private content
     chartType?: ChartKind;
+    fieldName: string | null;
     lastUpdatedBy?: string;
     lastUpdatedAt?: Date;
 };
 
 export type ValidationErrorDashboardResponse = ValidationResponseBase & {
-    dashboardUuid: string;
+    dashboardUuid: string | undefined; // NOTE: can be undefined if private content
+    chartName?: string | null;
+    fieldName?: string | null;
     lastUpdatedBy?: string;
     lastUpdatedAt?: Date;
 };
 
-export type ValidationErrorTableResponse = ValidationResponseBase;
+export type ValidationErrorTableResponse = ValidationResponseBase & {
+    modelName: string | null;
+    dimensionName: string | null;
+};
 
 export type ValidationResponse =
     | ValidationErrorChartResponse
