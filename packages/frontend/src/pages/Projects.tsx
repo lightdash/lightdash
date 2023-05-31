@@ -2,14 +2,15 @@ import { FC } from 'react';
 import { Redirect } from 'react-router-dom';
 import ErrorState from '../components/common/ErrorState';
 import PageSpinner from '../components/PageSpinner';
-import { useActiveProjectUuid } from '../hooks/useProject';
+import { useActiveProjectUuid } from '../hooks/useActiveProject';
 import { useProjects } from '../hooks/useProjects';
 
 const Projects: FC = () => {
     const { isLoading, data, error } = useProjects();
-    const activeProjectUuid = useActiveProjectUuid();
+    const { isLoading: isActiveProjectLoading, activeProjectUuid } =
+        useActiveProjectUuid();
 
-    if (isLoading) {
+    if (isLoading || isActiveProjectLoading || !activeProjectUuid) {
         return <PageSpinner />;
     }
     if (error && error.error) {

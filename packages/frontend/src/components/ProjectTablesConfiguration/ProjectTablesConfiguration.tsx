@@ -256,18 +256,18 @@ const ProjectTablesConfiguration: FC<{
                             />
                         )}
                     </RadioGroup>
+
+                    {canUpdateTableConfiguration && (
+                        <SaveButton
+                            type="submit"
+                            intent={Intent.PRIMARY}
+                            text="Save changes"
+                            loading={isSaving}
+                            disabled={disabled}
+                        />
+                    )}
                 </div>
             </SettingsGridCard>
-
-            {canUpdateTableConfiguration && (
-                <SaveButton
-                    type="submit"
-                    intent={Intent.PRIMARY}
-                    text="Save changes"
-                    loading={isSaving}
-                    disabled={disabled}
-                />
-            )}
         </Form>
     );
 };

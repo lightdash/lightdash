@@ -8,15 +8,13 @@ import {
     Group,
     Header,
     MantineProvider,
-    Select,
     Text,
 } from '@mantine/core';
 import { IconTool } from '@tabler/icons-react';
 import { memo } from 'react';
-import { Link, useHistory } from 'react-router-dom';
-import useToaster from '../../hooks/toaster/useToaster';
-import { useActiveProjectUuid } from '../../hooks/useProject';
-import { setLastProject, useProjects } from '../../hooks/useProjects';
+import { Link } from 'react-router-dom';
+import { useActiveProjectUuid } from '../../hooks/useActiveProject';
+import { useProjects } from '../../hooks/useProjects';
 import { useErrorLogs } from '../../providers/ErrorLogsProvider';
 import { ReactComponent as Logo } from '../../svgs/logo-icon.svg';
 import MantineIcon from '../common/MantineIcon';
@@ -28,6 +26,7 @@ import GlobalSearch from './GlobalSearch';
 import HeadwayMenuItem from './HeadwayMenuItem';
 import HelpMenu from './HelpMenu';
 import { NotificationsMenu } from './NotificationsMenu';
+import ProjectSwitcher from './ProjectSwitcher';
 import SettingsMenu from './SettingsMenu';
 import UserMenu from './UserMenu';
 
@@ -46,11 +45,9 @@ const PreviewBanner = () => (
 
 const NavBar = memo(() => {
     const { errorLogs, setErrorLogsVisible } = useErrorLogs();
-    const { showToastSuccess } = useToaster();
-    const { isLoading, data: projects } = useProjects();
-    const activeProjectUuid = useActiveProjectUuid();
-
-    const history = useHistory();
+    const { data: projects } = useProjects();
+    const { activeProjectUuid, isLoading: isLoadingActiveProject } =
+        useActiveProjectUuid();
 
     const homeUrl = activeProjectUuid
         ? `/projects/${activeProjectUuid}/home`
@@ -96,7 +93,7 @@ const NavBar = memo(() => {
                         <Logo />
                     </ActionIcon>
 
-                    {!!activeProjectUuid && (
+                    {!isLoadingActiveProject && activeProjectUuid ? (
                         <>
                             <Button.Group>
                                 <ExploreMenu projectUuid={activeProjectUuid} />
@@ -111,7 +108,7 @@ const NavBar = memo(() => {
 
                             <GlobalSearch projectUuid={activeProjectUuid} />
                         </>
-                    )}
+                    ) : null}
                 </Group>
 
                 <Box sx={{ flexGrow: 1 }} />
@@ -125,49 +122,24 @@ const NavBar = memo(() => {
 
                     <Button.Group>
                         <SettingsMenu />
-                        {activeProjectUuid && (
+
+                        {!isLoadingActiveProject && activeProjectUuid ? (
                             <NotificationsMenu
                                 projectUuid={activeProjectUuid}
                             />
-                        )}
+                        ) : null}
+
                         <HelpMenu />
-                        <HeadwayMenuItem projectUuid={activeProjectUuid} />
+
+                        {!isLoadingActiveProject && activeProjectUuid ? (
+                            <HeadwayMenuItem projectUuid={activeProjectUuid} />
+                        ) : null}
                     </Button.Group>
 
                     <Divider orientation="vertical" my="xs" color="gray.8" />
 
-                    {activeProjectUuid && (
-                        <Select
-                            size="xs"
-                            w={250}
-                            disabled={isLoading || (projects || []).length <= 0}
-                            data={
-                                projects?.map((item) => ({
-                                    value: item.projectUuid,
-                                    label: `${
-                                        item.type === ProjectType.PREVIEW
-                                            ? '[Preview] '
-                                            : ''
-                                    }${item.name}`,
-                                })) ?? []
-                            }
-                            value={activeProjectUuid}
-                            onChange={(newUuid) => {
-                                if (!newUuid) return;
+                    <ProjectSwitcher />
 
-                                setLastProject(newUuid);
-                                showToastSuccess({
-                                    icon: 'tick',
-                                    title: `You are now viewing ${
-                                        projects?.find(
-                                            (p) => p.projectUuid === newUuid,
-                                        )?.name
-                                    }`,
-                                });
-                                history.push(`/projects/${newUuid}/home`);
-                            }}
-                        />
-                    )}
                     <UserMenu />
                 </Group>
             </Header>

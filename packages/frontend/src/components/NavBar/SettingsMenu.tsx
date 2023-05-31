@@ -8,7 +8,7 @@ import { FC } from 'react';
 
 import { Button, Menu } from '@mantine/core';
 import { Link } from 'react-router-dom';
-import { useActiveProjectUuid } from '../../hooks/useProject';
+import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useApp } from '../../providers/AppProvider';
 import MantineIcon from '../common/MantineIcon';
 
@@ -16,9 +16,9 @@ const SettingsMenu: FC = () => {
     const {
         user: { data: user },
     } = useApp();
-    const activeProjectUuid = useActiveProjectUuid();
+    const { activeProjectUuid } = useActiveProjectUuid();
 
-    if (!user) return null;
+    if (!user || !activeProjectUuid) return null;
 
     const userCanViewOrganization = user.ability.can(
         'view',

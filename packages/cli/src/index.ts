@@ -6,7 +6,6 @@ import * as path from 'path';
 import { compileHandler } from './handlers/compile';
 import { refreshHandler } from './handlers/dbt/refresh';
 import { dbtRunHandler } from './handlers/dbt/run';
-import { validateHandler } from './handlers/dbt/validate';
 import { deployHandler } from './handlers/deploy';
 import { generateHandler } from './handlers/generate';
 import { login } from './handlers/login';
@@ -16,6 +15,7 @@ import {
     stopPreviewHandler,
 } from './handlers/preview';
 import { setProjectInteractivelyHandler } from './handlers/setProject';
+import { validateHandler } from './handlers/validate';
 import * as styles from './styles';
 
 // Suppress AWS SDK V2 warning, imported by snowflake SDK

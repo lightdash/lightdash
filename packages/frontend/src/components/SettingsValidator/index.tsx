@@ -3,7 +3,6 @@ import {
     Button,
     Group,
     Paper,
-    Stack,
     Text,
     useMantineTheme,
 } from '@mantine/core';
@@ -30,11 +29,12 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
     );
 
     return (
-        <Stack>
-            <Text color="gray.6">
+        <>
+            <Text color="dimmed">
                 Use the project validator to check what content is broken in
                 your project.
             </Text>
+
             <Paper withBorder shadow="sm">
                 <Group
                     position="apart"
@@ -84,6 +84,6 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                     )}
                 </Box>
             </Paper>
-        </Stack>
+        </>
     );
 };

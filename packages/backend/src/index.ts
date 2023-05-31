@@ -2,7 +2,6 @@
 import './otel'; // must be imported first
 
 import { LightdashMode, SessionUser } from '@lightdash/common';
-import apiSpec from '@lightdash/common/dist/openapibundle.json';
 import * as Sentry from '@sentry/node';
 import * as Tracing from '@sentry/tracing';
 import { SamplingContext } from '@sentry/types';
@@ -11,11 +10,11 @@ import flash from 'connect-flash';
 import connectSessionKnex from 'connect-session-knex';
 import cookieParser from 'cookie-parser';
 import express, { NextFunction, Request, Response } from 'express';
-import * as OpenApiValidator from 'express-openapi-validator';
 import expressSession from 'express-session';
 import passport from 'passport';
 import path from 'path';
 import reDoc from 'redoc-express';
+import apiSpec from './generated/swagger.json';
 import { analytics } from './analytics/client';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
 import { SlackService } from './clients/Slack/Slackbot';

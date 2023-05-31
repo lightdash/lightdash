@@ -1,3 +1,45 @@
+# [0.585.0](https://github.com/lightdash/lightdash/compare/0.584.1...0.585.0) (2023-05-31)
+
+
+### Bug Fixes
+
+* settings navbar styles ([#5687](https://github.com/lightdash/lightdash/issues/5687)) ([e47bd44](https://github.com/lightdash/lightdash/commit/e47bd44bfa3e70136fdbc0b9f8098eabf94b92cb))
+
+
+### Features
+
+* default project on validate ([#5685](https://github.com/lightdash/lightdash/issues/5685)) ([fd7bad4](https://github.com/lightdash/lightdash/commit/fd7bad46f4b454df3b9199d32cbb51239b29547b))
+* pivot table virtual rows ([#5680](https://github.com/lightdash/lightdash/issues/5680)) ([2599735](https://github.com/lightdash/lightdash/commit/25997350c528ca1dce04f088508e57b03f03b45d))
+* settings restructure - project settings navbar ([#5683](https://github.com/lightdash/lightdash/issues/5683)) ([e84022a](https://github.com/lightdash/lightdash/commit/e84022a96f732c5bf45801f28cef4f06cd4468ea))
+
+## [0.584.1](https://github.com/lightdash/lightdash/compare/0.584.0...0.584.1) (2023-05-31)
+
+
+### Bug Fixes
+
+* remove fs, pg root spans ([#5689](https://github.com/lightdash/lightdash/issues/5689)) ([996b88f](https://github.com/lightdash/lightdash/commit/996b88faa77be9d3d669e982b56c08db767aaf18))
+
+# [0.584.0](https://github.com/lightdash/lightdash/compare/0.583.0...0.584.0) (2023-05-31)
+
+
+### Features
+
+* settings restructure - project switcher ([#5662](https://github.com/lightdash/lightdash/issues/5662)) ([ce27d38](https://github.com/lightdash/lightdash/commit/ce27d389fa1d2618349219c2959184b3bf7c6c85))
+
+# [0.583.0](https://github.com/lightdash/lightdash/compare/0.582.2...0.583.0) (2023-05-31)
+
+
+### Features
+
+* add ssh tunnel (stacked 3) ([#5617](https://github.com/lightdash/lightdash/issues/5617)) ([e9af15d](https://github.com/lightdash/lightdash/commit/e9af15dd21bc7f6e0043f4ba251892f75a771ff5))
+
+## [0.582.2](https://github.com/lightdash/lightdash/compare/0.582.1...0.582.2) (2023-05-30)
+
+
+### Bug Fixes
+
+* show correct default space when creating resource ([#5669](https://github.com/lightdash/lightdash/issues/5669)) ([a3ff8e3](https://github.com/lightdash/lightdash/commit/a3ff8e3649eba70c8216049e10b7021b86f448a2))
+
 ## [0.582.1](https://github.com/lightdash/lightdash/compare/0.582.0...0.582.1) (2023-05-30)
 
 

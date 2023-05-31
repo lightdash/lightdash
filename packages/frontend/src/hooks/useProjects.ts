@@ -25,20 +25,6 @@ export const useProjects = (
     });
 };
 
-const LAST_PROJECT_KEY = 'lastProject';
-
-export const getLastProject = (): string | undefined => {
-    return localStorage.getItem(LAST_PROJECT_KEY) || undefined;
-};
-
-export const setLastProject = (projectUuid: string) => {
-    localStorage.setItem(LAST_PROJECT_KEY, projectUuid);
-};
-
-export const deleteLastProject = () => {
-    localStorage.removeItem(LAST_PROJECT_KEY);
-};
-
 export const useDefaultProject = () => {
     const query = useProjects();
 

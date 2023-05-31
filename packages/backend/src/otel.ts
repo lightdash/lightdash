@@ -33,6 +33,12 @@ const sdk = new NodeSDK({
                     return isLivenessProbe;
                 },
             },
+            '@opentelemetry/instrumentation-pg': {
+                requireParentSpan: true,
+            },
+            '@opentelemetry/instrumentation-fs': {
+                requireParentSpan: true,
+            },
         }),
     ],
 

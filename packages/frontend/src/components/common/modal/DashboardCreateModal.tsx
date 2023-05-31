@@ -21,13 +21,13 @@ import {} from '../ShareSpaceModal/ShareSpaceModal.style';
 
 interface DashboardCreateModalProps extends DialogProps {
     projectUuid: string;
-    spaceUuid?: string;
+    defaultSpaceUuid?: string;
     onConfirm?: (dashboard: Dashboard) => void;
 }
 
 const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
     projectUuid,
-    spaceUuid,
+    defaultSpaceUuid,
     onConfirm,
     onClose,
     ...modalProps
@@ -42,7 +42,7 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
     const [dashboardDescription, setDashboardDescription] =
         useState<string>('');
 
-    const [selectedSpaceUuid, setSpaceUuid] = useState<string>();
+    const [spaceUuid, setSpaceUuid] = useState<string>();
     const [isCreatingNewSpace, setIsCreatingnewSpace] =
         useState<boolean>(false);
     const [newSpaceName, setNewSpaceName] = useState('');
@@ -52,7 +52,10 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
         {
             onSuccess: (data) => {
                 if (data.length > 0) {
-                    setSpaceUuid(data[0].uuid);
+                    const currentSpace = defaultSpaceUuid
+                        ? data.find((space) => space.uuid === defaultSpaceUuid)
+                        : data[0];
+                    setSpaceUuid(currentSpace?.uuid);
                 } else {
                     setIsCreatingnewSpace(true);
                 }
@@ -86,7 +89,7 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
         const dashboard = await createDashboard({
             name: dashboardName,
             description: dashboardDescription,
-            spaceUuid: newSpace?.uuid || selectedSpaceUuid,
+            spaceUuid: newSpace?.uuid || spaceUuid,
             tiles: [],
         });
         onConfirm?.(dashboard);
@@ -94,7 +97,7 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
     }, [
         createDashboard,
         createSpace,
-        selectedSpaceUuid,
+        spaceUuid,
         dashboardName,
         newSpaceName,
         isCreatingNewSpace,
@@ -147,7 +150,7 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                             <HTMLSelect
                                 id="select-space"
                                 fill={true}
-                                value={selectedSpaceUuid}
+                                value={spaceUuid}
                                 onChange={(e) =>
                                     setSpaceUuid(e.currentTarget.value)
                                 }
@@ -205,7 +208,6 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                         >
                             Cancel
                         </Button>
-
                         <Button
                             intent={Intent.PRIMARY}
                             text="Create"

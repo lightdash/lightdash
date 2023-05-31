@@ -16,6 +16,7 @@ export type Config = {
     context?: {
         serverUrl?: string;
         project?: string;
+        projectName?: string;
         apiKey?: string;
         proxyAuthorization?: string;
         previewProject?: string;
@@ -77,13 +78,14 @@ export const getConfig = async (): Promise<Config> => {
     };
 };
 
-export const setProjectUuid = async (projectUuid: string) => {
+export const setProject = async (projectUuid: string, projectName: string) => {
     const config = await getRawConfig();
     await setConfig({
         ...config,
         context: {
             ...(config.context || {}),
             project: projectUuid,
+            projectName,
         },
     });
 };
@@ -96,6 +98,18 @@ export const setPreviewProject = async (projectUuid: string, name: string) => {
             ...(config.context || {}),
             previewProject: projectUuid,
             previewName: name,
+        },
+    });
+};
+
+export const unsetPreviewProject = async () => {
+    const config = await getRawConfig();
+    await setConfig({
+        ...config,
+        context: {
+            ...(config.context || {}),
+            previewProject: undefined,
+            previewName: undefined,
         },
     });
 };

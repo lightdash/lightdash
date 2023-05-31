@@ -8,7 +8,7 @@ import {
     InputGroup,
 } from '@blueprintjs/core';
 import { CreateSavedChartVersion } from '@lightdash/common';
-import { FC, useCallback, useEffect, useState } from 'react';
+import { FC, useCallback, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useCreateMutation } from '../../../hooks/useSavedQuery';
 import {
@@ -23,16 +23,17 @@ import {
 interface ChartCreateModalProps extends DialogProps {
     savedData: CreateSavedChartVersion;
     onClose?: () => void;
+    defaultSpaceUuid?: string;
     onConfirm: (savedData: CreateSavedChartVersion) => void;
 }
 
 const ChartCreateModal: FC<ChartCreateModalProps> = ({
     savedData,
     onClose,
+    defaultSpaceUuid,
     ...modalProps
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { data: spaces } = useSpaceSummaries(projectUuid);
     const { mutateAsync, isLoading: isCreating } = useCreateMutation();
     const { mutateAsync: createSpaceAsync, isLoading: isCreatingSpace } =
         useSpaceCreateMutation(projectUuid);
@@ -43,13 +44,22 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     const [newSpaceName, setNewSpaceName] = useState('');
     const [shouldCreateNewSpace, setShouldCreateNewSpace] = useState(false);
 
+    const { data: spaces, isLoading: isLoadingSpaces } = useSpaceSummaries(
+        projectUuid,
+        {
+            onSuccess: (data) => {
+                if (data.length > 0) {
+                    const currentSpace = defaultSpaceUuid
+                        ? data.find((space) => space.uuid === defaultSpaceUuid)
+                        : data[0];
+                    setSpaceUuid(currentSpace?.uuid);
+                } else {
+                    setShouldCreateNewSpace(true);
+                }
+            },
+        },
+    );
     const showSpaceInput = shouldCreateNewSpace || spaces?.length === 0;
-
-    useEffect(() => {
-        if (spaceUuid === undefined && spaces && spaces.length > 0) {
-            setSpaceUuid(spaces[0].uuid);
-        }
-    }, [spaces, spaceUuid]);
 
     const handleClose = useCallback(() => {
         setName('');
@@ -94,6 +104,8 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         mutateAsync,
         showSpaceInput,
     ]);
+
+    if (isLoadingSpaces || !spaces) return null;
 
     return (
         <Dialog
@@ -142,14 +154,10 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                                 onChange={(e) =>
                                     setSpaceUuid(e.currentTarget.value)
                                 }
-                                options={
-                                    spaces
-                                        ? spaces?.map((space) => ({
-                                              value: space.uuid,
-                                              label: space.name,
-                                          }))
-                                        : []
-                                }
+                                options={spaces?.map((space) => ({
+                                    value: space.uuid,
+                                    label: space.name,
+                                }))}
                             />
                         </FormGroupWrapper>
 

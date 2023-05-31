@@ -11,8 +11,11 @@ import { Stack } from '@mantine/core';
 import { FC, useState } from 'react';
 import { Redirect, useHistory } from 'react-router-dom';
 import {
-    deleteLastProject,
-    getLastProject,
+    useActiveProject,
+    useDeleteActiveProjectMutation,
+    useUpdateActiveProjectMutation,
+} from '../../../hooks/useActiveProject';
+import {
     useDeleteProjectMutation,
     useProjects,
 } from '../../../hooks/useProjects';
@@ -38,6 +41,9 @@ const ProjectListItem: FC<{
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const { mutate: deleteProjectMutation, isLoading: isDeleting } =
         useDeleteProjectMutation();
+    const { mutate: deleteLastProjectMutation } =
+        useDeleteActiveProjectMutation();
+    const { mutate: setLastProjectMutation } = useUpdateActiveProjectMutation();
 
     return (
         <SettingsCard shadow="sm">
@@ -64,6 +70,9 @@ const ProjectListItem: FC<{
                         icon="cog"
                         outlined
                         text="Settings"
+                        onClick={() => {
+                            setLastProjectMutation(projectUuid);
+                        }}
                         href={`/generalSettings/projectManagement/${projectUuid}`}
                     />
                     <Can
@@ -114,7 +123,7 @@ const ProjectListItem: FC<{
                             onClick={() => {
                                 deleteProjectMutation(projectUuid);
                                 if (isCurrentProject) {
-                                    deleteLastProject();
+                                    deleteLastProjectMutation();
                                 }
                             }}
                         >
@@ -129,18 +138,19 @@ const ProjectListItem: FC<{
 
 const ProjectManagementPanel: FC = () => {
     const history = useHistory();
-    const { data, isLoading } = useProjects();
-    const lastProjectUuid = getLastProject();
+    const { data: projects = [], isLoading: isLoadingProjects } = useProjects();
+    const { data: lastProjectUuid, isLoading: isLoadingLastProject } =
+        useActiveProject();
 
-    const lastProject = data?.find(
-        (project) => project.projectUuid === lastProjectUuid,
-    );
+    if (isLoadingProjects || isLoadingLastProject) return null;
 
-    if (isLoading || !data) return null;
-
-    if (data.length === 0) {
+    if (projects.length === 0) {
         return <Redirect to="/createProject" />;
     }
+
+    const lastProject = projects.find(
+        (project) => project.projectUuid === lastProjectUuid,
+    );
 
     return (
         <ProjectManagementPanelWrapper>
@@ -156,7 +166,7 @@ const ProjectManagementPanel: FC = () => {
             </HeaderActions>
 
             <Stack>
-                {data.map((project) => (
+                {projects.map((project) => (
                     <ProjectListItem
                         key={project.projectUuid}
                         isCurrentProject={

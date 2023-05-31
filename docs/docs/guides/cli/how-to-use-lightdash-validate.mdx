@@ -15,9 +15,11 @@ This is only copied on preview creation, you can't sync the content afterwards.
 
 ![CLI validate](./assets/cli-validate.png)
 
-### Validate your most recently created preview environment
+### Validate your most recently created preview environment or current selected project
 
 If you just created a preview environment and you want to validate it, you can run `lightdash validate` to check its content. To learn more about using preview environments, [check out the docs here](/guides/cli/how-to-use-lightdash-preview).
+
+If no preview environment exists, it will use by default the selected project on the CLI. You can chagne your project using `lightdash config set-project`
 
 ```
 lightdash validate 

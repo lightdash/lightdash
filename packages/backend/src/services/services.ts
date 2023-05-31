@@ -81,6 +81,7 @@ export const projectService = new ProjectService({
     jobModel,
     emailClient,
     spaceModel,
+    sshKeyPairModel,
 });
 
 export const shareService = new ShareService({

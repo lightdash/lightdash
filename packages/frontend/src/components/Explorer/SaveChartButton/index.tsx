@@ -1,5 +1,6 @@
 import React, { FC, useState } from 'react';
 import { useAddVersionMutation } from '../../../hooks/useSavedQuery';
+import useSearchParams from '../../../hooks/useSearchParams';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import ChartCreateModal from '../../common/modal/ChartCreateModal';
 import { SaveButton } from './SaveChartButton.styles';
@@ -14,6 +15,7 @@ const SaveChartButton: FC<{ isExplorer?: boolean }> = ({ isExplorer }) => {
     const savedChart = useExplorerContext(
         (context) => context.state.savedChart,
     );
+    const spaceUuid = useSearchParams('fromSpace');
 
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
 
@@ -46,6 +48,7 @@ const SaveChartButton: FC<{ isExplorer?: boolean }> = ({ isExplorer }) => {
                     savedData={unsavedChartVersion}
                     onClose={() => setIsQueryModalOpen(false)}
                     onConfirm={() => setIsQueryModalOpen(false)}
+                    defaultSpaceUuid={spaceUuid ?? undefined}
                 />
             )}
         </>
