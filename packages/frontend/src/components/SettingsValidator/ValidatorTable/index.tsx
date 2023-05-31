@@ -121,7 +121,6 @@ export const ValidatorTable: FC<{
                                               isDashboardValidationError(
                                                   validationError,
                                               )) &&
-                                          validationError.lastUpdatedAt &&
                                           validationError.lastUpdatedBy ? (
                                               <UpdatedBy
                                                   lastUpdatedBy={
