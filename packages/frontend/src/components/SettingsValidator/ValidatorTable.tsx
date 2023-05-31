@@ -5,7 +5,7 @@ import {
     ValidationErrorDashboardResponse,
     ValidationResponse,
 } from '@lightdash/common';
-import { Alert, clsx, Flex, Table, Text, useMantineTheme } from '@mantine/core';
+import { Alert, Flex, Table, Text, useMantineTheme } from '@mantine/core';
 import {
     IconAlertCircle,
     IconLayoutDashboard,
@@ -63,7 +63,7 @@ export const ValidatorTable: FC<{
     data: ValidationResponse[];
     projectUuid: string;
 }> = ({ data, projectUuid }) => {
-    const { classes } = useTableStyles();
+    const { cx, classes } = useTableStyles();
     const { colors } = useMantineTheme();
 
     const history = useHistory();
@@ -91,9 +91,8 @@ export const ValidatorTable: FC<{
 
     return (
         <Table
-            className={clsx(
+            className={cx(
                 classes.root,
-                classes.smallHeaderText,
                 classes.smallPadding,
                 classes.stickyHeader,
             )}
