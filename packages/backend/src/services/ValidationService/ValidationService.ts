@@ -122,7 +122,7 @@ export class ValidationService {
                                 modelName: explore.name,
                                 dimensionName: dimensionNameMatch
                                     ? dimensionNameMatch[1]
-                                    : undefined,
+                                    : null,
                                 projectUuid,
                             };
                         });
