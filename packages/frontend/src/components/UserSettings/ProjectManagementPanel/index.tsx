@@ -13,6 +13,7 @@ import { Redirect, useHistory } from 'react-router-dom';
 import {
     useActiveProject,
     useDeleteActiveProjectMutation,
+    useUpdateActiveProjectMutation,
 } from '../../../hooks/useActiveProject';
 import {
     useDeleteProjectMutation,
@@ -42,6 +43,7 @@ const ProjectListItem: FC<{
         useDeleteProjectMutation();
     const { mutate: deleteLastProjectMutation } =
         useDeleteActiveProjectMutation();
+    const { mutate: setLastProjectMutation } = useUpdateActiveProjectMutation();
 
     return (
         <SettingsCard shadow="sm">
@@ -68,6 +70,9 @@ const ProjectListItem: FC<{
                         icon="cog"
                         outlined
                         text="Settings"
+                        onClick={() => {
+                            setLastProjectMutation(projectUuid);
+                        }}
                         href={`/generalSettings/projectManagement/${projectUuid}`}
                     />
                     <Can

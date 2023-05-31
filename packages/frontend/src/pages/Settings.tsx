@@ -2,13 +2,20 @@ import { subject } from '@casl/ability';
 import { Box, NavLink, Stack, Title } from '@mantine/core';
 import {
     IconBuildingSkyscraper,
+    IconCalendarStats,
+    IconChecklist,
+    IconCloudSearch,
     IconDatabase,
+    IconDatabaseCog,
     IconKey,
     IconLock,
     IconPalette,
     IconPlug,
+    IconReportAnalytics,
+    IconTableOptions,
     IconUserCircle,
     IconUserPlus,
+    IconUsers,
 } from '@tabler/icons-react';
 import { FC } from 'react';
 import { Redirect, Route, Switch } from 'react-router-dom';
@@ -33,9 +40,11 @@ import SlackSettingsPanel from '../components/UserSettings/SlackSettingsPanel';
 import SocialLoginsPanel from '../components/UserSettings/SocialLoginsPanel';
 import UserManagementPanel from '../components/UserSettings/UserManagementPanel';
 import { useOrganization } from '../hooks/organization/useOrganization';
+import { useActiveProjectUuid } from '../hooks/useActiveProject';
+import { useProject } from '../hooks/useProject';
 import { useApp } from '../providers/AppProvider';
-import { TrackPage } from '../providers/TrackingProvider';
-import { PageName } from '../types/Events';
+import { TrackPage, useTracking } from '../providers/TrackingProvider';
+import { EventName, PageName } from '../types/Events';
 import ProjectSettings from './ProjectSettings';
 
 const Settings: FC = () => {
@@ -47,31 +56,44 @@ const Settings: FC = () => {
         },
         user: { data: user, isLoading: isUserLoading, error: userError },
     } = useApp();
+    const { track } = useTracking();
     const {
         data: organization,
         isLoading: isOrganizationLoading,
         error: organizationError,
     } = useOrganization();
+    const { activeProjectUuid, isLoading: isActiveProjectUuidLoading } =
+        useActiveProjectUuid();
+    const {
+        data: project,
+        isLoading: isProjectLoading,
+        error: projectError,
+    } = useProject(activeProjectUuid);
 
-    if (isHealthLoading || isUserLoading || isOrganizationLoading) {
+    if (
+        isHealthLoading ||
+        isUserLoading ||
+        isOrganizationLoading ||
+        isActiveProjectUuidLoading ||
+        isProjectLoading
+    ) {
         return <PageSpinner />;
     }
 
-    if (userError || healthError || organizationError) {
+    if (userError || healthError || organizationError || projectError) {
         return (
             <ErrorState
                 error={
                     userError?.error ||
                     healthError?.error ||
-                    organizationError?.error
+                    organizationError?.error ||
+                    projectError?.error
                 }
             />
         );
     }
 
     if (!health || !user || !organization) return null;
-
-    const basePath = `/generalSettings`;
 
     const allowPasswordAuthentication =
         !health.auth.disablePasswordAuthentication;
@@ -102,7 +124,7 @@ const Settings: FC = () => {
                         >
                             <RouterNavLink
                                 exact
-                                to={basePath}
+                                to="/generalSettings"
                                 label="Profile"
                                 icon={<MantineIcon icon={IconUserCircle} />}
                             />
@@ -115,7 +137,7 @@ const Settings: FC = () => {
                                             : 'Password'
                                     }
                                     exact
-                                    to={`${basePath}/password`}
+                                    to="/generalSettings/password"
                                     icon={<MantineIcon icon={IconLock} />}
                                 />
                             )}
@@ -123,7 +145,7 @@ const Settings: FC = () => {
                             <RouterNavLink
                                 label="Personal access tokens"
                                 exact
-                                to={`${basePath}/personalAccessTokens`}
+                                to="/generalSettings/personalAccessTokens"
                                 icon={<MantineIcon icon={IconKey} />}
                             />
                         </NavLink>
@@ -142,8 +164,8 @@ const Settings: FC = () => {
                                 {user.ability.can('manage', 'Organization') && (
                                     <RouterNavLink
                                         label="General"
+                                        to="/generalSettings/organization"
                                         exact
-                                        to={`${basePath}/organization`}
                                         icon={
                                             <MantineIcon
                                                 icon={IconBuildingSkyscraper}
@@ -158,31 +180,18 @@ const Settings: FC = () => {
                                 ) && (
                                     <RouterNavLink
                                         label="User management"
-                                        to={`${basePath}/userManagement`}
+                                        to="/generalSettings/userManagement"
+                                        exact
                                         icon={
                                             <MantineIcon icon={IconUserPlus} />
                                         }
                                     />
                                 )}
 
-                                {organization &&
-                                    !organization.needsProject &&
-                                    user.ability.can('view', 'Project') && (
-                                        <RouterNavLink
-                                            label="Projects"
-                                            to={`${basePath}/projectManagement`}
-                                            icon={
-                                                <MantineIcon
-                                                    icon={IconDatabase}
-                                                />
-                                            }
-                                        />
-                                    )}
-
                                 <RouterNavLink
                                     label="Appearance"
                                     exact
-                                    to={`${basePath}/appearance`}
+                                    to="/generalSettings/appearance"
                                     icon={<MantineIcon icon={IconPalette} />}
                                 />
 
@@ -194,21 +203,139 @@ const Settings: FC = () => {
                                         <RouterNavLink
                                             label="Integrations"
                                             exact
-                                            to={`${basePath}/integrations/slack`}
+                                            to="/generalSettings/integrations/slack"
                                             icon={
                                                 <MantineIcon icon={IconPlug} />
                                             }
                                         />
                                     )}
+
+                                {organization &&
+                                    !organization.needsProject &&
+                                    user.ability.can('view', 'Project') && (
+                                        <RouterNavLink
+                                            label="All projects"
+                                            to="/generalSettings/projectManagement"
+                                            exact
+                                            icon={
+                                                <MantineIcon
+                                                    icon={IconDatabase}
+                                                />
+                                            }
+                                        />
+                                    )}
                             </NavLink>
                         </Can>
+
+                        {organization &&
+                        !organization.needsProject &&
+                        project &&
+                        user.ability.can(
+                            'view',
+                            subject('Project', {
+                                organizationUuid: organization.organizationUuid,
+                                projectUuid: project.projectUuid,
+                            }),
+                        ) ? (
+                            <NavLink
+                                label={`Current project (${project?.name})`}
+                                opened
+                                childrenOffset={0}
+                            >
+                                <RouterNavLink
+                                    label="Project settings"
+                                    exact
+                                    to={`/generalSettings/projectManagement/${project.projectUuid}/settings`}
+                                    icon={
+                                        <MantineIcon icon={IconDatabaseCog} />
+                                    }
+                                />
+
+                                <RouterNavLink
+                                    label="Tables configuration"
+                                    exact
+                                    to={`/generalSettings/projectManagement/${project.projectUuid}/tablesConfiguration`}
+                                    icon={
+                                        <MantineIcon icon={IconTableOptions} />
+                                    }
+                                />
+
+                                <RouterNavLink
+                                    label="Project access"
+                                    exact
+                                    to={`/generalSettings/projectManagement/${project.projectUuid}/projectAccess`}
+                                    icon={<MantineIcon icon={IconUsers} />}
+                                />
+
+                                <RouterNavLink
+                                    label="dbt Cloud"
+                                    exact
+                                    to={`/generalSettings/projectManagement/${project.projectUuid}/integrations/dbtCloud`}
+                                    icon={
+                                        <MantineIcon icon={IconCloudSearch} />
+                                    }
+                                />
+
+                                {user.ability.can(
+                                    'view',
+                                    subject('Analytics', {
+                                        organizationUuid:
+                                            organization.organizationUuid,
+                                        projectUuid: project.projectUuid,
+                                    }),
+                                ) ? (
+                                    <RouterNavLink
+                                        label="Usage analytics"
+                                        exact
+                                        to={`/generalSettings/projectManagement/${project.projectUuid}/usageAnalytics`}
+                                        onClick={() => {
+                                            track({
+                                                name: EventName.USAGE_ANALYTICS_CLICKED,
+                                            });
+                                        }}
+                                        icon={
+                                            <MantineIcon
+                                                icon={IconReportAnalytics}
+                                            />
+                                        }
+                                    />
+                                ) : null}
+
+                                <RouterNavLink
+                                    label="Scheduled deliveries"
+                                    exact
+                                    to={`/generalSettings/projectManagement/${project.projectUuid}/scheduledDeliveries`}
+                                    icon={
+                                        <MantineIcon icon={IconCalendarStats} />
+                                    }
+                                />
+
+                                {user.ability?.can(
+                                    'manage',
+                                    subject('Validation', {
+                                        organizationUuid:
+                                            project.organizationUuid,
+                                        projectUuid: project.projectUuid,
+                                    }),
+                                ) ? (
+                                    <RouterNavLink
+                                        label="Validator"
+                                        exact
+                                        to={`/generalSettings/projectManagement/${project.projectUuid}/validator`}
+                                        icon={
+                                            <MantineIcon icon={IconChecklist} />
+                                        }
+                                    />
+                                ) : null}
+                            </NavLink>
+                        ) : null}
                     </Box>
                 </Stack>
             }
         >
             <Switch>
                 {allowPasswordAuthentication && (
-                    <Route exact path={`/generalSettings/password`}>
+                    <Route exact path="/generalSettings/password">
                         <Stack spacing="xl">
                             <SettingsGridCard>
                                 <Title order={4}>Password settings</Title>
@@ -226,7 +353,7 @@ const Settings: FC = () => {
                 )}
 
                 {user.ability.can('manage', 'Organization') && (
-                    <Route exact path={`/generalSettings/organization`}>
+                    <Route exact path="/generalSettings/organization">
                         <Stack spacing="xl">
                             <SettingsGridCard>
                                 <Title order={4}>General</Title>
@@ -266,7 +393,7 @@ const Settings: FC = () => {
                 )}
 
                 {user.ability.can('view', 'OrganizationMemberProfile') && (
-                    <Route path={`/generalSettings/userManagement`}>
+                    <Route path="/generalSettings/userManagement">
                         <UserManagementPanel />
                     </Route>
                 )}
@@ -274,23 +401,27 @@ const Settings: FC = () => {
                 {organization &&
                     !organization.needsProject &&
                     user.ability.can('view', 'Project') && (
-                        <Route
-                            exact
-                            path={`/generalSettings/projectManagement`}
-                        >
+                        <Route exact path="/generalSettings/projectManagement">
                             <ProjectManagementPanel />
                         </Route>
                     )}
 
-                {organization &&
+                {project &&
+                    organization &&
                     !organization.needsProject &&
-                    user.ability.can('view', 'Project') && (
+                    user.ability.can(
+                        'view',
+                        subject('Project', {
+                            organizationUuid: organization.organizationUuid,
+                            projectUuid: project.projectUuid,
+                        }),
+                    ) && (
                         <Route
-                            exact
                             path={[
                                 '/generalSettings/projectManagement/:projectUuid/:tab?',
                                 '/generalSettings/projectManagement/:projectUuid/integrations/:tab',
                             ]}
+                            exact
                         >
                             <TrackPage name={PageName.PROJECT_SETTINGS}>
                                 <ProjectSettings />
@@ -298,33 +429,33 @@ const Settings: FC = () => {
                         </Route>
                     )}
 
-                <Route exact path={`/generalSettings/appearance`}>
+                <Route exact path="/generalSettings/appearance">
                     <SettingsGridCard>
                         <Title order={4}>Appearance settings</Title>
                         <AppearancePanel />
                     </SettingsGridCard>
                 </Route>
 
-                <Route exact path={`/generalSettings/personalAccessTokens`}>
+                <Route exact path="/generalSettings/personalAccessTokens">
                     <AccessTokensPanel />
                 </Route>
 
                 {health.hasSlack && user.ability.can('manage', 'Organization') && (
-                    <Route exact path={`/generalSettings/integrations/slack`}>
+                    <Route exact path="/generalSettings/integrations/slack">
                         <SettingsGridCard>
                             <SlackSettingsPanel />
                         </SettingsGridCard>
                     </Route>
                 )}
 
-                <Route exact path={`/generalSettings`}>
+                <Route exact path="/generalSettings">
                     <SettingsGridCard>
                         <Title order={4}>Profile settings</Title>
                         <ProfilePanel />
                     </SettingsGridCard>
                 </Route>
 
-                <Redirect to={basePath} />
+                <Redirect to="/generalSettings" />
             </Switch>
         </Page>
     );
