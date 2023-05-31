@@ -243,7 +243,7 @@ export class ValidationModel {
                 createdAt: validationError.created_at,
                 projectUuid: validationError.project_uuid,
                 error: validationError.error,
-                name: 'Table',
+                name: validationError.model_name ?? 'Table',
                 validationId: validationError.validation_id,
                 ...(validationError.error_type && {
                     errorType: validationError.error_type,
