@@ -11,6 +11,10 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
+    AnalyticsChartViewsTableName,
+    AnalyticsDashboardViewsTableName,
+} from '../../database/entities/analytics';
+import {
     DashboardsTableName,
     DashboardTable,
     DashboardVersionsTableName,
@@ -82,6 +86,7 @@ export class ValidationModel {
                 'chart_config' | 'chart_type'
             > & {
                 last_updated_at: Date;
+                views: string;
             })[] = await this.database(ValidationTableName)
             .leftJoin(
                 SavedChartsTableName,
@@ -114,6 +119,9 @@ export class ValidationModel {
                 `${UserTableName}.first_name`,
                 `${UserTableName}.last_name`,
                 `${SpaceTableName}.space_uuid`,
+                this.database.raw(
+                    `(SELECT ${AnalyticsChartViewsTableName}.timestamp FROM ${AnalyticsChartViewsTableName} WHERE saved_queries.saved_query_uuid = ${AnalyticsChartViewsTableName}.chart_uuid ORDER BY ${AnalyticsChartViewsTableName}.timestamp ASC LIMIT 1) as first_viewed_at`,
+                ),
             ])
             .orderBy([
                 {
@@ -154,6 +162,7 @@ export class ValidationModel {
                 ),
                 errorType: validationError.error_type ?? undefined,
                 fieldName: validationError.field_name ?? undefined,
+                views: parseInt(validationError.views, 10) || 0,
             }));
 
         const dashboardValidationErrorsRows: (DbValidationTable &
@@ -161,6 +170,7 @@ export class ValidationModel {
             Pick<UserTable['base'], 'first_name' | 'last_name'> &
             Pick<DbSpace, 'space_uuid'> & {
                 last_updated_at: Date;
+                views: string;
             })[] = await this.database(ValidationTableName)
             .leftJoin(
                 DashboardsTableName,
@@ -191,6 +201,9 @@ export class ValidationModel {
                 `${UserTableName}.first_name`,
                 `${UserTableName}.last_name`,
                 `${SpaceTableName}.space_uuid`,
+                this.database.raw(
+                    `(SELECT COUNT('${AnalyticsDashboardViewsTableName}.dashboard_uuid') FROM ${AnalyticsDashboardViewsTableName} where ${AnalyticsDashboardViewsTableName}.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid) as views`,
+                ),
             ])
             .orderBy([
                 {
@@ -228,6 +241,7 @@ export class ValidationModel {
                 errorType: validationError.error_type ?? undefined,
                 fieldName: validationError.field_name ?? undefined,
                 chartName: validationError.chart_name ?? undefined,
+                views: parseInt(validationError.views, 10) || 0,
             }));
 
         const tableValidationErrorsRows: DbValidationTable[] =
