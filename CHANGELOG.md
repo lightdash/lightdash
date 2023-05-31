@@ -1,3 +1,10 @@
+## [0.584.1](https://github.com/lightdash/lightdash/compare/0.584.0...0.584.1) (2023-05-31)
+
+
+### Bug Fixes
+
+* remove fs, pg root spans ([#5689](https://github.com/lightdash/lightdash/issues/5689)) ([996b88f](https://github.com/lightdash/lightdash/commit/996b88faa77be9d3d669e982b56c08db767aaf18))
+
 # [0.584.0](https://github.com/lightdash/lightdash/compare/0.583.0...0.584.0) (2023-05-31)
 
 
