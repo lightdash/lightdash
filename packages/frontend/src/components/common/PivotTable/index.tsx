@@ -12,7 +12,7 @@ import { Table, TableProps } from '@mantine/core';
 import last from 'lodash-es/last';
 import React, { FC, useCallback } from 'react';
 
-import { useVirtual } from '@tanstack/react-virtual';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { isSummable } from '../../../hooks/useColumnTotals';
 import HeaderCell from './HeaderCell';
 import IndexCell from './IndexCell';
@@ -181,17 +181,19 @@ const PivotTable: FC<PivotTableProps> = ({
 
     const hasRowTotals = data.pivotConfig.rowTotals;
 
-    const rowVirtualizer = useVirtual({
-        parentRef: containerRef,
-        size: data.dataValues.length,
-        overscan: 10,
+    const rowVirtualizer = useVirtualizer({
+        getScrollElement: () => containerRef.current,
+        count: data.dataValues.length,
+        estimateSize: () => 34,
+        overscan: 25,
     });
-    const { virtualItems: virtualRows, totalSize } = rowVirtualizer;
+    const virtualRows = rowVirtualizer.getVirtualItems();
     const paddingTop =
         virtualRows.length > 0 ? virtualRows?.[0]?.start || 0 : 0;
     const paddingBottom =
         virtualRows.length > 0
-            ? totalSize - (virtualRows?.[virtualRows.length - 1]?.end || 0)
+            ? rowVirtualizer.getTotalSize() -
+              (virtualRows?.[virtualRows.length - 1]?.end || 0)
             : 0;
     const cellsCountWithRowNumber = (hideRowNumbers ? 0 : 1) + data.cellsCount;
 
