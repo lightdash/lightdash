@@ -2,6 +2,9 @@ import {
     ApiJobScheduledResponse,
     ApiJobStatusResponse,
     ApiValidateResponse,
+    isChartValidationError,
+    isDashboardValidationError,
+    isTableValidationError,
     ParameterError,
     SchedulerJobStatus,
 } from '@lightdash/common';
@@ -118,13 +121,9 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
             )}s with ${validation.length} errors`,
         );
 
-        const tableErrors = validation.filter(
-            (v) => v.chartUuid === undefined && v.dashboardUuid === undefined,
-        );
-        const chartErrors = validation.filter((v) => v.chartUuid !== undefined);
-        const dashboardErrors = validation.filter(
-            (v) => v.dashboardUuid !== undefined,
-        );
+        const tableErrors = validation.filter(isTableValidationError);
+        const chartErrors = validation.filter(isChartValidationError);
+        const dashboardErrors = validation.filter(isDashboardValidationError);
 
         console.error(`
 - Tables: ${styles.bold(tableErrors.length)} errors

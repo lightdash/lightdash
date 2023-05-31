@@ -1,6 +1,12 @@
 import {
     CreateValidation,
     getChartType,
+    isChartValidationError,
+    isDashboardValidationError,
+    isTableValidationError,
+    ValidationErrorChartResponse,
+    ValidationErrorDashboardResponse,
+    ValidationErrorTableResponse,
     ValidationResponse,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -8,7 +14,6 @@ import {
     DashboardsTableName,
     DashboardTable,
     DashboardVersionsTableName,
-    DashboardVersionTable,
 } from '../../database/entities/dashboards';
 import {
     SavedChartsTableName,
@@ -38,10 +43,22 @@ export class ValidationModel {
         await this.database.transaction(async (trx) => {
             const insertPromises = validations.map((validation) =>
                 trx(ValidationTableName).insert({
-                    saved_chart_uuid: validation.chartUuid,
-                    dashboard_uuid: validation.dashboardUuid,
                     project_uuid: validation.projectUuid,
                     error: validation.error,
+                    error_type: validation.errorType,
+                    ...(isTableValidationError(validation) && {
+                        model_name: validation.modelName,
+                        dimension_name: validation.dimensionName,
+                    }),
+                    ...(isChartValidationError(validation) && {
+                        saved_chart_uuid: validation.chartUuid,
+                        field_name: validation.fieldName,
+                    }),
+                    ...(isDashboardValidationError(validation) && {
+                        dashboard_uuid: validation.dashboardUuid,
+                        field_name: validation.fieldName ?? null,
+                        chart_name: validation.chartName ?? null,
+                    }),
                 }),
             );
 
@@ -64,10 +81,7 @@ export class ValidationModel {
                 SavedChartVersionsTable['base'],
                 'chart_config' | 'chart_type'
             > & {
-                last_updated_at: Pick<
-                    SavedChartVersionsTable['base'],
-                    'created_at'
-                >;
+                last_updated_at: Date;
             })[] = await this.database(ValidationTableName)
             .leftJoin(
                 SavedChartsTableName,
@@ -121,10 +135,10 @@ export class ValidationModel {
                 `${ValidationTableName}.error`,
             ]);
 
-        const chartValidationErrors = chartValidationErrorsRows.map(
-            (validationError) => ({
+        const chartValidationErrors: ValidationErrorChartResponse[] =
+            chartValidationErrorsRows.map((validationError) => ({
                 createdAt: validationError.created_at,
-                chartUuid: validationError.saved_chart_uuid ?? undefined,
+                chartUuid: validationError.saved_chart_uuid!,
                 projectUuid: validationError.project_uuid,
                 error: validationError.error,
                 name: validationError.name,
@@ -138,17 +152,15 @@ export class ValidationModel {
                     validationError.chart_type,
                     validationError.chart_config,
                 ),
-            }),
-        );
+                errorType: validationError.error_type ?? undefined,
+                fieldName: validationError.field_name ?? undefined,
+            }));
 
         const dashboardValidationErrorsRows: (DbValidationTable &
             Pick<DashboardTable['base'], 'name'> &
             Pick<UserTable['base'], 'first_name' | 'last_name'> &
             Pick<DbSpace, 'space_uuid'> & {
-                last_updated_at: Pick<
-                    DashboardVersionTable['base'],
-                    'created_at'
-                >;
+                last_updated_at: Date;
             })[] = await this.database(ValidationTableName)
             .leftJoin(
                 DashboardsTableName,
@@ -200,10 +212,10 @@ export class ValidationModel {
                 `${ValidationTableName}.error`,
             ]);
 
-        const dashboardValidationErrors = dashboardValidationErrorsRows.map(
-            (validationError) => ({
+        const dashboardValidationErrors: ValidationErrorDashboardResponse[] =
+            dashboardValidationErrorsRows.map((validationError) => ({
                 createdAt: validationError.created_at,
-                dashboardUuid: validationError.dashboard_uuid ?? undefined,
+                dashboardUuid: validationError.dashboard_uuid!,
                 projectUuid: validationError.project_uuid,
                 error: validationError.error,
                 name: validationError.name,
@@ -213,8 +225,10 @@ export class ValidationModel {
                 lastUpdatedAt: validationError.last_updated_at,
                 validationId: validationError.validation_id,
                 spaceUuid: validationError.space_uuid,
-            }),
-        );
+                errorType: validationError.error_type ?? undefined,
+                fieldName: validationError.field_name ?? undefined,
+                chartName: validationError.chart_name ?? undefined,
+            }));
 
         const tableValidationErrorsRows: DbValidationTable[] =
             await this.database(ValidationTableName)
@@ -224,15 +238,20 @@ export class ValidationModel {
                 .whereNull('dashboard_uuid')
                 .distinctOn(`${ValidationTableName}.error`);
 
-        const tableValidationErrors = tableValidationErrorsRows.map(
-            (validationError) => ({
+        const tableValidationErrors: ValidationErrorTableResponse[] =
+            tableValidationErrorsRows.map((validationError) => ({
                 createdAt: validationError.created_at,
                 projectUuid: validationError.project_uuid,
                 error: validationError.error,
                 name: 'Table',
                 validationId: validationError.validation_id,
-            }),
-        );
+                ...(validationError.error_type && {
+                    errorType: validationError.error_type,
+                }),
+                modelName: validationError.model_name ?? undefined,
+                fieldName: validationError.field_name,
+                dimensionName: validationError.dimension_name ?? undefined,
+            }));
 
         return [
             ...tableValidationErrors,

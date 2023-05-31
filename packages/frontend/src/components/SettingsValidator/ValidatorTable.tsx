@@ -1,4 +1,10 @@
-import { ValidationResponse } from '@lightdash/common';
+import {
+    isChartValidationError,
+    isDashboardValidationError,
+    ValidationErrorChartResponse,
+    ValidationErrorDashboardResponse,
+    ValidationResponse,
+} from '@lightdash/common';
 import { Alert, clsx, Flex, Table, Text, useMantineTheme } from '@mantine/core';
 import {
     IconAlertCircle,
@@ -17,25 +23,31 @@ const getLinkToResource = (
     validationError: ValidationResponse,
     projectUuid: string,
 ) => {
-    if (validationError.chartUuid)
+    if (isChartValidationError(validationError))
         return `/projects/${projectUuid}/saved/${validationError.chartUuid}`;
-    if (validationError.dashboardUuid) {
+
+    if (isDashboardValidationError(validationError))
         return `/projects/${projectUuid}/dashboards/${validationError.dashboardUuid}/view`;
-    }
 
     return;
 };
 
 const Icon = ({ validationError }: { validationError: ValidationResponse }) => {
-    if (validationError.chartUuid)
+    if (isChartValidationError(validationError))
         return getChartIcon(validationError.chartType);
-    if (validationError.dashboardUuid)
+    if (isDashboardValidationError(validationError))
         return <IconBox icon={IconLayoutDashboard} color="green.8" />;
     return <IconBox icon={IconTable} color="indigo.6" />;
 };
 
 const UpdatedAtAndBy: FC<
-    Required<Pick<ValidationResponse, 'lastUpdatedAt' | 'lastUpdatedBy'>>
+    Required<
+        | Pick<ValidationErrorChartResponse, 'lastUpdatedAt' | 'lastUpdatedBy'>
+        | Pick<
+              ValidationErrorDashboardResponse,
+              'lastUpdatedAt' | 'lastUpdatedBy'
+          >
+    >
 > = ({ lastUpdatedAt, lastUpdatedBy }) => {
     const timeAgo = useTimeAgo(lastUpdatedAt);
 
@@ -134,7 +146,11 @@ export const ValidatorTable: FC<{
                                   </Alert>
                               </td>
                               <td>
-                                  {validationError.lastUpdatedAt &&
+                                  {(isChartValidationError(validationError) ||
+                                      isDashboardValidationError(
+                                          validationError,
+                                      )) &&
+                                  validationError.lastUpdatedAt &&
                                   validationError.lastUpdatedBy ? (
                                       <UpdatedAtAndBy
                                           lastUpdatedAt={
