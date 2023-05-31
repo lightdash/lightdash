@@ -1,3 +1,17 @@
+# [0.585.0](https://github.com/lightdash/lightdash/compare/0.584.1...0.585.0) (2023-05-31)
+
+
+### Bug Fixes
+
+* settings navbar styles ([#5687](https://github.com/lightdash/lightdash/issues/5687)) ([e47bd44](https://github.com/lightdash/lightdash/commit/e47bd44bfa3e70136fdbc0b9f8098eabf94b92cb))
+
+
+### Features
+
+* default project on validate ([#5685](https://github.com/lightdash/lightdash/issues/5685)) ([fd7bad4](https://github.com/lightdash/lightdash/commit/fd7bad46f4b454df3b9199d32cbb51239b29547b))
+* pivot table virtual rows ([#5680](https://github.com/lightdash/lightdash/issues/5680)) ([2599735](https://github.com/lightdash/lightdash/commit/25997350c528ca1dce04f088508e57b03f03b45d))
+* settings restructure - project settings navbar ([#5683](https://github.com/lightdash/lightdash/issues/5683)) ([e84022a](https://github.com/lightdash/lightdash/commit/e84022a96f732c5bf45801f28cef4f06cd4468ea))
+
 ## [0.584.1](https://github.com/lightdash/lightdash/compare/0.584.0...0.584.1) (2023-05-31)
 
 
