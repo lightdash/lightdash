@@ -1,3 +1,4 @@
+import { Button, FormGroup, Intent, Switch, TextArea } from '@blueprintjs/core';
 import { WarehouseTypes } from '@lightdash/common';
 import React, { FC } from 'react';
 import { useToggle } from 'react-use';
@@ -5,6 +6,7 @@ import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
 import FormSection from '../../ReactHookForm/FormSection';
 import Input from '../../ReactHookForm/Input';
+import InputWrapper from '../../ReactHookForm/InputWrapper';
 import NumericInput from '../../ReactHookForm/NumericInput';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
 import Select from '../../ReactHookForm/Select';
@@ -41,6 +43,9 @@ const RedshiftForm: FC<{
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.REDSHIFT;
+
+    const [useSSHTunnel, setUseSSHTunnel] = React.useState(false);
+    const [SSHKeyGenerated, setSSHKeyGenerated] = React.useState(false);
     return (
         <>
             <Input
@@ -94,7 +99,6 @@ const RedshiftForm: FC<{
                 }}
                 disabled={disabled}
             />
-
             <FormSection isOpen={isOpen} name="advanced">
                 <NumericInput
                     name="warehouse.port"
@@ -140,6 +144,95 @@ const RedshiftForm: FC<{
                     disabled={disabled}
                 />
                 <StartOfWeekSelect disabled={disabled} />
+                <FormGroup
+                    labelFor="warehouse.useSSHTunnel"
+                    label="Use SSH tunnel"
+                    inline
+                    style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        marginBottom: 'none',
+                        fontWeight: 500,
+                    }}
+                >
+                    <Switch
+                        alignIndicator="right"
+                        checked={useSSHTunnel}
+                        onChange={() => {
+                            setUseSSHTunnel(!useSSHTunnel);
+                        }}
+                    />
+                </FormGroup>
+                <FormSection name="warehouse.SSH" isOpen={useSSHTunnel}>
+                    <Input
+                        name="warehouse.SSHhost"
+                        label="SSH host"
+                        labelHelp="I don't have a copy for this yet"
+                        rules={{
+                            required: 'Required field',
+                            validate: {
+                                hasNoWhiteSpaces: hasNoWhiteSpaces('SSHhost'),
+                            },
+                        }}
+                        disabled={disabled}
+                    />
+                    <NumericInput
+                        name="warehouse.SSHport"
+                        label="SSH port"
+                        labelHelp="I don't have a copy for this yet"
+                        rules={{
+                            required: 'Required field',
+                        }}
+                        disabled={disabled}
+                        defaultValue={1111}
+                    />
+                    <Input
+                        name="warehouse.SSHuser"
+                        label="SSH user"
+                        labelHelp="I don't have a copy for this yet"
+                        rules={{
+                            required: requireSecrets
+                                ? 'Required field'
+                                : undefined,
+                            validate: {
+                                hasNoWhiteSpaces: hasNoWhiteSpaces('SSHuser'),
+                            },
+                        }}
+                        placeholder={
+                            disabled || !requireSecrets
+                                ? '**************'
+                                : undefined
+                        }
+                        disabled={disabled}
+                    />
+                    <InputWrapper
+                        label="SSH public key"
+                        name="warehouse.SSHpublicKey"
+                        render={() => (
+                            <>
+                                {SSHKeyGenerated ? (
+                                    <TextArea
+                                        readOnly
+                                        fill
+                                        value="I'm a generated SSH Public Key! Copy me"
+                                    />
+                                ) : (
+                                    <></>
+                                )}
+                                <Button
+                                    intent={Intent.PRIMARY}
+                                    onClick={() => setSSHKeyGenerated(true)}
+                                    icon={SSHKeyGenerated ? 'refresh' : 'key'}
+                                    style={{ marginTop: '10px' }}
+                                >
+                                    {SSHKeyGenerated
+                                        ? 'Regenerate key'
+                                        : 'Generate key'}
+                                </Button>
+                            </>
+                        )}
+                    />
+                </FormSection>
             </FormSection>
             <AdvancedButtonWrapper>
                 <AdvancedButton
