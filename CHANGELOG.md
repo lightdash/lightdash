@@ -1,3 +1,10 @@
+## [0.586.1](https://github.com/lightdash/lightdash/compare/0.586.0...0.586.1) (2023-05-31)
+
+
+### Bug Fixes
+
+* pivot table crashing in minimal page ([#5696](https://github.com/lightdash/lightdash/issues/5696)) ([be1210e](https://github.com/lightdash/lightdash/commit/be1210ec377aefa1800411687aeee8e2191bb790))
+
 # [0.586.0](https://github.com/lightdash/lightdash/compare/0.585.0...0.586.0) (2023-05-31)
 
 
