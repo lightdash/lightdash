@@ -90,7 +90,12 @@ export enum ValidationErrorType {
 export const isTableValidationError = (
     error: ValidationResponse | CreateValidation,
 ): error is ValidationErrorTableResponse | CreateTableValidation =>
-    !('chartUuid' in error && 'dashboardUuid' in error);
+    !(
+        'chartUuid' in error &&
+        'dashboardUuid' in error &&
+        !error.chartUuid &&
+        !error.dashboardUuid
+    );
 
 export const isChartValidationError = (
     error: ValidationResponse | CreateValidation,
