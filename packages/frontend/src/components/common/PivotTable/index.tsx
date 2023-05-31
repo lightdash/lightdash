@@ -193,12 +193,7 @@ const PivotTable: FC<PivotTableProps> = ({
         virtualRows.length > 0
             ? totalSize - (virtualRows?.[virtualRows.length - 1]?.end || 0)
             : 0;
-    const cellsCount =
-        (hideRowNumbers ? 0 : 1) +
-        (data.indexValueTypes.length === 0 ? data.titleFields[0].length : 0) +
-        data.indexValueTypes.length +
-        data.dataValues[0].length +
-        (hasRowTotals && data.rowTotals ? data.rowTotals[0].length : 0);
+    const cellsCountWithRowNumber = (hideRowNumbers ? 0 : 1) + data.cellsCount;
 
     return (
         <Table
@@ -349,7 +344,7 @@ const PivotTable: FC<PivotTableProps> = ({
             <tbody>
                 {paddingTop > 0 && (
                     <VirtualizedArea
-                        cellCount={cellsCount}
+                        cellCount={cellsCountWithRowNumber}
                         padding={paddingTop}
                         cellClassName={cellCx(
                             cellStyles.root,
@@ -487,7 +482,7 @@ const PivotTable: FC<PivotTableProps> = ({
                 })}
                 {paddingBottom > 0 && (
                     <VirtualizedArea
-                        cellCount={cellsCount}
+                        cellCount={cellsCountWithRowNumber}
                         padding={paddingBottom}
                         cellClassName={cellCx(
                             cellStyles.root,
