@@ -13,6 +13,7 @@ import {
     projectModel,
     savedChartModel,
     spaceModel,
+    sshKeyPairModel,
 } from '../../models/models';
 import { METRIC_QUERY, warehouseClientMock } from '../../queryBuilder.mock';
 import { projectService } from '../services';
@@ -54,7 +55,7 @@ jest.mock('../../models/models', () => ({
         getWarehouseCredentialsForProject: jest.fn(
             async () => warehouseClientMock.credentials,
         ),
-        getWarehouseClientFromCredentials: jest.fn(async () => ({
+        getWarehouseClientFromCredentials: jest.fn(() => ({
             ...warehouseClientMock,
             runQuery: jest.fn(async () => expectedSqlResults),
         })),
@@ -69,6 +70,7 @@ jest.mock('../../models/models', () => ({
     spaceModel: {
         getAllSpaces: jest.fn(async () => spacesWithSavedCharts),
     },
+    sshKeyPairModel: {},
 }));
 
 describe('ProjectService', () => {
@@ -82,11 +84,12 @@ describe('ProjectService', () => {
             lightdashConfig: lightdashConfigWithNoSMTP,
         }),
         spaceModel,
+        sshKeyPairModel,
     });
     afterEach(() => {
         jest.clearAllMocks();
     });
-    test('should get dashboard by uuid', async () => {
+    test('should run sql query', async () => {
         const result = await service.runSqlQuery(user, projectUuid, 'fake sql');
 
         expect(result).toEqual(expectedSqlResults);
