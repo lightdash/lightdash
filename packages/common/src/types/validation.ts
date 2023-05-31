@@ -95,9 +95,9 @@ export const isTableValidationError = (
 export const isChartValidationError = (
     error: ValidationResponse | CreateValidation,
 ): error is ValidationErrorChartResponse | CreateChartValidation =>
-    'chartUuid' in error && !!error.chartUuid;
+    'chartUuid' in error;
 
 export const isDashboardValidationError = (
     error: ValidationResponse | CreateValidation,
 ): error is ValidationErrorDashboardResponse | CreateDashboardValidation =>
-    'dashboardUuid' in error && !!error.dashboardUuid;
+    'dashboardUuid' in error;
