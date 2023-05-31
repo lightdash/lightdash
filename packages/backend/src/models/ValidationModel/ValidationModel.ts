@@ -3,6 +3,7 @@ import {
     getChartType,
     isChartValidationError,
     isDashboardValidationError,
+    isTableValidationError,
     ValidationErrorChartResponse,
     ValidationErrorDashboardResponse,
     ValidationErrorTableResponse,
@@ -42,28 +43,22 @@ export class ValidationModel {
         await this.database.transaction(async (trx) => {
             const insertPromises = validations.map((validation) =>
                 trx(ValidationTableName).insert({
-                    saved_chart_uuid: isChartValidationError(validation)
-                        ? validation.chartUuid
-                        : null,
-                    dashboard_uuid: isDashboardValidationError(validation)
-                        ? validation.dashboardUuid
-                        : null,
                     project_uuid: validation.projectUuid,
                     error: validation.error,
                     error_type: validation.errorType,
-                    model_name:
-                        'modelName' in validation ? validation.modelName : null,
-                    dimension_name:
-                        'dimensionName' in validation
-                            ? validation.dimensionName
-                            : null,
-                    field_name:
-                        'fieldName' in validation ? validation.fieldName : null,
-                    chart_name:
-                        isDashboardValidationError(validation) &&
-                        validation.chartName
-                            ? validation.chartName
-                            : null,
+                    ...(isTableValidationError(validation) && {
+                        model_name: validation.modelName,
+                        dimension_name: validation.dimensionName,
+                    }),
+                    ...(isChartValidationError(validation) && {
+                        saved_chart_uuid: validation.chartUuid,
+                        field_name: validation.fieldName,
+                    }),
+                    ...(isDashboardValidationError(validation) && {
+                        dashboard_uuid: validation.dashboardUuid,
+                        field_name: validation.fieldName ?? null,
+                        chart_name: validation.chartName ?? null,
+                    }),
                 }),
             );
 
