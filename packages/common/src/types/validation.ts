@@ -5,7 +5,7 @@ type ValidationResponseBase = {
     createdAt: Date;
     name: string;
     error: string;
-    errorType: ValidationErrorType | null;
+    errorType?: ValidationErrorType;
     projectUuid: string;
     spaceUuid?: string;
 };
@@ -13,22 +13,22 @@ type ValidationResponseBase = {
 export type ValidationErrorChartResponse = ValidationResponseBase & {
     chartUuid: string | undefined; // NOTE: can be undefined if private content
     chartType?: ChartKind;
-    fieldName: string | null;
+    fieldName?: string;
     lastUpdatedBy?: string;
     lastUpdatedAt?: Date;
 };
 
 export type ValidationErrorDashboardResponse = ValidationResponseBase & {
     dashboardUuid: string | undefined; // NOTE: can be undefined if private content
-    chartName?: string | null;
-    fieldName?: string | null;
+    chartName?: string;
+    fieldName?: string;
     lastUpdatedBy?: string;
     lastUpdatedAt?: Date;
 };
 
 export type ValidationErrorTableResponse = ValidationResponseBase & {
-    modelName: string | null;
-    dimensionName: string | null;
+    modelName: string | undefined;
+    dimensionName: string | undefined;
 };
 
 export type ValidationResponse =

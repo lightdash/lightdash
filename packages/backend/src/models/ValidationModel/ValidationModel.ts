@@ -152,8 +152,8 @@ export class ValidationModel {
                     validationError.chart_type,
                     validationError.chart_config,
                 ),
-                errorType: validationError.error_type,
-                fieldName: validationError.field_name,
+                errorType: validationError.error_type ?? undefined,
+                fieldName: validationError.field_name ?? undefined,
             }));
 
         const dashboardValidationErrorsRows: (DbValidationTable &
@@ -225,9 +225,9 @@ export class ValidationModel {
                 lastUpdatedAt: validationError.last_updated_at,
                 validationId: validationError.validation_id,
                 spaceUuid: validationError.space_uuid,
-                errorType: validationError.error_type,
-                fieldName: validationError.field_name ?? null,
-                chartName: validationError.chart_name ?? null,
+                errorType: validationError.error_type ?? undefined,
+                fieldName: validationError.field_name ?? undefined,
+                chartName: validationError.chart_name ?? undefined,
             }));
 
         const tableValidationErrorsRows: DbValidationTable[] =
@@ -245,10 +245,12 @@ export class ValidationModel {
                 error: validationError.error,
                 name: 'Table',
                 validationId: validationError.validation_id,
-                errorType: validationError.error_type,
-                modelName: validationError.model_name,
+                ...(validationError.error_type && {
+                    errorType: validationError.error_type,
+                }),
+                modelName: validationError.model_name ?? undefined,
                 fieldName: validationError.field_name,
-                dimensionName: validationError.dimension_name,
+                dimensionName: validationError.dimension_name ?? undefined,
             }));
 
         return [
