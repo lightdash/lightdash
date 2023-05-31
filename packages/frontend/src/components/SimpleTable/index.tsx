@@ -45,7 +45,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
         explore,
     } = useVisualizationContext();
     const scrollableContainerRef = useRef<HTMLDivElement>(null);
-    if (isLoading) return <LoadingChart />;
+    if (isLoading || pivotTableData.loading) return <LoadingChart />;
 
     if (error) {
         return (
