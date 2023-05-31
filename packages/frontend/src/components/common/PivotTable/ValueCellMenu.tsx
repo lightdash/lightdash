@@ -37,16 +37,18 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
     onCopy,
 }) => {
     const { user } = useApp();
-    const { track } = useTracking();
-    const { openUnderlyingDataModal, openDrillDownModel } =
-        useMetricQueryDataContext();
+    const tracking = useTracking(true);
+    const metricQueryData = useMetricQueryDataContext(true);
 
     // FIXME: get rid of this from here
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
-    if (!value) {
+    if (!value || !tracking || !metricQueryData) {
         return <>{children}</>;
     }
+
+    const { openUnderlyingDataModal, openDrillDownModel } = metricQueryData;
+    const { track } = tracking;
 
     const hasUnderlyingData = getUnderlyingFieldValues && item;
     const hasDrillInto = getUnderlyingFieldValues && item;
