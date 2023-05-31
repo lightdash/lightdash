@@ -1,3 +1,10 @@
+# [0.584.0](https://github.com/lightdash/lightdash/compare/0.583.0...0.584.0) (2023-05-31)
+
+
+### Features
+
+* settings restructure - project switcher ([#5662](https://github.com/lightdash/lightdash/issues/5662)) ([ce27d38](https://github.com/lightdash/lightdash/commit/ce27d389fa1d2618349219c2959184b3bf7c6c85))
+
 # [0.583.0](https://github.com/lightdash/lightdash/compare/0.582.2...0.583.0) (2023-05-31)
 
 
