@@ -1,4 +1,4 @@
-import { ErrorType } from '@lightdash/common';
+import { ValidationErrorType } from '@lightdash/common';
 import { Knex } from 'knex';
 
 export type DbValidationTable = {
@@ -6,7 +6,7 @@ export type DbValidationTable = {
     created_at: Date;
     project_uuid: string;
     error: string;
-    error_type: ErrorType | null;
+    error_type: ValidationErrorType | null;
     chart_name: string | null;
     field_name: string | null;
     model_name: string | null;

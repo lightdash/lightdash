@@ -5,7 +5,6 @@ import {
     CreateDashboardValidation,
     CreateTableValidation,
     CreateValidation,
-    ErrorType,
     Explore,
     ExploreError,
     fieldId as getFieldId,
@@ -22,6 +21,7 @@ import {
     RequestMethod,
     SessionUser,
     TableCalculation,
+    ValidationErrorType,
     ValidationResponse,
 } from '@lightdash/common';
 import { analytics } from '../../analytics/client';
@@ -118,7 +118,7 @@ export class ValidationService {
                             return {
                                 name: explore.name,
                                 error: ee.message,
-                                errorType: ErrorType.Model,
+                                errorType: ValidationErrorType.Model,
                                 modelName: explore.name,
                                 dimensionName: dimensionNameMatch
                                     ? dimensionNameMatch[1]
@@ -203,7 +203,7 @@ export class ValidationService {
                         fieldIds: existingDimensionIds,
                         fieldId: field,
                         error: `Dimension error: the field '${field}' no longer exists`,
-                        errorType: ErrorType.Dimension,
+                        errorType: ValidationErrorType.Dimension,
                         fieldName: field,
                     }),
                 [],
@@ -217,7 +217,7 @@ export class ValidationService {
                             fieldIds: existingMetricIds,
                             fieldId: field,
                             error: `Metric error: the field '${field}' no longer exists`,
-                            errorType: ErrorType.Metric,
+                            errorType: ValidationErrorType.Metric,
                             fieldName: field,
                         }),
                     [],
@@ -237,7 +237,7 @@ export class ValidationService {
                         fieldIds: existingFieldIds,
                         fieldId: field.target.fieldId,
                         error: `Filter error: the field '${field.target.fieldId}' no longer exists`,
-                        errorType: ErrorType.Filter,
+                        errorType: ValidationErrorType.Filter,
                         fieldName: field.target.fieldId,
                     }),
                 [],
@@ -256,7 +256,7 @@ export class ValidationService {
                             fieldIds: existingFieldIds,
                             fieldId: field.fieldId,
                             error: `Sorting error: the field '${field.fieldId}' no longer exists`,
-                            errorType: ErrorType.Sorting,
+                            errorType: ValidationErrorType.Sorting,
                             fieldName: field.fieldId,
                         }),
                     [],
@@ -367,7 +367,7 @@ export class ValidationService {
                             fieldIds: existingFieldIds,
                             fieldId: filter.target.fieldId,
                             error: `Filter error: the field '${filter.target.fieldId}' no longer exists`,
-                            errorType: ErrorType.Filter,
+                            errorType: ValidationErrorType.Filter,
                             fieldName: filter.target.fieldId,
                         }),
                     [],
@@ -388,7 +388,7 @@ export class ValidationService {
                             {
                                 ...commonValidation,
                                 error: `The chart '${brokenChart.name}' is broken on this dashboard.`,
-                                errorType: ErrorType.Chart,
+                                errorType: ValidationErrorType.Chart,
                                 chartName: brokenChart.name,
                             },
                         ];

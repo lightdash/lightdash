@@ -13,7 +13,6 @@ import {
     DashboardsTableName,
     DashboardTable,
     DashboardVersionsTableName,
-    DashboardVersionTable,
 } from '../../database/entities/dashboards';
 import {
     SavedChartsTableName,

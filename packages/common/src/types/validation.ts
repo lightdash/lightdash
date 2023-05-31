@@ -5,7 +5,7 @@ type ValidationResponseBase = {
     createdAt: Date;
     name: string;
     error: string;
-    errorType: ErrorType | null;
+    errorType: ValidationErrorType | null;
     projectUuid: string;
     spaceUuid?: string;
 
@@ -78,7 +78,7 @@ export type ValidationSummary = Pick<
     'error' | 'createdAt' | 'validationId'
 >;
 
-export enum ErrorType {
+export enum ValidationErrorType {
     Chart = 'chart',
     Sorting = 'sorting',
     Filter = 'filter',
