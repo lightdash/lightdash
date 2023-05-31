@@ -226,8 +226,8 @@ export class ValidationModel {
                 validationId: validationError.validation_id,
                 spaceUuid: validationError.space_uuid,
                 errorType: validationError.error_type,
-                fieldName: validationError.field_name,
-                chartName: validationError.chart_name,
+                fieldName: validationError.field_name ?? null,
+                chartName: validationError.chart_name ?? null,
             }));
 
         const tableValidationErrorsRows: DbValidationTable[] =
