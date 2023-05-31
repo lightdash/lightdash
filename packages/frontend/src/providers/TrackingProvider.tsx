@@ -1,5 +1,5 @@
 import { LightdashMode } from '@lightdash/common';
-import React, {
+import {
     createContext,
     FC,
     memo,
@@ -332,11 +332,15 @@ export const TrackingProvider: FC<TrackingProviderProps> = ({
     }
 };
 
-export function useTracking(): TrackingContext {
+export function useTracking<S extends boolean = false>(
+    failSilently?: S,
+): S extends false ? TrackingContext : TrackingContext | undefined {
     const context = useContext(Context);
-    if (context === undefined) {
+
+    if (context === undefined && failSilently !== true) {
         throw new Error('useTracking must be used within a TrackingProvider');
     }
+
     return context;
 }
 
