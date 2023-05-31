@@ -254,7 +254,8 @@ export const exploreError: ExploreError = {
     tables: {},
     errors: [
         {
-            message: 'Explore error message',
+            message:
+                'Model "valid_explore" has a dimension reference: ${is_completed} which matches no dimension',
             type: InlineErrorType.METADATA_PARSE_ERROR,
         },
     ],

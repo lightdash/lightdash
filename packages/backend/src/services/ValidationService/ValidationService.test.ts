@@ -72,6 +72,8 @@ describe('validation', () => {
         expect({ ...errors[0], createdAt: undefined }).toEqual({
             createdAt: undefined,
             error: "Dimension error: the field 'table_dimension' no longer exists",
+            errorType: 'dimension',
+            fieldName: 'table_dimension',
             name: 'Test chart',
             projectUuid: 'projectUuid',
             chartUuid: 'chartUuid',
@@ -98,6 +100,8 @@ describe('validation', () => {
         expect({ ...errors[0], createdAt: undefined }).toEqual({
             createdAt: undefined,
             error: "Metric error: the field 'table_metric' no longer exists",
+            errorType: 'metric',
+            fieldName: 'table_metric',
             name: 'Test chart',
             projectUuid: 'projectUuid',
             chartUuid: 'chartUuid',
@@ -123,12 +127,15 @@ describe('validation', () => {
         expect({ ...errors[0], createdAt: undefined }).toEqual({
             createdAt: undefined,
             name: 'valid_explore',
-            error: 'Explore error message',
+            dimensionName: 'is_completed',
+            error: 'Model "valid_explore" has a dimension reference: ${is_completed} which matches no dimension',
+            errorType: 'model',
+            modelName: 'valid_explore',
             projectUuid: 'projectUuid',
         });
 
-        expect(errors.map((error) => error.error)[0]).toEqual(
-            'Explore error message',
+        expect(errors[0].error).toEqual(
+            'Model "valid_explore" has a dimension reference: ${is_completed} which matches no dimension',
         );
     });
 });
