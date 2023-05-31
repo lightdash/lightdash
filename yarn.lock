@@ -1604,7 +1604,7 @@
   dependencies:
     regenerator-runtime "^0.13.10"
 
-"@babel/runtime@^7.10.2", "@babel/runtime@^7.13.10", "@babel/runtime@^7.16.7", "@babel/runtime@^7.17.8", "@babel/runtime@^7.18.3":
+"@babel/runtime@^7.10.2", "@babel/runtime@^7.13.10", "@babel/runtime@^7.17.8", "@babel/runtime@^7.18.3":
   version "7.21.0"
   resolved "https://registry.yarnpkg.com/@babel/runtime/-/runtime-7.21.0.tgz#5b55c9d394e5fcf304909a8b00c07dc217b56673"
   integrity sha512-xwII0//EObnq89Ji5AKYQaRYiW/nZ3llSv29d49IuxPhKbtJoLP+9QUUZ4nVragQVtaVGeZrpB+ZtG/Pdy/POw==
@@ -3436,11 +3436,6 @@
   dependencies:
     "@babel/runtime" "^7.13.10"
 
-"@reach/observe-rect@^1.1.0":
-  version "1.2.0"
-  resolved "https://registry.yarnpkg.com/@reach/observe-rect/-/observe-rect-1.2.0.tgz#d7a6013b8aafcc64c778a0ccb83355a11204d3b2"
-  integrity sha512-Ba7HmkFgfQxZqqaeIWWkNK0rEhpxVQHIoVyW1YDSkGsGIXzcaW4deC8B0pZrNSSyLTdIk7y+5olKt5+g0GmFIQ==
-
 "@rollup/pluginutils@^4.2.1":
   version "4.2.1"
   resolved "https://registry.npmjs.org/@rollup/pluginutils/-/pluginutils-4.2.1.tgz"
@@ -3810,18 +3805,22 @@
   dependencies:
     "@tanstack/table-core" "8.5.11"
 
-"@tanstack/react-virtual@^3.0.0-alpha.0":
-  version "3.0.0-alpha.0"
-  resolved "https://registry.yarnpkg.com/@tanstack/react-virtual/-/react-virtual-3.0.0-alpha.0.tgz#2ca5a75fa609eca2b2ba622024d3aa3ee097bc30"
-  integrity sha512-WpHU/dt34NwZZ8qtiE05TF+nX/b1W6qrWZarO+s8jJFpPVicrTbJKp5Bjt4eSJuk7aYw272oEfsH3ABBRgj+3A==
+"@tanstack/react-virtual@^3.0.0-beta.54":
+  version "3.0.0-beta.54"
+  resolved "https://registry.yarnpkg.com/@tanstack/react-virtual/-/react-virtual-3.0.0-beta.54.tgz#755979455adf13f2584937204a3f38703e446037"
+  integrity sha512-D1mDMf4UPbrtHRZZriCly5bXTBMhylslm4dhcHqTtDJ6brQcgGmk8YD9JdWBGWfGSWPKoh2x1H3e7eh+hgPXtQ==
   dependencies:
-    "@babel/runtime" "^7.16.7"
-    "@reach/observe-rect" "^1.1.0"
+    "@tanstack/virtual-core" "3.0.0-beta.54"
 
 "@tanstack/table-core@8.5.11":
   version "8.5.11"
   resolved "https://registry.npmjs.org/@tanstack/table-core/-/table-core-8.5.11.tgz"
   integrity sha512-ZN61ockLaIAiiPbZfMKT2S03nbWx28OHg/nAiDnNfmN4QmAMcdwVajPn2QQwnNVGAr4jS4nbhbYzCcjq8livXQ==
+
+"@tanstack/virtual-core@3.0.0-beta.54":
+  version "3.0.0-beta.54"
+  resolved "https://registry.yarnpkg.com/@tanstack/virtual-core/-/virtual-core-3.0.0-beta.54.tgz#12259d007911ad9fce1388385c54a9141f4ecdc4"
+  integrity sha512-jtkwqdP2rY2iCCDVAFuaNBH3fiEi29aTn2RhtIoky8DTTiCdc48plpHHreLwmv1PICJ4AJUUESaq3xa8fZH8+g==
 
 "@techteamer/ocsp@1.0.0":
   version "1.0.0"
