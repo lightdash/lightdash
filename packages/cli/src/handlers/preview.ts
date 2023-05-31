@@ -9,7 +9,7 @@ import {
 } from 'unique-names-generator';
 import { URL } from 'url';
 import { LightdashAnalytics } from '../analytics/analytics';
-import { getConfig, setPreviewProject } from '../config';
+import { getConfig, setPreviewProject, unsetPreviewProject } from '../config';
 import { getDbtContext } from '../dbt/context';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
@@ -118,6 +118,9 @@ export const previewHandler = async (
             projectUuid: project.projectUuid,
             ignoreErrors: true,
         });
+
+        setPreviewProject(project.projectUuid, name);
+
         spinner.succeed(
             `  Developer preview "${name}" ready at: ${await projectUrl(
                 project,
@@ -176,6 +179,9 @@ export const previewHandler = async (
             url: `/api/v1/org/projects/${project.projectUuid}`,
             body: undefined,
         });
+
+        unsetPreviewProject();
+
         await LightdashAnalytics.track({
             event: 'preview.error',
             properties: {
@@ -299,6 +305,8 @@ export const stopPreviewHandler = async (
     }
 
     const projectName = options.name;
+
+    unsetPreviewProject();
 
     const previewProject = await getPreviewProject(projectName);
     if (previewProject) {

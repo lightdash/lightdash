@@ -100,6 +100,18 @@ export const setPreviewProject = async (projectUuid: string, name: string) => {
     });
 };
 
+export const unsetPreviewProject = async () => {
+    const config = await getRawConfig();
+    await setConfig({
+        ...config,
+        context: {
+            ...(config.context || {}),
+            previewProject: undefined,
+            previewName: undefined,
+        },
+    });
+};
+
 export const setDefaultUser = async (userUuid: string) => {
     const config = await getRawConfig();
     await setConfig({
