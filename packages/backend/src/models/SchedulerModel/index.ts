@@ -7,7 +7,6 @@ import {
     NotFoundError,
     Scheduler,
     SchedulerAndTargets,
-    SchedulerBase,
     SchedulerEmailTarget,
     SchedulerJobStatus,
     SchedulerLog,
@@ -15,7 +14,6 @@ import {
     SchedulerWithLogs,
     UpdateSchedulerAndTargets,
 } from '@lightdash/common';
-import { NotFound } from 'express-openapi-validator/dist/openapi.validator';
 import { Knex } from 'knex';
 import { DashboardsTableName } from '../../database/entities/dashboards';
 import { ProjectTableName } from '../../database/entities/projects';

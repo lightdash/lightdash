@@ -160,7 +160,7 @@ module.exports = {
                 specs: [
                     {
                         id: 'api-v1',
-                        spec: '../packages/common/src/openapibundle.json',
+                        spec: '../packages/backend/src/generated/swagger.json',
                         route: '/api/v1/',
                     },
                 ],
