@@ -86,10 +86,14 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
         console.error(
             `Validating preview project ${styles.bold(
                 config.context?.previewName,
-            )} with projectUuid ${projectUuid}\n`,
+            )}\n`,
         );
     } else {
-        console.error(`Validating project with projectUuid ${projectUuid}\n`);
+        console.error(
+            `Validating project ${styles.bold(
+                config.context?.projectName || projectUuid,
+            )}\n`,
+        );
     }
 
     const timeStart = new Date();
