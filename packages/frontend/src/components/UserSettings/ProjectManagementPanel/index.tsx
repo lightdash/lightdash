@@ -4,10 +4,7 @@ import { OrganizationProject, ProjectType } from '@lightdash/common';
 import { Stack } from '@mantine/core';
 import { FC, useState } from 'react';
 import { Redirect, useHistory } from 'react-router-dom';
-import {
-    useActiveProject,
-    useDeleteActiveProjectMutation,
-} from '../../../hooks/useActiveProject';
+import { useActiveProject } from '../../../hooks/useActiveProject';
 import { useProjects } from '../../../hooks/useProjects';
 import { useApp } from '../../../providers/AppProvider';
 import { Can } from '../../common/Authorization';
@@ -30,8 +27,6 @@ const ProjectListItem: FC<{
 }> = ({ isCurrentProject, project: { projectUuid, name, type } }) => {
     const { user } = useApp();
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-    const { mutate: deleteActiveProjectMutation } =
-        useDeleteActiveProjectMutation();
 
     return (
         <SettingsCard shadow="sm">
@@ -82,11 +77,7 @@ const ProjectListItem: FC<{
             <ProjectDeleteModal
                 opened={isDeleteDialogOpen}
                 onClose={() => setIsDeleteDialogOpen(false)}
-                onDelete={() => {
-                    if (isCurrentProject) {
-                        deleteActiveProjectMutation();
-                    }
-                }}
+                isCurrentProject={isCurrentProject}
                 projectUuid={projectUuid}
             />
         </SettingsCard>

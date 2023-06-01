@@ -10,6 +10,7 @@ import {
 } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { FC, useState } from 'react';
+import { useDeleteActiveProjectMutation } from '../../../hooks/useActiveProject';
 import { useProject } from '../../../hooks/useProject';
 import { useDeleteProjectMutation } from '../../../hooks/useProjects';
 import MantineIcon from '../../common/MantineIcon';
@@ -17,11 +18,13 @@ import MantineIcon from '../../common/MantineIcon';
 export const ProjectDeleteModal: FC<
     Pick<ModalProps, 'opened' | 'onClose'> & {
         projectUuid: string;
-        onDelete: () => void;
+        isCurrentProject: boolean;
     }
-> = ({ opened, onClose, projectUuid, onDelete }) => {
+> = ({ opened, onClose, projectUuid, isCurrentProject }) => {
     const { isLoading, data: project } = useProject(projectUuid);
     const { mutateAsync, isLoading: isDeleting } = useDeleteProjectMutation();
+    const { mutate: deleteActiveProjectMutation } =
+        useDeleteActiveProjectMutation();
 
     const [confirmOrgName, setConfirmOrgName] = useState<string>();
 
@@ -29,8 +32,10 @@ export const ProjectDeleteModal: FC<
 
     const handleConfirm = async () => {
         await mutateAsync(projectUuid);
+        if (isCurrentProject) {
+            deleteActiveProjectMutation();
+        }
         onClose();
-        onDelete();
     };
 
     const handleOnClose = () => {
@@ -53,9 +58,12 @@ export const ProjectDeleteModal: FC<
         >
             <Stack>
                 <Text>
-                    Type the name of this Project <b>{project.name}</b> to
-                    confirm you want to delete this Project and its users. This
-                    action is not reversible.
+                    Type the name of this project{' '}
+                    <Text span fw={600}>
+                        {project.name}
+                    </Text>{' '}
+                    to confirm you want to delete this project and its users.
+                    This action is not reversible.
                 </Text>
 
                 <TextInput
