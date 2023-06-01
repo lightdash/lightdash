@@ -29,7 +29,8 @@ const ProjectListItem: FC<ProjectListItemProps> = ({
 }) => {
     const { user } = useApp();
 
-    const { mutate: setLastProjectMutation } = useUpdateActiveProjectMutation();
+    const { mutate: updateActiveProjectMutation } =
+        useUpdateActiveProjectMutation();
 
     return (
         <tr>
@@ -54,7 +55,7 @@ const ProjectListItem: FC<ProjectListItemProps> = ({
                         variant="outline"
                         onClick={() => {
                             if (!isCurrentProject) {
-                                setLastProjectMutation(projectUuid);
+                                updateActiveProjectMutation(projectUuid);
                             }
                         }}
                     >
