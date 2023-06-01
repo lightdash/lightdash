@@ -1,3 +1,10 @@
+# [0.589.0](https://github.com/lightdash/lightdash/compare/0.588.0...0.589.0) (2023-06-01)
+
+
+### Features
+
+* add ssh tunnel to project config form ([#5618](https://github.com/lightdash/lightdash/issues/5618)) ([c9477ea](https://github.com/lightdash/lightdash/commit/c9477ea79cc9e64e1a47040f52cc5c5202e5e40b))
+
 # [0.588.0](https://github.com/lightdash/lightdash/compare/0.587.1...0.588.0) (2023-06-01)
 
 
