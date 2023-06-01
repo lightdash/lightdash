@@ -18,3 +18,8 @@ export type ProjectMemberProfile = {
 export type ProjectMemberProfileUpdate = Partial<
     Pick<ProjectMemberProfile, 'role'>
 >;
+
+export type ApiProjectAccessListResponse = {
+    status: 'ok';
+    results: ProjectMemberProfile[];
+};

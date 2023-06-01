@@ -37,3 +37,8 @@ export type ApiSpaceSummaryListResponse = {
     status: 'ok';
     results: SpaceSummary[];
 };
+
+export type ApiSpaceResponse = {
+    status: 'ok';
+    results: Space;
+};
