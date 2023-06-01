@@ -1,10 +1,4 @@
-import {
-    Button,
-    ButtonGroup,
-    Classes,
-    Dialog,
-    Intent,
-} from '@blueprintjs/core';
+import { Button, ButtonGroup, Classes, Intent } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { OrganizationProject, ProjectType } from '@lightdash/common';
 import { Stack } from '@mantine/core';
@@ -14,15 +8,12 @@ import {
     useActiveProject,
     useDeleteActiveProjectMutation,
 } from '../../../hooks/useActiveProject';
-import {
-    useDeleteProjectMutation,
-    useProjects,
-} from '../../../hooks/useProjects';
+import { useProjects } from '../../../hooks/useProjects';
 import { useApp } from '../../../providers/AppProvider';
 import { Can } from '../../common/Authorization';
 import LinkButton from '../../common/LinkButton';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
-import { DeleteProjectPanel } from '../DeleteProjectPanel';
+import { ProjectDeleteModal } from '../DeleteProjectPanel/DeleteProjectModal';
 import {
     HeaderActions,
     ItemContent,
@@ -39,9 +30,7 @@ const ProjectListItem: FC<{
 }> = ({ isCurrentProject, project: { projectUuid, name, type } }) => {
     const { user } = useApp();
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-    const { mutate: deleteProjectMutation, isLoading: isDeleting } =
-        useDeleteProjectMutation();
-    const { mutate: deleteLastProjectMutation } =
+    const { mutate: deleteActiveProjectMutation } =
         useDeleteActiveProjectMutation();
 
     return (
@@ -90,45 +79,16 @@ const ProjectListItem: FC<{
                 </ButtonGroup>
             </ItemContent>
 
-            <DeleteProjectPanel projectUuid={projectUuid} />
-            <Dialog
-                isOpen={isDeleteDialogOpen}
-                icon="trash"
-                onClose={() =>
-                    !isDeleting ? setIsDeleteDialogOpen(false) : undefined
-                }
-                title={'Delete project ' + name}
-                lazy
-            >
-                <div className={Classes.DIALOG_BODY}>
-                    <p>
-                        Are you sure ? This will permanently delete the
-                        <b> {name} </b> project.
-                    </p>
-                </div>
-                <div className={Classes.DIALOG_FOOTER}>
-                    <div className={Classes.DIALOG_FOOTER_ACTIONS}>
-                        <Button
-                            disabled={isDeleting}
-                            onClick={() => setIsDeleteDialogOpen(false)}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            disabled={isDeleting}
-                            intent="danger"
-                            onClick={() => {
-                                deleteProjectMutation(projectUuid);
-                                if (isCurrentProject) {
-                                    deleteLastProjectMutation();
-                                }
-                            }}
-                        >
-                            Delete
-                        </Button>
-                    </div>
-                </div>
-            </Dialog>
+            <ProjectDeleteModal
+                opened={isDeleteDialogOpen}
+                onClose={() => setIsDeleteDialogOpen(false)}
+                onDelete={() => {
+                    if (isCurrentProject) {
+                        deleteActiveProjectMutation();
+                    }
+                }}
+                projectUuid={projectUuid}
+            />
         </SettingsCard>
     );
 };

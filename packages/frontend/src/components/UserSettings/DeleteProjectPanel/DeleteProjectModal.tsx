@@ -15,8 +15,11 @@ import { useDeleteProjectMutation } from '../../../hooks/useProjects';
 import MantineIcon from '../../common/MantineIcon';
 
 export const ProjectDeleteModal: FC<
-    Pick<ModalProps, 'opened' | 'onClose'> & { projectUuid: string }
-> = ({ opened, onClose, projectUuid }) => {
+    Pick<ModalProps, 'opened' | 'onClose'> & {
+        projectUuid: string;
+        onDelete: () => void;
+    }
+> = ({ opened, onClose, projectUuid, onDelete }) => {
     const { isLoading, data: project } = useProject(projectUuid);
     const { mutateAsync, isLoading: isDeleting } = useDeleteProjectMutation();
 
@@ -27,6 +30,7 @@ export const ProjectDeleteModal: FC<
     const handleConfirm = async () => {
         await mutateAsync(projectUuid);
         onClose();
+        onDelete();
     };
 
     const handleOnClose = () => {

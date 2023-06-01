@@ -48,6 +48,7 @@ const deleteProjectQuery = async (id: string) =>
 export const useDeleteProjectMutation = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
+
     return useMutation<undefined, ApiError, string>(deleteProjectQuery, {
         mutationKey: ['organization_project_delete'],
         onSuccess: async () => {
