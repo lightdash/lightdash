@@ -1285,9 +1285,8 @@ const useEcharts = () => {
             const xFieldId = validCartesianConfig?.layout?.xField;
             if (xFieldId === undefined) return results;
 
-            const alreadySorted = resultsData?.metricQuery.sorts?.find(
-                (sort) => sort.fieldId === xFieldId,
-            );
+            const alreadySorted =
+                resultsData?.metricQuery.sorts?.[0].fieldId === xFieldId;
             if (alreadySorted !== undefined) return results;
 
             const xField = dimensions.find(
