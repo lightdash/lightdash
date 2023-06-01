@@ -214,6 +214,13 @@ export class ProjectModel {
             } catch (e) {
                 throw new UnexpectedServerError('Could not save credentials.');
             }
+
+            // Make sure the project to copy exists and is owned by the same organization
+            const copiedProjects = data.copiedFromProjectUuid
+                ? await trx('projects')
+                      .where('organization_id', orgs[0].organization_id)
+                      .andWhere('project_uuid', data.copiedFromProjectUuid)
+                : [];
             const [project] = await trx('projects')
                 .insert({
                     name: data.name,
@@ -222,7 +229,9 @@ export class ProjectModel {
                     dbt_connection_type: data.dbtConnection.type,
                     dbt_connection: encryptedCredentials,
                     copied_from_project_uuid:
-                        data.copiedFromProjectUuid || null,
+                        copiedProjects.length === 1
+                            ? copiedProjects[0].project_uuid
+                            : null,
                 })
                 .returning('*');
 

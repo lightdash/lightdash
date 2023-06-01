@@ -224,6 +224,7 @@ export class ProjectService {
         );
 
         // Give admin user permissions to user who created this project even if he is an admin
+        // TODO do not do this if we are copying data from another project
         if (user.email) {
             await this.projectModel.createProjectAccess(
                 projectUuid,
@@ -231,6 +232,7 @@ export class ProjectService {
                 ProjectMemberRole.ADMIN,
             );
         }
+
         analytics.track({
             event: 'project.created',
             userId: user.userUuid,
@@ -252,9 +254,10 @@ export class ProjectService {
                 const project = await this.projectModel.get(
                     data.copiedFromProjectUuid,
                 );
+                // We only allow copying from projects if the user is an admin until we remove the `createProjectAccess` call above
                 if (
                     user.ability.cannot(
-                        'view',
+                        'manage',
                         subject('Project', {
                             organizationUuid: project.organizationUuid,
                             projectUuid: data.copiedFromProjectUuid,
