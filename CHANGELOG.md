@@ -1,3 +1,10 @@
+# [0.587.0](https://github.com/lightdash/lightdash/compare/0.586.4...0.587.0) (2023-06-01)
+
+
+### Features
+
+* delete project dialog ([#5709](https://github.com/lightdash/lightdash/issues/5709)) ([97a4188](https://github.com/lightdash/lightdash/commit/97a41884d30fd43ab06edc07b8cb1eb14b6d7cca))
+
 ## [0.586.4](https://github.com/lightdash/lightdash/compare/0.586.3...0.586.4) (2023-06-01)
 
 
