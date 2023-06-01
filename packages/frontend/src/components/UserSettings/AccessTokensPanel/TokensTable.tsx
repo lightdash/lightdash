@@ -27,11 +27,14 @@ const TokenItem: FC<{
     return (
         <>
             <tr>
-                <td>{description}</td>
+                <Text component="td" fw={500}>
+                    {description}
+                </Text>
+
                 <td>
                     {expiresAt ? formatDate(expiresAt) : 'No expiration date'}
                 </td>
-                <td>
+                <td width="1%">
                     <Button
                         variant="outline"
                         size="xs"
@@ -65,10 +68,7 @@ export const TokensTable = () => {
     return (
         <>
             <Paper withBorder sx={{ overflow: 'hidden' }}>
-                <Table
-                    className={cx(classes.root, classes.alignLastTdRight)}
-                    highlightOnHover
-                >
+                <Table className={cx(classes.root, classes.alignLastTdRight)}>
                     <thead>
                         <tr>
                             <th>Name</th>

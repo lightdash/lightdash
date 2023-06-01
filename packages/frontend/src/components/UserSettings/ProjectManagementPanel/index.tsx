@@ -1,9 +1,10 @@
-import { Button, ButtonGroup, Classes, Intent } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import { OrganizationProject, ProjectType } from '@lightdash/common';
-import { Stack } from '@mantine/core';
+import { Badge, Button, Group, Stack, Table, Text, Title } from '@mantine/core';
+import { IconSettings, IconTrash } from '@tabler/icons-react';
 import { FC, useState } from 'react';
-import { Redirect, useHistory } from 'react-router-dom';
+import { Link, Redirect } from 'react-router-dom';
+import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import {
     useActiveProject,
     useUpdateActiveProjectMutation,
@@ -11,58 +12,56 @@ import {
 import { useProjects } from '../../../hooks/useProjects';
 import { useApp } from '../../../providers/AppProvider';
 import { Can } from '../../common/Authorization';
-import LinkButton from '../../common/LinkButton';
+import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
 import { ProjectDeleteModal } from '../DeleteProjectPanel/DeleteProjectModal';
-import {
-    HeaderActions,
-    ItemContent,
-    PanelTitle,
-    ProjectInfo,
-    ProjectManagementPanelWrapper,
-    ProjectName,
-    ProjectTag,
-} from './ProjectManagementPanel.styles';
 
-const ProjectListItem: FC<{
+type ProjectListItemProps = {
     isCurrentProject: boolean;
     project: OrganizationProject;
-}> = ({ isCurrentProject, project: { projectUuid, name, type } }) => {
-    const { user } = useApp();
-    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    onDelete: (projectUuid: string) => void;
+};
 
-    const { mutate: setLastProjectMutation } = useUpdateActiveProjectMutation();
+const ProjectListItem: FC<ProjectListItemProps> = ({
+    isCurrentProject,
+    project: { projectUuid, name, type },
+    onDelete,
+}) => {
+    const { user } = useApp();
+
+    const { mutate: updateActiveProjectMutation } =
+        useUpdateActiveProjectMutation();
 
     return (
-        <SettingsCard shadow="sm">
-            <ItemContent>
-                <ProjectInfo>
-                    <ProjectName
-                        className={Classes.TEXT_OVERFLOW_ELLIPSIS}
-                        title={name}
-                    >
-                        {name}
-                    </ProjectName>
+        <tr>
+            <Text component="td" fw={500}>
+                {name}
+            </Text>
+            <td>
+                <Group spacing="xs">
                     {isCurrentProject && (
-                        <ProjectTag minimal>Current Project</ProjectTag>
+                        <Badge variant="filled">Current Project</Badge>
                     )}
-                    {type === ProjectType.PREVIEW && (
-                        <ProjectTag minimal intent="warning">
-                            Preview
-                        </ProjectTag>
-                    )}
-                </ProjectInfo>
-
-                <ButtonGroup>
-                    <LinkButton
-                        icon="cog"
-                        outlined
-                        text="Settings"
+                    {type === ProjectType.PREVIEW && <Badge>Preview</Badge>}
+                </Group>
+            </td>
+            <td width="1%">
+                <Group noWrap position="right" spacing="sm">
+                    <Button
+                        component={Link}
+                        size="xs"
+                        to={`/generalSettings/projectManagement/${projectUuid}`}
+                        leftIcon={<MantineIcon icon={IconSettings} />}
+                        variant="outline"
                         onClick={() => {
-                            setLastProjectMutation(projectUuid);
+                            if (!isCurrentProject) {
+                                updateActiveProjectMutation(projectUuid);
+                            }
                         }}
-                        href={`/generalSettings/projectManagement/${projectUuid}`}
-                    />
+                    >
+                        Settings
+                    </Button>
+
                     <Can
                         I="delete"
                         this={subject('Project', {
@@ -71,32 +70,31 @@ const ProjectListItem: FC<{
                         })}
                     >
                         <Button
-                            icon="trash"
-                            outlined
-                            text="Delete"
-                            intent={Intent.DANGER}
-                            style={{ marginLeft: 10 }}
-                            onClick={() => setIsDeleteDialogOpen(true)}
-                        />
+                            leftIcon={<MantineIcon icon={IconTrash} />}
+                            size="xs"
+                            variant="outline"
+                            color="red"
+                            onClick={() => {
+                                onDelete(projectUuid);
+                            }}
+                        >
+                            Delete
+                        </Button>
                     </Can>
-                </ButtonGroup>
-            </ItemContent>
-
-            <ProjectDeleteModal
-                opened={isDeleteDialogOpen}
-                onClose={() => setIsDeleteDialogOpen(false)}
-                isCurrentProject={isCurrentProject}
-                projectUuid={projectUuid}
-            />
-        </SettingsCard>
+                </Group>
+            </td>
+        </tr>
     );
 };
 
 const ProjectManagementPanel: FC = () => {
-    const history = useHistory();
+    const { classes } = useTableStyles();
+
     const { data: projects = [], isLoading: isLoadingProjects } = useProjects();
     const { data: lastProjectUuid, isLoading: isLoadingLastProject } =
         useActiveProject();
+
+    const [deletingProjectUuid, setDeletingProjectUuid] = useState<string>();
 
     if (isLoadingProjects || isLoadingLastProject) return null;
 
@@ -109,30 +107,53 @@ const ProjectManagementPanel: FC = () => {
     );
 
     return (
-        <ProjectManagementPanelWrapper>
-            <HeaderActions>
-                <PanelTitle>Project management settings</PanelTitle>
-                <Can I="create" a="Project">
-                    <Button
-                        intent="primary"
-                        onClick={() => history.push(`/createProject`)}
-                        text="Create new"
-                    />
-                </Can>
-            </HeaderActions>
+        <Stack mb="lg">
+            <Group position="apart">
+                <Title order={5}>Project management settings</Title>
 
-            <Stack>
-                {projects.map((project) => (
-                    <ProjectListItem
-                        key={project.projectUuid}
-                        isCurrentProject={
-                            lastProject?.projectUuid === project.projectUuid
-                        }
-                        project={project}
-                    />
-                ))}
-            </Stack>
-        </ProjectManagementPanelWrapper>
+                <Can I="create" a="Project">
+                    <Button component={Link} to="/createProject">
+                        Create new
+                    </Button>
+                </Can>
+            </Group>
+
+            <SettingsCard sx={{ overflow: 'hidden' }} shadow="none" p={0}>
+                <Table className={classes.root}>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th></th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {projects.map((project) => (
+                            <ProjectListItem
+                                key={project.projectUuid}
+                                isCurrentProject={
+                                    lastProject?.projectUuid ===
+                                    project.projectUuid
+                                }
+                                project={project}
+                                onDelete={(projectUuid) =>
+                                    setDeletingProjectUuid(projectUuid)
+                                }
+                            />
+                        ))}
+                    </tbody>
+                </Table>
+            </SettingsCard>
+
+            {deletingProjectUuid ? (
+                <ProjectDeleteModal
+                    opened={deletingProjectUuid !== undefined}
+                    onClose={() => setDeletingProjectUuid(undefined)}
+                    isCurrentProject={deletingProjectUuid === lastProjectUuid}
+                    projectUuid={deletingProjectUuid}
+                />
+            ) : null}
+        </Stack>
     );
 };
 
