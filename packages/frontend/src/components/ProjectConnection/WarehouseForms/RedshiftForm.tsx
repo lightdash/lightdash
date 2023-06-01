@@ -16,6 +16,7 @@ import {
 } from '../ProjectConnection.styles';
 import { useProjectFormContext } from '../ProjectFormProvider';
 import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
+import { useCreateSshKeyPair } from './sshHooks';
 
 export const RedshiftSchemaInput: FC<{
     disabled: boolean;
@@ -43,6 +44,7 @@ const RedshiftForm: FC<{
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.REDSHIFT;
+    useCreateSshKeyPair({ onSuccess: () => {} });
 
     const [useSSHTunnel, setUseSSHTunnel] = React.useState(false);
     const [SSHKeyGenerated, setSSHKeyGenerated] = React.useState(false);
@@ -145,7 +147,7 @@ const RedshiftForm: FC<{
                 />
                 <StartOfWeekSelect disabled={disabled} />
                 <FormGroup
-                    labelFor="warehouse.useSSHTunnel"
+                    labelFor="warehouse.useSshTunnel"
                     label="Use SSH tunnel"
                     inline
                     style={{
@@ -163,11 +165,11 @@ const RedshiftForm: FC<{
                         }}
                     />
                 </FormGroup>
-                <FormSection name="warehouse.SSH" isOpen={useSSHTunnel}>
+                <FormSection name="sshFormSection" isOpen={useSSHTunnel}>
                     <Input
-                        name="warehouse.SSHhost"
-                        label="SSH host"
-                        labelHelp="I don't have a copy for this yet"
+                        name="warehouse.sshTunnelHost"
+                        label="SSH host name for remote server"
+                        labelHelp="This is the hostname or IP address for the remote server that you want to connect to. Lightdash will connect to this server via SSH before attempting to connect to your warehouse."
                         rules={{
                             required: 'Required field',
                             validate: {
@@ -177,19 +179,19 @@ const RedshiftForm: FC<{
                         disabled={disabled}
                     />
                     <NumericInput
-                        name="warehouse.SSHport"
+                        name="warehouse.sshTunnelPort"
                         label="SSH port"
-                        labelHelp="I don't have a copy for this yet"
+                        labelHelp="The port on the remote server that you want to connect to."
                         rules={{
                             required: 'Required field',
                         }}
                         disabled={disabled}
-                        defaultValue={1111}
+                        defaultValue={22}
                     />
                     <Input
-                        name="warehouse.SSHuser"
-                        label="SSH user"
-                        labelHelp="I don't have a copy for this yet"
+                        name="warehouse.sshTunnelUser"
+                        label="SSH user name"
+                        labelHelp="This is the username Lightdash will use when it connects to your remote server over SSH"
                         rules={{
                             required: requireSecrets
                                 ? 'Required field'
