@@ -1,3 +1,10 @@
+## [0.586.3](https://github.com/lightdash/lightdash/compare/0.586.2...0.586.3) (2023-06-01)
+
+
+### Bug Fixes
+
+* move pivot data calculations to web worker ([#5693](https://github.com/lightdash/lightdash/issues/5693)) ([49aa887](https://github.com/lightdash/lightdash/commit/49aa887a1be5c6da03c1f09bd3e62c3befd964f2))
+
 ## [0.586.2](https://github.com/lightdash/lightdash/compare/0.586.1...0.586.2) (2023-05-31)
 
 
