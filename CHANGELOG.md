@@ -1,3 +1,10 @@
+## [0.586.4](https://github.com/lightdash/lightdash/compare/0.586.3...0.586.4) (2023-06-01)
+
+
+### Bug Fixes
+
+* default sort date chart ([#5670](https://github.com/lightdash/lightdash/issues/5670)) ([735fb87](https://github.com/lightdash/lightdash/commit/735fb87ce591816006aec97d72d1c7ad7297729d))
+
 ## [0.586.3](https://github.com/lightdash/lightdash/compare/0.586.2...0.586.3) (2023-06-01)
 
 
