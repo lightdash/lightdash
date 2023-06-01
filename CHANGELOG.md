@@ -1,3 +1,10 @@
+## [0.587.1](https://github.com/lightdash/lightdash/compare/0.587.0...0.587.1) (2023-06-01)
+
+
+### Bug Fixes
+
+* fix missing project to copy, foreign key error ([#5704](https://github.com/lightdash/lightdash/issues/5704)) ([e566328](https://github.com/lightdash/lightdash/commit/e566328b23f5a348ca04d3585781a8b30059b7f7))
+
 # [0.587.0](https://github.com/lightdash/lightdash/compare/0.586.4...0.587.0) (2023-06-01)
 
 
