@@ -75,6 +75,7 @@ import {
 } from './types/scheduler';
 import { SlackChannel } from './types/slack';
 import { Space } from './types/space';
+import { ApiSshKeyPairResponse } from './types/SshKeyPair';
 import { TableBase } from './types/table';
 import { LightdashUser, UserAllowedOrganization } from './types/user';
 import { ValidationResponse } from './types/validation';
@@ -497,7 +498,8 @@ type ApiResults =
     | SchedulerWithLogs
     | ValidationResponse[]
     | ApiJobStatusResponse['results']
-    | ApiJobScheduledResponse['results'];
+    | ApiJobScheduledResponse['results']
+    | ApiSshKeyPairResponse['results'];
 
 export type ApiResponse = {
     status: 'ok';

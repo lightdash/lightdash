@@ -2,10 +2,19 @@ import { InputGroup } from '@blueprintjs/core';
 import React, { FC } from 'react';
 import InputWrapper, { InputWrapperProps } from './InputWrapper';
 
-const Input: FC<Omit<InputWrapperProps, 'render'>> = ({ ...rest }) => (
+type FieldProps = {
+    rightElement?: React.ComponentProps<typeof InputGroup>['rightElement'];
+    readOnly?: React.ComponentProps<typeof InputGroup>['readOnly'];
+};
+const Input: FC<Omit<InputWrapperProps, 'render'> & FieldProps> = ({
+    rightElement,
+    ...rest
+}) => (
     <InputWrapper
         {...rest}
-        render={(props, { field }) => <InputGroup {...props} {...field} />}
+        render={(props, { field }) => (
+            <InputGroup {...props} {...field} rightElement={rightElement} />
+        )}
     />
 );
 
