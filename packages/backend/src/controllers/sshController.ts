@@ -25,6 +25,7 @@ export class SshController extends Controller {
     async createSshKeyPair(
         @Request() req: express.Request,
     ): Promise<ApiSshKeyPairResponse> {
+        throw new Error('stupid error');
         const results = await sshKeyPairService.create();
         this.setStatus(201);
         return {

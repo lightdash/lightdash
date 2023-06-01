@@ -4,6 +4,7 @@ import InputWrapper, { InputWrapperProps } from './InputWrapper';
 
 type FieldProps = {
     rightElement?: React.ComponentProps<typeof InputGroup>['rightElement'];
+    readOnly?: React.ComponentProps<typeof InputGroup>['readOnly'];
 };
 const Input: FC<Omit<InputWrapperProps, 'render'> & FieldProps> = ({
     rightElement,

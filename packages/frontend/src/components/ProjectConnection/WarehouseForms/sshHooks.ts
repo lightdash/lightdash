@@ -11,7 +11,7 @@ export const useCreateSshKeyPair = (
         async () =>
             lightdashApi({
                 method: 'POST',
-                url: '/api/v1/ssh/key-pairs',
+                url: '/ssh/key-pairs',
                 body: undefined,
             }),
         {

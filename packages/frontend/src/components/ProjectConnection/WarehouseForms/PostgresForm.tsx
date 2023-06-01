@@ -48,13 +48,20 @@ const PostgresForm: FC<{
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.POSTGRES;
     const { setValue } = useFormContext();
-    const showSshTunelConfiguration: boolean = useWatch({
+    const showSshTunnelConfiguration: boolean = useWatch({
         name: 'warehouse.useSshTunnel',
-        defaultValue: false,
+        defaultValue:
+            (savedProject?.warehouseConnection?.type ===
+                WarehouseTypes.POSTGRES &&
+                savedProject?.warehouseConnection?.useSshTunnel) ||
+            false,
     });
     const sshTunnelPublicKey: string = useWatch({
         name: 'warehouse.sshTunnelPublicKey',
-        defaultValue: undefined,
+        defaultValue:
+            savedProject?.warehouseConnection?.type ===
+                WarehouseTypes.POSTGRES &&
+            savedProject?.warehouseConnection?.sshTunnelPublicKey,
     });
     const { mutate, isLoading } = useCreateSshKeyPair({
         onSuccess: (data) => {
@@ -207,7 +214,7 @@ const PostgresForm: FC<{
                     disabled={disabled}
                 />
                 <FormSection
-                    isOpen={showSshTunelConfiguration}
+                    isOpen={showSshTunnelConfiguration}
                     name="ssh-config"
                 >
                     <Input
@@ -219,17 +226,19 @@ const PostgresForm: FC<{
                         name="warehouse.sshTunnelPort"
                         label="SSH Remote Port"
                         disabled={disabled}
+                        defaultValue={22}
                     />
                     <Input
                         name="warehouse.sshTunnelUser"
                         label="SSH Username"
                         disabled={disabled}
                     />
-                    {sshTunnelPublicKey ? (
+                    {sshTunnelPublicKey && (
                         <Input
                             name="warehouse.sshTunnelPublicKey"
                             label="Generated SSH Public Key"
-                            disabled={true}
+                            readOnly={true}
+                            disabled={disabled}
                             rightElement={
                                 <>
                                     <CopyButton value={sshTunnelPublicKey}>
@@ -261,14 +270,17 @@ const PostgresForm: FC<{
                                 </>
                             }
                         />
-                    ) : (
-                        <Button
-                            text={`Generate`}
-                            onClick={() => mutate()}
-                            loading={isLoading}
-                            disabled={isLoading}
-                        />
                     )}
+                    <Button
+                        text={
+                            sshTunnelPublicKey
+                                ? `Regenerate key`
+                                : `Generate public key`
+                        }
+                        onClick={() => mutate()}
+                        loading={isLoading}
+                        disabled={disabled || isLoading}
+                    />
                 </FormSection>
             </FormSection>
             <AdvancedButtonWrapper>

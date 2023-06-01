@@ -48,13 +48,20 @@ const RedshiftForm: FC<{
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.REDSHIFT;
     const { setValue } = useFormContext();
-    const showSshTunelConfiguration: boolean = useWatch({
+    const showSshTunnelConfiguration: boolean = useWatch({
         name: 'warehouse.useSshTunnel',
-        defaultValue: false,
+        defaultValue:
+            (savedProject?.warehouseConnection?.type ===
+                WarehouseTypes.REDSHIFT &&
+                savedProject.warehouseConnection.useSshTunnel) ||
+            false,
     });
     const sshTunnelPublicKey: string = useWatch({
         name: 'warehouse.sshTunnelPublicKey',
-        defaultValue: undefined,
+        defaultValue:
+            savedProject?.warehouseConnection?.type ===
+                WarehouseTypes.REDSHIFT &&
+            savedProject.warehouseConnection.sshTunnelPublicKey,
     });
     const { mutate, isLoading } = useCreateSshKeyPair({
         onSuccess: (data) => {
@@ -165,7 +172,7 @@ const RedshiftForm: FC<{
                     disabled={disabled}
                 />
                 <FormSection
-                    isOpen={showSshTunelConfiguration}
+                    isOpen={showSshTunnelConfiguration}
                     name="ssh-config"
                 >
                     <Input
@@ -183,11 +190,12 @@ const RedshiftForm: FC<{
                         label="SSH Username"
                         disabled={disabled}
                     />
-                    {sshTunnelPublicKey ? (
+                    {sshTunnelPublicKey && (
                         <Input
                             name="warehouse.sshTunnelPublicKey"
                             label="Generated SSH Public Key"
-                            disabled={true}
+                            readOnly={true}
+                            disabled={disabled}
                             rightElement={
                                 <>
                                     <CopyButton value={sshTunnelPublicKey}>
@@ -219,14 +227,17 @@ const RedshiftForm: FC<{
                                 </>
                             }
                         />
-                    ) : (
-                        <Button
-                            text={`Generate`}
-                            onClick={() => mutate()}
-                            loading={isLoading}
-                            disabled={isLoading}
-                        />
                     )}
+                    <Button
+                        text={
+                            sshTunnelPublicKey
+                                ? `Regenerate key`
+                                : `Generate public key`
+                        }
+                        onClick={() => mutate()}
+                        loading={isLoading}
+                        disabled={disabled || isLoading}
+                    />
                 </FormSection>
             </FormSection>
             <AdvancedButtonWrapper>
