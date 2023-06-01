@@ -57,28 +57,34 @@ const SimpleTable: FC<SimpleTableProps> = ({
         );
     }
 
-    if (pivotTableData.error || pivotTableData.data) {
-        return pivotTableData.error || !pivotTableData.data ? (
+    if (pivotTableData.error) {
+        return (
             <NonIdealState
                 title="Results not available"
                 description={pivotTableData.error}
                 icon="error"
             />
-        ) : (
+        );
+    } else if (pivotTableData.loading || pivotTableData.data) {
+        return (
             <Box
                 ref={scrollableContainerRef}
                 miw="100%"
                 h="100%"
                 sx={{ overflow: 'auto' }}
             >
-                <PivotTable
-                    containerRef={scrollableContainerRef}
-                    data={pivotTableData.data}
-                    conditionalFormattings={conditionalFormattings}
-                    getFieldLabel={getFieldLabel}
-                    getField={getField}
-                    hideRowNumbers={hideRowNumbers}
-                />
+                {pivotTableData.data ? (
+                    <PivotTable
+                        containerRef={scrollableContainerRef}
+                        data={pivotTableData.data}
+                        conditionalFormattings={conditionalFormattings}
+                        getFieldLabel={getFieldLabel}
+                        getField={getField}
+                        hideRowNumbers={hideRowNumbers}
+                    />
+                ) : (
+                    <LoadingChart />
+                )}
             </Box>
         );
     }
