@@ -1,3 +1,10 @@
+## [0.589.1](https://github.com/lightdash/lightdash/compare/0.589.0...0.589.1) (2023-06-01)
+
+
+### Bug Fixes
+
+* workaround otel metrics env vars ([#5722](https://github.com/lightdash/lightdash/issues/5722)) ([e5c52b8](https://github.com/lightdash/lightdash/commit/e5c52b810a03809b90b310f929583955627d4487))
+
 # [0.589.0](https://github.com/lightdash/lightdash/compare/0.588.0...0.589.0) (2023-06-01)
 
 
