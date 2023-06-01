@@ -53,7 +53,9 @@ const ProjectListItem: FC<ProjectListItemProps> = ({
                         leftIcon={<MantineIcon icon={IconSettings} />}
                         variant="outline"
                         onClick={() => {
-                            setLastProjectMutation(projectUuid);
+                            if (!isCurrentProject) {
+                                setLastProjectMutation(projectUuid);
+                            }
                         }}
                     >
                         Settings
