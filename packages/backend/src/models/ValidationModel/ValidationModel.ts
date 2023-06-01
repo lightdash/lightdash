@@ -3,7 +3,6 @@ import {
     getChartType,
     isChartValidationError,
     isDashboardValidationError,
-    isTableValidationError,
     ValidationErrorChartResponse,
     ValidationErrorDashboardResponse,
     ValidationErrorTableResponse,
@@ -50,10 +49,6 @@ export class ValidationModel {
                     project_uuid: validation.projectUuid,
                     error: validation.error,
                     error_type: validation.errorType,
-                    ...(isTableValidationError(validation) && {
-                        model_name: validation.modelName,
-                        dimension_name: validation.dimensionName,
-                    }),
                     ...(isChartValidationError(validation) && {
                         saved_chart_uuid: validation.chartUuid,
                         field_name: validation.fieldName,

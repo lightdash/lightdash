@@ -29,21 +29,8 @@ const CustomMark: FC<{ children: ReactNode }> = ({ children }) => {
 const ErrorMessageByType: FC<{
     validationError: ValidationResponse;
 }> = ({ validationError }) => {
-    if (isTableValidationError(validationError) && validationError.modelName) {
-        return (
-            <Text>
-                <CustomMark>{validationError.modelName}</CustomMark> has a
-                dimension reference{' '}
-                {validationError.dimensionName ? (
-                    <>
-                        <CustomMark>{validationError.dimensionName}</CustomMark>{' '}
-                    </>
-                ) : (
-                    ''
-                )}
-                which no longer exists
-            </Text>
-        );
+    if (isTableValidationError(validationError) && validationError) {
+        return <Text>{validationError.error}</Text>;
     }
 
     if (isChartValidationError(validationError)) {

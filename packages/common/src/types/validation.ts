@@ -28,10 +28,7 @@ export type ValidationErrorDashboardResponse = ValidationResponseBase & {
     dashboardViews: number;
 };
 
-export type ValidationErrorTableResponse = ValidationResponseBase & {
-    modelName: string | undefined;
-    dimensionName: string | undefined;
-};
+export type ValidationErrorTableResponse = ValidationResponseBase;
 
 export type ValidationResponse =
     | ValidationErrorChartResponse
@@ -40,12 +37,7 @@ export type ValidationResponse =
 
 export type CreateTableValidation = Pick<
     ValidationErrorTableResponse,
-    | 'error'
-    | 'errorType'
-    | 'modelName'
-    | 'dimensionName'
-    | 'projectUuid'
-    | 'name'
+    'error' | 'errorType' | 'projectUuid' | 'name'
 >;
 
 export type CreateChartValidation = Pick<

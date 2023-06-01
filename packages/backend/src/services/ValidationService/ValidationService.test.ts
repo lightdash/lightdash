@@ -127,10 +127,8 @@ describe('validation', () => {
         expect({ ...errors[0], createdAt: undefined }).toEqual({
             createdAt: undefined,
             name: 'valid_explore',
-            dimensionName: 'is_completed',
             error: 'Model "valid_explore" has a dimension reference: ${is_completed} which matches no dimension',
             errorType: 'model',
-            modelName: 'valid_explore',
             projectUuid: 'projectUuid',
         });
 
