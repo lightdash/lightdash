@@ -37,15 +37,16 @@ type PivotTableCellStylesProps = {
 export const usePivotTableCellStyles = createStyles<
     string,
     PivotTableCellStylesProps
->((theme, props) => ({
+>((theme, props = {}) => ({
     root: {
         textAlign: 'left',
         whiteSpace: 'nowrap',
         fontWeight: 400,
+        fontSize: 13,
 
         cursor: props.hasValue ? 'pointer' : 'default',
 
-        color: theme.colors.gray[7],
+        color: theme.colors.gray[9],
         backgroundColor: theme.white,
 
         outline: `1px solid transparent`,
@@ -73,12 +74,6 @@ export const usePivotTableCellStyles = createStyles<
                 : undefined,
     },
 
-    header: {
-        fontWeight: 600,
-        color: theme.colors.gray[8],
-        backgroundColor: theme.colors.gray[5],
-    },
-
     conditionalFormatting: props.conditionalFormatting
         ? {
               color: props.conditionalFormatting?.color,
@@ -102,8 +97,19 @@ export const usePivotTableCellStyles = createStyles<
           }
         : {},
 
-    rowNumber: {
-        width: '1%',
+    withGrayBackground: {
+        backgroundColor: theme.colors.gray[0],
+    },
+
+    withBolderFont: {
+        fontWeight: 600,
+    },
+
+    withAlignRight: {
         textAlign: 'right',
+    },
+
+    withMinimalWidth: {
+        width: '1%',
     },
 }));

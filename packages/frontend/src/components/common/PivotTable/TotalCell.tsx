@@ -54,7 +54,11 @@ const TotalCell: FC<TotalCellProps> = ({ value }) => {
                         ref={menuRef}
                         {...menuProps}
                         data-copied={clipboard.copied}
-                        className={cx(menuProps.className, classes.root)}
+                        className={cx(
+                            menuProps.className,
+                            classes.root,
+                            classes.grayBackground,
+                        )}
                     >
                         <Text>{value?.formatted}</Text>
                     </Box>
