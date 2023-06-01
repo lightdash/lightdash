@@ -22,6 +22,7 @@ import { useApp } from '../../../providers/AppProvider';
 import { Can } from '../../common/Authorization';
 import LinkButton from '../../common/LinkButton';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
+import { DeleteProjectPanel } from '../DeleteProjectPanel';
 import {
     HeaderActions,
     ItemContent,
@@ -89,6 +90,7 @@ const ProjectListItem: FC<{
                 </ButtonGroup>
             </ItemContent>
 
+            <DeleteProjectPanel projectUuid={projectUuid} />
             <Dialog
                 isOpen={isDeleteDialogOpen}
                 icon="trash"
