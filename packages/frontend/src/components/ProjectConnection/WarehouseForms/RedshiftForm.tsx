@@ -1,12 +1,15 @@
-import { Button, FormGroup, Intent, Switch, TextArea } from '@blueprintjs/core';
+import { Button } from '@blueprintjs/core';
 import { WarehouseTypes } from '@lightdash/common';
+import { ActionIcon, CopyButton, Tooltip } from '@mantine/core';
+import { IconCheck, IconCopy } from '@tabler/icons-react';
 import React, { FC } from 'react';
+import { useFormContext, useWatch } from 'react-hook-form';
 import { useToggle } from 'react-use';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
+import MantineIcon from '../../common/MantineIcon';
 import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
 import FormSection from '../../ReactHookForm/FormSection';
 import Input from '../../ReactHookForm/Input';
-import InputWrapper from '../../ReactHookForm/InputWrapper';
 import NumericInput from '../../ReactHookForm/NumericInput';
 import PasswordInput from '../../ReactHookForm/PasswordInput';
 import Select from '../../ReactHookForm/Select';
@@ -44,10 +47,20 @@ const RedshiftForm: FC<{
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.REDSHIFT;
-    useCreateSshKeyPair({ onSuccess: () => {} });
-
-    const [useSSHTunnel, setUseSSHTunnel] = React.useState(false);
-    const [SSHKeyGenerated, setSSHKeyGenerated] = React.useState(false);
+    const { setValue } = useFormContext();
+    const showSshTunelConfiguration: boolean = useWatch({
+        name: 'warehouse.useSshTunnel',
+        defaultValue: false,
+    });
+    const sshTunnelPublicKey: string = useWatch({
+        name: 'warehouse.sshTunnelPublicKey',
+        defaultValue: undefined,
+    });
+    const { mutate, isLoading } = useCreateSshKeyPair({
+        onSuccess: (data) => {
+            setValue('warehouse.sshTunnelPublicKey', data.publicKey);
+        },
+    });
     return (
         <>
             <Input
@@ -146,94 +159,74 @@ const RedshiftForm: FC<{
                     disabled={disabled}
                 />
                 <StartOfWeekSelect disabled={disabled} />
-                <FormGroup
-                    labelFor="warehouse.useSshTunnel"
+                <BooleanSwitch
+                    name="warehouse.useSshTunnel"
                     label="Use SSH tunnel"
-                    inline
-                    style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        marginBottom: 'none',
-                        fontWeight: 500,
-                    }}
+                    disabled={disabled}
+                />
+                <FormSection
+                    isOpen={showSshTunelConfiguration}
+                    name="ssh-config"
                 >
-                    <Switch
-                        alignIndicator="right"
-                        checked={useSSHTunnel}
-                        onChange={() => {
-                            setUseSSHTunnel(!useSSHTunnel);
-                        }}
-                    />
-                </FormGroup>
-                <FormSection name="sshFormSection" isOpen={useSSHTunnel}>
                     <Input
                         name="warehouse.sshTunnelHost"
-                        label="SSH host name for remote server"
-                        labelHelp="This is the hostname or IP address for the remote server that you want to connect to. Lightdash will connect to this server via SSH before attempting to connect to your warehouse."
-                        rules={{
-                            required: 'Required field',
-                            validate: {
-                                hasNoWhiteSpaces: hasNoWhiteSpaces('SSHhost'),
-                            },
-                        }}
+                        label="SSH Remote Host"
                         disabled={disabled}
                     />
                     <NumericInput
                         name="warehouse.sshTunnelPort"
-                        label="SSH port"
-                        labelHelp="The port on the remote server that you want to connect to."
-                        rules={{
-                            required: 'Required field',
-                        }}
+                        label="SSH Remote Port"
                         disabled={disabled}
-                        defaultValue={22}
                     />
                     <Input
                         name="warehouse.sshTunnelUser"
-                        label="SSH user name"
-                        labelHelp="This is the username Lightdash will use when it connects to your remote server over SSH"
-                        rules={{
-                            required: requireSecrets
-                                ? 'Required field'
-                                : undefined,
-                            validate: {
-                                hasNoWhiteSpaces: hasNoWhiteSpaces('SSHuser'),
-                            },
-                        }}
-                        placeholder={
-                            disabled || !requireSecrets
-                                ? '**************'
-                                : undefined
-                        }
+                        label="SSH Username"
                         disabled={disabled}
                     />
-                    <InputWrapper
-                        label="SSH public key"
-                        name="warehouse.SSHpublicKey"
-                        render={() => (
-                            <>
-                                {SSHKeyGenerated ? (
-                                    <TextArea
-                                        readOnly
-                                        fill
-                                        value="I'm a generated SSH Public Key! Copy me"
-                                    />
-                                ) : (
-                                    <></>
-                                )}
-                                <Button
-                                    intent={Intent.PRIMARY}
-                                    onClick={() => setSSHKeyGenerated(true)}
-                                    icon={SSHKeyGenerated ? 'refresh' : 'key'}
-                                    style={{ marginTop: '10px' }}
-                                >
-                                    {SSHKeyGenerated
-                                        ? 'Regenerate key'
-                                        : 'Generate key'}
-                                </Button>
-                            </>
-                        )}
-                    />
+                    {sshTunnelPublicKey ? (
+                        <Input
+                            name="warehouse.sshTunnelPublicKey"
+                            label="Generated SSH Public Key"
+                            disabled={true}
+                            rightElement={
+                                <>
+                                    <CopyButton value={sshTunnelPublicKey}>
+                                        {({ copied, copy }) => (
+                                            <Tooltip
+                                                label={
+                                                    copied ? 'Copied' : 'Copy'
+                                                }
+                                                withArrow
+                                                position="right"
+                                            >
+                                                <ActionIcon
+                                                    color={
+                                                        copied ? 'teal' : 'gray'
+                                                    }
+                                                    onClick={copy}
+                                                >
+                                                    <MantineIcon
+                                                        icon={
+                                                            copied
+                                                                ? IconCheck
+                                                                : IconCopy
+                                                        }
+                                                    />
+                                                </ActionIcon>
+                                            </Tooltip>
+                                        )}
+                                    </CopyButton>
+                                </>
+                            }
+                        />
+                    ) : (
+                        <Button
+                            text={`Generate`}
+                            onClick={() => mutate()}
+                            loading={isLoading}
+                            disabled={isLoading}
+                        />
+                    )}
                 </FormSection>
             </FormSection>
             <AdvancedButtonWrapper>

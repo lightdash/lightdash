@@ -1,8 +1,12 @@
+import { Button } from '@blueprintjs/core';
 import { WarehouseTypes } from '@lightdash/common';
-import { Anchor } from '@mantine/core';
+import { ActionIcon, Anchor, CopyButton, Tooltip } from '@mantine/core';
+import { IconCheck, IconCopy } from '@tabler/icons-react';
 import React, { FC } from 'react';
+import { useFormContext, useWatch } from 'react-hook-form';
 import { useToggle } from 'react-use';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
+import MantineIcon from '../../common/MantineIcon';
 import BooleanSwitch from '../../ReactHookForm/BooleanSwitch';
 import FormSection from '../../ReactHookForm/FormSection';
 import Input from '../../ReactHookForm/Input';
@@ -15,6 +19,7 @@ import {
 } from '../ProjectConnection.styles';
 import { useProjectFormContext } from '../ProjectFormProvider';
 import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
+import { useCreateSshKeyPair } from './sshHooks';
 
 export const PostgresSchemaInput: FC<{
     disabled: boolean;
@@ -42,6 +47,20 @@ const PostgresForm: FC<{
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.POSTGRES;
+    const { setValue } = useFormContext();
+    const showSshTunelConfiguration: boolean = useWatch({
+        name: 'warehouse.useSshTunnel',
+        defaultValue: false,
+    });
+    const sshTunnelPublicKey: string = useWatch({
+        name: 'warehouse.sshTunnelPublicKey',
+        defaultValue: undefined,
+    });
+    const { mutate, isLoading } = useCreateSshKeyPair({
+        onSuccess: (data) => {
+            setValue('warehouse.sshTunnelPublicKey', data.publicKey);
+        },
+    });
     return (
         <>
             <Input
@@ -187,26 +206,70 @@ const PostgresForm: FC<{
                     label="Use SSH tunnel"
                     disabled={disabled}
                 />
-                <Input
-                    name="warehouse.sshTunnelHost"
-                    label="SSH Remote Host"
-                    disabled={disabled}
-                />
-                <NumericInput
-                    name="warehouse.sshTunnelPort"
-                    label="SSH Remote Port"
-                    disabled={disabled}
-                />
-                <Input
-                    name="warehouse.sshTunnelUser"
-                    label="SSH Username"
-                    disabled={disabled}
-                />
-                <Input
-                    name="warehouse.sshTunnelPublicKey"
-                    label="Generated SSH Public Key"
-                    disabled={disabled}
-                />
+                <FormSection
+                    isOpen={showSshTunelConfiguration}
+                    name="ssh-config"
+                >
+                    <Input
+                        name="warehouse.sshTunnelHost"
+                        label="SSH Remote Host"
+                        disabled={disabled}
+                    />
+                    <NumericInput
+                        name="warehouse.sshTunnelPort"
+                        label="SSH Remote Port"
+                        disabled={disabled}
+                    />
+                    <Input
+                        name="warehouse.sshTunnelUser"
+                        label="SSH Username"
+                        disabled={disabled}
+                    />
+                    {sshTunnelPublicKey ? (
+                        <Input
+                            name="warehouse.sshTunnelPublicKey"
+                            label="Generated SSH Public Key"
+                            disabled={true}
+                            rightElement={
+                                <>
+                                    <CopyButton value={sshTunnelPublicKey}>
+                                        {({ copied, copy }) => (
+                                            <Tooltip
+                                                label={
+                                                    copied ? 'Copied' : 'Copy'
+                                                }
+                                                withArrow
+                                                position="right"
+                                            >
+                                                <ActionIcon
+                                                    color={
+                                                        copied ? 'teal' : 'gray'
+                                                    }
+                                                    onClick={copy}
+                                                >
+                                                    <MantineIcon
+                                                        icon={
+                                                            copied
+                                                                ? IconCheck
+                                                                : IconCopy
+                                                        }
+                                                    />
+                                                </ActionIcon>
+                                            </Tooltip>
+                                        )}
+                                    </CopyButton>
+                                </>
+                            }
+                        />
+                    ) : (
+                        <Button
+                            text={`Generate`}
+                            onClick={() => mutate()}
+                            loading={isLoading}
+                            disabled={isLoading}
+                        />
+                    )}
+                </FormSection>
             </FormSection>
             <AdvancedButtonWrapper>
                 <AdvancedButton
