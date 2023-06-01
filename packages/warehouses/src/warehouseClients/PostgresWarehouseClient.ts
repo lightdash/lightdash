@@ -6,8 +6,17 @@ import {
     MetricType,
     WarehouseQueryError,
 } from '@lightdash/common';
+import { readFileSync } from 'fs';
+import path from 'path';
 import * as pg from 'pg';
+import { PoolConfig } from 'pg';
+import { rootCertificates } from 'tls';
 import WarehouseBaseClient from './WarehouseBaseClient';
+
+const POSTGRES_CA_BUNDLES = [
+    ...rootCertificates,
+    readFileSync(path.resolve(__dirname, './ca-bundle-aws-rds-global.crt')),
+];
 
 export enum PostgresTypes {
     INTEGER = 'integer',
@@ -252,16 +261,36 @@ export class PostgresClient<
     }
 }
 
+// Mimics behaviour in https://github.com/brianc/node-postgres/blob/master/packages/pg-connection-string/index.js
+const getSSLConfigFromMode = (mode: string): PoolConfig['ssl'] => {
+    switch (mode) {
+        case 'disable':
+            return false;
+        case 'prefer':
+        case 'require':
+        case 'allow':
+        case 'verify-ca':
+        case 'verify-full':
+            return {
+                ca: POSTGRES_CA_BUNDLES,
+            };
+        case 'no-verify':
+            return { rejectUnauthorized: false, ca: POSTGRES_CA_BUNDLES };
+        default:
+            throw new Error(`Unknown sslmode for postgres: ${mode}`);
+    }
+};
+
 export class PostgresWarehouseClient extends PostgresClient<CreatePostgresCredentials> {
     constructor(credentials: CreatePostgresCredentials) {
+        const ssl = getSSLConfigFromMode(credentials.sslmode || 'prefer');
         super(credentials, {
             connectionString: `postgres://${encodeURIComponent(
                 credentials.user,
             )}:${encodeURIComponent(credentials.password)}@${encodeURIComponent(
                 credentials.host,
-            )}:${credentials.port}/${encodeURIComponent(
-                credentials.dbname,
-            )}?sslmode=${credentials.sslmode || 'prefer'}`,
+            )}:${credentials.port}/${encodeURIComponent(credentials.dbname)}`,
+            ssl,
         });
     }
 }
