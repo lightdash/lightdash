@@ -203,20 +203,6 @@ export class ProjectService {
         return project;
     }
 
-    private async getCopiedProject(
-        projectUuid?: string,
-    ): Promise<Project | undefined> {
-        if (projectUuid === undefined) return undefined;
-        try {
-            return await this.projectModel.get(projectUuid);
-        } catch (e) {
-            // We can trigger an error if the project does not exist
-            Sentry.captureException(e);
-            Logger.error('Unable to get project to copy', e);
-            return undefined;
-        }
-    }
-
     async createWithoutCompile(
         user: SessionUser,
         data: CreateProject,
@@ -263,7 +249,7 @@ export class ProjectService {
             },
         });
 
-        if (data.copiedFromProjectUuid !== undefined) {
+        if (data.copiedFromProjectUuid) {
             try {
                 const project = await this.projectModel.get(
                     data.copiedFromProjectUuid,
