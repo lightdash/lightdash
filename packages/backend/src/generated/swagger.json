@@ -1980,31 +1980,29 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "ValidationResponse": {
+            "ValidationErrorType": {
+                "enum": [
+                    "chart",
+                    "sorting",
+                    "filter",
+                    "metric",
+                    "model",
+                    "dimension"
+                ],
+                "type": "string"
+            },
+            "ValidationResponseBase": {
                 "properties": {
-                    "lastUpdatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "lastUpdatedBy": {
-                        "type": "string"
-                    },
-                    "error": {
-                        "type": "string"
-                    },
                     "spaceUuid": {
                         "type": "string"
                     },
                     "projectUuid": {
                         "type": "string"
                     },
-                    "dashboardUuid": {
-                        "type": "string"
+                    "errorType": {
+                        "$ref": "#/components/schemas/ValidationErrorType"
                     },
-                    "chartType": {
-                        "$ref": "#/components/schemas/ChartKind"
-                    },
-                    "chartUuid": {
+                    "error": {
                         "type": "string"
                     },
                     "name": {
@@ -2020,13 +2018,100 @@
                     }
                 },
                 "required": [
-                    "error",
                     "projectUuid",
+                    "error",
                     "name",
                     "createdAt",
                     "validationId"
                 ],
                 "type": "object"
+            },
+            "ValidationErrorChartResponse": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ValidationResponseBase"
+                    },
+                    {
+                        "properties": {
+                            "lastUpdatedAt": {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "lastUpdatedBy": {
+                                "type": "string"
+                            },
+                            "fieldName": {
+                                "type": "string"
+                            },
+                            "chartType": {
+                                "$ref": "#/components/schemas/ChartKind"
+                            },
+                            "chartUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ValidationErrorDashboardResponse": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ValidationResponseBase"
+                    },
+                    {
+                        "properties": {
+                            "lastUpdatedAt": {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "lastUpdatedBy": {
+                                "type": "string"
+                            },
+                            "fieldName": {
+                                "type": "string"
+                            },
+                            "chartName": {
+                                "type": "string"
+                            },
+                            "dashboardUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ValidationErrorTableResponse": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ValidationResponseBase"
+                    },
+                    {
+                        "properties": {
+                            "dimensionName": {
+                                "type": "string"
+                            },
+                            "modelName": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ValidationResponse": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/ValidationErrorChartResponse"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ValidationErrorDashboardResponse"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ValidationErrorTableResponse"
+                    }
+                ]
             },
             "ApiValidateResponse": {
                 "properties": {
@@ -2061,12 +2146,17 @@
         }
     },
     "info": {
-        "title": "backend",
-        "version": "0.584.0",
+        "title": "Lightdash API",
+        "version": "0.586.1",
+        "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
         },
-        "contact": {}
+        "contact": {
+            "name": "Lightdash Support",
+            "email": "support@lightdash.com",
+            "url": "https://docs.lightdash.com/help-and-contact/contact/contact_info/"
+        }
     },
     "openapi": "3.0.0",
     "paths": {
@@ -2096,6 +2186,7 @@
                     }
                 },
                 "description": "Get a Csv",
+                "tags": ["Exports"],
                 "security": [],
                 "parameters": [
                     {
@@ -2136,6 +2227,7 @@
                     }
                 },
                 "description": "Get the current dbt Cloud integration settings for a project",
+                "tags": ["Integrations"],
                 "security": [],
                 "parameters": [
                     {
@@ -2174,6 +2266,7 @@
                     }
                 },
                 "description": "Update the dbt Cloud integration settings for a project",
+                "tags": ["Integrations"],
                 "security": [],
                 "parameters": [
                     {
@@ -2212,6 +2305,7 @@
                     }
                 },
                 "description": "Remove the dbt Cloud integration settings for a project",
+                "tags": ["Integrations"],
                 "security": [],
                 "parameters": [
                     {
@@ -2251,6 +2345,7 @@
                     }
                 },
                 "description": "Get a list of dbt metric definitions from the dbt Cloud metadata api.\nThe metrics are taken from the metadata from a single dbt Cloud job configured\nwith the dbt Cloud integration settings for the project.",
+                "tags": ["Integrations"],
                 "security": [],
                 "parameters": [
                     {
@@ -2290,6 +2385,7 @@
                     }
                 },
                 "description": "Get group details",
+                "tags": ["User Groups"],
                 "security": [],
                 "parameters": [
                     {
@@ -2328,6 +2424,7 @@
                     }
                 },
                 "description": "Delete a group",
+                "tags": ["User Groups"],
                 "security": [],
                 "parameters": [
                     {
@@ -2365,6 +2462,7 @@
                     }
                 },
                 "description": "Update a group",
+                "tags": ["User Groups"],
                 "security": [],
                 "parameters": [
                     {
@@ -2414,6 +2512,7 @@
                     }
                 },
                 "description": "Add a Lightdash user to a group",
+                "tags": ["User Groups"],
                 "security": [],
                 "parameters": [
                     {
@@ -2461,6 +2560,7 @@
                     }
                 },
                 "description": "Remove a user from a group",
+                "tags": ["User Groups"],
                 "security": [],
                 "parameters": [
                     {
@@ -2510,6 +2610,7 @@
                     }
                 },
                 "description": "View members of a group",
+                "tags": ["User Groups"],
                 "security": [],
                 "parameters": [
                     {
@@ -2526,7 +2627,7 @@
         },
         "/api/v1/org": {
             "get": {
-                "operationId": "getOrganization",
+                "operationId": "GetMyOrganization",
                 "responses": {
                     "200": {
                         "description": "Ok",
@@ -2550,11 +2651,12 @@
                     }
                 },
                 "description": "Get the current user's organization",
+                "tags": ["Organizations"],
                 "security": [],
                 "parameters": []
             },
             "put": {
-                "operationId": "createOrganization",
+                "operationId": "CreateOrganization",
                 "responses": {
                     "200": {
                         "description": "Ok",
@@ -2577,7 +2679,8 @@
                         }
                     }
                 },
-                "description": "Create and join a new organization",
+                "description": "Creates a new organization, the current user becomes the Admin of the new organization.\nThis is only available to users that are not already in an organization.",
+                "tags": ["Organizations"],
                 "security": [],
                 "parameters": [],
                 "requestBody": {
@@ -2594,7 +2697,7 @@
                 }
             },
             "patch": {
-                "operationId": "updateOrganization",
+                "operationId": "UpdateMyOrganization",
                 "responses": {
                     "200": {
                         "description": "Ok",
@@ -2618,6 +2721,7 @@
                     }
                 },
                 "description": "Update the current user's organization",
+                "tags": ["Organizations"],
                 "security": [],
                 "parameters": [],
                 "requestBody": {
@@ -2636,7 +2740,7 @@
         },
         "/api/v1/org/{organizationUuid}": {
             "delete": {
-                "operationId": "deleteOrganization",
+                "operationId": "DeleteMyOrganization",
                 "responses": {
                     "200": {
                         "description": "Ok",
@@ -2659,7 +2763,8 @@
                         }
                     }
                 },
-                "description": "Delete an organization and all users inside that organization",
+                "description": "Deletes an organization and all users inside that organization",
+                "tags": ["Organizations"],
                 "security": [],
                 "parameters": [
                     {
@@ -2676,7 +2781,7 @@
         },
         "/api/v1/org/users": {
             "get": {
-                "operationId": "getOrganizationMembers",
+                "operationId": "ListOrganizationMembers",
                 "responses": {
                     "200": {
                         "description": "Ok",
@@ -2700,13 +2805,14 @@
                     }
                 },
                 "description": "Gets all the members of the current user's organization",
+                "tags": ["Organizations"],
                 "security": [],
                 "parameters": []
             }
         },
         "/api/v1/org/users/{userUuid}": {
             "patch": {
-                "operationId": "updateOrganizationMember",
+                "operationId": "UpdateOrganizationMember",
                 "responses": {
                     "200": {
                         "description": "Ok",
@@ -2730,6 +2836,7 @@
                     }
                 },
                 "description": "Updates the membership profile for a user in the current user's organization",
+                "tags": ["Organizations"],
                 "security": [],
                 "parameters": [
                     {
@@ -2758,7 +2865,7 @@
         },
         "/api/v1/org/user/{userUuid}": {
             "delete": {
-                "operationId": "deleteUser",
+                "operationId": "DeleteOrganizationMember",
                 "responses": {
                     "200": {
                         "description": "Ok",
@@ -2781,7 +2888,8 @@
                         }
                     }
                 },
-                "description": "Deletes a user",
+                "description": "Deletes a user from the current user's organization",
+                "tags": ["Organizations"],
                 "security": [],
                 "parameters": [
                     {
@@ -2798,7 +2906,7 @@
         },
         "/api/v1/org/allowedEmailDomains": {
             "get": {
-                "operationId": "getOrganizationAllowedEmailDomains",
+                "operationId": "ListOrganizationEmailDomains",
                 "responses": {
                     "200": {
                         "description": "Ok",
@@ -2821,12 +2929,13 @@
                         }
                     }
                 },
-                "description": "Gets allowed email domains for the current user's organization",
+                "description": "Gets the allowed email domains for the current user's organization",
+                "tags": ["Organizations"],
                 "security": [],
                 "parameters": []
             },
             "patch": {
-                "operationId": "updateOrganizationAllowedEmailDomains",
+                "operationId": "UpdateOrganizationEmailDomains",
                 "responses": {
                     "200": {
                         "description": "Ok",
@@ -2849,6 +2958,8 @@
                         }
                     }
                 },
+                "description": "Gets the allowed email domains for the current user's organization",
+                "tags": ["Organizations"],
                 "security": [],
                 "parameters": [],
                 "requestBody": {
@@ -2865,7 +2976,7 @@
         },
         "/api/v1/org/groups": {
             "post": {
-                "operationId": "createGroup",
+                "operationId": "CreateGroupInOrganization",
                 "responses": {
                     "200": {
                         "description": "Ok",
@@ -2888,6 +2999,8 @@
                         }
                     }
                 },
+                "description": "Creates a new group in the current user's organization",
+                "tags": ["Organizations"],
                 "security": [],
                 "parameters": [],
                 "requestBody": {
@@ -2902,7 +3015,7 @@
                 }
             },
             "get": {
-                "operationId": "listGroupsInOrganization",
+                "operationId": "ListGroupsInOrganization",
                 "responses": {
                     "200": {
                         "description": "Ok",
@@ -2925,6 +3038,8 @@
                         }
                     }
                 },
+                "description": "Gets all the groups in the current user's organization",
+                "tags": ["Organizations"],
                 "security": [],
                 "parameters": []
             }
@@ -2955,6 +3070,7 @@
                     }
                 },
                 "description": "Get pinned items",
+                "tags": ["Content"],
                 "security": [],
                 "parameters": [
                     {
@@ -3004,6 +3120,7 @@
                     }
                 },
                 "description": "Update pinned items order",
+                "tags": ["Content"],
                 "security": [],
                 "parameters": [
                     {
@@ -3044,7 +3161,7 @@
         },
         "/api/v1/projects/{projectUuid}/charts": {
             "get": {
-                "operationId": "getChartsInProject",
+                "operationId": "ListChartsInProject",
                 "responses": {
                     "200": {
                         "description": "Success",
@@ -3067,7 +3184,8 @@
                         }
                     }
                 },
-                "description": "Get all charts in a project",
+                "description": "List all charts in a project",
+                "tags": ["Projects"],
                 "security": [],
                 "parameters": [
                     {
@@ -3084,7 +3202,7 @@
         },
         "/api/v1/projects/{projectUuid}/spaces": {
             "get": {
-                "operationId": "getSpacesInProject",
+                "operationId": "ListSpacesInProject",
                 "responses": {
                     "200": {
                         "description": "Success",
@@ -3107,7 +3225,8 @@
                         }
                     }
                 },
-                "description": "Get all spaces in a project",
+                "description": "List all spaces in a project",
+                "tags": ["Projects"],
                 "security": [],
                 "parameters": [
                     {
@@ -3148,6 +3267,7 @@
                     }
                 },
                 "description": "Run a query for underlying data results",
+                "tags": ["Exploring"],
                 "security": [],
                 "parameters": [
                     {
@@ -3209,6 +3329,7 @@
                     }
                 },
                 "description": "Run a query for explore",
+                "tags": ["Exploring"],
                 "security": [],
                 "parameters": [
                     {
@@ -3270,6 +3391,7 @@
                     }
                 },
                 "description": "Run a query for a chart",
+                "tags": ["Charts"],
                 "security": [],
                 "parameters": [
                     {
@@ -3325,6 +3447,7 @@
                     }
                 },
                 "description": "Get scheduled logs",
+                "tags": ["Schedulers"],
                 "security": [],
                 "parameters": [
                     {
@@ -3364,6 +3487,7 @@
                     }
                 },
                 "description": "Get a scheduler",
+                "tags": ["Schedulers"],
                 "security": [],
                 "parameters": [
                     {
@@ -3402,6 +3526,7 @@
                     }
                 },
                 "description": "Update a scheduler",
+                "tags": ["Schedulers"],
                 "security": [],
                 "parameters": [
                     {
@@ -3460,6 +3585,7 @@
                     }
                 },
                 "description": "Delete a scheduler",
+                "tags": ["Schedulers"],
                 "security": [],
                 "parameters": [
                     {
@@ -3500,6 +3626,7 @@
                     }
                 },
                 "description": "Get scheduled jobs",
+                "tags": ["Schedulers"],
                 "security": [],
                 "parameters": [
                     {
@@ -3540,6 +3667,7 @@
                     }
                 },
                 "description": "Get a generic job status\nThis method can be used when polling from the frontend",
+                "tags": ["Schedulers"],
                 "security": [],
                 "parameters": [
                     {
@@ -3580,6 +3708,7 @@
                     }
                 },
                 "description": "Get a share url from a short url id",
+                "tags": ["Share links"],
                 "security": [],
                 "parameters": [
                     {
@@ -3620,6 +3749,7 @@
                     }
                 },
                 "description": "Given a full URL generates a short url id that can be used for sharing",
+                "tags": ["Share links"],
                 "security": [],
                 "parameters": [],
                 "requestBody": {
@@ -3662,6 +3792,7 @@
                     }
                 },
                 "description": "Get slack channels",
+                "tags": ["Integrations"],
                 "security": [],
                 "parameters": []
             }
@@ -3691,13 +3822,14 @@
                         }
                     }
                 },
+                "tags": ["SSH Keypairs"],
                 "security": [],
                 "parameters": []
             }
         },
         "/api/v1/user/me/email/otp": {
             "put": {
-                "operationId": "createEmailOneTimePasscode",
+                "operationId": "CreateEmailOneTimePasscode",
                 "responses": {
                     "200": {
                         "description": "Ok",
@@ -3720,14 +3852,15 @@
                         }
                     }
                 },
-                "description": "Create a new one-time passcode for the current user's primary email",
+                "description": "Create a new one-time passcode for the current user's primary email.\nThe user will receive an email with the passcode.",
+                "tags": ["My Account"],
                 "security": [],
                 "parameters": []
             }
         },
         "/api/v1/user/me/email/status": {
             "get": {
-                "operationId": "getEmailVerificationStatus",
+                "operationId": "GetEmailVerificationStatus",
                 "responses": {
                     "200": {
                         "description": "Ok",
@@ -3751,9 +3884,11 @@
                     }
                 },
                 "description": "Get the verification status for the current user's primary email",
+                "tags": ["My Account"],
                 "security": [],
                 "parameters": [
                     {
+                        "description": "the one-time passcode sent to the user's primary email",
                         "in": "query",
                         "name": "passcode",
                         "required": false,
@@ -3766,7 +3901,7 @@
         },
         "/api/v1/user/me/allowedOrganizations": {
             "get": {
-                "operationId": "getOrganizationsUserCanJoin",
+                "operationId": "ListMyAvailableOrganizations",
                 "responses": {
                     "200": {
                         "description": "Ok",
@@ -3789,14 +3924,15 @@
                         }
                     }
                 },
-                "description": "Get list or organizations the user is allowed to join",
+                "description": "List the organizations that the current user can join.\nThis is based on the user's primary email domain and the organization's allowed email domains.",
+                "tags": ["My Account"],
                 "security": [],
                 "parameters": []
             }
         },
         "/api/v1/user/me/joinOrganization/{organizationUuid}": {
             "post": {
-                "operationId": "joinOrganization",
+                "operationId": "JoinOrganization",
                 "responses": {
                     "200": {
                         "description": "Ok",
@@ -3819,7 +3955,8 @@
                         }
                     }
                 },
-                "description": "Join an organization",
+                "description": "Add the current user to an organization that accepts users with a verified email domain.\nThis will fail if the organization email domain does not match the user's primary email domain.",
+                "tags": ["My Account"],
                 "security": [],
                 "parameters": [
                     {
@@ -3836,7 +3973,7 @@
         },
         "/api/v1/user/me": {
             "delete": {
-                "operationId": "deleteUser",
+                "operationId": "DeleteMe",
                 "responses": {
                     "200": {
                         "description": "Ok",
@@ -3860,13 +3997,14 @@
                     }
                 },
                 "description": "Delete user",
+                "tags": ["My Account"],
                 "security": [],
                 "parameters": []
             }
         },
         "/api/v1/projects/{projectUuid}/validate": {
             "post": {
-                "operationId": "postValidate",
+                "operationId": "ValidateProject",
                 "responses": {
                     "200": {
                         "description": "Success",
@@ -3889,7 +4027,8 @@
                         }
                     }
                 },
-                "description": "Validate a project",
+                "description": "Validate content inside a project. This will start a validation job and return the job id.\n\nValidation jobs scan all charts and dashboards inside a project to find any broken references\nto metrics or dimensions that aren't available. Results are available after the job is completed.",
+                "tags": ["Projects"],
                 "security": [],
                 "parameters": [
                     {
@@ -3904,7 +4043,7 @@
                 ]
             },
             "get": {
-                "operationId": "getValidate",
+                "operationId": "GetLatestValidationResults",
                 "responses": {
                     "200": {
                         "description": "Success",
@@ -3927,7 +4066,8 @@
                         }
                     }
                 },
-                "description": "Get validation for a project",
+                "description": "Get validation results for a project. This will return the results of the latest validation job.",
+                "tags": ["Projects"],
                 "security": [],
                 "parameters": [
                     {
@@ -3955,6 +4095,20 @@
     "servers": [
         {
             "url": "/"
+        }
+    ],
+    "tags": [
+        {
+            "name": "My Account",
+            "description": "These routes allow users to manage their own user account."
+        },
+        {
+            "name": "Organizations",
+            "description": "Each user is a member of a single organization. These routes allow users to manage their organization. Most actions are only available to admin users."
+        },
+        {
+            "name": "Projects",
+            "description": "Projects belong to a single organization. These routes allow users to manage their projects, browse content, and execute queries. Users inside an organization might have access to a project from an organization-level role or they might be granted access to a project directly."
         }
     ]
 }

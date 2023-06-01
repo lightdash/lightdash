@@ -28,6 +28,7 @@ import {
     Request,
     Response,
     Route,
+    Tags,
 } from 'tsoa';
 import { userModel } from '../models/models';
 import { organizationService, userService } from '../services/services';
@@ -39,6 +40,7 @@ import {
 
 @Route('/api/v1/org')
 @Response<ApiErrorPayload>('default', 'Error')
+@Tags('Organizations')
 export class OrganizationController extends Controller {
     /**
      * Get the current user's organization
@@ -46,7 +48,7 @@ export class OrganizationController extends Controller {
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Get()
-    @OperationId('getOrganization')
+    @OperationId('GetMyOrganization')
     async getOrganization(
         @Request() req: express.Request,
     ): Promise<ApiOrganization> {
@@ -58,13 +60,14 @@ export class OrganizationController extends Controller {
     }
 
     /**
-     * Create and join a new organization
+     * Creates a new organization, the current user becomes the Admin of the new organization.
+     * This is only available to users that are not already in an organization.
      * @param req express request
      * @param body the new organization settings
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Put()
-    @OperationId('createOrganization')
+    @OperationId('CreateOrganization')
     async createOrganization(
         @Request() req: express.Request,
         @Body() body: CreateOrganization,
@@ -95,7 +98,7 @@ export class OrganizationController extends Controller {
      */
     @Middlewares([isAuthenticated, unauthorisedInDemo])
     @Patch()
-    @OperationId('updateOrganization')
+    @OperationId('UpdateMyOrganization')
     async updateOrganization(
         @Request() req: express.Request,
         @Body() body: UpdateOrganization,
@@ -109,13 +112,13 @@ export class OrganizationController extends Controller {
     }
 
     /**
-     * Delete an organization and all users inside that organization
+     * Deletes an organization and all users inside that organization
      * @param req express request
      * @param organizationUuid the uuid of the organization to delete
      */
     @Middlewares([isAuthenticated, unauthorisedInDemo])
     @Delete('{organizationUuid}')
-    @OperationId('deleteOrganization')
+    @OperationId('DeleteMyOrganization')
     async deleteOrganization(
         @Request() req: express.Request,
         @Path() organizationUuid: string,
@@ -142,7 +145,7 @@ export class OrganizationController extends Controller {
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Get('/users')
-    @OperationId('getOrganizationMembers')
+    @OperationId('ListOrganizationMembers')
     async getOrganizationMembers(
         @Request() req: express.Request,
     ): Promise<ApiOrganizationMemberProfiles> {
@@ -161,7 +164,7 @@ export class OrganizationController extends Controller {
      */
     @Middlewares([isAuthenticated, unauthorisedInDemo])
     @Patch('/users/{userUuid}')
-    @OperationId('updateOrganizationMember')
+    @OperationId('UpdateOrganizationMember')
     async updateOrganizationMember(
         @Request() req: express.Request,
         @Path() userUuid: string,
@@ -179,13 +182,13 @@ export class OrganizationController extends Controller {
     }
 
     /**
-     * Deletes a user
+     * Deletes a user from the current user's organization
      * @param req express request
      * @param userUuid the uuid of the user to delete
      */
     @Middlewares([isAuthenticated, unauthorisedInDemo])
     @Delete('/user/{userUuid}')
-    @OperationId('deleteUser')
+    @OperationId('DeleteOrganizationMember')
     async deleteUser(
         @Request() req: express.Request,
         @Path() userUuid: string,
@@ -199,12 +202,12 @@ export class OrganizationController extends Controller {
     }
 
     /**
-     * Gets allowed email domains for the current user's organization
+     * Gets the allowed email domains for the current user's organization
      * @param req express request
      */
     @Middlewares([isAuthenticated])
     @Get('/allowedEmailDomains')
-    @OperationId('getOrganizationAllowedEmailDomains')
+    @OperationId('ListOrganizationEmailDomains')
     async getOrganizationAllowedEmailDomains(
         @Request() req: express.Request,
     ): Promise<ApiOrganizationAllowedEmailDomains> {
@@ -217,9 +220,13 @@ export class OrganizationController extends Controller {
         };
     }
 
+    /**
+     * Gets the allowed email domains for the current user's organization
+     * @param req express request
+     */
     @Middlewares([isAuthenticated, unauthorisedInDemo])
     @Patch('/allowedEmailDomains')
-    @OperationId('updateOrganizationAllowedEmailDomains')
+    @OperationId('UpdateOrganizationEmailDomains')
     async updateOrganizationAllowedEmailDomains(
         @Request() req: express.Request,
         @Body() body: UpdateAllowedEmailDomains,
@@ -234,13 +241,17 @@ export class OrganizationController extends Controller {
         };
     }
 
+    /**
+     * Creates a new group in the current user's organization
+     * @param req express request
+     */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
     ])
     @Post('/groups')
-    @OperationId('createGroup')
+    @OperationId('CreateGroupInOrganization')
     async createGroup(
         @Request() req: express.Request,
         @Body() body: Pick<CreateGroup, 'name'>,
@@ -256,9 +267,13 @@ export class OrganizationController extends Controller {
         };
     }
 
+    /**
+     * Gets all the groups in the current user's organization
+     * @param req
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Get('/groups')
-    @OperationId('listGroupsInOrganization')
+    @OperationId('ListGroupsInOrganization')
     async listGroupsInOrganization(
         @Request() req: express.Request,
     ): Promise<ApiGroupListResponse> {

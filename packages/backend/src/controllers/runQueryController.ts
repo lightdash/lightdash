@@ -18,6 +18,7 @@ import {
     Response,
     Route,
     SuccessResponse,
+    Tags,
 } from 'tsoa';
 import { projectService } from '../services/services';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
@@ -69,6 +70,7 @@ type RunQueryRequest = {
 
 @Route('/api/v1/projects/{projectUuid}')
 @Response<ApiErrorPayload>('default', 'Error')
+@Tags('Exploring')
 export class RunViewChartQueryController extends Controller {
     /**
      * Run a query for underlying data results

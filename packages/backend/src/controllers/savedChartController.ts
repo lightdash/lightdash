@@ -10,6 +10,7 @@ import {
     Response,
     Route,
     SuccessResponse,
+    Tags,
 } from 'tsoa';
 import { projectService } from '../services/services';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
@@ -17,6 +18,7 @@ import { ApiRunQueryResponse, Filters } from './runQueryController';
 
 @Route('/api/v1/saved/{chartUuid}')
 @Response<ApiErrorPayload>('default', 'Error')
+@Tags('Charts')
 export class SavedChartController extends Controller {
     /**
      * Run a query for a chart

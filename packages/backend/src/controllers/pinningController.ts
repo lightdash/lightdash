@@ -16,6 +16,7 @@ import {
     Response,
     Route,
     SuccessResponse,
+    Tags,
 } from 'tsoa';
 import { pinningService } from '../services/services';
 import {
@@ -26,6 +27,7 @@ import {
 
 @Route('/api/v1/projects/{projectUuid}/pinned-lists')
 @Response<ApiErrorPayload>('default', 'Error')
+@Tags('Content')
 export class PinningController extends Controller {
     /**
      * Get pinned items

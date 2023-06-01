@@ -1,8 +1,7 @@
 import { ApiCsvUrlResponse, ApiErrorPayload } from '@lightdash/common';
-import { Get, Post } from '@tsoa/runtime';
+import { Get } from '@tsoa/runtime';
 import express from 'express';
 import {
-    Body,
     Controller,
     Middlewares,
     OperationId,
@@ -11,12 +10,14 @@ import {
     Response,
     Route,
     SuccessResponse,
+    Tags,
 } from 'tsoa';
 import { schedulerService } from '../services/services';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 
 @Route('/api/v1/csv')
 @Response<ApiErrorPayload>('default', 'Error')
+@Tags('Exports')
 export class CsvController extends Controller {
     /**
      * Get a Csv

@@ -10,12 +10,21 @@
             "email": "support@lightdash.com",
             "url": "https://docs.lightdash.com/help-and-contact/contact/contact_info/"
         },
-        "license": {
-            "name": "MIT",
-            "url": "https://github.com/lightdash/lightdash/blob/main/LICENSE",
-            "identifier": "MIT"
-        },
-        "tags": [],
+        "license": "MIT",
+        "tags": [
+            {
+                "name": "My Account",
+                "description": "These routes allow users to manage their own user account."
+            },
+            {
+                "name": "Organizations",
+                "description": "Each user is a member of a single organization. These routes allow users to manage their organization. Most actions are only available to admin users."
+            },
+            {
+                "name": "Projects",
+                "description": "Projects belong to a single organization. These routes allow users to manage their projects, browse content, and execute queries. Users inside an organization might have access to a project from an organization-level role or they might be granted access to a project directly."
+            }
+        ],
         "outputDirectory": "./src/generated/",
         "specVersion": 3,
         "securityDefinitions": {

@@ -17,6 +17,7 @@ import {
     Request,
     Response,
     Route,
+    Tags,
 } from 'tsoa';
 import { groupService } from '../services/services';
 import {
@@ -27,6 +28,7 @@ import {
 
 @Route('/api/v1/groups')
 @Response<ApiErrorPayload>('default', 'Error')
+@Tags('User Groups')
 export class GroupsController extends Controller {
     /**
      * Get group details
