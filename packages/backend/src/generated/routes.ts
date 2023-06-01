@@ -1838,6 +1838,7 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        chartViews: { dataType: 'double', required: true },
                         lastUpdatedAt: { dataType: 'datetime' },
                         lastUpdatedBy: { dataType: 'string' },
                         fieldName: { dataType: 'string' },
@@ -1866,6 +1867,7 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        dashboardViews: { dataType: 'double', required: true },
                         lastUpdatedAt: { dataType: 'datetime' },
                         lastUpdatedBy: { dataType: 'string' },
                         fieldName: { dataType: 'string' },
@@ -1887,34 +1889,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ValidationErrorTableResponse: {
         dataType: 'refAlias',
-        type: {
-            dataType: 'intersection',
-            subSchemas: [
-                { ref: 'ValidationResponseBase' },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        dimensionName: {
-                            dataType: 'union',
-                            subSchemas: [
-                                { dataType: 'string' },
-                                { dataType: 'undefined' },
-                            ],
-                            required: true,
-                        },
-                        modelName: {
-                            dataType: 'union',
-                            subSchemas: [
-                                { dataType: 'string' },
-                                { dataType: 'undefined' },
-                            ],
-                            required: true,
-                        },
-                    },
-                },
-            ],
-            validators: {},
-        },
+        type: { ref: 'ValidationResponseBase', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ValidationResponse: {
