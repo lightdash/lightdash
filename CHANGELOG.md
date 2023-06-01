@@ -1,3 +1,59 @@
+## [0.586.4](https://github.com/lightdash/lightdash/compare/0.586.3...0.586.4) (2023-06-01)
+
+
+### Bug Fixes
+
+* default sort date chart ([#5670](https://github.com/lightdash/lightdash/issues/5670)) ([735fb87](https://github.com/lightdash/lightdash/commit/735fb87ce591816006aec97d72d1c7ad7297729d))
+
+## [0.586.3](https://github.com/lightdash/lightdash/compare/0.586.2...0.586.3) (2023-06-01)
+
+
+### Bug Fixes
+
+* move pivot data calculations to web worker ([#5693](https://github.com/lightdash/lightdash/issues/5693)) ([49aa887](https://github.com/lightdash/lightdash/commit/49aa887a1be5c6da03c1f09bd3e62c3befd964f2))
+
+## [0.586.2](https://github.com/lightdash/lightdash/compare/0.586.1...0.586.2) (2023-05-31)
+
+
+### Bug Fixes
+
+* virtual table with empty ref ([#5699](https://github.com/lightdash/lightdash/issues/5699)) ([88ad368](https://github.com/lightdash/lightdash/commit/88ad3682a407a4cdd60dbd7567742a1b8c52683b))
+
+## [0.586.1](https://github.com/lightdash/lightdash/compare/0.586.0...0.586.1) (2023-05-31)
+
+
+### Bug Fixes
+
+* pivot table crashing in minimal page ([#5696](https://github.com/lightdash/lightdash/issues/5696)) ([be1210e](https://github.com/lightdash/lightdash/commit/be1210ec377aefa1800411687aeee8e2191bb790))
+
+# [0.586.0](https://github.com/lightdash/lightdash/compare/0.585.0...0.586.0) (2023-05-31)
+
+
+### Features
+
+* update validation model and table ([#5682](https://github.com/lightdash/lightdash/issues/5682)) ([8a1bc84](https://github.com/lightdash/lightdash/commit/8a1bc840605f03d8ed4d6fd359503cf234b60f7b))
+
+# [0.585.0](https://github.com/lightdash/lightdash/compare/0.584.1...0.585.0) (2023-05-31)
+
+
+### Bug Fixes
+
+* settings navbar styles ([#5687](https://github.com/lightdash/lightdash/issues/5687)) ([e47bd44](https://github.com/lightdash/lightdash/commit/e47bd44bfa3e70136fdbc0b9f8098eabf94b92cb))
+
+
+### Features
+
+* default project on validate ([#5685](https://github.com/lightdash/lightdash/issues/5685)) ([fd7bad4](https://github.com/lightdash/lightdash/commit/fd7bad46f4b454df3b9199d32cbb51239b29547b))
+* pivot table virtual rows ([#5680](https://github.com/lightdash/lightdash/issues/5680)) ([2599735](https://github.com/lightdash/lightdash/commit/25997350c528ca1dce04f088508e57b03f03b45d))
+* settings restructure - project settings navbar ([#5683](https://github.com/lightdash/lightdash/issues/5683)) ([e84022a](https://github.com/lightdash/lightdash/commit/e84022a96f732c5bf45801f28cef4f06cd4468ea))
+
+## [0.584.1](https://github.com/lightdash/lightdash/compare/0.584.0...0.584.1) (2023-05-31)
+
+
+### Bug Fixes
+
+* remove fs, pg root spans ([#5689](https://github.com/lightdash/lightdash/issues/5689)) ([996b88f](https://github.com/lightdash/lightdash/commit/996b88faa77be9d3d669e982b56c08db767aaf18))
+
 # [0.584.0](https://github.com/lightdash/lightdash/compare/0.583.0...0.584.0) (2023-05-31)
 
 

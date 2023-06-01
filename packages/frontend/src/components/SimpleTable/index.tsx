@@ -1,6 +1,6 @@
 import { NonIdealState } from '@blueprintjs/core';
 import { Box } from '@mantine/core';
-import { FC } from 'react';
+import { FC, useRef } from 'react';
 import PivotTable from '../common/PivotTable';
 import Table from '../common/Table';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
@@ -44,7 +44,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
         isSqlRunner,
         explore,
     } = useVisualizationContext();
-
+    const scrollableContainerRef = useRef<HTMLDivElement>(null);
     if (isLoading) return <LoadingChart />;
 
     if (error) {
@@ -57,22 +57,34 @@ const SimpleTable: FC<SimpleTableProps> = ({
         );
     }
 
-    if (pivotTableData.error || pivotTableData.data) {
-        return pivotTableData.error || !pivotTableData.data ? (
+    if (pivotTableData.error) {
+        return (
             <NonIdealState
                 title="Results not available"
                 description={pivotTableData.error}
                 icon="error"
             />
-        ) : (
-            <Box miw="100%" h="100%" sx={{ overflow: 'auto' }}>
-                <PivotTable
-                    data={pivotTableData.data}
-                    conditionalFormattings={conditionalFormattings}
-                    getFieldLabel={getFieldLabel}
-                    getField={getField}
-                    hideRowNumbers={hideRowNumbers}
-                />
+        );
+    } else if (pivotTableData.loading || pivotTableData.data) {
+        return (
+            <Box
+                ref={scrollableContainerRef}
+                miw="100%"
+                h="100%"
+                sx={{ overflow: 'auto' }}
+            >
+                {pivotTableData.data ? (
+                    <PivotTable
+                        containerRef={scrollableContainerRef}
+                        data={pivotTableData.data}
+                        conditionalFormattings={conditionalFormattings}
+                        getFieldLabel={getFieldLabel}
+                        getField={getField}
+                        hideRowNumbers={hideRowNumbers}
+                    />
+                ) : (
+                    <LoadingChart />
+                )}
             </Box>
         );
     }

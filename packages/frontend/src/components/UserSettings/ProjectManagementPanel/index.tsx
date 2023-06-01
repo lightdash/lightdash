@@ -4,7 +4,10 @@ import { OrganizationProject, ProjectType } from '@lightdash/common';
 import { Stack } from '@mantine/core';
 import { FC, useState } from 'react';
 import { Redirect, useHistory } from 'react-router-dom';
-import { useActiveProject } from '../../../hooks/useActiveProject';
+import {
+    useActiveProject,
+    useUpdateActiveProjectMutation,
+} from '../../../hooks/useActiveProject';
 import { useProjects } from '../../../hooks/useProjects';
 import { useApp } from '../../../providers/AppProvider';
 import { Can } from '../../common/Authorization';
@@ -27,6 +30,8 @@ const ProjectListItem: FC<{
 }> = ({ isCurrentProject, project: { projectUuid, name, type } }) => {
     const { user } = useApp();
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+    const { mutate: setLastProjectMutation } = useUpdateActiveProjectMutation();
 
     return (
         <SettingsCard shadow="sm">
@@ -53,6 +58,9 @@ const ProjectListItem: FC<{
                         icon="cog"
                         outlined
                         text="Settings"
+                        onClick={() => {
+                            setLastProjectMutation(projectUuid);
+                        }}
                         href={`/generalSettings/projectManagement/${projectUuid}`}
                     />
                     <Can

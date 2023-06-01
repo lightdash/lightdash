@@ -160,14 +160,20 @@ const MetricQueryDataProvider: FC<Props> = ({
     );
 };
 
-export function useMetricQueryDataContext(): MetricQueryDataContext {
+export function useMetricQueryDataContext<S extends boolean = false>(
+    failSilently?: S,
+): S extends false
+    ? MetricQueryDataContext
+    : MetricQueryDataContext | undefined {
     const context = useContext(Context);
-    if (context === undefined) {
+
+    if (context === undefined && failSilently !== true) {
         throw new Error(
             'useMetricQueryDataContext must be used within a UnderlyingDataProvider',
         );
     }
-    return context;
+
+    return context!;
 }
 
 export default MetricQueryDataProvider;

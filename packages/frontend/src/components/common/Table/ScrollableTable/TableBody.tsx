@@ -5,13 +5,15 @@ import {
     ResultRow,
 } from '@lightdash/common';
 import { flexRender, Row } from '@tanstack/react-table';
-import { useVirtual } from '@tanstack/react-virtual';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import React, { FC } from 'react';
 import { readableColor } from '../../../../utils/colorUtils';
 import { getConditionalRuleLabel } from '../../Filters/configs';
 import BodyCell from '../BodyCell';
 import { Tr } from '../Table.styles';
 import { TableContext, useTableContext } from '../TableProvider';
+
+const ROW_HEIGHT_PX = 30;
 
 const VirtualizedArea: FC<{ cellCount: number; padding: number }> = ({
     cellCount,
@@ -133,17 +135,20 @@ const VirtualizedTableBody: FC<{
     } = useTableContext();
     const { rows } = table.getRowModel();
 
-    const rowVirtualizer = useVirtual({
-        parentRef: tableContainerRef,
-        size: rows.length,
+    const rowVirtualizer = useVirtualizer({
+        getScrollElement: () => tableContainerRef.current,
+        count: rows.length,
+        estimateSize: () => ROW_HEIGHT_PX,
         overscan: 25,
     });
-    const { virtualItems: virtualRows, totalSize } = rowVirtualizer;
+
+    const virtualRows = rowVirtualizer.getVirtualItems();
     const paddingTop =
         virtualRows.length > 0 ? virtualRows?.[0]?.start || 0 : 0;
     const paddingBottom =
         virtualRows.length > 0
-            ? totalSize - (virtualRows?.[virtualRows.length - 1]?.end || 0)
+            ? rowVirtualizer.getTotalSize() -
+              (virtualRows?.[virtualRows.length - 1]?.end || 0)
             : 0;
     const cellsCount = rows[0]?.getVisibleCells().length || 0;
 

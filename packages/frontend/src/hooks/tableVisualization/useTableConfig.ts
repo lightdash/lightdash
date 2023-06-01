@@ -13,11 +13,15 @@ import {
     ResultRow,
     TableChart,
 } from '@lightdash/common';
+import { createWorkerFactory, useWorker } from '@shopify/react-web-worker';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { TableColumn, TableHeader } from '../../components/common/Table/types';
-import { pivotQueryResults } from '../pivotTable/pivotQueryResults';
 import { isSummable } from '../useColumnTotals';
 import getDataAndColumns from './getDataAndColumns';
+
+const createWorker = createWorkerFactory(
+    () => import('../pivotTable/pivotQueryResults'),
+);
 
 const useTableConfig = (
     tableChartConfig: TableChart | undefined,
@@ -188,19 +192,37 @@ const useTableConfig = (
         isColumnFrozen,
         getFieldLabelOverride,
     ]);
-
-    const pivotTableData = useMemo<{
+    const worker = useWorker(createWorker);
+    const [pivotTableData, setPivotTableData] = useState<{
+        loading: boolean;
         data: PivotData | undefined;
         error: undefined | string;
-    }>(() => {
+    }>({
+        loading: false,
+        data: undefined,
+        error: undefined,
+    });
+
+    useEffect(() => {
         if (
             !pivotDimensions ||
             pivotDimensions.length === 0 ||
             !resultsData ||
             resultsData.rows.length === 0
         ) {
-            return { data: undefined, error: undefined };
+            setPivotTableData({
+                loading: false,
+                data: undefined,
+                error: undefined,
+            });
+            return;
         }
+
+        setPivotTableData({
+            loading: true,
+            data: undefined,
+            error: undefined,
+        });
 
         const hiddenMetricFieldIds = selectedItemIds?.filter((fieldId) => {
             const field = getField(fieldId);
@@ -219,8 +241,8 @@ const useTableConfig = (
             );
         });
 
-        try {
-            const data = pivotQueryResults({
+        worker
+            .pivotQueryResults({
                 pivotConfig: {
                     pivotDimensions,
                     metricsAsRows,
@@ -232,12 +254,21 @@ const useTableConfig = (
                 },
                 metricQuery: resultsData.metricQuery,
                 rows: resultsData.rows,
+            })
+            .then((data) => {
+                setPivotTableData({
+                    loading: false,
+                    data: data,
+                    error: undefined,
+                });
+            })
+            .catch((e) => {
+                setPivotTableData({
+                    loading: false,
+                    data: undefined,
+                    error: e.message,
+                });
             });
-
-            return { data: data, error: undefined };
-        } catch (e) {
-            return { data: undefined, error: e.message };
-        }
     }, [
         resultsData,
         pivotDimensions,
@@ -248,6 +279,7 @@ const useTableConfig = (
         getField,
         tableChartConfig?.showColumnCalculation,
         tableChartConfig?.showRowCalculation,
+        worker,
     ]);
 
     // Remove columProperties from map if the column has been removed from results

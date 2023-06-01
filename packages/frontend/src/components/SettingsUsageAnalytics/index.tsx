@@ -2,7 +2,6 @@ import { Card, Group, Text } from '@mantine/core';
 import { IconLayoutDashboard } from '@tabler/icons-react';
 import { FC } from 'react';
 import { Link } from 'react-router-dom';
-import { Subtitle } from '../../pages/CreateProject.styles';
 import MantineIcon from '../common/MantineIcon';
 
 interface ProjectUserAccessProps {
@@ -14,10 +13,10 @@ const SettingsUsageAnalytics: FC<ProjectUserAccessProps> = ({
 }) => {
     return (
         <>
-            <Subtitle>
+            <Text color="dimmed">
                 Lightdash curated dashboards that show usage and performance
                 information about your project.
-            </Subtitle>
+            </Text>
 
             <Card
                 component={Link}

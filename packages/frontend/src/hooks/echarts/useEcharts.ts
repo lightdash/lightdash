@@ -13,6 +13,7 @@ import {
     friendlyName,
     getAxisName,
     getDefaultSeriesColor,
+    getDimensions,
     getFieldMap,
     getFields,
     getItemId,
@@ -1269,6 +1270,60 @@ const useEcharts = () => {
               )
             : allColors;
     }, [organizationData?.chartColors, validCartesianConfig]);
+    const sortedResults = useMemo(() => {
+        const results =
+            validCartesianConfig?.layout?.xField === EMPTY_X_AXIS
+                ? getResultValueArray(rows, true).map((s) => ({
+                      ...s,
+                      [EMPTY_X_AXIS]: ' ',
+                  }))
+                : getResultValueArray(rows, true);
+        try {
+            if (!explore) return results;
+            const dimensions = getDimensions(explore);
+
+            const xFieldId = validCartesianConfig?.layout?.xField;
+            if (xFieldId === undefined) return results;
+
+            const alreadySorted =
+                resultsData?.metricQuery.sorts?.[0].fieldId === xFieldId;
+            if (alreadySorted) return results;
+
+            const xField = dimensions.find(
+                (dimension) => getItemId(dimension) === xFieldId,
+            );
+
+            if (
+                xField !== undefined &&
+                results.length >= 0 &&
+                [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
+                    xField.type,
+                )
+            ) {
+                return results.sort((a, b) => {
+                    if (
+                        typeof a[xFieldId] === 'string' &&
+                        typeof b[xFieldId] === 'string'
+                    ) {
+                        return (a[xFieldId] as string).localeCompare(
+                            b[xFieldId] as string,
+                        );
+                    }
+                    return 0;
+                });
+            }
+
+            return results;
+        } catch (e) {
+            console.error('Unable to sort date results', e);
+            return results;
+        }
+    }, [
+        rows,
+        validCartesianConfig?.layout?.xField,
+        resultsData?.metricQuery.sorts,
+        explore,
+    ]);
 
     const eChartsOptions = useMemo(
         () => ({
@@ -1284,13 +1339,7 @@ const useEcharts = () => {
             },
             dataset: {
                 id: 'lightdashResults',
-                source:
-                    validCartesianConfig?.layout?.xField === EMPTY_X_AXIS
-                        ? getResultValueArray(rows, true).map((s) => ({
-                              ...s,
-                              [EMPTY_X_AXIS]: ' ',
-                          }))
-                        : getResultValueArray(rows, true),
+                source: sortedResults,
             },
             tooltip: {
                 show: true,
@@ -1309,7 +1358,14 @@ const useEcharts = () => {
             },
             color: colors,
         }),
-        [axis, colors, rows, series, stackedSeries, validCartesianConfig],
+        [
+            axis,
+            colors,
+            series,
+            stackedSeries,
+            validCartesianConfig,
+            sortedResults,
+        ],
     );
     if (
         !explore ||

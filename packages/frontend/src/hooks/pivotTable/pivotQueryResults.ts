@@ -556,6 +556,12 @@ export const pivotQueryResults = ({
         }
     });
 
+    const cellsCount =
+        (indexValueTypes.length === 0 ? titleFields[0].length : 0) +
+        indexValueTypes.length +
+        dataValues[0].length +
+        (pivotConfig.rowTotals && rowTotals ? rowTotals[0].length : 0);
+
     return {
         titleFields,
 
@@ -571,7 +577,7 @@ export const pivotQueryResults = ({
         columnTotalFields,
         rowTotals,
         columnTotals,
-
+        cellsCount,
         pivotConfig,
     };
 };

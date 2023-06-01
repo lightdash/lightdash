@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/common",
-    "version": "0.584.0",
+    "version": "0.586.4",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "files": [
@@ -8,7 +8,6 @@
     ],
     "license": "MIT",
     "devDependencies": {
-        "@redocly/openapi-cli": "^1.0.0-beta.54",
         "@types/pegjs": "^0.10.3",
         "typescript-json-schema": "^0.54.0"
     },
@@ -30,7 +29,6 @@
         "fix-lint": "yarn run linter ./src --fix",
         "format": "yarn run formatter ./src --check",
         "fix-format": "yarn run formatter ./src --write",
-        "bundle-openapi": "openapi bundle --output ./src/openapibundle --ext json ./src/openapi/openapi.json --lint",
         "test": "TZ=UTC jest"
     }
 }
