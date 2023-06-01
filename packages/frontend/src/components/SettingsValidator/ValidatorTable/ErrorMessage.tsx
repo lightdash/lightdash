@@ -29,10 +29,6 @@ const CustomMark: FC<{ children: ReactNode }> = ({ children }) => {
 const ErrorMessageByType: FC<{
     validationError: ValidationResponse;
 }> = ({ validationError }) => {
-    if (isTableValidationError(validationError) && validationError) {
-        return <Text>{validationError.error}</Text>;
-    }
-
     if (isChartValidationError(validationError)) {
         return (
             <Text>
@@ -58,6 +54,10 @@ const ErrorMessageByType: FC<{
                 )}
             </Text>
         );
+    }
+
+    if (isTableValidationError(validationError) && validationError) {
+        return <Text>{validationError.error}</Text>;
     }
 
     return null;
