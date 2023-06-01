@@ -16,12 +16,18 @@ import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
 import { ProjectDeleteModal } from '../DeleteProjectPanel/DeleteProjectModal';
 
-const ProjectListItem: FC<{
+type ProjectListItemProps = {
     isCurrentProject: boolean;
     project: OrganizationProject;
-}> = ({ isCurrentProject, project: { projectUuid, name, type } }) => {
+    onDelete: (projectUuid: string) => void;
+};
+
+const ProjectListItem: FC<ProjectListItemProps> = ({
+    isCurrentProject,
+    project: { projectUuid, name, type },
+    onDelete,
+}) => {
     const { user } = useApp();
-    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
     const { mutate: setLastProjectMutation } = useUpdateActiveProjectMutation();
 
@@ -30,14 +36,14 @@ const ProjectListItem: FC<{
             <Text component="td" fw={500}>
                 {name}
             </Text>
-
             <td>
-                {isCurrentProject && (
-                    <Badge variant="filled">Current Project</Badge>
-                )}
-                {type === ProjectType.PREVIEW && <Badge>Preview</Badge>}
+                <Group spacing="xs">
+                    {isCurrentProject && (
+                        <Badge variant="filled">Current Project</Badge>
+                    )}
+                    {type === ProjectType.PREVIEW && <Badge>Preview</Badge>}
+                </Group>
             </td>
-
             <td width="1%">
                 <Group noWrap position="right" spacing="sm">
                     <Button
@@ -65,30 +71,27 @@ const ProjectListItem: FC<{
                             size="xs"
                             variant="outline"
                             color="red"
-                            onClick={() => setIsDeleteDialogOpen(true)}
+                            onClick={() => {
+                                onDelete(projectUuid);
+                            }}
                         >
                             Delete
                         </Button>
                     </Can>
                 </Group>
             </td>
-
-            <ProjectDeleteModal
-                opened={isDeleteDialogOpen}
-                onClose={() => setIsDeleteDialogOpen(false)}
-                isCurrentProject={isCurrentProject}
-                projectUuid={projectUuid}
-            />
         </tr>
     );
 };
 
 const ProjectManagementPanel: FC = () => {
+    const { classes } = useTableStyles();
+
     const { data: projects = [], isLoading: isLoadingProjects } = useProjects();
     const { data: lastProjectUuid, isLoading: isLoadingLastProject } =
         useActiveProject();
 
-    const { classes } = useTableStyles();
+    const [deletingProjectUuid, setDeletingProjectUuid] = useState<string>();
 
     if (isLoadingProjects || isLoadingLastProject) return null;
 
@@ -130,11 +133,23 @@ const ProjectManagementPanel: FC = () => {
                                     project.projectUuid
                                 }
                                 project={project}
+                                onDelete={(projectUuid) =>
+                                    setDeletingProjectUuid(projectUuid)
+                                }
                             />
                         ))}
                     </tbody>
                 </Table>
             </SettingsCard>
+
+            {deletingProjectUuid ? (
+                <ProjectDeleteModal
+                    opened={deletingProjectUuid !== undefined}
+                    onClose={() => setDeletingProjectUuid(undefined)}
+                    isCurrentProject={deletingProjectUuid === lastProjectUuid}
+                    projectUuid={deletingProjectUuid}
+                />
+            ) : null}
         </Stack>
     );
 };
