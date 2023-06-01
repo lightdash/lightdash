@@ -1,3 +1,10 @@
+# [0.588.0](https://github.com/lightdash/lightdash/compare/0.587.1...0.588.0) (2023-06-01)
+
+
+### Features
+
+* settings restructure projects table ([#5716](https://github.com/lightdash/lightdash/issues/5716)) ([130f16e](https://github.com/lightdash/lightdash/commit/130f16ea09e4c8aef64464d7e43b52de853ac483))
+
 ## [0.587.1](https://github.com/lightdash/lightdash/compare/0.587.0...0.587.1) (2023-06-01)
 
 
