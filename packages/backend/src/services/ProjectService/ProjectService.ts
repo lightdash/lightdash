@@ -203,6 +203,20 @@ export class ProjectService {
         return project;
     }
 
+    private async getCopiedProject(
+        projectUuid?: string,
+    ): Promise<Project | undefined> {
+        if (projectUuid === undefined) return undefined;
+        try {
+            return await this.projectModel.get(projectUuid);
+        } catch (e) {
+            // We can trigger an error if the project does not exist
+            Sentry.captureException(e);
+            Logger.error('Unable to get project to copy', e);
+            return undefined;
+        }
+    }
+
     async createWithoutCompile(
         user: SessionUser,
         data: CreateProject,
@@ -224,6 +238,7 @@ export class ProjectService {
         );
 
         // Give admin user permissions to user who created this project even if he is an admin
+        // TODO do not do this if we are copying data from another project
         if (user.email) {
             await this.projectModel.createProjectAccess(
                 projectUuid,
@@ -231,6 +246,11 @@ export class ProjectService {
                 ProjectMemberRole.ADMIN,
             );
         }
+
+        const copiedProject = await this.getCopiedProject(
+            data.copiedFromProjectUuid,
+        );
+
         analytics.track({
             event: 'project.created',
             userId: user.userUuid,
@@ -243,18 +263,19 @@ export class ProjectService {
                 dbtConnectionType: createProject.dbtConnection.type,
                 isPreview: createProject.type === ProjectType.PREVIEW,
                 method,
-                copiedFromProjectUuid: data.copiedFromProjectUuid,
+                copiedFromProjectUuid: copiedProject?.projectUuid,
             },
         });
 
-        if (data.copiedFromProjectUuid) {
+        if (copiedProject !== undefined) {
             try {
                 const project = await this.projectModel.get(
-                    data.copiedFromProjectUuid,
+                    copiedProject.projectUuid,
                 );
+                // We only allow copying from projects if the user is an admin until we remove the `createProjectAccess` call above
                 if (
                     user.ability.cannot(
-                        'view',
+                        'manage',
                         subject('Project', {
                             organizationUuid: project.organizationUuid,
                             projectUuid: data.copiedFromProjectUuid,
@@ -264,7 +285,7 @@ export class ProjectService {
                     throw new ForbiddenError();
                 }
                 await this.copyContentOnPreview(
-                    data.copiedFromProjectUuid,
+                    copiedProject.projectUuid,
                     projectUuid,
                 );
             } catch (e) {
