@@ -1778,23 +1778,125 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ValidationResponse: {
+    ValidationErrorType: {
+        dataType: 'refEnum',
+        enums: ['chart', 'sorting', 'filter', 'metric', 'model', 'dimension'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ValidationResponseBase: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                lastUpdatedAt: { dataType: 'datetime' },
-                lastUpdatedBy: { dataType: 'string' },
-                error: { dataType: 'string', required: true },
                 spaceUuid: { dataType: 'string' },
                 projectUuid: { dataType: 'string', required: true },
-                dashboardUuid: { dataType: 'string' },
-                chartType: { ref: 'ChartKind' },
-                chartUuid: { dataType: 'string' },
+                errorType: { ref: 'ValidationErrorType' },
+                error: { dataType: 'string', required: true },
                 name: { dataType: 'string', required: true },
                 createdAt: { dataType: 'datetime', required: true },
                 validationId: { dataType: 'double', required: true },
             },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ValidationErrorChartResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'ValidationResponseBase' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        lastUpdatedAt: { dataType: 'datetime' },
+                        lastUpdatedBy: { dataType: 'string' },
+                        fieldName: { dataType: 'string' },
+                        chartType: { ref: 'ChartKind' },
+                        chartUuid: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ValidationErrorDashboardResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'ValidationResponseBase' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        lastUpdatedAt: { dataType: 'datetime' },
+                        lastUpdatedBy: { dataType: 'string' },
+                        fieldName: { dataType: 'string' },
+                        chartName: { dataType: 'string' },
+                        dashboardUuid: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ValidationErrorTableResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'ValidationResponseBase' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        dimensionName: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
+                        },
+                        modelName: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ValidationResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'ValidationErrorChartResponse' },
+                { ref: 'ValidationErrorDashboardResponse' },
+                { ref: 'ValidationErrorTableResponse' },
+            ],
             validators: {},
         },
     },

@@ -19,6 +19,7 @@ import {
     Response,
     Route,
     SuccessResponse,
+    Tags,
 } from 'tsoa';
 import { schedulerService } from '../services/services';
 import {
@@ -29,6 +30,7 @@ import {
 
 @Route('/api/v1/schedulers')
 @Response<ApiErrorPayload>('default', 'Error')
+@Tags('Schedulers')
 export class SchedulerController extends Controller {
     /**
      * Get scheduled logs

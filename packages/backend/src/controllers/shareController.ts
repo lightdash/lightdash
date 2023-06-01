@@ -16,12 +16,14 @@ import {
     Response,
     Route,
     SuccessResponse,
+    Tags,
 } from 'tsoa';
 import { shareService } from '../services/services';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 
 @Route('/api/v1/share')
 @Response<ApiErrorPayload>('default', 'Error')
+@Tags('Share links')
 export class ShareController extends Controller {
     /**
      * Get a share url from a short url id

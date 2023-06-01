@@ -16,6 +16,7 @@ import {
     Request,
     Response,
     Route,
+    Tags,
 } from 'tsoa';
 import { userModel } from '../models/models';
 import { userService } from '../services/services';
@@ -27,14 +28,16 @@ import {
 
 @Route('/api/v1/user')
 @Response<ApiErrorPayload>('default', 'Error')
+@Tags('My Account')
 export class UserController extends Controller {
     /**
-     * Create a new one-time passcode for the current user's primary email
+     * Create a new one-time passcode for the current user's primary email.
+     * The user will receive an email with the passcode.
      * @param req express request
      */
     @Middlewares([isAuthenticated, unauthorisedInDemo])
     @Put('/me/email/otp')
-    @OperationId('createEmailOneTimePasscode')
+    @OperationId('CreateEmailOneTimePasscode')
     async createEmailOneTimePasscode(
         @Request() req: express.Request,
     ): Promise<ApiEmailStatusResponse> {
@@ -51,11 +54,11 @@ export class UserController extends Controller {
     /**
      * Get the verification status for the current user's primary email
      * @param req express request
-     * @param pascode the one-time passcode sent to the user's primary email
+     * @param passcode the one-time passcode sent to the user's primary email
      */
     @Middlewares([isAuthenticated])
     @Get('/me/email/status')
-    @OperationId('getEmailVerificationStatus')
+    @OperationId('GetEmailVerificationStatus')
     async getEmailVerificationStatus(
         @Request() req: express.Request,
         @Query() passcode?: string,
@@ -73,12 +76,13 @@ export class UserController extends Controller {
     }
 
     /**
-     * Get list or organizations the user is allowed to join
+     * List the organizations that the current user can join.
+     * This is based on the user's primary email domain and the organization's allowed email domains.
      * @param req express request
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Get('/me/allowedOrganizations')
-    @OperationId('getOrganizationsUserCanJoin')
+    @OperationId('ListMyAvailableOrganizations')
     async getOrganizationsUserCanJoin(
         @Request() req: express.Request,
     ): Promise<ApiUserAllowedOrganizationsResponse> {
@@ -91,7 +95,8 @@ export class UserController extends Controller {
     }
 
     /**
-     * Join an organization
+     * Add the current user to an organization that accepts users with a verified email domain.
+     * This will fail if the organization email domain does not match the user's primary email domain.
      * @param req express request
      * @param organizationUuid the uuid of the organization to join
      */
@@ -101,7 +106,7 @@ export class UserController extends Controller {
         unauthorisedInDemo,
     ])
     @Post('/me/joinOrganization/{organizationUuid}')
-    @OperationId('joinOrganization')
+    @OperationId('JoinOrganization')
     async joinOrganization(
         @Request() req: express.Request,
         @Path() organizationUuid: string,
@@ -131,7 +136,7 @@ export class UserController extends Controller {
      */
     @Middlewares([isAuthenticated])
     @Delete('/me')
-    @OperationId('deleteUser')
+    @OperationId('DeleteMe')
     async deleteUser(
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {

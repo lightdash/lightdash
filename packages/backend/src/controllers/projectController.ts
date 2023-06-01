@@ -14,22 +14,24 @@ import {
     Response,
     Route,
     SuccessResponse,
+    Tags,
 } from 'tsoa';
 import { projectService } from '../services/services';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 
 @Route('/api/v1/projects')
 @Response<ApiErrorPayload>('default', 'Error')
+@Tags('Projects')
 export class ProjectController extends Controller {
     /**
-     * Get all charts in a project
+     * List all charts in a project
      * @param projectUuid The uuid of the project to get charts for
      * @param req express request
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('{projectUuid}/charts')
-    @OperationId('getChartsInProject')
+    @OperationId('ListChartsInProject')
     async getChartsInProject(
         @Path() projectUuid: string,
         @Request() req: express.Request,
@@ -42,14 +44,14 @@ export class ProjectController extends Controller {
     }
 
     /**
-     * Get all spaces in a project
+     * List all spaces in a project
      * @param projectUuid The uuid of the project to get spaces for
      * @param req express request
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('{projectUuid}/spaces')
-    @OperationId('getSpacesInProject')
+    @OperationId('ListSpacesInProject')
     async getSpacesInProject(
         @Path() projectUuid: string,
         @Request() req: express.Request,
