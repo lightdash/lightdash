@@ -1287,7 +1287,7 @@ const useEcharts = () => {
 
             const alreadySorted =
                 resultsData?.metricQuery.sorts?.[0].fieldId === xFieldId;
-            if (alreadySorted !== undefined) return results;
+            if (alreadySorted) return results;
 
             const xField = dimensions.find(
                 (dimension) => getItemId(dimension) === xFieldId,
