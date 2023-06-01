@@ -247,10 +247,6 @@ export class ProjectService {
             );
         }
 
-        const copiedProject = await this.getCopiedProject(
-            data.copiedFromProjectUuid,
-        );
-
         analytics.track({
             event: 'project.created',
             userId: user.userUuid,
@@ -263,14 +259,14 @@ export class ProjectService {
                 dbtConnectionType: createProject.dbtConnection.type,
                 isPreview: createProject.type === ProjectType.PREVIEW,
                 method,
-                copiedFromProjectUuid: copiedProject?.projectUuid,
+                copiedFromProjectUuid: data.copiedFromProjectUuid,
             },
         });
 
-        if (copiedProject !== undefined) {
+        if (data.copiedFromProjectUuid !== undefined) {
             try {
                 const project = await this.projectModel.get(
-                    copiedProject.projectUuid,
+                    data.copiedFromProjectUuid,
                 );
                 // We only allow copying from projects if the user is an admin until we remove the `createProjectAccess` call above
                 if (
@@ -285,7 +281,7 @@ export class ProjectService {
                     throw new ForbiddenError();
                 }
                 await this.copyContentOnPreview(
-                    copiedProject.projectUuid,
+                    data.copiedFromProjectUuid,
                     projectUuid,
                 );
             } catch (e) {
