@@ -71,7 +71,7 @@ export class SpaceController extends Controller {
         isAuthenticated,
         unauthorisedInDemo,
     ])
-    @SuccessResponse('201', 'Created')
+    @SuccessResponse('200', 'Created')
     @Post('/')
     @OperationId('CreateSpaceInProject')
     @Tags('Roles & Permissions')
@@ -80,7 +80,7 @@ export class SpaceController extends Controller {
         @Body() body: CreateSpace,
         @Request() req: express.Request,
     ): Promise<ApiSpaceResponse> {
-        this.setStatus(201);
+        this.setStatus(200);
         const results = await spaceService.createSpace(
             projectUuid,
             req.user!,

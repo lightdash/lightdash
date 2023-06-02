@@ -3644,7 +3644,7 @@
             "post": {
                 "operationId": "CreateSpaceInProject",
                 "responses": {
-                    "201": {
+                    "200": {
                         "description": "Created",
                         "content": {
                             "application/json": {

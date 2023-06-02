@@ -4357,7 +4357,7 @@ export function RegisterRoutes(app: express.Router) {
                     controller,
                     validatedArgs as any,
                 );
-                promiseHandler(controller, promise, response, 201, next);
+                promiseHandler(controller, promise, response, 200, next);
             } catch (err) {
                 return next(err);
             }
