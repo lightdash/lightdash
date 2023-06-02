@@ -6,12 +6,6 @@ import {
 import * as yaml from 'js-yaml';
 import path from 'path';
 
-console.log(
-    require.resolve(
-        '@lightdash/warehouses/dist/warehouseClients/ca-bundle-aws-rds-global.pem',
-    ),
-);
-
 export const LIGHTDASH_PROFILE_NAME = 'lightdash_profile';
 export const LIGHTDASH_TARGET_NAME = 'prod';
 const DEFAULT_THREADS = 1;
