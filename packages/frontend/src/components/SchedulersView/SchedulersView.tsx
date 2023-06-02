@@ -17,6 +17,7 @@ import React, { FC, useMemo } from 'react';
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
 import MantineIcon from '../common/MantineIcon';
 import { IconBox } from '../common/ResourceIcon';
+import SchedulersViewActionMenu from './SchedulersViewActionMenu';
 
 export type SchedulerItem = SchedulerWithLogs['schedulers'][number];
 export type Log = SchedulerWithLogs['logs'][number];
@@ -92,6 +93,11 @@ export const getSchedulerLink = (item: SchedulerItem, projectUuid: string) => {
     return item.savedChartUuid
         ? `/projects/${projectUuid}/saved/${item.savedChartUuid}/view/?scheduler_uuid=${item.schedulerUuid}`
         : `/projects/${projectUuid}/dashboards/${item.dashboardUuid}/view/?scheduler_uuid=${item.schedulerUuid}`;
+};
+export const getItemLink = (item: SchedulerItem, projectUuid: string) => {
+    return item.savedChartUuid
+        ? `/projects/${projectUuid}/saved/${item.savedChartUuid}/view`
+        : `/projects/${projectUuid}/dashboards/${item.dashboardUuid}/view`;
 };
 
 export const formatTime = (date: Date) => {
@@ -279,7 +285,7 @@ const Schedulers: FC<SchedulersProps> = ({
             },
             {
                 id: 'actions',
-                cell: () => {
+                cell: (item) => {
                     return (
                         <Box
                             component="div"
@@ -288,7 +294,10 @@ const Schedulers: FC<SchedulersProps> = ({
                                 e.preventDefault();
                             }}
                         >
-                            {/*<ResourceActionMenu item={item} onAction={onAction} />*/}
+                            <SchedulersViewActionMenu
+                                item={item}
+                                projectUuid={projectUuid}
+                            />
                         </Box>
                     );
                 },
