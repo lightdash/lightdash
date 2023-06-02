@@ -62,13 +62,29 @@ export const getSchedulerIcon = (item: SchedulerItem) => {
 export const getLogStatusIcon = (log: Log) => {
     switch (log.status) {
         case SchedulerJobStatus.SCHEDULED:
-            return <MantineIcon icon={IconClockFilled} color="blue.3" />;
+            return (
+                <Tooltip label={SchedulerJobStatus.SCHEDULED}>
+                    <MantineIcon icon={IconClockFilled} color="blue.3" />
+                </Tooltip>
+            );
         case SchedulerJobStatus.STARTED:
-            return <MantineIcon icon={IconProgress} color="yellow.6" />;
+            return (
+                <Tooltip label={SchedulerJobStatus.STARTED}>
+                    <MantineIcon icon={IconProgress} color="yellow.6" />
+                </Tooltip>
+            );
         case SchedulerJobStatus.COMPLETED:
-            return <MantineIcon icon={IconCircleCheckFilled} color="green.6" />;
+            return (
+                <Tooltip label={SchedulerJobStatus.COMPLETED}>
+                    <MantineIcon icon={IconCircleCheckFilled} color="green.6" />
+                </Tooltip>
+            );
         case SchedulerJobStatus.ERROR:
-            return <MantineIcon icon={IconAlertTriangleFilled} color="red.6" />;
+            return (
+                <Tooltip label={log?.details?.error}>
+                    <MantineIcon icon={IconAlertTriangleFilled} color="red.6" />
+                </Tooltip>
+            );
     }
 };
 
@@ -256,13 +272,7 @@ const Schedulers: FC<SchedulersProps> = ({
                             <Text fz={13} color="gray.6">
                                 {formatTime(latestLog.createdAt)}
                             </Text>
-                            {latestLog.status === SchedulerJobStatus.ERROR ? (
-                                <Tooltip label={latestLog.details?.error}>
-                                    {getLogStatusIcon(latestLog)}
-                                </Tooltip>
-                            ) : (
-                                getLogStatusIcon(latestLog)
-                            )}
+                            {getLogStatusIcon(latestLog)}
                         </Group>
                     );
                 },
