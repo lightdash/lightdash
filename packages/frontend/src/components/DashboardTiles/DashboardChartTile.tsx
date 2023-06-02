@@ -8,10 +8,8 @@ import {
 import { subject } from '@casl/ability';
 import {
     ChartType,
-    convertDashboardFiltersToFilters,
     DashboardChartTile as IDashboardChartTile,
     DashboardFilterRule,
-    DashboardFilters,
     Field,
     fieldId,
     FilterOperator,
@@ -175,13 +173,11 @@ const ValidDashboardChartTileMinimal: FC<{
     tileUuid: string;
     isTitleHidden?: boolean;
     data: SavedChart;
-    dashboardFilters?: DashboardFilters;
-}> = ({ tileUuid, data, dashboardFilters, isTitleHidden = false }) => {
-    const filters =
-        dashboardFilters !== undefined
-            ? convertDashboardFiltersToFilters(dashboardFilters)
-            : undefined;
-    const { data: resultData, isLoading } = useChartResults(data.uuid, filters);
+}> = ({ tileUuid, data, isTitleHidden = false }) => {
+    const { data: resultData, isLoading } = useChartResults(
+        data.uuid,
+        data.metricQuery.filters,
+    );
     const { data: explore } = useExplore(data.tableName);
 
     return (
@@ -219,7 +215,6 @@ interface DashboardChartTileMainProps
         'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
     > {
     tile: IDashboardChartTile;
-    dashboardFilters?: DashboardFilters;
 }
 
 const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
@@ -668,7 +663,6 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
             uuid: tileUuid,
             properties: { savedChartUuid, hideTitle },
         },
-        dashboardFilters,
     } = props;
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
@@ -689,7 +683,6 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                     tileUuid={tileUuid}
                     isTitleHidden={hideTitle}
                     data={data}
-                    dashboardFilters={dashboardFilters}
                 />
             ) : (
                 <InvalidDashboardChartTile />
