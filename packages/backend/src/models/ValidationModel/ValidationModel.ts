@@ -115,7 +115,7 @@ export class ValidationModel {
                 `${UserTableName}.last_name`,
                 `${SpaceTableName}.space_uuid`,
                 this.database.raw(
-                    `(SELECT ${AnalyticsChartViewsTableName}.timestamp FROM ${AnalyticsChartViewsTableName} WHERE saved_queries.saved_query_uuid = ${AnalyticsChartViewsTableName}.chart_uuid ORDER BY ${AnalyticsChartViewsTableName}.timestamp ASC LIMIT 1) as first_viewed_at`,
+                    `(SELECT COUNT('${AnalyticsChartViewsTableName}.chart_uuid') FROM ${AnalyticsChartViewsTableName} WHERE ${SavedChartVersionsTableName}.saved_query_id = ${AnalyticsChartViewsTableName}.chart_uuid) as views`,
                 ),
             ])
             .orderBy([
@@ -252,7 +252,7 @@ export class ValidationModel {
                 createdAt: validationError.created_at,
                 projectUuid: validationError.project_uuid,
                 error: validationError.error,
-                name: validationError.model_name ?? 'Table',
+                name: validationError.model_name ?? undefined,
                 validationId: validationError.validation_id,
                 ...(validationError.error_type && {
                     errorType: validationError.error_type,

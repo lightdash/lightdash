@@ -1,6 +1,7 @@
 import {
     isChartValidationError,
     isDashboardValidationError,
+    isTableValidationError,
     ValidationErrorChartResponse,
     ValidationErrorDashboardResponse,
     ValidationResponse,
@@ -75,6 +76,16 @@ export const ValidatorTable: FC<{
             return validationError.dashboardViews;
     };
 
+    const getErrorName = (validationError: ValidationResponse) => {
+        if (
+            isChartValidationError(validationError) ||
+            isDashboardValidationError(validationError)
+        )
+            return validationError.name;
+        if (isTableValidationError(validationError))
+            return validationError.name ?? 'Table';
+    };
+
     return (
         <Table
             className={cx(
@@ -107,7 +118,7 @@ export const ValidatorTable: FC<{
 
                                       <Stack spacing={4}>
                                           <Text fw={600}>
-                                              {validationError.name}
+                                              {getErrorName(validationError)}
                                           </Text>
 
                                           {(isChartValidationError(
