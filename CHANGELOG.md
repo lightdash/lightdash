@@ -1,3 +1,10 @@
+# [0.590.0](https://github.com/lightdash/lightdash/compare/0.589.1...0.590.0) (2023-06-02)
+
+
+### Features
+
+* limit scheduler logs and include chart and dashboard names ([#5717](https://github.com/lightdash/lightdash/issues/5717)) ([dc1ced1](https://github.com/lightdash/lightdash/commit/dc1ced1d734c51630b3750ff263eb65779e7b747))
+
 ## [0.589.1](https://github.com/lightdash/lightdash/compare/0.589.0...0.589.1) (2023-06-01)
 
 
