@@ -1,4 +1,5 @@
-import winston, { LoggerOptions } from 'winston';
+import winston from 'winston';
+import { lightdashConfig } from './config/lightdashConfig';
 
 const levels = {
     error: 0,
@@ -8,15 +9,6 @@ const levels = {
     debug: 4,
 };
 
-const level = () => {
-    if (process.env.LIGHTDASH_LOG_LEVEL) {
-        return process.env.LIGHTDASH_LOG_LEVEL.toLowerCase();
-    }
-    const env = process.env.NODE_ENV || 'development';
-    const isDevelopment = env === 'development';
-    return isDevelopment ? 'debug' : 'warn';
-};
-
 const colors = {
     error: 'red',
     warn: 'yellow',
@@ -24,44 +16,61 @@ const colors = {
     http: 'magenta',
     debug: 'white',
 };
-
 winston.addColors(colors);
 
-const terminalFormat = winston.format.combine(
-    winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-    winston.format.colorize({ all: true }),
-    winston.format.printf(
-        (info) =>
-            `${info.timestamp} [Lightdash] ${info.level}: ${info.message}`,
+const formatters = {
+    plain: winston.format.combine(
+        winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+        winston.format.uncolorize(),
+        winston.format.printf(
+            (info) =>
+                `${info.timestamp} [Lightdash] ${info.level}: ${info.message}`,
+        ),
     ),
-);
+    pretty: winston.format.combine(
+        winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+        winston.format.colorize({ all: true }),
+        winston.format.printf(
+            (info) =>
+                `${info.timestamp} [Lightdash] ${info.level}: ${info.message}`,
+        ),
+    ),
+    json: winston.format.combine(
+        winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+        winston.format.json(),
+    ),
+};
 
-const jsonFormat = winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.json(),
-);
-
-const transports: LoggerOptions['transports'] = [
-    new winston.transports.Console({
-        format: terminalFormat,
-    }),
-    new winston.transports.File({
-        filename: 'logs/error.log',
-        level: 'error',
-        format: terminalFormat,
-    }),
-    new winston.transports.File({
-        filename: 'logs/all.json.log',
-        format: jsonFormat,
-    }),
-    new winston.transports.File({
-        filename: 'logs/all.log',
-        format: terminalFormat,
-    }),
-];
+const transports = [];
+if (lightdashConfig.logging.outputs.includes('console')) {
+    transports.push(
+        new winston.transports.Console({
+            format: formatters[
+                lightdashConfig.logging.consoleFormat ||
+                    lightdashConfig.logging.format
+            ],
+            level:
+                lightdashConfig.logging.consoleLevel ||
+                lightdashConfig.logging.level,
+        }),
+    );
+}
+if (lightdashConfig.logging.outputs.includes('file')) {
+    transports.push(
+        new winston.transports.File({
+            filename: lightdashConfig.logging.filePath,
+            format: formatters[
+                lightdashConfig.logging.fileFormat ||
+                    lightdashConfig.logging.format
+            ],
+            level:
+                lightdashConfig.logging.fileLevel ||
+                lightdashConfig.logging.level,
+        }),
+    );
+}
 
 const Logger = winston.createLogger({
-    level: level(),
     levels,
     transports,
 });

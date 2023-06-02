@@ -2,7 +2,6 @@ import { isLightdashMode, LightdashMode, ParseError } from '@lightdash/common';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import lightdashV1JsonSchema from '../jsonSchemas/lightdashConfig/v1.json';
-import Logger from '../logger';
 import { VERSION } from '../version';
 
 export const getIntegerFromEnvironmentVariable = (
@@ -24,6 +23,50 @@ export const getIntegerFromEnvironmentVariable = (
 export type LightdashConfigIn = {
     version: '1.0';
     mode: LightdashMode;
+};
+
+type LoggingLevel = 'error' | 'warn' | 'info' | 'debug';
+const assertIsLoggingLevel = (x: string): x is LoggingLevel =>
+    ['error', 'warn', 'info', 'debug'].includes(x);
+const parseLoggingLevel = (raw: string): LoggingLevel => {
+    if (!assertIsLoggingLevel(raw)) {
+        throw new ParseError(
+            `Cannot parse environment variable "LIGHTDASH_LOG_LEVEL". Value must be one of "error", "warn", "info", "debug" but LIGHTDASH_LOG_LEVEL=${raw}`,
+        );
+    }
+    return raw;
+};
+type LoggingFormat = 'json' | 'plain' | 'pretty';
+const assertIsLoggingFormat = (x: string): x is LoggingFormat =>
+    ['json', 'plain', 'pretty'].includes(x);
+const parseLoggingFormat = (raw: string): LoggingFormat => {
+    if (!assertIsLoggingFormat(raw)) {
+        throw new ParseError(
+            `Cannot parse environment variable "LIGHTDASH_LOG_FORMAT". Value must be one of "json", "plain", "pretty" but LIGHTDASH_LOG_FORMAT=${raw}`,
+        );
+    }
+    return raw;
+};
+type LoggingOutput = 'console' | 'file';
+const assertIsLoggingOutput = (x: string): x is LoggingOutput =>
+    ['console', 'file'].includes(x);
+const parseLoggingOutput = (raw: string): LoggingOutput => {
+    if (!assertIsLoggingOutput(raw)) {
+        throw new ParseError(
+            `Cannot parse environment variable "LIGHTDASH_LOG_OUTPUT". Value must be one of "console", "file" but LIGHTDASH_LOG_OUTPUT=${raw}`,
+        );
+    }
+    return raw;
+};
+export type LoggingConfig = {
+    level: LoggingLevel;
+    format: LoggingFormat;
+    outputs: LoggingOutput[];
+    consoleFormat: LoggingFormat | undefined;
+    consoleLevel: LoggingLevel | undefined;
+    fileFormat: LoggingFormat | undefined;
+    fileLevel: LoggingLevel | undefined;
+    filePath: string;
 };
 
 export type LightdashConfig = {
@@ -62,6 +105,7 @@ export type LightdashConfig = {
         concurrency: number;
         jobTimeout: number;
     };
+    logging: LoggingConfig;
 };
 
 export type SlackConfig = {
@@ -183,8 +227,8 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
         process.env.NODE_ENV !== 'development' &&
         siteUrl.includes('localhost')
     ) {
-        Logger.warn(
-            `Using ${siteUrl} as the base SITE_URL for Lightdash. This is not suitable for production. Update with a top level domain using https such as https://lightdash.mycompany.com`,
+        console.log(
+            `WARNIN: Using ${siteUrl} as the base SITE_URL for Lightdash. This is not suitable for production. Update with a top level domain using https such as https://lightdash.mycompany.com`,
         );
     }
 
@@ -323,6 +367,42 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
             jobTimeout: process.env.SCHEDULER_JOB_TIMEOUT
                 ? parseInt(process.env.SCHEDULER_JOB_TIMEOUT, 10)
                 : DEFAULT_JOB_TIMEOUT,
+        },
+        logging: {
+            level: parseLoggingLevel(
+                process.env.LIGHTDASH_LOG_LEVEL ||
+                    ((process.env.NODE_ENV || 'development') === 'development'
+                        ? 'debug'
+                        : 'warn'),
+            ),
+            format: parseLoggingFormat(
+                process.env.LIGHTDASH_LOG_FORMAT || 'pretty',
+            ),
+            outputs: (process.env.LIGHTDASH_LOG_OUTPUTS
+                ? process.env.LIGHTDASH_LOG_OUTPUTS.split(',')
+                : ['console']
+            ).map(parseLoggingOutput),
+            consoleFormat:
+                process.env.LIGHTDASH_LOG_CONSOLE_FORMAT === undefined
+                    ? undefined
+                    : parseLoggingFormat(
+                          process.env.LIGHTDASH_LOG_CONSOLE_FORMAT,
+                      ),
+            consoleLevel:
+                process.env.LIGHTDASH_LOG_CONSOLE_LEVEL === undefined
+                    ? undefined
+                    : parseLoggingLevel(
+                          process.env.LIGHTDASH_LOG_CONSOLE_LEVEL,
+                      ),
+            fileFormat:
+                process.env.LIGHTDASH_LOG_FILE_FORMAT === undefined
+                    ? undefined
+                    : parseLoggingFormat(process.env.LIGHTDASH_LOG_FILE_FORMAT),
+            fileLevel:
+                process.env.LIGHTDASH_LOG_FILE_LEVEL === undefined
+                    ? undefined
+                    : parseLoggingLevel(process.env.LIGHTDASH_LOG_FILE_LEVEL),
+            filePath: process.env.LIGHTDASH_LOG_FILE_PATH || './logs/error.log',
         },
     };
 };
