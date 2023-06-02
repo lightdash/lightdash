@@ -95,6 +95,10 @@ export const usePivotTableCellStyles = createStyles<
         fontWeight: 600,
     },
 
+    withLighterBoldFont: {
+        fontWeight: 500,
+    },
+
     withAlignRight: {
         textAlign: 'right',
     },

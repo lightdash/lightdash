@@ -218,7 +218,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                 return (
                                     <Cell
                                         key={`title-${headerRowIndex}-${titleFieldIndex}`}
-                                        isHeaderCell
+                                        component="th"
                                         withBolderFont
                                         withGrayBackground={!isEmpty}
                                         withAlignRight={isHeaderTitle}
@@ -249,8 +249,9 @@ const PivotTable: FC<PivotTableProps> = ({
                             return isLabel || headerValue.colSpan > 0 ? (
                                 <Cell
                                     key={`header-${headerRowIndex}-${headerColIndex}`}
-                                    isHeaderCell
-                                    withBolderFont
+                                    component="th"
+                                    withBolderFont={isLabel}
+                                    withLighterBoldFont={!isLabel}
                                     withGrayBackground
                                     tooltipContent={description}
                                     colSpan={
@@ -341,7 +342,8 @@ const PivotTable: FC<PivotTableProps> = ({
                                     return (
                                         <Cell
                                             key={`index-${rowIndex}-${indexColIndex}`}
-                                            withBolderFont
+                                            withBolderFont={isLabel}
+                                            withLighterBoldFont={!isLabel}
                                             withGrayBackground
                                             tooltipContent={description}
                                         >
@@ -445,7 +447,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                     ) : (
                                         <Cell
                                             key={`footer-total-${totalRowIndex}-${totalColIndex}`}
-                                            isHeaderCell
+                                            component="th"
                                             withAlignRight
                                             withMinimalWidth
                                         />
@@ -466,7 +468,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                     <ValueCell
                                         key={`column-total-${totalRowIndex}-${totalColIndex}`}
                                         value={value}
-                                        isHeaderCell
+                                        component="th"
                                         withValue={!!value.formatted}
                                         withBolderFont
                                         withGrayBackground
@@ -476,7 +478,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                 ) : (
                                     <Cell
                                         key={`footer-total-${totalRowIndex}-${totalColIndex}`}
-                                        isHeaderCell
+                                        component="th"
                                         withGrayBackground
                                     />
                                 );
@@ -486,7 +488,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                 ? data.rowTotalFields?.[0].map((_, index) => (
                                       <Cell
                                           key={`footer-empty-${totalRowIndex}-${index}`}
-                                          isHeaderCell
+                                          component="th"
                                       />
                                   ))
                                 : null}

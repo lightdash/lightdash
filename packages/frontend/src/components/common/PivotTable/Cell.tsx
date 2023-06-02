@@ -5,14 +5,15 @@ import { usePivotTableCellStyles } from './tableStyles';
 export interface CellProps extends BoxProps {
     className?: string;
     tooltipContent?: string;
+    component?: 'td' | 'th';
 
     colSpan?: number;
 
-    isHeaderCell?: boolean;
     withAlignRight?: boolean;
     withGrayBackground?: boolean;
     withMinimalWidth?: boolean;
     withBolderFont?: boolean;
+    withLighterBoldFont?: boolean;
     withValue?: boolean;
 }
 
@@ -21,14 +22,14 @@ const Cell = forwardRef<HTMLTableCellElement, CellProps>(
         {
             className,
             tooltipContent,
-
+            component = 'td',
             colSpan,
 
-            isHeaderCell = false,
             withAlignRight = false,
             withGrayBackground = false,
             withMinimalWidth = false,
             withBolderFont = false,
+            withLighterBoldFont = false,
             withValue = false,
 
             children,
@@ -48,18 +49,19 @@ const Cell = forwardRef<HTMLTableCellElement, CellProps>(
             >
                 <Box
                     ref={ref}
-                    component={isHeaderCell ? 'th' : 'td'}
+                    component={component}
                     colSpan={colSpan}
                     {...rest}
                     className={cx(
                         classes.root,
-                        withGrayBackground
-                            ? classes.withGrayBackground
-                            : undefined,
-                        withAlignRight ? classes.withAlignRight : undefined,
-                        withMinimalWidth ? classes.withMinimalWidth : undefined,
-                        withBolderFont ? classes.withBolderFont : undefined,
-                        withValue ? classes.withValue : undefined,
+                        withGrayBackground ? classes.withGrayBackground : null,
+                        withAlignRight ? classes.withAlignRight : null,
+                        withMinimalWidth ? classes.withMinimalWidth : null,
+                        withBolderFont ? classes.withBolderFont : null,
+                        withLighterBoldFont
+                            ? classes.withLighterBoldFont
+                            : null,
+                        withValue ? classes.withValue : null,
                         className,
                     )}
                 >
