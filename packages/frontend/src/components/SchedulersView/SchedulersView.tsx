@@ -116,7 +116,7 @@ const Schedulers: FC<SchedulersProps> = ({
     charts,
     dashboards,
 }) => {
-    const { classes } = useTableStyles();
+    const { classes, theme } = useTableStyles();
 
     const columns = useMemo<Column[]>(
         () => [
@@ -270,9 +270,34 @@ const Schedulers: FC<SchedulersProps> = ({
                     const latestLog =
                         currentLogs.length > 0 ? currentLogs[0] : undefined;
                     return !latestLog ? (
-                        <Text fz={13} color="gray.6">
-                            No deliveries started
-                        </Text>
+                        <>
+                            <Text fz={13} color="gray.6">
+                                No deliveries started
+                            </Text>
+
+                            <Group>
+                                <MantineIcon
+                                    icon={IconClockFilled}
+                                    color="blue.3"
+                                    style={{ color: theme.colors.blue[3] }}
+                                />
+                                <MantineIcon
+                                    icon={IconProgress}
+                                    color="yellow.6"
+                                    style={{ color: theme.colors.yellow[6] }}
+                                />
+                                <MantineIcon
+                                    icon={IconCircleCheckFilled}
+                                    color="green.6"
+                                    style={{ color: theme.colors.green[6] }}
+                                />
+                                <MantineIcon
+                                    icon={IconAlertTriangleFilled}
+                                    color="red.6"
+                                    style={{ color: theme.colors.red[6] }}
+                                />
+                            </Group>
+                        </>
                     ) : (
                         <Group spacing="xs">
                             <Text fz={13} color="gray.6">
@@ -306,7 +331,7 @@ const Schedulers: FC<SchedulersProps> = ({
                 },
             },
         ],
-        [users, charts, dashboards, projectUuid, logs],
+        [users, charts, dashboards, projectUuid, logs, theme],
     );
 
     return (
