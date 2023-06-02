@@ -532,9 +532,9 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                error: { dataType: 'string', required: true },
-                createdAt: { dataType: 'datetime', required: true },
                 validationId: { dataType: 'double', required: true },
+                createdAt: { dataType: 'datetime', required: true },
+                error: { dataType: 'string', required: true },
             },
             validators: {},
         },
@@ -1887,9 +1887,52 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_ValidationResponseBase.Exclude_keyofValidationResponseBase.name__': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                projectUuid: { dataType: 'string', required: true },
+                spaceUuid: { dataType: 'string' },
+                validationId: { dataType: 'double', required: true },
+                createdAt: { dataType: 'datetime', required: true },
+                error: { dataType: 'string', required: true },
+                errorType: { ref: 'ValidationErrorType' },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_ValidationResponseBase.name_': {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Pick_ValidationResponseBase.Exclude_keyofValidationResponseBase.name__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ValidationErrorTableResponse: {
         dataType: 'refAlias',
-        type: { ref: 'ValidationResponseBase', validators: {} },
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'Omit_ValidationResponseBase.name_' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        name: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ValidationResponse: {
