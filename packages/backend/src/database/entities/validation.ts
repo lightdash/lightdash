@@ -10,7 +10,6 @@ export type DbValidationTable = {
     chart_name: string | null;
     field_name: string | null;
     model_name: string | null;
-    dimension_name: string | null;
     saved_chart_uuid: string | null;
     dashboard_uuid: string | null;
 };
