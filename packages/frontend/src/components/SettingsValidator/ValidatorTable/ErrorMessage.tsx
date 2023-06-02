@@ -26,6 +26,7 @@ const CustomMark: FC<{ children: ReactNode }> = ({ children }) => {
         </Badge>
     );
 };
+
 const ErrorMessageByType: FC<{
     validationError: ValidationResponse;
 }> = ({ validationError }) => {
