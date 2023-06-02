@@ -403,7 +403,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                                   {value.formatted}
                                               </ValueCell>
                                           ) : (
-                                              <Cell />
+                                              <Cell withGrayBackground />
                                           );
                                       },
                                   )
@@ -477,6 +477,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                     <Cell
                                         key={`footer-total-${totalRowIndex}-${totalColIndex}`}
                                         isHeaderCell
+                                        withGrayBackground
                                     />
                                 );
                             })}
