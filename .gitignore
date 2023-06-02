@@ -56,3 +56,6 @@ package-lock.json
 
 # credentials
 credentials.json
+
+# dbt
+/target
