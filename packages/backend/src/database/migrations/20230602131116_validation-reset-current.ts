@@ -13,6 +13,7 @@ export async function up(knex: Knex): Promise<void> {
 
 export async function down(knex: Knex): Promise<void> {
     await knex.schema.alterTable(ValidationTableName, (table) => {
+        table.string('error_type').nullable().alter();
         table.string('dimension_name').nullable();
     });
 }
