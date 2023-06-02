@@ -18,8 +18,8 @@ import { useTableStyles } from '../../hooks/styles/useTableStyles';
 import MantineIcon from '../common/MantineIcon';
 import { IconBox } from '../common/ResourceIcon';
 
-type SchedulerItem = SchedulerWithLogs['schedulers'][number];
-type Log = SchedulerWithLogs['logs'][number];
+export type SchedulerItem = SchedulerWithLogs['schedulers'][number];
+export type Log = SchedulerWithLogs['logs'][number];
 
 type ColumnName =
     | 'name'
@@ -37,6 +37,8 @@ type SchedulersProps = {
     schedulers: SchedulerWithLogs['schedulers'];
     logs: SchedulerWithLogs['logs'];
     users: SchedulerWithLogs['users'];
+    charts: SchedulerWithLogs['charts'];
+    dashboards: SchedulerWithLogs['dashboards'];
 };
 
 export interface Column {
@@ -76,18 +78,21 @@ export const getSchedulerLink = (item: SchedulerItem, projectUuid: string) => {
         : `/projects/${projectUuid}/dashboards/${item.dashboardUuid}/view/?scheduler_uuid=${item.schedulerUuid}`;
 };
 
-const formatTime = (date: Date) => {
+export const formatTime = (date: Date) => {
     return new Date(date).toLocaleString('en-US', {
         timeZone: 'UTC',
         dateStyle: 'short',
         timeStyle: 'short',
     });
 };
+
 const Schedulers: FC<SchedulersProps> = ({
     projectUuid,
     schedulers,
     logs,
     users,
+    charts,
+    dashboards,
 }) => {
     const { classes } = useTableStyles();
 
@@ -100,6 +105,16 @@ const Schedulers: FC<SchedulersProps> = ({
                     const user = users.find(
                         (u) => u.userUuid === item.createdBy,
                     );
+                    const chartOrDashboard = item.savedChartUuid
+                        ? charts.find(
+                              (chart) =>
+                                  chart.savedChartUuid === item.savedChartUuid,
+                          )
+                        : dashboards.find(
+                              (dashboard) =>
+                                  dashboard.dashboardUuid ===
+                                  item.dashboardUuid,
+                          );
                     return (
                         <Anchor
                             sx={{
@@ -114,10 +129,10 @@ const Schedulers: FC<SchedulersProps> = ({
                         >
                             <Group noWrap>
                                 {getSchedulerIcon(item)}
-                                <Stack spacing="xxs">
+                                <Stack spacing="two">
                                     <Tooltip
                                         label={
-                                            <Stack spacing={2}>
+                                            <Stack spacing="two">
                                                 <Text fz={13} color="gray.5">
                                                     Schedule type:{' '}
                                                     <Text color="white" span>
@@ -150,12 +165,17 @@ const Schedulers: FC<SchedulersProps> = ({
                                         </Text>
                                     </Tooltip>
                                     <Text fz={12} color="gray.6">
-                                        Dashboard or chart name
+                                        {chartOrDashboard?.name}
                                     </Text>
                                 </Stack>
                             </Group>
                         </Anchor>
                     );
+                },
+                meta: {
+                    style: {
+                        width: 300,
+                    },
                 },
             },
             {
@@ -267,7 +287,7 @@ const Schedulers: FC<SchedulersProps> = ({
                 },
             },
         ],
-        [users, logs, projectUuid],
+        [users, charts, dashboards, projectUuid, logs],
     );
 
     return (

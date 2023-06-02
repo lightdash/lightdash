@@ -1,6 +1,7 @@
-import { Box, Group, Tabs, Title } from '@mantine/core';
+import { ActionIcon, Group, Tabs, Title } from '@mantine/core';
 import { IconClock, IconRefresh, IconSend } from '@tabler/icons-react';
 import React, { FC } from 'react';
+import { useQueryClient } from 'react-query';
 import { useSchedulerLogs } from '../../hooks/scheduler/useScheduler';
 import { useTableTabStyles } from '../../hooks/styles/useTableTabStyles';
 import MantineIcon from '../common/MantineIcon';
@@ -11,6 +12,7 @@ import Schedulers from './SchedulersView';
 
 const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const { data } = useSchedulerLogs(projectUuid);
+    const queryClient = useQueryClient();
     const tableTabStyles = useTableTabStyles();
     const emptyState = (
         <ResourceEmptyState
@@ -63,14 +65,11 @@ const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                             </Title>
                         </Tabs.Tab>
                     </Tabs.List>
-                    <Box
+                    <ActionIcon
                         ml="auto"
-                        onClick={() => null}
-                        sx={{
-                            '&:hover': {
-                                cursor: 'pointer',
-                            },
-                        }}
+                        onClick={async () =>
+                            queryClient.invalidateQueries('schedulerLogs')
+                        }
                     >
                         <MantineIcon
                             icon={IconRefresh}
@@ -78,7 +77,7 @@ const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                             color="gray.6"
                             stroke={2}
                         />
-                    </Box>
+                    </ActionIcon>
                 </Group>
                 <Tabs.Panel value="scheduled-deliveries">
                     {data && data.schedulers.length > 0 ? (

@@ -20,6 +20,8 @@ import {
     getLogStatusIcon,
     getSchedulerIcon,
     getSchedulerLink,
+    Log,
+    SchedulerItem,
 } from './SchedulersView';
 
 type LogsProps = {
@@ -27,14 +29,28 @@ type LogsProps = {
     schedulers: SchedulerWithLogs['schedulers'];
     logs: SchedulerWithLogs['logs'];
     users: SchedulerWithLogs['users'];
+    charts: SchedulerWithLogs['charts'];
+    dashboards: SchedulerWithLogs['dashboards'];
 };
 
-const Logs: FC<LogsProps> = ({ projectUuid, schedulers, logs, users }) => {
+const Logs: FC<LogsProps> = ({
+    projectUuid,
+    schedulers,
+    logs,
+    users,
+    charts,
+    dashboards,
+}) => {
     const { classes } = useTableStyles();
     const [opened, { toggle }] = useDisclosure(false);
 
-    const columns = useMemo<Column[]>(
-        () => [
+    const columns = useMemo<Column[]>(() => {
+        const currentLogs = (item: SchedulerItem, targets: Log[]) => {
+            return targets.filter(
+                (target) => target.schedulerUuid === item.schedulerUuid,
+            );
+        };
+        return [
             {
                 id: 'name',
                 label: 'Name',
@@ -42,6 +58,16 @@ const Logs: FC<LogsProps> = ({ projectUuid, schedulers, logs, users }) => {
                     const user = users.find(
                         (u) => u.userUuid === item.createdBy,
                     );
+                    const chartOrDashboard = item.savedChartUuid
+                        ? charts.find(
+                              (chart) =>
+                                  chart.savedChartUuid === item.savedChartUuid,
+                          )
+                        : dashboards.find(
+                              (dashboard) =>
+                                  dashboard.dashboardUuid ===
+                                  item.dashboardUuid,
+                          );
                     return (
                         <Anchor
                             sx={{
@@ -56,10 +82,10 @@ const Logs: FC<LogsProps> = ({ projectUuid, schedulers, logs, users }) => {
                         >
                             <Group noWrap>
                                 {getSchedulerIcon(item)}
-                                <Stack spacing="xxs">
+                                <Stack spacing="two">
                                     <Tooltip
                                         label={
-                                            <Stack spacing={2}>
+                                            <Stack spacing="two">
                                                 <Text fz={13} color="gray.5">
                                                     Schedule type:{' '}
                                                     <Text color="white" span>
@@ -92,22 +118,24 @@ const Logs: FC<LogsProps> = ({ projectUuid, schedulers, logs, users }) => {
                                         </Text>
                                     </Tooltip>
                                     <Text fz={12} color="gray.6">
-                                        Dashboard or chart name
+                                        {chartOrDashboard?.name}
                                     </Text>
                                 </Stack>
                             </Group>
                         </Anchor>
                     );
                 },
+                meta: {
+                    style: {
+                        width: 300,
+                    },
+                },
             },
             {
                 id: 'jobs',
                 label: 'Job',
                 cell: (item) => {
-                    const currentLogs = logs.filter(
-                        (target) => target.schedulerUuid === item.schedulerUuid,
-                    );
-                    return currentLogs.length > 0 ? (
+                    return currentLogs(item, logs).length > 0 ? (
                         <Box>
                             <Group spacing="xxs">
                                 <Text fz={13} fw={500}>
@@ -118,7 +146,7 @@ const Logs: FC<LogsProps> = ({ projectUuid, schedulers, logs, users }) => {
                                 </UnstyledButton>
                             </Group>
                             <Collapse in={opened}>
-                                {currentLogs.map((log, i) => (
+                                {currentLogs(item, logs).map((log, i) => (
                                     <Text
                                         key={i}
                                         fz={12}
@@ -144,56 +172,24 @@ const Logs: FC<LogsProps> = ({ projectUuid, schedulers, logs, users }) => {
                 id: 'deliveryScheduled',
                 label: 'Delivery scheduled',
                 cell: () => {
-                    return (
-                        // <Text fz={13} color="gray.6">
-                        //     {getHumanReadableCronExpression(item.cron)}
-                        // </Text>
-                        <></>
-                    );
+                    return <></>;
                 },
             },
             {
                 id: 'deliveryStarted',
                 label: 'Delivery start',
                 cell: () => {
-                    // const currentLogs = logs.filter(
-                    //     (log) => log.schedulerUuid === item.schedulerUuid,
-                    // );
                     return <></>;
-                    // !lastLog ? (
-                    //     <Text fz={13} color="gray.6">
-                    //         No deliveries started
-                    //     </Text>
-                    // ) : lastLog.status === SchedulerJobStatus.ERROR ? (
-                    //     <Group spacing="xs">
-                    //         <Text fz={13} color="gray.6">
-                    //             {formatTime(currentLogs[0].scheduledTime)}
-                    //         </Text>
-                    //         <Tooltip label={currentLogs[0].details}>
-                    //             {getLogStatusIcon(currentLogs[0])}
-                    //         </Tooltip>
-                    //     </Group>
-                    // ) : (
-                    //     <Group spacing="xs">
-                    //         <Text fz={13} color="gray.6">
-                    //             {formatTime(lastLog.scheduledTime)}
-                    //         </Text>
-                    //         {getLogStatusIcon(lastLog)}
-                    //     </Group>
                 },
             },
             {
                 id: 'status',
                 label: 'Status',
                 cell: (item) => {
-                    const currentLogs = logs.filter(
-                        (log) => log.schedulerUuid === item.schedulerUuid,
-                    );
                     return (
                         <Stack align="center" justify="center">
-                            {/*<ResourceActionMenu item={item} onAction={onAction} />*/}
-                            {currentLogs.length > 0
-                                ? getLogStatusIcon(currentLogs[0])
+                            {currentLogs(item, logs).length > 0
+                                ? getLogStatusIcon(currentLogs(item, logs)[0])
                                 : null}
                         </Stack>
                     );
@@ -202,9 +198,8 @@ const Logs: FC<LogsProps> = ({ projectUuid, schedulers, logs, users }) => {
                     style: { width: '1px' },
                 },
             },
-        ],
-        [users, logs, projectUuid, opened, toggle],
-    );
+        ];
+    }, [users, charts, dashboards, projectUuid, logs, opened, toggle]);
 
     return (
         <Table className={classes.root} highlightOnHover>
