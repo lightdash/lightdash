@@ -160,7 +160,7 @@ export class ValidationModel {
                     validationError.chart_type,
                     validationError.chart_config,
                 ),
-                errorType: validationError.error_type ?? undefined,
+                errorType: validationError.error_type,
                 fieldName: validationError.field_name ?? undefined,
             }));
 
@@ -238,7 +238,7 @@ export class ValidationModel {
                 lastUpdatedAt: validationError.last_updated_at,
                 validationId: validationError.validation_id,
                 spaceUuid: validationError.space_uuid,
-                errorType: validationError.error_type ?? undefined,
+                errorType: validationError.error_type,
                 fieldName: validationError.field_name ?? undefined,
                 chartName: validationError.chart_name ?? undefined,
             }));
@@ -258,9 +258,7 @@ export class ValidationModel {
                 error: validationError.error,
                 name: validationError.model_name ?? undefined,
                 validationId: validationError.validation_id,
-                ...(validationError.error_type && {
-                    errorType: validationError.error_type,
-                }),
+                errorType: validationError.error_type,
             }));
 
         return [

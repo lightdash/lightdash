@@ -6,7 +6,7 @@ export type DbValidationTable = {
     created_at: Date;
     project_uuid: string;
     error: string;
-    error_type: ValidationErrorType | null;
+    error_type: ValidationErrorType;
     chart_name: string | null;
     field_name: string | null;
     model_name: string | null;
