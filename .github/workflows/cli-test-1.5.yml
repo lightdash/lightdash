@@ -3,6 +3,8 @@ on: [ deployment_status ]
 
 env:
   NODE_ENV: 'development'
+  NODE_TLS_REJECT_UNAUTHORIZED: '0'
+
 jobs:
   cli-run:
     # Only trigger for correct environment and status
