@@ -3,7 +3,6 @@ on: [ deployment_status ]
 
 env:
   NODE_ENV: 'development'
-  NODE_TLS_REJECT_UNAUTHORIZED: '0'
 
 jobs:
   cli-run:
@@ -74,5 +73,4 @@ jobs:
         env:
           CYPRESS_PGHOST: ${{secrets.PGHOST}}
           CYPRESS_PGPASSWORD: ${{secrets.PGPASSWORD}}
-          NODE_TLS_REJECT_UNAUTHORIZED: '0'
 

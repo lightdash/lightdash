@@ -28,7 +28,7 @@ export const getManifestPath = async (targetDir: string): Promise<string> => {
 export const loadManifest = async ({
     targetDir,
 }: LoadManifestArgs): Promise<DbtManifest> => {
-    const filename = await getManifestPath(targetDir); // path.join(targetDir, 'manifest.json');
+    const filename = await getManifestPath(targetDir);
     globalState.debug(`> Loading dbt manifest from ${filename}`);
     try {
         const manifest = JSON.parse(
