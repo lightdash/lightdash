@@ -115,7 +115,7 @@ export class ValidationModel {
                 `${UserTableName}.last_name`,
                 `${SpaceTableName}.space_uuid`,
                 this.database.raw(
-                    `(SELECT COUNT('${AnalyticsChartViewsTableName}.chart_uuid') FROM ${AnalyticsChartViewsTableName} WHERE ${SavedChartVersionsTableName}.saved_query_id = ${AnalyticsChartViewsTableName}.chart_uuid) as views`,
+                    `(SELECT COUNT('${AnalyticsChartViewsTableName}.chart_uuid') FROM ${AnalyticsChartViewsTableName} WHERE saved_queries.saved_query_uuid = ${AnalyticsChartViewsTableName}.chart_uuid) as views`,
                 ),
             ])
             .orderBy([
