@@ -2172,7 +2172,7 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 spaceUuid: { dataType: 'string' },
                 projectUuid: { dataType: 'string', required: true },
-                errorType: { ref: 'ValidationErrorType' },
+                errorType: { ref: 'ValidationErrorType', required: true },
                 error: { dataType: 'string', required: true },
                 name: { dataType: 'string', required: true },
                 createdAt: { dataType: 'datetime', required: true },
@@ -2250,7 +2250,7 @@ const models: TsoaRoute.Models = {
                 validationId: { dataType: 'double', required: true },
                 createdAt: { dataType: 'datetime', required: true },
                 error: { dataType: 'string', required: true },
-                errorType: { ref: 'ValidationErrorType' },
+                errorType: { ref: 'ValidationErrorType', required: true },
             },
             validators: {},
         },
