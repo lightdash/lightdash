@@ -196,7 +196,7 @@ describe('Parse metric filters', () => {
     });
 
     it('Should parse NULL using gtrammar', () => {
-        const filters = [{ name: 'NULL' }];
+        const filters = [{ name: null }];
         expect(removeIds(parseFilters(filters))).toStrictEqual([
             {
                 id: undefined,
@@ -204,7 +204,7 @@ describe('Parse metric filters', () => {
                 target: {
                     fieldId: 'name',
                 },
-                values: undefined,
+                values: [1],
             },
         ]);
     });

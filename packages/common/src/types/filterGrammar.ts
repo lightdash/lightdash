@@ -215,6 +215,17 @@ export const parseFilters = (
 
         const [key, value] = Object.entries(filter)[0];
 
+        if (value === null) {
+            return [
+                ...acc,
+                {
+                    id: uuidv4(),
+                    target: { fieldId: key },
+                    operator: FilterOperator.NULL,
+                    values: [1],
+                },
+            ];
+        }
         if (typeof value === 'string') {
             const parsedFilter: ParsedFilter = parser.parse(value);
 
