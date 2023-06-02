@@ -1822,10 +1822,7 @@
                 "refs": {
                     "type": "array",
                     "items": {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        }
+                        "$ref": "#/definitions/RefArgs"
                     },
                     "default": []
                 },
