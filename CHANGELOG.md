@@ -1,3 +1,10 @@
+## [0.590.2](https://github.com/lightdash/lightdash/compare/0.590.1...0.590.2) (2023-06-02)
+
+
+### Bug Fixes
+
+* apply dashboard filters in scheduled deliveries ([#5728](https://github.com/lightdash/lightdash/issues/5728)) ([11f6464](https://github.com/lightdash/lightdash/commit/11f64642c4c605434f6c0f9d0525cf0c9cc39538))
+
 ## [0.590.1](https://github.com/lightdash/lightdash/compare/0.590.0...0.590.1) (2023-06-02)
 
 
