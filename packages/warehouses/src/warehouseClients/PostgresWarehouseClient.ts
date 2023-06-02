@@ -15,7 +15,7 @@ import WarehouseBaseClient from './WarehouseBaseClient';
 
 const POSTGRES_CA_BUNDLES = [
     ...rootCertificates,
-    readFileSync(path.resolve(__dirname, './ca-bundle-aws-rds-global.crt')),
+    readFileSync(path.resolve(__dirname, './ca-bundle-aws-rds-global.pem')),
 ];
 
 export enum PostgresTypes {
