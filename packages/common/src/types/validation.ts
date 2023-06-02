@@ -43,7 +43,9 @@ export type ValidationResponse =
 export type CreateTableValidation = Pick<
     ValidationErrorTableResponse,
     'error' | 'errorType' | 'projectUuid' | 'name'
->;
+> & {
+    modelName: string;
+};
 
 export type CreateChartValidation = Pick<
     ValidationErrorChartResponse,

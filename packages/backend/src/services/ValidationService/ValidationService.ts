@@ -113,6 +113,7 @@ export class ValidationService {
                             name: explore.name,
                             error: ee.message,
                             errorType: ValidationErrorType.Model,
+                            modelName: explore.name,
                             projectUuid,
                         }));
                     return [...acc, ...exploreErrors];

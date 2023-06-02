@@ -3,6 +3,7 @@ import {
     getChartType,
     isChartValidationError,
     isDashboardValidationError,
+    isTableValidationError,
     ValidationErrorChartResponse,
     ValidationErrorDashboardResponse,
     ValidationErrorTableResponse,
@@ -49,6 +50,9 @@ export class ValidationModel {
                     project_uuid: validation.projectUuid,
                     error: validation.error,
                     error_type: validation.errorType,
+                    ...(isTableValidationError(validation) && {
+                        model_name: validation.modelName,
+                    }),
                     ...(isChartValidationError(validation) && {
                         saved_chart_uuid: validation.chartUuid,
                         field_name: validation.fieldName,
@@ -257,9 +261,6 @@ export class ValidationModel {
                 ...(validationError.error_type && {
                     errorType: validationError.error_type,
                 }),
-                modelName: validationError.model_name ?? undefined,
-                fieldName: validationError.field_name,
-                dimensionName: validationError.dimension_name ?? undefined,
             }));
 
         return [
