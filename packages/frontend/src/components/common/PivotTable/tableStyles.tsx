@@ -18,7 +18,7 @@ export const usePivotTableStyles = createStyles((theme) => ({
                 td: {
                     '&:not([data-expanded="true"]):not([data-conditional-formatting="true"])':
                         {
-                            backgroundColor: theme.colors.gray[0],
+                            backgroundColor: theme.colors.gray[1],
                         },
                 },
             },
@@ -31,21 +31,19 @@ type PivotTableCellStylesProps = {
         backgroundColor: string;
         color: string;
     };
-    hasValue?: boolean;
 };
 
 export const usePivotTableCellStyles = createStyles<
     string,
     PivotTableCellStylesProps
->((theme, props) => ({
+>((theme, props = {}) => ({
     root: {
         textAlign: 'left',
         whiteSpace: 'nowrap',
         fontWeight: 400,
+        fontSize: 13,
 
-        cursor: props.hasValue ? 'pointer' : 'default',
-
-        color: theme.colors.gray[7],
+        color: theme.colors.gray[9],
         backgroundColor: theme.white,
 
         outline: `1px solid transparent`,
@@ -64,19 +62,6 @@ export const usePivotTableCellStyles = createStyles<
             backgroundColor: theme.colors.blue[2],
             outline: `1px solid ${theme.colors.blue[9]}`,
         },
-
-        ':hover:not([data-expanded="true"]):not([data-copied="true"])':
-            props.hasValue
-                ? {
-                      outline: `1px solid ${theme.colors.gray[6]}`,
-                  }
-                : undefined,
-    },
-
-    header: {
-        fontWeight: 600,
-        color: theme.colors.gray[8],
-        backgroundColor: theme.colors.gray[5],
     },
 
     conditionalFormatting: props.conditionalFormatting
@@ -102,8 +87,30 @@ export const usePivotTableCellStyles = createStyles<
           }
         : {},
 
-    rowNumber: {
-        width: '1%',
+    withGrayBackground: {
+        backgroundColor: theme.colors.gray[0],
+    },
+
+    withBolderFont: {
+        fontWeight: 600,
+    },
+
+    withLighterBoldFont: {
+        fontWeight: 500,
+    },
+
+    withAlignRight: {
         textAlign: 'right',
+    },
+
+    withMinimalWidth: {
+        width: '1%',
+    },
+
+    withValue: {
+        cursor: 'pointer',
+        ':hover:not([data-expanded="true"]):not([data-copied="true"])': {
+            outline: `1px solid ${theme.colors.gray[6]}`,
+        },
     },
 }));

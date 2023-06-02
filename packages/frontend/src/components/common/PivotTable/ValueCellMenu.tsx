@@ -12,7 +12,7 @@ import { useMetricQueryDataContext } from '../../MetricQueryData/MetricQueryData
 import MantineIcon from '../MantineIcon';
 
 type ValueCellMenuProps = {
-    value: ResultValue | null;
+    value?: ResultValue | null;
     onCopy: () => void;
 
     rowIndex?: number;
