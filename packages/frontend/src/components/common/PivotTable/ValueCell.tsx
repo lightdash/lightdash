@@ -6,45 +6,26 @@ import {
     ResultValue,
     TableCalculation,
 } from '@lightdash/common';
-import { Box, Text, Tooltip } from '@mantine/core';
-import { mergeRefs, useClipboard, useHotkeys } from '@mantine/hooks';
-import {
-    FC,
-    ForwardedRef,
-    forwardRef,
-    useCallback,
-    useMemo,
-    useState,
-} from 'react';
+import { useClipboard, useHotkeys } from '@mantine/hooks';
+import { FC, useCallback, useMemo, useState } from 'react';
 
 import { isHexCodeColor, readableColor } from '../../../utils/colorUtils';
 import { getConditionalRuleLabel } from '../Filters/configs';
+import Cell, { CellProps } from './Cell';
 import { usePivotTableCellStyles } from './tableStyles';
 import ValueCellMenu from './ValueCellMenu';
 
-type ValueCellProps = {
-    item: Field | TableCalculation;
-    value: ResultValue | null;
-    rowIndex: number;
-    colIndex: number;
-    conditionalFormattings: ConditionalFormattingConfig[];
-    getUnderlyingFieldValues: (
+interface ValueCellProps extends CellProps {
+    item?: Field | TableCalculation;
+    value?: ResultValue | null;
+    rowIndex?: number;
+    colIndex?: number;
+    conditionalFormattings?: ConditionalFormattingConfig[];
+    getUnderlyingFieldValues?: (
         colIndex: number,
         rowIndex: number,
     ) => Record<string, ResultValue>;
-    getField: (fieldId: string) => Field | TableCalculation;
-};
-
-type ForwardRefProps = {
-    render: (
-        props: React.HTMLAttributes<HTMLTableCellElement>,
-        ref: ForwardedRef<HTMLTableCellElement> | null,
-    ) => JSX.Element;
-};
-
-const ForwardRef = forwardRef<HTMLTableCellElement, ForwardRefProps>(
-    ({ render, ...props }, ref) => render(props, ref),
-);
+}
 
 const ValueCell: FC<ValueCellProps> = ({
     item,
@@ -53,6 +34,8 @@ const ValueCell: FC<ValueCellProps> = ({
     colIndex,
     conditionalFormattings,
     getUnderlyingFieldValues,
+
+    ...rest
 }) => {
     const conditionalFormatting = useMemo(() => {
         const conditionalFormattingConfig = getConditionalFormattingConfig(
@@ -82,7 +65,6 @@ const ValueCell: FC<ValueCellProps> = ({
 
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-    // TODO: optimisation - can be one hook on the parent
     const clipboard = useClipboard({ timeout: 200 });
 
     const handleCopy = useCallback(() => {
@@ -93,10 +75,7 @@ const ValueCell: FC<ValueCellProps> = ({
 
     useHotkeys([['mod+c', handleCopy]]);
 
-    const hasValue = !!value?.formatted;
-
     const { cx, classes } = usePivotTableCellStyles({
-        hasValue,
         conditionalFormatting,
     });
 
@@ -112,41 +91,19 @@ const ValueCell: FC<ValueCellProps> = ({
             onOpen={() => setIsMenuOpen(true)}
             onClose={() => setIsMenuOpen(false)}
         >
-            <ForwardRef
-                render={(menuProps, menuRef) => (
-                    <Tooltip
-                        disabled={!conditionalFormatting}
-                        label={conditionalFormatting?.tooltipContent}
-                        withinPortal
-                    >
-                        <ForwardRef
-                            render={(tooltipProps, tooltipRef) => (
-                                <Box
-                                    component="td"
-                                    ref={mergeRefs(menuRef, tooltipRef)}
-                                    {...tooltipProps}
-                                    {...menuProps}
-                                    data-copied={clipboard.copied}
-                                    data-conditional-formatting={
-                                        !!conditionalFormatting
-                                    }
-                                    className={cx(
-                                        tooltipProps.className,
-                                        menuProps.className,
-                                        classes.root,
-                                        {
-                                            [classes.conditionalFormatting]:
-                                                conditionalFormatting,
-                                        },
-                                    )}
-                                >
-                                    <Text>{value?.formatted}</Text>
-                                </Box>
-                            )}
-                        />
-                    </Tooltip>
+            <Cell
+                withValue={!!value?.formatted}
+                className={cx(
+                    { [classes.conditionalFormatting]: conditionalFormatting },
+                    rest.className,
                 )}
-            />
+                data-conditional-formatting={!!conditionalFormatting}
+                data-copied={clipboard.copied}
+                tooltipContent={conditionalFormatting?.tooltipContent}
+                {...rest}
+            >
+                {value?.formatted}
+            </Cell>
         </ValueCellMenu>
     );
 };

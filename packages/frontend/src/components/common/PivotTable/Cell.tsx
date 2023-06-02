@@ -1,12 +1,10 @@
 import { Box, BoxProps, Tooltip } from '@mantine/core';
-import { FC } from 'react';
+import { forwardRef } from 'react';
 import { usePivotTableCellStyles } from './tableStyles';
 
-interface CellProps {
+export interface CellProps extends BoxProps {
     className?: string;
     tooltipContent?: string;
-
-    boxProps?: BoxProps;
 
     colSpan?: number;
 
@@ -15,45 +13,61 @@ interface CellProps {
     withGrayBackground?: boolean;
     withMinimalWidth?: boolean;
     withBolderFont?: boolean;
+    withValue?: boolean;
 }
 
-const Cell: FC<CellProps> = ({
-    tooltipContent,
+const Cell = forwardRef<HTMLTableCellElement, CellProps>(
+    (
+        {
+            className,
+            tooltipContent,
 
-    colSpan,
+            colSpan,
 
-    isHeaderCell = false,
-    withAlignRight = false,
-    withGrayBackground = false,
-    withMinimalWidth = false,
-    withBolderFont = false,
+            isHeaderCell = false,
+            withAlignRight = false,
+            withGrayBackground = false,
+            withMinimalWidth = false,
+            withBolderFont = false,
+            withValue = false,
 
-    children,
-}) => {
-    const { cx, classes } = usePivotTableCellStyles({});
+            children,
 
-    return (
-        <Tooltip
-            withinPortal
-            multiline
-            disabled={!tooltipContent}
-            label={tooltipContent}
-        >
-            <Box
-                component={isHeaderCell ? 'th' : 'td'}
-                colSpan={colSpan}
-                className={cx(
-                    classes.root,
-                    withGrayBackground ? classes.withGrayBackground : undefined,
-                    withAlignRight ? classes.withAlignRight : undefined,
-                    withMinimalWidth ? classes.withMinimalWidth : undefined,
-                    withBolderFont ? classes.withBolderFont : undefined,
-                )}
+            ...rest
+        },
+        ref,
+    ) => {
+        const { cx, classes } = usePivotTableCellStyles({});
+
+        return (
+            <Tooltip
+                withinPortal
+                multiline
+                disabled={!tooltipContent}
+                label={tooltipContent}
             >
-                {children}
-            </Box>
-        </Tooltip>
-    );
-};
+                <Box
+                    ref={ref}
+                    component={isHeaderCell ? 'th' : 'td'}
+                    colSpan={colSpan}
+                    {...rest}
+                    className={cx(
+                        classes.root,
+                        withGrayBackground
+                            ? classes.withGrayBackground
+                            : undefined,
+                        withAlignRight ? classes.withAlignRight : undefined,
+                        withMinimalWidth ? classes.withMinimalWidth : undefined,
+                        withBolderFont ? classes.withBolderFont : undefined,
+                        withValue ? classes.withValue : undefined,
+                        className,
+                    )}
+                >
+                    {children}
+                </Box>
+            </Tooltip>
+        );
+    },
+);
 
 export default Cell;

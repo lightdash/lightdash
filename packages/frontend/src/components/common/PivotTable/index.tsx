@@ -15,7 +15,6 @@ import React, { FC, useCallback } from 'react';
 import { isSummable } from '../../../hooks/useColumnTotals';
 import Cell from './Cell';
 import { usePivotTableStyles } from './tableStyles';
-import TotalCell from './TotalCell';
 import ValueCell from './ValueCell';
 
 const ROW_HEIGHT_PX = 34;
@@ -27,7 +26,7 @@ const VirtualizedArea: FC<{
     return (
         <tr>
             {[...Array(cellCount)].map((_, index) => (
-                <Cell key={index} boxProps={{ h: height }} />
+                <Cell key={index} h={height} />
             ))}
         </tr>
     );
@@ -199,106 +198,102 @@ const PivotTable: FC<PivotTableProps> = ({
             {...tableProps}
         >
             <thead>
-                {data.headerValues.map((headerValues, headerRowIndex) => {
-                    return (
-                        <tr key={`header-row-${headerRowIndex}`}>
-                            {/* shows empty cell if row numbers are visible */}
-                            {hideRowNumbers ? null : <Cell />}
+                {data.headerValues.map((headerValues, headerRowIndex) => (
+                    <tr key={`header-row-${headerRowIndex}`}>
+                        {/* shows empty cell if row numbers are visible */}
+                        {hideRowNumbers ? null : <Cell />}
 
-                            {/* renders the title labels */}
-                            {data.titleFields[headerRowIndex].map(
-                                (titleField, titleFieldIndex) => {
-                                    const field = titleField?.fieldId
-                                        ? getField(titleField?.fieldId)
-                                        : undefined;
+                        {/* renders the title labels */}
+                        {data.titleFields[headerRowIndex].map(
+                            (titleField, titleFieldIndex) => {
+                                const field = titleField?.fieldId
+                                    ? getField(titleField?.fieldId)
+                                    : undefined;
 
-                                    const isEmpty = !titleField?.fieldId;
+                                const isEmpty = !titleField?.fieldId;
 
-                                    const isHeaderTitle =
-                                        titleField?.direction === 'header';
+                                const isHeaderTitle =
+                                    titleField?.direction === 'header';
 
-                                    return (
-                                        <Cell
-                                            key={`title-${headerRowIndex}-${titleFieldIndex}`}
-                                            isHeaderCell
-                                            withBolderFont
-                                            withGrayBackground={!isEmpty}
-                                            withAlignRight={isHeaderTitle}
-                                            tooltipContent={
-                                                isField(field)
-                                                    ? field.description
-                                                    : undefined
-                                            }
-                                        >
-                                            {titleField?.fieldId
-                                                ? getFieldLabel(
-                                                      titleField?.fieldId,
-                                                  )
-                                                : undefined}
-                                        </Cell>
-                                    );
-                                },
-                            )}
-
-                            {/* renders the header values or labels */}
-                            {headerValues.map((headerValue, headerColIndex) => {
-                                const isLabel = headerValue.type === 'label';
-                                const field = getField(headerValue.fieldId);
-
-                                const description =
-                                    isLabel && isField(field)
-                                        ? field.description
-                                        : undefined;
-
-                                return isLabel || headerValue.colSpan > 0 ? (
+                                return (
                                     <Cell
-                                        key={`header-${headerRowIndex}-${headerColIndex}`}
+                                        key={`title-${headerRowIndex}-${titleFieldIndex}`}
                                         isHeaderCell
                                         withBolderFont
-                                        withGrayBackground
-                                        tooltipContent={description}
-                                        colSpan={
-                                            isLabel
-                                                ? undefined
-                                                : headerValue.colSpan
+                                        withGrayBackground={!isEmpty}
+                                        withAlignRight={isHeaderTitle}
+                                        tooltipContent={
+                                            isField(field)
+                                                ? field.description
+                                                : undefined
                                         }
                                     >
-                                        {isLabel
-                                            ? getFieldLabel(headerValue.fieldId)
-                                            : headerValue.value.formatted}
+                                        {titleField?.fieldId
+                                            ? getFieldLabel(titleField?.fieldId)
+                                            : undefined}
                                     </Cell>
-                                ) : null;
-                            })}
+                                );
+                            },
+                        )}
 
-                            {/* render the total label */}
-                            {hasRowTotals
-                                ? data.rowTotalFields?.[headerRowIndex].map(
-                                      (totalLabel, headerColIndex) =>
-                                          totalLabel ? (
-                                              <Cell
-                                                  key={`header-total-${headerRowIndex}-${headerColIndex}`}
-                                                  withBolderFont
-                                                  withMinimalWidth
-                                                  withGrayBackground
-                                              >
-                                                  {totalLabel.fieldId
-                                                      ? `Total ${getFieldLabel(
-                                                            totalLabel.fieldId,
-                                                        )}`
-                                                      : `Total`}
-                                              </Cell>
-                                          ) : (
-                                              <Cell
-                                                  key={`header-total-${headerRowIndex}-${headerColIndex}`}
-                                                  withMinimalWidth
-                                                  withAlignRight
-                                              />
-                                          ),
-                                  )
-                                : null}
-                        </tr>
-                    );
-                })}
+                        {/* renders the header values or labels */}
+                        {headerValues.map((headerValue, headerColIndex) => {
+                            const isLabel = headerValue.type === 'label';
+                            const field = getField(headerValue.fieldId);
+
+                            const description =
+                                isLabel && isField(field)
+                                    ? field.description
+                                    : undefined;
+
+                            return isLabel || headerValue.colSpan > 0 ? (
+                                <Cell
+                                    key={`header-${headerRowIndex}-${headerColIndex}`}
+                                    isHeaderCell
+                                    withBolderFont
+                                    withGrayBackground
+                                    tooltipContent={description}
+                                    colSpan={
+                                        isLabel
+                                            ? undefined
+                                            : headerValue.colSpan
+                                    }
+                                >
+                                    {isLabel
+                                        ? getFieldLabel(headerValue.fieldId)
+                                        : headerValue.value.formatted}
+                                </Cell>
+                            ) : null;
+                        })}
+
+                        {/* render the total label */}
+                        {hasRowTotals
+                            ? data.rowTotalFields?.[headerRowIndex].map(
+                                  (totalLabel, headerColIndex) =>
+                                      totalLabel ? (
+                                          <Cell
+                                              key={`header-total-${headerRowIndex}-${headerColIndex}`}
+                                              withBolderFont
+                                              withMinimalWidth
+                                              withGrayBackground
+                                          >
+                                              {totalLabel.fieldId
+                                                  ? `Total ${getFieldLabel(
+                                                        totalLabel.fieldId,
+                                                    )}`
+                                                  : `Total`}
+                                          </Cell>
+                                      ) : (
+                                          <Cell
+                                              key={`header-total-${headerRowIndex}-${headerColIndex}`}
+                                              withMinimalWidth
+                                              withAlignRight
+                                          />
+                                      ),
+                              )
+                            : null}
+                    </tr>
+                ))}
             </thead>
 
             <tbody>
@@ -362,19 +357,16 @@ const PivotTable: FC<PivotTableProps> = ({
 
                             {/* renders the pivot values */}
                             {row.map((value, colIndex) => {
-                                const item = getItemFromAxis(
-                                    rowIndex,
-                                    colIndex,
-                                );
-
                                 return (
                                     <ValueCell
                                         key={`value-${rowIndex}-${colIndex}`}
-                                        item={item}
+                                        item={getItemFromAxis(
+                                            rowIndex,
+                                            colIndex,
+                                        )}
                                         value={value}
                                         colIndex={colIndex}
                                         rowIndex={rowIndex}
-                                        getField={getField}
                                         getUnderlyingFieldValues={
                                             getUnderlyingFieldValues
                                         }
@@ -401,12 +393,15 @@ const PivotTable: FC<PivotTableProps> = ({
                                                 );
 
                                           return value ? (
-                                              <TotalCell
-                                                  value={value}
+                                              <ValueCell
                                                   key={`index-total-${rowIndex}-${colIndex}`}
+                                                  value={value}
+                                                  withValue={!!value.formatted}
+                                                  withBolderFont
+                                                  withGrayBackground
                                               >
                                                   {value.formatted}
-                                              </TotalCell>
+                                              </ValueCell>
                                           ) : (
                                               <Cell />
                                           );
@@ -468,12 +463,16 @@ const PivotTable: FC<PivotTableProps> = ({
                                           totalColIndex,
                                       );
                                 return value ? (
-                                    <TotalCell
+                                    <ValueCell
                                         key={`column-total-${totalRowIndex}-${totalColIndex}`}
                                         value={value}
+                                        isHeaderCell
+                                        withValue={!!value.formatted}
+                                        withBolderFont
+                                        withGrayBackground
                                     >
                                         {value.formatted}
-                                    </TotalCell>
+                                    </ValueCell>
                                 ) : (
                                     <Cell
                                         key={`footer-total-${totalRowIndex}-${totalColIndex}`}
