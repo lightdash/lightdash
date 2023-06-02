@@ -17,6 +17,7 @@ import { useTableStyles } from '../../hooks/styles/useTableStyles';
 import MantineIcon from '../common/MantineIcon';
 import {
     Column,
+    formatTime,
     getLogStatusIcon,
     getSchedulerIcon,
     getSchedulerLink,
@@ -171,15 +172,70 @@ const Logs: FC<LogsProps> = ({
             {
                 id: 'deliveryScheduled',
                 label: 'Delivery scheduled',
-                cell: () => {
-                    return <></>;
+                cell: (item) => {
+                    return currentLogs(item, logs).length > 0 ? (
+                        <Box>
+                            <Group spacing="xxs">
+                                <Text fz={13} fw={500} color="gray.6">
+                                    {formatTime(
+                                        currentLogs(item, logs)[0]
+                                            .scheduledTime,
+                                    )}
+                                </Text>
+                            </Group>
+                            <Collapse in={opened}>
+                                {currentLogs(item, logs).map((log, i) => (
+                                    <Text
+                                        key={i}
+                                        fz={12}
+                                        fw={500}
+                                        pt="md"
+                                        color="gray.6"
+                                    >
+                                        {formatTime(log.scheduledTime)}
+                                    </Text>
+                                ))}
+                            </Collapse>
+                        </Box>
+                    ) : (
+                        <Text fz={13} color="gray.6">
+                            -
+                        </Text>
+                    );
                 },
             },
             {
                 id: 'deliveryStarted',
                 label: 'Delivery start',
-                cell: () => {
-                    return <></>;
+                cell: (item) => {
+                    return currentLogs(item, logs).length > 0 ? (
+                        <Box>
+                            <Group spacing="xxs">
+                                <Text fz={13} fw={500} color="gray.6">
+                                    {formatTime(
+                                        currentLogs(item, logs)[0].createdAt,
+                                    )}
+                                </Text>
+                            </Group>
+                            <Collapse in={opened}>
+                                {currentLogs(item, logs).map((log, i) => (
+                                    <Text
+                                        key={i}
+                                        fz={12}
+                                        fw={500}
+                                        pt="md"
+                                        color="gray.6"
+                                    >
+                                        {formatTime(log.createdAt)}
+                                    </Text>
+                                ))}
+                            </Collapse>
+                        </Box>
+                    ) : (
+                        <Text fz={13} color="gray.6">
+                            -
+                        </Text>
+                    );
                 },
             },
             {
@@ -188,9 +244,13 @@ const Logs: FC<LogsProps> = ({
                 cell: (item) => {
                     return (
                         <Stack align="center" justify="center">
-                            {currentLogs(item, logs).length > 0
-                                ? getLogStatusIcon(currentLogs(item, logs)[0])
-                                : null}
+                            {currentLogs(item, logs).length > 0 ? (
+                                getLogStatusIcon(currentLogs(item, logs)[0])
+                            ) : (
+                                <Text fz={13} color="gray.6">
+                                    -
+                                </Text>
+                            )}
                         </Stack>
                     );
                 },
