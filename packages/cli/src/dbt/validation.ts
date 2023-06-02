@@ -19,11 +19,7 @@ import dbtManifestSchemaV7 from '../manifestv7.json';
 import dbtManifestSchemaV9 from '../manifestv9.json';
 import lightdashDbtSchemaV7 from '../schema.json';
 import lightdashDbtSchemaV9 from '../schemav9.json';
-
-import {
-    DbtManifestVersion,
-    getDbtManifest,
-} from '../handlers/dbt/getDbtVersion';
+import { DbtManifestVersion, getDbtManifest } from './manifest';
 
 const getModelValidator = async () => {
     const manifestVersion = await getDbtManifest();
