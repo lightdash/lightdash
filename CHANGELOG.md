@@ -1,3 +1,10 @@
+## [0.590.1](https://github.com/lightdash/lightdash/compare/0.590.0...0.590.1) (2023-06-02)
+
+
+### Bug Fixes
+
+* exit process on otel shutdown ([#5733](https://github.com/lightdash/lightdash/issues/5733)) ([a9b5d6d](https://github.com/lightdash/lightdash/commit/a9b5d6d87fcd779ece552dfbc13c8fe4c01e42ba))
+
 # [0.590.0](https://github.com/lightdash/lightdash/compare/0.589.1...0.590.0) (2023-06-02)
 
 
