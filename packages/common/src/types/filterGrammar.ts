@@ -238,7 +238,7 @@ export const parseFilters = (
                         parsedFilter.type,
                         !!parsedFilter.is,
                     ),
-                    values: parsedFilter.values,
+                    values: parsedFilter.values || [1],
                 },
             ];
         }
