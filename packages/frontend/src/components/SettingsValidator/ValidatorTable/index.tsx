@@ -25,7 +25,8 @@ const getLinkToResource = (
     if (isDashboardValidationError(validationError))
         return `/projects/${projectUuid}/dashboards/${validationError.dashboardUuid}/view`;
 
-    return;
+    if (isTableValidationError(validationError))
+        return `/projects/${projectUuid}/tables`;
 };
 
 const Icon = ({ validationError }: { validationError: ValidationResponse }) => {
@@ -112,7 +113,7 @@ export const ValidatorTable: FC<{
                                   handleOnValidationErrorClick(validationError)
                               }
                           >
-                              <td>
+                              <td width="50%">
                                   <Flex gap="sm" align="center">
                                       <Icon validationError={validationError} />
 
@@ -150,7 +151,7 @@ export const ValidatorTable: FC<{
                                       </Stack>
                                   </Flex>
                               </td>
-                              <td>
+                              <td width="50%">
                                   <ErrorMessage
                                       validationError={validationError}
                                   />
