@@ -5,27 +5,23 @@ import {
     isTableValidationError,
     ValidationResponse,
 } from '@lightdash/common';
-import { Badge, Stack, Text } from '@mantine/core';
+import { Mark, Stack, Text } from '@mantine/core';
 import { FC, ReactNode } from 'react';
 
-const CustomMark: FC<{ children: ReactNode }> = ({ children }) => {
-    return (
-        <Badge
-            color="gray.7"
-            component="mark"
-            radius="xs"
-            size="xs"
-            p="xs"
-            fw={600}
-            fz="xs"
-            sx={{
-                textTransform: 'none',
-            }}
-        >
-            {children}
-        </Badge>
-    );
-};
+const CustomMark: FC<{ children: ReactNode }> = ({ children }) => (
+    <Mark
+        color="gray"
+        p={2}
+        fw={500}
+        fz="xs"
+        sx={{
+            textTransform: 'none',
+            borderRadius: '2px',
+        }}
+    >
+        {children}
+    </Mark>
+);
 
 const ErrorMessageByType: FC<{
     validationError: ValidationResponse;
