@@ -28,7 +28,12 @@ export type ValidationErrorDashboardResponse = ValidationResponseBase & {
     dashboardViews: number;
 };
 
-export type ValidationErrorTableResponse = ValidationResponseBase;
+export type ValidationErrorTableResponse = Omit<
+    ValidationResponseBase,
+    'name'
+> & {
+    name: string | undefined;
+};
 
 export type ValidationResponse =
     | ValidationErrorChartResponse
