@@ -29,7 +29,7 @@ export async function up(knex: Knex): Promise<void> {
                 .references('project_uuid')
                 .inTable('projects')
                 .onDelete('CASCADE');
-            table.string('error_type').nullable();
+            table.string('error_type').notNullable();
             table.string('chart_name').nullable();
             table.string('field_name').nullable();
             table.string('model_name').nullable();
@@ -37,10 +37,9 @@ export async function up(knex: Knex): Promise<void> {
             table.index(['project_uuid']);
         });
     } else {
-        await knex.schema.dropTableIfExists(ValidationTableName);
+        await knex(ValidationTableName).whereNull('error_type').del();
     }
 }
 
-export async function down(knex: Knex): Promise<void> {
-    await knex.schema.dropTableIfExists(ValidationTableName);
-}
+// eslint-disable-next-line @typescript-eslint/no-empty-function
+export async function down(knex: Knex): Promise<void> {}
