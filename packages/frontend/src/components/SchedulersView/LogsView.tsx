@@ -87,7 +87,7 @@ const Logs: FC<LogsProps> = ({
                                     <Tooltip
                                         label={
                                             <Stack spacing="two">
-                                                <Text fz={13} color="gray.5">
+                                                <Text fz={12} color="gray.5">
                                                     Schedule type:{' '}
                                                     <Text color="white" span>
                                                         {item.format === 'csv'
@@ -95,7 +95,7 @@ const Logs: FC<LogsProps> = ({
                                                             : 'Image'}
                                                     </Text>
                                                 </Text>
-                                                <Text fz={13} color="gray.5">
+                                                <Text fz={12} color="gray.5">
                                                     Created by:{' '}
                                                     <Text color="white" span>
                                                         {user?.firstName}{' '}
@@ -139,14 +139,14 @@ const Logs: FC<LogsProps> = ({
                     return currentLogs(item, logs).length > 0 ? (
                         <Box>
                             <Group spacing="two">
-                                <Text fz={13} fw={500}>
+                                <Text fz={12} fw={500}>
                                     All jobs
                                 </Text>
                                 <ActionIcon onClick={toggle} size="sm">
                                     <MantineIcon
                                         icon={IconChevronDown}
                                         color="black"
-                                        size={14}
+                                        size={13}
                                     />
                                 </ActionIcon>
                             </Group>
@@ -167,7 +167,7 @@ const Logs: FC<LogsProps> = ({
                             </Collapse>
                         </Box>
                     ) : (
-                        <Text fz={13} fw={500}>
+                        <Text fz={12} fw={500}>
                             No jobs yet
                         </Text>
                     );
@@ -180,7 +180,7 @@ const Logs: FC<LogsProps> = ({
                     return currentLogs(item, logs).length > 0 ? (
                         <Box>
                             <Group spacing="xxs">
-                                <Text fz={13} fw={500} color="gray.6">
+                                <Text fz={12} fw={500} color="gray.6">
                                     {formatTime(
                                         currentLogs(item, logs)[0]
                                             .scheduledTime,
@@ -202,7 +202,7 @@ const Logs: FC<LogsProps> = ({
                             </Collapse>
                         </Box>
                     ) : (
-                        <Text fz={13} color="gray.6">
+                        <Text fz={12} color="gray.6">
                             -
                         </Text>
                     );
@@ -215,7 +215,7 @@ const Logs: FC<LogsProps> = ({
                     return currentLogs(item, logs).length > 0 ? (
                         <Box>
                             <Group spacing="xxs">
-                                <Text fz={13} fw={500} color="gray.6">
+                                <Text fz={12} fw={500} color="gray.6">
                                     {formatTime(
                                         currentLogs(item, logs)[0].createdAt,
                                     )}
@@ -236,7 +236,7 @@ const Logs: FC<LogsProps> = ({
                             </Collapse>
                         </Box>
                     ) : (
-                        <Text fz={13} color="gray.6">
+                        <Text fz={12} color="gray.6">
                             -
                         </Text>
                     );
@@ -254,7 +254,7 @@ const Logs: FC<LogsProps> = ({
                                     theme,
                                 )
                             ) : (
-                                <Text fz={13} color="gray.6">
+                                <Text fz={12} color="gray.6">
                                     -
                                 </Text>
                             )}

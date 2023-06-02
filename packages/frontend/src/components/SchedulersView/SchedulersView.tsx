@@ -192,7 +192,7 @@ const Schedulers: FC<SchedulersProps> = ({
                                     <Tooltip
                                         label={
                                             <Stack spacing="two">
-                                                <Text fz={13} color="gray.5">
+                                                <Text fz={12} color="gray.5">
                                                     Schedule type:{' '}
                                                     <Text color="white" span>
                                                         {item.format === 'csv'
@@ -200,7 +200,7 @@ const Schedulers: FC<SchedulersProps> = ({
                                                             : 'Image'}
                                                     </Text>
                                                 </Text>
-                                                <Text fz={13} color="gray.5">
+                                                <Text fz={12} color="gray.5">
                                                     Created by:{' '}
                                                     <Text color="white" span>
                                                         {user?.firstName}{' '}
@@ -261,7 +261,7 @@ const Schedulers: FC<SchedulersProps> = ({
                                         </Text>
                                     ))}
                                 >
-                                    <Text fz={13} color="gray.6" underline>
+                                    <Text fz={12} color="gray.6" underline>
                                         {slackChannels.length > 0
                                             ? 'Email,'
                                             : 'Email'}
@@ -276,7 +276,7 @@ const Schedulers: FC<SchedulersProps> = ({
                                         </Text>
                                     ))}
                                 >
-                                    <Text fz={13} color="gray.6" underline>
+                                    <Text fz={12} color="gray.6" underline>
                                         Slack
                                     </Text>
                                 </Tooltip>
@@ -290,7 +290,7 @@ const Schedulers: FC<SchedulersProps> = ({
                 label: 'Frequency',
                 cell: (item) => {
                     return (
-                        <Text fz={13} color="gray.6">
+                        <Text fz={12} color="gray.6">
                             {getHumanReadableCronExpression(item.cron)}
                         </Text>
                     );
@@ -307,12 +307,12 @@ const Schedulers: FC<SchedulersProps> = ({
                     const latestLog =
                         currentLogs.length > 0 ? currentLogs[0] : undefined;
                     return !latestLog ? (
-                        <Text fz={13} color="gray.6">
+                        <Text fz={12} color="gray.6">
                             No deliveries started
                         </Text>
                     ) : (
                         <Group spacing="xs">
-                            <Text fz={13} color="gray.6">
+                            <Text fz={12} color="gray.6">
                                 {formatTime(latestLog.createdAt)}
                             </Text>
                             {getLogStatusIcon(latestLog, theme)}
