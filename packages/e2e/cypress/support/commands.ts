@@ -176,6 +176,7 @@ Cypress.Commands.add(
             body: {
                 role,
                 email,
+                sendEmail: false,
             },
         }).then((resp) => {
             expect(resp.status).to.eq(200);

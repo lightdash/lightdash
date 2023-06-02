@@ -1,15 +1,23 @@
 import {
     ApiChartSummaryListResponse,
     ApiErrorPayload,
+    ApiProjectAccessListResponse,
     ApiSpaceSummaryListResponse,
+    ApiSuccessEmpty,
+    CreateProjectMember,
+    UpdateProjectMember,
 } from '@lightdash/common';
-import { Controller } from '@tsoa/runtime';
 import express from 'express';
 import {
+    Body,
+    Controller,
+    Delete,
     Get,
     Middlewares,
     OperationId,
+    Patch,
     Path,
+    Post,
     Request,
     Response,
     Route,
@@ -17,7 +25,11 @@ import {
     Tags,
 } from 'tsoa';
 import { projectService } from '../services/services';
-import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
+import {
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    unauthorisedInDemo,
+} from './authentication';
 
 @Route('/api/v1/projects')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -60,6 +72,115 @@ export class ProjectController extends Controller {
         return {
             status: 'ok',
             results: await projectService.getSpaces(req.user!, projectUuid),
+        };
+    }
+
+    /**
+     * Get access list for a project. This is a list of users that have been explictly granted access to the project.
+     * There may be other users that have access to the project via their organization membership.
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/access')
+    @OperationId('GetProjectAccessList')
+    @Tags('Roles & Permissions')
+    async getProjectAccessList(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiProjectAccessListResponse> {
+        this.setStatus(200);
+        const results = await projectService.getProjectAccess(
+            req.user!,
+            projectUuid,
+        );
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Grant a user access to a project
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/access')
+    @OperationId('GrantProjectAccessToUser')
+    @Tags('Roles & Permissions')
+    async grantProjectAccessToUser(
+        @Path() projectUuid: string,
+        @Body() body: CreateProjectMember,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        await projectService.createProjectAccess(req.user!, projectUuid, body);
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    /**
+     * Update a user's access to a project
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('{projectUuid}/access/{userUuid}')
+    @OperationId('UpdateProjectAccessForUser')
+    @Tags('Roles & Permissions')
+    async updateProjectAccessForUser(
+        @Path() projectUuid: string,
+        @Path() userUuid: string,
+        @Body() body: UpdateProjectMember,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        await projectService.updateProjectAccess(
+            req.user!,
+            projectUuid,
+            userUuid,
+            body,
+        );
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    /**
+     * Remove a user's access to a project
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Delete('{projectUuid}/access/{userUuid}')
+    @OperationId('RevokeProjectAccessForUser')
+    @Tags('Roles & Permissions')
+    async revokeProjectAccessForUser(
+        @Path() projectUuid: string,
+        @Path() userUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        await projectService.deleteProjectAccess(
+            req.user!,
+            projectUuid,
+            userUuid,
+        );
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 }
