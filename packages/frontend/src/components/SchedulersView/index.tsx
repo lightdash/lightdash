@@ -3,6 +3,7 @@ import { IconClock, IconRefresh, IconSend } from '@tabler/icons-react';
 import React, { FC } from 'react';
 import { useSchedulerLogs } from '../../hooks/scheduler/useScheduler';
 import { useTableTabStyles } from '../../hooks/styles/useTableTabStyles';
+import LoadingState from '../common/LoadingState';
 import MantineIcon from '../common/MantineIcon';
 import { SettingsCard } from '../common/Settings/SettingsCard';
 import Logs from './LogsView';
@@ -78,10 +79,16 @@ const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                 <Tabs.Panel value="scheduled-deliveries">
                     {data ? (
                         <Schedulers {...data} projectUuid={projectUuid} />
-                    ) : null}
+                    ) : (
+                        <LoadingState title="Loading schduled deliveries" />
+                    )}
                 </Tabs.Panel>
                 <Tabs.Panel value="run-history">
-                    {data ? <Logs {...data} projectUuid={projectUuid} /> : null}
+                    {data ? (
+                        <Logs {...data} projectUuid={projectUuid} />
+                    ) : (
+                        <LoadingState title="Loading run history" />
+                    )}
                 </Tabs.Panel>
             </Tabs>
         </SettingsCard>

@@ -216,6 +216,7 @@ const Schedulers: FC<SchedulersProps> = ({
                         </Text>
                     );
                 },
+                meta: { style: { width: 200 } },
             },
             {
                 id: 'lastDelivery',
