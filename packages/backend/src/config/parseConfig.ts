@@ -402,7 +402,7 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                 process.env.LIGHTDASH_LOG_FILE_LEVEL === undefined
                     ? undefined
                     : parseLoggingLevel(process.env.LIGHTDASH_LOG_FILE_LEVEL),
-            filePath: process.env.LIGHTDASH_LOG_FILE_PATH || './logs/error.log',
+            filePath: process.env.LIGHTDASH_LOG_FILE_PATH || './logs/all.log',
         },
     };
 };
