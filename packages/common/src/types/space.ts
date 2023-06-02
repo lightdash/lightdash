@@ -22,7 +22,8 @@ export type SpaceSummary = Pick<
     access: string[];
 };
 
-export type CreateSpace = Pick<Space, 'name' | 'isPrivate' | 'access'>;
+export type CreateSpace = Pick<Space, 'name'> &
+    Partial<Pick<Space, 'isPrivate' | 'access'>>;
 
 export type UpdateSpace = Pick<Space, 'name' | 'isPrivate'>;
 

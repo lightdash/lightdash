@@ -2167,11 +2167,18 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_Space.name-or-isPrivate-or-access_": {
+            "Pick_Space.name_": {
                 "properties": {
                     "name": {
                         "type": "string"
-                    },
+                    }
+                },
+                "required": ["name"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Partial_Pick_Space.isPrivate-or-access__": {
+                "properties": {
                     "isPrivate": {
                         "type": "boolean"
                     },
@@ -2182,12 +2189,18 @@
                         "type": "array"
                     }
                 },
-                "required": ["name", "isPrivate", "access"],
                 "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
+                "description": "Make all properties in T optional"
             },
             "CreateSpace": {
-                "$ref": "#/components/schemas/Pick_Space.name-or-isPrivate-or-access_"
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_Space.name_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Partial_Pick_Space.isPrivate-or-access__"
+                    }
+                ]
             },
             "Pick_Space.name-or-isPrivate_": {
                 "properties": {
@@ -2535,7 +2548,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.586.1",
+        "version": "0.587.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -3224,7 +3237,7 @@
                     }
                 },
                 "description": "Updates the membership profile for a user in the current user's organization",
-                "tags": ["Organizations"],
+                "tags": ["Roles & Permissions", "Organizations"],
                 "security": [],
                 "parameters": [
                     {
@@ -4894,6 +4907,10 @@
         {
             "name": "Projects",
             "description": "Projects belong to a single organization. These routes allow users to manage their projects, browse content, and execute queries. Users inside an organization might have access to a project from an organization-level role or they might be granted access to a project directly."
+        },
+        {
+            "name": "Spaces",
+            "description": "Spaces allow you to organize charts and dashboards within a project. They also allow granular access to content by allowing you to create private spaces, which are only accessible to the creator and admins."
         },
         {
             "name": "Roles & Permissions",

@@ -1932,17 +1932,24 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Space.name-or-isPrivate-or-access_': {
+    'Pick_Space.name_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: { name: { dataType: 'string', required: true } },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Partial_Pick_Space.isPrivate-or-access__': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                name: { dataType: 'string', required: true },
-                isPrivate: { dataType: 'boolean', required: true },
+                isPrivate: { dataType: 'boolean' },
                 access: {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'SpaceShare' },
-                    required: true,
                 },
             },
             validators: {},
@@ -1952,7 +1959,11 @@ const models: TsoaRoute.Models = {
     CreateSpace: {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_Space.name-or-isPrivate-or-access_',
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'Pick_Space.name_' },
+                { ref: 'Partial_Pick_Space.isPrivate-or-access__' },
+            ],
             validators: {},
         },
     },

@@ -111,7 +111,7 @@ export class SpaceController extends Controller {
         @Path() spaceUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
-        this.setStatus(204);
+        this.setStatus(200);
         await spaceService.deleteSpace(req.user!, spaceUuid);
         return {
             status: 'ok',
