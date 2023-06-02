@@ -38,8 +38,14 @@ export async function up(knex: Knex): Promise<void> {
         });
     } else {
         await knex(ValidationTableName).whereNull('error_type').del();
+        await knex.schema.alterTable(ValidationTableName, (table) => {
+            table.dropColumn('dimension_name');
+        });
     }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-empty-function
-export async function down(knex: Knex): Promise<void> {}
+export async function down(knex: Knex): Promise<void> {
+    await knex.schema.alterTable(ValidationTableName, (table) => {
+        table.string('dimension_name').nullable();
+    });
+}
