@@ -230,7 +230,7 @@ export class ExploreCompiler {
             const isValidReference = !!tables[refTable]?.dimensions[refName];
             if (!isValidReference) {
                 throw new CompileError(
-                    `"show_underlying_values" for metric "${metric.name}" has a reference to an unknown dimension: ${dimReference}`,
+                    `"show_underlying_values" for metric "${metric.name}" has a reference to an unknown dimension: ${dimReference} in table "${metric.table}"`,
                 );
             }
         });

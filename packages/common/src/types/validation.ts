@@ -16,6 +16,7 @@ export type ValidationErrorChartResponse = ValidationResponseBase & {
     fieldName?: string;
     lastUpdatedBy?: string;
     lastUpdatedAt?: Date;
+    chartViews: number;
 };
 
 export type ValidationErrorDashboardResponse = ValidationResponseBase & {
@@ -24,11 +25,14 @@ export type ValidationErrorDashboardResponse = ValidationResponseBase & {
     fieldName?: string;
     lastUpdatedBy?: string;
     lastUpdatedAt?: Date;
+    dashboardViews: number;
 };
 
-export type ValidationErrorTableResponse = ValidationResponseBase & {
-    modelName: string | undefined;
-    dimensionName: string | undefined;
+export type ValidationErrorTableResponse = Omit<
+    ValidationResponseBase,
+    'name'
+> & {
+    name: string | undefined;
 };
 
 export type ValidationResponse =
@@ -38,13 +42,10 @@ export type ValidationResponse =
 
 export type CreateTableValidation = Pick<
     ValidationErrorTableResponse,
-    | 'error'
-    | 'errorType'
-    | 'modelName'
-    | 'dimensionName'
-    | 'projectUuid'
-    | 'name'
->;
+    'error' | 'errorType' | 'projectUuid' | 'name'
+> & {
+    modelName: string;
+};
 
 export type CreateChartValidation = Pick<
     ValidationErrorChartResponse,
