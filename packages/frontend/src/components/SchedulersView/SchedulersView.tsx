@@ -225,28 +225,24 @@ const Schedulers: FC<SchedulersProps> = ({
                     const currentLogs = logs.filter(
                         (log) => log.schedulerUuid === item.schedulerUuid,
                     );
-                    console.log({ currentLogs });
-                    const lastLog =
+                    const latestLog =
                         currentLogs.length > 0 ? currentLogs[0] : undefined;
-                    return !lastLog ? (
+                    return !latestLog ? (
                         <Text fz={13} color="gray.6">
                             No deliveries started
                         </Text>
-                    ) : lastLog.status === SchedulerJobStatus.ERROR ? (
-                        <Group spacing="xs">
-                            <Text fz={13} color="gray.6">
-                                {formatTime(currentLogs[0].scheduledTime)}
-                            </Text>
-                            <Tooltip label={currentLogs[0].details}>
-                                {getLogStatusIcon(currentLogs[0])}
-                            </Tooltip>
-                        </Group>
                     ) : (
                         <Group spacing="xs">
                             <Text fz={13} color="gray.6">
-                                {formatTime(lastLog.scheduledTime)}
+                                {formatTime(latestLog.createdAt)}
                             </Text>
-                            {getLogStatusIcon(lastLog)}
+                            {latestLog.status === SchedulerJobStatus.ERROR ? (
+                                <Tooltip label={latestLog.details?.error}>
+                                    {getLogStatusIcon(latestLog)}
+                                </Tooltip>
+                            ) : (
+                                getLogStatusIcon(latestLog)
+                            )}
                         </Group>
                     );
                 },
