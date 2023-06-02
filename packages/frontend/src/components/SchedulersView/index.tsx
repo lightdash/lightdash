@@ -3,8 +3,8 @@ import { IconClock, IconRefresh, IconSend } from '@tabler/icons-react';
 import React, { FC } from 'react';
 import { useSchedulerLogs } from '../../hooks/scheduler/useScheduler';
 import { useTableTabStyles } from '../../hooks/styles/useTableTabStyles';
-import LoadingState from '../common/LoadingState';
 import MantineIcon from '../common/MantineIcon';
+import ResourceEmptyState from '../common/ResourceView/ResourceEmptyState';
 import { SettingsCard } from '../common/Settings/SettingsCard';
 import Logs from './LogsView';
 import Schedulers from './SchedulersView';
@@ -12,14 +12,18 @@ import Schedulers from './SchedulersView';
 const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const { data } = useSchedulerLogs(projectUuid);
     const tableTabStyles = useTableTabStyles();
-
+    const emptyState = (
+        <ResourceEmptyState
+            title="No scheduled deliveries on this project"
+            description="Go to a chart or dashboard to set up your first scheduled delivery"
+        />
+    );
     return (
         <SettingsCard style={{ overflow: 'visible' }} p={0} shadow="none">
             <Tabs
                 classNames={tableTabStyles.classes}
                 keepMounted={false}
                 defaultValue="scheduled-deliveries"
-                mb="sm"
             >
                 <Group
                     align="center"
@@ -77,17 +81,17 @@ const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     </Box>
                 </Group>
                 <Tabs.Panel value="scheduled-deliveries">
-                    {data ? (
+                    {data && data.schedulers.length > 0 ? (
                         <Schedulers {...data} projectUuid={projectUuid} />
                     ) : (
-                        <LoadingState title="Loading schduled deliveries" />
+                        emptyState
                     )}
                 </Tabs.Panel>
                 <Tabs.Panel value="run-history">
-                    {data ? (
+                    {data && data.logs.length > 0 ? (
                         <Logs {...data} projectUuid={projectUuid} />
                     ) : (
-                        <LoadingState title="Loading run history" />
+                        emptyState
                     )}
                 </Tabs.Panel>
             </Tabs>

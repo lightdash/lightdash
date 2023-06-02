@@ -225,6 +225,7 @@ const Schedulers: FC<SchedulersProps> = ({
                     const currentLogs = logs.filter(
                         (log) => log.schedulerUuid === item.schedulerUuid,
                     );
+                    console.log({ currentLogs });
                     const lastLog =
                         currentLogs.length > 0 ? currentLogs[0] : undefined;
                     return !lastLog ? (
