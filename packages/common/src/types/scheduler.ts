@@ -34,11 +34,14 @@ export type SchedulerLog = {
     jobId: string;
     jobGroup?: string;
     scheduledTime: Date;
+    createdAt: Date;
     status: SchedulerJobStatus;
     target?: string;
     targetType?: 'email' | 'slack';
     details?: Record<string, any>;
 };
+
+export type CreateSchedulerLog = Omit<SchedulerLog, 'createdAt'>;
 
 export type SchedulerBase = {
     schedulerUuid: string;
@@ -164,6 +167,8 @@ export type ApiSchedulerAndTargetsResponse = {
 export type SchedulerWithLogs = {
     schedulers: SchedulerAndTargets[];
     users: { firstName: string; lastName: string; userUuid: string }[];
+    charts: { name: string; savedChartUuid: string }[];
+    dashboards: { name: string; dashboardUuid: string }[];
     logs: SchedulerLog[];
 };
 

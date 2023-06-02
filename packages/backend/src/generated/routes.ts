@@ -1430,6 +1430,7 @@ const models: TsoaRoute.Models = {
                 },
                 target: { dataType: 'string' },
                 status: { ref: 'SchedulerJobStatus', required: true },
+                createdAt: { dataType: 'datetime', required: true },
                 scheduledTime: { dataType: 'datetime', required: true },
                 jobGroup: { dataType: 'string' },
                 jobId: { dataType: 'string', required: true },
@@ -1463,6 +1464,34 @@ const models: TsoaRoute.Models = {
                 logs: {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'SchedulerLog' },
+                    required: true,
+                },
+                dashboards: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            dashboardUuid: {
+                                dataType: 'string',
+                                required: true,
+                            },
+                            name: { dataType: 'string', required: true },
+                        },
+                    },
+                    required: true,
+                },
+                charts: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            savedChartUuid: {
+                                dataType: 'string',
+                                required: true,
+                            },
+                            name: { dataType: 'string', required: true },
+                        },
+                    },
                     required: true,
                 },
                 users: {

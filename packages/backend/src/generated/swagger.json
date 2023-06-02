@@ -1578,6 +1578,10 @@
                     "status": {
                         "$ref": "#/components/schemas/SchedulerJobStatus"
                     },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
                     "scheduledTime": {
                         "type": "string",
                         "format": "date-time"
@@ -1604,7 +1608,13 @@
                         ]
                     }
                 },
-                "required": ["status", "scheduledTime", "jobId", "task"],
+                "required": [
+                    "status",
+                    "createdAt",
+                    "scheduledTime",
+                    "jobId",
+                    "task"
+                ],
                 "type": "object"
             },
             "SchedulerWithLogs": {
@@ -1612,6 +1622,36 @@
                     "logs": {
                         "items": {
                             "$ref": "#/components/schemas/SchedulerLog"
+                        },
+                        "type": "array"
+                    },
+                    "dashboards": {
+                        "items": {
+                            "properties": {
+                                "dashboardUuid": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["dashboardUuid", "name"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "charts": {
+                        "items": {
+                            "properties": {
+                                "savedChartUuid": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["savedChartUuid", "name"],
+                            "type": "object"
                         },
                         "type": "array"
                     },
@@ -1640,7 +1680,13 @@
                         "type": "array"
                     }
                 },
-                "required": ["logs", "users", "schedulers"],
+                "required": [
+                    "logs",
+                    "dashboards",
+                    "charts",
+                    "users",
+                    "schedulers"
+                ],
                 "type": "object"
             },
             "ApiSchedulerLogsResponse": {
@@ -2147,7 +2193,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.586.1",
+        "version": "0.587.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"

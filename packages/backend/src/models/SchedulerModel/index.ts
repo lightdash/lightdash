@@ -1,5 +1,7 @@
 import {
     CreateSchedulerAndTargets,
+    CreateSchedulerLog,
+    isChartScheduler,
     isCreateSchedulerSlackTarget,
     isSlackTarget,
     isUpdateSchedulerEmailTarget,
@@ -26,7 +28,6 @@ import {
     SchedulerLogTableName,
     SchedulerSlackTargetDb,
     SchedulerSlackTargetTableName,
-    SchedulerTable,
     SchedulerTableName,
 } from '../../database/entities/scheduler';
 import { SpaceTableName } from '../../database/entities/spaces';
@@ -341,6 +342,7 @@ export class SchedulerModel {
         return {
             task: logDb.task as SchedulerLog['task'],
             scheduledTime: logDb.scheduled_time,
+            createdAt: logDb.created_at,
             schedulerUuid: logDb.scheduler_uuid,
             jobGroup: logDb.job_group,
             jobId: logDb.job_id,
@@ -406,23 +408,54 @@ export class SchedulerModel {
 
     async getSchedulerLogs(projectUuid: string): Promise<SchedulerWithLogs> {
         const schedulers = await this.getSchedulerForProject(projectUuid);
-        const schedulerUuids = schedulers.map((s) => s.schedulerUuid);
+        const { schedulerUuids, userUuids, chartUuids, dashboardUuids } =
+            schedulers.reduce<{
+                schedulerUuids: string[];
+                userUuids: string[];
+                chartUuids: string[];
+                dashboardUuids: string[];
+            }>(
+                (acc, s) => ({
+                    schedulerUuids: [...acc.schedulerUuids, s.schedulerUuid],
+                    userUuids: [...acc.userUuids, s.createdBy],
+                    chartUuids: isChartScheduler(s)
+                        ? [...acc.chartUuids, s.savedChartUuid]
+                        : acc.chartUuids,
+                    dashboardUuids: isChartScheduler(s)
+                        ? acc.dashboardUuids
+                        : [...acc.dashboardUuids, s.dashboardUuid],
+                }),
+                {
+                    schedulerUuids: [],
+                    userUuids: [],
+                    chartUuids: [],
+                    dashboardUuids: [],
+                },
+            );
 
+        const sevenDaysAgo: Date = new Date(
+            Date.now() - 7 * 24 * 60 * 60 * 1000,
+        );
         const logs = await this.database(SchedulerLogTableName)
-
             .select()
             .whereIn(`scheduler_uuid`, schedulerUuids)
-            .orderBy('created_at', 'desc')
-            .limit(100);
+            .where(`scheduled_time`, '>', sevenDaysAgo)
+            .where(`scheduled_time`, '<', new Date())
+            .orderBy('created_at', 'desc');
 
         const schedulerLogs: SchedulerLog[] = logs.map(
             SchedulerModel.parseSchedulerLog,
         );
 
-        const userUuids = schedulers.map((s) => s.createdBy);
         const users = await this.database(UserTableName)
             .select('first_name', 'last_name', 'user_uuid')
             .whereIn('user_uuid', userUuids);
+        const charts = await this.database(SavedChartsTableName)
+            .select('name', 'saved_query_uuid')
+            .whereIn('saved_query_uuid', chartUuids);
+        const dashboards = await this.database(DashboardsTableName)
+            .select('name', 'dashboard_uuid')
+            .whereIn('dashboard_uuid', dashboardUuids);
 
         return {
             schedulers,
@@ -431,11 +464,19 @@ export class SchedulerModel {
                 lastName: u.last_name,
                 userUuid: u.user_uuid,
             })),
+            charts: charts.map((c) => ({
+                name: c.name,
+                savedChartUuid: c.saved_query_uuid,
+            })),
+            dashboards: dashboards.map((d) => ({
+                name: d.name,
+                dashboardUuid: d.dashboard_uuid,
+            })),
             logs: schedulerLogs.sort(SchedulerModel.sortLogs),
         };
     }
 
-    async logSchedulerJob(log: SchedulerLog): Promise<void> {
+    async logSchedulerJob(log: CreateSchedulerLog): Promise<void> {
         try {
             await this.database(SchedulerLogTableName).insert({
                 task: log.task,
@@ -471,7 +512,7 @@ export class SchedulerModel {
     }
 
     static sortLogs = (a: SchedulerLog, b: SchedulerLog) => {
-        /** 
+        /**
          *  Sometimes scheduled event is added after the job is completed
             First sort by date DESC, then sort by status,
          */
