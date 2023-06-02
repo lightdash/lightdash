@@ -4,7 +4,16 @@ import {
     SchedulerJobStatus,
     SchedulerWithLogs,
 } from '@lightdash/common';
-import { Anchor, Box, Group, Stack, Table, Text, Tooltip } from '@mantine/core';
+import {
+    Anchor,
+    Box,
+    Group,
+    MantineTheme,
+    Stack,
+    Table,
+    Text,
+    Tooltip,
+} from '@mantine/core';
 import {
     IconAlertTriangleFilled,
     IconCircleCheckFilled,
@@ -51,39 +60,67 @@ export interface Column {
     };
 }
 
-export const getSchedulerIcon = (item: SchedulerItem) => {
+export const getSchedulerIcon = (item: SchedulerItem, theme: MantineTheme) => {
     switch (item.format) {
         case 'csv':
-            return <IconBox icon={IconCsv} color="indigo.6" />;
+            return (
+                <IconBox
+                    icon={IconCsv}
+                    color="indigo.6"
+                    style={{ color: theme.colors.indigo[6] }}
+                />
+            );
         case 'image':
-            return <IconBox icon={IconPhoto} color="indigo.6" />;
+            return (
+                <IconBox
+                    icon={IconPhoto}
+                    color="indigo.6"
+                    style={{ color: theme.colors.indigo[6] }}
+                />
+            );
     }
 };
 
-export const getLogStatusIcon = (log: Log) => {
+export const getLogStatusIcon = (log: Log, theme: MantineTheme) => {
     switch (log.status) {
         case SchedulerJobStatus.SCHEDULED:
             return (
                 <Tooltip label={SchedulerJobStatus.SCHEDULED}>
-                    <MantineIcon icon={IconClockFilled} color="blue.3" />
+                    <MantineIcon
+                        icon={IconClockFilled}
+                        color="blue.3"
+                        style={{ color: theme.colors.blue[3] }}
+                    />
                 </Tooltip>
             );
         case SchedulerJobStatus.STARTED:
             return (
                 <Tooltip label={SchedulerJobStatus.STARTED}>
-                    <MantineIcon icon={IconProgress} color="yellow.6" />
+                    <MantineIcon
+                        icon={IconProgress}
+                        color="yellow.6"
+                        style={{ color: theme.colors.yellow[6] }}
+                    />
                 </Tooltip>
             );
         case SchedulerJobStatus.COMPLETED:
             return (
                 <Tooltip label={SchedulerJobStatus.COMPLETED}>
-                    <MantineIcon icon={IconCircleCheckFilled} color="green.6" />
+                    <MantineIcon
+                        icon={IconCircleCheckFilled}
+                        color="green.6"
+                        style={{ color: theme.colors.green[6] }}
+                    />
                 </Tooltip>
             );
         case SchedulerJobStatus.ERROR:
             return (
                 <Tooltip label={log?.details?.error}>
-                    <MantineIcon icon={IconAlertTriangleFilled} color="red.6" />
+                    <MantineIcon
+                        icon={IconAlertTriangleFilled}
+                        color="red.6"
+                        style={{ color: theme.colors.red[6] }}
+                    />
                 </Tooltip>
             );
     }
@@ -150,7 +187,7 @@ const Schedulers: FC<SchedulersProps> = ({
                             target="_blank"
                         >
                             <Group noWrap>
-                                {getSchedulerIcon(item)}
+                                {getSchedulerIcon(item, theme)}
                                 <Stack spacing="two">
                                     <Tooltip
                                         label={
@@ -270,40 +307,15 @@ const Schedulers: FC<SchedulersProps> = ({
                     const latestLog =
                         currentLogs.length > 0 ? currentLogs[0] : undefined;
                     return !latestLog ? (
-                        <>
-                            <Text fz={13} color="gray.6">
-                                No deliveries started
-                            </Text>
-
-                            <Group>
-                                <MantineIcon
-                                    icon={IconClockFilled}
-                                    color="blue.3"
-                                    style={{ color: theme.colors.blue[3] }}
-                                />
-                                <MantineIcon
-                                    icon={IconProgress}
-                                    color="yellow.6"
-                                    style={{ color: theme.colors.yellow[6] }}
-                                />
-                                <MantineIcon
-                                    icon={IconCircleCheckFilled}
-                                    color="green.6"
-                                    style={{ color: theme.colors.green[6] }}
-                                />
-                                <MantineIcon
-                                    icon={IconAlertTriangleFilled}
-                                    color="red.6"
-                                    style={{ color: theme.colors.red[6] }}
-                                />
-                            </Group>
-                        </>
+                        <Text fz={13} color="gray.6">
+                            No deliveries started
+                        </Text>
                     ) : (
                         <Group spacing="xs">
                             <Text fz={13} color="gray.6">
                                 {formatTime(latestLog.createdAt)}
                             </Text>
-                            {getLogStatusIcon(latestLog)}
+                            {getLogStatusIcon(latestLog, theme)}
                         </Group>
                     );
                 },

@@ -1,5 +1,6 @@
 import { SchedulerWithLogs } from '@lightdash/common';
 import {
+    ActionIcon,
     Anchor,
     Box,
     Collapse,
@@ -8,7 +9,6 @@ import {
     Table,
     Text,
     Tooltip,
-    UnstyledButton,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconChevronDown } from '@tabler/icons-react';
@@ -42,7 +42,7 @@ const Logs: FC<LogsProps> = ({
     charts,
     dashboards,
 }) => {
-    const { classes } = useTableStyles();
+    const { classes, theme } = useTableStyles();
     const [opened, { toggle }] = useDisclosure(false);
 
     const columns = useMemo<Column[]>(() => {
@@ -82,7 +82,7 @@ const Logs: FC<LogsProps> = ({
                             target="_blank"
                         >
                             <Group noWrap>
-                                {getSchedulerIcon(item)}
+                                {getSchedulerIcon(item, theme)}
                                 <Stack spacing="two">
                                     <Tooltip
                                         label={
@@ -138,13 +138,17 @@ const Logs: FC<LogsProps> = ({
                 cell: (item) => {
                     return currentLogs(item, logs).length > 0 ? (
                         <Box>
-                            <Group spacing="xxs">
+                            <Group spacing="two">
                                 <Text fz={13} fw={500}>
                                     All jobs
                                 </Text>
-                                <UnstyledButton onClick={toggle}>
-                                    <MantineIcon icon={IconChevronDown} />
-                                </UnstyledButton>
+                                <ActionIcon onClick={toggle} size="sm">
+                                    <MantineIcon
+                                        icon={IconChevronDown}
+                                        color="black"
+                                        size={14}
+                                    />
+                                </ActionIcon>
                             </Group>
                             <Collapse in={opened}>
                                 {currentLogs(item, logs).map((log, i) => (
@@ -245,7 +249,10 @@ const Logs: FC<LogsProps> = ({
                     return (
                         <Stack align="center" justify="center">
                             {currentLogs(item, logs).length > 0 ? (
-                                getLogStatusIcon(currentLogs(item, logs)[0])
+                                getLogStatusIcon(
+                                    currentLogs(item, logs)[0],
+                                    theme,
+                                )
                             ) : (
                                 <Text fz={13} color="gray.6">
                                     -
@@ -259,7 +266,7 @@ const Logs: FC<LogsProps> = ({
                 },
             },
         ];
-    }, [users, charts, dashboards, projectUuid, logs, opened, toggle]);
+    }, [users, charts, dashboards, projectUuid, logs, opened, toggle, theme]);
 
     return (
         <Table className={classes.root} highlightOnHover>
