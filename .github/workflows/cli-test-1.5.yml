@@ -74,3 +74,5 @@ jobs:
         env:
           CYPRESS_PGHOST: ${{secrets.PGHOST}}
           CYPRESS_PGPASSWORD: ${{secrets.PGPASSWORD}}
+          NODE_TLS_REJECT_UNAUTHORIZED: '0'
+
