@@ -21,5 +21,17 @@ export const getDbtVersion = async () => {
 export const isSupportedDbtVersion = (version: string) => {
     if (version.startsWith('1.3.')) return true;
     if (version.startsWith('1.4.')) return true;
+    if (version.startsWith('1.5.')) return true;
+
     return false;
+};
+
+export enum DbtManifestVersion {
+    V7 = 'v7',
+    V9 = 'v9',
+}
+export const getDbtManifest = async (): Promise<DbtManifestVersion> => {
+    const version = await getDbtVersion();
+    if (version.startsWith('1.5.')) return DbtManifestVersion.V9;
+    return DbtManifestVersion.V7;
 };
