@@ -51,12 +51,12 @@ export const Table = styled(HTMLTable)<{ $showFooter: boolean }>`
         inset-block-start: 0; /* "top" */
 
         th:first-child {
-            border-top: none !important;
+            border-top: 1px solid #dcdcdd;
             border-bottom: none !important;
         }
 
         th {
-            border-top: none !important;
+            border-top: 1px solid #dcdcdd;
             border-bottom: none !important;
         }
     }
