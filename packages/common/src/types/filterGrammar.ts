@@ -101,7 +101,7 @@ STARTS_WITH
 ENDS_WITH
 =  PCT_SYMBOL value:string !(PCT_SYMBOL / UNDERSCORE) {
 return {
-     type: 'endsWith',
+     type: '${FilterOperator.ENDS_WITH}',
      values: [value]
  }
 }

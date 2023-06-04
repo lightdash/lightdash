@@ -19,6 +19,7 @@ export const ExpectedNumberFilterSQL: Record<FilterOperator, string | null> = {
     [FilterOperator.NOT_EQUALS]:
         '((customers.age) NOT IN (1) OR (customers.age) IS NULL)',
     [FilterOperator.STARTS_WITH]: null,
+    [FilterOperator.ENDS_WITH]: null,
     [FilterOperator.INCLUDE]: null,
     [FilterOperator.NOT_INCLUDE]: null,
     [FilterOperator.LESS_THAN]: '(customers.age) < (1)',
