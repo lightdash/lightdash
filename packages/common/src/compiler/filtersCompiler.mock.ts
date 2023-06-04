@@ -349,6 +349,22 @@ export const stringFilterRuleMocks = {
     },
     startsWithFilterWithNoValSQL: 'true',
 
+    endsWithFilterWithSingleVal: {
+        ...stringSingleValueFilter,
+        operator: FilterOperator.ENDS_WITH,
+    },
+    endsWithFilterWithSingleValSQL: `(${stringFilterDimension}) LIKE '%Bob'`,
+    endsWithFilterWithMultiVal: {
+        ...stringMultiValueFilter,
+        operator: FilterOperator.ENDS_WITH,
+    },
+    endsWithFilterWithMultiValSQL: `(${stringFilterDimension}) LIKE '%Tom'\n  OR\n  (${stringFilterDimension}) LIKE '%Jerry'`,
+    endsWithFilterWithNoVal: {
+        ...noValueFilter,
+        operator: FilterOperator.ENDS_WITH,
+    },
+    endsWithFilterWithNoValSQL: 'true',
+
     equalsFilterWithSingleUnescapedValueSQL: `(${stringFilterDimension}) IN ('Bob''s')`,
     equalsFilterWithSingleUnescapedValue: {
         ...stringSingleUnescapedValueFilter,
