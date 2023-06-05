@@ -54,8 +54,7 @@ const optionsToArgs = (options: DbtCompileOptions): string[] =>
     }, []);
 export const dbtCompile = async (options: DbtCompileOptions) => {
     try {
-        const args = optionsToArgs({ ...options });
-        // args.push(` --target-path ${options.projectDir}/target `)
+        const args = optionsToArgs(options);
         GlobalState.debug(`> Running: dbt compile ${args.join(' ')}`);
         const { stdout, stderr } = await execa('dbt', ['compile', ...args]);
         console.error(stdout);
