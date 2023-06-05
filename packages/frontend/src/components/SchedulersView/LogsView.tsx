@@ -51,6 +51,20 @@ const Logs: FC<LogsProps> = ({
                 (target) => target.schedulerUuid === item.schedulerUuid,
             );
         };
+        const handleScheduledDeliveryLogs = (
+            item: SchedulerItem,
+            targets: Log[],
+        ) =>
+            currentLogs(item, targets).filter(
+                (log) => log.task === 'handleScheduledDelivery',
+            );
+
+        const sendNotificationLogs = (item: SchedulerItem, targets: Log[]) =>
+            currentLogs(item, targets).filter(
+                (log) =>
+                    log.task === 'sendEmailNotification' ||
+                    log.task === 'sendSlackNotification',
+            );
         return [
             {
                 id: 'name',
@@ -151,19 +165,16 @@ const Logs: FC<LogsProps> = ({
                                 </ActionIcon>
                             </Group>
                             <Collapse in={opened}>
-                                {currentLogs(item, logs).map((log, i) => (
-                                    <Text
-                                        key={i}
-                                        fz={12}
-                                        fw={500}
-                                        pt="md"
-                                        color="gray.6"
-                                    >
-                                        {log.task
-                                            .replace(/([A-Z])/g, ' $1')
-                                            .toLowerCase()}
-                                    </Text>
-                                ))}
+                                <Text fz={12} fw={500} pt="md" color="gray.6">
+                                    {handleScheduledDeliveryLogs(item, logs)[0]
+                                        .task.replace(/([A-Z])/g, ' $1')
+                                        .toLowerCase()}
+                                </Text>
+                                <Text fz={12} fw={500} pt="md" color="gray.6">
+                                    {sendNotificationLogs(item, logs)[0]
+                                        .task.replace(/([A-Z])/g, ' $1')
+                                        .toLowerCase()}
+                                </Text>
                             </Collapse>
                         </Box>
                     ) : (
@@ -188,17 +199,20 @@ const Logs: FC<LogsProps> = ({
                                 </Text>
                             </Group>
                             <Collapse in={opened}>
-                                {currentLogs(item, logs).map((log, i) => (
-                                    <Text
-                                        key={i}
-                                        fz={12}
-                                        fw={500}
-                                        pt="md"
-                                        color="gray.6"
-                                    >
-                                        {formatTime(log.scheduledTime)}
-                                    </Text>
-                                ))}
+                                <Text fz={12} fw={500} pt="md" color="gray.6">
+                                    {formatTime(
+                                        handleScheduledDeliveryLogs(
+                                            item,
+                                            logs,
+                                        )[0].scheduledTime,
+                                    )}
+                                </Text>
+                                <Text fz={12} fw={500} pt="md" color="gray.6">
+                                    {formatTime(
+                                        sendNotificationLogs(item, logs)[0]
+                                            .scheduledTime,
+                                    )}
+                                </Text>
                             </Collapse>
                         </Box>
                     ) : (
@@ -222,17 +236,20 @@ const Logs: FC<LogsProps> = ({
                                 </Text>
                             </Group>
                             <Collapse in={opened}>
-                                {currentLogs(item, logs).map((log, i) => (
-                                    <Text
-                                        key={i}
-                                        fz={12}
-                                        fw={500}
-                                        pt="md"
-                                        color="gray.6"
-                                    >
-                                        {formatTime(log.createdAt)}
-                                    </Text>
-                                ))}
+                                <Text fz={12} fw={500} pt="md" color="gray.6">
+                                    {formatTime(
+                                        handleScheduledDeliveryLogs(
+                                            item,
+                                            logs,
+                                        )[0].createdAt,
+                                    )}
+                                </Text>
+                                <Text fz={12} fw={500} pt="md" color="gray.6">
+                                    {formatTime(
+                                        sendNotificationLogs(item, logs)[0]
+                                            .createdAt,
+                                    )}
+                                </Text>
                             </Collapse>
                         </Box>
                     ) : (
@@ -247,18 +264,36 @@ const Logs: FC<LogsProps> = ({
                 label: 'Status',
                 cell: (item) => {
                     return (
-                        <Stack align="center" justify="center">
-                            {currentLogs(item, logs).length > 0 ? (
-                                getLogStatusIcon(
-                                    currentLogs(item, logs)[0],
-                                    theme,
-                                )
-                            ) : (
-                                <Text fz={12} color="gray.6">
-                                    -
-                                </Text>
-                            )}
-                        </Stack>
+                        <Box>
+                            <Stack align="center" justify="center">
+                                {currentLogs(item, logs).length > 0 ? (
+                                    getLogStatusIcon(
+                                        currentLogs(item, logs)[0],
+                                        theme,
+                                    )
+                                ) : (
+                                    <Text fz={12} color="gray.6">
+                                        -
+                                    </Text>
+                                )}
+
+                                <Collapse in={opened}>
+                                    <Stack align="center" justify="center">
+                                        {getLogStatusIcon(
+                                            handleScheduledDeliveryLogs(
+                                                item,
+                                                logs,
+                                            )[0],
+                                            theme,
+                                        )}
+                                        {getLogStatusIcon(
+                                            sendNotificationLogs(item, logs)[0],
+                                            theme,
+                                        )}
+                                    </Stack>
+                                </Collapse>
+                            </Stack>
+                        </Box>
                     );
                 },
                 meta: {

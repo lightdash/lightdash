@@ -6,6 +6,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import React, { FC } from 'react';
+import { useQueryClient } from 'react-query';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../common/MantineIcon';
 import SchedulerDeleteModal from '../SchedulerModals/SchedulerModalBase/SchedulerDeleteModal';
@@ -28,6 +29,7 @@ const SchedulersViewActionMenu: FC<SchedulersViewActionMenuProps> = ({
 }) => {
     const [isDeleting, setIsDeleting] = React.useState(false);
     const history = useHistory();
+    const queryClient = useQueryClient();
     return (
         <>
             <Menu
@@ -94,8 +96,11 @@ const SchedulersViewActionMenu: FC<SchedulersViewActionMenuProps> = ({
                 lazy={true}
                 isOpen={isDeleting}
                 schedulerUuid={item.schedulerUuid}
-                onConfirm={() => setIsDeleting(false)}
-                onClose={() => setIsDeleting(false)}
+                onConfirm={() => {
+                    setIsDeleting(false);
+                    queryClient.invalidateQueries('schedulerLogs');
+                }}
+                onClose={() => queryClient.invalidateQueries('schedulerLogs')}
             />
         </>
     );

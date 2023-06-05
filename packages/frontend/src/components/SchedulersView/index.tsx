@@ -22,6 +22,12 @@ const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
             description="Go to a chart or dashboard to set up your first scheduled delivery"
         />
     );
+    const logsEmptyState = (
+        <ResourceEmptyState
+            title="Scheduled deliveries have not run any jobs as of now"
+            description="Check in later of hit the refresh button to see if any jobs have run"
+        />
+    );
     return (
         <SettingsCard style={{ overflow: 'visible' }} p={0} shadow="none">
             <Tabs
@@ -97,8 +103,12 @@ const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     )}
                 </Tabs.Panel>
                 <Tabs.Panel value="run-history">
-                    {data && data.logs.length > 0 ? (
+                    {data &&
+                    data.schedulers.length > 0 &&
+                    data.logs.length > 0 ? (
                         <Logs {...data} projectUuid={projectUuid} />
+                    ) : data && data.schedulers.length > 0 ? (
+                        logsEmptyState
                     ) : (
                         emptyState
                     )}
