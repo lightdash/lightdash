@@ -52,7 +52,7 @@ const SlackSettingsPanel: FC = () => {
                                 <Text span fw={500} color="black">
                                     {data.slackTeamName}
                                 </Text>{' '}
-                                slack workspace.
+                                Slack workspace.
                             </Text>
                         )}
 
