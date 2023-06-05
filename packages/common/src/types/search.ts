@@ -3,17 +3,31 @@ import { Table } from './explore';
 import { Dimension, Metric } from './field';
 import { ChartKind, SavedChart } from './savedCharts';
 import { Space } from './space';
+import {
+    ValidationErrorChartResponse,
+    ValidationErrorDashboardResponse,
+} from './validation';
 
 export type SpaceSearchResult = Pick<Space, 'uuid' | 'name' | 'uuid'>;
 export type DashboardSearchResult = Pick<
     Dashboard,
     'uuid' | 'name' | 'description' | 'spaceUuid'
->;
+> & {
+    validationErrors: Pick<
+        ValidationErrorDashboardResponse,
+        'error' | 'createdAt' | 'validationId'
+    >[];
+};
+
 export type SavedChartSearchResult = Pick<
     SavedChart,
     'uuid' | 'name' | 'description' | 'spaceUuid'
 > & {
     chartType: ChartKind;
+    validationErrors: Pick<
+        ValidationErrorChartResponse,
+        'error' | 'createdAt' | 'validationId'
+    >[];
 };
 export type TableSearchResult = Pick<
     Table,

@@ -21,6 +21,7 @@ import {
 } from '../../database/entities/projects';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { SpaceTableName } from '../../database/entities/spaces';
+import { DbValidationTable } from '../../database/entities/validation';
 
 type ModelDependencies = {
     database: Knex;
@@ -72,6 +73,17 @@ export class SearchModel {
                 `${DashboardsTableName}.name`,
                 `${DashboardsTableName}.description`,
                 { spaceUuid: 'space_uuid' },
+                {
+                    validationErrors: this.database.raw(`
+                        COALESCE(
+                            (
+                                SELECT json_agg(validations.*) 
+                                FROM validations 
+                                WHERE validations.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid
+                            ), '[]'
+                        )
+                    `),
+                },
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .andWhere((qB) =>
@@ -84,6 +96,18 @@ export class SearchModel {
                         `LOWER(${DashboardsTableName}.description) like LOWER(?)`,
                         [`%${query}%`],
                     ),
+            )
+            .then((results) =>
+                results.map(({ validationErrors, ...result }) => ({
+                    ...result,
+                    validationErrors: validationErrors.map(
+                        (validationError: DbValidationTable) => ({
+                            error: validationError.error,
+                            createdAt: validationError.created_at,
+                            validationId: validationError.validation_id,
+                        }),
+                    ),
+                })),
             );
     }
 
@@ -115,6 +139,17 @@ export class SearchModel {
                 { spaceUuid: 'space_uuid' },
                 { chartType: 'saved_queries_versions.chart_type' },
                 { chartConfig: 'saved_queries_versions.chart_config' },
+                {
+                    validationErrors: this.database.raw(`
+                        COALESCE(
+                            (
+                                SELECT json_agg(validations.*) 
+                                FROM validations 
+                                WHERE validations.saved_chart_uuid = saved_queries.saved_query_uuid
+                            ), '[]'
+                        ) 
+                    `),
+                },
             )
             .distinctOn(`saved_queries_versions.saved_query_id`)
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
@@ -130,10 +165,24 @@ export class SearchModel {
                     ),
             )
             .then((results) =>
-                results.map(({ chartType, chartConfig, ...result }) => ({
-                    ...result,
-                    chartType: getChartType(chartType, chartConfig),
-                })),
+                results.map(
+                    ({
+                        chartType,
+                        chartConfig,
+                        validationErrors,
+                        ...result
+                    }) => ({
+                        ...result,
+                        chartType: getChartType(chartType, chartConfig),
+                        validationErrors: validationErrors.map(
+                            (validationError: DbValidationTable) => ({
+                                error: validationError.error,
+                                createdAt: validationError.created_at,
+                                validationId: validationError.validation_id,
+                            }),
+                        ),
+                    }),
+                ),
             );
     }
 
