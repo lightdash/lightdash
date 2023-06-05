@@ -1,3 +1,21 @@
+# [0.591.0](https://github.com/lightdash/lightdash/compare/0.590.2...0.591.0) (2023-06-05)
+
+
+### Bug Fixes
+
+* invalidate validations query on change of project ([#5749](https://github.com/lightdash/lightdash/issues/5749)) ([c932319](https://github.com/lightdash/lightdash/commit/c932319f0030294917b97bfc3a895c62e1142ca6))
+* pivot table underlying data ([#5735](https://github.com/lightdash/lightdash/issues/5735)) ([ed97eef](https://github.com/lightdash/lightdash/commit/ed97eef849819975a8910642178ffe798dca683f))
+* regenerate tsoa spec-and-routes ([#5747](https://github.com/lightdash/lightdash/issues/5747)) ([bb2aa02](https://github.com/lightdash/lightdash/commit/bb2aa02eac9c0fcb951736c46b07d90e15cd5f86))
+* revert generating openapi in husky hook ([#5750](https://github.com/lightdash/lightdash/issues/5750)) ([b41a02b](https://github.com/lightdash/lightdash/commit/b41a02b0b7ca817b15425b8a476af0ebdeb6d07d))
+
+
+### Features
+
+* add aws rds certs to postgres ([#5718](https://github.com/lightdash/lightdash/issues/5718)) ([57b2a89](https://github.com/lightdash/lightdash/commit/57b2a897938d8357210df09aeecfdc6ec880dc29))
+* make UI improvements to validator table ([#5702](https://github.com/lightdash/lightdash/issues/5702)) ([9c5038b](https://github.com/lightdash/lightdash/commit/9c5038b7b45a85ec5203777097228f3c84cf9475))
+* pivot table styles ([#5723](https://github.com/lightdash/lightdash/issues/5723)) ([f06bb20](https://github.com/lightdash/lightdash/commit/f06bb20babfd390bdb2aaa516dfd806ec9aaf12f))
+* reset current validations and improve types ([#5738](https://github.com/lightdash/lightdash/issues/5738)) ([7995791](https://github.com/lightdash/lightdash/commit/7995791867b4e3dc8dc509070f7725d42f92def7))
+
 ## [0.590.2](https://github.com/lightdash/lightdash/compare/0.590.1...0.590.2) (2023-06-02)
 
 
