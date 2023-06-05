@@ -96,6 +96,11 @@ describe('Parse grammar', () => {
             is: true,
             type: 'null',
         });
+
+        expect(parser.parse('null')).toEqual({
+            is: true,
+            type: 'null',
+        });
     });
 
     it('Is not null', async () => {
@@ -217,7 +222,7 @@ describe('Parse metric filters', () => {
                 target: {
                     fieldId: 'name',
                 },
-                values: undefined,
+                values: [1],
             },
         ]);
     });
