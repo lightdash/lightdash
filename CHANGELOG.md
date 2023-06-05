@@ -1,3 +1,10 @@
+## [0.594.2](https://github.com/lightdash/lightdash/compare/0.594.1...0.594.2) (2023-06-05)
+
+
+### Bug Fixes
+
+* slack integration card layout ([#5754](https://github.com/lightdash/lightdash/issues/5754)) ([015986a](https://github.com/lightdash/lightdash/commit/015986a876cbd52cf4afb6cace5b57c70658629f))
+
 ## [0.594.1](https://github.com/lightdash/lightdash/compare/0.594.0...0.594.1) (2023-06-05)
 
 
