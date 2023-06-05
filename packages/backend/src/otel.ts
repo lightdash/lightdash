@@ -1,6 +1,7 @@
 import { diag, DiagConsoleLogger } from '@opentelemetry/api';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
+import { ExpressLayerType } from '@opentelemetry/instrumentation-express';
 import { gcpDetector } from '@opentelemetry/resource-detector-gcp';
 import { Resource } from '@opentelemetry/resources';
 import {
@@ -8,7 +9,10 @@ import {
     PeriodicExportingMetricReader,
 } from '@opentelemetry/sdk-metrics';
 import { core, NodeSDK } from '@opentelemetry/sdk-node';
-import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
+import {
+    SemanticAttributes,
+    SemanticResourceAttributes,
+} from '@opentelemetry/semantic-conventions';
 
 // Default to no telemetry
 process.env.OTEL_SDK_DISABLED = process.env.OTEL_SDK_DISABLED || 'true';
@@ -50,13 +54,50 @@ const sdk = new NodeSDK({
     // Auto instrumentation includes http,express,knex,pg,winston
     instrumentations: [
         getNodeAutoInstrumentations({
+            '@opentelemetry/instrumentation-dns': {
+                enabled: false,
+            },
+            '@opentelemetry/instrumentation-net': {
+                enabled: false,
+            },
             '@opentelemetry/instrumentation-http': {
+                requireParentforOutgoingSpans: true,
+                ignoreOutgoingRequestHook(req) {
+                    const isAnalytics = !!req?.hostname?.endsWith(
+                        'analytics.lightdash.com',
+                    );
+                    const isSentry =
+                        !!req?.hostname?.endsWith('ingest.sentry.io');
+                    return isAnalytics || isSentry;
+                },
                 ignoreIncomingRequestHook(req) {
                     // Ignore liveness checks
                     const isLivenessProbe =
                         !!req?.url?.match(/^\/api\/v1\/livez$/);
                     return isLivenessProbe;
                 },
+            },
+            '@opentelemetry/instrumentation-express': {
+                requestHook(span, info) {
+                    if (
+                        info.layerType === ExpressLayerType.MIDDLEWARE &&
+                        !!info.request.user
+                    ) {
+                        span.setAttribute(
+                            SemanticAttributes.ENDUSER_ID,
+                            info.request.user.userUuid,
+                        );
+                        if (info.request.user.organizationUuid) {
+                            span.setAttribute(
+                                'enduser.org_id',
+                                info.request.user.organizationUuid,
+                            );
+                        }
+                    }
+                },
+            },
+            '@opentelemetry/instrumentation-knex': {
+                enabled: false,
             },
             '@opentelemetry/instrumentation-pg': {
                 requireParentSpan: true,
