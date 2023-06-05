@@ -62,7 +62,7 @@ const sdk = new NodeSDK({
                 requireParentSpan: true,
             },
             '@opentelemetry/instrumentation-fs': {
-                requireParentSpan: true,
+                enabled: false,
             },
         }),
     ],
