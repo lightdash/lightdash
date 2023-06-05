@@ -142,7 +142,7 @@ const Logs: FC<LogsProps> = ({
                 },
                 meta: {
                     style: {
-                        width: 300,
+                        width: 250,
                     },
                 },
             },
@@ -264,36 +264,38 @@ const Logs: FC<LogsProps> = ({
                 label: 'Status',
                 cell: (item) => {
                     return (
-                        <Box>
-                            <Stack align="center" justify="center">
-                                {currentLogs(item, logs).length > 0 ? (
-                                    getLogStatusIcon(
+                        <Stack align="center" justify="center">
+                            {currentLogs(item, logs).length > 0 ? (
+                                <Stack align="center" justify="center">
+                                    {getLogStatusIcon(
                                         currentLogs(item, logs)[0],
                                         theme,
-                                    )
-                                ) : (
-                                    <Text fz={12} color="gray.6">
-                                        -
-                                    </Text>
-                                )}
-
-                                <Collapse in={opened}>
-                                    <Stack align="center" justify="center">
-                                        {getLogStatusIcon(
-                                            handleScheduledDeliveryLogs(
-                                                item,
-                                                logs,
-                                            )[0],
-                                            theme,
-                                        )}
-                                        {getLogStatusIcon(
-                                            sendNotificationLogs(item, logs)[0],
-                                            theme,
-                                        )}
-                                    </Stack>
-                                </Collapse>
-                            </Stack>
-                        </Box>
+                                    )}
+                                    <Collapse in={opened}>
+                                        <Stack align="center" justify="center">
+                                            {getLogStatusIcon(
+                                                handleScheduledDeliveryLogs(
+                                                    item,
+                                                    logs,
+                                                )[0],
+                                                theme,
+                                            )}
+                                            {getLogStatusIcon(
+                                                sendNotificationLogs(
+                                                    item,
+                                                    logs,
+                                                )[0],
+                                                theme,
+                                            )}
+                                        </Stack>
+                                    </Collapse>
+                                </Stack>
+                            ) : (
+                                <Text fz={12} color="gray.6">
+                                    -
+                                </Text>
+                            )}
+                        </Stack>
                     );
                 },
                 meta: {

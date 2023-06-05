@@ -304,19 +304,17 @@ const Schedulers: FC<SchedulersProps> = ({
                     const currentLogs = logs.filter(
                         (log) => log.schedulerUuid === item.schedulerUuid,
                     );
-                    const latestLog =
-                        currentLogs.length > 0 ? currentLogs[0] : undefined;
-                    return !latestLog ? (
+                    return currentLogs.length > 0 ? (
+                        <Group spacing="xs">
+                            <Text fz={12} color="gray.6">
+                                {formatTime(currentLogs[0].createdAt)}
+                            </Text>
+                            {getLogStatusIcon(currentLogs[0], theme)}
+                        </Group>
+                    ) : (
                         <Text fz={12} color="gray.6">
                             No deliveries started
                         </Text>
-                    ) : (
-                        <Group spacing="xs">
-                            <Text fz={12} color="gray.6">
-                                {formatTime(latestLog.createdAt)}
-                            </Text>
-                            {getLogStatusIcon(latestLog, theme)}
-                        </Group>
                     );
                 },
             },
