@@ -1,3 +1,10 @@
+# [0.593.0](https://github.com/lightdash/lightdash/compare/0.592.0...0.593.0) (2023-06-05)
+
+
+### Features
+
+* add is_null operator grammar ([#5729](https://github.com/lightdash/lightdash/issues/5729)) ([93ecfc6](https://github.com/lightdash/lightdash/commit/93ecfc60c212546b1f5aecada2b0415554911bb8))
+
 # [0.592.0](https://github.com/lightdash/lightdash/compare/0.591.0...0.592.0) (2023-06-05)
 
 
