@@ -143,3 +143,37 @@ export const useValidationNotificationChecker = (): [boolean, () => void] => {
         setHasReadLastValidationNotification,
     ];
 };
+
+const deleteValidation = async (
+    projectUuid: string,
+    validationId: number,
+): Promise<undefined> =>
+    lightdashApi<undefined>({
+        url: `/projects/${projectUuid}/validate/${validationId}`,
+        method: 'DELETE',
+        body: undefined,
+    });
+
+export const useDeleteValidation = (projectUuid: string) => {
+    const queryClient = useQueryClient();
+    const { showToastError, showToastSuccess } = useToaster();
+    return useMutation<undefined, ApiError, number>(
+        (validationId) => deleteValidation(projectUuid, validationId),
+        {
+            mutationKey: ['delete_validation', projectUuid],
+            onSuccess: async () => {
+                await queryClient.refetchQueries(['validation']);
+                showToastSuccess({
+                    title: 'Validation dismissed',
+                });
+            },
+            onError: async (error1) => {
+                const [title, ...rest] = error1.error.message.split('\n');
+                showToastError({
+                    title,
+                    subtitle: rest.join('\n'),
+                });
+            },
+        },
+    );
+};

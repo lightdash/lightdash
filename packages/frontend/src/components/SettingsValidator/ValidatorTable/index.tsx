@@ -11,6 +11,7 @@ import { IconLayoutDashboard, IconTable } from '@tabler/icons-react';
 import { createRef, FC, RefObject, useMemo } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
+import { useDeleteValidation } from '../../../hooks/validation/useValidation';
 import { getChartIcon, IconBox } from '../../common/ResourceIcon';
 import { ErrorMessage } from './ErrorMessage';
 import { useScrollAndHighlight } from './hooks/useScrollAndHighlight';
@@ -47,7 +48,7 @@ export const ValidatorTable: FC<{
     const location = useLocation<{ validationId: number }>();
     const searchParams = new URLSearchParams(location.search);
     const validationId = searchParams.get('validationId');
-
+    const { mutate: deleteValidation } = useDeleteValidation(projectUuid);
     const refs = useMemo(
         () =>
             data.reduce((acc, value) => {
@@ -154,6 +155,16 @@ export const ValidatorTable: FC<{
                                   <ErrorMessage
                                       validationError={validationError}
                                   />
+                                  <button
+                                      onClick={(e) => {
+                                          deleteValidation(
+                                              validationError.validationId,
+                                          );
+                                          e.stopPropagation();
+                                      }}
+                                  >
+                                      x
+                                  </button>
                               </td>
                           </tr>
                       ))
