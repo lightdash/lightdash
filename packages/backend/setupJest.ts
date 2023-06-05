@@ -1,7 +1,6 @@
 import { LightdashMode } from '@lightdash/common';
 import { enableFetchMocks } from 'jest-fetch-mock';
 import { LightdashAnalytics } from './src/analytics/LightdashAnalytics';
-import { LightdashConfig } from './src/config/parseConfig';
 
 enableFetchMocks();
 
