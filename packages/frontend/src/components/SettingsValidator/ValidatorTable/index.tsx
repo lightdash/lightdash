@@ -6,10 +6,17 @@ import {
     ValidationErrorDashboardResponse,
     ValidationResponse,
 } from '@lightdash/common';
-import { Flex, Stack, Table, Text, useMantineTheme } from '@mantine/core';
+import {
+    Anchor,
+    Flex,
+    Stack,
+    Table,
+    Text,
+    useMantineTheme,
+} from '@mantine/core';
 import { IconLayoutDashboard, IconTable } from '@tabler/icons-react';
 import { createRef, FC, RefObject, useMemo } from 'react';
-import { useHistory, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import { getChartIcon, IconBox } from '../../common/ResourceIcon';
 import { ErrorMessage } from './ErrorMessage';
@@ -44,7 +51,6 @@ export const ValidatorTable: FC<{
     const { cx, classes } = useTableStyles();
     const { colors } = useMantineTheme();
 
-    const history = useHistory();
     const location = useLocation<{ validationId: number }>();
     const searchParams = new URLSearchParams(location.search);
     const validationId = searchParams.get('validationId');
@@ -64,7 +70,7 @@ export const ValidatorTable: FC<{
         validationError: ValidationResponse,
     ) => {
         const link = getLinkToResource(validationError, projectUuid);
-        if (link) history.push(link);
+        if (link) window.open(link, '_blank');
     };
 
     const getViews = (
@@ -114,42 +120,67 @@ export const ValidatorTable: FC<{
                               }
                           >
                               <td width="50%">
-                                  <Flex gap="sm" align="center">
-                                      <Icon validationError={validationError} />
+                                  <Anchor
+                                      sx={{
+                                          color: 'unset',
+                                          ':hover': {
+                                              color: 'unset',
+                                              textDecoration: 'none',
+                                          },
+                                      }}
+                                      href={getLinkToResource(
+                                          validationError,
+                                          projectUuid,
+                                      )}
+                                      target="_blank"
+                                  >
+                                      <Flex gap="sm" align="center">
+                                          <Icon
+                                              validationError={validationError}
+                                          />
 
-                                      <Stack spacing={4}>
-                                          <Text fw={600}>
-                                              {getErrorName(validationError)}
-                                          </Text>
-
-                                          {(isChartValidationError(
-                                              validationError,
-                                          ) ||
-                                              isDashboardValidationError(
-                                                  validationError,
-                                              )) && (
-                                              <Text fz={11} color="gray.6">
-                                                  {getViews(validationError)}{' '}
-                                                  view
-                                                  {getViews(validationError) ===
-                                                  1
-                                                      ? ''
-                                                      : 's'}
-                                                  {' • '}
-                                                  {validationError.lastUpdatedBy ? (
-                                                      <>
-                                                          Last edited by{' '}
-                                                          <Text span fw={500}>
-                                                              {
-                                                                  validationError.lastUpdatedBy
-                                                              }
-                                                          </Text>
-                                                      </>
-                                                  ) : null}
+                                          <Stack spacing={4}>
+                                              <Text fw={600}>
+                                                  {getErrorName(
+                                                      validationError,
+                                                  )}
                                               </Text>
-                                          )}
-                                      </Stack>
-                                  </Flex>
+
+                                              {(isChartValidationError(
+                                                  validationError,
+                                              ) ||
+                                                  isDashboardValidationError(
+                                                      validationError,
+                                                  )) && (
+                                                  <Text fz={11} color="gray.6">
+                                                      {getViews(
+                                                          validationError,
+                                                      )}{' '}
+                                                      view
+                                                      {getViews(
+                                                          validationError,
+                                                      ) === 1
+                                                          ? ''
+                                                          : 's'}
+                                                      {' • '}
+                                                      {validationError.lastUpdatedBy ? (
+                                                          <>
+                                                              Last edited by{' '}
+                                                              <Text
+                                                                  span
+                                                                  fw={500}
+                                                              >
+                                                                  {
+                                                                      validationError.lastUpdatedBy
+                                                                  }
+                                                              </Text>
+                                                          </>
+                                                      ) : null}
+                                                  </Text>
+                                              )}
+                                          </Stack>
+                                      </Flex>
+                                  </Anchor>
                               </td>
                               <td width="50%">
                                   <ErrorMessage
