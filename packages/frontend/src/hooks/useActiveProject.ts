@@ -39,7 +39,10 @@ export const useUpdateActiveProjectMutation = () => {
             Promise.resolve(
                 localStorage.setItem(LAST_PROJECT_KEY, projectUuid),
             ),
-        onSuccess: () => clearProjectCache(queryClient),
+        onSuccess: () => {
+            clearProjectCache(queryClient);
+            queryClient.invalidateQueries(['validations']);
+        },
     });
 };
 
