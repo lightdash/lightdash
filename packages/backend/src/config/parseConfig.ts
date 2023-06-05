@@ -228,7 +228,7 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
         siteUrl.includes('localhost')
     ) {
         console.log(
-            `WARNIN: Using ${siteUrl} as the base SITE_URL for Lightdash. This is not suitable for production. Update with a top level domain using https such as https://lightdash.mycompany.com`,
+            `WARNING: Using ${siteUrl} as the base SITE_URL for Lightdash. This is not suitable for production. Update with a top-level domain using https such as https://lightdash.mycompany.com`,
         );
     }
 
