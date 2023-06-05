@@ -1,3 +1,10 @@
+# [0.592.0](https://github.com/lightdash/lightdash/compare/0.591.0...0.592.0) (2023-06-05)
+
+
+### Features
+
+* let users go to tables when model error ([#5742](https://github.com/lightdash/lightdash/issues/5742)) ([6638aee](https://github.com/lightdash/lightdash/commit/6638aeeb0cd24c4fc9539e4241df38e5f2315dc7))
+
 # [0.591.0](https://github.com/lightdash/lightdash/compare/0.590.2...0.591.0) (2023-06-05)
 
 
