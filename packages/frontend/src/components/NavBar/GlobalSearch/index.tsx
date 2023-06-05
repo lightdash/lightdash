@@ -1,5 +1,6 @@
 import { getSearchResultId } from '@lightdash/common';
 import {
+    Anchor,
     Box,
     createStyles,
     Group,
@@ -19,17 +20,84 @@ import {
     SpotlightActionProps,
     SpotlightProvider,
 } from '@mantine/spotlight';
-import { IconSearch } from '@tabler/icons-react';
+import { IconAlertTriangle, IconSearch } from '@tabler/icons-react';
 import { FC, MouseEventHandler, useMemo, useState } from 'react';
-import { useHistory, useLocation } from 'react-router-dom';
+import { Link, useHistory, useLocation } from 'react-router-dom';
 
 import { GLOBAL_SEARCH_MIN_QUERY_LENGTH } from '../../../hooks/globalSearch/useGlobalSearch';
 import { useProject } from '../../../hooks/useProject';
+import { useValidationUserAbility } from '../../../hooks/validation/useValidation';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
+import { ResourceIndicator } from '../../common/ResourceIcon';
 import { SearchItem, useDebouncedSearch } from './hooks';
 import { SearchIcon } from './SearchIcon';
+
+const SearchIconWithIndicator: FC<{
+    searchResult: SearchItem;
+    projectUuid: string;
+    canUserManageValidation: boolean;
+}> = ({ searchResult, projectUuid, canUserManageValidation }) => {
+    if (
+        (searchResult.type === 'saved_chart' ||
+            searchResult.type === 'dashboard') &&
+        searchResult.item &&
+        'validationErrors' in searchResult.item
+    ) {
+        return (
+            <ResourceIndicator
+                iconProps={{
+                    fill: 'red',
+                    icon: IconAlertTriangle,
+                }}
+                tooltipProps={{
+                    maw: 300,
+                    withinPortal: true,
+                    multiline: true,
+                    offset: -2,
+                    position: 'bottom',
+                    // TODO: investigate how to do this better
+                    zIndex: 201,
+                }}
+                tooltipLabel={
+                    canUserManageValidation ? (
+                        <>
+                            This content is broken. Learn more about the
+                            validation error(s){' '}
+                            <Anchor
+                                component={Link}
+                                fw={600}
+                                onClick={(e) => e.stopPropagation()}
+                                to={{
+                                    pathname: `/generalSettings/projectManagement/${projectUuid}/validator`,
+                                    search: `?validationId=${searchResult.item.validationErrors[0].validationId}`,
+                                }}
+                                color="blue.4"
+                            >
+                                here
+                            </Anchor>
+                            .
+                        </>
+                    ) : (
+                        <>
+                            There's an error with this
+                            {/* TODO: allow for table errors */}
+                            {searchResult.type === 'saved_chart'
+                                ? 'chart'
+                                : 'dashboard'}
+                            .
+                        </>
+                    )
+                }
+            >
+                <SearchIcon searchItem={searchResult} />
+            </ResourceIndicator>
+        );
+    }
+
+    return null;
+};
 
 const useStyles = createStyles<string, null>((theme) => ({
     action: {
@@ -132,6 +200,8 @@ const GlobalSearch: FC<GlobalSearchProps> = ({ projectUuid }) => {
     const { track } = useTracking();
     const project = useProject(projectUuid);
 
+    const canUserManageValidation = useValidationUserAbility(projectUuid);
+
     const [query, setQuery] = useState<string>();
 
     const handleSpotlightOpenInputClick: MouseEventHandler<HTMLInputElement> = (
@@ -165,38 +235,61 @@ const GlobalSearch: FC<GlobalSearchProps> = ({ projectUuid }) => {
     const { items, isSearching } = useDebouncedSearch(projectUuid, query);
 
     const searchItems = useMemo(() => {
-        return items.map<SpotlightAction>((item) => ({
-            item,
-            icon: <SearchIcon searchItem={item} />,
-            title: item.title,
-            description: item.description,
-            onTrigger: () => {
-                track({
-                    name: EventName.SEARCH_RESULT_CLICKED,
-                    properties: {
-                        type: item.type,
-                        id: getSearchResultId(item.item),
-                    },
-                });
-                track({
-                    name: EventName.GLOBAL_SEARCH_CLOSED,
-                    properties: {
-                        action: 'result_click',
-                    },
-                });
+        return items.map<SpotlightAction>((item) => {
+            const isSearchItemWithValidationError =
+                ['dashboard', 'saved_chart'].includes(item.type) &&
+                item.item &&
+                'validationErrors' in item.item &&
+                item.item?.validationErrors?.length > 0;
 
-                history.push(item.location);
-                if (
-                    (item.location.pathname.includes('/tables/') &&
-                        location.pathname.includes('/tables/')) ||
-                    (item.location.pathname.includes('/saved/') &&
-                        location.pathname.includes('/saved/'))
-                ) {
-                    history.go(0); // force page refresh so explore page can pick up the new url params
-                }
-            },
-        }));
-    }, [items, history, location.pathname, track]);
+            return {
+                item,
+                icon: isSearchItemWithValidationError ? (
+                    <SearchIconWithIndicator
+                        searchResult={item}
+                        projectUuid={projectUuid}
+                        canUserManageValidation={canUserManageValidation}
+                    />
+                ) : (
+                    <SearchIcon searchItem={item} />
+                ),
+                title: item.title,
+                description: item.description,
+                onTrigger: () => {
+                    track({
+                        name: EventName.SEARCH_RESULT_CLICKED,
+                        properties: {
+                            type: item.type,
+                            id: getSearchResultId(item.item),
+                        },
+                    });
+                    track({
+                        name: EventName.GLOBAL_SEARCH_CLOSED,
+                        properties: {
+                            action: 'result_click',
+                        },
+                    });
+
+                    history.push(item.location);
+                    if (
+                        (item.location.pathname.includes('/tables/') &&
+                            location.pathname.includes('/tables/')) ||
+                        (item.location.pathname.includes('/saved/') &&
+                            location.pathname.includes('/saved/'))
+                    ) {
+                        history.go(0); // force page refresh so explore page can pick up the new url params
+                    }
+                },
+            };
+        });
+    }, [
+        items,
+        projectUuid,
+        canUserManageValidation,
+        track,
+        history,
+        location.pathname,
+    ]);
 
     const os = useOs();
 
@@ -227,6 +320,8 @@ const GlobalSearch: FC<GlobalSearchProps> = ({ projectUuid }) => {
 
             <MantineProvider inherit theme={{ colorScheme: 'light' }}>
                 <SpotlightProvider
+                    withinPortal
+                    zIndex={200}
                     actions={
                         query && query.length >= GLOBAL_SEARCH_MIN_QUERY_LENGTH
                             ? searchItems
