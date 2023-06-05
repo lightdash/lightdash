@@ -1,3 +1,10 @@
+## [0.594.1](https://github.com/lightdash/lightdash/compare/0.594.0...0.594.1) (2023-06-05)
+
+
+### Bug Fixes
+
+* cli dbt 1.5 manifest ([#5727](https://github.com/lightdash/lightdash/issues/5727)) ([e1ec87c](https://github.com/lightdash/lightdash/commit/e1ec87ca544ea4e47633b4ec619cd3d5445ad05d))
+
 # [0.594.0](https://github.com/lightdash/lightdash/compare/0.593.0...0.594.0) (2023-06-05)
 
 
