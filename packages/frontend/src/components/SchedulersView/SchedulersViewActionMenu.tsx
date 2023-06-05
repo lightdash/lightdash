@@ -10,7 +10,11 @@ import { useQueryClient } from 'react-query';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../common/MantineIcon';
 import SchedulerDeleteModal from '../SchedulerModals/SchedulerModalBase/SchedulerDeleteModal';
-import { getItemLink, getSchedulerLink, SchedulerItem } from './SchedulersView';
+import {
+    getItemLink,
+    getSchedulerLink,
+    SchedulerItem,
+} from './SchedulersViewUtils';
 
 interface SchedulersViewActionMenuProps {
     isOpen?: boolean;
