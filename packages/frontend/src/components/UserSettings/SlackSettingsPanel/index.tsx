@@ -95,7 +95,7 @@ const SlackSettingsPanel: FC = () => {
                             >
                                 Your Slack integration is not up to date, you
                                 should reinstall the Slack integration to
-                                guaranty the best user experience.
+                                guarantee the best user experience.
                             </Alert>
                         )}
                     </Stack>
