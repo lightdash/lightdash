@@ -1,3 +1,10 @@
+# [0.594.0](https://github.com/lightdash/lightdash/compare/0.593.0...0.594.0) (2023-06-05)
+
+
+### Features
+
+* configure logs with environment variables ([#5743](https://github.com/lightdash/lightdash/issues/5743)) ([a85c9b7](https://github.com/lightdash/lightdash/commit/a85c9b71a69d546cfd5ed21d8aa566c4aebd550b))
+
 # [0.593.0](https://github.com/lightdash/lightdash/compare/0.592.0...0.593.0) (2023-06-05)
 
 
