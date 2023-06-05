@@ -12,7 +12,7 @@ import { useMetricQueryDataContext } from '../../MetricQueryData/MetricQueryData
 import MantineIcon from '../MantineIcon';
 
 type ValueCellMenuProps = {
-    value: ResultValue | null;
+    value?: ResultValue | null;
     onCopy: () => void;
 
     rowIndex?: number;
@@ -27,8 +27,8 @@ type ValueCellMenuProps = {
 const ValueCellMenu: FC<ValueCellMenuProps> = ({
     children,
     rowIndex,
-    getUnderlyingFieldValues,
     colIndex,
+    getUnderlyingFieldValues,
     item,
     value,
     opened,
@@ -74,7 +74,12 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
         );
 
     const handleOpenUnderlyingDataModal = () => {
-        if (!getUnderlyingFieldValues || !item || !rowIndex || !colIndex) {
+        if (
+            !getUnderlyingFieldValues ||
+            !item ||
+            rowIndex === undefined ||
+            colIndex === undefined
+        ) {
             return;
         }
 
@@ -100,7 +105,12 @@ const ValueCellMenu: FC<ValueCellMenuProps> = ({
     };
 
     const handleOpenDrillIntoModal = () => {
-        if (!getUnderlyingFieldValues || !item || !rowIndex || !colIndex) {
+        if (
+            !getUnderlyingFieldValues ||
+            !item ||
+            rowIndex === undefined ||
+            colIndex === undefined
+        ) {
             return;
         }
 

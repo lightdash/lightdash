@@ -381,7 +381,7 @@ export const convertTable = (
     }
 
     if (!model.relation_name) {
-        throw new Error('Model has no table relation');
+        throw new Error(`Model "${model.name}" has no table relation`);
     }
     return {
         name: model.name,

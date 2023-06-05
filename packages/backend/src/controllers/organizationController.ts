@@ -165,6 +165,7 @@ export class OrganizationController extends Controller {
     @Middlewares([isAuthenticated, unauthorisedInDemo])
     @Patch('/users/{userUuid}')
     @OperationId('UpdateOrganizationMember')
+    @Tags('Roles & Permissions')
     async updateOrganizationMember(
         @Request() req: express.Request,
         @Path() userUuid: string,

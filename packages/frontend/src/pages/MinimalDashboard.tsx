@@ -1,9 +1,5 @@
-import {
-    assertUnreachable,
-    DashboardFilters,
-    DashboardTileTypes,
-} from '@lightdash/common';
-import { FC, useMemo } from 'react';
+import { assertUnreachable, DashboardTileTypes } from '@lightdash/common';
+import { FC } from 'react';
 import { Layout, Responsive, WidthProvider } from 'react-grid-layout';
 import { useParams } from 'react-router-dom';
 
@@ -28,12 +24,6 @@ const MinimalDashboard: FC = () => {
         isError,
         error,
     } = useDashboardQuery(dashboardUuid);
-
-    const dashboardFilters: DashboardFilters | undefined = useMemo(() => {
-        const searchParams = new URLSearchParams(window.location.search);
-        const filterSearchParam = searchParams.get('filters');
-        return filterSearchParam ? JSON.parse(filterSearchParam) : undefined;
-    }, []);
 
     if (isError) {
         return <>{error.error.message}</>;
@@ -64,7 +54,6 @@ const MinimalDashboard: FC = () => {
                         {tile.type === DashboardTileTypes.SAVED_CHART ? (
                             <ChartTile
                                 key={tile.uuid}
-                                dashboardFilters={dashboardFilters}
                                 minimal
                                 tile={tile}
                                 isEditMode={false}

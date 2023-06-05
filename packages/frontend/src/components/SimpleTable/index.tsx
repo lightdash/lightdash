@@ -71,6 +71,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 ref={scrollableContainerRef}
                 miw="100%"
                 h="100%"
+                p="xs"
                 sx={{ overflow: 'auto' }}
             >
                 {pivotTableData.data ? (

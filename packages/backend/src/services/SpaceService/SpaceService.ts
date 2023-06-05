@@ -135,7 +135,7 @@ export class SpaceService {
                 name: space.name,
                 spaceId: newSpace.uuid,
                 projectId: projectUuid,
-                isPrivate: space.isPrivate,
+                isPrivate: newSpace.isPrivate,
                 userAccessCount: space.access?.length ?? 0,
             },
         });

@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     ChartSummary,
+    CreateSchedulerLog,
     Dashboard,
     ForbiddenError,
     isChartScheduler,
@@ -9,7 +10,6 @@ import {
     ScheduledJobs,
     Scheduler,
     SchedulerAndTargets,
-    SchedulerLog,
     SessionUser,
     UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
@@ -196,7 +196,7 @@ export class SchedulerService {
         return schedulerClient.getScheduledJobs(schedulerUuid);
     }
 
-    async logSchedulerJob(log: SchedulerLog): Promise<void> {
+    async logSchedulerJob(log: CreateSchedulerLog): Promise<void> {
         await this.schedulerModel.logSchedulerJob(log);
     }
 

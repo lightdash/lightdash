@@ -11,6 +11,10 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
+    AnalyticsChartViewsTableName,
+    AnalyticsDashboardViewsTableName,
+} from '../../database/entities/analytics';
+import {
     DashboardsTableName,
     DashboardTable,
     DashboardVersionsTableName,
@@ -48,7 +52,6 @@ export class ValidationModel {
                     error_type: validation.errorType,
                     ...(isTableValidationError(validation) && {
                         model_name: validation.modelName,
-                        dimension_name: validation.dimensionName,
                     }),
                     ...(isChartValidationError(validation) && {
                         saved_chart_uuid: validation.chartUuid,
@@ -82,6 +85,7 @@ export class ValidationModel {
                 'chart_config' | 'chart_type'
             > & {
                 last_updated_at: Date;
+                views: string;
             })[] = await this.database(ValidationTableName)
             .leftJoin(
                 SavedChartsTableName,
@@ -114,6 +118,9 @@ export class ValidationModel {
                 `${UserTableName}.first_name`,
                 `${UserTableName}.last_name`,
                 `${SpaceTableName}.space_uuid`,
+                this.database.raw(
+                    `(SELECT COUNT('${AnalyticsChartViewsTableName}.chart_uuid') FROM ${AnalyticsChartViewsTableName} WHERE saved_queries.saved_query_uuid = ${AnalyticsChartViewsTableName}.chart_uuid) as views`,
+                ),
             ])
             .orderBy([
                 {
@@ -139,6 +146,7 @@ export class ValidationModel {
             chartValidationErrorsRows.map((validationError) => ({
                 createdAt: validationError.created_at,
                 chartUuid: validationError.saved_chart_uuid!,
+                chartViews: parseInt(validationError.views, 10) || 0,
                 projectUuid: validationError.project_uuid,
                 error: validationError.error,
                 name: validationError.name,
@@ -161,6 +169,7 @@ export class ValidationModel {
             Pick<UserTable['base'], 'first_name' | 'last_name'> &
             Pick<DbSpace, 'space_uuid'> & {
                 last_updated_at: Date;
+                views: string;
             })[] = await this.database(ValidationTableName)
             .leftJoin(
                 DashboardsTableName,
@@ -191,6 +200,9 @@ export class ValidationModel {
                 `${UserTableName}.first_name`,
                 `${UserTableName}.last_name`,
                 `${SpaceTableName}.space_uuid`,
+                this.database.raw(
+                    `(SELECT COUNT('${AnalyticsDashboardViewsTableName}.dashboard_uuid') FROM ${AnalyticsDashboardViewsTableName} where ${AnalyticsDashboardViewsTableName}.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid) as views`,
+                ),
             ])
             .orderBy([
                 {
@@ -216,6 +228,7 @@ export class ValidationModel {
             dashboardValidationErrorsRows.map((validationError) => ({
                 createdAt: validationError.created_at,
                 dashboardUuid: validationError.dashboard_uuid!,
+                dashboardViews: parseInt(validationError.views, 10) || 0,
                 projectUuid: validationError.project_uuid,
                 error: validationError.error,
                 name: validationError.name,
@@ -243,14 +256,11 @@ export class ValidationModel {
                 createdAt: validationError.created_at,
                 projectUuid: validationError.project_uuid,
                 error: validationError.error,
-                name: 'Table',
+                name: validationError.model_name ?? undefined,
                 validationId: validationError.validation_id,
                 ...(validationError.error_type && {
                     errorType: validationError.error_type,
                 }),
-                modelName: validationError.model_name ?? undefined,
-                fieldName: validationError.field_name,
-                dimensionName: validationError.dimension_name ?? undefined,
             }));
 
         return [

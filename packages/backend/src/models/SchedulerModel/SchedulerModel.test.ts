@@ -8,6 +8,7 @@ describe('Scheduler model test', () => {
             schedulerUuid: '1',
             status: SchedulerJobStatus.SCHEDULED,
             scheduledTime: new Date(2021, 0, 2),
+            createdAt: new Date(2021, 0, 2),
             jobId: '1',
         };
 

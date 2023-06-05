@@ -11,9 +11,7 @@ import {
     ForbiddenError,
     getFilterRules,
     InlineErrorType,
-    isChartValidationError,
     isDashboardChartTileType,
-    isDashboardValidationError,
     isDimension,
     isExploreError,
     isMetric,
@@ -111,21 +109,13 @@ export class ValidationService {
                                 error.type !==
                                 InlineErrorType.NO_DIMENSIONS_FOUND,
                         )
-                        .map((ee) => {
-                            const dimensionNameMatch =
-                                ee.message.match(/\$\{([^}]*)\}/);
-
-                            return {
-                                name: explore.name,
-                                error: ee.message,
-                                errorType: ValidationErrorType.Model,
-                                modelName: explore.name,
-                                dimensionName: dimensionNameMatch
-                                    ? dimensionNameMatch[1]
-                                    : undefined,
-                                projectUuid,
-                            };
-                        });
+                        .map((ee) => ({
+                            name: explore.name,
+                            error: ee.message,
+                            errorType: ValidationErrorType.Model,
+                            modelName: explore.name,
+                            projectUuid,
+                        }));
                     return [...acc, ...exploreErrors];
                 }
                 return acc;

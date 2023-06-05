@@ -5,7 +5,7 @@ import { PoolConfig } from 'pg';
 import { PostgresClient } from './PostgresWarehouseClient';
 
 const AMAZON_CA_BUNDLE = [
-    fs.readFileSync(path.resolve(__dirname, './amazon-trust-ca-bundle.crt')),
+    fs.readFileSync(path.resolve(__dirname, './ca-bundle-aws-redshift.crt')),
 ];
 
 const getSSLConfigFromMode = (mode: string): PoolConfig['ssl'] => {
