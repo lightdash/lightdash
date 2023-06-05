@@ -84,6 +84,16 @@ export const lightdashConfigMock: LightdashConfig = {
         concurrency: 1,
         jobTimeout: 1,
     },
+    logging: {
+        level: 'info',
+        format: 'pretty',
+        outputs: ['console'],
+        consoleFormat: undefined,
+        consoleLevel: undefined,
+        fileFormat: undefined,
+        filePath: '',
+        fileLevel: undefined,
+    },
 };
 
 const dbtCloudIDEProjectConfigMock: DbtCloudIDEProjectConfig = {
