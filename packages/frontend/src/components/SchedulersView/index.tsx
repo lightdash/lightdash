@@ -1,9 +1,10 @@
-import { ActionIcon, Group, Tabs, Title } from '@mantine/core';
+import { ActionIcon, Group, Tabs, Title, Tooltip } from '@mantine/core';
 import { IconClock, IconRefresh, IconSend } from '@tabler/icons-react';
 import React, { FC } from 'react';
 import { useQueryClient } from 'react-query';
 import { useSchedulerLogs } from '../../hooks/scheduler/useScheduler';
 import { useTableTabStyles } from '../../hooks/styles/useTableTabStyles';
+import useToaster from '../../hooks/toaster/useToaster';
 import MantineIcon from '../common/MantineIcon';
 import ResourceEmptyState from '../common/ResourceView/ResourceEmptyState';
 import { SettingsCard } from '../common/Settings/SettingsCard';
@@ -14,6 +15,7 @@ const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const { data } = useSchedulerLogs(projectUuid);
     const queryClient = useQueryClient();
     const tableTabStyles = useTableTabStyles();
+    const { showToastSuccess } = useToaster();
     const emptyState = (
         <ResourceEmptyState
             title="No scheduled deliveries on this project"
@@ -65,19 +67,27 @@ const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                             </Title>
                         </Tabs.Tab>
                     </Tabs.List>
-                    <ActionIcon
-                        ml="auto"
-                        onClick={async () =>
-                            queryClient.invalidateQueries('schedulerLogs')
-                        }
-                    >
-                        <MantineIcon
-                            icon={IconRefresh}
-                            size="lg"
-                            color="gray.6"
-                            stroke={2}
-                        />
-                    </ActionIcon>
+                    <Tooltip label="Click to refresh the status of the scheduled deliveries">
+                        <ActionIcon
+                            ml="auto"
+                            onClick={() =>
+                                queryClient
+                                    .invalidateQueries('schedulerLogs')
+                                    .then(() =>
+                                        showToastSuccess({
+                                            title: 'Scheduled deliveries refreshed successfully',
+                                        }),
+                                    )
+                            }
+                        >
+                            <MantineIcon
+                                icon={IconRefresh}
+                                size="lg"
+                                color="gray.6"
+                                stroke={2}
+                            />
+                        </ActionIcon>
+                    </Tooltip>
                 </Group>
                 <Tabs.Panel value="scheduled-deliveries">
                     {data && data.schedulers.length > 0 ? (
