@@ -1,4 +1,4 @@
-name: CLI tests
+name: CLI tests for DBT 1.3
 on: [ deployment_status ]
 
 env:

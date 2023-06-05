@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     DbtModelNode,
     DbtRawModelNode,
     ExploreError,
@@ -8,20 +9,49 @@ import {
     normaliseModelDatabase,
     ParseError,
     SupportedDbtAdapter,
+    UnexpectedServerError,
 } from '@lightdash/common';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import { AnyValidateFunction } from 'ajv/dist/types';
 import GlobalState from '../globalState';
-import dbtManifestSchema from '../manifestv7.json';
-import lightdashDbtSchema from '../schema.json';
+import dbtManifestSchemaV7 from '../manifestv7.json';
+import dbtManifestSchemaV9 from '../manifestv9.json';
+import lightdashDbtSchemaV7 from '../schema.json';
+import lightdashDbtSchemaV9 from '../schemav9.json';
+import { DbtManifestVersion, getDbtManifest } from './manifest';
 
-const ajv = new Ajv({ schemas: [lightdashDbtSchema, dbtManifestSchema] });
-addFormats(ajv);
+const getModelValidator = async () => {
+    const manifestVersion = await getDbtManifest();
 
-const getModelValidator = () => {
+    GlobalState.debug(
+        `> Validating models using dbt manifest version ${manifestVersion}`,
+    );
+    let ajv: Ajv;
+
+    switch (manifestVersion) {
+        case DbtManifestVersion.V7:
+            ajv = new Ajv({
+                schemas: [lightdashDbtSchemaV7, dbtManifestSchemaV7],
+            });
+            break;
+        case DbtManifestVersion.V9:
+            ajv = new Ajv({
+                schemas: [lightdashDbtSchemaV9, dbtManifestSchemaV9],
+            });
+            break;
+        default:
+            return assertUnreachable(
+                manifestVersion,
+                new UnexpectedServerError(
+                    `Missing dbt manifest version "${manifestVersion}" in validation.`,
+                ),
+            );
+    }
+    addFormats(ajv);
+
     const modelValidator = ajv.getSchema<DbtRawModelNode>(
-        'https://schemas.lightdash.com/dbt/manifest/v7.json#/definitions/LightdashCompiledModelNode',
+        `https://schemas.lightdash.com/dbt/manifest/${manifestVersion}.json#/definitions/LightdashCompiledModelNode`,
     );
     if (modelValidator === undefined) {
         throw new ParseError('Could not parse Lightdash schema.');
@@ -39,12 +69,12 @@ type DbtModelsGroupedByState = {
     invalid: ExploreError[];
     skipped: DbtRawModelNode[];
 };
-export const validateDbtModel = (
+export const validateDbtModel = async (
     adapterType: string,
     models: DbtRawModelNode[],
-): DbtModelsGroupedByState => {
+): Promise<DbtModelsGroupedByState> => {
     GlobalState.debug(`> Validating ${models.length} models from dbt manifest`);
-    const validator = getModelValidator();
+    const validator = await getModelValidator();
     const results = models.reduce<DbtModelsGroupedByState>(
         (acc, model) => {
             if (model.compiled === undefined) {

@@ -89,10 +89,8 @@ export const compile = async (options: GenerateHandlerOptions) => {
 
     const adapterType = manifest.metadata.adapter_type;
 
-    const { valid: validModels, invalid: failedExplores } = validateDbtModel(
-        adapterType,
-        models,
-    );
+    const { valid: validModels, invalid: failedExplores } =
+        await validateDbtModel(adapterType, models);
 
     if (failedExplores.length > 0) {
         const errors = failedExplores.map((failedExplore) =>
