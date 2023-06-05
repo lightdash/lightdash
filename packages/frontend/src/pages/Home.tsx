@@ -84,6 +84,8 @@ const Home: FC = () => {
                             projectUuid={project.data.projectUuid}
                             pinnedListUuid={project.data.pinnedListUuid || ''}
                             organizationUuid={project.data.organizationUuid}
+                            dashboards={dashboards}
+                            savedCharts={savedCharts}
                         />
                         <RecentlyUpdatedPanel
                             data={{ dashboards, savedCharts }}
