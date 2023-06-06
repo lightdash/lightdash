@@ -1,5 +1,10 @@
 import { subject } from '@casl/ability';
-import { PinnedItems, ResourceViewItemType } from '@lightdash/common';
+import {
+    DashboardBasicDetails,
+    PinnedItems,
+    ResourceViewItemType,
+    SpaceQuery,
+} from '@lightdash/common';
 import { Card, Group, Text } from '@mantine/core';
 import { IconPin } from '@tabler/icons-react';
 import React, { FC } from 'react';
@@ -13,6 +18,8 @@ interface Props {
     projectUuid: string;
     pinnedListUuid: string;
     organizationUuid: string;
+    dashboards: DashboardBasicDetails[];
+    savedCharts: SpaceQuery[];
 }
 
 const PinnedItemsPanel: FC<Props> = ({
@@ -20,12 +27,16 @@ const PinnedItemsPanel: FC<Props> = ({
     projectUuid,
     pinnedListUuid,
     organizationUuid,
+    dashboards,
+    savedCharts,
 }) => {
     const { user } = useApp();
     const userCanManagePinnedItems = user.data?.ability.can(
         'manage',
         subject('PinnedItems', { organizationUuid, projectUuid }),
     );
+
+    const enablePinnedPanel = dashboards.length + savedCharts.length > 0;
 
     return data && data.length > 0 ? (
         <ResourceView
@@ -51,7 +62,8 @@ const PinnedItemsPanel: FC<Props> = ({
             }}
             pinnedItemsProps={{ projectUuid, pinnedListUuid }}
         />
-    ) : (userCanManagePinnedItems && data.length <= 0) || !data ? (
+    ) : ((userCanManagePinnedItems && data.length <= 0) || !data) &&
+      enablePinnedPanel ? (
         // FIXME: update width with Mantine widths
         <Card
             withBorder

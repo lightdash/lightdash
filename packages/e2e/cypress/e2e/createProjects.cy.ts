@@ -148,7 +148,6 @@ const testCompile = () => {
         .click();
     cy.url().should('include', '/home', { timeout: 30000 });
     cy.contains('Welcome, David');
-    cy.contains('No Pinned items.');
     cy.findByText('Charts and Dashboards');
     cy.findByText('get started by creating some charts');
     cy.wait(1000);
