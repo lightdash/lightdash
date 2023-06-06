@@ -426,7 +426,7 @@ describe('Lightdash API tests for member user with editor project permissions', 
         });
     });
 
-    it('Should get forbidden (403) from POST explores', () => {
+    it('Should get success response (200) from POST explores', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
         const endpoint = `/projects/${projectUuid}/explores`;
@@ -437,7 +437,7 @@ describe('Lightdash API tests for member user with editor project permissions', 
             body: [],
             failOnStatusCode: false,
         }).then((resp) => {
-            expect(resp.status).to.eq(403);
+            expect(resp.status).to.eq(200);
         });
     });
 
@@ -535,7 +535,7 @@ describe('Lightdash API tests for member user with editor project permissions', 
         });
     });
 
-    it('Should get a forbidden (403) from PATCH project', () => {
+    it('Should get success (200) from PATCH project', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
         const endpoint = `${apiUrl}/projects/${projectUuid}`;
@@ -551,7 +551,7 @@ describe('Lightdash API tests for member user with editor project permissions', 
                 body: projectResponse.body.results,
                 failOnStatusCode: false,
             }).then((resp) => {
-                expect(resp.status).to.eq(403);
+                expect(resp.status).to.eq(200);
             });
         });
     });
