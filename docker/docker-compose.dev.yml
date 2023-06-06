@@ -3,8 +3,9 @@ volumes:
   node_modules:
 
 x-environment: &commonEnvironment
+  - PORT=${PORT | 8080}
   - PGHOST=${PGHOST}
-  - PGPORT=${PGPORT}
+  - PGPORT=${PGPORT | 5432}
   - PGUSER=${PGUSER}
   - PGPASSWORD=${PGPASSWORD}
   - PGDATABASE=${PGDATABASE}
@@ -33,7 +34,7 @@ x-environment: &commonEnvironment
   - LIGHTDASH_QUERY_MAX_LIMIT=${LIGHTDASH_QUERY_MAX_LIMIT}
   - HEADLESS_BROWSER_HOST=headless-browser
   - HEADLESS_BROWSER_PORT=3000
-  - SCHEDULER_ENABLED=${SCHEDULER_ENABLED}
+  - SCHEDULER_ENABLED=true
 
 services:
   lightdash-dev:
@@ -51,21 +52,6 @@ services:
     ports:
       - "${PORT}:8080"
       - "3000:3000"
-    command: ""
-    entrypoint: [ "/bin/sh", "-c", "sleep infinity" ]
-  lightdash-scheduler-dev:
-    build:
-      context: ..
-      dockerfile: dockerfile
-      target: ${DOCKERFILE_TARGET}
-    depends_on:
-      - db-dev
-    environment: *commonEnvironment
-    volumes:
-      - "../:/usr/app"
-      - "node_modules:/usr/app/node_modules/" # clears the node_modules directory so it doesn't sync (v.slow on MacOS)
-    ports:
-      - "8081:8081"
     command: ""
     entrypoint: [ "/bin/sh", "-c", "sleep infinity" ]
   db-dev:
