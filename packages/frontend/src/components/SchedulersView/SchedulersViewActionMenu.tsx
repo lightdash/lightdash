@@ -1,4 +1,4 @@
-import { ActionIcon, Box, Menu } from '@mantine/core';
+import { ActionIcon, Menu } from '@mantine/core';
 import {
     IconDots,
     IconEdit,
@@ -25,9 +25,6 @@ interface SchedulersViewActionMenuProps {
 }
 
 const SchedulersViewActionMenu: FC<SchedulersViewActionMenuProps> = ({
-    isOpen,
-    onClose,
-    onOpen,
     item,
     projectUuid,
 }) => {
@@ -41,7 +38,6 @@ const SchedulersViewActionMenu: FC<SchedulersViewActionMenuProps> = ({
         <>
             <Menu
                 withinPortal
-                opened={isOpen}
                 position="bottom-start"
                 withArrow
                 arrowPosition="center"
@@ -49,20 +45,17 @@ const SchedulersViewActionMenu: FC<SchedulersViewActionMenuProps> = ({
                 offset={-4}
                 closeOnItemClick
                 closeOnClickOutside
-                onClose={onClose}
             >
                 <Menu.Target>
-                    <Box onClick={isOpen ? onClose : onOpen}>
-                        <ActionIcon
-                            sx={(theme) => ({
-                                ':hover': {
-                                    backgroundColor: theme.colors.gray[1],
-                                },
-                            })}
-                        >
-                            <IconDots size={16} />
-                        </ActionIcon>
-                    </Box>
+                    <ActionIcon
+                        sx={(theme) => ({
+                            ':hover': {
+                                backgroundColor: theme.colors.gray[1],
+                            },
+                        })}
+                    >
+                        <IconDots size={16} />
+                    </ActionIcon>
                 </Menu.Target>
 
                 <Menu.Dropdown maw={320}>

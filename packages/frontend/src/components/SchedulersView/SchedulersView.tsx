@@ -222,17 +222,15 @@ const Schedulers: FC<SchedulersProps> = ({
         <Table className={classes.root} highlightOnHover>
             <thead>
                 <tr>
-                    {columns.map((column) => {
-                        return (
-                            <Box
-                                component="th"
-                                key={column.id}
-                                style={column?.meta?.style}
-                            >
-                                {column?.label}
-                            </Box>
-                        );
-                    })}
+                    {columns.map((column) => (
+                        <Box
+                            component="th"
+                            key={column.id}
+                            style={column?.meta?.style}
+                        >
+                            {column?.label}
+                        </Box>
+                    ))}
                 </tr>
             </thead>
 
