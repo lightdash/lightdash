@@ -372,7 +372,7 @@ describe('Lightdash API tests for member user with admin project permissions', (
     });
 });
 
-describe('Lightdash API tests for member user with editor project permissions', () => {
+describe.only('Lightdash API tests for member user with editor project permissions', () => {
     let email;
 
     before(() => {
@@ -426,6 +426,46 @@ describe('Lightdash API tests for member user with editor project permissions', 
         });
     });
 
+    it('Should get success response (200) from POST runQuery', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        const endpoint = `/projects/${projectUuid}/explores/customers/runQuery`;
+        cy.request({
+            url: `${apiUrl}${endpoint}`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            body: runqueryBody,
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body).to.have.property('status', 'ok');
+        });
+    });
+
+    it('Should get success response (200) from GET savedChartRouter endpoints', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+        cy.request(`${apiUrl}/projects/${projectUuid}/spaces-and-content`).then(
+            (projectResponse) => {
+                expect(projectResponse.status).to.eq(200);
+
+                const savedChartUuid = projectResponse.body.results.find(
+                    (space) => space.queries.length > 0,
+                ).queries[0].uuid;
+
+                const endpoints = [
+                    `/saved/${savedChartUuid}`,
+                    `/saved/${savedChartUuid}/availableFilters`,
+                ];
+
+                endpoints.forEach((endpoint) => {
+                    cy.request(`${apiUrl}${endpoint}`).then((resp) => {
+                        expect(resp.status).to.eq(200);
+                        expect(resp.body).to.have.property('status', 'ok');
+                    });
+                });
+            },
+        );
+    });
+
     it('Should get success response (200) from POST explores', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
@@ -464,20 +504,6 @@ describe('Lightdash API tests for member user with editor project permissions', 
         );
     });
 
-    it('Should get success response (200) from POST runQuery', () => {
-        const projectUuid = SEED_PROJECT.project_uuid;
-
-        const endpoint = `/projects/${projectUuid}/explores/customers/runQuery`;
-        cy.request({
-            url: `${apiUrl}${endpoint}`,
-            headers: { 'Content-type': 'application/json' },
-            method: 'POST',
-            body: runqueryBody,
-        }).then((resp) => {
-            expect(resp.status).to.eq(200);
-            expect(resp.body).to.have.property('status', 'ok');
-        });
-    });
     it('Should get success response (200) from POST downloadCsv', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
@@ -520,6 +546,7 @@ describe('Lightdash API tests for member user with editor project permissions', 
             expect(resp.status).to.eq(403);
         });
     });
+
     it('Should get forbidden (403) from POST validation', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
@@ -590,31 +617,6 @@ describe('Lightdash API tests for member user with editor project permissions', 
             },
         );
     });
-    it('Should get success response (200) from GET savedChartRouter endpoints', () => {
-        const projectUuid = SEED_PROJECT.project_uuid;
-        cy.request(`${apiUrl}/projects/${projectUuid}/spaces-and-content`).then(
-            (projectResponse) => {
-                expect(projectResponse.status).to.eq(200);
-
-                const savedChartUuid = projectResponse.body.results.find(
-                    (space) => space.queries.length > 0,
-                ).queries[0].uuid;
-
-                const endpoints = [
-                    `/saved/${savedChartUuid}`,
-                    `/saved/${savedChartUuid}/availableFilters`,
-                ];
-
-                endpoints.forEach((endpoint) => {
-                    cy.request(`${apiUrl}${endpoint}`).then((resp) => {
-                        expect(resp.status).to.eq(200);
-                        expect(resp.body).to.have.property('status', 'ok');
-                    });
-                });
-            },
-        );
-    });
-
     it('Should get success response (200) from GET organizationRouter endpoints', () => {
         const endpoints = [
             `/org`,
