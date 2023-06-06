@@ -243,7 +243,7 @@ const Settings: FC = () => {
                                 </Title>
 
                                 <RouterNavLink
-                                    label="Project settings"
+                                    label="Connection settings"
                                     exact
                                     to={`/generalSettings/projectManagement/${project.projectUuid}/settings`}
                                     icon={
