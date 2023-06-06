@@ -85,7 +85,18 @@ import { buildQuery } from '../../queryBuilder';
 import { compileMetricQuery } from '../../queryCompiler';
 import { ProjectAdapter } from '../../types';
 import { runWorkerThread, wrapSentryTransaction } from '../../utils';
+import { VERSION } from '../../version';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
+
+type RunQueryTags = {
+    projectUuid?: string;
+    userUuid?: string;
+    organizationUuid?: string;
+    chartUuid?: string;
+};
+const DEFAULT_QUERY_TAGS = {
+    lightdashVersion: VERSION.replaceAll('.', '-'),
+};
 
 type ProjectServiceDependencies = {
     projectModel: ProjectModel;
@@ -773,12 +784,19 @@ export class ProjectService {
             throw new ForbiddenError();
         }
 
+        const queryTags = {
+            organizationUuid,
+            projectUuid,
+            userUuid: user.userUuid,
+        };
+
         return this.runQueryAndFormatRows(
             user,
             metricQuery,
             projectUuid,
             exploreName,
             csvLimit,
+            queryTags,
         );
     }
 
@@ -845,12 +863,20 @@ export class ProjectService {
             ? ProjectService.combineFilters(savedChart.metricQuery, filters)
             : savedChart.metricQuery;
 
+        const queryTags = {
+            organizationUuid,
+            projectUuid,
+            userUuid: user.userUuid,
+            chartUuid,
+        };
+
         return this.runQueryAndFormatRows(
             user,
             metricQuery,
             projectUuid,
             savedChart.tableName,
             undefined,
+            queryTags,
         );
     }
 
@@ -876,12 +902,19 @@ export class ProjectService {
             throw new ForbiddenError();
         }
 
+        const queryTags = {
+            organizationUuid,
+            projectUuid,
+            userUuid: user.userUuid,
+        };
+
         return this.runQueryAndFormatRows(
             user,
             metricQuery,
             projectUuid,
             exploreName,
             csvLimit,
+            queryTags,
         );
     }
 
@@ -891,6 +924,7 @@ export class ProjectService {
         projectUuid: string,
         exploreName: string,
         csvLimit: number | null | undefined,
+        queryTags?: RunQueryTags,
     ): Promise<ApiQueryResults> {
         const rows = await this.runQuery(
             user,
@@ -898,6 +932,7 @@ export class ProjectService {
             projectUuid,
             exploreName,
             csvLimit,
+            queryTags,
         );
 
         const { warehouseConnection } =
@@ -947,6 +982,7 @@ export class ProjectService {
         projectUuid: string,
         exploreName: string,
         csvLimit: number | null | undefined,
+        queryTags?: RunQueryTags,
     ): Promise<Record<string, any>[]> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -1009,7 +1045,10 @@ export class ProjectService {
         });
 
         Logger.debug(`Run query against warehouse`);
-        const { rows } = await warehouseClient.runQuery(query);
+        const { rows } = await warehouseClient.runQuery(query, {
+            ...DEFAULT_QUERY_TAGS,
+            ...(queryTags || {}),
+        });
         await sshTunnel.disconnect();
         return rows;
     }
@@ -1042,7 +1081,11 @@ export class ProjectService {
             projectUuid,
         );
         Logger.debug(`Run query against warehouse`);
-        const results = warehouseClient.runQuery(sql);
+        const results = warehouseClient.runQuery(sql, {
+            ...DEFAULT_QUERY_TAGS,
+            organizationUuid,
+            userUuid: user.userUuid,
+        });
         await sshTunnel.disconnect();
         return results;
     }
@@ -1140,7 +1183,12 @@ export class ProjectService {
         );
 
         Logger.debug(`Run query against warehouse`);
-        const { rows } = await warehouseClient.runQuery(query);
+        const { rows } = await warehouseClient.runQuery(query, {
+            ...DEFAULT_QUERY_TAGS,
+            organizationUuid,
+            userUuid: user.userUuid,
+            projectUuid,
+        });
         await sshTunnel.disconnect();
 
         analytics.track({
