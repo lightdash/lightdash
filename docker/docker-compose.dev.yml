@@ -3,9 +3,9 @@ volumes:
   node_modules:
 
 x-environment: &commonEnvironment
-  - PORT=${PORT:-8080}
+  - PORT=8080
   - PGHOST=${PGHOST}
-  - PGPORT=${PGPORT:-5432}
+  - PGPORT=5432
   - PGUSER=${PGUSER}
   - PGPASSWORD=${PGPASSWORD}
   - PGDATABASE=${PGDATABASE}
