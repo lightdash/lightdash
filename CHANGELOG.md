@@ -1,3 +1,10 @@
+## [0.597.1](https://github.com/lightdash/lightdash/compare/0.597.0...0.597.1) (2023-06-06)
+
+
+### Bug Fixes
+
+* default to http level logs ([#5776](https://github.com/lightdash/lightdash/issues/5776)) ([e358db5](https://github.com/lightdash/lightdash/commit/e358db5c5e33c9abf7afcc16befc71cf872e973f))
+
 # [0.597.0](https://github.com/lightdash/lightdash/compare/0.596.0...0.597.0) (2023-06-06)
 
 
