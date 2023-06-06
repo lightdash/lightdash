@@ -253,7 +253,6 @@ const GlobalSearch: FC<GlobalSearchProps> = ({ projectUuid }) => {
 
             <MantineProvider inherit theme={{ colorScheme: 'light' }}>
                 <SpotlightProvider
-                    withinPortal
                     zIndex={200}
                     actions={
                         query && query.length >= GLOBAL_SEARCH_MIN_QUERY_LENGTH
