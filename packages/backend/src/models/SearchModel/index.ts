@@ -77,7 +77,7 @@ export class SearchModel {
                     validationErrors: this.database.raw(`
                         COALESCE(
                             (
-                                SELECT json_agg(validations.*) 
+                                SELECT json_agg(json_build_object('error', validations.error, 'createdAt', validations.created_at, 'validationId', validations.validation_id))
                                 FROM validations 
                                 WHERE validations.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid
                             ), '[]'
@@ -96,18 +96,6 @@ export class SearchModel {
                         `LOWER(${DashboardsTableName}.description) like LOWER(?)`,
                         [`%${query}%`],
                     ),
-            )
-            .then((results) =>
-                results.map(({ validationErrors, ...result }) => ({
-                    ...result,
-                    validationErrors: validationErrors.map(
-                        (validationError: DbValidationTable) => ({
-                            error: validationError.error,
-                            createdAt: validationError.created_at,
-                            validationId: validationError.validation_id,
-                        }),
-                    ),
-                })),
             );
     }
 
@@ -143,7 +131,7 @@ export class SearchModel {
                     validationErrors: this.database.raw(`
                         COALESCE(
                             (
-                                SELECT json_agg(validations.*) 
+                                SELECT json_agg(json_build_object('error', validations.error, 'createdAt', validations.created_at, 'validationId', validations.validation_id))
                                 FROM validations 
                                 WHERE validations.saved_chart_uuid = saved_queries.saved_query_uuid
                             ), '[]'
@@ -165,24 +153,10 @@ export class SearchModel {
                     ),
             )
             .then((results) =>
-                results.map(
-                    ({
-                        chartType,
-                        chartConfig,
-                        validationErrors,
-                        ...result
-                    }) => ({
-                        ...result,
-                        chartType: getChartType(chartType, chartConfig),
-                        validationErrors: validationErrors.map(
-                            (validationError: DbValidationTable) => ({
-                                error: validationError.error,
-                                createdAt: validationError.created_at,
-                                validationId: validationError.validation_id,
-                            }),
-                        ),
-                    }),
-                ),
+                results.map(({ chartType, chartConfig, ...result }) => ({
+                    ...result,
+                    chartType: getChartType(chartType, chartConfig),
+                })),
             );
     }
 
