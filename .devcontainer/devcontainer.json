@@ -2,6 +2,7 @@
   "name": "Lightdash",
   "dockerComposeFile": "../docker/docker-compose.dev.yml",
   "service": "lightdash-dev",
+  "runArgs": ["--env-file","../.env"],
   "workspaceFolder": "/workspaces/lightdash",
   "shutdownAction": "stopCompose",
   "postCreateCommand": "git submodule update --init && ./scripts/build.sh && ./scripts/seed-jaffle.sh && ./scripts/migrate.sh && ./scripts/seed-lightdash.sh",

@@ -2,9 +2,6 @@ version: "3.8"
 volumes:
   node_modules:
 
-env_file: 
-  - ../.env
-
 services:
   lightdash-dev:
     build:
