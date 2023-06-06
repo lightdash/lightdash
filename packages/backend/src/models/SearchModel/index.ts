@@ -56,7 +56,7 @@ export class SearchModel {
         projectUuid: string,
         query: string,
     ): Promise<DashboardSearchResult[]> {
-        return this.database(DashboardsTableName)
+        const dashboards = await this.database(DashboardsTableName)
             .select()
             .leftJoin(
                 SpaceTableName,
@@ -73,17 +73,6 @@ export class SearchModel {
                 `${DashboardsTableName}.name`,
                 `${DashboardsTableName}.description`,
                 { spaceUuid: 'space_uuid' },
-                {
-                    validationErrors: this.database.raw(`
-                        COALESCE(
-                            (
-                                SELECT json_agg(json_build_object('error', validations.error, 'createdAt', validations.created_at, 'validationId', validations.validation_id))
-                                FROM validations 
-                                WHERE validations.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid
-                            ), '[]'
-                        )
-                    `),
-                },
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .andWhere((qB) =>
@@ -97,13 +86,39 @@ export class SearchModel {
                         [`%${query}%`],
                     ),
             );
+
+        const dashboardUuids = dashboards.map((dashboard) => dashboard.uuid);
+
+        const validationErrors = await this.database('validations')
+            .whereIn('dashboard_uuid', dashboardUuids)
+            .andWhereNot('dashboard_uuid', null)
+            .select('validation_id', 'dashboard_uuid')
+            .then((rows) =>
+                rows.reduce<Record<string, Array<{ validationId: number }>>>(
+                    (acc, row) => {
+                        if (row.dashboard_uuid) {
+                            acc[row.dashboard_uuid] = [
+                                ...(acc[row.dashboard_uuid] ?? []),
+                                { validationId: row.validation_id },
+                            ];
+                        }
+                        return acc;
+                    },
+                    {},
+                ),
+            );
+
+        return dashboards.map((dashboard) => ({
+            ...dashboard,
+            validationErrors: validationErrors[dashboard.uuid] || [],
+        }));
     }
 
     private async searchSavedCharts(
         projectUuid: string,
         query: string,
     ): Promise<SavedChartSearchResult[]> {
-        return this.database(SavedChartsTableName)
+        const savedCharts = await this.database(SavedChartsTableName)
             .select()
             .leftJoin(
                 SpaceTableName,
@@ -127,17 +142,6 @@ export class SearchModel {
                 { spaceUuid: 'space_uuid' },
                 { chartType: 'saved_queries_versions.chart_type' },
                 { chartConfig: 'saved_queries_versions.chart_config' },
-                {
-                    validationErrors: this.database.raw(`
-                        COALESCE(
-                            (
-                                SELECT json_agg(json_build_object('error', validations.error, 'createdAt', validations.created_at, 'validationId', validations.validation_id))
-                                FROM validations 
-                                WHERE validations.saved_chart_uuid = saved_queries.saved_query_uuid
-                            ), '[]'
-                        ) 
-                    `),
-                },
             )
             .distinctOn(`saved_queries_versions.saved_query_id`)
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
@@ -158,6 +162,32 @@ export class SearchModel {
                     chartType: getChartType(chartType, chartConfig),
                 })),
             );
+
+        const chartUuids = savedCharts.map((chart) => chart.uuid);
+
+        const validationErrors = await this.database('validations')
+            .whereIn('saved_chart_uuid', chartUuids)
+            .andWhereNot('saved_chart_uuid', null)
+            .select('validation_id', 'saved_chart_uuid')
+            .then((rows) =>
+                rows.reduce<Record<string, Array<{ validationId: number }>>>(
+                    (acc, row) => {
+                        if (row.saved_chart_uuid) {
+                            acc[row.saved_chart_uuid] = [
+                                ...(acc[row.saved_chart_uuid] ?? []),
+                                { validationId: row.validation_id },
+                            ];
+                        }
+                        return acc;
+                    },
+                    {},
+                ),
+            );
+
+        return savedCharts.map((chart) => ({
+            ...chart,
+            validationErrors: validationErrors[chart.uuid] || [],
+        }));
     }
 
     private async getProjectExplores(projectUuid: string): Promise<Explore[]> {
