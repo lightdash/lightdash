@@ -1,3 +1,10 @@
+# [0.597.0](https://github.com/lightdash/lightdash/compare/0.596.0...0.597.0) (2023-06-06)
+
+
+### Features
+
+* schedulers view ([#5731](https://github.com/lightdash/lightdash/issues/5731)) ([041d6b2](https://github.com/lightdash/lightdash/commit/041d6b212c10aaf084b09657b0d26aaaf2baf267))
+
 # [0.596.0](https://github.com/lightdash/lightdash/compare/0.595.2...0.596.0) (2023-06-06)
 
 
