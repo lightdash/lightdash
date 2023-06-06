@@ -1,3 +1,10 @@
+# [0.596.0](https://github.com/lightdash/lightdash/compare/0.595.2...0.596.0) (2023-06-06)
+
+
+### Features
+
+* add one anchor and open links in new tab ([#5753](https://github.com/lightdash/lightdash/issues/5753)) ([9e3ba4a](https://github.com/lightdash/lightdash/commit/9e3ba4ab0b89cf5fd318f8224b3408af41f77d3f))
+
 ## [0.595.2](https://github.com/lightdash/lightdash/compare/0.595.1...0.595.2) (2023-06-06)
 
 
