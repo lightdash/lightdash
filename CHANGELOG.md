@@ -1,3 +1,10 @@
+## [0.598.1](https://github.com/lightdash/lightdash/compare/0.598.0...0.598.1) (2023-06-06)
+
+
+### Bug Fixes
+
+* add top border for table header ([#5744](https://github.com/lightdash/lightdash/issues/5744)) ([638023f](https://github.com/lightdash/lightdash/commit/638023f16e63a678f0ac63d656ee6e232d017b1c))
+
 # [0.598.0](https://github.com/lightdash/lightdash/compare/0.597.1...0.598.0) (2023-06-06)
 
 
