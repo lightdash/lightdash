@@ -1,3 +1,10 @@
+# [0.598.0](https://github.com/lightdash/lightdash/compare/0.597.1...0.598.0) (2023-06-06)
+
+
+### Features
+
+* add z-index 20 to Indicator in theme ([#5779](https://github.com/lightdash/lightdash/issues/5779)) ([6612962](https://github.com/lightdash/lightdash/commit/6612962a6d4a2fdf879c36eae70db2c1a11c92fb))
+
 ## [0.597.1](https://github.com/lightdash/lightdash/compare/0.597.0...0.597.1) (2023-06-06)
 
 
