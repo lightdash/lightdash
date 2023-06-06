@@ -19,7 +19,6 @@ import { useErrorLogs } from '../../providers/ErrorLogsProvider';
 import { ReactComponent as Logo } from '../../svgs/logo-icon.svg';
 import MantineIcon from '../common/MantineIcon';
 import { ErrorLogsDrawer } from '../ErrorLogsDrawer';
-import { ShowErrorsButton } from '../ShowErrorsButton';
 import BrowseMenu from './BrowseMenu';
 import ExploreMenu from './ExploreMenu';
 import GlobalSearch from './GlobalSearch';
@@ -114,11 +113,12 @@ const NavBar = memo(() => {
                 <Box sx={{ flexGrow: 1 }} />
 
                 <Group sx={{ flexShrink: 0 }}>
+                    {errorLogs.length > 0
+                        ? errorLogs.filter((log) => log.isUnread).length > 0
+                            ? setErrorLogsVisible(true)
+                            : null
+                        : null}
                     <ErrorLogsDrawer />
-                    <ShowErrorsButton
-                        errorLogs={errorLogs}
-                        setErrorLogsVisible={setErrorLogsVisible}
-                    />
 
                     <Button.Group>
                         <SettingsMenu />
