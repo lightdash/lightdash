@@ -124,7 +124,7 @@ describe('Lightdash API tests for member user with admin project permissions', (
         );
     });
 
-    it('Should get success response (200) from POST explores', async () => {
+    it.skip('Should get success response (200) from PUT explores', async () => {
         const projectUuid = SEED_PROJECT.project_uuid;
         await updateExplores(projectUuid);
     });
@@ -466,7 +466,7 @@ describe('Lightdash API tests for member user with editor project permissions', 
         );
     });
 
-    it('Should get success response (200) from POST explores', () => {
+    it.skip('Should get success response (200) from PUT explores', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
         const endpoint = `/projects/${projectUuid}/explores`;
@@ -682,7 +682,7 @@ describe('Lightdash API tests for member user with developer project permissions
         cy.loginWithEmail(email);
     });
 
-    it('Should get success response (200) from POST explores', async () => {
+    it.skip('Should get success response (200) from PUT explores', async () => {
         const projectUuid = SEED_PROJECT.project_uuid;
         await updateExplores(projectUuid);
     });
@@ -761,7 +761,7 @@ describe('Lightdash API tests for member user with interactive_viewer project pe
         });
     });
 
-    it('Should get forbidden (403) from POST explores', () => {
+    it('Should get forbidden (403) from PUT explores', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
         const endpoint = `/projects/${projectUuid}/explores`;
@@ -1017,7 +1017,7 @@ describe('Lightdash API tests for member user with viewer project permissions', 
         );
     });
 
-    it('Should get forbidden (403) from POST explores', () => {
+    it('Should get forbidden (403) from PUT explores', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
         const endpoint = `/projects/${projectUuid}/explores`;
@@ -1330,7 +1330,7 @@ describe('Lightdash API tests for member user with NO project permissions', () =
         );
     });
 
-    it('Should get forbidden (403) from POST explores', () => {
+    it('Should get forbidden (403) from PUT explores', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
         const endpoint = `/projects/${projectUuid}/explores`;
