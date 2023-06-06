@@ -1,3 +1,10 @@
+# [0.595.0](https://github.com/lightdash/lightdash/compare/0.594.2...0.595.0) (2023-06-06)
+
+
+### Features
+
+* rename project settings ([#5769](https://github.com/lightdash/lightdash/issues/5769)) ([2caa48f](https://github.com/lightdash/lightdash/commit/2caa48f8455ddc8a9c774b5f94099b05cde0355f))
+
 ## [0.594.2](https://github.com/lightdash/lightdash/compare/0.594.1...0.594.2) (2023-06-05)
 
 
