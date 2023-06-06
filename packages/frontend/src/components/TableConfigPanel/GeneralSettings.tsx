@@ -231,7 +231,7 @@ const GeneralSettings: FC = () => {
                     }}
                 />
                 <Checkbox
-                    label="Show results total"
+                    label="Show number of results"
                     checked={showResultsTotal}
                     onChange={() => {
                         setShowResultsTotal(!showResultsTotal);
