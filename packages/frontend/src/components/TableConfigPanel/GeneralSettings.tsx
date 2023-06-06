@@ -216,7 +216,7 @@ const GeneralSettings: FC = () => {
                 />
                 {canUsePivotTable ? (
                     <Checkbox
-                        label="Show row total"
+                        label="Show row totals"
                         checked={showRowCalculation}
                         onChange={() => {
                             setShowRowCalculation(!showRowCalculation);
@@ -224,7 +224,7 @@ const GeneralSettings: FC = () => {
                     />
                 ) : null}
                 <Checkbox
-                    label="Show column total"
+                    label="Show column totals"
                     checked={showColumnCalculation}
                     onChange={() => {
                         setShowColumnCalculation(!showColumnCalculation);
