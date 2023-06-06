@@ -6,8 +6,21 @@ import {
     ValidationErrorDashboardResponse,
     ValidationResponse,
 } from '@lightdash/common';
-import { Flex, Stack, Table, Text, useMantineTheme } from '@mantine/core';
-import { IconLayoutDashboard, IconTable } from '@tabler/icons-react';
+import {
+    Box,
+    Flex,
+    Stack,
+    Table,
+    Text,
+    Tooltip,
+    useMantineTheme,
+} from '@mantine/core';
+import { useHover } from '@mantine/hooks';
+import {
+    IconCircleXFilled,
+    IconLayoutDashboard,
+    IconTable,
+} from '@tabler/icons-react';
 import { createRef, FC, RefObject, useMemo } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
@@ -37,6 +50,105 @@ const Icon = ({ validationError }: { validationError: ValidationResponse }) => {
     return <IconBox icon={IconTable} color="indigo.6" />;
 };
 
+const getErrorName = (validationError: ValidationResponse) => {
+    if (
+        isChartValidationError(validationError) ||
+        isDashboardValidationError(validationError)
+    )
+        return validationError.name;
+    if (isTableValidationError(validationError))
+        return validationError.name ?? 'Table';
+};
+
+const handleOnValidationErrorClick = (
+    projectUuid: string,
+    validationError: ValidationResponse,
+    history: ReturnType<typeof useHistory>,
+) => {
+    const link = getLinkToResource(validationError, projectUuid);
+    if (link) history.push(link);
+};
+
+const getViews = (
+    validationError:
+        | ValidationErrorChartResponse
+        | ValidationErrorDashboardResponse,
+) => {
+    if ('chartViews' in validationError) return validationError.chartViews;
+    if ('dashboardViews' in validationError)
+        return validationError.dashboardViews;
+};
+
+const TableValidationItem: FC<{
+    projectUuid: string;
+    validationError: ValidationResponse;
+}> = ({ projectUuid, validationError }) => {
+    const { mutate: deleteValidation } = useDeleteValidation(projectUuid);
+    const history = useHistory();
+
+    const { hovered, ref } = useHover<HTMLTableRowElement>();
+
+    return (
+        <tr
+            ref={ref}
+            onClick={() =>
+                handleOnValidationErrorClick(
+                    projectUuid,
+                    validationError,
+                    history,
+                )
+            }
+        >
+            <td>
+                <Flex gap="sm" align="center">
+                    <Icon validationError={validationError} />
+
+                    <Stack spacing={4}>
+                        <Text fw={600}>{getErrorName(validationError)}</Text>
+
+                        {(isChartValidationError(validationError) ||
+                            isDashboardValidationError(validationError)) && (
+                            <Text fz={11} color="gray.6">
+                                {getViews(validationError)} view
+                                {getViews(validationError) === 1 ? '' : 's'}
+                                {' • '}
+                                {validationError.lastUpdatedBy ? (
+                                    <>
+                                        Last edited by{' '}
+                                        <Text span fw={500}>
+                                            {validationError.lastUpdatedBy}
+                                        </Text>
+                                    </>
+                                ) : null}
+                            </Text>
+                        )}
+                    </Stack>
+                </Flex>
+            </td>
+            <td>
+                <ErrorMessage validationError={validationError} />
+            </td>
+            <td>
+                <Tooltip label="Dismiss error" position="top">
+                    <Box w={24} h={24}>
+                        {hovered && (
+                            <IconCircleXFilled
+                                onClick={(e) => {
+                                    deleteValidation(
+                                        validationError.validationId,
+                                    );
+                                    e.stopPropagation();
+                                }}
+                            >
+                                x
+                            </IconCircleXFilled>
+                        )}
+                    </Box>
+                </Tooltip>
+            </td>
+        </tr>
+    );
+};
 export const ValidatorTable: FC<{
     data: ValidationResponse[];
     projectUuid: string;
@@ -44,11 +156,9 @@ export const ValidatorTable: FC<{
     const { cx, classes } = useTableStyles();
     const { colors } = useMantineTheme();
 
-    const history = useHistory();
     const location = useLocation<{ validationId: number }>();
     const searchParams = new URLSearchParams(location.search);
     const validationId = searchParams.get('validationId');
-    const { mutate: deleteValidation } = useDeleteValidation(projectUuid);
     const refs = useMemo(
         () =>
             data.reduce((acc, value) => {
@@ -59,33 +169,6 @@ export const ValidatorTable: FC<{
     );
 
     useScrollAndHighlight(refs, validationId, colors);
-
-    const handleOnValidationErrorClick = (
-        validationError: ValidationResponse,
-    ) => {
-        const link = getLinkToResource(validationError, projectUuid);
-        if (link) history.push(link);
-    };
-
-    const getViews = (
-        validationError:
-            | ValidationErrorChartResponse
-            | ValidationErrorDashboardResponse,
-    ) => {
-        if ('chartViews' in validationError) return validationError.chartViews;
-        if ('dashboardViews' in validationError)
-            return validationError.dashboardViews;
-    };
-
-    const getErrorName = (validationError: ValidationResponse) => {
-        if (
-            isChartValidationError(validationError) ||
-            isDashboardValidationError(validationError)
-        )
-            return validationError.name;
-        if (isTableValidationError(validationError))
-            return validationError.name ?? 'Table';
-    };
 
     return (
         <Table
@@ -101,72 +184,17 @@ export const ValidatorTable: FC<{
                 <tr>
                     <th>Name</th>
                     <th>Error</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
                 {data && data.length
                     ? data.map((validationError) => (
-                          <tr
+                          <TableValidationItem
                               key={validationError.validationId}
-                              ref={refs[validationError.validationId]}
-                              onClick={() =>
-                                  handleOnValidationErrorClick(validationError)
-                              }
-                          >
-                              <td>
-                                  <Flex gap="sm" align="center">
-                                      <Icon validationError={validationError} />
-
-                                      <Stack spacing={4}>
-                                          <Text fw={600}>
-                                              {getErrorName(validationError)}
-                                          </Text>
-
-                                          {(isChartValidationError(
-                                              validationError,
-                                          ) ||
-                                              isDashboardValidationError(
-                                                  validationError,
-                                              )) && (
-                                              <Text fz={11} color="gray.6">
-                                                  {getViews(validationError)}{' '}
-                                                  view
-                                                  {getViews(validationError) ===
-                                                  1
-                                                      ? ''
-                                                      : 's'}
-                                                  {' • '}
-                                                  {validationError.lastUpdatedBy ? (
-                                                      <>
-                                                          Last edited by{' '}
-                                                          <Text span fw={500}>
-                                                              {
-                                                                  validationError.lastUpdatedBy
-                                                              }
-                                                          </Text>
-                                                      </>
-                                                  ) : null}
-                                              </Text>
-                                          )}
-                                      </Stack>
-                                  </Flex>
-                              </td>
-                              <td>
-                                  <ErrorMessage
-                                      validationError={validationError}
-                                  />
-                                  <button
-                                      onClick={(e) => {
-                                          deleteValidation(
-                                              validationError.validationId,
-                                          );
-                                          e.stopPropagation();
-                                      }}
-                                  >
-                                      x
-                                  </button>
-                              </td>
-                          </tr>
+                              projectUuid={projectUuid}
+                              validationError={validationError}
+                          />
                       ))
                     : null}
             </tbody>
