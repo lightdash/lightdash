@@ -4,10 +4,7 @@ import {
     Field,
     FieldId,
     getItemId,
-    isAdditionalMetric,
     isDimension,
-    isField,
-    isMetric,
     isTableCalculation,
     Item,
     MetricType,
@@ -26,19 +23,15 @@ export const isSummable = (item: Item) => {
         return false;
     }
 
-    if (isField(item) || isMetric(item) || isAdditionalMetric(item)) {
-        const numericTypes: string[] = [
-            DimensionType.NUMBER,
-            MetricType.NUMBER,
-            MetricType.COUNT,
-            MetricType.SUM,
-        ];
-        const isPercent = item.format === 'percent';
-        const isDatePart = isDimension(item) && item.timeInterval;
-        return numericTypes.includes(item.type) && !isPercent && !isDatePart;
-    }
-
-    return false;
+    const numericTypes: string[] = [
+        DimensionType.NUMBER,
+        MetricType.NUMBER,
+        MetricType.COUNT,
+        MetricType.SUM,
+    ];
+    const isPercent = item.format === 'percent';
+    const isDatePart = isDimension(item) && item.timeInterval;
+    return numericTypes.includes(item.type) && !isPercent && !isDatePart;
 };
 
 const getResultColumnTotals = (
