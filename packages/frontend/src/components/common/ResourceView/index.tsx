@@ -12,6 +12,7 @@ import {
 } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import React, { useCallback, useMemo, useState } from 'react';
+import { useTableTabStyles } from '../../../hooks/styles/useTableTabStyles';
 import ResourceActionHandlers, {
     ResourceViewItemAction,
     ResourceViewItemActionState,
@@ -77,6 +78,7 @@ const ResourceView: React.FC<ResourceViewProps> = ({
     pinnedItemsProps = { projectUuid: '', pinnedListUuid: '' },
 }) => {
     const theme = useMantineTheme();
+    const tableTabStyles = useTableTabStyles();
 
     const [action, setAction] = useState<ResourceViewItemActionState>({
         type: ResourceViewItemAction.CLOSE,
@@ -136,17 +138,7 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                         <Group>
                             {hasTabs ? (
                                 <Tabs
-                                    styles={{
-                                        tab: {
-                                            borderRadius: 0,
-                                            height: 50,
-                                            padding: '0 20px',
-                                        },
-                                        tabsList: {
-                                            borderBottom: 'none',
-                                        },
-                                    }}
-                                    sx={{ flexGrow: 1 }}
+                                    classNames={tableTabStyles.classes}
                                     value={activeTabId}
                                     onTabChange={(t: string) =>
                                         setActiveTabId(t)
