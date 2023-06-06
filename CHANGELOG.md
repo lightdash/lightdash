@@ -1,3 +1,10 @@
+## [0.598.2](https://github.com/lightdash/lightdash/compare/0.598.1...0.598.2) (2023-06-06)
+
+
+### Bug Fixes
+
+* hide pinned panel when no items to pin ([#5758](https://github.com/lightdash/lightdash/issues/5758)) ([6277979](https://github.com/lightdash/lightdash/commit/6277979194bacb8304dd52f02aa87dd6d13a24d3))
+
 ## [0.598.1](https://github.com/lightdash/lightdash/compare/0.598.0...0.598.1) (2023-06-06)
 
 
