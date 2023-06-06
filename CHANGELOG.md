@@ -1,3 +1,10 @@
+## [0.595.2](https://github.com/lightdash/lightdash/compare/0.595.1...0.595.2) (2023-06-06)
+
+
+### Bug Fixes
+
+* cli deploy permissions ([#5763](https://github.com/lightdash/lightdash/issues/5763)) ([2d9e5ff](https://github.com/lightdash/lightdash/commit/2d9e5ff6e36c0c9e8a054f4ee89346748f07895d))
+
 ## [0.595.1](https://github.com/lightdash/lightdash/compare/0.595.0...0.595.1) (2023-06-06)
 
 
