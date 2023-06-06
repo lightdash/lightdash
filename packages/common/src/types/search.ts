@@ -13,10 +13,7 @@ export type DashboardSearchResult = Pick<
     Dashboard,
     'uuid' | 'name' | 'description' | 'spaceUuid'
 > & {
-    validationErrors: Pick<
-        ValidationErrorDashboardResponse,
-        'error' | 'createdAt' | 'validationId'
-    >[];
+    validationErrors: ValidationErrorDashboardResponse['validationId'][];
 };
 
 export type SavedChartSearchResult = Pick<
@@ -24,10 +21,7 @@ export type SavedChartSearchResult = Pick<
     'uuid' | 'name' | 'description' | 'spaceUuid'
 > & {
     chartType: ChartKind;
-    validationErrors: Pick<
-        ValidationErrorChartResponse,
-        'error' | 'createdAt' | 'validationId'
-    >[];
+    validationErrors: ValidationErrorChartResponse['validationId'][];
 };
 export type TableSearchResult = Pick<
     Table,
