@@ -25,9 +25,9 @@ export type LightdashConfigIn = {
     mode: LightdashMode;
 };
 
-type LoggingLevel = 'error' | 'warn' | 'info' | 'debug';
+type LoggingLevel = 'error' | 'warn' | 'info' | 'http' | 'debug';
 const assertIsLoggingLevel = (x: string): x is LoggingLevel =>
-    ['error', 'warn', 'info', 'debug'].includes(x);
+    ['error', 'warn', 'info', 'http', 'debug'].includes(x);
 const parseLoggingLevel = (raw: string): LoggingLevel => {
     if (!assertIsLoggingLevel(raw)) {
         throw new ParseError(
@@ -373,7 +373,7 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                 process.env.LIGHTDASH_LOG_LEVEL ||
                     ((process.env.NODE_ENV || 'development') === 'development'
                         ? 'debug'
-                        : 'warn'),
+                        : 'http'),
             ),
             format: parseLoggingFormat(
                 process.env.LIGHTDASH_LOG_FORMAT || 'pretty',
