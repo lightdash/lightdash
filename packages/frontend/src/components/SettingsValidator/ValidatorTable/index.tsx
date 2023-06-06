@@ -17,7 +17,7 @@ import {
 } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import {
-    IconCircleXFilled,
+    IconCircleX,
     IconLayoutDashboard,
     IconTable,
 } from '@tabler/icons-react';
@@ -85,6 +85,7 @@ const TableValidationItem: FC<{
 }> = ({ projectUuid, validationError }) => {
     const { mutate: deleteValidation } = useDeleteValidation(projectUuid);
     const history = useHistory();
+    const theme = useMantineTheme();
 
     const { hovered, ref } = useHover<HTMLTableRowElement>();
 
@@ -132,16 +133,15 @@ const TableValidationItem: FC<{
                 <Tooltip label="Dismiss error" position="top">
                     <Box w={24} h={24}>
                         {hovered && (
-                            <IconCircleXFilled
+                            <IconCircleX
+                                color={theme.colors.gray[6]}
                                 onClick={(e) => {
                                     deleteValidation(
                                         validationError.validationId,
                                     );
                                     e.stopPropagation();
                                 }}
-                            >
-                                x
-                            </IconCircleXFilled>
+                            />
                         )}
                     </Box>
                 </Tooltip>
