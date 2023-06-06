@@ -1,4 +1,9 @@
-import { SchedulerJobStatus, SchedulerWithLogs } from '@lightdash/common';
+import {
+    assertUnreachable,
+    SchedulerFormat,
+    SchedulerJobStatus,
+    SchedulerWithLogs,
+} from '@lightdash/common';
 import { MantineTheme, Tooltip } from '@mantine/core';
 import {
     IconAlertTriangleFilled,
@@ -37,7 +42,7 @@ export interface Column {
 
 export const getSchedulerIcon = (item: SchedulerItem, theme: MantineTheme) => {
     switch (item.format) {
-        case 'csv':
+        case SchedulerFormat.CSV:
             return (
                 <IconBox
                     icon={IconCsv}
@@ -45,7 +50,7 @@ export const getSchedulerIcon = (item: SchedulerItem, theme: MantineTheme) => {
                     style={{ color: theme.colors.indigo[6] }}
                 />
             );
-        case 'image':
+        case SchedulerFormat.IMAGE:
             return (
                 <IconBox
                     icon={IconPhoto}
@@ -53,11 +58,11 @@ export const getSchedulerIcon = (item: SchedulerItem, theme: MantineTheme) => {
                     style={{ color: theme.colors.indigo[6] }}
                 />
             );
-        // default:
-        //     return assertUnreachable(
-        //         item.format,
-        //         'Resource type not supported',
-        //     );
+        default:
+            return assertUnreachable(
+                item.format,
+                'Resource type not supported',
+            );
     }
 };
 
@@ -103,8 +108,8 @@ export const getLogStatusIcon = (log: Log, theme: MantineTheme) => {
                     />
                 </Tooltip>
             );
-        // default:
-        //     return assertUnreachable(log, 'Resource type not supported');
+        default:
+            return assertUnreachable(log.status, 'Resource type not supported');
     }
 };
 
