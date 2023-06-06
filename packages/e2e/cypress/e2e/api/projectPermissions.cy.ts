@@ -372,7 +372,7 @@ describe('Lightdash API tests for member user with admin project permissions', (
     });
 });
 
-describe.only('Lightdash API tests for member user with editor project permissions', () => {
+describe('Lightdash API tests for member user with editor project permissions', () => {
     let email;
 
     before(() => {
