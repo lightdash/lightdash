@@ -7,7 +7,7 @@ import {
 } from '@tabler/icons-react';
 import React, { FC } from 'react';
 import { useQueryClient } from 'react-query';
-import { useHistory } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import MantineIcon from '../common/MantineIcon';
 import SchedulerDeleteModal from '../SchedulerModals/SchedulerModalBase/SchedulerDeleteModal';
 import {
@@ -32,8 +32,11 @@ const SchedulersViewActionMenu: FC<SchedulersViewActionMenuProps> = ({
     projectUuid,
 }) => {
     const [isDeleting, setIsDeleting] = React.useState(false);
-    const history = useHistory();
     const queryClient = useQueryClient();
+    const handleDelete = async () => {
+        setIsDeleting(false);
+        queryClient.invalidateQueries('schedulerLogs');
+    };
     return (
         <>
             <Menu
@@ -64,26 +67,21 @@ const SchedulersViewActionMenu: FC<SchedulersViewActionMenuProps> = ({
 
                 <Menu.Dropdown maw={320}>
                     <Menu.Item
-                        component="button"
+                        component={Link}
                         role="menuitem"
                         icon={<IconEdit size={18} />}
-                        onClick={() =>
-                            history.push(getSchedulerLink(item, projectUuid))
-                        }
+                        to={getSchedulerLink(item, projectUuid)}
                     >
                         Edit schedule
                     </Menu.Item>
                     <Menu.Item
-                        component="button"
+                        component={Link}
                         role="menuitem"
                         icon={<IconSquarePlus size={18} />}
-                        onClick={() =>
-                            history.push(getItemLink(item, projectUuid))
-                        }
+                        to={getItemLink(item, projectUuid)}
                     >
                         Go to {item.savedChartUuid ? 'chart' : 'dashboard'}
                     </Menu.Item>
-
                     <Menu.Divider />
                     <Menu.Item
                         component="button"
@@ -100,11 +98,8 @@ const SchedulersViewActionMenu: FC<SchedulersViewActionMenuProps> = ({
                 lazy={true}
                 isOpen={isDeleting}
                 schedulerUuid={item.schedulerUuid}
-                onConfirm={() => {
-                    setIsDeleting(false);
-                    queryClient.invalidateQueries('schedulerLogs');
-                }}
-                onClose={() => queryClient.invalidateQueries('schedulerLogs')}
+                onConfirm={handleDelete}
+                onClose={handleDelete}
             />
         </>
     );

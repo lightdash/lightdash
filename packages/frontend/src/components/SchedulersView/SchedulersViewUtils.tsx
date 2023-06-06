@@ -53,6 +53,11 @@ export const getSchedulerIcon = (item: SchedulerItem, theme: MantineTheme) => {
                     style={{ color: theme.colors.indigo[6] }}
                 />
             );
+        // default:
+        //     return assertUnreachable(
+        //         item.format,
+        //         'Resource type not supported',
+        //     );
     }
 };
 
@@ -98,6 +103,8 @@ export const getLogStatusIcon = (log: Log, theme: MantineTheme) => {
                     />
                 </Tooltip>
             );
+        // default:
+        //     return assertUnreachable(log, 'Resource type not supported');
     }
 };
 

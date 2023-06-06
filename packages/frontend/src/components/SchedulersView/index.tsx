@@ -5,6 +5,7 @@ import { useQueryClient } from 'react-query';
 import { useSchedulerLogs } from '../../hooks/scheduler/useScheduler';
 import { useTableTabStyles } from '../../hooks/styles/useTableTabStyles';
 import useToaster from '../../hooks/toaster/useToaster';
+import LoadingState from '../common/LoadingState';
 import MantineIcon from '../common/MantineIcon';
 import ResourceEmptyState from '../common/ResourceView/ResourceEmptyState';
 import { SettingsCard } from '../common/Settings/SettingsCard';
@@ -12,22 +13,20 @@ import Logs from './LogsView';
 import Schedulers from './SchedulersView';
 
 const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
-    const { data } = useSchedulerLogs(projectUuid);
-    const queryClient = useQueryClient();
+    const { data, isLoading } = useSchedulerLogs(projectUuid);
     const tableTabStyles = useTableTabStyles();
+    const queryClient = useQueryClient();
     const { showToastSuccess } = useToaster();
-    const emptyState = (
-        <ResourceEmptyState
-            title="No scheduled deliveries on this project"
-            description="Go to a chart or dashboard to set up your first scheduled delivery"
-        />
-    );
-    const logsEmptyState = (
-        <ResourceEmptyState
-            title="Scheduled deliveries have not run any jobs as of now"
-            description="Check in later of hit the refresh button to see if any jobs have run"
-        />
-    );
+    const handleRefresh = async () => {
+        queryClient.invalidateQueries('schedulerLogs').then(() =>
+            showToastSuccess({
+                title: 'Scheduled deliveries refreshed successfully',
+            }),
+        );
+    };
+    if (isLoading) {
+        return <LoadingState title="Loading scheduled deliveries" />;
+    }
     return (
         <SettingsCard style={{ overflow: 'visible' }} p={0} shadow="none">
             <Tabs
@@ -74,18 +73,7 @@ const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                         </Tabs.Tab>
                     </Tabs.List>
                     <Tooltip label="Click to refresh the status of the scheduled deliveries">
-                        <ActionIcon
-                            ml="auto"
-                            onClick={() =>
-                                queryClient
-                                    .invalidateQueries('schedulerLogs')
-                                    .then(() =>
-                                        showToastSuccess({
-                                            title: 'Scheduled deliveries refreshed successfully',
-                                        }),
-                                    )
-                            }
-                        >
+                        <ActionIcon ml="auto" onClick={handleRefresh}>
                             <MantineIcon
                                 icon={IconRefresh}
                                 size="lg"
@@ -99,18 +87,27 @@ const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     {data && data.schedulers.length > 0 ? (
                         <Schedulers {...data} projectUuid={projectUuid} />
                     ) : (
-                        emptyState
+                        <ResourceEmptyState
+                            title="No scheduled deliveries on this project"
+                            description="Go to a chart or dashboard to set up your first scheduled delivery"
+                        />
                     )}
                 </Tabs.Panel>
                 <Tabs.Panel value="run-history">
-                    {data &&
-                    data.schedulers.length > 0 &&
-                    data.logs.length > 0 ? (
-                        <Logs {...data} projectUuid={projectUuid} />
-                    ) : data && data.schedulers.length > 0 ? (
-                        logsEmptyState
+                    {data && data.schedulers.length > 0 ? (
+                        data.logs.length > 0 ? (
+                            <Logs {...data} projectUuid={projectUuid} />
+                        ) : (
+                            <ResourceEmptyState
+                                title="Scheduled deliveries have not run any jobs as of now"
+                                description="Check in later of hit the refresh button to see if any jobs have run"
+                            />
+                        )
                     ) : (
-                        emptyState
+                        <ResourceEmptyState
+                            title="No scheduled deliveries on this project"
+                            description="Go to a chart or dashboard to set up your first scheduled delivery"
+                        />
                     )}
                 </Tabs.Panel>
             </Tabs>
