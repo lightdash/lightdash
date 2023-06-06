@@ -574,6 +574,16 @@ export class ValidationService {
         ) {
             throw new ForbiddenError();
         }
+
+        analytics.track({
+            event: 'validation.error_dismissed',
+            userId: user.userUuid,
+            properties: {
+                organizationId: user.organizationUuid,
+                projectId: validation.projectUuid,
+            },
+        });
+
         await this.validationModel.deleteValidation(validationId);
     }
 }

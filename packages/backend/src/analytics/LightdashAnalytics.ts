@@ -627,6 +627,15 @@ export type Validation = BaseTrack & {
     };
 };
 
+export type ValidationErrorDismissed = BaseTrack & {
+    event: 'validation.error_dismissed';
+    userId: string;
+    properties: {
+        organizationId?: string;
+        projectId: string;
+    };
+};
+
 type Track =
     | TrackSimpleEvent
     | CreateUserEvent
@@ -674,7 +683,8 @@ type Track =
     | PinnedListUpdated
     | DownloadCsv
     | SchedulerDashboardView
-    | Validation;
+    | Validation
+    | ValidationErrorDismissed;
 
 export class LightdashAnalytics extends Analytics {
     static lightdashContext = {
