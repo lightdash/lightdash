@@ -1,6 +1,5 @@
 import { getSearchResultId } from '@lightdash/common';
 import {
-    Anchor,
     Box,
     createStyles,
     Group,
@@ -20,9 +19,9 @@ import {
     SpotlightActionProps,
     SpotlightProvider,
 } from '@mantine/spotlight';
-import { IconAlertTriangle, IconSearch } from '@tabler/icons-react';
+import { IconSearch } from '@tabler/icons-react';
 import { FC, MouseEventHandler, useMemo, useState } from 'react';
-import { Link, useHistory, useLocation } from 'react-router-dom';
+import { useHistory, useLocation } from 'react-router-dom';
 
 import { GLOBAL_SEARCH_MIN_QUERY_LENGTH } from '../../../hooks/globalSearch/useGlobalSearch';
 import { useProject } from '../../../hooks/useProject';
@@ -30,74 +29,8 @@ import { useValidationUserAbility } from '../../../hooks/validation/useValidatio
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
-import { ResourceIndicator } from '../../common/ResourceIcon';
 import { SearchItem, useDebouncedSearch } from './hooks';
-import { SearchIcon } from './SearchIcon';
-
-const SearchIconWithIndicator: FC<{
-    searchResult: SearchItem;
-    projectUuid: string;
-    canUserManageValidation: boolean;
-}> = ({ searchResult, projectUuid, canUserManageValidation }) => {
-    if (
-        (searchResult.type === 'saved_chart' ||
-            searchResult.type === 'dashboard') &&
-        searchResult.item &&
-        'validationErrors' in searchResult.item
-    ) {
-        return (
-            <ResourceIndicator
-                iconProps={{
-                    fill: 'red',
-                    icon: IconAlertTriangle,
-                }}
-                tooltipProps={{
-                    maw: 300,
-                    withinPortal: true,
-                    multiline: true,
-                    offset: -2,
-                    position: 'bottom',
-                    // TODO: investigate how to do this better
-                    zIndex: 201,
-                }}
-                tooltipLabel={
-                    canUserManageValidation ? (
-                        <>
-                            This content is broken. Learn more about the
-                            validation error(s){' '}
-                            <Anchor
-                                component={Link}
-                                fw={600}
-                                onClick={(e) => e.stopPropagation()}
-                                to={{
-                                    pathname: `/generalSettings/projectManagement/${projectUuid}/validator`,
-                                    search: `?validationId=${searchResult.item.validationErrors[0].validationId}`,
-                                }}
-                                color="blue.4"
-                            >
-                                here
-                            </Anchor>
-                            .
-                        </>
-                    ) : (
-                        <>
-                            There's an error with this
-                            {/* TODO: allow for table errors */}
-                            {searchResult.type === 'saved_chart'
-                                ? 'chart'
-                                : 'dashboard'}
-                            .
-                        </>
-                    )
-                }
-            >
-                <SearchIcon searchItem={searchResult} />
-            </ResourceIndicator>
-        );
-    }
-
-    return null;
-};
+import { SearchIcon, SearchIconWithIndicator } from './SearchIcon';
 
 const useStyles = createStyles<string, null>((theme) => ({
     action: {
@@ -237,10 +170,10 @@ const GlobalSearch: FC<GlobalSearchProps> = ({ projectUuid }) => {
     const searchItems = useMemo(() => {
         return items.map<SpotlightAction>((item) => {
             const isSearchItemWithValidationError =
-                ['dashboard', 'saved_chart'].includes(item.type) &&
                 item.item &&
+                ['dashboard', 'saved_chart'].includes(item.type) &&
                 'validationErrors' in item.item &&
-                item.item?.validationErrors?.length > 0;
+                item.item.validationErrors?.length > 0;
 
             return {
                 item,
