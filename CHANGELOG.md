@@ -1,3 +1,10 @@
+## [0.595.1](https://github.com/lightdash/lightdash/compare/0.595.0...0.595.1) (2023-06-06)
+
+
+### Bug Fixes
+
+* codespaces config ([#5765](https://github.com/lightdash/lightdash/issues/5765)) ([b8aba9e](https://github.com/lightdash/lightdash/commit/b8aba9eca962c87913179ad7713ba3278bdaf45d))
+
 # [0.595.0](https://github.com/lightdash/lightdash/compare/0.594.2...0.595.0) (2023-06-06)
 
 
