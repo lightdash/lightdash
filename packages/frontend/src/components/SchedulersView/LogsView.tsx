@@ -174,12 +174,12 @@ const Logs: FC<LogsProps> = ({
                                             ? camelCaseToFlat(
                                                   handleLogs[0].task,
                                               )
-                                            : 'No jobs yet'}
+                                            : 'handle scheduled delivery'}
                                     </Text>
                                     <Text>
                                         {sendLogs.length > 0
                                             ? camelCaseToFlat(sendLogs[0].task)
-                                            : 'No jobs yet'}
+                                            : 'send notification'}
                                     </Text>
                                 </Stack>
                             </Collapse>
