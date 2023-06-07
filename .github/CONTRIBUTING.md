@@ -239,6 +239,8 @@ The reviewers can still request adhoc changes for situations that haven't been e
 
 ## Setup Development Environment
 
+
+
 #### using Github Codespaces / VS Code Remote Containers
 
 The fastest way to setup a development environment is to use Github Codespaces or VS Code Remote Containers.
@@ -266,21 +268,7 @@ yarn workspace backend seed
 yarn dev
 ```
 
-#### Update your ENV variables
 
-Copy `.env.development` into a new file called `.env.development.local` 
-
-Edit all the ENV variables in that file to match your setup, eg: 
-
-```
-PGHOST=localhost
-PGPORT=5432
-PGUSER=pg_user *OR* machine username if no prior postgres set up
-PGPASSWORD=pg_password *OR* blank if no prior postgres set up
-PGDATABASE=postgres
-DBT_DEMO_DIR=/*path*/*to*/lightdash/project/examples/full-jaffle-shop-demo
-LIGHTDASH_CONFIG_FILE=/*path*/*to*/lightdash/lightdash.yml
-```
 
 #### using Docker compose
 
@@ -292,7 +280,24 @@ git clone https://github.com/lightdash/lightdash
 
 # Update submodules
 git submodule update --init --recursive
+```
 
+Copy `.env.development` into a new file called `.env.development.local` 
+
+Edit all the ENV variables in that file to match your setup, eg: 
+
+```shell
+PGHOST=localhost
+PGPORT=5432
+PGUSER=pg_user *OR* machine username if no prior postgres set up
+PGPASSWORD=pg_password *OR* blank if no prior postgres set up
+PGDATABASE=postgres
+DBT_DEMO_DIR=/*path*/*to*/lightdash/project/examples/full-jaffle-shop-demo
+LIGHTDASH_CONFIG_FILE=/*path*/*to*/lightdash/lightdash.yml
+```
+
+
+```shell
 # Create docker containers
 Note: before the next step make sure your docker has 4GB of memory ( Docker -> settings -> resources ) you should be able to manipulate the values here.
 
