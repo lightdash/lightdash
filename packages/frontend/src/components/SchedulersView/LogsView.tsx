@@ -52,20 +52,25 @@ const Logs: FC<LogsProps> = ({
                 (target) => target.schedulerUuid === item.schedulerUuid,
             );
         };
-        const getHandleScheduledDeliveryLogs = (
-            item: SchedulerItem,
-            targets: Log[],
-        ) =>
-            getCurrentLogs(item, targets).filter(
-                (log) => log.task === 'handleScheduledDelivery',
-            );
 
-        const getSendNotificationLogs = (item: SchedulerItem, targets: Log[]) =>
-            getCurrentLogs(item, targets).filter(
-                (log) =>
-                    log.task === 'sendEmailNotification' ||
-                    log.task === 'sendSlackNotification',
-            );
+        const getFilteredLogs = (currentLogs: Log[]) => {
+            return currentLogs.length > 0
+                ? {
+                      handleLogs: currentLogs.filter(
+                          (log) => log.task === 'handleScheduledDelivery',
+                      ),
+                      sendLogs: currentLogs.filter(
+                          (log) =>
+                              log.task === 'sendEmailNotification' ||
+                              log.task === 'sendSlackNotification',
+                      ),
+                  }
+                : {
+                      handleLogs: [],
+                      sendLogs: [],
+                  };
+        };
+
         return [
             {
                 id: 'name',
@@ -147,12 +152,9 @@ const Logs: FC<LogsProps> = ({
                 label: 'Job',
                 cell: (item) => {
                     const currentLogs = getCurrentLogs(item, logs);
-                    const handleScheduledDeliveryLogs =
-                        getHandleScheduledDeliveryLogs(item, logs);
-                    const sendNotificationLogs = getSendNotificationLogs(
-                        item,
-                        logs,
-                    );
+                    const { handleLogs, sendLogs } =
+                        getFilteredLogs(currentLogs);
+                    console.log({ currentLogs, handleLogs, sendLogs });
                     return currentLogs.length > 0 ? (
                         <Stack spacing="md" fz="xs" fw={500}>
                             <Group spacing="two">
@@ -168,14 +170,16 @@ const Logs: FC<LogsProps> = ({
                             <Collapse in={opened}>
                                 <Stack spacing="md">
                                     <Text>
-                                        {camelCaseToFlat(
-                                            handleScheduledDeliveryLogs[0].task,
-                                        )}
+                                        {handleLogs.length > 0
+                                            ? camelCaseToFlat(
+                                                  handleLogs[0].task,
+                                              )
+                                            : 'No jobs yet'}
                                     </Text>
                                     <Text>
-                                        {camelCaseToFlat(
-                                            sendNotificationLogs[0].task,
-                                        )}
+                                        {sendLogs.length > 0
+                                            ? camelCaseToFlat(sendLogs[0].task)
+                                            : 'No jobs yet'}
                                     </Text>
                                 </Stack>
                             </Collapse>
@@ -192,12 +196,8 @@ const Logs: FC<LogsProps> = ({
                 label: 'Delivery scheduled',
                 cell: (item) => {
                     const currentLogs = getCurrentLogs(item, logs);
-                    const handleScheduledDeliveryLogs =
-                        getHandleScheduledDeliveryLogs(item, logs);
-                    const sendNotificationLogs = getSendNotificationLogs(
-                        item,
-                        logs,
-                    );
+                    const { handleLogs, sendLogs } =
+                        getFilteredLogs(currentLogs);
                     return currentLogs.length > 0 ? (
                         <Stack spacing="md" fz="xs" fw={500}>
                             <Text color="gray.6">
@@ -206,16 +206,18 @@ const Logs: FC<LogsProps> = ({
                             <Collapse in={opened}>
                                 <Stack spacing="md">
                                     <Text color="gray.6">
-                                        {formatTime(
-                                            handleScheduledDeliveryLogs[0]
-                                                .scheduledTime,
-                                        )}
+                                        {handleLogs.length > 0
+                                            ? formatTime(
+                                                  handleLogs[0].scheduledTime,
+                                              )
+                                            : '-'}
                                     </Text>
                                     <Text color="gray.6">
-                                        {formatTime(
-                                            sendNotificationLogs[0]
-                                                .scheduledTime,
-                                        )}
+                                        {sendLogs.length > 0
+                                            ? formatTime(
+                                                  sendLogs[0].scheduledTime,
+                                              )
+                                            : '-'}
                                     </Text>
                                 </Stack>
                             </Collapse>
@@ -232,12 +234,8 @@ const Logs: FC<LogsProps> = ({
                 label: 'Delivery start',
                 cell: (item) => {
                     const currentLogs = getCurrentLogs(item, logs);
-                    const handleScheduledDeliveryLogs =
-                        getHandleScheduledDeliveryLogs(item, logs);
-                    const sendNotificationLogs = getSendNotificationLogs(
-                        item,
-                        logs,
-                    );
+                    const { handleLogs, sendLogs } =
+                        getFilteredLogs(currentLogs);
                     return currentLogs.length > 0 ? (
                         <Stack spacing="md" fz="xs" fw={500}>
                             <Text color="gray.6">
@@ -246,15 +244,16 @@ const Logs: FC<LogsProps> = ({
                             <Collapse in={opened}>
                                 <Stack spacing="md">
                                     <Text color="gray.6">
-                                        {formatTime(
-                                            handleScheduledDeliveryLogs[0]
-                                                .createdAt,
-                                        )}
+                                        {handleLogs.length > 0
+                                            ? formatTime(
+                                                  handleLogs[0].createdAt,
+                                              )
+                                            : '-'}
                                     </Text>
                                     <Text color="gray.6">
-                                        {formatTime(
-                                            sendNotificationLogs[0].createdAt,
-                                        )}
+                                        {sendLogs.length > 0
+                                            ? formatTime(sendLogs[0].createdAt)
+                                            : '-'}
                                     </Text>
                                 </Stack>
                             </Collapse>
@@ -271,12 +270,8 @@ const Logs: FC<LogsProps> = ({
                 label: 'Status',
                 cell: (item) => {
                     const currentLogs = getCurrentLogs(item, logs);
-                    const handleScheduledDeliveryLogs =
-                        getHandleScheduledDeliveryLogs(item, logs);
-                    const sendNotificationLogs = getSendNotificationLogs(
-                        item,
-                        logs,
-                    );
+                    const { handleLogs, sendLogs } =
+                        getFilteredLogs(currentLogs);
                     return (
                         <Center fz="xs" fw={500}>
                             {currentLogs.length > 0 ? (
@@ -284,13 +279,31 @@ const Logs: FC<LogsProps> = ({
                                     {getLogStatusIcon(currentLogs[0], theme)}
                                     <Collapse in={opened}>
                                         <Stack>
-                                            {getLogStatusIcon(
-                                                handleScheduledDeliveryLogs[0],
-                                                theme,
+                                            {handleLogs.length > 0 ? (
+                                                getLogStatusIcon(
+                                                    handleLogs[0],
+                                                    theme,
+                                                )
+                                            ) : (
+                                                <Text
+                                                    color="gray.6"
+                                                    ta="center"
+                                                >
+                                                    -
+                                                </Text>
                                             )}
-                                            {getLogStatusIcon(
-                                                sendNotificationLogs[0],
-                                                theme,
+                                            {sendLogs.length > 0 ? (
+                                                getLogStatusIcon(
+                                                    sendLogs[0],
+                                                    theme,
+                                                )
+                                            ) : (
+                                                <Text
+                                                    color="gray.6"
+                                                    ta="center"
+                                                >
+                                                    -
+                                                </Text>
                                             )}
                                         </Stack>
                                     </Collapse>

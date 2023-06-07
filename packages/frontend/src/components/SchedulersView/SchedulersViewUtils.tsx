@@ -132,5 +132,5 @@ export const formatTime = (date: Date) => {
     });
 };
 
-export const camelCaseToFlat = (str: string) =>
-    str.replace(/([A-Z])/g, ' $1').toLowerCase();
+export const camelCaseToFlat = (str: string | undefined) =>
+    str ? str.replace(/([A-Z])/g, ' $1').toLowerCase() : undefined;
