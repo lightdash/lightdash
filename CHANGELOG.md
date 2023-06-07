@@ -1,3 +1,10 @@
+## [0.598.3](https://github.com/lightdash/lightdash/compare/0.598.2...0.598.3) (2023-06-07)
+
+
+### Bug Fixes
+
+* total exclusions for certain types ([#5764](https://github.com/lightdash/lightdash/issues/5764)) ([12004b3](https://github.com/lightdash/lightdash/commit/12004b32098f9d8989bd69638d1a08524826e759))
+
 ## [0.598.2](https://github.com/lightdash/lightdash/compare/0.598.1...0.598.2) (2023-06-06)
 
 
