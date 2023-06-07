@@ -34,8 +34,8 @@ const viewport = {
 };
 
 const bigNumberViewport = {
-    width: 1400 / 2,
-    height: 768 / 2,
+    width: 768,
+    height: 500,
 };
 
 export type Unfurl = {
@@ -282,8 +282,6 @@ export class UnfurlService {
             chartType === ChartType.BIG_NUMBER
                 ? await page.setViewport(bigNumberViewport)
                 : await page.setViewport(viewport);
-
-            // await page.setViewport(viewport);
 
             await page.setRequestInterception(true);
             page.on('request', (request: any) => {
