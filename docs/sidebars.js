@@ -155,16 +155,16 @@ module.exports = {
             type: 'category',
             label: 'References',
             items: [
+                'references/dimensions',
+                'references/metrics',
                 'references/tables',
+                'references/joins',
+                'references/syncing_your_dbt_changes',
                 'references/personal_tokens',
                 'references/ip_addresses',
                 'references/usage-analytics',
-                'references/dimensions',
-                'references/metrics',
-                'references/joins',
-                'references/syncing_your_dbt_changes',
                 'references/filters',
-                'references/roles'
+                'references/roles',
             ]
         },
                         
