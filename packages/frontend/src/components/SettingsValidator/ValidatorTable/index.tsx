@@ -95,51 +95,49 @@ const TableValidationItem = forwardRef<
         <tr
             ref={mergeRefs(ref, isHoveredRef)}
             onClick={() =>
-                handleOnValidationErrorClick(
-                    projectUuid,
-                    validationError,
-                )
+                handleOnValidationErrorClick(projectUuid, validationError)
             }
         >
             <td>
-            <Anchor
-                                      sx={{
-                                          color: 'unset',
-                                          ':hover': {
-                                              color: 'unset',
-                                              textDecoration: 'none',
-                                          },
-                                      }}
-                                      href={getLinkToResource(
-                                          validationError,
-                                          projectUuid,
-                                      )}
-                                      target="_blank"
-                                  >
-                <Flex gap="sm" align="center">
-                    <Icon validationError={validationError} />
+                <Anchor
+                    sx={{
+                        color: 'unset',
+                        ':hover': {
+                            color: 'unset',
+                            textDecoration: 'none',
+                        },
+                    }}
+                    href={getLinkToResource(validationError, projectUuid)}
+                    target="_blank"
+                >
+                    <Flex gap="sm" align="center">
+                        <Icon validationError={validationError} />
 
-                    <Stack spacing={4}>
-                        <Text fw={600}>{getErrorName(validationError)}</Text>
-
-                        {(isChartValidationError(validationError) ||
-                            isDashboardValidationError(validationError)) && (
-                            <Text fz={11} color="gray.6">
-                                {getViews(validationError)} view
-                                {getViews(validationError) === 1 ? '' : 's'}
-                                {' • '}
-                                {validationError.lastUpdatedBy ? (
-                                    <>
-                                        Last edited by{' '}
-                                        <Text span fw={500}>
-                                            {validationError.lastUpdatedBy}
-                                        </Text>
-                                    </>
-                                ) : null}
+                        <Stack spacing={4}>
+                            <Text fw={600}>
+                                {getErrorName(validationError)}
                             </Text>
-                        )}
-                    </Stack>
-                </Flex>
+
+                            {(isChartValidationError(validationError) ||
+                                isDashboardValidationError(
+                                    validationError,
+                                )) && (
+                                <Text fz={11} color="gray.6">
+                                    {getViews(validationError)} view
+                                    {getViews(validationError) === 1 ? '' : 's'}
+                                    {' • '}
+                                    {validationError.lastUpdatedBy ? (
+                                        <>
+                                            Last edited by{' '}
+                                            <Text span fw={500}>
+                                                {validationError.lastUpdatedBy}
+                                            </Text>
+                                        </>
+                                    ) : null}
+                                </Text>
+                            )}
+                        </Stack>
+                    </Flex>
                 </Anchor>
             </td>
             <td>
