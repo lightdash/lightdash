@@ -235,10 +235,18 @@ const useTableConfig = (
         const summableMetricFieldIds = selectedItemIds?.filter((fieldId) => {
             const field = getField(fieldId);
 
-            return (
-                isSummable(field) &&
-                !(hiddenMetricFieldIds || []).includes(fieldId)
-            );
+            if (isDimension(field)) {
+                return false;
+            }
+
+            if (
+                hiddenMetricFieldIds &&
+                hiddenMetricFieldIds.includes(fieldId)
+            ) {
+                return false;
+            }
+
+            return isSummable(field);
         });
 
         worker
