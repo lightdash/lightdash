@@ -178,7 +178,7 @@ export const parseOperator = (
     operator: string,
     isTrue: boolean,
 ): FilterOperator => {
-    switch (operator) {
+    switch (operator.toLowerCase()) {
         case FilterOperator.EQUALS:
             return isTrue ? FilterOperator.EQUALS : FilterOperator.NOT_EQUALS;
         case FilterOperator.INCLUDE:
@@ -193,7 +193,8 @@ export const parseOperator = (
             return FilterOperator.LESS_THAN;
         case '<=':
             return FilterOperator.LESS_THAN_OR_EQUAL;
-
+        case 'null':
+            return isTrue ? FilterOperator.NULL : FilterOperator.NOT_NULL;
         default:
             throw new UnexpectedServerError(
                 `Invalid filter operator type ${operator}`,
@@ -214,6 +215,17 @@ export const parseFilters = (
 
         const [key, value] = Object.entries(filter)[0];
 
+        if (value === null) {
+            return [
+                ...acc,
+                {
+                    id: uuidv4(),
+                    target: { fieldId: key },
+                    operator: FilterOperator.NULL,
+                    values: [1],
+                },
+            ];
+        }
         if (typeof value === 'string') {
             const parsedFilter: ParsedFilter = parser.parse(value);
 
@@ -226,7 +238,7 @@ export const parseFilters = (
                         parsedFilter.type,
                         !!parsedFilter.is,
                     ),
-                    values: parsedFilter.values,
+                    values: parsedFilter.values || [1],
                 },
             ];
         }

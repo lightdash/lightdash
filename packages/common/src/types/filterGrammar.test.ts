@@ -2,7 +2,7 @@ import peg from 'pegjs';
 import { FilterOperator, FilterRule } from './filter';
 import filterGrammar, { parseFilters } from './filterGrammar';
 
-describe('attachTypesToModels', () => {
+describe('Parse grammar', () => {
     const parser = peg.generate(filterGrammar);
 
     it('Simple peg grammar test', async () => {
@@ -89,6 +89,25 @@ describe('attachTypesToModels', () => {
         expect(parser.parse('>= 32')).toEqual(expected);
         expect(parser.parse(' >=32')).toEqual(expected);
         expect(parser.parse(' >= 32')).toEqual(expected);
+    });
+
+    it('Is null', async () => {
+        expect(parser.parse('NULL')).toEqual({
+            is: true,
+            type: 'null',
+        });
+
+        expect(parser.parse('null')).toEqual({
+            is: true,
+            type: 'null',
+        });
+    });
+
+    it('Is not null', async () => {
+        expect(parser.parse('!null')).toEqual({
+            is: false,
+            type: 'null',
+        });
     });
 });
 
@@ -177,6 +196,33 @@ describe('Parse metric filters', () => {
                     fieldId: 'order_id',
                 },
                 values: [10],
+            },
+        ]);
+    });
+
+    it('Should parse NULL using gtrammar', () => {
+        const filters = [{ name: null }];
+        expect(removeIds(parseFilters(filters))).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.NULL,
+                target: {
+                    fieldId: 'name',
+                },
+                values: [1],
+            },
+        ]);
+    });
+    it('Should parse NOT_NULL using gtrammar', () => {
+        const filters = [{ name: '!null' }];
+        expect(removeIds(parseFilters(filters))).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.NOT_NULL,
+                target: {
+                    fieldId: 'name',
+                },
+                values: [1],
             },
         ]);
     });

@@ -5,7 +5,7 @@ export type ValidationResponseBase = {
     createdAt: Date;
     name: string;
     error: string;
-    errorType?: ValidationErrorType;
+    errorType: ValidationErrorType;
     projectUuid: string;
     spaceUuid?: string;
     dismissed?: boolean;

@@ -7,6 +7,7 @@ import {
     ValidationResponse,
 } from '@lightdash/common';
 import {
+    Anchor,
     Box,
     Flex,
     Stack,
@@ -22,7 +23,7 @@ import {
     IconTable,
 } from '@tabler/icons-react';
 import { createRef, FC, forwardRef, RefObject, useMemo } from 'react';
-import { useHistory, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import { useDeleteValidation } from '../../../hooks/validation/useValidation';
 import { getChartIcon, IconBox } from '../../common/ResourceIcon';
@@ -63,10 +64,9 @@ const getErrorName = (validationError: ValidationResponse) => {
 const handleOnValidationErrorClick = (
     projectUuid: string,
     validationError: ValidationResponse,
-    history: ReturnType<typeof useHistory>,
 ) => {
     const link = getLinkToResource(validationError, projectUuid);
-    if (link) history.push(link);
+    if (link) window.open(link, '_blank');
 };
 
 const getViews = (
@@ -87,7 +87,6 @@ const TableValidationItem = forwardRef<
     }
 >(({ projectUuid, validationError }, ref) => {
     const { mutate: deleteValidation } = useDeleteValidation(projectUuid);
-    const history = useHistory();
     const theme = useMantineTheme();
 
     const { hovered, ref: isHoveredRef } = useHover<HTMLTableRowElement>();
@@ -99,11 +98,24 @@ const TableValidationItem = forwardRef<
                 handleOnValidationErrorClick(
                     projectUuid,
                     validationError,
-                    history,
                 )
             }
         >
             <td>
+            <Anchor
+                                      sx={{
+                                          color: 'unset',
+                                          ':hover': {
+                                              color: 'unset',
+                                              textDecoration: 'none',
+                                          },
+                                      }}
+                                      href={getLinkToResource(
+                                          validationError,
+                                          projectUuid,
+                                      )}
+                                      target="_blank"
+                                  >
                 <Flex gap="sm" align="center">
                     <Icon validationError={validationError} />
 
@@ -128,6 +140,7 @@ const TableValidationItem = forwardRef<
                         )}
                     </Stack>
                 </Flex>
+                </Anchor>
             </td>
             <td>
                 <ErrorMessage validationError={validationError} />

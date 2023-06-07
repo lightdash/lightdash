@@ -1,3 +1,119 @@
+## [0.598.2](https://github.com/lightdash/lightdash/compare/0.598.1...0.598.2) (2023-06-06)
+
+
+### Bug Fixes
+
+* hide pinned panel when no items to pin ([#5758](https://github.com/lightdash/lightdash/issues/5758)) ([6277979](https://github.com/lightdash/lightdash/commit/6277979194bacb8304dd52f02aa87dd6d13a24d3))
+
+## [0.598.1](https://github.com/lightdash/lightdash/compare/0.598.0...0.598.1) (2023-06-06)
+
+
+### Bug Fixes
+
+* add top border for table header ([#5744](https://github.com/lightdash/lightdash/issues/5744)) ([638023f](https://github.com/lightdash/lightdash/commit/638023f16e63a678f0ac63d656ee6e232d017b1c))
+
+# [0.598.0](https://github.com/lightdash/lightdash/compare/0.597.1...0.598.0) (2023-06-06)
+
+
+### Features
+
+* add z-index 20 to Indicator in theme ([#5779](https://github.com/lightdash/lightdash/issues/5779)) ([6612962](https://github.com/lightdash/lightdash/commit/6612962a6d4a2fdf879c36eae70db2c1a11c92fb))
+
+## [0.597.1](https://github.com/lightdash/lightdash/compare/0.597.0...0.597.1) (2023-06-06)
+
+
+### Bug Fixes
+
+* default to http level logs ([#5776](https://github.com/lightdash/lightdash/issues/5776)) ([e358db5](https://github.com/lightdash/lightdash/commit/e358db5c5e33c9abf7afcc16befc71cf872e973f))
+
+# [0.597.0](https://github.com/lightdash/lightdash/compare/0.596.0...0.597.0) (2023-06-06)
+
+
+### Features
+
+* schedulers view ([#5731](https://github.com/lightdash/lightdash/issues/5731)) ([041d6b2](https://github.com/lightdash/lightdash/commit/041d6b212c10aaf084b09657b0d26aaaf2baf267))
+
+# [0.596.0](https://github.com/lightdash/lightdash/compare/0.595.2...0.596.0) (2023-06-06)
+
+
+### Features
+
+* add one anchor and open links in new tab ([#5753](https://github.com/lightdash/lightdash/issues/5753)) ([9e3ba4a](https://github.com/lightdash/lightdash/commit/9e3ba4ab0b89cf5fd318f8224b3408af41f77d3f))
+
+## [0.595.2](https://github.com/lightdash/lightdash/compare/0.595.1...0.595.2) (2023-06-06)
+
+
+### Bug Fixes
+
+* cli deploy permissions ([#5763](https://github.com/lightdash/lightdash/issues/5763)) ([2d9e5ff](https://github.com/lightdash/lightdash/commit/2d9e5ff6e36c0c9e8a054f4ee89346748f07895d))
+
+## [0.595.1](https://github.com/lightdash/lightdash/compare/0.595.0...0.595.1) (2023-06-06)
+
+
+### Bug Fixes
+
+* codespaces config ([#5765](https://github.com/lightdash/lightdash/issues/5765)) ([b8aba9e](https://github.com/lightdash/lightdash/commit/b8aba9eca962c87913179ad7713ba3278bdaf45d))
+
+# [0.595.0](https://github.com/lightdash/lightdash/compare/0.594.2...0.595.0) (2023-06-06)
+
+
+### Features
+
+* rename project settings ([#5769](https://github.com/lightdash/lightdash/issues/5769)) ([2caa48f](https://github.com/lightdash/lightdash/commit/2caa48f8455ddc8a9c774b5f94099b05cde0355f))
+
+## [0.594.2](https://github.com/lightdash/lightdash/compare/0.594.1...0.594.2) (2023-06-05)
+
+
+### Bug Fixes
+
+* slack integration card layout ([#5754](https://github.com/lightdash/lightdash/issues/5754)) ([015986a](https://github.com/lightdash/lightdash/commit/015986a876cbd52cf4afb6cace5b57c70658629f))
+
+## [0.594.1](https://github.com/lightdash/lightdash/compare/0.594.0...0.594.1) (2023-06-05)
+
+
+### Bug Fixes
+
+* cli dbt 1.5 manifest ([#5727](https://github.com/lightdash/lightdash/issues/5727)) ([e1ec87c](https://github.com/lightdash/lightdash/commit/e1ec87ca544ea4e47633b4ec619cd3d5445ad05d))
+
+# [0.594.0](https://github.com/lightdash/lightdash/compare/0.593.0...0.594.0) (2023-06-05)
+
+
+### Features
+
+* configure logs with environment variables ([#5743](https://github.com/lightdash/lightdash/issues/5743)) ([a85c9b7](https://github.com/lightdash/lightdash/commit/a85c9b71a69d546cfd5ed21d8aa566c4aebd550b))
+
+# [0.593.0](https://github.com/lightdash/lightdash/compare/0.592.0...0.593.0) (2023-06-05)
+
+
+### Features
+
+* add is_null operator grammar ([#5729](https://github.com/lightdash/lightdash/issues/5729)) ([93ecfc6](https://github.com/lightdash/lightdash/commit/93ecfc60c212546b1f5aecada2b0415554911bb8))
+
+# [0.592.0](https://github.com/lightdash/lightdash/compare/0.591.0...0.592.0) (2023-06-05)
+
+
+### Features
+
+* let users go to tables when model error ([#5742](https://github.com/lightdash/lightdash/issues/5742)) ([6638aee](https://github.com/lightdash/lightdash/commit/6638aeeb0cd24c4fc9539e4241df38e5f2315dc7))
+
+# [0.591.0](https://github.com/lightdash/lightdash/compare/0.590.2...0.591.0) (2023-06-05)
+
+
+### Bug Fixes
+
+* invalidate validations query on change of project ([#5749](https://github.com/lightdash/lightdash/issues/5749)) ([c932319](https://github.com/lightdash/lightdash/commit/c932319f0030294917b97bfc3a895c62e1142ca6))
+* pivot table underlying data ([#5735](https://github.com/lightdash/lightdash/issues/5735)) ([ed97eef](https://github.com/lightdash/lightdash/commit/ed97eef849819975a8910642178ffe798dca683f))
+* regenerate tsoa spec-and-routes ([#5747](https://github.com/lightdash/lightdash/issues/5747)) ([bb2aa02](https://github.com/lightdash/lightdash/commit/bb2aa02eac9c0fcb951736c46b07d90e15cd5f86))
+* revert generating openapi in husky hook ([#5750](https://github.com/lightdash/lightdash/issues/5750)) ([b41a02b](https://github.com/lightdash/lightdash/commit/b41a02b0b7ca817b15425b8a476af0ebdeb6d07d))
+
+
+### Features
+
+* add aws rds certs to postgres ([#5718](https://github.com/lightdash/lightdash/issues/5718)) ([57b2a89](https://github.com/lightdash/lightdash/commit/57b2a897938d8357210df09aeecfdc6ec880dc29))
+* make UI improvements to validator table ([#5702](https://github.com/lightdash/lightdash/issues/5702)) ([9c5038b](https://github.com/lightdash/lightdash/commit/9c5038b7b45a85ec5203777097228f3c84cf9475))
+* pivot table styles ([#5723](https://github.com/lightdash/lightdash/issues/5723)) ([f06bb20](https://github.com/lightdash/lightdash/commit/f06bb20babfd390bdb2aaa516dfd806ec9aaf12f))
+* reset current validations and improve types ([#5738](https://github.com/lightdash/lightdash/issues/5738)) ([7995791](https://github.com/lightdash/lightdash/commit/7995791867b4e3dc8dc509070f7725d42f92def7))
+
 ## [0.590.2](https://github.com/lightdash/lightdash/compare/0.590.1...0.590.2) (2023-06-02)
 
 

@@ -323,6 +323,9 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/rawkode"><img src="https://avatars.githubusercontent.com/u/145816?v=4?s=100" width="100px;" alt="David Flanagan"/><br /><sub><b>David Flanagan</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=rawkode" title="Code">💻</a> <a href="#infra-rawkode" title="Infrastructure (Hosting, Build-Tools, etc)">🚇</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://pullstack.ninja/"><img src="https://avatars.githubusercontent.com/u/22260031?v=4?s=100" width="100px;" alt="Moulik Aggarwal"/><br /><sub><b>Moulik Aggarwal</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=aggmoulik" title="Code">💻</a></td>
     </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/CVamsi27"><img src="https://avatars.githubusercontent.com/u/55316723?v=4?s=100" width="100px;" alt="Chandaluri Vamsi Krishna"/><br /><sub><b>Chandaluri Vamsi Krishna</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=CVamsi27" title="Code">💻</a></td>
+    </tr>
   </tbody>
 </table>
 
@@ -333,5 +336,3 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
 
 This project follows the [all-contributors](https://github.com/all-contributors/all-contributors) specification.
 Contributions of any kind welcome!
-
-+
