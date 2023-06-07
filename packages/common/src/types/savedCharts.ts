@@ -437,7 +437,8 @@ export type ChartSummary = Pick<
     | 'projectUuid'
     | 'organizationUuid'
     | 'pinnedListUuid'
->;
+> & { chartType?: ChartType | undefined };
+
 export type ApiChartSummaryListResponse = {
     status: 'ok';
     results: ChartSummary[];
