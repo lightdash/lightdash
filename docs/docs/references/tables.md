@@ -2,7 +2,7 @@
 sidebar_position: 2
 ---
 
-# Tables reference sheet
+# Tables
 
 You can run queries against the tables in your Lightdash project.
 
