@@ -85,17 +85,13 @@ import { buildQuery } from '../../queryBuilder';
 import { compileMetricQuery } from '../../queryCompiler';
 import { ProjectAdapter } from '../../types';
 import { runWorkerThread, wrapSentryTransaction } from '../../utils';
-import { VERSION } from '../../version';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
 type RunQueryTags = {
-    projectUuid?: string;
-    userUuid?: string;
-    organizationUuid?: string;
-    chartUuid?: string;
-};
-const DEFAULT_QUERY_TAGS = {
-    lightdashVersion: VERSION.replaceAll('.', '-'),
+    project_uuid?: string;
+    user_uuid?: string;
+    organization_uuid?: string;
+    chart_uuid?: string;
 };
 
 type ProjectServiceDependencies = {
@@ -784,10 +780,10 @@ export class ProjectService {
             throw new ForbiddenError();
         }
 
-        const queryTags = {
-            organizationUuid,
-            projectUuid,
-            userUuid: user.userUuid,
+        const queryTags: RunQueryTags = {
+            organization_uuid: projectUuid,
+            project_uuid: projectUuid,
+            user_uuid: user.userUuid,
         };
 
         return this.runQueryAndFormatRows(
@@ -863,11 +859,11 @@ export class ProjectService {
             ? ProjectService.combineFilters(savedChart.metricQuery, filters)
             : savedChart.metricQuery;
 
-        const queryTags = {
-            organizationUuid,
-            projectUuid,
-            userUuid: user.userUuid,
-            chartUuid,
+        const queryTags: RunQueryTags = {
+            organization_uuid: organizationUuid,
+            project_uuid: projectUuid,
+            user_uuid: user.userUuid,
+            chart_uuid: chartUuid,
         };
 
         return this.runQueryAndFormatRows(
@@ -902,10 +898,10 @@ export class ProjectService {
             throw new ForbiddenError();
         }
 
-        const queryTags = {
-            organizationUuid,
-            projectUuid,
-            userUuid: user.userUuid,
+        const queryTags: RunQueryTags = {
+            organization_uuid: organizationUuid,
+            project_uuid: projectUuid,
+            user_uuid: user.userUuid,
         };
 
         return this.runQueryAndFormatRows(
@@ -1045,10 +1041,7 @@ export class ProjectService {
         });
 
         Logger.debug(`Run query against warehouse`);
-        const { rows } = await warehouseClient.runQuery(query, {
-            ...DEFAULT_QUERY_TAGS,
-            ...(queryTags || {}),
-        });
+        const { rows } = await warehouseClient.runQuery(query, queryTags);
         await sshTunnel.disconnect();
         return rows;
     }
@@ -1081,11 +1074,11 @@ export class ProjectService {
             projectUuid,
         );
         Logger.debug(`Run query against warehouse`);
-        const results = warehouseClient.runQuery(sql, {
-            ...DEFAULT_QUERY_TAGS,
-            organizationUuid,
-            userUuid: user.userUuid,
-        });
+        const queryTags: RunQueryTags = {
+            organization_uuid: organizationUuid,
+            user_uuid: user.userUuid,
+        };
+        const results = warehouseClient.runQuery(sql, queryTags);
         await sshTunnel.disconnect();
         return results;
     }
@@ -1183,12 +1176,12 @@ export class ProjectService {
         );
 
         Logger.debug(`Run query against warehouse`);
-        const { rows } = await warehouseClient.runQuery(query, {
-            ...DEFAULT_QUERY_TAGS,
-            organizationUuid,
-            userUuid: user.userUuid,
-            projectUuid,
-        });
+        const queryTags: RunQueryTags = {
+            organization_uuid: organizationUuid,
+            user_uuid: user.userUuid,
+            project_uuid: projectUuid,
+        };
+        const { rows } = await warehouseClient.runQuery(query, queryTags);
         await sshTunnel.disconnect();
 
         analytics.track({
