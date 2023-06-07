@@ -15,7 +15,7 @@ import {
     Tooltip,
     useMantineTheme,
 } from '@mantine/core';
-import { useHover } from '@mantine/hooks';
+import { mergeRefs, useHover } from '@mantine/hooks';
 import {
     IconCircleX,
     IconLayoutDashboard,
@@ -82,16 +82,17 @@ const getViews = (
 const TableValidationItem: FC<{
     projectUuid: string;
     validationError: ValidationResponse;
-}> = ({ projectUuid, validationError }) => {
+    ref: RefObject<HTMLTableRowElement>;
+}> = ({ projectUuid, validationError, ref }) => {
     const { mutate: deleteValidation } = useDeleteValidation(projectUuid);
     const history = useHistory();
     const theme = useMantineTheme();
 
-    const { hovered, ref } = useHover<HTMLTableRowElement>();
+    const { hovered, ref: isHoveredRef } = useHover<HTMLTableRowElement>();
 
     return (
         <tr
-            ref={ref}
+            ref={mergeRefs(ref, isHoveredRef)}
             onClick={() =>
                 handleOnValidationErrorClick(
                     projectUuid,
@@ -194,6 +195,7 @@ export const ValidatorTable: FC<{
                               key={validationError.validationId}
                               projectUuid={projectUuid}
                               validationError={validationError}
+                              ref={refs[validationError.validationId]}
                           />
                       ))
                     : null}
