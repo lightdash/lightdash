@@ -210,7 +210,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
 
         let alteredQuery = sql;
         if (tags) {
-            alteredQuery = `${alteredQuery}\n-- tags: ${JSON.stringify(tags)}`;
+            alteredQuery = `${alteredQuery}\n-- ${JSON.stringify(tags)}`;
         }
 
         try {
