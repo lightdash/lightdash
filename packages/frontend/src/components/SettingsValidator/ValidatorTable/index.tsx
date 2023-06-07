@@ -21,7 +21,7 @@ import {
     IconLayoutDashboard,
     IconTable,
 } from '@tabler/icons-react';
-import { createRef, FC, RefObject, useMemo } from 'react';
+import { createRef, FC, forwardRef, RefObject, useMemo } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import { useDeleteValidation } from '../../../hooks/validation/useValidation';
@@ -79,11 +79,13 @@ const getViews = (
         return validationError.dashboardViews;
 };
 
-const TableValidationItem: FC<{
-    projectUuid: string;
-    validationError: ValidationResponse;
-    ref: RefObject<HTMLTableRowElement>;
-}> = ({ projectUuid, validationError, ref }) => {
+const TableValidationItem = forwardRef<
+    HTMLTableRowElement,
+    {
+        projectUuid: string;
+        validationError: ValidationResponse;
+    }
+>(({ projectUuid, validationError }, ref) => {
     const { mutate: deleteValidation } = useDeleteValidation(projectUuid);
     const history = useHistory();
     const theme = useMantineTheme();
@@ -149,7 +151,8 @@ const TableValidationItem: FC<{
             </td>
         </tr>
     );
-};
+});
+
 export const ValidatorTable: FC<{
     data: ValidationResponse[];
     projectUuid: string;
