@@ -6,7 +6,7 @@ import {
     getRequestMethod,
     LightdashRequestMethodHeader,
 } from '@lightdash/common';
-import { Delete, Get, Patch, Post, Query } from '@tsoa/runtime';
+import { Delete, Get, Post, Query } from '@tsoa/runtime';
 import express from 'express';
 import {
     Controller,

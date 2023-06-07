@@ -8,7 +8,6 @@ export type ValidationResponseBase = {
     errorType: ValidationErrorType;
     projectUuid: string;
     spaceUuid?: string;
-    dismissed?: boolean;
 };
 
 export type ValidationErrorChartResponse = ValidationResponseBase & {
