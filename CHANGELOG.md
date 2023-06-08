@@ -1,3 +1,10 @@
+## [0.600.1](https://github.com/lightdash/lightdash/compare/0.600.0...0.600.1) (2023-06-08)
+
+
+### Bug Fixes
+
+* big number size in Slack and E-mail ([#5782](https://github.com/lightdash/lightdash/issues/5782)) ([3676f8a](https://github.com/lightdash/lightdash/commit/3676f8aa3a1e537f708639005eaa9b5b823d705f))
+
 # [0.600.0](https://github.com/lightdash/lightdash/compare/0.599.0...0.600.0) (2023-06-08)
 
 
