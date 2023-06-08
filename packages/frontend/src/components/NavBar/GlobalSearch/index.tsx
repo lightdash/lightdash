@@ -32,6 +32,12 @@ import MantineIcon from '../../common/MantineIcon';
 import { SearchItem, useDebouncedSearch } from './hooks';
 import { SearchIcon, SearchIconWithIndicator } from './SearchIcon';
 
+const itemHasValidationError = (searchItem: SearchItem) =>
+    searchItem.item &&
+    ['dashboard', 'saved_chart'].includes(searchItem.type) &&
+    'validationErrors' in searchItem.item &&
+    searchItem.item.validationErrors?.length > 0;
+
 const useStyles = createStyles<string, null>((theme) => ({
     action: {
         width: '100%',
@@ -168,53 +174,45 @@ const GlobalSearch: FC<GlobalSearchProps> = ({ projectUuid }) => {
     const { items, isSearching } = useDebouncedSearch(projectUuid, query);
 
     const searchItems = useMemo(() => {
-        return items.map<SpotlightAction>((item) => {
-            const isSearchItemWithValidationError =
-                item.item &&
-                ['dashboard', 'saved_chart'].includes(item.type) &&
-                'validationErrors' in item.item &&
-                item.item.validationErrors?.length > 0;
+        return items.map<SpotlightAction>((item) => ({
+            item,
+            icon: itemHasValidationError(item) ? (
+                <SearchIconWithIndicator
+                    searchResult={item}
+                    projectUuid={projectUuid}
+                    canUserManageValidation={canUserManageValidation}
+                />
+            ) : (
+                <SearchIcon searchItem={item} />
+            ),
+            title: item.title,
+            description: item.description,
+            onTrigger: () => {
+                track({
+                    name: EventName.SEARCH_RESULT_CLICKED,
+                    properties: {
+                        type: item.type,
+                        id: getSearchResultId(item.item),
+                    },
+                });
+                track({
+                    name: EventName.GLOBAL_SEARCH_CLOSED,
+                    properties: {
+                        action: 'result_click',
+                    },
+                });
 
-            return {
-                item,
-                icon: isSearchItemWithValidationError ? (
-                    <SearchIconWithIndicator
-                        searchResult={item}
-                        projectUuid={projectUuid}
-                        canUserManageValidation={canUserManageValidation}
-                    />
-                ) : (
-                    <SearchIcon searchItem={item} />
-                ),
-                title: item.title,
-                description: item.description,
-                onTrigger: () => {
-                    track({
-                        name: EventName.SEARCH_RESULT_CLICKED,
-                        properties: {
-                            type: item.type,
-                            id: getSearchResultId(item.item),
-                        },
-                    });
-                    track({
-                        name: EventName.GLOBAL_SEARCH_CLOSED,
-                        properties: {
-                            action: 'result_click',
-                        },
-                    });
-
-                    history.push(item.location);
-                    if (
-                        (item.location.pathname.includes('/tables/') &&
-                            location.pathname.includes('/tables/')) ||
-                        (item.location.pathname.includes('/saved/') &&
-                            location.pathname.includes('/saved/'))
-                    ) {
-                        history.go(0); // force page refresh so explore page can pick up the new url params
-                    }
-                },
-            };
-        });
+                history.push(item.location);
+                if (
+                    (item.location.pathname.includes('/tables/') &&
+                        location.pathname.includes('/tables/')) ||
+                    (item.location.pathname.includes('/saved/') &&
+                        location.pathname.includes('/saved/'))
+                ) {
+                    history.go(0); // force page refresh so explore page can pick up the new url params
+                }
+            },
+        }));
     }, [
         items,
         projectUuid,
@@ -253,6 +251,7 @@ const GlobalSearch: FC<GlobalSearchProps> = ({ projectUuid }) => {
 
             <MantineProvider inherit theme={{ colorScheme: 'light' }}>
                 <SpotlightProvider
+                    // FIXME: remove setting of zIndex after Mantine migration is complete
                     zIndex={200}
                     actions={
                         query && query.length >= GLOBAL_SEARCH_MIN_QUERY_LENGTH
