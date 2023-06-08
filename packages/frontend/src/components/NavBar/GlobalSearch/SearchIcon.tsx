@@ -91,10 +91,9 @@ export const SearchIconWithIndicator: FC<{
                 ) : (
                     <>
                         There's an error with this{' '}
-                        {searchResult.type === 'saved_chart'
-                            ? 'chart'
-                            : 'dashboard'}
-                        .
+                        {searchResult.type === 'saved_chart' ? 'chart' : null}
+                        {searchResult.type === 'dashboard' ? 'dashboard' : null}
+                        {searchResult.type === 'table' ? 'table' : null}.
                     </>
                 )
             }
