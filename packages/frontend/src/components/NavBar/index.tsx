@@ -15,11 +15,9 @@ import { memo } from 'react';
 import { Link } from 'react-router-dom';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProjects } from '../../hooks/useProjects';
-import { useErrorLogs } from '../../providers/ErrorLogsProvider';
 import { ReactComponent as Logo } from '../../svgs/logo-icon.svg';
 import MantineIcon from '../common/MantineIcon';
 import { ErrorLogsDrawer } from '../ErrorLogsDrawer';
-import { ShowErrorsButton } from '../ShowErrorsButton';
 import BrowseMenu from './BrowseMenu';
 import ExploreMenu from './ExploreMenu';
 import GlobalSearch from './GlobalSearch';
@@ -44,7 +42,6 @@ const PreviewBanner = () => (
 );
 
 const NavBar = memo(() => {
-    const { errorLogs, setErrorLogsVisible } = useErrorLogs();
     const { data: projects } = useProjects();
     const { activeProjectUuid, isLoading: isLoadingActiveProject } =
         useActiveProjectUuid();
@@ -115,10 +112,6 @@ const NavBar = memo(() => {
 
                 <Group sx={{ flexShrink: 0 }}>
                     <ErrorLogsDrawer />
-                    <ShowErrorsButton
-                        errorLogs={errorLogs}
-                        setErrorLogsVisible={setErrorLogsVisible}
-                    />
 
                     <Button.Group>
                         <SettingsMenu />
