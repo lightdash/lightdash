@@ -1,4 +1,4 @@
-import { createStyles } from '@mantine/core';
+import { createStyles, rem } from '@mantine/core';
 import { darken } from 'polished';
 import { isHexCodeColor } from '../../../utils/colorUtils';
 
@@ -22,6 +22,52 @@ export const usePivotTableStyles = createStyles((theme) => ({
                         },
                 },
             },
+        },
+    },
+
+    withStickyFooter: {
+        tfoot: {
+            position: 'sticky',
+            bottom: 1,
+            zIndex: 1,
+        },
+
+        'tfoot th, tfoot td': {
+            position: 'relative',
+            zIndex: 2,
+        },
+    },
+
+    floatingFooter: {
+        position: 'absolute',
+        top: -1,
+        right: -1,
+        bottom: -1,
+        left: -1,
+        background: theme.colors.gray[3],
+        zIndex: 1,
+        boxShadow: 'none',
+        transition: 'box-shadow 200ms linear',
+    },
+
+    floatingFooterShadow: {
+        position: 'inherit',
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left: 0,
+
+        opacity: 0,
+        transition: 'opacity 200ms ease-in-out',
+
+        boxShadow: `
+            0 ${rem(-1)} ${rem(3)} rgba(0, 0, 0, 0.05),
+            rgba(0, 0, 0, 0.05) 0 ${rem(-10)} ${rem(15)} ${rem(-5)},
+            rgba(0, 0, 0, 0.04) 0 ${rem(-7)} ${rem(7)} ${rem(-5)}
+        `,
+
+        '&[data-floating-footer-shadow="true"]': {
+            opacity: 1,
         },
     },
 }));
