@@ -88,7 +88,6 @@ export const useDebouncedSearch = (
                     return {
                         type: 'table',
                         typeLabel: 'Table',
-                        prefix: `${item.exploreLabel} - `,
                         title: item.exploreLabel,
                         item: item,
                         location: {
