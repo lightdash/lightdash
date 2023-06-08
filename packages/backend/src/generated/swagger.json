@@ -2440,9 +2440,6 @@
             },
             "ValidationResponseBase": {
                 "properties": {
-                    "dismissed": {
-                        "type": "boolean"
-                    },
                     "spaceUuid": {
                         "type": "string"
                     },
@@ -2564,9 +2561,6 @@
                     },
                     "errorType": {
                         "$ref": "#/components/schemas/ValidationErrorType"
-                    },
-                    "dismissed": {
-                        "type": "boolean"
                     }
                 },
                 "required": [
@@ -2627,17 +2621,6 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
-            },
-            "ApiValidationDismissResponse": {
-                "properties": {
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["status"],
-                "type": "object"
             }
         },
         "securitySchemes": {
@@ -2656,7 +2639,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.598.2",
+        "version": "0.598.4",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -4992,48 +4975,6 @@
                         "required": false,
                         "schema": {
                             "type": "boolean"
-                        }
-                    }
-                ]
-            }
-        },
-        "/api/v1/projects/{projectUuid}/validate/{validationId}": {
-            "delete": {
-                "operationId": "DeleteValidationDismiss",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiValidationDismissResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Deletes a single validation error.",
-                "tags": ["Projects"],
-                "security": [],
-                "parameters": [
-                    {
-                        "description": "the projectId for the validation",
-                        "in": "path",
-                        "name": "validationId",
-                        "required": true,
-                        "schema": {
-                            "format": "double",
-                            "type": "number"
                         }
                     }
                 ]
