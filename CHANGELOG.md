@@ -1,3 +1,10 @@
+## [0.598.4](https://github.com/lightdash/lightdash/compare/0.598.3...0.598.4) (2023-06-08)
+
+
+### Bug Fixes
+
+* fix operator starts with lowercase ([#5807](https://github.com/lightdash/lightdash/issues/5807)) ([49b75f6](https://github.com/lightdash/lightdash/commit/49b75f6c16b623a4edf97da2f1060ee272099255))
+
 ## [0.598.3](https://github.com/lightdash/lightdash/compare/0.598.2...0.598.3) (2023-06-07)
 
 
