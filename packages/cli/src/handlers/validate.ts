@@ -12,6 +12,7 @@ import columnify from 'columnify';
 import { getConfig } from '../config';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
+import { compile, CompileHandlerOptions } from './compile';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 
 const requestValidation = async (projectUuid: string) =>
@@ -43,7 +44,7 @@ function delay(ms: number) {
 
 const REFETCH_JOB_INTERVAL = 3000;
 
-type ValidateHandlerOptions = {
+type ValidateHandlerOptions = CompileHandlerOptions & {
     project?: string;
     verbose: boolean;
 };
@@ -66,10 +67,10 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
 
     const config = await getConfig();
 
-    const projectUuid =
-        options.project ||
-        config.context?.previewProject ||
-        config.context?.project;
+    const explores = await compile(options);
+    GlobalState.debug(`> Compiled ${explores.length} explores`);
+
+    const projectUuid = options.project || config.context?.project;
 
     if (projectUuid === undefined) {
         throw new ParameterError(
