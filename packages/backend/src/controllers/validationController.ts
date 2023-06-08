@@ -2,10 +2,11 @@ import {
     ApiErrorPayload,
     ApiJobScheduledResponse,
     ApiValidateResponse,
+    ApiValidationDismissResponse,
     getRequestMethod,
     LightdashRequestMethodHeader,
 } from '@lightdash/common';
-import { Get, Post, Query } from '@tsoa/runtime';
+import { Delete, Get, Post, Query } from '@tsoa/runtime';
 import express from 'express';
 import {
     Controller,
@@ -80,6 +81,27 @@ export class ValidationController extends Controller {
                 projectUuid,
                 fromSettings,
             ),
+        };
+    }
+
+    /**
+     * Deletes a single validation error.
+     * @param validationId the projectId for the validation
+     * @param req express request
+     * @param fromSettings boolean to know if this request is made from the settings page, for analytics
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Delete('/{validationId}')
+    @OperationId('DeleteValidationDismiss')
+    async dismiss(
+        @Path() validationId: number,
+        @Request() req: express.Request,
+    ): Promise<ApiValidationDismissResponse> {
+        this.setStatus(200);
+        await validationService.delete(req.user!, validationId);
+        return {
+            status: 'ok',
         };
     }
 }

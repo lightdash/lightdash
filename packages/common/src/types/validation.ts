@@ -1,6 +1,6 @@
 import type { ChartKind } from './savedCharts';
 
-type ValidationResponseBase = {
+export type ValidationResponseBase = {
     validationId: number;
     createdAt: Date;
     name: string;
@@ -71,6 +71,10 @@ export type CreateValidation =
 export type ApiValidateResponse = {
     status: 'ok';
     results: ValidationResponse[];
+};
+
+export type ApiValidationDismissResponse = {
+    status: 'ok';
 };
 
 export type ValidationSummary = Pick<

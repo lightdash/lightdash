@@ -558,4 +558,32 @@ export class ValidationService {
         const validations = await this.validationModel.get(projectUuid);
         return this.hidePrivateContent(user, projectUuid, validations);
     }
+
+    async delete(user: SessionUser, validationId: number): Promise<void> {
+        const validation = await this.validationModel.getByValidationId(
+            validationId,
+        );
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Validation', {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid: validation.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        analytics.track({
+            event: 'validation.error_dismissed',
+            userId: user.userUuid,
+            properties: {
+                organizationId: user.organizationUuid,
+                projectId: validation.projectUuid,
+            },
+        });
+
+        await this.validationModel.deleteValidation(validationId);
+    }
 }
