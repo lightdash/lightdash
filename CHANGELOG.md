@@ -1,3 +1,10 @@
+## [0.598.5](https://github.com/lightdash/lightdash/compare/0.598.4...0.598.5) (2023-06-08)
+
+
+### Bug Fixes
+
+* scheduled deliveries dash edge case, no destinations ([#5799](https://github.com/lightdash/lightdash/issues/5799)) ([815d792](https://github.com/lightdash/lightdash/commit/815d79257c758767fd6d8886a814b19dd7301b08))
+
 ## [0.598.4](https://github.com/lightdash/lightdash/compare/0.598.3...0.598.4) (2023-06-08)
 
 
