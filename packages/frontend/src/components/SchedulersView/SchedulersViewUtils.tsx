@@ -100,7 +100,7 @@ export const getLogStatusIcon = (log: Log, theme: MantineTheme) => {
             );
         case SchedulerJobStatus.ERROR:
             return (
-                <Tooltip label={log?.details?.error}>
+                <Tooltip label={log?.details?.error} multiline>
                     <MantineIcon
                         icon={IconAlertTriangleFilled}
                         color="red.6"
