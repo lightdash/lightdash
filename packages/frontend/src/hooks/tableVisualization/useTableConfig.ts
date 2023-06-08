@@ -8,6 +8,7 @@ import {
     isDimension,
     isField,
     isMetric,
+    isTableCalculation,
     itemsInMetricQuery,
     PivotData,
     ResultRow,
@@ -228,7 +229,9 @@ const useTableConfig = (
             const field = getField(fieldId);
 
             return (
-                !isColumnVisible(fieldId) && isField(field) && isMetric(field)
+                !isColumnVisible(fieldId) &&
+                ((isField(field) && isMetric(field)) ||
+                    isTableCalculation(field))
             );
         });
 
