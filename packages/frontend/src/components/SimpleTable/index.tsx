@@ -67,25 +67,26 @@ const SimpleTable: FC<SimpleTableProps> = ({
         );
     } else if (pivotTableData.loading || pivotTableData.data) {
         return (
-            <Box
-                ref={scrollableContainerRef}
-                miw="100%"
-                h="100%"
-                p="xs"
-                sx={{ overflow: 'auto' }}
-            >
-                {pivotTableData.data ? (
-                    <PivotTable
-                        containerRef={scrollableContainerRef}
-                        data={pivotTableData.data}
-                        conditionalFormattings={conditionalFormattings}
-                        getFieldLabel={getFieldLabel}
-                        getField={getField}
-                        hideRowNumbers={hideRowNumbers}
-                    />
-                ) : (
-                    <LoadingChart />
-                )}
+            <Box p="xs" miw="100%" h="100%">
+                <Box
+                    ref={scrollableContainerRef}
+                    miw="inherit"
+                    h="inherit"
+                    sx={{ overflow: 'auto' }}
+                >
+                    {pivotTableData.data ? (
+                        <PivotTable
+                            containerRef={scrollableContainerRef}
+                            data={pivotTableData.data}
+                            conditionalFormattings={conditionalFormattings}
+                            getFieldLabel={getFieldLabel}
+                            getField={getField}
+                            hideRowNumbers={hideRowNumbers}
+                        />
+                    ) : (
+                        <LoadingChart />
+                    )}
+                </Box>
             </Box>
         );
     }
