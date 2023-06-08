@@ -1,3 +1,44 @@
+## [0.600.1](https://github.com/lightdash/lightdash/compare/0.600.0...0.600.1) (2023-06-08)
+
+
+### Bug Fixes
+
+* big number size in Slack and E-mail ([#5782](https://github.com/lightdash/lightdash/issues/5782)) ([3676f8a](https://github.com/lightdash/lightdash/commit/3676f8aa3a1e537f708639005eaa9b5b823d705f))
+
+# [0.600.0](https://github.com/lightdash/lightdash/compare/0.599.0...0.600.0) (2023-06-08)
+
+
+### Features
+
+* add visual indicator to charts and dashboards errors ([#5757](https://github.com/lightdash/lightdash/issues/5757)) ([768be1f](https://github.com/lightdash/lightdash/commit/768be1fdcebecf53664cb6460ac59d3f59db5d61))
+
+# [0.599.0](https://github.com/lightdash/lightdash/compare/0.598.5...0.599.0) (2023-06-08)
+
+
+### Bug Fixes
+
+* exclude dimensions from summable metric field ids ([#5794](https://github.com/lightdash/lightdash/issues/5794)) ([dc3e012](https://github.com/lightdash/lightdash/commit/dc3e012e55b81c7a00eaf62b9db706fddafae0de))
+* remove show error logs button from navbar ([#5775](https://github.com/lightdash/lightdash/issues/5775)) ([3b5f4ad](https://github.com/lightdash/lightdash/commit/3b5f4adf48d59a24d08874d94a338c94e1724fc7))
+
+
+### Features
+
+* pivot table frozen total rows ([#5789](https://github.com/lightdash/lightdash/issues/5789)) ([99ea4e7](https://github.com/lightdash/lightdash/commit/99ea4e7d52f87aa78f89f75c0a19de7dcb883daf))
+
+## [0.598.5](https://github.com/lightdash/lightdash/compare/0.598.4...0.598.5) (2023-06-08)
+
+
+### Bug Fixes
+
+* scheduled deliveries dash edge case, no destinations ([#5799](https://github.com/lightdash/lightdash/issues/5799)) ([815d792](https://github.com/lightdash/lightdash/commit/815d79257c758767fd6d8886a814b19dd7301b08))
+
+## [0.598.4](https://github.com/lightdash/lightdash/compare/0.598.3...0.598.4) (2023-06-08)
+
+
+### Bug Fixes
+
+* fix operator starts with lowercase ([#5807](https://github.com/lightdash/lightdash/issues/5807)) ([49b75f6](https://github.com/lightdash/lightdash/commit/49b75f6c16b623a4edf97da2f1060ee272099255))
+
 ## [0.598.3](https://github.com/lightdash/lightdash/compare/0.598.2...0.598.3) (2023-06-07)
 
 

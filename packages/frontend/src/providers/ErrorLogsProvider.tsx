@@ -3,6 +3,7 @@ import React, {
     FC,
     useCallback,
     useContext,
+    useEffect,
     useState,
 } from 'react';
 
@@ -83,6 +84,15 @@ export const ErrorLogsProvider: FC = ({ children }) => {
         setAllLogsRead,
         deleteErrorLogEntry,
     };
+
+    useEffect(() => {
+        if (
+            !errorLogsVisible &&
+            errorLogs.filter((log) => log.isUnread).length > 0
+        ) {
+            setErrorLogsVisible(true);
+        }
+    }, [errorLogsVisible, errorLogs, setErrorLogsVisible]);
 
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };

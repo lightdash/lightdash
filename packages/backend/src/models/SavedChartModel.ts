@@ -528,37 +528,6 @@ export class SavedChartModel {
         }
     }
 
-    private getChatSummaryQuery() {
-        return this.database('saved_queries')
-            .select({
-                uuid: 'saved_queries.saved_query_uuid',
-                name: 'saved_queries.name',
-                description: 'saved_queries.description',
-                spaceUuid: 'spaces.space_uuid',
-                spaceName: 'spaces.name',
-                projectUuid: 'projects.project_uuid',
-                organizationUuid: 'organizations.organization_uuid',
-                pinnedListUuid: `${PinnedListTableName}.pinned_list_uuid`,
-            })
-            .leftJoin('spaces', 'saved_queries.space_id', 'spaces.space_id')
-            .leftJoin('projects', 'spaces.project_id', 'projects.project_id')
-            .leftJoin(
-                OrganizationTableName,
-                'organizations.organization_id',
-                'projects.organization_id',
-            )
-            .leftJoin(
-                PinnedChartTableName,
-                `${PinnedChartTableName}.saved_chart_uuid`,
-                `${SavedChartsTableName}.saved_query_uuid`,
-            )
-            .leftJoin(
-                PinnedListTableName,
-                `${PinnedListTableName}.pinned_list_uuid`,
-                `${PinnedChartTableName}.pinned_list_uuid`,
-            );
-    }
-
     async getSummary(savedChartUuid: string): Promise<ChartSummary> {
         const transaction = Sentry.getCurrentHub()
             ?.getScope()
@@ -568,7 +537,7 @@ export class SavedChartModel {
             description: 'Get chart summary',
         });
         try {
-            const [chart] = await this.getChatSummaryQuery()
+            const [chart] = await this.getChartSummaryQuery()
                 .where(
                     `${SavedChartsTableName}.saved_query_uuid`,
                     savedChartUuid,
@@ -595,7 +564,7 @@ export class SavedChartModel {
             description: 'Find charts',
         });
         try {
-            const query = this.getChatSummaryQuery();
+            const query = this.getChartSummaryQuery();
             if (filters.projectUuid) {
                 query.where('projects.project_uuid', filters.projectUuid);
             }
@@ -606,5 +575,42 @@ export class SavedChartModel {
         } finally {
             span?.finish();
         }
+    }
+
+    private getChartSummaryQuery() {
+        return this.database('saved_queries')
+            .select({
+                uuid: 'saved_queries.saved_query_uuid',
+                name: 'saved_queries.name',
+                description: 'saved_queries.description',
+                spaceUuid: 'spaces.space_uuid',
+                spaceName: 'spaces.name',
+                projectUuid: 'projects.project_uuid',
+                organizationUuid: 'organizations.organization_uuid',
+                pinnedListUuid: `${PinnedListTableName}.pinned_list_uuid`,
+                chartType: 'saved_queries_versions.chart_type',
+            })
+            .leftJoin('spaces', 'saved_queries.space_id', 'spaces.space_id')
+            .leftJoin('projects', 'spaces.project_id', 'projects.project_id')
+            .leftJoin(
+                OrganizationTableName,
+                'organizations.organization_id',
+                'projects.organization_id',
+            )
+            .innerJoin(
+                'saved_queries_versions',
+                `${SavedChartsTableName}.saved_query_id`,
+                'saved_queries_versions.saved_query_id',
+            )
+            .leftJoin(
+                PinnedChartTableName,
+                `${PinnedChartTableName}.saved_chart_uuid`,
+                `${SavedChartsTableName}.saved_query_uuid`,
+            )
+            .leftJoin(
+                PinnedListTableName,
+                `${PinnedListTableName}.pinned_list_uuid`,
+                `${PinnedChartTableName}.pinned_list_uuid`,
+            );
     }
 }

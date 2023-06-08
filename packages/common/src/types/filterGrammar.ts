@@ -178,7 +178,7 @@ export const parseOperator = (
     operator: string,
     isTrue: boolean,
 ): FilterOperator => {
-    switch (operator.toLowerCase()) {
+    switch (operator) {
         case FilterOperator.EQUALS:
             return isTrue ? FilterOperator.EQUALS : FilterOperator.NOT_EQUALS;
         case FilterOperator.INCLUDE:
@@ -194,6 +194,7 @@ export const parseOperator = (
         case '<=':
             return FilterOperator.LESS_THAN_OR_EQUAL;
         case 'null':
+        case 'NULL':
             return isTrue ? FilterOperator.NULL : FilterOperator.NOT_NULL;
         default:
             throw new UnexpectedServerError(

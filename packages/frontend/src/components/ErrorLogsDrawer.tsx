@@ -58,7 +58,13 @@ const ErrorCard: React.FC<ErrorLogEntry & { onDismiss: () => void }> = ({
 );
 
 export const ErrorLogsDrawer = () => {
-    const errorLogs = useErrorLogs();
+    const {
+        errorLogs,
+        setAllLogsRead,
+        setErrorLogsVisible,
+        errorLogsVisible,
+        deleteErrorLogEntry,
+    } = useErrorLogs();
     return (
         <Drawer
             autoFocus
@@ -68,9 +74,9 @@ export const ErrorLogsDrawer = () => {
             hasBackdrop
             icon="application"
             isCloseButtonShown
-            isOpen={errorLogs.errorLogsVisible}
-            onClose={() => errorLogs.setErrorLogsVisible(false)}
-            onClosed={errorLogs.setAllLogsRead}
+            isOpen={errorLogsVisible}
+            onClose={() => setErrorLogsVisible(false)}
+            onClosed={setAllLogsRead}
             shouldReturnFocusOnClose
             size={DrawerSize.SMALL}
             title="Error logs"
@@ -82,15 +88,15 @@ export const ErrorLogsDrawer = () => {
                     overflowY: 'auto',
                 }}
             >
-                {errorLogs.errorLogs
-                    .map((entry, idx) => (
+                {errorLogs
+                    .map((entry, i) => (
                         <ErrorCard
                             key={entry.timestamp.getTime()}
                             timestamp={entry.timestamp}
                             title={entry.title}
                             body={entry.body}
                             isUnread={entry.isUnread}
-                            onDismiss={() => errorLogs.deleteErrorLogEntry(idx)}
+                            onDismiss={() => deleteErrorLogEntry(i)}
                         />
                     ))
                     .slice(0)

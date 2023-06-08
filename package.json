@@ -1,6 +1,6 @@
 {
     "name": "lightdash",
-    "version": "0.598.3",
+    "version": "0.600.1",
     "main": "index.js",
     "license": "MIT",
     "private": true,
@@ -95,7 +95,7 @@
         "build-published-packages": "run-s common-build warehouses-build cli-build",
         "start": "run-p backend-start",
         "prepare": "husky install",
-        "load:env": "dotenv -c -e .env"
+        "load:env": "dotenv -c -e .env.development.local"
     },
     "lint-staged": {
         "packages/frontend/src/**/*.(ts|tsx|json|css)": [

@@ -954,8 +954,24 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
+            "ChartType": {
+                "enum": ["cartesian", "table", "big_number"],
+                "type": "string"
+            },
             "ChartSummary": {
-                "$ref": "#/components/schemas/Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid_"
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid_"
+                    },
+                    {
+                        "properties": {
+                            "chartType": {
+                                "$ref": "#/components/schemas/ChartType"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
             },
             "ApiChartSummaryListResponse": {
                 "properties": {
@@ -2621,6 +2637,17 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
+            },
+            "ApiValidationDismissResponse": {
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["status"],
+                "type": "object"
             }
         },
         "securitySchemes": {
@@ -2639,7 +2666,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.598.3",
+        "version": "0.600.1",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -5002,6 +5029,48 @@
                         "required": false,
                         "schema": {
                             "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/validate/{validationId}": {
+            "delete": {
+                "operationId": "DeleteValidationDismiss",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiValidationDismissResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Deletes a single validation error.",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the projectId for the validation",
+                        "in": "path",
+                        "name": "validationId",
+                        "required": true,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
                         }
                     }
                 ]

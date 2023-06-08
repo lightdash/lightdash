@@ -21,6 +21,7 @@ import {
 } from '../../database/entities/projects';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { SpaceTableName } from '../../database/entities/spaces';
+import { DbValidationTable } from '../../database/entities/validation';
 
 type ModelDependencies = {
     database: Knex;
@@ -55,7 +56,7 @@ export class SearchModel {
         projectUuid: string,
         query: string,
     ): Promise<DashboardSearchResult[]> {
-        return this.database(DashboardsTableName)
+        const dashboards = await this.database(DashboardsTableName)
             .select()
             .leftJoin(
                 SpaceTableName,
@@ -85,13 +86,39 @@ export class SearchModel {
                         [`%${query}%`],
                     ),
             );
+
+        const dashboardUuids = dashboards.map((dashboard) => dashboard.uuid);
+
+        const validationErrors = await this.database('validations')
+            .whereIn('dashboard_uuid', dashboardUuids)
+            .andWhereNot('dashboard_uuid', null)
+            .select('validation_id', 'dashboard_uuid')
+            .then((rows) =>
+                rows.reduce<Record<string, Array<{ validationId: number }>>>(
+                    (acc, row) => {
+                        if (row.dashboard_uuid) {
+                            acc[row.dashboard_uuid] = [
+                                ...(acc[row.dashboard_uuid] ?? []),
+                                { validationId: row.validation_id },
+                            ];
+                        }
+                        return acc;
+                    },
+                    {},
+                ),
+            );
+
+        return dashboards.map((dashboard) => ({
+            ...dashboard,
+            validationErrors: validationErrors[dashboard.uuid] || [],
+        }));
     }
 
     private async searchSavedCharts(
         projectUuid: string,
         query: string,
     ): Promise<SavedChartSearchResult[]> {
-        return this.database(SavedChartsTableName)
+        const savedCharts = await this.database(SavedChartsTableName)
             .select()
             .leftJoin(
                 SpaceTableName,
@@ -135,6 +162,32 @@ export class SearchModel {
                     chartType: getChartType(chartType, chartConfig),
                 })),
             );
+
+        const chartUuids = savedCharts.map((chart) => chart.uuid);
+
+        const validationErrors = await this.database('validations')
+            .whereIn('saved_chart_uuid', chartUuids)
+            .andWhereNot('saved_chart_uuid', null)
+            .select('validation_id', 'saved_chart_uuid')
+            .then((rows) =>
+                rows.reduce<Record<string, Array<{ validationId: number }>>>(
+                    (acc, row) => {
+                        if (row.saved_chart_uuid) {
+                            acc[row.saved_chart_uuid] = [
+                                ...(acc[row.saved_chart_uuid] ?? []),
+                                { validationId: row.validation_id },
+                            ];
+                        }
+                        return acc;
+                    },
+                    {},
+                ),
+            );
+
+        return savedCharts.map((chart) => ({
+            ...chart,
+            validationErrors: validationErrors[chart.uuid] || [],
+        }));
     }
 
     private async getProjectExplores(projectUuid: string): Promise<Explore[]> {

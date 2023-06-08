@@ -4,10 +4,12 @@ import {
     isChartValidationError,
     isDashboardValidationError,
     isTableValidationError,
+    NotFoundError,
     ValidationErrorChartResponse,
     ValidationErrorDashboardResponse,
     ValidationErrorTableResponse,
     ValidationResponse,
+    ValidationResponseBase,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
@@ -76,6 +78,32 @@ export class ValidationModel {
     async delete(projectUuid: string): Promise<void> {
         await this.database(ValidationTableName)
             .where({ project_uuid: projectUuid })
+            .delete();
+    }
+
+    async getByValidationId(
+        validationId: number,
+    ): Promise<Pick<ValidationResponseBase, 'validationId' | 'projectUuid'>> {
+        const [validation] = await this.database(ValidationTableName).where(
+            'validation_id',
+            validationId,
+        );
+
+        if (!validation) {
+            throw new NotFoundError(
+                `Validation with id ${validationId} not found`,
+            );
+        }
+
+        return {
+            validationId: validation.validation_id,
+            projectUuid: validation.project_uuid,
+        };
+    }
+
+    async deleteValidation(validationId: number): Promise<void> {
+        await this.database(ValidationTableName)
+            .where('validation_id', validationId)
             .delete();
     }
 
