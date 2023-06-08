@@ -432,6 +432,38 @@ program
         'Project UUID to validate, if not provided, the last preview will be used',
     )
     .option('--verbose', undefined, false)
+    .option(
+        '--project-dir <path>',
+        'The directory of the dbt project',
+        defaultProjectDir,
+    )
+    .option(
+        '--profiles-dir <path>',
+        'The directory of the dbt profiles',
+        defaultProfilesDir,
+    )
+    .option(
+        '--profile <name>',
+        'The name of the profile to use (defaults to profile name in dbt_project.yml)',
+        undefined,
+    )
+    .option('--target <name>', 'target to use in profiles.yml file', undefined)
+    .option('--vars <vars>')
+    .option('--threads <number>')
+    .option('--no-version-check')
+    .option(
+        '-s, --select <models...>',
+        'specify models (accepts dbt selection syntax)',
+    )
+    .option(
+        '-m, --models <models...>',
+        'specify models (accepts dbt selection syntax)',
+    )
+    .option('--exclude <models...>')
+    .option('--selector <selector_name>')
+    .option('--state <state>')
+    .option('--full-refresh')
+    .option('--verbose', undefined, false)
     .action(validateHandler);
 
 program

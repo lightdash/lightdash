@@ -2639,7 +2639,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.594.2",
+        "version": "0.598.3",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -4929,7 +4929,25 @@
                             "type": "string"
                         }
                     }
-                ]
+                ],
+                "requestBody": {
+                    "description": "the compiled explores to validate against an existing project, this is used in the CLI to validate a project without creating a preview",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "explores": {
+                                        "items": {},
+                                        "type": "array"
+                                    }
+                                },
+                                "type": "object",
+                                "description": "the compiled explores to validate against an existing project, this is used in the CLI to validate a project without creating a preview"
+                            }
+                        }
+                    }
+                }
             },
             "get": {
                 "operationId": "GetLatestValidationResults",
@@ -4975,6 +4993,15 @@
                         "required": false,
                         "schema": {
                             "type": "boolean"
+                        }
+                    },
+                    {
+                        "description": "optional jobId to get results for a specific job, used on CLI",
+                        "in": "query",
+                        "name": "jobId",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 ]

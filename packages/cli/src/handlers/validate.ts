@@ -2,6 +2,8 @@ import {
     ApiJobScheduledResponse,
     ApiJobStatusResponse,
     ApiValidateResponse,
+    Explore,
+    ExploreError,
     isChartValidationError,
     isDashboardValidationError,
     isTableValidationError,
@@ -15,11 +17,14 @@ import * as styles from '../styles';
 import { compile, CompileHandlerOptions } from './compile';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 
-const requestValidation = async (projectUuid: string) =>
+const requestValidation = async (
+    projectUuid: string,
+    explores: (Explore | ExploreError)[],
+) =>
     lightdashApi<ApiJobScheduledResponse['results']>({
         method: 'POST',
         url: `/api/v1/projects/${projectUuid}/validate`,
-        body: undefined,
+        body: JSON.stringify({ explores }),
     });
 
 const getJobState = async (jobUuid: string) =>
@@ -29,10 +34,10 @@ const getJobState = async (jobUuid: string) =>
         body: undefined,
     });
 
-const getValidation = async (projectUuid: string) =>
+const getValidation = async (projectUuid: string, jobId: string) =>
     lightdashApi<ApiValidateResponse['results']>({
         method: 'GET',
-        url: `/api/v1/projects/${projectUuid}/validate`,
+        url: `/api/v1/projects/${projectUuid}/validate?jobId=${jobId}`,
         body: undefined,
     });
 
@@ -101,7 +106,7 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
     }
 
     const timeStart = new Date();
-    const validationJob = await requestValidation(projectUuid);
+    const validationJob = await requestValidation(projectUuid, explores);
     const { jobId } = validationJob;
 
     const spinner = GlobalState.startSpinner(
@@ -110,7 +115,7 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
 
     await waitUntilFinished(jobId);
 
-    const validation = await getValidation(projectUuid);
+    const validation = await getValidation(projectUuid, jobId);
 
     if (validation.length === 0) {
         spinner?.succeed(`  Validation finished without errors`);
@@ -141,8 +146,8 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
         console.error(columns);
 
         console.error(
-            `\nFor more details, visit ${styles.bold(
-                `${config.context?.serverUrl}/generalSettings/projectManagement/${projectUuid}/validator`,
+            `\nTo see these errors in Lightdash, run ${styles.bold(
+                `lightdash preview`,
             )}`,
         );
 

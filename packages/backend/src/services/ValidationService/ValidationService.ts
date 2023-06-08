@@ -15,13 +15,16 @@ import {
     isDimension,
     isExploreError,
     isMetric,
+    JobStatusType,
     OrganizationMemberRole,
     RequestMethod,
     SessionUser,
     TableCalculation,
     ValidationErrorType,
+    ValidationJobDetails,
     ValidationResponse,
 } from '@lightdash/common';
+import { BadRequestError } from 'passport-headerapikey';
 import { analytics } from '../../analytics/client';
 import { schedulerClient } from '../../clients/clients';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -29,6 +32,7 @@ import Logger from '../../logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
+import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { ValidationModel } from '../../models/ValidationModel/ValidationModel';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
@@ -40,6 +44,7 @@ type ServiceDependencies = {
     savedChartModel: SavedChartModel;
     dashboardModel: DashboardModel;
     spaceModel: SpaceModel;
+    schedulerModel: SchedulerModel;
 };
 
 export class ValidationService {
@@ -55,6 +60,8 @@ export class ValidationService {
 
     spaceModel: SpaceModel;
 
+    schedulerModel: SchedulerModel;
+
     constructor({
         lightdashConfig,
         validationModel,
@@ -62,6 +69,7 @@ export class ValidationService {
         savedChartModel,
         dashboardModel,
         spaceModel,
+        schedulerModel,
     }: ServiceDependencies) {
         this.lightdashConfig = lightdashConfig;
         this.projectModel = projectModel;
@@ -69,6 +77,7 @@ export class ValidationService {
         this.validationModel = validationModel;
         this.dashboardModel = dashboardModel;
         this.spaceModel = spaceModel;
+        this.schedulerModel = schedulerModel;
     }
 
     private static getTableCalculationFieldIds(
@@ -393,10 +402,19 @@ export class ValidationService {
         return results;
     }
 
-    async generateValidation(projectUuid: string): Promise<CreateValidation[]> {
-        const explores = await this.projectModel.getExploresFromCache(
-            projectUuid,
+    async generateValidation(
+        projectUuid: string,
+        compiledExplores?: (Explore | ExploreError)[],
+    ): Promise<CreateValidation[]> {
+        Logger.debug(
+            `Generating validation for project ${projectUuid} with explores ${
+                compiledExplores ? 'from CLI' : 'from cach'
+            }`,
         );
+        const explores =
+            compiledExplores !== undefined
+                ? compiledExplores
+                : await this.projectModel.getExploresFromCache(projectUuid);
 
         const existingFields = explores?.reduce<CompiledField[]>(
             (acc, explore) => {
@@ -447,6 +465,7 @@ export class ValidationService {
         user: SessionUser,
         projectUuid: string,
         context?: RequestMethod,
+        explores?: (Explore | ExploreError)[],
     ): Promise<string> {
         const { organizationUuid } = await this.projectModel.get(projectUuid);
 
@@ -469,6 +488,7 @@ export class ValidationService {
             projectUuid,
             context: fromCLI ? 'cli' : 'lightdash_app',
             organizationUuid: user.organizationUuid,
+            explores,
         });
         return jobId;
     }
@@ -476,11 +496,13 @@ export class ValidationService {
     async storeValidation(
         projectUuid: string,
         validationErrors: CreateValidation[],
+        jobId?: string,
     ) {
-        await this.validationModel.delete(projectUuid);
+        // If not storing for an specific CLI validation, delete previous validations
+        if (jobId === undefined) await this.validationModel.delete(projectUuid);
 
         if (validationErrors.length > 0)
-            await this.validationModel.create(validationErrors);
+            await this.validationModel.create(validationErrors, jobId);
     }
 
     async hidePrivateContent(
@@ -510,6 +532,7 @@ export class ValidationService {
         user: SessionUser,
         projectUuid: string,
         fromSettings = false,
+        jobId?: string,
     ): Promise<ValidationResponse[]> {
         const { organizationUuid } = await this.projectModel.get(projectUuid);
 
@@ -524,7 +547,7 @@ export class ValidationService {
         ) {
             throw new ForbiddenError();
         }
-        const validations = await this.validationModel.get(projectUuid);
+        const validations = await this.validationModel.get(projectUuid, jobId);
 
         if (fromSettings) {
             const contentIds = validations.map(
@@ -548,14 +571,6 @@ export class ValidationService {
             });
         }
 
-        return this.hidePrivateContent(user, projectUuid, validations);
-    }
-
-    async getJob(
-        user: SessionUser,
-        projectUuid: string,
-    ): Promise<ValidationResponse[]> {
-        const validations = await this.validationModel.get(projectUuid);
         return this.hidePrivateContent(user, projectUuid, validations);
     }
 }

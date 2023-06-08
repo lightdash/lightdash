@@ -170,7 +170,7 @@ ${errors.join('')}`),
     });
     return explores;
 };
-export const compileHandler = async (options: GenerateHandlerOptions) => {
+export const compileHandler = async (options: CompileHandlerOptions) => {
     GlobalState.setVerbose(options.verbose);
     const explores = await compile(options);
     const errorsCount = explores.filter((e) => isExploreError(e)).length;
