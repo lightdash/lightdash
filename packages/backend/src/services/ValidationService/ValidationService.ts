@@ -29,7 +29,6 @@ import Logger from '../../logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
-import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { ValidationModel } from '../../models/ValidationModel/ValidationModel';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
@@ -41,7 +40,6 @@ type ServiceDependencies = {
     savedChartModel: SavedChartModel;
     dashboardModel: DashboardModel;
     spaceModel: SpaceModel;
-    schedulerModel: SchedulerModel;
 };
 
 export class ValidationService {
@@ -57,8 +55,6 @@ export class ValidationService {
 
     spaceModel: SpaceModel;
 
-    schedulerModel: SchedulerModel;
-
     constructor({
         lightdashConfig,
         validationModel,
@@ -66,7 +62,6 @@ export class ValidationService {
         savedChartModel,
         dashboardModel,
         spaceModel,
-        schedulerModel,
     }: ServiceDependencies) {
         this.lightdashConfig = lightdashConfig;
         this.projectModel = projectModel;
@@ -74,7 +69,6 @@ export class ValidationService {
         this.validationModel = validationModel;
         this.dashboardModel = dashboardModel;
         this.spaceModel = spaceModel;
-        this.schedulerModel = schedulerModel;
     }
 
     private static getTableCalculationFieldIds(

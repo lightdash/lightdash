@@ -178,7 +178,6 @@ export const validationService = new ValidationService({
     validationModel,
     dashboardModel,
     spaceModel,
-    schedulerModel,
 });
 
 export const groupService = new GroupsService({
