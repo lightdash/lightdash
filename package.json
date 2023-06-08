@@ -95,7 +95,7 @@
         "build-published-packages": "run-s common-build warehouses-build cli-build",
         "start": "run-p backend-start",
         "prepare": "husky install",
-        "load:env": "dotenv -c -e .env"
+        "load:env": "dotenv -c -e .env.development.local"
     },
     "lint-staged": {
         "packages/frontend/src/**/*.(ts|tsx|json|css)": [
