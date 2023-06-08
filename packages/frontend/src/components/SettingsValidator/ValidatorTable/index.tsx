@@ -145,12 +145,12 @@ const TableValidationItem = forwardRef<
             </td>
             <td>
                 <Tooltip label="Dismiss error" position="top">
-                    <Box w={24} h={24}>
+                    <Box w={24}>
                         {hovered && (
                             <MantineIcon
                                 icon={IconCircleX}
                                 color="gray.6"
-                                size="md"
+                                size="lg"
                                 onClick={(e) => {
                                     deleteValidation(
                                         validationError.validationId,
