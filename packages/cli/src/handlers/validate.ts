@@ -146,7 +146,7 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
         console.error(columns);
 
         console.error(
-            `\nTo see these errors in Lightdash, run ${styles.bold(
+            `\n--> To see these errors in Lightdash, run ${styles.bold(
                 `lightdash preview`,
             )}`,
         );
