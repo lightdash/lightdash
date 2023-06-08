@@ -1,4 +1,10 @@
-import { ChartType, fieldId, FieldType, SearchResult } from '@lightdash/common';
+import {
+    ChartType,
+    fieldId,
+    FieldType,
+    isTableErrorSearchResult,
+    SearchResult,
+} from '@lightdash/common';
 import { useMemo, useState } from 'react';
 import { useDebounce } from 'react-use';
 import useGlobalSearch from '../../../hooks/globalSearch/useGlobalSearch';
@@ -77,21 +83,36 @@ export const useDebouncedSearch = (
             })) || [];
 
         const tables =
-            data?.tables.map<SearchItem>((item) => ({
-                type: 'table',
-                typeLabel:
-                    item.name === item.explore ? 'Table' : 'Joined table',
-                prefix:
-                    item.name === item.explore
-                        ? undefined
-                        : `${item.exploreLabel} - `,
-                title: item.label,
-                description: item.description,
-                item: item,
-                location: {
-                    pathname: `/projects/${projectUuid}/tables/${item.explore}`,
-                },
-            })) || [];
+            data?.tables.map<SearchItem>((item) => {
+                if (isTableErrorSearchResult(item)) {
+                    return {
+                        type: 'table',
+                        typeLabel: 'Table',
+                        prefix: `${item.exploreLabel} - `,
+                        title: item.exploreLabel,
+                        item: item,
+                        location: {
+                            pathname: `/projects/${projectUuid}/tables`,
+                        },
+                    };
+                }
+
+                return {
+                    type: 'table',
+                    typeLabel:
+                        item.name === item.explore ? 'Table' : 'Joined table',
+                    prefix:
+                        item.name === item.explore
+                            ? undefined
+                            : `${item.exploreLabel} - `,
+                    title: item.label,
+                    description: item.description,
+                    item: item,
+                    location: {
+                        pathname: `/projects/${projectUuid}/tables/${item.explore}`,
+                    },
+                };
+            }) || [];
 
         const fields =
             data?.fields.map<SearchItem>((item) => {
