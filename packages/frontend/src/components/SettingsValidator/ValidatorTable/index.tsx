@@ -26,6 +26,7 @@ import { createRef, FC, forwardRef, RefObject, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import { useDeleteValidation } from '../../../hooks/validation/useValidation';
+import MantineIcon from '../../common/MantineIcon';
 import { getChartIcon, IconBox } from '../../common/ResourceIcon';
 import { ErrorMessage } from './ErrorMessage';
 import { useScrollAndHighlight } from './hooks/useScrollAndHighlight';
@@ -87,7 +88,6 @@ const TableValidationItem = forwardRef<
     }
 >(({ projectUuid, validationError }, ref) => {
     const { mutate: deleteValidation } = useDeleteValidation(projectUuid);
-    const theme = useMantineTheme();
 
     const { hovered, ref: isHoveredRef } = useHover<HTMLTableRowElement>();
 
@@ -147,8 +147,10 @@ const TableValidationItem = forwardRef<
                 <Tooltip label="Dismiss error" position="top">
                     <Box w={24} h={24}>
                         {hovered && (
-                            <IconCircleX
-                                color={theme.colors.gray[6]}
+                            <MantineIcon
+                                icon={IconCircleX}
+                                color="gray.6"
+                                size="md"
                                 onClick={(e) => {
                                     deleteValidation(
                                         validationError.validationId,
