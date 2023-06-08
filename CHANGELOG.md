@@ -1,3 +1,10 @@
+## [0.601.1](https://github.com/lightdash/lightdash/compare/0.601.0...0.601.1) (2023-06-08)
+
+
+### Bug Fixes
+
+* scheduled deliveries charts bg should be white ([#5811](https://github.com/lightdash/lightdash/issues/5811)) ([f32ca75](https://github.com/lightdash/lightdash/commit/f32ca7567e97308c23256c25f5e0cf628e3d2f3b))
+
 # [0.601.0](https://github.com/lightdash/lightdash/compare/0.600.1...0.601.0) (2023-06-08)
 
 
