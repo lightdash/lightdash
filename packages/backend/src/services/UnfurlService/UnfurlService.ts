@@ -278,10 +278,11 @@ export class UnfurlService {
 
             await page.setExtraHTTPHeaders({ cookie });
 
-            // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-            chartType === ChartType.BIG_NUMBER
-                ? await page.setViewport(bigNumberViewport)
-                : await page.setViewport(viewport);
+            if (chartType === ChartType.BIG_NUMBER) {
+                await page.setViewport(bigNumberViewport);
+            }
+
+            await page.setViewport(viewport);
 
             await page.setRequestInterception(true);
             page.on('request', (request: any) => {
@@ -296,7 +297,7 @@ export class UnfurlService {
             });
             try {
                 await page.goto(url, {
-                    timeout: 300000, // Wait 2.5 mins for the page to load
+                    timeout: 150000, // Wait 2.5 mins for the page to load
                     waitUntil: 'networkidle0',
                 });
             } catch (e) {
@@ -306,7 +307,6 @@ export class UnfurlService {
             }
 
             const path = `/tmp/${imageId}.png`;
-            console.log(lightdashPage);
             const selector =
                 lightdashPage === LightdashPage.EXPLORE
                     ? `.echarts-for-react, [data-testid="visualization"]`
