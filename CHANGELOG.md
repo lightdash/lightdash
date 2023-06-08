@@ -1,3 +1,10 @@
+## [0.601.2](https://github.com/lightdash/lightdash/compare/0.601.1...0.601.2) (2023-06-08)
+
+
+### Bug Fixes
+
+* fix slack channel names on schedulers ([#5812](https://github.com/lightdash/lightdash/issues/5812)) ([aac5718](https://github.com/lightdash/lightdash/commit/aac571819accba982dd4b1462b94e1c5d9c54f07))
+
 ## [0.601.1](https://github.com/lightdash/lightdash/compare/0.601.0...0.601.1) (2023-06-08)
 
 
