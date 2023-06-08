@@ -280,9 +280,9 @@ export class UnfurlService {
 
             if (chartType === ChartType.BIG_NUMBER) {
                 await page.setViewport(bigNumberViewport);
+            } else {
+                await page.setViewport(viewport);
             }
-
-            await page.setViewport(viewport);
 
             await page.setRequestInterception(true);
             page.on('request', (request: any) => {
