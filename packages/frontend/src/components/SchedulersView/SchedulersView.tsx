@@ -155,6 +155,11 @@ const Schedulers: FC<SchedulersProps> = ({
                                     </Text>
                                 </Tooltip>
                             )}
+                            {slackChannels.length === 0 && emails.length === 0 && (
+                                <Text fz="xs" color="gray.6">
+                                    No destinations
+                                </Text>
+                            )}
                         </Group>
                     );
                 },
