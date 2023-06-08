@@ -1,3 +1,16 @@
+# [0.599.0](https://github.com/lightdash/lightdash/compare/0.598.5...0.599.0) (2023-06-08)
+
+
+### Bug Fixes
+
+* exclude dimensions from summable metric field ids ([#5794](https://github.com/lightdash/lightdash/issues/5794)) ([dc3e012](https://github.com/lightdash/lightdash/commit/dc3e012e55b81c7a00eaf62b9db706fddafae0de))
+* remove show error logs button from navbar ([#5775](https://github.com/lightdash/lightdash/issues/5775)) ([3b5f4ad](https://github.com/lightdash/lightdash/commit/3b5f4adf48d59a24d08874d94a338c94e1724fc7))
+
+
+### Features
+
+* pivot table frozen total rows ([#5789](https://github.com/lightdash/lightdash/issues/5789)) ([99ea4e7](https://github.com/lightdash/lightdash/commit/99ea4e7d52f87aa78f89f75c0a19de7dcb883daf))
+
 ## [0.598.5](https://github.com/lightdash/lightdash/compare/0.598.4...0.598.5) (2023-06-08)
 
 
