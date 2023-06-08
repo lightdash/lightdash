@@ -15,16 +15,13 @@ import {
     isDimension,
     isExploreError,
     isMetric,
-    JobStatusType,
     OrganizationMemberRole,
     RequestMethod,
     SessionUser,
     TableCalculation,
     ValidationErrorType,
-    ValidationJobDetails,
     ValidationResponse,
 } from '@lightdash/common';
-import { BadRequestError } from 'passport-headerapikey';
 import { analytics } from '../../analytics/client';
 import { schedulerClient } from '../../clients/clients';
 import { LightdashConfig } from '../../config/parseConfig';

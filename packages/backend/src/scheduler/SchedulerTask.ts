@@ -18,7 +18,6 @@ import {
     SchedulerLog,
     SlackNotificationPayload,
     ValidateProjectPayload,
-    ValidationJobDetails,
 } from '@lightdash/common';
 import { nanoid } from 'nanoid';
 import { analytics } from '../analytics/client';
