@@ -1,3 +1,10 @@
+# [0.600.0](https://github.com/lightdash/lightdash/compare/0.599.0...0.600.0) (2023-06-08)
+
+
+### Features
+
+* add visual indicator to charts and dashboards errors ([#5757](https://github.com/lightdash/lightdash/issues/5757)) ([768be1f](https://github.com/lightdash/lightdash/commit/768be1fdcebecf53664cb6460ac59d3f59db5d61))
+
 # [0.599.0](https://github.com/lightdash/lightdash/compare/0.598.5...0.599.0) (2023-06-08)
 
 
