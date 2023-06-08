@@ -1,3 +1,15 @@
+# [0.601.0](https://github.com/lightdash/lightdash/compare/0.600.1...0.601.0) (2023-06-08)
+
+
+### Bug Fixes
+
+* update env files ([#5787](https://github.com/lightdash/lightdash/issues/5787)) ([0859e76](https://github.com/lightdash/lightdash/commit/0859e76af50d076f5a4de250af687a13c97072a7))
+
+
+### Features
+
+* dismiss validations ([#5756](https://github.com/lightdash/lightdash/issues/5756)) ([060505c](https://github.com/lightdash/lightdash/commit/060505c421a34f477068357cae54b2d765939d6d))
+
 ## [0.600.1](https://github.com/lightdash/lightdash/compare/0.600.0...0.600.1) (2023-06-08)
 
 
