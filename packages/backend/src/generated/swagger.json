@@ -2639,7 +2639,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.594.2",
+        "version": "0.598.4",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
