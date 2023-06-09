@@ -1,3 +1,10 @@
+# [0.602.0](https://github.com/lightdash/lightdash/compare/0.601.4...0.602.0) (2023-06-09)
+
+
+### Features
+
+* add query tags ([#5784](https://github.com/lightdash/lightdash/issues/5784)) ([a2db47d](https://github.com/lightdash/lightdash/commit/a2db47d1d4f748568c9ecfad80168ee1dba05c8a))
+
 ## [0.601.4](https://github.com/lightdash/lightdash/compare/0.601.3...0.601.4) (2023-06-09)
 
 
