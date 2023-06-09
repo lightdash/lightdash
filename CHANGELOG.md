@@ -1,3 +1,10 @@
+## [0.601.4](https://github.com/lightdash/lightdash/compare/0.601.3...0.601.4) (2023-06-09)
+
+
+### Bug Fixes
+
+* summable field is undefined ([#5824](https://github.com/lightdash/lightdash/issues/5824)) ([deca3e3](https://github.com/lightdash/lightdash/commit/deca3e3060aba29f17fa35359aedac3f4428a6e8))
+
 ## [0.601.3](https://github.com/lightdash/lightdash/compare/0.601.2...0.601.3) (2023-06-09)
 
 
