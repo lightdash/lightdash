@@ -1,3 +1,10 @@
+## [0.601.3](https://github.com/lightdash/lightdash/compare/0.601.2...0.601.3) (2023-06-09)
+
+
+### Bug Fixes
+
+* pivot table hide table calculations ([#5813](https://github.com/lightdash/lightdash/issues/5813)) ([c389c3b](https://github.com/lightdash/lightdash/commit/c389c3bd9241d7675d27791bd7b672b6841fc124))
+
 ## [0.601.2](https://github.com/lightdash/lightdash/compare/0.601.1...0.601.2) (2023-06-08)
 
 
