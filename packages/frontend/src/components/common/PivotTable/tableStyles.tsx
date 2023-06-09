@@ -6,13 +6,6 @@ export const usePivotTableStyles = createStyles((theme) => ({
     root: {
         backgroundColor: theme.colors.gray[3],
 
-        'td, th': {
-            paddingLeft: theme.spacing.sm,
-            paddingRight: theme.spacing.sm,
-            paddingTop: theme.spacing.xs,
-            paddingBottom: theme.spacing.xs,
-        },
-
         tbody: {
             'tr:hover': {
                 td: {
@@ -22,6 +15,35 @@ export const usePivotTableStyles = createStyles((theme) => ({
                         },
                 },
             },
+        },
+    },
+
+    withStickyness: {
+        position: 'sticky',
+        right: 0,
+        zIndex: 2,
+    },
+
+    withStickynessShadow: {
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left: 0,
+
+        zIndex: -11,
+
+        opacity: 0,
+        transition: 'opacity 200ms ease-in-out',
+
+        boxShadow: `
+            ${rem(-1)} 0 ${rem(3)} rgba(0, 0, 0, 0.05),
+            rgba(0, 0, 0, 0.05) ${rem(-10)} 0 ${rem(15)} ${rem(-5)},
+            rgba(0, 0, 0, 0.04) ${rem(-7)} 0 ${rem(7)} ${rem(-5)}
+        `,
+
+        '&[data-floating-shadow="true"]': {
+            opacity: 1,
         },
     },
 
@@ -46,8 +68,6 @@ export const usePivotTableStyles = createStyles((theme) => ({
         left: -1,
         background: theme.colors.gray[3],
         zIndex: 1,
-        boxShadow: 'none',
-        transition: 'box-shadow 200ms linear',
     },
 
     floatingFooterShadow: {
@@ -88,6 +108,11 @@ export const usePivotTableCellStyles = createStyles<
         whiteSpace: 'nowrap',
         fontWeight: 400,
         fontSize: 13,
+
+        height: theme.spacing.xxl,
+
+        paddingLeft: theme.spacing.sm,
+        paddingRight: theme.spacing.sm,
 
         color: theme.colors.gray[9],
         backgroundColor: theme.white,

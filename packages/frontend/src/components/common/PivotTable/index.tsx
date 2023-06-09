@@ -8,7 +8,7 @@ import {
     ResultValue,
     TableCalculation,
 } from '@lightdash/common';
-import { Table, TableProps } from '@mantine/core';
+import { Box, Flex, Table, TableProps } from '@mantine/core';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import last from 'lodash-es/last';
 import React, { FC, useCallback, useMemo } from 'react';
@@ -55,7 +55,6 @@ const PivotTable: FC<PivotTableProps> = ({
 }) => {
     const { cx, classes } = usePivotTableStyles();
 
-    const tFootRef = React.useRef<HTMLTableSectionElement>(null);
     const containerScroll = useScroll(containerRef);
 
     const isAtBottom = useMemo(() => {
@@ -68,6 +67,19 @@ const PivotTable: FC<PivotTableProps> = ({
         return (
             Math.ceil(containerScrollPosY) + containerHeight === scrollHeight ||
             Math.floor(containerScrollPosY) + containerHeight === scrollHeight
+        );
+    }, [containerScroll, containerRef]);
+
+    const isAtRight = useMemo(() => {
+        if (!containerRef.current) return false;
+
+        const scrollWidth = containerRef.current.scrollWidth;
+        const containerWidth = containerRef.current.clientWidth;
+        const containerScrollPosX = containerScroll.x;
+
+        return (
+            Math.ceil(containerScrollPosX) + containerWidth === scrollWidth ||
+            Math.floor(containerScrollPosX) + containerWidth === scrollWidth
         );
     }, [containerScroll, containerRef]);
 
@@ -204,323 +216,391 @@ const PivotTable: FC<PivotTableProps> = ({
             : 0;
     const cellsCountWithRowNumber = (hideRowNumbers ? 0 : 1) + data.cellsCount;
 
+    const commonTableProps = {
+        // TODO: remove this when we have a better solution for the sticky footer
+        // miw: '100%',
+        cellSpacing: 1,
+        unstyled: true,
+        withBorder: true,
+        withColumnBorders: true,
+        ...tableProps,
+    };
+
     return (
-        <Table
-            miw="100%"
-            cellSpacing={1}
-            unstyled
-            withBorder
-            withColumnBorders
-            className={cx(classes.root, classes.withStickyFooter, className)}
-            {...tableProps}
-        >
-            <thead>
-                {data.headerValues.map((headerValues, headerRowIndex) => (
-                    <tr key={`header-row-${headerRowIndex}`}>
-                        {/* shows empty cell if row numbers are visible */}
-                        {hideRowNumbers ? null : <Cell />}
-
-                        {/* renders the title labels */}
-                        {data.titleFields[headerRowIndex].map(
-                            (titleField, titleFieldIndex) => {
-                                const field = titleField?.fieldId
-                                    ? getField(titleField?.fieldId)
-                                    : undefined;
-
-                                const isEmpty = !titleField?.fieldId;
-
-                                const isHeaderTitle =
-                                    titleField?.direction === 'header';
-
-                                return (
-                                    <Cell
-                                        key={`title-${headerRowIndex}-${titleFieldIndex}`}
-                                        component="th"
-                                        withBolderFont
-                                        withGrayBackground={!isEmpty}
-                                        withAlignRight={isHeaderTitle}
-                                        tooltipContent={
-                                            isField(field)
-                                                ? field.description
-                                                : undefined
-                                        }
-                                    >
-                                        {titleField?.fieldId
-                                            ? getFieldLabel(titleField?.fieldId)
-                                            : undefined}
-                                    </Cell>
-                                );
-                            },
-                        )}
-
-                        {/* renders the header values or labels */}
-                        {headerValues.map((headerValue, headerColIndex) => {
-                            const isLabel = headerValue.type === 'label';
-                            const field = getField(headerValue.fieldId);
-
-                            const description =
-                                isLabel && isField(field)
-                                    ? field.description
-                                    : undefined;
-
-                            return isLabel || headerValue.colSpan > 0 ? (
-                                <Cell
-                                    key={`header-${headerRowIndex}-${headerColIndex}`}
-                                    component="th"
-                                    withBolderFont={isLabel}
-                                    withLighterBoldFont={!isLabel}
-                                    withGrayBackground
-                                    tooltipContent={description}
-                                    colSpan={
-                                        isLabel
-                                            ? undefined
-                                            : headerValue.colSpan
-                                    }
-                                >
-                                    {isLabel
-                                        ? getFieldLabel(headerValue.fieldId)
-                                        : headerValue.value.formatted}
-                                </Cell>
-                            ) : null;
-                        })}
-
-                        {/* render the total label */}
-                        {hasRowTotals
-                            ? data.rowTotalFields?.[headerRowIndex].map(
-                                  (totalLabel, headerColIndex) =>
-                                      totalLabel ? (
-                                          <Cell
-                                              key={`header-total-${headerRowIndex}-${headerColIndex}`}
-                                              withBolderFont
-                                              withMinimalWidth
-                                              withGrayBackground
-                                          >
-                                              {totalLabel.fieldId
-                                                  ? `Total ${getFieldLabel(
-                                                        totalLabel.fieldId,
-                                                    )}`
-                                                  : `Total`}
-                                          </Cell>
-                                      ) : (
-                                          <Cell
-                                              key={`header-total-${headerRowIndex}-${headerColIndex}`}
-                                              withMinimalWidth
-                                              withAlignRight
-                                          />
-                                      ),
-                              )
-                            : null}
-                    </tr>
-                ))}
-            </thead>
-
-            <tbody>
-                {paddingTop > 0 && (
-                    <VirtualizedArea
-                        cellCount={cellsCountWithRowNumber}
-                        height={paddingTop}
-                    />
+        <Flex>
+            <Table
+                {...commonTableProps}
+                className={cx(
+                    classes.root,
+                    classes.withStickyFooter,
+                    className,
                 )}
-                {virtualRows.map(({ index: rowIndex }) => {
-                    const row = data.dataValues[rowIndex];
-                    return (
-                        <tr key={`row-${rowIndex}`}>
-                            {!hideRowNumbers && (
-                                <Cell withAlignRight withMinimalWidth>
-                                    {rowIndex + 1}
-                                </Cell>
-                            )}
+            >
+                <thead>
+                    {data.headerValues.map((headerValues, headerRowIndex) => (
+                        <tr key={`header-row-${headerRowIndex}`}>
+                            {/* shows empty cell if row numbers are visible */}
+                            {hideRowNumbers ? null : <Cell />}
 
-                            {/* renders empty rows if there are no index values but titles */}
-                            {data.indexValueTypes.length === 0 &&
-                                data.titleFields[0].map(
-                                    (_titleField, titleFieldIndex) => (
-                                        <Cell
-                                            key={`empty-title-${rowIndex}-${titleFieldIndex}`}
-                                        />
-                                    ),
-                                )}
+                            {/* renders the title labels */}
+                            {data.titleFields[headerRowIndex].map(
+                                (titleField, titleFieldIndex) => {
+                                    const field = titleField?.fieldId
+                                        ? getField(titleField?.fieldId)
+                                        : undefined;
 
-                            {/* renders the index values or labels */}
-                            {data.indexValueTypes.map(
-                                (_indexValueType, indexColIndex) => {
-                                    const indexValue =
-                                        data.indexValues[rowIndex][
-                                            indexColIndex
-                                        ];
-                                    const field = getField(indexValue.fieldId);
-                                    const isLabel = indexValue.type === 'label';
+                                    const isEmpty = !titleField?.fieldId;
 
-                                    const description =
-                                        isLabel && isField(field)
-                                            ? field.description
-                                            : undefined;
+                                    const isHeaderTitle =
+                                        titleField?.direction === 'header';
 
                                     return (
                                         <Cell
-                                            key={`index-${rowIndex}-${indexColIndex}`}
-                                            withBolderFont={isLabel}
-                                            withLighterBoldFont={!isLabel}
-                                            withGrayBackground
-                                            tooltipContent={description}
+                                            key={`title-${headerRowIndex}-${titleFieldIndex}`}
+                                            component="th"
+                                            withBolderFont
+                                            withGrayBackground={!isEmpty}
+                                            withAlignRight={isHeaderTitle}
+                                            tooltipContent={
+                                                isField(field)
+                                                    ? field.description
+                                                    : undefined
+                                            }
                                         >
-                                            {isLabel
+                                            {titleField?.fieldId
                                                 ? getFieldLabel(
-                                                      indexValue.fieldId,
+                                                      titleField?.fieldId,
                                                   )
-                                                : indexValue.value.formatted}
+                                                : undefined}
                                         </Cell>
                                     );
                                 },
                             )}
 
-                            {/* renders the pivot values */}
-                            {row.map((value, colIndex) => {
-                                return (
-                                    <ValueCell
-                                        key={`value-${rowIndex}-${colIndex}`}
-                                        item={getItemFromAxis(
-                                            rowIndex,
-                                            colIndex,
-                                        )}
-                                        value={value}
-                                        colIndex={colIndex}
-                                        rowIndex={rowIndex}
-                                        getUnderlyingFieldValues={
-                                            getUnderlyingFieldValues
+                            {/* renders the header values or labels */}
+                            {headerValues.map((headerValue, headerColIndex) => {
+                                const isLabel = headerValue.type === 'label';
+                                const field = getField(headerValue.fieldId);
+
+                                const description =
+                                    isLabel && isField(field)
+                                        ? field.description
+                                        : undefined;
+
+                                return isLabel || headerValue.colSpan > 0 ? (
+                                    <Cell
+                                        key={`header-${headerRowIndex}-${headerColIndex}`}
+                                        component="th"
+                                        withBolderFont={isLabel}
+                                        withLighterBoldFont={!isLabel}
+                                        withGrayBackground
+                                        tooltipContent={description}
+                                        colSpan={
+                                            isLabel
+                                                ? undefined
+                                                : headerValue.colSpan
                                         }
-                                        conditionalFormattings={
-                                            conditionalFormattings
-                                        }
-                                    />
-                                );
+                                    >
+                                        {isLabel
+                                            ? getFieldLabel(headerValue.fieldId)
+                                            : headerValue.value.formatted}
+                                    </Cell>
+                                ) : null;
                             })}
-
-                            {/* render the total values */}
-                            {hasRowTotals
-                                ? data.rowTotals?.[rowIndex].map(
-                                      (total, colIndex) => {
-                                          const value = data.pivotConfig
-                                              .metricsAsRows
-                                              ? getMetricAsRowTotalValueFromAxis(
-                                                    total,
-                                                    rowIndex,
-                                                )
-                                              : getRowTotalValueFromAxis(
-                                                    total,
-                                                    colIndex,
-                                                );
-
-                                          return value ? (
-                                              <ValueCell
-                                                  key={`index-total-${rowIndex}-${colIndex}`}
-                                                  value={value}
-                                                  withValue={!!value.formatted}
-                                                  withBolderFont
-                                                  withGrayBackground
-                                              >
-                                                  {value.formatted}
-                                              </ValueCell>
-                                          ) : (
-                                              <Cell withGrayBackground />
-                                          );
-                                      },
-                                  )
-                                : null}
                         </tr>
-                    );
-                })}
-                {paddingBottom > 0 && (
-                    <VirtualizedArea
-                        cellCount={cellsCountWithRowNumber}
-                        height={paddingBottom}
-                    />
-                )}
-            </tbody>
+                    ))}
+                </thead>
 
-            {hasColumnTotals ? (
-                <tfoot ref={tFootRef}>
-                    <div className={classes.floatingFooter}>
-                        <div
-                            className={classes.floatingFooterShadow}
-                            data-floating-footer-shadow={!isAtBottom}
+                <tbody>
+                    {paddingTop > 0 && (
+                        <VirtualizedArea
+                            cellCount={cellsCountWithRowNumber}
+                            height={paddingTop}
                         />
-                    </div>
+                    )}
+                    {virtualRows.map(({ index: rowIndex }) => {
+                        const row = data.dataValues[rowIndex];
+                        return (
+                            <tr key={`row-${rowIndex}`}>
+                                {!hideRowNumbers && (
+                                    <Cell withAlignRight withMinimalWidth>
+                                        {rowIndex + 1}
+                                    </Cell>
+                                )}
 
-                    {data.columnTotals?.map((row, totalRowIndex) => (
-                        <tr key={`column-total-${totalRowIndex}`}>
-                            {/* shows empty cell if row numbers are visible */}
-                            {hideRowNumbers ? null : <Cell withMinimalWidth />}
+                                {/* renders empty rows if there are no index values but titles */}
+                                {data.indexValueTypes.length === 0 &&
+                                    data.titleFields[0].map(
+                                        (_titleField, titleFieldIndex) => (
+                                            <Cell
+                                                key={`empty-title-${rowIndex}-${titleFieldIndex}`}
+                                            />
+                                        ),
+                                    )}
 
-                            {/* render the total label */}
-                            {data.columnTotalFields?.[totalRowIndex].map(
-                                (totalLabel, totalColIndex) =>
-                                    totalLabel ? (
-                                        <Cell
-                                            key={`footer-total-${totalRowIndex}-${totalColIndex}`}
-                                            withAlignRight
+                                {/* renders the index values or labels */}
+                                {data.indexValueTypes.map(
+                                    (_indexValueType, indexColIndex) => {
+                                        const indexValue =
+                                            data.indexValues[rowIndex][
+                                                indexColIndex
+                                            ];
+                                        const field = getField(
+                                            indexValue.fieldId,
+                                        );
+                                        const isLabel =
+                                            indexValue.type === 'label';
+
+                                        const description =
+                                            isLabel && isField(field)
+                                                ? field.description
+                                                : undefined;
+
+                                        return (
+                                            <Cell
+                                                key={`index-${rowIndex}-${indexColIndex}`}
+                                                withBolderFont={isLabel}
+                                                withLighterBoldFont={!isLabel}
+                                                withGrayBackground
+                                                tooltipContent={description}
+                                            >
+                                                {isLabel
+                                                    ? getFieldLabel(
+                                                          indexValue.fieldId,
+                                                      )
+                                                    : indexValue.value
+                                                          .formatted}
+                                            </Cell>
+                                        );
+                                    },
+                                )}
+
+                                {/* renders the pivot values */}
+                                {row.map((value, colIndex) => {
+                                    return (
+                                        <ValueCell
+                                            key={`value-${rowIndex}-${colIndex}`}
+                                            item={getItemFromAxis(
+                                                rowIndex,
+                                                colIndex,
+                                            )}
+                                            value={value}
+                                            colIndex={colIndex}
+                                            rowIndex={rowIndex}
+                                            getUnderlyingFieldValues={
+                                                getUnderlyingFieldValues
+                                            }
+                                            conditionalFormattings={
+                                                conditionalFormattings
+                                            }
+                                        />
+                                    );
+                                })}
+                            </tr>
+                        );
+                    })}
+                    {paddingBottom > 0 && (
+                        <VirtualizedArea
+                            cellCount={cellsCountWithRowNumber}
+                            height={paddingBottom}
+                        />
+                    )}
+                </tbody>
+
+                {hasColumnTotals ? (
+                    <tfoot>
+                        <div className={classes.floatingFooter}>
+                            <div
+                                className={classes.floatingFooterShadow}
+                                data-floating-footer-shadow={!isAtBottom}
+                            />
+                        </div>
+
+                        {data.columnTotals?.map((row, totalRowIndex) => (
+                            <tr key={`column-total-${totalRowIndex}`}>
+                                {/* shows empty cell if row numbers are visible */}
+                                {hideRowNumbers ? null : (
+                                    <Cell withMinimalWidth />
+                                )}
+
+                                {/* render the total label */}
+                                {data.columnTotalFields?.[totalRowIndex].map(
+                                    (totalLabel, totalColIndex) =>
+                                        totalLabel ? (
+                                            <Cell
+                                                key={`footer-total-${totalRowIndex}-${totalColIndex}`}
+                                                withAlignRight
+                                                withBolderFont
+                                            >
+                                                {totalLabel.fieldId
+                                                    ? `Total ${getFieldLabel(
+                                                          totalLabel.fieldId,
+                                                      )}`
+                                                    : `Total`}
+                                            </Cell>
+                                        ) : (
+                                            <Cell
+                                                key={`footer-total-${totalRowIndex}-${totalColIndex}`}
+                                                component="th"
+                                                withAlignRight
+                                                withMinimalWidth
+                                            />
+                                        ),
+                                )}
+
+                                {row.map((total, totalColIndex) => {
+                                    const value = data.pivotConfig.metricsAsRows
+                                        ? getMetricAsRowColumnTotalValueFromAxis(
+                                              total,
+                                              totalRowIndex,
+                                          )
+                                        : getColumnTotalValueFromAxis(
+                                              total,
+                                              totalColIndex,
+                                          );
+                                    return value ? (
+                                        <ValueCell
+                                            key={`column-total-${totalRowIndex}-${totalColIndex}`}
+                                            value={value}
+                                            component="th"
+                                            withValue={!!value.formatted}
                                             withBolderFont
-                                            withGrayBackground
                                         >
-                                            {totalLabel.fieldId
-                                                ? `Total ${getFieldLabel(
-                                                      totalLabel.fieldId,
-                                                  )}`
-                                                : `Total`}
-                                        </Cell>
+                                            {value.formatted}
+                                        </ValueCell>
                                     ) : (
                                         <Cell
                                             key={`footer-total-${totalRowIndex}-${totalColIndex}`}
                                             component="th"
-                                            withAlignRight
-                                            withMinimalWidth
                                         />
-                                    ),
-                            )}
+                                    );
+                                })}
+                            </tr>
+                        ))}
+                    </tfoot>
+                ) : null}
+            </Table>
 
-                            {row.map((total, totalColIndex) => {
-                                const value = data.pivotConfig.metricsAsRows
-                                    ? getMetricAsRowColumnTotalValueFromAxis(
-                                          total,
-                                          totalRowIndex,
-                                      )
-                                    : getColumnTotalValueFromAxis(
-                                          total,
-                                          totalColIndex,
-                                      );
-                                return value ? (
-                                    <ValueCell
-                                        key={`column-total-${totalRowIndex}-${totalColIndex}`}
-                                        value={value}
-                                        component="th"
-                                        withValue={!!value.formatted}
-                                        withBolderFont
-                                        withGrayBackground
-                                    >
-                                        {value.formatted}
-                                    </ValueCell>
-                                ) : (
-                                    <Cell
-                                        key={`footer-total-${totalRowIndex}-${totalColIndex}`}
-                                        component="th"
-                                        withGrayBackground
-                                    />
+            {/* renders the row totals */}
+            {hasRowTotals && (
+                <Box h="100%" className={cx(classes.withStickyness)}>
+                    <Box
+                        className={classes.withStickynessShadow}
+                        data-floating-shadow={!isAtRight}
+                    />
+
+                    <Table
+                        {...commonTableProps}
+                        className={cx(
+                            classes.root,
+                            classes.withStickyFooter,
+
+                            className,
+                        )}
+                        sx={{ zIndex: 2 }}
+                    >
+                        <thead>
+                            {/* render the total label */}
+                            {data.headerValues.map(
+                                (_headerValues, headerRowIndex) => (
+                                    <tr key={`header-row-${headerRowIndex}`}>
+                                        {data.rowTotalFields?.[
+                                            headerRowIndex
+                                        ].map((totalLabel, headerColIndex) =>
+                                            totalLabel ? (
+                                                <Cell
+                                                    key={`header-total-${headerRowIndex}-${headerColIndex}`}
+                                                    withBolderFont
+                                                    withMinimalWidth
+                                                >
+                                                    {totalLabel.fieldId
+                                                        ? `Total ${getFieldLabel(
+                                                              totalLabel.fieldId,
+                                                          )}`
+                                                        : `Total`}
+                                                </Cell>
+                                            ) : (
+                                                <Cell
+                                                    key={`header-total-${headerRowIndex}-${headerColIndex}`}
+                                                    withMinimalWidth
+                                                    withAlignRight
+                                                />
+                                            ),
+                                        )}
+                                    </tr>
+                                ),
+                            )}
+                        </thead>
+
+                        <tbody>
+                            {virtualRows.map(({ index: rowIndex }) => {
+                                return (
+                                    <tr key={`row-${rowIndex}`}>
+                                        {/* shows empty cell if row numbers are visible */}
+
+                                        {hasRowTotals
+                                            ? data.rowTotals?.[rowIndex].map(
+                                                  (total, colIndex) => {
+                                                      const value = data
+                                                          .pivotConfig
+                                                          .metricsAsRows
+                                                          ? getMetricAsRowTotalValueFromAxis(
+                                                                total,
+                                                                rowIndex,
+                                                            )
+                                                          : getRowTotalValueFromAxis(
+                                                                total,
+                                                                colIndex,
+                                                            );
+
+                                                      return value ? (
+                                                          <ValueCell
+                                                              key={`index-total-${rowIndex}-${colIndex}`}
+                                                              value={value}
+                                                              withValue={
+                                                                  !!value.formatted
+                                                              }
+                                                              withBolderFont
+                                                          >
+                                                              {value.formatted}
+                                                          </ValueCell>
+                                                      ) : (
+                                                          <Cell />
+                                                      );
+                                                  },
+                                              )
+                                            : null}
+                                    </tr>
                                 );
                             })}
+                        </tbody>
 
-                            {hasRowTotals
-                                ? data.rowTotalFields?.[0].map((_, index) => (
-                                      <Cell
-                                          key={`footer-empty-${totalRowIndex}-${index}`}
-                                          component="th"
-                                      />
-                                  ))
-                                : null}
-                        </tr>
-                    ))}
-                </tfoot>
-            ) : null}
-        </Table>
+                        {hasColumnTotals ? (
+                            <tfoot>
+                                <div className={classes.floatingFooter} />
+
+                                {data.columnTotals?.map(
+                                    (_row, totalRowIndex) => (
+                                        <tr
+                                            key={`column-total-${totalRowIndex}`}
+                                        >
+                                            {data.rowTotalFields?.[0].map(
+                                                (_, index) => (
+                                                    <Cell
+                                                        key={`footer-empty-${totalRowIndex}-${index}`}
+                                                        component="th"
+                                                    />
+                                                ),
+                                            )}
+                                        </tr>
+                                    ),
+                                )}
+                            </tfoot>
+                        ) : null}
+                    </Table>
+                </Box>
+            )}
+        </Flex>
     );
 };
 
