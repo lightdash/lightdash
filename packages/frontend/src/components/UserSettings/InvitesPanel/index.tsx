@@ -1,109 +1,134 @@
-import { CreateInviteLink, OrganizationMemberRole } from '@lightdash/common';
-import { FC, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import {
+    CreateInviteLink,
+    OrganizationMemberRole,
+    validateEmail,
+} from '@lightdash/common';
+import {
+    ActionIcon,
+    Button,
+    Group,
+    Select,
+    TextInput,
+    Title,
+    Tooltip,
+} from '@mantine/core';
+import { useForm } from '@mantine/form';
+import { IconChevronLeft, IconInfoCircle } from '@tabler/icons-react';
+import React, { FC, useEffect } from 'react';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
-import { isValidEmail } from '../../../utils/fieldValidators';
+import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
 import InviteSuccess from '../UserManagementPanel/InviteSuccess';
-import {
-    BackButton,
-    EmailInput,
-    InviteForm,
-    Panel,
-    RoleSelectButton,
-    SubmitButton,
-} from './InvitesPanel.styles';
 
+type SendInviteFormProps = Omit<CreateInviteLink, 'expiresAt'>;
 const InvitePanel: FC<{
     onBackClick: () => void;
 }> = ({ onBackClick }) => {
-    const { track } = useTracking();
-    const { health, user } = useApp();
-    const { data, mutate, isError, isLoading, isSuccess } =
-        useCreateInviteLinkMutation();
-    const methods = useForm<Omit<CreateInviteLink, 'expiresAt'>>({
-        mode: 'onSubmit',
-        defaultValues: {
+    const form = useForm<SendInviteFormProps>({
+        initialValues: {
+            email: '',
             role: OrganizationMemberRole.EDITOR,
         },
+        validate: {
+            email: (value: string) =>
+                validateEmail(value) ? null : 'Your email address is not valid',
+        },
     });
-
-    useEffect(() => {
-        if (isError) {
-            methods.reset({ ...methods.getValues() }, { keepValues: true });
-        }
-        if (isSuccess) {
-            methods.setValue('email', '');
-            methods.setValue('role', OrganizationMemberRole.EDITOR);
-        }
-    }, [isError, methods, isSuccess]);
-
-    const handleSubmit = (formData: Omit<CreateInviteLink, 'expiresAt'>) => {
+    const { track } = useTracking();
+    const { health, user } = useApp();
+    const {
+        data: inviteLink,
+        mutate,
+        isLoading,
+        isSuccess,
+    } = useCreateInviteLinkMutation();
+    const handleSubmit = (data: SendInviteFormProps) => {
         track({
             name: EventName.INVITE_BUTTON_CLICKED,
         });
-        mutate(formData);
+        mutate(data);
     };
 
+    useEffect(() => {
+        if (isSuccess) {
+            form.setFieldValue('email', '');
+            form.setFieldValue('role', OrganizationMemberRole.EDITOR);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [form.setFieldValue, isSuccess]);
+
     return (
-        <Panel>
-            <BackButton
-                icon="chevron-left"
-                text="Back to all users"
-                onClick={onBackClick}
-            />
-
-            <SettingsCard>
-                <InviteForm
-                    name="invite-form"
-                    methods={methods}
-                    onSubmit={handleSubmit}
+        <>
+            <Group position="apart" pb="md">
+                <Group spacing="two">
+                    <Title order={5}>User management settings</Title>
+                    <Tooltip label="Click here to learn more about user roles">
+                        <ActionIcon
+                            component="a"
+                            href="https://docs.lightdash.com/references/roles"
+                            target="_blank"
+                            rel="noreferrer"
+                        >
+                            <MantineIcon icon={IconInfoCircle} />
+                        </ActionIcon>
+                    </Tooltip>
+                </Group>
+                <Button
+                    leftIcon={<MantineIcon icon={IconChevronLeft} />}
+                    onClick={onBackClick}
                 >
-                    <EmailInput
-                        name="email"
-                        label="Enter user email address"
-                        placeholder="example@gmail.com"
-                        disabled={isLoading}
-                        rules={{
-                            required: 'Required field',
-                            validate: {
-                                isValidEmail: isValidEmail('Email'),
-                            },
-                        }}
-                    />
-                    {user.data?.ability?.can('manage', 'Organization') && (
-                        <RoleSelectButton
-                            name="role"
-                            disabled={isLoading}
-                            options={Object.values(OrganizationMemberRole).map(
-                                (orgMemberRole) => ({
-                                    value: orgMemberRole,
-                                    label: orgMemberRole.replace('_', ' '),
-                                }),
-                            )}
-                            rules={{
-                                required: 'Required field',
-                            }}
-                        />
+                    Back to all users
+                </Button>
+            </Group>
+            <SettingsCard>
+                <form
+                    name="invite_user"
+                    onSubmit={form.onSubmit((values: SendInviteFormProps) =>
+                        handleSubmit(values),
                     )}
-                    <SubmitButton
-                        intent="primary"
-                        text={
-                            health.data?.hasEmailClient
-                                ? 'Send invite'
-                                : 'Generate invite'
-                        }
-                        type="submit"
-                        disabled={isLoading}
-                    />
-                </InviteForm>
+                >
+                    <Group align="flex-end" position="apart">
+                        <TextInput
+                            name="email"
+                            label="Enter user email address"
+                            placeholder="example@gmail.com"
+                            required
+                            disabled={isLoading}
+                            w="50%"
+                            {...form.getInputProps('email')}
+                        />
+                        <Group spacing="xs">
+                            {user.data?.ability?.can(
+                                'manage',
+                                'Organization',
+                            ) && (
+                                <Select
+                                    data={Object.values(
+                                        OrganizationMemberRole,
+                                    ).map((orgMemberRole) => ({
+                                        value: orgMemberRole,
+                                        label: orgMemberRole.replace('_', ' '),
+                                    }))}
+                                    disabled={isLoading}
+                                    required
+                                    placeholder="Select role"
+                                    {...form.getInputProps('role')}
+                                />
+                            )}
+                            <Button disabled={isLoading} type="submit">
+                                {health.data?.hasEmailClient
+                                    ? 'Send invite'
+                                    : 'Generate invite'}
+                            </Button>
+                        </Group>
+                    </Group>
+                </form>
             </SettingsCard>
-
-            {data && <InviteSuccess invite={data} hasMarginTop />}
-        </Panel>
+            {inviteLink && <InviteSuccess invite={inviteLink} hasMarginTop />}
+        </>
     );
 };
 

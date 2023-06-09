@@ -237,7 +237,7 @@ const UserManagementPanel: FC = () => {
                 <Group position="apart" pb="md">
                     <Group spacing="two">
                         <Title order={5}>User management settings</Title>
-                        <Tooltip label="Click here to learn more about roles">
+                        <Tooltip label="Click here to learn more about user roles">
                             <ActionIcon
                                 component="a"
                                 href="https://docs.lightdash.com/references/roles"

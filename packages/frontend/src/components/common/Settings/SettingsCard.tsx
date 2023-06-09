@@ -1,15 +1,15 @@
-import { Card, CardProps, SimpleGrid } from '@mantine/core';
+import { Paper, PaperProps, SimpleGrid } from '@mantine/core';
 import { FC } from 'react';
 
-const SettingsCard: FC<CardProps> = ({ children, ...rest }) => {
+const SettingsCard: FC<PaperProps> = ({ children, ...rest }) => {
     return (
-        <Card shadow="sm" withBorder {...rest}>
+        <Paper shadow="sm" withBorder p="md" {...rest}>
             {children}
-        </Card>
+        </Paper>
     );
 };
 
-const SettingsGridCard: FC<CardProps> = ({ children, ...rest }) => {
+const SettingsGridCard: FC<PaperProps> = ({ children, ...rest }) => {
     return (
         <SettingsCard {...rest}>
             <SimpleGrid cols={2}>{children}</SimpleGrid>
@@ -17,7 +17,7 @@ const SettingsGridCard: FC<CardProps> = ({ children, ...rest }) => {
     );
 };
 
-const ProjectCreationCard: FC<CardProps> = ({ children, ...rest }) => {
+const ProjectCreationCard: FC<PaperProps> = ({ children, ...rest }) => {
     return (
         <SettingsCard
             p="lg"
