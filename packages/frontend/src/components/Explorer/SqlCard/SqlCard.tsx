@@ -5,8 +5,13 @@ import {
 } from '../../../providers/ExplorerProvider';
 import CollapsableCard from '../../common/CollapsableCard';
 import { RenderedSql } from '../../RenderedSql';
+import OpenInSqlRunnerButton from './OpenInSqlRunnerButton';
 
-const SqlCard: FC = memo(() => {
+interface SqlCardProps {
+    projectUuid: string;
+}
+
+const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
     const expandedSections = useExplorerContext(
         (context) => context.state.expandedSections,
     );
@@ -23,6 +28,9 @@ const SqlCard: FC = memo(() => {
             isOpen={sqlIsOpen}
             onToggle={() => toggleExpandedSection(ExplorerSection.SQL)}
             disabled={!unsavedChartVersionTableName}
+            rightHeaderElement={
+                sqlIsOpen && <OpenInSqlRunnerButton projectUuid={projectUuid} />
+            }
         >
             <RenderedSql />
         </CollapsableCard>

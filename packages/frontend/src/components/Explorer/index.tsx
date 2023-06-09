@@ -35,7 +35,7 @@ const Explorer: FC = memo(() => {
 
                 <ResultsCard />
 
-                <SqlCard />
+                <SqlCard projectUuid={projectUuid} />
             </Stack>
 
             <UnderlyingDataModal />
