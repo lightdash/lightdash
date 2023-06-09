@@ -35,10 +35,13 @@ const getLinkToResource = (
     validationError: ValidationResponse,
     projectUuid: string,
 ) => {
-    if (isChartValidationError(validationError))
+    if (isChartValidationError(validationError) && validationError.chartUuid)
         return `/projects/${projectUuid}/saved/${validationError.chartUuid}`;
 
-    if (isDashboardValidationError(validationError))
+    if (
+        isDashboardValidationError(validationError) &&
+        validationError.dashboardUuid
+    )
         return `/projects/${projectUuid}/dashboards/${validationError.dashboardUuid}/view`;
 
     return;

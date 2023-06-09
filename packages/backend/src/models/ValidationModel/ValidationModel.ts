@@ -182,7 +182,7 @@ export class ValidationModel {
                 chartViews: parseInt(validationError.views, 10) || 0,
                 projectUuid: validationError.project_uuid,
                 error: validationError.error,
-                name: validationError.name,
+                name: validationError.name || 'Chart does not exist',
                 lastUpdatedBy: validationError.first_name
                     ? `${validationError.first_name} ${validationError.last_name}`
                     : undefined,
@@ -195,6 +195,7 @@ export class ValidationModel {
                 ),
                 errorType: validationError.error_type,
                 fieldName: validationError.field_name ?? undefined,
+                source: ValidationSourceType.Chart,
             }));
 
         const dashboardValidationErrorsRows: (DbValidationTable &
@@ -267,7 +268,7 @@ export class ValidationModel {
                 dashboardViews: parseInt(validationError.views, 10) || 0,
                 projectUuid: validationError.project_uuid,
                 error: validationError.error,
-                name: validationError.name,
+                name: validationError.name || 'Dashboard does not exist',
                 lastUpdatedBy: validationError.first_name
                     ? `${validationError.first_name} ${validationError.last_name}`
                     : undefined,
@@ -277,6 +278,7 @@ export class ValidationModel {
                 errorType: validationError.error_type,
                 fieldName: validationError.field_name ?? undefined,
                 chartName: validationError.chart_name ?? undefined,
+                source: ValidationSourceType.Dashboard,
             }));
 
         const tableValidationErrorsRows: DbValidationTable[] =
@@ -297,6 +299,7 @@ export class ValidationModel {
                 name: validationError.model_name ?? undefined,
                 validationId: validationError.validation_id,
                 errorType: validationError.error_type,
+                source: ValidationSourceType.Table,
             }));
 
         return [
