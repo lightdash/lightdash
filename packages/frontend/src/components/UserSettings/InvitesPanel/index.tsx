@@ -3,30 +3,23 @@ import {
     OrganizationMemberRole,
     validateEmail,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    Button,
-    Group,
-    Select,
-    TextInput,
-    Title,
-    Tooltip,
-} from '@mantine/core';
+import { Button, Group, Modal, Select, TextInput, Title } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconChevronLeft, IconInfoCircle } from '@tabler/icons-react';
+import { IconUser } from '@tabler/icons-react';
 import React, { FC, useEffect } from 'react';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
-import { SettingsCard } from '../../common/Settings/SettingsCard';
 import InviteSuccess from '../UserManagementPanel/InviteSuccess';
 
 type SendInviteFormProps = Omit<CreateInviteLink, 'expiresAt'>;
+
 const InvitePanel: FC<{
-    onBackClick: () => void;
-}> = ({ onBackClick }) => {
+    opened: boolean;
+    onClose: () => void;
+}> = ({ opened, onClose }) => {
     const form = useForm<SendInviteFormProps>({
         initialValues: {
             email: '',
@@ -61,74 +54,59 @@ const InvitePanel: FC<{
     }, [form.setFieldValue, isSuccess]);
 
     return (
-        <>
-            <Group position="apart" pb="md">
-                <Group spacing="two">
-                    <Title order={5}>User management settings</Title>
-                    <Tooltip label="Click here to learn more about user roles">
-                        <ActionIcon
-                            component="a"
-                            href="https://docs.lightdash.com/references/roles"
-                            target="_blank"
-                            rel="noreferrer"
-                        >
-                            <MantineIcon icon={IconInfoCircle} />
-                        </ActionIcon>
-                    </Tooltip>
+        <Modal
+            opened={opened}
+            onClose={onClose}
+            title={
+                <Group spacing="xs">
+                    <MantineIcon size="lg" icon={IconUser} />
+                    <Title order={4}>Add user</Title>
                 </Group>
-                <Button
-                    leftIcon={<MantineIcon icon={IconChevronLeft} />}
-                    onClick={onBackClick}
-                >
-                    Back to all users
-                </Button>
-            </Group>
-            <SettingsCard>
-                <form
-                    name="invite_user"
-                    onSubmit={form.onSubmit((values: SendInviteFormProps) =>
-                        handleSubmit(values),
-                    )}
-                >
-                    <Group align="flex-end" position="apart">
-                        <TextInput
-                            name="email"
-                            label="Enter user email address"
-                            placeholder="example@gmail.com"
-                            required
-                            disabled={isLoading}
-                            w="50%"
-                            {...form.getInputProps('email')}
-                        />
-                        <Group spacing="xs">
-                            {user.data?.ability?.can(
-                                'manage',
-                                'Organization',
-                            ) && (
-                                <Select
-                                    data={Object.values(
-                                        OrganizationMemberRole,
-                                    ).map((orgMemberRole) => ({
+            }
+            yOffset="15vw"
+            size="lg"
+        >
+            <form
+                name="invite_user"
+                onSubmit={form.onSubmit((values: SendInviteFormProps) =>
+                    handleSubmit(values),
+                )}
+            >
+                <Group align="flex-end" position="apart">
+                    <TextInput
+                        name="email"
+                        label="Enter user email address"
+                        placeholder="example@gmail.com"
+                        required
+                        disabled={isLoading}
+                        w="40%"
+                        {...form.getInputProps('email')}
+                    />
+                    <Group spacing="xs">
+                        {user.data?.ability?.can('manage', 'Organization') && (
+                            <Select
+                                data={Object.values(OrganizationMemberRole).map(
+                                    (orgMemberRole) => ({
                                         value: orgMemberRole,
                                         label: orgMemberRole.replace('_', ' '),
-                                    }))}
-                                    disabled={isLoading}
-                                    required
-                                    placeholder="Select role"
-                                    {...form.getInputProps('role')}
-                                />
-                            )}
-                            <Button disabled={isLoading} type="submit">
-                                {health.data?.hasEmailClient
-                                    ? 'Send invite'
-                                    : 'Generate invite'}
-                            </Button>
-                        </Group>
+                                    }),
+                                )}
+                                disabled={isLoading}
+                                required
+                                placeholder="Select role"
+                                {...form.getInputProps('role')}
+                            />
+                        )}
+                        <Button disabled={isLoading} type="submit">
+                            {health.data?.hasEmailClient
+                                ? 'Send invite'
+                                : 'Generate invite'}
+                        </Button>
                     </Group>
-                </form>
-            </SettingsCard>
+                </Group>
+            </form>
             {inviteLink && <InviteSuccess invite={inviteLink} hasMarginTop />}
-        </>
+        </Modal>
     );
 };
 

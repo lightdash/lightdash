@@ -21,8 +21,7 @@ import {
     IconCircleX,
     IconInfoCircle,
 } from '@tabler/icons-react';
-import { FC, useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { FC, useState } from 'react';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import {
     useDeleteOrganizationUserMutation,
@@ -207,51 +206,42 @@ const UserListItem: FC<{
 
 const UserManagementPanel: FC = () => {
     const { user } = useApp();
-    const [showInvitePage, setShowInvitePage] = useState(false);
+    const [showInviteModal, setShowInviteModal] = useState(false);
     const { data: organizationUsers, isLoading } = useOrganizationUsers();
-    const { search } = useLocation();
-
-    useEffect(() => {
-        const searchParams = new URLSearchParams(search);
-        const toParam = searchParams.get('to');
-        if (toParam === 'invite') {
-            setShowInvitePage(true);
-        }
-    }, [search]);
-
-    if (showInvitePage) {
-        return (
-            <TrackPage
-                name={PageName.INVITE_MANAGEMENT_SETTINGS}
-                type={PageType.MODAL}
-                category={CategoryName.SETTINGS}
-            >
-                <InvitesPanel onBackClick={() => setShowInvitePage(false)} />
-            </TrackPage>
-        );
-    }
 
     return (
         <>
             {user.data?.ability?.can('create', 'InviteLink') && (
-                <Group position="apart" pb="md">
-                    <Group spacing="two">
-                        <Title order={5}>User management settings</Title>
-                        <Tooltip label="Click here to learn more about user roles">
-                            <ActionIcon
-                                component="a"
-                                href="https://docs.lightdash.com/references/roles"
-                                target="_blank"
-                                rel="noreferrer"
-                            >
-                                <MantineIcon icon={IconInfoCircle} />
-                            </ActionIcon>
-                        </Tooltip>
+                <>
+                    <Group position="apart" pb="md">
+                        <Group spacing="two">
+                            <Title order={5}>User management settings</Title>
+                            <Tooltip label="Click here to learn more about user roles">
+                                <ActionIcon
+                                    component="a"
+                                    href="https://docs.lightdash.com/references/roles"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                >
+                                    <MantineIcon icon={IconInfoCircle} />
+                                </ActionIcon>
+                            </Tooltip>
+                        </Group>
+                        <Button onClick={() => setShowInviteModal(true)}>
+                            Add user
+                        </Button>
                     </Group>
-                    <Button onClick={() => setShowInvitePage(true)}>
-                        Add user
-                    </Button>
-                </Group>
+                    <TrackPage
+                        name={PageName.INVITE_MANAGEMENT_SETTINGS}
+                        type={PageType.MODAL}
+                        category={CategoryName.SETTINGS}
+                    >
+                        <InvitesPanel
+                            opened={showInviteModal}
+                            onClose={() => setShowInviteModal(false)}
+                        />
+                    </TrackPage>
+                </>
             )}
             {isLoading ? (
                 <LoadingState title="Loading users" />
