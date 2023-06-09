@@ -19,6 +19,8 @@ export async function up(knex: Knex): Promise<void> {
             .references('dashboard_uuid')
             .inTable('dashboards')
             .onDelete('SET NULL');
+
+        table.string('source').nullable();
     });
 }
 
@@ -39,5 +41,7 @@ export async function down(knex: Knex): Promise<void> {
             .references('dashboard_uuid')
             .inTable('dashboards')
             .onDelete('CASCADE');
+
+        table.dropColumn('source');
     });
 }

@@ -10,6 +10,7 @@ import {
     ValidationErrorTableResponse,
     ValidationResponse,
     ValidationResponseBase,
+    ValidationSourceType,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
@@ -52,6 +53,7 @@ export class ValidationModel {
                     project_uuid: validation.projectUuid,
                     error: validation.error,
                     error_type: validation.errorType,
+                    source: validation.source ?? null,
                     ...(isTableValidationError(validation) && {
                         model_name: validation.modelName,
                     }),
@@ -136,7 +138,10 @@ export class ValidationModel {
                 `${UserTableName}.user_uuid`,
             )
             .where('project_uuid', projectUuid)
-            .andWhereNot(`${ValidationTableName}.saved_chart_uuid`, null)
+            .andWhere(
+                `${ValidationTableName}.source`,
+                ValidationSourceType.Chart,
+            )
             .select([
                 `${ValidationTableName}.*`,
                 `${SavedChartsTableName}.name`,
@@ -220,7 +225,10 @@ export class ValidationModel {
                 `${DashboardVersionsTableName}.updated_by_user_uuid`,
             )
             .where('project_uuid', projectUuid)
-            .andWhereNot(`${ValidationTableName}.dashboard_uuid`, null)
+            .andWhere(
+                `${ValidationTableName}.source`,
+                ValidationSourceType.Dashboard,
+            )
             .select([
                 `${ValidationTableName}.*`,
                 `${DashboardsTableName}.name`,
@@ -275,8 +283,10 @@ export class ValidationModel {
             await this.database(ValidationTableName)
                 .select(`${ValidationTableName}.*`)
                 .where('project_uuid', projectUuid)
-                .whereNull('saved_chart_uuid')
-                .whereNull('dashboard_uuid')
+                .andWhere(
+                    `${ValidationTableName}.source`,
+                    ValidationSourceType.Table,
+                )
                 .distinctOn(`${ValidationTableName}.error`);
 
         const tableValidationErrors: ValidationErrorTableResponse[] =

@@ -954,8 +954,24 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
+            "ChartType": {
+                "enum": ["cartesian", "table", "big_number"],
+                "type": "string"
+            },
             "ChartSummary": {
-                "$ref": "#/components/schemas/Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid_"
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid_"
+                    },
+                    {
+                        "properties": {
+                            "chartType": {
+                                "$ref": "#/components/schemas/ChartType"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
             },
             "ApiChartSummaryListResponse": {
                 "properties": {
@@ -2438,8 +2454,15 @@
                 ],
                 "type": "string"
             },
+            "ValidationSourceType": {
+                "enum": ["chart", "dashboard", "table"],
+                "type": "string"
+            },
             "ValidationResponseBase": {
                 "properties": {
+                    "source": {
+                        "$ref": "#/components/schemas/ValidationSourceType"
+                    },
                     "spaceUuid": {
                         "type": "string"
                     },
@@ -2561,6 +2584,9 @@
                     },
                     "errorType": {
                         "$ref": "#/components/schemas/ValidationErrorType"
+                    },
+                    "source": {
+                        "$ref": "#/components/schemas/ValidationSourceType"
                     }
                 },
                 "required": [
@@ -2650,7 +2676,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.600.0",
+        "version": "0.601.4",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
