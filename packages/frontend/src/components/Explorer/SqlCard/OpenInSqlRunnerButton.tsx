@@ -1,5 +1,5 @@
 import { FC, memo } from 'react';
-import { useCompliedSql } from '../../../hooks/useCompiledSql';
+import { useCompiledSql } from '../../../hooks/useCompiledSql';
 import LinkButton from '../../common/LinkButton';
 
 interface OpenInSqlRunnerButtonProps {
@@ -8,7 +8,7 @@ interface OpenInSqlRunnerButtonProps {
 
 const OpenInSqlRunnerButton: FC<OpenInSqlRunnerButtonProps> = memo(
     ({ projectUuid }) => {
-        const { data, isLoading, error } = useCompliedSql();
+        const { data, isLoading, error } = useCompiledSql();
         const searchParams = new URLSearchParams({
             sql_runner: JSON.stringify({ sql: data ?? '{}' }),
         });
