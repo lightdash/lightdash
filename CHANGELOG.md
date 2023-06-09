@@ -1,3 +1,43 @@
+## [0.601.4](https://github.com/lightdash/lightdash/compare/0.601.3...0.601.4) (2023-06-09)
+
+
+### Bug Fixes
+
+* summable field is undefined ([#5824](https://github.com/lightdash/lightdash/issues/5824)) ([deca3e3](https://github.com/lightdash/lightdash/commit/deca3e3060aba29f17fa35359aedac3f4428a6e8))
+
+## [0.601.3](https://github.com/lightdash/lightdash/compare/0.601.2...0.601.3) (2023-06-09)
+
+
+### Bug Fixes
+
+* pivot table hide table calculations ([#5813](https://github.com/lightdash/lightdash/issues/5813)) ([c389c3b](https://github.com/lightdash/lightdash/commit/c389c3bd9241d7675d27791bd7b672b6841fc124))
+
+## [0.601.2](https://github.com/lightdash/lightdash/compare/0.601.1...0.601.2) (2023-06-08)
+
+
+### Bug Fixes
+
+* fix slack channel names on schedulers ([#5812](https://github.com/lightdash/lightdash/issues/5812)) ([aac5718](https://github.com/lightdash/lightdash/commit/aac571819accba982dd4b1462b94e1c5d9c54f07))
+
+## [0.601.1](https://github.com/lightdash/lightdash/compare/0.601.0...0.601.1) (2023-06-08)
+
+
+### Bug Fixes
+
+* scheduled deliveries charts bg should be white ([#5811](https://github.com/lightdash/lightdash/issues/5811)) ([f32ca75](https://github.com/lightdash/lightdash/commit/f32ca7567e97308c23256c25f5e0cf628e3d2f3b))
+
+# [0.601.0](https://github.com/lightdash/lightdash/compare/0.600.1...0.601.0) (2023-06-08)
+
+
+### Bug Fixes
+
+* update env files ([#5787](https://github.com/lightdash/lightdash/issues/5787)) ([0859e76](https://github.com/lightdash/lightdash/commit/0859e76af50d076f5a4de250af687a13c97072a7))
+
+
+### Features
+
+* dismiss validations ([#5756](https://github.com/lightdash/lightdash/issues/5756)) ([060505c](https://github.com/lightdash/lightdash/commit/060505c421a34f477068357cae54b2d765939d6d))
+
 ## [0.600.1](https://github.com/lightdash/lightdash/compare/0.600.0...0.600.1) (2023-06-08)
 
 

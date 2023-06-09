@@ -4,8 +4,9 @@ import {
     SchedulerWithLogs,
 } from '@lightdash/common';
 import { Anchor, Box, Group, Stack, Table, Text, Tooltip } from '@mantine/core';
-import React, { FC, useMemo } from 'react';
+import { FC, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { useSlackChannels } from '../../hooks/slack/useSlackChannels';
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
 import SchedulersViewActionMenu from './SchedulersViewActionMenu';
 import {
@@ -33,6 +34,19 @@ const Schedulers: FC<SchedulersProps> = ({
     dashboards,
 }) => {
     const { classes, theme } = useTableStyles();
+    const { data: allSlackChannels } = useSlackChannels();
+
+    const getSlackChannelName = useCallback(
+        (channelId: string) => {
+            if (allSlackChannels === undefined || allSlackChannels.length === 0)
+                return channelId;
+            const channelName = allSlackChannels.find(
+                (slackChannel) => slackChannel.id === channelId,
+            )?.name;
+            return channelName || channelId;
+        },
+        [allSlackChannels],
+    );
 
     const columns = useMemo<Column[]>(
         () => [
@@ -122,7 +136,7 @@ const Schedulers: FC<SchedulersProps> = ({
                     let slackChannels: string[] = [];
                     currentTargets.map((t) =>
                         isSlackTarget(t)
-                            ? slackChannels.push(t.channel)
+                            ? slackChannels.push(getSlackChannelName(t.channel))
                             : emails.push(t.recipient),
                     );
                     return (
@@ -220,7 +234,15 @@ const Schedulers: FC<SchedulersProps> = ({
                 },
             },
         ],
-        [users, charts, dashboards, projectUuid, logs, theme],
+        [
+            users,
+            charts,
+            dashboards,
+            projectUuid,
+            logs,
+            theme,
+            getSlackChannelName,
+        ],
     );
 
     return (
