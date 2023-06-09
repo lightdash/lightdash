@@ -198,7 +198,7 @@ const Schedulers: FC<SchedulersProps> = ({
                         (log) => log.schedulerUuid === item.schedulerUuid,
                     );
                     return currentLogs.length > 0 ? (
-                        <Group spacing="sm">
+                        <Group spacing="xs">
                             <Text fz="xs" color="gray.6">
                                 {formatTime(currentLogs[0].createdAt)}
                             </Text>
@@ -210,6 +210,7 @@ const Schedulers: FC<SchedulersProps> = ({
                         </Text>
                     );
                 },
+                meta: { style: { width: 200 } },
             },
             {
                 id: 'actions',

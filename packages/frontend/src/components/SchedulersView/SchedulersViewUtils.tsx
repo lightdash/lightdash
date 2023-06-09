@@ -125,10 +125,11 @@ export const getItemLink = (item: SchedulerItem, projectUuid: string) => {
 };
 
 export const formatTime = (date: Date) => {
-    return new Date(date).toLocaleString('en-US', {
+    return new Date(date).toLocaleString('en-GB', {
         timeZone: 'UTC',
         dateStyle: 'short',
         timeStyle: 'short',
+        hour12: true,
     });
 };
 
