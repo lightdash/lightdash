@@ -47,6 +47,18 @@ const getLinkToResource = (
     return;
 };
 
+const isDeleted = (validationError: ValidationResponse) => {
+    if (isChartValidationError(validationError) && !validationError.chartUuid)
+        return true;
+    if (
+        isDashboardValidationError(validationError) &&
+        !validationError.dashboardUuid
+    )
+        return true;
+
+    return false;
+};
+
 const Icon = ({ validationError }: { validationError: ValidationResponse }) => {
     if (isChartValidationError(validationError))
         return getChartIcon(validationError.chartType);
@@ -122,23 +134,26 @@ const TableValidationItem = forwardRef<
                             </Text>
 
                             {(isChartValidationError(validationError) ||
-                                isDashboardValidationError(
-                                    validationError,
-                                )) && (
-                                <Text fz={11} color="gray.6">
-                                    {getViews(validationError)} view
-                                    {getViews(validationError) === 1 ? '' : 's'}
-                                    {' • '}
-                                    {validationError.lastUpdatedBy ? (
-                                        <>
-                                            Last edited by{' '}
-                                            <Text span fw={500}>
-                                                {validationError.lastUpdatedBy}
-                                            </Text>
-                                        </>
-                                    ) : null}
-                                </Text>
-                            )}
+                                isDashboardValidationError(validationError)) &&
+                                !isDeleted(validationError) && (
+                                    <Text fz={11} color="gray.6">
+                                        {getViews(validationError)} view
+                                        {getViews(validationError) === 1
+                                            ? ''
+                                            : 's'}
+                                        {' • '}
+                                        {validationError.lastUpdatedBy ? (
+                                            <>
+                                                Last edited by{' '}
+                                                <Text span fw={500}>
+                                                    {
+                                                        validationError.lastUpdatedBy
+                                                    }
+                                                </Text>
+                                            </>
+                                        ) : null}
+                                    </Text>
+                                )}
                         </Stack>
                     </Flex>
                 </Anchor>
