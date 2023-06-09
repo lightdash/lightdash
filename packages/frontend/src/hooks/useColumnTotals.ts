@@ -18,7 +18,11 @@ type Args = {
     itemsMap: Record<FieldId, Field | TableCalculation>;
 };
 
-export const isSummable = (item: Item) => {
+export const isSummable = (item: Item | undefined) => {
+    if (!item) {
+        return false;
+    }
+
     if (isTableCalculation(item)) {
         return false;
     }
