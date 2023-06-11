@@ -40,6 +40,13 @@ const TableTreeWrapper: FC<TableTreeWrapperProps> = ({ table, children }) => {
                     </Group>
                 </Tooltip>
             }
+            styles={{
+                root: {
+                    top: 0,
+                    position: 'sticky',
+                    backgroundColor: 'white',
+                },
+            }}
         >
             {children}
         </NavLink>
