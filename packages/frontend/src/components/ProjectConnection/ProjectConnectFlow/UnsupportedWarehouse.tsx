@@ -4,9 +4,7 @@ import { FC } from 'react';
 import { FloatingBackButton } from '../../../pages/CreateProject.styles';
 import { EventName } from '../../../types/Events';
 import LinkButton from '../../common/LinkButton';
-import { ProjectCreationCard } from '../../common/Settings/SettingsCard';
-import InviteExpertFooter from './InviteExpertFooter';
-import { Wrapper } from './ProjectConnectFlow.styles';
+import { ConnectWarehouseWrapper, Wrapper } from './ProjectConnectFlow.styles';
 
 interface UnsupportedWarehouseProps {
     onBack: () => void;
@@ -21,7 +19,7 @@ const UnsupportedWarehouse: FC<UnsupportedWarehouseProps> = ({ onBack }) => {
                 onClick={onBack}
             />
 
-            <ProjectCreationCard>
+            <ConnectWarehouseWrapper>
                 <NonIdealState
                     icon="error"
                     title={
@@ -59,13 +57,11 @@ const UnsupportedWarehouse: FC<UnsupportedWarehouseProps> = ({ onBack }) => {
                                 name: EventName.TRY_DEMO_CLICKED,
                             }}
                         >
-                            try our demo project
+                            Try our demo project
                         </LinkButton>
                     }
                 />
-            </ProjectCreationCard>
-
-            <InviteExpertFooter />
+            </ConnectWarehouseWrapper>
         </Wrapper>
     );
 };
