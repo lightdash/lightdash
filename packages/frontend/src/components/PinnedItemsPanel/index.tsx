@@ -1,4 +1,3 @@
-import { subject } from '@casl/ability';
 import {
     DashboardBasicDetails,
     PinnedItems,
@@ -7,42 +6,32 @@ import {
 } from '@lightdash/common';
 import { Card, Group, Text } from '@mantine/core';
 import { IconPin } from '@tabler/icons-react';
-import React, { FC } from 'react';
-import { useApp } from '../../providers/AppProvider';
+import { FC } from 'react';
+import { usePinnedItemsContext } from '../../providers/PinnedItemsProvider';
 import MantineIcon from '../common/MantineIcon';
 import MantineLinkButton from '../common/MantineLinkButton';
 import ResourceView, { ResourceViewType } from '../common/ResourceView';
 
 interface Props {
-    data: PinnedItems;
-    projectUuid: string;
-    pinnedListUuid: string;
-    organizationUuid: string;
+    pinnedItems: PinnedItems;
     dashboards: DashboardBasicDetails[];
     savedCharts: SpaceQuery[];
 }
 
 const PinnedItemsPanel: FC<Props> = ({
-    data,
-    projectUuid,
-    pinnedListUuid,
-    organizationUuid,
+    pinnedItems,
     dashboards,
     savedCharts,
 }) => {
-    const { user } = useApp();
-    const userCanManagePinnedItems = user.data?.ability.can(
-        'manage',
-        subject('PinnedItems', { organizationUuid, projectUuid }),
-    );
+    const { userCanManage } = usePinnedItemsContext();
 
     const enablePinnedPanel = dashboards.length + savedCharts.length > 0;
 
-    return data && data.length > 0 ? (
+    return pinnedItems && pinnedItems.length > 0 ? (
         <ResourceView
-            items={data}
+            items={pinnedItems}
             view={ResourceViewType.GRID}
-            hasReorder={userCanManagePinnedItems}
+            hasReorder={userCanManage}
             gridProps={{
                 groups: [
                     [ResourceViewItemType.SPACE],
@@ -53,16 +42,13 @@ const PinnedItemsPanel: FC<Props> = ({
                 ],
             }}
             headerProps={{
-                title: userCanManagePinnedItems
-                    ? 'Pinned items'
-                    : 'Pinned for you',
-                description: userCanManagePinnedItems
+                title: userCanManage ? 'Pinned items' : 'Pinned for you',
+                description: userCanManage
                     ? 'Pin Spaces, Dashboards and Charts to the top of the homepage to guide your business users to the right content.'
                     : 'Your data team have pinned these items to help guide you towards the most relevant content!',
             }}
-            pinnedItemsProps={{ projectUuid, pinnedListUuid }}
         />
-    ) : ((userCanManagePinnedItems && data.length <= 0) || !data) &&
+    ) : ((userCanManage && pinnedItems.length <= 0) || !pinnedItems) &&
       enablePinnedPanel ? (
         // FIXME: update width with Mantine widths
         <Card
