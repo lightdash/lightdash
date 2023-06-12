@@ -1,3 +1,10 @@
+# [0.608.0](https://github.com/lightdash/lightdash/compare/0.607.0...0.608.0) (2023-06-12)
+
+
+### Features
+
+* open SQL from explore in query runner ([#5843](https://github.com/lightdash/lightdash/issues/5843)) ([3f234d4](https://github.com/lightdash/lightdash/commit/3f234d487f1ceb1b638926a446f1df7892765353))
+
 # [0.607.0](https://github.com/lightdash/lightdash/compare/0.606.0...0.607.0) (2023-06-12)
 
 
