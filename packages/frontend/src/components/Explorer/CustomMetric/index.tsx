@@ -10,6 +10,7 @@ import {
     isField,
     isFilterableField,
     MetricType,
+    snakeCaseName,
     TableCalculation,
 } from '@lightdash/common';
 import {
@@ -221,7 +222,7 @@ export const CreateCustomMetricModal: FC<Props> = ({
                     : defaultRound;
 
             addAdditionalMetric({
-                name: `${dimension.name}_${customMetricName}`,
+                name: `${dimension.name}_${snakeCaseName(customMetricName)}`,
                 label: customMetricName,
                 table: dimension.table,
                 sql: dimension.sql,
