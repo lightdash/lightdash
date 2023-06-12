@@ -13,7 +13,7 @@
         "@lightdash/common": "^0.605.0",
         "lodash": "^4.17.21",
         "pg": "^8.7.1",
-        "snowflake-sdk": "^1.6.20",
+        "snowflake-sdk": "^1.6.21",
         "ssh2-promise": "^1.0.3",
         "trino-client": "^0.2.0"
     },
