@@ -185,6 +185,8 @@ export const parseOperator = (
             return isTrue ? FilterOperator.INCLUDE : FilterOperator.NOT_INCLUDE;
         case FilterOperator.STARTS_WITH:
             return FilterOperator.STARTS_WITH;
+        case FilterOperator.ENDS_WITH:
+            return FilterOperator.ENDS_WITH;
         case '>':
             return FilterOperator.GREATER_THAN;
         case '>=':

@@ -42,6 +42,22 @@ describe('attachTypesToModels', () => {
         });
     });
 
+    it('Starts with grammar', async () => {
+        expect(parser.parse('katie%')).toEqual({
+            is: true,
+            type: 'startsWith',
+            values: ['katie'],
+        });
+    });
+
+    it('Ends with grammar', async () => {
+        expect(parser.parse('%katie')).toEqual({
+            is: true,
+            type: 'endsWith',
+            values: ['katie'],
+        });
+    });
+
     it('Contains grammar', async () => {
         expect(parser.parse('%katie%')).toEqual({
             is: true,
