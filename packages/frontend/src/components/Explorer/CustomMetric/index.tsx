@@ -97,6 +97,36 @@ const FilterForm: FC<{
         [fields, customMetricFilters, totalFilterRules, setCustomMetricFilters],
     );
 
+    const onDeleteItem = useCallback(
+        (index: number) => {
+            const result = getFilterRulesByFieldType(fields, [
+                ...totalFilterRules.slice(0, index),
+                ...totalFilterRules.slice(index + 1),
+            ]);
+
+            setCustomMetricFilters({
+                ...customMetricFilters,
+                dimensions:
+                    result.dimensions.length > 0
+                        ? {
+                              id: uuidv4(),
+                              ...customMetricFilters.dimensions,
+                              and: result.dimensions,
+                          }
+                        : undefined,
+                metrics:
+                    result.metrics.length > 0
+                        ? {
+                              id: uuidv4(),
+                              ...customMetricFilters.metrics,
+                              and: result.metrics,
+                          }
+                        : undefined,
+            });
+        },
+        [fields, customMetricFilters, totalFilterRules, setCustomMetricFilters],
+    );
+
     return (
         <Stack spacing="sm">
             {totalFilterRules.map((filterRule, index) => (
@@ -106,7 +136,7 @@ const FilterForm: FC<{
                     fields={fields}
                     isEditMode={isEditMode}
                     onChange={(value) => onChangeItem(index, value)}
-                    onDelete={() => {}}
+                    onDelete={() => onDeleteItem(index)}
                 />
             ))}
             <Button
@@ -190,8 +220,6 @@ export const CreateCustomMetricModal: FC<Props> = ({
                     ? { round: dimension.round }
                     : defaultRound;
 
-            console.log(customMetricFilters);
-
             addAdditionalMetric({
                 name: `${dimension.name}_${customMetricName}`,
                 label: customMetricName,
@@ -201,7 +229,7 @@ export const CreateCustomMetricModal: FC<Props> = ({
                     dimension.label
                 } on the table ${dimension.tableLabel}`,
                 type,
-                // filters: customMetricFilters,
+                filters: customMetricFilters,
                 ...format,
                 ...round,
                 ...compact,
