@@ -47,17 +47,10 @@ const getLinkToResource = (
     return;
 };
 
-const isDeleted = (validationError: ValidationResponse) => {
-    if (isChartValidationError(validationError) && !validationError.chartUuid)
-        return true;
-    if (
-        isDashboardValidationError(validationError) &&
-        !validationError.dashboardUuid
-    )
-        return true;
-
-    return false;
-};
+const isDeleted = (validationError: ValidationResponse) =>
+    (isChartValidationError(validationError) && !validationError.chartUuid) ||
+    (isDashboardValidationError(validationError) &&
+        !validationError.dashboardUuid);
 
 const Icon = ({ validationError }: { validationError: ValidationResponse }) => {
     if (isChartValidationError(validationError))
