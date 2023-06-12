@@ -152,4 +152,64 @@ export class SpaceController extends Controller {
             results,
         };
     }
+
+    /**
+     * Grant a user access to a space
+     * @param projectUuid The uuid of the space's parent project
+     * @parmm spaceUuid The uuid of the space to update
+     * @param userUuid The uuid of the user to grant access to
+     * @param req
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('{spaceUuid}/access')
+    @OperationId('AddSpaceShareToUser')
+    @Tags('Roles & Permissions')
+    async addSpaceShare(
+        @Path() projectUuid: string,
+        @Path() spaceUuid: string,
+        @Body() userUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        await spaceService.addSpaceShare(req.user!, spaceUuid, userUuid);
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    /**
+     * Remove a user's access to a space
+     * @param projectUuid The uuid of the space's parent project
+     * @param spaceUuid The uuid of the space to update
+     * @param userUuid The uuid of the user to revoke access from
+     * @param req
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Delete('{spaceUuid}/access/{userUuid}')
+    @OperationId('RevokeProjectAccessForUser')
+    @Tags('Roles & Permissions')
+    async revokeProjectAccessForUser(
+        @Path() projectUuid: string,
+        @Path() spaceUuid: string,
+        @Path() userUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        await spaceService.removeSpaceShare(req.user!, spaceUuid, userUuid);
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
 }
