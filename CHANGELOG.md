@@ -1,3 +1,10 @@
+# [0.604.0](https://github.com/lightdash/lightdash/compare/0.603.1...0.604.0) (2023-06-12)
+
+
+### Features
+
+* keep validation if content deleted ([#5839](https://github.com/lightdash/lightdash/issues/5839)) ([ba6cdf3](https://github.com/lightdash/lightdash/commit/ba6cdf369b25326b1ac425fb7914ae2c6dd5c133))
+
 ## [0.603.1](https://github.com/lightdash/lightdash/compare/0.603.0...0.603.1) (2023-06-12)
 
 
