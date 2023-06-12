@@ -13,9 +13,12 @@
         "@lightdash/common": "^0.604.0",
         "lodash": "^4.17.21",
         "pg": "^8.7.1",
-        "snowflake-sdk": "^1.6.20",
+        "snowflake-sdk": "^1.6.22",
         "ssh2-promise": "^1.0.3",
         "trino-client": "^0.2.0"
+    },
+    "devDependencies": {
+        "@types/snowflake-sdk": "^1.6.12"
     },
     "description": "Warehouse connectors for Lightdash",
     "scripts": {
