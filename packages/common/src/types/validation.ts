@@ -18,6 +18,7 @@ export type ValidationErrorChartResponse = ValidationResponseBase & {
     lastUpdatedBy?: string;
     lastUpdatedAt?: Date;
     chartViews: number;
+    chartName?: string;
 };
 
 export type ValidationErrorDashboardResponse = ValidationResponseBase & {
@@ -57,6 +58,7 @@ export type CreateChartValidation = Pick<
     | 'projectUuid'
     | 'chartUuid'
     | 'source'
+    | 'chartName'
 >;
 
 export type CreateDashboardValidation = Pick<

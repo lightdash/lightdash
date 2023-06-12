@@ -60,11 +60,13 @@ export class ValidationModel {
                     ...(isChartValidationError(validation) && {
                         saved_chart_uuid: validation.chartUuid,
                         field_name: validation.fieldName,
+                        chart_name: validation.chartName ?? null,
                     }),
                     ...(isDashboardValidationError(validation) && {
                         dashboard_uuid: validation.dashboardUuid,
                         field_name: validation.fieldName ?? null,
                         chart_name: validation.chartName ?? null,
+                        model_name: validation.name,
                     }),
                 }),
             );
@@ -182,7 +184,10 @@ export class ValidationModel {
                 chartViews: parseInt(validationError.views, 10) || 0,
                 projectUuid: validationError.project_uuid,
                 error: validationError.error,
-                name: validationError.name || 'Chart does not exist',
+                name:
+                    validationError.name ||
+                    validationError.chart_name ||
+                    'Chart does not exist',
                 lastUpdatedBy: validationError.first_name
                     ? `${validationError.first_name} ${validationError.last_name}`
                     : undefined,
@@ -268,7 +273,10 @@ export class ValidationModel {
                 dashboardViews: parseInt(validationError.views, 10) || 0,
                 projectUuid: validationError.project_uuid,
                 error: validationError.error,
-                name: validationError.name || 'Dashboard does not exist',
+                name:
+                    validationError.name ||
+                    validationError.model_name ||
+                    'Dashboard does not exist',
                 lastUpdatedBy: validationError.first_name
                     ? `${validationError.first_name} ${validationError.last_name}`
                     : undefined,
