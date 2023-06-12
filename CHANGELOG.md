@@ -1,3 +1,10 @@
+## [0.605.1](https://github.com/lightdash/lightdash/compare/0.605.0...0.605.1) (2023-06-12)
+
+
+### Bug Fixes
+
+* update snowflake sdk ([#5856](https://github.com/lightdash/lightdash/issues/5856)) ([bb797be](https://github.com/lightdash/lightdash/commit/bb797be088d017f5b62c265ca45b88275df30824))
+
 # [0.605.0](https://github.com/lightdash/lightdash/compare/0.604.0...0.605.0) (2023-06-12)
 
 
