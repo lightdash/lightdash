@@ -1,3 +1,10 @@
+# [0.603.0](https://github.com/lightdash/lightdash/compare/0.602.0...0.603.0) (2023-06-12)
+
+
+### Features
+
+* add visual indicator for model errors ([#5814](https://github.com/lightdash/lightdash/issues/5814)) ([8040018](https://github.com/lightdash/lightdash/commit/804001824950a119286a812bc916a7b27fa3b65c))
+
 # [0.602.0](https://github.com/lightdash/lightdash/compare/0.601.4...0.602.0) (2023-06-09)
 
 
