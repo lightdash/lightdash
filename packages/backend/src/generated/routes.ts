@@ -2036,6 +2036,22 @@ const models: TsoaRoute.Models = {
         type: { ref: 'Pick_Space.name-or-isPrivate_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_SpaceShare.userUuid_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                userUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AddSpaceShare: {
+        dataType: 'refAlias',
+        type: { ref: 'Pick_SpaceShare.userUuid_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_SshKeyPair.publicKey_': {
         dataType: 'refAlias',
         type: {
@@ -4562,7 +4578,7 @@ export function RegisterRoutes(app: express.Router) {
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.post(
-        '/api/v1/projects/:projectUuid/spaces/:spaceUuid/access',
+        '/api/v1/projects/:projectUuid/spaces/:spaceUuid/share',
         ...fetchMiddlewares<RequestHandler>(SpaceController),
         ...fetchMiddlewares<RequestHandler>(
             SpaceController.prototype.addSpaceShare,
@@ -4586,11 +4602,11 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'string',
                 },
-                userUuid: {
+                body: {
                     in: 'body',
-                    name: 'userUuid',
+                    name: 'body',
                     required: true,
-                    dataType: 'string',
+                    ref: 'AddSpaceShare',
                 },
                 req: {
                     in: 'request',
@@ -4620,7 +4636,7 @@ export function RegisterRoutes(app: express.Router) {
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.delete(
-        '/api/v1/projects/:projectUuid/spaces/:spaceUuid/access/:userUuid',
+        '/api/v1/projects/:projectUuid/spaces/:spaceUuid/share/:userUuid',
         ...fetchMiddlewares<RequestHandler>(SpaceController),
         ...fetchMiddlewares<RequestHandler>(
             SpaceController.prototype.revokeProjectAccessForUser,
