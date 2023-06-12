@@ -5,7 +5,6 @@ import { FloatingBackButton } from '../../../pages/CreateProject.styles';
 import { EventName } from '../../../types/Events';
 import LinkButton from '../../common/LinkButton';
 import { ProjectCreationCard } from '../../common/Settings/SettingsCard';
-import InviteExpertFooter from './InviteExpertFooter';
 import { Wrapper } from './ProjectConnectFlow.styles';
 
 interface UnsupportedWarehouseProps {
