@@ -78,6 +78,7 @@ describe('validation', () => {
             projectUuid: 'projectUuid',
             chartUuid: 'chartUuid',
             source: 'chart',
+            chartName: 'Test chart',
         });
 
         const expectedErrors: string[] = [
@@ -107,6 +108,7 @@ describe('validation', () => {
             projectUuid: 'projectUuid',
             chartUuid: 'chartUuid',
             source: 'chart',
+            chartName: 'Test chart',
         });
 
         const expectedErrors: string[] = [
