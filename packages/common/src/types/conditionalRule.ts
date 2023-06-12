@@ -4,6 +4,7 @@ export enum ConditionalOperator {
     EQUALS = 'equals',
     NOT_EQUALS = 'notEquals',
     STARTS_WITH = 'startsWith',
+    ENDS_WITH = 'endsWith',
     INCLUDE = 'include',
     NOT_INCLUDE = 'doesNotInclude',
     LESS_THAN = 'lessThan',
