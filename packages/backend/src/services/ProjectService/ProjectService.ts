@@ -87,6 +87,13 @@ import { ProjectAdapter } from '../../types';
 import { runWorkerThread, wrapSentryTransaction } from '../../utils';
 import { hasSpaceAccess } from '../SpaceService/SpaceService';
 
+type RunQueryTags = {
+    project_uuid?: string;
+    user_uuid?: string;
+    organization_uuid?: string;
+    chart_uuid?: string;
+};
+
 type ProjectServiceDependencies = {
     projectModel: ProjectModel;
     onboardingModel: OnboardingModel;
@@ -773,12 +780,19 @@ export class ProjectService {
             throw new ForbiddenError();
         }
 
+        const queryTags: RunQueryTags = {
+            organization_uuid: projectUuid,
+            project_uuid: projectUuid,
+            user_uuid: user.userUuid,
+        };
+
         return this.runQueryAndFormatRows(
             user,
             metricQuery,
             projectUuid,
             exploreName,
             csvLimit,
+            queryTags,
         );
     }
 
@@ -845,12 +859,20 @@ export class ProjectService {
             ? ProjectService.combineFilters(savedChart.metricQuery, filters)
             : savedChart.metricQuery;
 
+        const queryTags: RunQueryTags = {
+            organization_uuid: organizationUuid,
+            project_uuid: projectUuid,
+            user_uuid: user.userUuid,
+            chart_uuid: chartUuid,
+        };
+
         return this.runQueryAndFormatRows(
             user,
             metricQuery,
             projectUuid,
             savedChart.tableName,
             undefined,
+            queryTags,
         );
     }
 
@@ -876,12 +898,19 @@ export class ProjectService {
             throw new ForbiddenError();
         }
 
+        const queryTags: RunQueryTags = {
+            organization_uuid: organizationUuid,
+            project_uuid: projectUuid,
+            user_uuid: user.userUuid,
+        };
+
         return this.runQueryAndFormatRows(
             user,
             metricQuery,
             projectUuid,
             exploreName,
             csvLimit,
+            queryTags,
         );
     }
 
@@ -891,6 +920,7 @@ export class ProjectService {
         projectUuid: string,
         exploreName: string,
         csvLimit: number | null | undefined,
+        queryTags?: RunQueryTags,
     ): Promise<ApiQueryResults> {
         const rows = await this.runQuery(
             user,
@@ -898,6 +928,7 @@ export class ProjectService {
             projectUuid,
             exploreName,
             csvLimit,
+            queryTags,
         );
 
         const { warehouseConnection } =
@@ -947,6 +978,7 @@ export class ProjectService {
         projectUuid: string,
         exploreName: string,
         csvLimit: number | null | undefined,
+        queryTags?: RunQueryTags,
     ): Promise<Record<string, any>[]> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -1009,7 +1041,7 @@ export class ProjectService {
         });
 
         Logger.debug(`Run query against warehouse`);
-        const { rows } = await warehouseClient.runQuery(query);
+        const { rows } = await warehouseClient.runQuery(query, queryTags);
         await sshTunnel.disconnect();
         return rows;
     }
@@ -1042,7 +1074,11 @@ export class ProjectService {
             projectUuid,
         );
         Logger.debug(`Run query against warehouse`);
-        const results = warehouseClient.runQuery(sql);
+        const queryTags: RunQueryTags = {
+            organization_uuid: organizationUuid,
+            user_uuid: user.userUuid,
+        };
+        const results = warehouseClient.runQuery(sql, queryTags);
         await sshTunnel.disconnect();
         return results;
     }
@@ -1140,7 +1176,12 @@ export class ProjectService {
         );
 
         Logger.debug(`Run query against warehouse`);
-        const { rows } = await warehouseClient.runQuery(query);
+        const queryTags: RunQueryTags = {
+            organization_uuid: organizationUuid,
+            user_uuid: user.userUuid,
+            project_uuid: projectUuid,
+        };
+        const { rows } = await warehouseClient.runQuery(query, queryTags);
         await sshTunnel.disconnect();
 
         analytics.track({
