@@ -1,3 +1,10 @@
+# [0.607.0](https://github.com/lightdash/lightdash/compare/0.606.0...0.607.0) (2023-06-12)
+
+
+### Features
+
+* migrate user management settings to mantine ([#5857](https://github.com/lightdash/lightdash/issues/5857)) ([4089ef9](https://github.com/lightdash/lightdash/commit/4089ef9f334680b66eb008d4f0a6949102be0027))
+
 # [0.606.0](https://github.com/lightdash/lightdash/compare/0.605.1...0.606.0) (2023-06-12)
 
 
