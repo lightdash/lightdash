@@ -10,9 +10,8 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
 import { IconChevronDown } from '@tabler/icons-react';
-import React, { FC, useMemo } from 'react';
+import React, { FC, useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
 import MantineIcon from '../common/MantineIcon';
@@ -44,7 +43,18 @@ const Logs: FC<LogsProps> = ({
     dashboards,
 }) => {
     const { classes, theme } = useTableStyles();
-    const [opened, { toggle }] = useDisclosure(false);
+    const [openedUuids, setOpenedUuids] = useState<Set<string>>(new Set());
+    const handleTogle = useCallback(
+        (uuid: string) => {
+            if (openedUuids.has(uuid)) {
+                openedUuids.delete(uuid);
+            } else {
+                openedUuids.add(uuid);
+            }
+            setOpenedUuids(new Set(openedUuids));
+        },
+        [openedUuids],
+    );
 
     const columns = useMemo<Column[]>(() => {
         const getCurrentLogs = (item: SchedulerItem, targets: Log[]) => {
@@ -158,7 +168,12 @@ const Logs: FC<LogsProps> = ({
                         <Stack spacing="md" fz="xs" fw={500}>
                             <Group spacing="two">
                                 <Text>All jobs</Text>
-                                <ActionIcon onClick={toggle} size="sm">
+                                <ActionIcon
+                                    onClick={() =>
+                                        handleTogle(item.schedulerUuid)
+                                    }
+                                    size="sm"
+                                >
                                     <MantineIcon
                                         icon={IconChevronDown}
                                         color="black"
@@ -166,7 +181,7 @@ const Logs: FC<LogsProps> = ({
                                     />
                                 </ActionIcon>
                             </Group>
-                            <Collapse in={opened}>
+                            <Collapse in={openedUuids.has(item.schedulerUuid)}>
                                 <Stack spacing="md">
                                     <Text>
                                         {handleLogs.length > 0
@@ -202,7 +217,7 @@ const Logs: FC<LogsProps> = ({
                             <Text color="gray.6">
                                 {formatTime(currentLogs[0].scheduledTime)}
                             </Text>
-                            <Collapse in={opened}>
+                            <Collapse in={openedUuids.has(item.schedulerUuid)}>
                                 <Stack spacing="md">
                                     <Text color="gray.6">
                                         {handleLogs.length > 0
@@ -240,7 +255,7 @@ const Logs: FC<LogsProps> = ({
                             <Text color="gray.6">
                                 {formatTime(currentLogs[0].createdAt)}
                             </Text>
-                            <Collapse in={opened}>
+                            <Collapse in={openedUuids.has(item.schedulerUuid)}>
                                 <Stack spacing="md">
                                     <Text color="gray.6">
                                         {handleLogs.length > 0
@@ -276,7 +291,9 @@ const Logs: FC<LogsProps> = ({
                             {currentLogs.length > 0 ? (
                                 <Stack>
                                     {getLogStatusIcon(currentLogs[0], theme)}
-                                    <Collapse in={opened}>
+                                    <Collapse
+                                        in={openedUuids.has(item.schedulerUuid)}
+                                    >
                                         <Stack>
                                             {handleLogs.length > 0 ? (
                                                 getLogStatusIcon(
@@ -318,7 +335,16 @@ const Logs: FC<LogsProps> = ({
                 },
             },
         ];
-    }, [users, charts, dashboards, projectUuid, logs, opened, toggle, theme]);
+    }, [
+        users,
+        charts,
+        dashboards,
+        projectUuid,
+        logs,
+        theme,
+        handleTogle,
+        openedUuids,
+    ]);
 
     return (
         <Table className={classes.root} highlightOnHover>

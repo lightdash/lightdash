@@ -2454,8 +2454,15 @@
                 ],
                 "type": "string"
             },
+            "ValidationSourceType": {
+                "enum": ["chart", "dashboard", "table"],
+                "type": "string"
+            },
             "ValidationResponseBase": {
                 "properties": {
+                    "source": {
+                        "$ref": "#/components/schemas/ValidationSourceType"
+                    },
                     "spaceUuid": {
                         "type": "string"
                     },
@@ -2577,6 +2584,9 @@
                     },
                     "errorType": {
                         "$ref": "#/components/schemas/ValidationErrorType"
+                    },
+                    "source": {
+                        "$ref": "#/components/schemas/ValidationSourceType"
                     }
                 },
                 "required": [

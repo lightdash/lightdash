@@ -2187,11 +2187,17 @@ const models: TsoaRoute.Models = {
         enums: ['chart', 'sorting', 'filter', 'metric', 'model', 'dimension'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ValidationSourceType: {
+        dataType: 'refEnum',
+        enums: ['chart', 'dashboard', 'table'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ValidationResponseBase: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                source: { ref: 'ValidationSourceType' },
                 spaceUuid: { dataType: 'string' },
                 projectUuid: { dataType: 'string', required: true },
                 errorType: { ref: 'ValidationErrorType', required: true },
@@ -2273,6 +2279,7 @@ const models: TsoaRoute.Models = {
                 createdAt: { dataType: 'datetime', required: true },
                 error: { dataType: 'string', required: true },
                 errorType: { ref: 'ValidationErrorType', required: true },
+                source: { ref: 'ValidationSourceType' },
             },
             validators: {},
         },

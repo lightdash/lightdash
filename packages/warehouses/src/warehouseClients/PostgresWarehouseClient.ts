@@ -138,13 +138,17 @@ export class PostgresClient<
         this.config = config;
     }
 
-    async runQuery(sql: string) {
+    async runQuery(sql: string, tags?: Record<string, string>) {
         let pool: pg.Pool | undefined;
         try {
             pool = new pg.Pool(this.config);
+            let alteredQuery = sql;
+            if (tags) {
+                alteredQuery = `${alteredQuery}\n-- ${JSON.stringify(tags)}`;
+            }
             // CodeQL: This will raise a security warning because user defined raw SQL is being passed into the database module.
             //         In this case this is exactly what we want to do. We're hitting the user's warehouse not the application's database.
-            const results = await pool.query(sql); // automatically checkouts client and cleans up
+            const results = await pool.query(alteredQuery); // automatically checkouts client and cleans up
             const fields = results.fields.reduce(
                 (acc, { name, dataTypeID }) => ({
                     ...acc,

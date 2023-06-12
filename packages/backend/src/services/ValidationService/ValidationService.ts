@@ -21,6 +21,7 @@ import {
     TableCalculation,
     ValidationErrorType,
     ValidationResponse,
+    ValidationSourceType,
 } from '@lightdash/common';
 import { analytics } from '../../analytics/client';
 import { schedulerClient } from '../../clients/clients';
@@ -115,6 +116,7 @@ export class ValidationService {
                             errorType: ValidationErrorType.Model,
                             modelName: explore.name,
                             projectUuid,
+                            source: ValidationSourceType.Table,
                         }));
                     return [...acc, ...exploreErrors];
                 }
@@ -154,6 +156,7 @@ export class ValidationService {
                 chartUuid: chart.uuid,
                 name: chart.name,
                 projectUuid: chart.projectUuid,
+                source: ValidationSourceType.Chart,
             };
             const containsFieldId = ({
                 acc,
@@ -313,6 +316,7 @@ export class ValidationService {
                     name: dashboard.name,
                     dashboardUuid: dashboard.uuid,
                     projectUuid: dashboard.projectUuid,
+                    source: ValidationSourceType.Dashboard,
                 };
 
                 const containsFieldId = ({

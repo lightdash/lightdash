@@ -1079,6 +1079,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "elton-okawa",
+      "name": "Elton Okawa",
+      "avatar_url": "https://avatars.githubusercontent.com/u/24387035?v=4",
+      "profile": "https://github.com/elton-okawa",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,

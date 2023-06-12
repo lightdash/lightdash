@@ -1,4 +1,4 @@
-import { ValidationErrorType } from '@lightdash/common';
+import { ValidationErrorType, ValidationSourceType } from '@lightdash/common';
 import { Knex } from 'knex';
 
 export type DbValidationTable = {
@@ -13,6 +13,7 @@ export type DbValidationTable = {
     saved_chart_uuid: string | null;
     dashboard_uuid: string | null;
     job_id: string | null;
+    source: ValidationSourceType | null;
 };
 
 export type ValidationTable = Knex.CompositeTableType<DbValidationTable>;

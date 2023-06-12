@@ -204,6 +204,9 @@ export type CreateSavedChartOrVersionEvent = BaseTrack & {
             hasRowCalculation: boolean;
             hasColumnCalculations: boolean;
         };
+        bigValue?: {
+            hasBigValueComparison?: boolean;
+        };
         duplicated?: boolean;
     };
 };
