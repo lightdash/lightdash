@@ -72,14 +72,14 @@ const InvitePanel: FC<{
                     handleSubmit(values),
                 )}
             >
-                <Group align="flex-end" position="apart">
+                <Group align="flex-end" spacing="xs">
                     <TextInput
                         name="email"
                         label="Enter user email address"
                         placeholder="example@gmail.com"
                         required
                         disabled={isLoading}
-                        w="40%"
+                        w="43%"
                         {...form.getInputProps('email')}
                     />
                     <Group spacing="xs">
@@ -94,6 +94,8 @@ const InvitePanel: FC<{
                                 disabled={isLoading}
                                 required
                                 placeholder="Select role"
+                                dropdownPosition="bottom"
+                                withinPortal
                                 {...form.getInputProps('role')}
                             />
                         )}
