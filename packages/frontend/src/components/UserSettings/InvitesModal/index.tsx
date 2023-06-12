@@ -6,7 +6,7 @@ import {
 import { Button, Group, Modal, Select, TextInput, Title } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconUser } from '@tabler/icons-react';
-import React, { FC, useEffect } from 'react';
+import React, { FC } from 'react';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import { useApp } from '../../../providers/AppProvider';
 import { TrackPage, useTracking } from '../../../providers/TrackingProvider';
@@ -41,22 +41,14 @@ const InvitesModal: FC<{
         data: inviteLink,
         mutate,
         isLoading,
-        isSuccess,
     } = useCreateInviteLinkMutation();
-    const handleSubmit = (data: SendInviteFormProps) => {
+    const handleSubmit = async (data: SendInviteFormProps) => {
         track({
             name: EventName.INVITE_BUTTON_CLICKED,
         });
-        mutate(data);
+        await mutate(data);
+        form.reset();
     };
-
-    useEffect(() => {
-        if (isSuccess) {
-            form.setFieldValue('email', '');
-            form.setFieldValue('role', OrganizationMemberRole.EDITOR);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [form.setFieldValue, isSuccess]);
 
     return (
         <Modal
