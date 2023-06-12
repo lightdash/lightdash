@@ -157,6 +157,7 @@ export class ValidationService {
                 name: chart.name,
                 projectUuid: chart.projectUuid,
                 source: ValidationSourceType.Chart,
+                chartName: chart.name,
             };
             const containsFieldId = ({
                 acc,
