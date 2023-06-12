@@ -1,3 +1,15 @@
+# [0.605.0](https://github.com/lightdash/lightdash/compare/0.604.0...0.605.0) (2023-06-12)
+
+
+### Bug Fixes
+
+* time format for scheduled deliveries dashboard ([#5841](https://github.com/lightdash/lightdash/issues/5841)) ([286990a](https://github.com/lightdash/lightdash/commit/286990a546b0178375c8a4e4cf0572ee5a6b1d63))
+
+
+### Features
+
+* "Ends with" option for filtering ([#5745](https://github.com/lightdash/lightdash/issues/5745)) ([58136a4](https://github.com/lightdash/lightdash/commit/58136a49bf4a4a8fb509498b8e7d62b5595d5b5b))
+
 # [0.604.0](https://github.com/lightdash/lightdash/compare/0.603.1...0.604.0) (2023-06-12)
 
 
