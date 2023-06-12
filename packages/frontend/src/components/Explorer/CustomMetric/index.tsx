@@ -131,7 +131,11 @@ export const CreateCustomMetricModal: FC<Props> = ({
     setIsCreatingCustomMetric,
     customMetricType,
 }) => {
-    const [customMetricName, setCustomMetricName] = useState('');
+    const [customMetricName, setCustomMetricName] = useState(
+        customMetricType
+            ? `${friendlyName(customMetricType)} of ${item.label}`
+            : '',
+    );
     const [customMetricFilters, setCustomMetricFilters] = useState<Filters>({});
 
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -197,7 +201,7 @@ export const CreateCustomMetricModal: FC<Props> = ({
                     dimension.label
                 } on the table ${dimension.tableLabel}`,
                 type,
-                filters: customMetricFilters,
+                // filters: customMetricFilters,
                 ...format,
                 ...round,
                 ...compact,
