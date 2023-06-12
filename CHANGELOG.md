@@ -1,3 +1,36 @@
+# [0.605.0](https://github.com/lightdash/lightdash/compare/0.604.0...0.605.0) (2023-06-12)
+
+
+### Bug Fixes
+
+* time format for scheduled deliveries dashboard ([#5841](https://github.com/lightdash/lightdash/issues/5841)) ([286990a](https://github.com/lightdash/lightdash/commit/286990a546b0178375c8a4e4cf0572ee5a6b1d63))
+
+
+### Features
+
+* "Ends with" option for filtering ([#5745](https://github.com/lightdash/lightdash/issues/5745)) ([58136a4](https://github.com/lightdash/lightdash/commit/58136a49bf4a4a8fb509498b8e7d62b5595d5b5b))
+
+# [0.604.0](https://github.com/lightdash/lightdash/compare/0.603.1...0.604.0) (2023-06-12)
+
+
+### Features
+
+* keep validation if content deleted ([#5839](https://github.com/lightdash/lightdash/issues/5839)) ([ba6cdf3](https://github.com/lightdash/lightdash/commit/ba6cdf369b25326b1ac425fb7914ae2c6dd5c133))
+
+## [0.603.1](https://github.com/lightdash/lightdash/compare/0.603.0...0.603.1) (2023-06-12)
+
+
+### Bug Fixes
+
+* all jobs shouldnt open all at once ([#5836](https://github.com/lightdash/lightdash/issues/5836)) ([9463a40](https://github.com/lightdash/lightdash/commit/9463a40e221a8007701fd24901963752590de1ef))
+
+# [0.603.0](https://github.com/lightdash/lightdash/compare/0.602.0...0.603.0) (2023-06-12)
+
+
+### Features
+
+* add visual indicator for model errors ([#5814](https://github.com/lightdash/lightdash/issues/5814)) ([8040018](https://github.com/lightdash/lightdash/commit/804001824950a119286a812bc916a7b27fa3b65c))
+
 # [0.602.0](https://github.com/lightdash/lightdash/compare/0.601.4...0.602.0) (2023-06-09)
 
 
