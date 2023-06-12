@@ -55,14 +55,12 @@ const Logs: FC<LogsProps> = ({
         },
         [openedUuids],
     );
-
     const columns = useMemo<Column[]>(() => {
-        const getCurrentLogs = (item: SchedulerItem, targets: Log[]) => {
-            return targets.filter(
-                (target) => target.schedulerUuid === item.schedulerUuid,
+        const getCurrentLogs = (item: SchedulerItem, allLogs: Log[]) => {
+            return allLogs.filter(
+                (log) => log.schedulerUuid === item.schedulerUuid,
             );
         };
-
         const getFilteredLogs = (currentLogs: Log[]) => {
             return currentLogs.length > 0
                 ? {
@@ -359,7 +357,6 @@ const Logs: FC<LogsProps> = ({
                     })}
                 </tr>
             </thead>
-
             <tbody>
                 {schedulers.map((item) => (
                     <tr key={item.schedulerUuid}>
