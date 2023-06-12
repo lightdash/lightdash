@@ -39,14 +39,14 @@ const InvitesModal: FC<{
     const { health, user } = useApp();
     const {
         data: inviteLink,
-        mutate,
+        mutateAsync,
         isLoading,
     } = useCreateInviteLinkMutation();
     const handleSubmit = async (data: SendInviteFormProps) => {
         track({
             name: EventName.INVITE_BUTTON_CLICKED,
         });
-        await mutate(data);
+        await mutateAsync(data);
         form.reset();
     };
 
