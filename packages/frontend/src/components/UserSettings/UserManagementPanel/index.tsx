@@ -12,6 +12,7 @@ import {
     Modal,
     Select,
     Stack,
+    Table,
     Text,
     Title,
     Tooltip,
@@ -22,6 +23,7 @@ import {
     IconInfoCircle,
 } from '@tabler/icons-react';
 import { FC, useState } from 'react';
+import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import {
     useDeleteOrganizationUserMutation,
@@ -69,29 +71,31 @@ const UserListItem: FC<{
     };
 
     return (
-        <SettingsCard shadow="sm">
+        <tr>
             <Stack spacing="md">
                 <Flex justify="space-between" align="center">
                     {isActive ? (
-                        <Stack spacing="xxs">
-                            <Title order={6}>
-                                {firstName} {lastName}
-                            </Title>
+                        <td>
+                            <Stack spacing="xxs">
+                                <Title order={6}>
+                                    {firstName} {lastName}
+                                </Title>
 
-                            {email && (
-                                <Badge
-                                    variant="filled"
-                                    color="gray.2"
-                                    radius="xs"
-                                    sx={{ textTransform: 'none' }}
-                                    px="xxs"
-                                >
-                                    <Text fz="xs" fw={400} color="gray.8">
-                                        {email}
-                                    </Text>
-                                </Badge>
-                            )}
-                        </Stack>
+                                {email && (
+                                    <Badge
+                                        variant="filled"
+                                        color="gray.2"
+                                        radius="xs"
+                                        sx={{ textTransform: 'none' }}
+                                        px="xxs"
+                                    >
+                                        <Text fz="xs" fw={400} color="gray.8">
+                                            {email}
+                                        </Text>
+                                    </Badge>
+                                )}
+                            </Stack>
+                        </td>
                     ) : (
                         <Stack spacing="xxs">
                             {email && <Title order={6}>{email}</Title>}
@@ -195,58 +199,75 @@ const UserListItem: FC<{
                     </Button>
                 </Group>
             </Modal>
-        </SettingsCard>
+        </tr>
     );
 };
 
 const UserManagementPanel: FC = () => {
+    const { classes } = useTableStyles();
     const { user } = useApp();
     const [showInviteModal, setShowInviteModal] = useState(false);
     const { data: organizationUsers, isLoading } = useOrganizationUsers();
 
     return (
-        <>
-            {user.data?.ability?.can('create', 'InviteLink') && (
-                <Group position="apart" pb="md">
-                    <Group spacing="two">
-                        <Title order={5}>User management settings</Title>
-                        <Tooltip label="Click here to learn more about user roles">
-                            <ActionIcon
-                                component="a"
-                                href="https://docs.lightdash.com/references/roles"
-                                target="_blank"
-                                rel="noreferrer"
-                            >
-                                <MantineIcon icon={IconInfoCircle} />
-                            </ActionIcon>
-                        </Tooltip>
-                    </Group>
-                    <Button onClick={() => setShowInviteModal(true)}>
-                        Add user
-                    </Button>
-                    <InvitesModal
-                        opened={showInviteModal}
-                        onClose={() => setShowInviteModal(false)}
-                    />
+        <Stack mb="lg">
+            <Group position="apart" pb="md">
+                <Group spacing="two">
+                    <Title order={5}>User management settings</Title>
+                    <Tooltip label="Click here to learn more about user roles">
+                        <ActionIcon
+                            component="a"
+                            href="https://docs.lightdash.com/references/roles"
+                            target="_blank"
+                            rel="noreferrer"
+                        >
+                            <MantineIcon icon={IconInfoCircle} />
+                        </ActionIcon>
+                    </Tooltip>
                 </Group>
-            )}
+                {user.data?.ability?.can('create', 'InviteLink') && (
+                    <>
+                        <Button onClick={() => setShowInviteModal(true)}>
+                            Add user
+                        </Button>
+                        <InvitesModal
+                            opened={showInviteModal}
+                            onClose={() => setShowInviteModal(false)}
+                        />
+                    </>
+                )}
+            </Group>
+
             {isLoading ? (
                 <LoadingState title="Loading users" />
             ) : (
-                <Stack>
-                    {organizationUsers?.map((orgUser) => (
-                        <UserListItem
-                            key={orgUser.email}
-                            user={orgUser}
-                            disabled={
-                                user.data?.userUuid === orgUser.userUuid ||
-                                organizationUsers.length <= 1
-                            }
-                        />
-                    ))}
-                </Stack>
+                <SettingsCard sx={{ overflow: 'hidden' }} shadow="none" p={0}>
+                    <Table className={classes.root}>
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Status</th>
+                                <th>Role</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {organizationUsers?.map((orgUser) => (
+                                <UserListItem
+                                    key={orgUser.email}
+                                    user={orgUser}
+                                    disabled={
+                                        user.data?.userUuid ===
+                                            orgUser.userUuid ||
+                                        organizationUsers.length <= 1
+                                    }
+                                />
+                            ))}
+                        </tbody>
+                    </Table>
+                </SettingsCard>
             )}
-        </>
+        </Stack>
     );
 };
 
