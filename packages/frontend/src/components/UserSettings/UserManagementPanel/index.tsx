@@ -71,11 +71,11 @@ const UserListItem: FC<{
     };
 
     return (
-        <tr>
-            <Stack spacing="md">
-                <Flex justify="space-between" align="center">
-                    {isActive ? (
-                        <td>
+        <>
+            <tr>
+                <td width={500}>
+                    <Flex justify="space-between" align="center">
+                        {isActive ? (
                             <Stack spacing="xxs">
                                 <Title order={6}>
                                     {firstName} {lastName}
@@ -95,47 +95,49 @@ const UserListItem: FC<{
                                     </Badge>
                                 )}
                             </Stack>
-                        </td>
-                    ) : (
-                        <Stack spacing="xxs">
-                            {email && <Title order={6}>{email}</Title>}
-                            <Group spacing="xs">
-                                <Badge
-                                    variant="filled"
-                                    color="orange.3"
-                                    radius="xs"
-                                    sx={{ textTransform: 'none' }}
-                                    px="xxs"
-                                >
-                                    <Text fz="xs" fw={400} color="gray.8">
-                                        {!isInviteExpired
-                                            ? 'Pending'
-                                            : 'Link expired'}
-                                    </Text>
-                                </Badge>
-                                {user.data?.ability?.can(
-                                    'create',
-                                    'InviteLink',
-                                ) && (
-                                    <Anchor
-                                        component="button"
-                                        onClick={getNewLink}
-                                        size="xs"
-                                        fw={500}
+                        ) : (
+                            <Stack spacing="xxs">
+                                {email && <Title order={6}>{email}</Title>}
+                                <Group spacing="xs">
+                                    <Badge
+                                        variant="filled"
+                                        color="orange.3"
+                                        radius="xs"
+                                        sx={{ textTransform: 'none' }}
+                                        px="xxs"
                                     >
-                                        {health.data?.hasEmailClient
-                                            ? 'Send new invite'
-                                            : 'Get new link'}
-                                    </Anchor>
-                                )}
-                            </Group>
-                        </Stack>
-                    )}
-                    {user.data?.ability?.can(
-                        'manage',
-                        'OrganizationMemberProfile',
-                    ) && (
-                        <Group spacing="xs">
+                                        <Text fz="xs" fw={400} color="gray.8">
+                                            {!isInviteExpired
+                                                ? 'Pending'
+                                                : 'Link expired'}
+                                        </Text>
+                                    </Badge>
+                                    {user.data?.ability?.can(
+                                        'create',
+                                        'InviteLink',
+                                    ) && (
+                                        <Anchor
+                                            component="button"
+                                            onClick={getNewLink}
+                                            size="xs"
+                                            fw={500}
+                                        >
+                                            {health.data?.hasEmailClient
+                                                ? 'Send new invite'
+                                                : 'Get new link'}
+                                        </Anchor>
+                                    )}
+                                </Group>
+                            </Stack>
+                        )}
+                    </Flex>
+                </td>
+                {user.data?.ability?.can(
+                    'manage',
+                    'OrganizationMemberProfile',
+                ) && (
+                    <>
+                        <td>
                             <Select
                                 data={Object.values(OrganizationMemberRole).map(
                                     (orgMemberRole) => ({
@@ -150,6 +152,8 @@ const UserListItem: FC<{
                                 }}
                                 value={role}
                             />
+                        </td>
+                        <td>
                             <Button
                                 leftIcon={<MantineIcon icon={IconCircleX} />}
                                 variant="outline"
@@ -159,47 +163,55 @@ const UserListItem: FC<{
                             >
                                 Delete
                             </Button>
-                        </Group>
-                    )}
-                </Flex>
-                {inviteLink.data && <InviteSuccess invite={inviteLink.data} />}
-            </Stack>
-            <Modal
-                opened={isDeleteDialogOpen}
-                onClose={() =>
-                    !isDeleting ? setIsDeleteDialogOpen(false) : undefined
-                }
-                title={
-                    <Group spacing="xs">
-                        <MantineIcon
-                            size="lg"
-                            icon={IconAlertCircle}
-                            color="red"
-                        />
-                        <Title order={4}>Delete user</Title>
-                    </Group>
-                }
-                yOffset="30vh"
-            >
-                <Text pb="md">Are you sure you want to delete this user ?</Text>
-                <Group spacing="xs" position="right">
-                    <Button
-                        disabled={isDeleting}
-                        onClick={() => setIsDeleteDialogOpen(false)}
-                        variant="outline"
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        onClick={handleDelete}
-                        disabled={isDeleting}
-                        color="red"
-                    >
-                        Delete
-                    </Button>
-                </Group>
-            </Modal>
-        </tr>
+                            <Modal
+                                opened={isDeleteDialogOpen}
+                                onClose={() =>
+                                    !isDeleting
+                                        ? setIsDeleteDialogOpen(false)
+                                        : undefined
+                                }
+                                title={
+                                    <Group spacing="xs">
+                                        <MantineIcon
+                                            size="lg"
+                                            icon={IconAlertCircle}
+                                            color="red"
+                                        />
+                                        <Title order={4}>Delete user</Title>
+                                    </Group>
+                                }
+                                yOffset="30vh"
+                            >
+                                <Text pb="md">
+                                    Are you sure you want to delete this user ?
+                                </Text>
+                                <Group spacing="xs" position="right">
+                                    <Button
+                                        disabled={isDeleting}
+                                        onClick={() =>
+                                            setIsDeleteDialogOpen(false)
+                                        }
+                                        variant="outline"
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        onClick={handleDelete}
+                                        disabled={isDeleting}
+                                        color="red"
+                                    >
+                                        Delete
+                                    </Button>
+                                </Group>
+                            </Modal>
+                        </td>
+                    </>
+                )}
+            </tr>
+            {inviteLink.data && (
+                <InviteSuccess invite={inviteLink.data} hasMargin />
+            )}
+        </>
     );
 };
 
@@ -210,8 +222,8 @@ const UserManagementPanel: FC = () => {
     const { data: organizationUsers, isLoading } = useOrganizationUsers();
 
     return (
-        <Stack mb="lg">
-            <Group position="apart" pb="md">
+        <Stack>
+            <Group position="apart">
                 <Group spacing="two">
                     <Title order={5}>User management settings</Title>
                     <Tooltip label="Click here to learn more about user roles">
@@ -241,14 +253,13 @@ const UserManagementPanel: FC = () => {
             {isLoading ? (
                 <LoadingState title="Loading users" />
             ) : (
-                <SettingsCard sx={{ overflow: 'hidden' }} shadow="none" p={0}>
+                <SettingsCard shadow="none" p={0}>
                     <Table className={classes.root}>
                         <thead>
                             <tr>
                                 <th>User</th>
-                                <th>Status</th>
                                 <th>Role</th>
-                                <th></th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>

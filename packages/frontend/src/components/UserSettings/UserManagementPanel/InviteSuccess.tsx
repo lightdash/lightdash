@@ -14,10 +14,11 @@ import { useToggle } from 'react-use';
 import { useApp } from '../../../providers/AppProvider';
 import MantineIcon from '../../common/MantineIcon';
 
-const InviteSuccess: FC<{ invite: InviteLink; hasMarginTop?: boolean }> = ({
-    invite,
-    hasMarginTop,
-}) => {
+const InviteSuccess: FC<{
+    invite: InviteLink;
+    hasMarginTop?: boolean;
+    hasMargin?: boolean;
+}> = ({ invite, hasMarginTop, hasMargin }) => {
     const { health } = useApp();
     const [show, toggle] = useToggle(true);
 
@@ -52,10 +53,12 @@ const InviteSuccess: FC<{ invite: InviteLink; hasMarginTop?: boolean }> = ({
         <Alert
             icon={<IconCheck />}
             mt={hasMarginTop ? 'md' : 0}
+            m={hasMargin ? 'md' : 0}
             color="green"
             withCloseButton={true}
             closeButtonLabel="Close alert"
             onClose={() => toggle(false)}
+            w="100%"
         >
             <Stack spacing="md">
                 <Text>{message}</Text>
