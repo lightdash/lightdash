@@ -318,7 +318,7 @@ export const CreateCustomMetricModal: FC<Props> = ({
                     type="submit"
                     onClick={() => createCustomMetric(item, customMetricType!)}
                 >
-                    Create
+                    {isEditMode ? 'Save changes' : 'Create'}
                 </Button>
             </Stack>
         </Modal>

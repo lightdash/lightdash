@@ -193,7 +193,9 @@ const TreeSingleNodeActions: FC<Props> = ({
                         isCreatingCustomMetric || isEditingCustomMetric
                     }
                     setIsCreatingCustomMetric={
-                        setIsCreatingCustomMetric || setIsEditingCustomMetric
+                        isEditingCustomMetric
+                            ? setIsEditingCustomMetric
+                            : setIsCreatingCustomMetric
                     }
                     customMetricType={customMetricType}
                 />
