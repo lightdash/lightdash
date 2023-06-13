@@ -1,3 +1,10 @@
+# [0.611.0](https://github.com/lightdash/lightdash/compare/0.610.0...0.611.0) (2023-06-13)
+
+
+### Features
+
+* Add APIs to add and revoke space-level access ([#5849](https://github.com/lightdash/lightdash/issues/5849)) ([479cb63](https://github.com/lightdash/lightdash/commit/479cb632cf03ecf6302a64875c57469c0a42d471))
+
 # [0.610.0](https://github.com/lightdash/lightdash/compare/0.609.2...0.610.0) (2023-06-13)
 
 
