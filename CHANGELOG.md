@@ -1,3 +1,10 @@
+## [0.609.1](https://github.com/lightdash/lightdash/compare/0.609.0...0.609.1) (2023-06-13)
+
+
+### Bug Fixes
+
+* prevent pivot table in third parties ([#5864](https://github.com/lightdash/lightdash/issues/5864)) ([b6cc8dd](https://github.com/lightdash/lightdash/commit/b6cc8dd11f9f2f7f2b47148afab208831cdcadf5))
+
 # [0.609.0](https://github.com/lightdash/lightdash/compare/0.608.0...0.609.0) (2023-06-13)
 
 
