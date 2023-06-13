@@ -10,6 +10,7 @@ import {
     ValidationErrorTableResponse,
     ValidationResponse,
     ValidationResponseBase,
+    ValidationSourceType,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
@@ -45,24 +46,31 @@ export class ValidationModel {
         this.database = deps.database;
     }
 
-    async create(validations: CreateValidation[]): Promise<void> {
+    async create(
+        validations: CreateValidation[],
+        jobId?: string,
+    ): Promise<void> {
         await this.database.transaction(async (trx) => {
             const insertPromises = validations.map((validation) =>
                 trx(ValidationTableName).insert({
                     project_uuid: validation.projectUuid,
                     error: validation.error,
+                    job_id: jobId ?? null,
                     error_type: validation.errorType,
+                    source: validation.source ?? null,
                     ...(isTableValidationError(validation) && {
                         model_name: validation.modelName,
                     }),
                     ...(isChartValidationError(validation) && {
                         saved_chart_uuid: validation.chartUuid,
                         field_name: validation.fieldName,
+                        chart_name: validation.chartName ?? null,
                     }),
                     ...(isDashboardValidationError(validation) && {
                         dashboard_uuid: validation.dashboardUuid,
                         field_name: validation.fieldName ?? null,
                         chart_name: validation.chartName ?? null,
+                        model_name: validation.name,
                     }),
                 }),
             );
@@ -103,7 +111,10 @@ export class ValidationModel {
             .delete();
     }
 
-    async get(projectUuid: string): Promise<ValidationResponse[]> {
+    async get(
+        projectUuid: string,
+        jobId?: string,
+    ): Promise<ValidationResponse[]> {
         const chartValidationErrorsRows: (DbValidationTable &
             Pick<SavedChartTable['base'], 'name'> &
             Pick<UserTable['base'], 'first_name' | 'last_name'> &
@@ -136,7 +147,17 @@ export class ValidationModel {
                 `${UserTableName}.user_uuid`,
             )
             .where('project_uuid', projectUuid)
-            .andWhereNot(`${ValidationTableName}.saved_chart_uuid`, null)
+            .andWhere((queryBuilder) => {
+                if (jobId) {
+                    queryBuilder.where('job_id', jobId);
+                } else {
+                    queryBuilder.whereNull('job_id');
+                }
+            })
+            .andWhere(
+                `${ValidationTableName}.source`,
+                ValidationSourceType.Chart,
+            )
             .select([
                 `${ValidationTableName}.*`,
                 `${SavedChartsTableName}.name`,
@@ -177,7 +198,10 @@ export class ValidationModel {
                 chartViews: parseInt(validationError.views, 10) || 0,
                 projectUuid: validationError.project_uuid,
                 error: validationError.error,
-                name: validationError.name,
+                name:
+                    validationError.name ||
+                    validationError.chart_name ||
+                    'Chart does not exist',
                 lastUpdatedBy: validationError.first_name
                     ? `${validationError.first_name} ${validationError.last_name}`
                     : undefined,
@@ -190,6 +214,7 @@ export class ValidationModel {
                 ),
                 errorType: validationError.error_type,
                 fieldName: validationError.field_name ?? undefined,
+                source: ValidationSourceType.Chart,
             }));
 
         const dashboardValidationErrorsRows: (DbValidationTable &
@@ -220,7 +245,17 @@ export class ValidationModel {
                 `${DashboardVersionsTableName}.updated_by_user_uuid`,
             )
             .where('project_uuid', projectUuid)
-            .andWhereNot(`${ValidationTableName}.dashboard_uuid`, null)
+            .andWhere((queryBuilder) => {
+                if (jobId) {
+                    queryBuilder.where('job_id', jobId);
+                } else {
+                    queryBuilder.whereNull('job_id');
+                }
+            })
+            .andWhere(
+                `${ValidationTableName}.source`,
+                ValidationSourceType.Dashboard,
+            )
             .select([
                 `${ValidationTableName}.*`,
                 `${DashboardsTableName}.name`,
@@ -259,7 +294,10 @@ export class ValidationModel {
                 dashboardViews: parseInt(validationError.views, 10) || 0,
                 projectUuid: validationError.project_uuid,
                 error: validationError.error,
-                name: validationError.name,
+                name:
+                    validationError.name ||
+                    validationError.model_name ||
+                    'Dashboard does not exist',
                 lastUpdatedBy: validationError.first_name
                     ? `${validationError.first_name} ${validationError.last_name}`
                     : undefined,
@@ -269,14 +307,24 @@ export class ValidationModel {
                 errorType: validationError.error_type,
                 fieldName: validationError.field_name ?? undefined,
                 chartName: validationError.chart_name ?? undefined,
+                source: ValidationSourceType.Dashboard,
             }));
 
         const tableValidationErrorsRows: DbValidationTable[] =
             await this.database(ValidationTableName)
                 .select(`${ValidationTableName}.*`)
                 .where('project_uuid', projectUuid)
-                .whereNull('saved_chart_uuid')
-                .whereNull('dashboard_uuid')
+                .andWhere((queryBuilder) => {
+                    if (jobId) {
+                        queryBuilder.where('job_id', jobId);
+                    } else {
+                        queryBuilder.whereNull('job_id');
+                    }
+                })
+                .andWhere(
+                    `${ValidationTableName}.source`,
+                    ValidationSourceType.Table,
+                )
                 .distinctOn(`${ValidationTableName}.error`);
 
         const tableValidationErrors: ValidationErrorTableResponse[] =
@@ -287,6 +335,7 @@ export class ValidationModel {
                 name: validationError.model_name ?? undefined,
                 validationId: validationError.validation_id,
                 errorType: validationError.error_type,
+                source: ValidationSourceType.Table,
             }));
 
         return [

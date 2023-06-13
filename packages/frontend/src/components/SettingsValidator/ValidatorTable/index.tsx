@@ -35,14 +35,22 @@ const getLinkToResource = (
     validationError: ValidationResponse,
     projectUuid: string,
 ) => {
-    if (isChartValidationError(validationError))
+    if (isChartValidationError(validationError) && validationError.chartUuid)
         return `/projects/${projectUuid}/saved/${validationError.chartUuid}`;
 
-    if (isDashboardValidationError(validationError))
+    if (
+        isDashboardValidationError(validationError) &&
+        validationError.dashboardUuid
+    )
         return `/projects/${projectUuid}/dashboards/${validationError.dashboardUuid}/view`;
 
     return;
 };
+
+const isDeleted = (validationError: ValidationResponse) =>
+    (isChartValidationError(validationError) && !validationError.chartUuid) ||
+    (isDashboardValidationError(validationError) &&
+        !validationError.dashboardUuid);
 
 const Icon = ({ validationError }: { validationError: ValidationResponse }) => {
     if (isChartValidationError(validationError))
@@ -114,28 +122,45 @@ const TableValidationItem = forwardRef<
                         <Icon validationError={validationError} />
 
                         <Stack spacing={4}>
-                            <Text fw={600}>
-                                {getErrorName(validationError)}
-                            </Text>
-
-                            {(isChartValidationError(validationError) ||
-                                isDashboardValidationError(
-                                    validationError,
-                                )) && (
-                                <Text fz={11} color="gray.6">
-                                    {getViews(validationError)} view
-                                    {getViews(validationError) === 1 ? '' : 's'}
-                                    {' • '}
-                                    {validationError.lastUpdatedBy ? (
-                                        <>
-                                            Last edited by{' '}
-                                            <Text span fw={500}>
-                                                {validationError.lastUpdatedBy}
-                                            </Text>
-                                        </>
-                                    ) : null}
+                            {isDeleted(validationError) ? (
+                                <Tooltip
+                                    label={`This ${
+                                        isChartValidationError(validationError)
+                                            ? 'chart'
+                                            : 'dashboard'
+                                    } has been deleted`}
+                                >
+                                    <Text fw={600} color={'gray.6'}>
+                                        {getErrorName(validationError)}
+                                    </Text>
+                                </Tooltip>
+                            ) : (
+                                <Text fw={600}>
+                                    {getErrorName(validationError)}
                                 </Text>
                             )}
+
+                            {(isChartValidationError(validationError) ||
+                                isDashboardValidationError(validationError)) &&
+                                !isDeleted(validationError) && (
+                                    <Text fz={11} color="gray.6">
+                                        {getViews(validationError)} view
+                                        {getViews(validationError) === 1
+                                            ? ''
+                                            : 's'}
+                                        {' • '}
+                                        {validationError.lastUpdatedBy ? (
+                                            <>
+                                                Last edited by{' '}
+                                                <Text span fw={500}>
+                                                    {
+                                                        validationError.lastUpdatedBy
+                                                    }
+                                                </Text>
+                                            </>
+                                        ) : null}
+                                    </Text>
+                                )}
                         </Stack>
                     </Flex>
                 </Anchor>

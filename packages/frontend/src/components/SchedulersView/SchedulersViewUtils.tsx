@@ -13,6 +13,7 @@ import {
     IconPhoto,
     IconProgress,
 } from '@tabler/icons-react';
+import moment from 'moment';
 import React from 'react';
 import MantineIcon from '../common/MantineIcon';
 import { IconBox } from '../common/ResourceIcon';
@@ -124,13 +125,8 @@ export const getItemLink = (item: SchedulerItem, projectUuid: string) => {
         : `/projects/${projectUuid}/dashboards/${item.dashboardUuid}/view`;
 };
 
-export const formatTime = (date: Date) => {
-    return new Date(date).toLocaleString('en-US', {
-        timeZone: 'UTC',
-        dateStyle: 'short',
-        timeStyle: 'short',
-    });
-};
+export const formatTime = (date: Date) =>
+    moment(date).format('YYYY/MM/DD HH:mm A');
 
 export const camelCaseToFlat = (str: string | undefined) =>
     str ? str.replace(/([A-Z])/g, ' $1').toLowerCase() : undefined;

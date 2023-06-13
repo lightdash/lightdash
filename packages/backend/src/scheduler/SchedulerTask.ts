@@ -491,6 +491,7 @@ export const validateProject = async (
     try {
         const errors = await validationService.generateValidation(
             payload.projectUuid,
+            payload.explores,
         );
 
         const contentIds = errors.map((validation) => {
@@ -501,7 +502,11 @@ export const validateProject = async (
             return validation.name;
         });
 
-        await validationService.storeValidation(payload.projectUuid, errors);
+        await validationService.storeValidation(
+            payload.projectUuid,
+            errors,
+            payload.explores ? jobId : undefined,
+        );
 
         analytics.track({
             event: 'validation.completed',

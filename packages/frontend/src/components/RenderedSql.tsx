@@ -1,9 +1,9 @@
 import { Callout, Code, NonIdealState, Pre, Spinner } from '@blueprintjs/core';
 import React from 'react';
-import { useCompliedSql } from '../hooks/useCompiledSql';
+import { useCompiledSql } from '../hooks/useCompiledSql';
 
 export const RenderedSql = () => {
-    const { data, error, isLoading } = useCompliedSql();
+    const { data, error, isLoading } = useCompiledSql();
 
     if (isLoading) {
         return (

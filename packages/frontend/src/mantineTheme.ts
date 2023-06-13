@@ -103,9 +103,6 @@ export const getMantineThemeOverride = (overrides?: {
         },
 
         Indicator: {
-            defaultProps: {
-                withArrow: true,
-            },
             styles: () => ({
                 // FIXME: this is a hack to fix position of the Indicator under overlays. Remove after Blueprint migration is complete
                 root: {
