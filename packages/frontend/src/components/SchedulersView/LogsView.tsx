@@ -56,8 +56,9 @@ const Logs: FC<LogsProps> = ({
         },
         [openedUuids],
     );
+
     const groupByJobGroup = (allLogs: Log[]) => groupBy(allLogs, 'jobGroup');
-    console.log(groupByJobGroup(logs));
+
     const columns = useMemo<Column[]>(() => {
         const getCurrentLogs = (item: SchedulerItem, targets: Log[]) => {
             return targets.filter(
@@ -363,13 +364,32 @@ const Logs: FC<LogsProps> = ({
             </thead>
 
             <tbody>
-                {schedulers.map((item) => (
-                    <tr key={item.schedulerUuid}>
-                        {columns.map((column) => (
-                            <td key={column.id}>{column.cell(item)}</td>
-                        ))}
-                    </tr>
-                ))}
+                {Object.entries(groupByJobGroup).map(
+                    ([jobGroup, schedulerLogs]: [string, Log[]]) => {
+                        const schedulerItemUuid =
+                            schedulerLogs[0].schedulerUuid;
+                        const schedulerItem = schedulers.find(
+                            (item) => item.schedulerUuid === schedulerItemUuid,
+                        );
+
+                        if (!schedulerItem) {
+                            return null;
+                        }
+
+                        return (
+                            <tr key={jobGroup}>
+                                {columns.map((column) => (
+                                    <td key={column.id}>
+                                        {column.cell(
+                                            schedulerItem,
+                                            schedulerLogs,
+                                        )}
+                                    </td>
+                                ))}
+                            </tr>
+                        );
+                    },
+                )}
             </tbody>
         </Table>
     );
