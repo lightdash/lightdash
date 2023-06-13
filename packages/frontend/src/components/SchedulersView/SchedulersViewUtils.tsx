@@ -35,7 +35,7 @@ type ColumnName =
 export interface Column {
     id: ColumnName;
     label?: string;
-    cell: (item: SchedulerItem) => React.ReactNode;
+    cell: (item: SchedulerItem, logs?: Log[]) => React.ReactNode;
     meta?: {
         style: React.CSSProperties;
     };
@@ -127,6 +127,3 @@ export const getItemLink = (item: SchedulerItem, projectUuid: string) => {
 
 export const formatTime = (date: Date) =>
     moment(date).format('YYYY/MM/DD HH:mm A');
-
-export const camelCaseToFlat = (str: string | undefined) =>
-    str ? str.replace(/([A-Z])/g, ' $1').toLowerCase() : undefined;
