@@ -1474,6 +1474,7 @@ export class ProjectService {
                     name: explore.name,
                     label: explore.label,
                     tags: explore.tags,
+                    groupLabel: explore.groupLabel,
                     errors: explore.errors,
                     databaseName:
                         explore.baseTable &&
@@ -1486,11 +1487,12 @@ export class ProjectService {
                         explore.tables?.[explore.baseTable]?.description,
                 };
             }
-
+            console.log('summary', explore.name, explore.groupLabel);
             return {
                 name: explore.name,
                 label: explore.label,
                 tags: explore.tags,
+                groupLabel: explore.groupLabel,
                 databaseName: explore.tables[explore.baseTable].database,
                 schemaName: explore.tables[explore.baseTable].schema,
                 description: explore.tables[explore.baseTable].description,

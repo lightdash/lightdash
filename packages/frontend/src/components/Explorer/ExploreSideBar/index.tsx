@@ -5,6 +5,7 @@ import Fuse from 'fuse.js';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 
+import groupBy from 'lodash-es/groupBy';
 import { useExplores } from '../../../hooks/useExplores';
 import { useErrorLogs } from '../../../providers/ErrorLogsProvider';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
@@ -14,6 +15,7 @@ import MantineIcon from '../../common/MantineIcon';
 import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import { ShowErrorsButton } from '../../ShowErrorsButton';
 import ExplorePanel from '../ExplorePanel';
+import ExploreGroup from './ExploreGroup';
 import ExploreNavLink from './ExploreNavLink';
 
 const LoadingSkeleton = () => (
@@ -37,11 +39,12 @@ const BasePanel = () => {
     const [search, setSearch] = useState<string>('');
     const exploresResult = useExplores(projectUuid, true);
 
-    const filteredTables = useMemo(() => {
+    const groupedTables = useMemo(() => {
         const validSearch = search ? search.toLowerCase() : '';
         if (exploresResult.data) {
+            let tables = Object.values(exploresResult.data);
             if (validSearch !== '') {
-                return new Fuse(Object.values(exploresResult.data), {
+                tables = new Fuse(Object.values(exploresResult.data), {
                     keys: ['label'],
                     ignoreLocation: true,
                     threshold: 0.3,
@@ -49,10 +52,12 @@ const BasePanel = () => {
                     .search(validSearch)
                     .map((res) => res.item);
             }
-            return Object.values(exploresResult.data);
+            return groupBy(tables, 'groupLabel');
         }
-        return [];
+        return {};
     }, [exploresResult.data, search]);
+
+    console.log('groupedTables', groupedTables);
 
     if (exploresResult.status === 'loading') {
         return <LoadingSkeleton />;
@@ -97,20 +102,50 @@ const BasePanel = () => {
                 />
 
                 <Stack spacing="xxs" sx={{ flexGrow: 1, overflowY: 'auto' }}>
-                    {filteredTables
-                        .sort((a, b) => a.label.localeCompare(b.label))
-                        .map((explore) => (
-                            <ExploreNavLink
-                                key={explore.name}
-                                explore={explore}
-                                query={search}
-                                onClick={() => {
-                                    history.push(
-                                        `/projects/${projectUuid}/tables/${explore.name}`,
-                                    );
-                                }}
-                            />
-                        ))}
+                    {Object.keys(groupedTables)
+                        .sort((a, b) => a.localeCompare(b))
+                        .map((groupLabel) =>
+                            groupLabel !== 'undefined' ? (
+                                <ExploreGroup
+                                    label={groupLabel}
+                                    key={groupLabel}
+                                >
+                                    {groupedTables[groupLabel]
+                                        .sort((a, b) =>
+                                            a.label.localeCompare(b.label),
+                                        )
+                                        .map((explore) => (
+                                            <ExploreNavLink
+                                                key={explore.name}
+                                                explore={explore}
+                                                query={search}
+                                                onClick={() => {
+                                                    history.push(
+                                                        `/projects/${projectUuid}/tables/${explore.name}`,
+                                                    );
+                                                }}
+                                            />
+                                        ))}
+                                </ExploreGroup>
+                            ) : (
+                                groupedTables[groupLabel]
+                                    .sort((a, b) =>
+                                        a.label.localeCompare(b.label),
+                                    )
+                                    .map((explore) => (
+                                        <ExploreNavLink
+                                            key={explore.name}
+                                            explore={explore}
+                                            query={search}
+                                            onClick={() => {
+                                                history.push(
+                                                    `/projects/${projectUuid}/tables/${explore.name}`,
+                                                );
+                                            }}
+                                        />
+                                    ))
+                            ),
+                        )}
                 </Stack>
             </>
         );

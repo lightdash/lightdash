@@ -54,6 +54,7 @@ type DbtModelLightdashConfig = {
     joins?: DbtModelJoin[];
     metrics?: Record<string, DbtModelLightdashMetric>;
     order_fields_by?: OrderFieldsByStrategy;
+    group_label?: string;
 };
 type DbtModelJoin = {
     join: string;

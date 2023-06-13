@@ -52,6 +52,7 @@ export type UncompiledExplore = {
     label: string;
     tags: string[];
     baseTable: string;
+    groupLabel?: string;
     joinedTables: ExploreJoin[];
     tables: Record<string, Table>;
     targetDatabase: SupportedDbtAdapter;
