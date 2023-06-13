@@ -23,7 +23,10 @@ export interface WarehouseClient {
         }[],
     ) => Promise<WarehouseCatalog>;
 
-    runQuery(sql: string): Promise<{
+    runQuery(
+        sql: string,
+        tags?: Record<string, string>,
+    ): Promise<{
         fields: Record<string, { type: DimensionType }>;
         rows: Record<string, any>[];
     }>;

@@ -48,12 +48,12 @@ describe('Settings - Invites', () => {
 
         cy.contains('User management').click();
         cy.findByText('demo+marygreen@lightdash.com')
-            .parents('.mantine-Card-root')
-            .find('[icon="delete"]')
+            .parents('.mantine-Paper-root')
+            .findByText('Delete')
             .click();
         cy.findByText('Are you sure you want to delete this user ?')
-            .parents('.bp4-dialog')
-            .findByRole('button', { name: 'Delete' })
+            .parents('.mantine-Modal-root')
+            .findByText('Delete')
             .click();
         cy.findByText('Success! User was deleted.').should('be.visible');
         cy.findByText('demo+marygreen@lightdash.com').should('not.exist');

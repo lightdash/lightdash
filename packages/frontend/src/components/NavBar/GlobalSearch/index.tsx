@@ -34,7 +34,7 @@ import { SearchIcon, SearchIconWithIndicator } from './SearchIcon';
 
 const itemHasValidationError = (searchItem: SearchItem) =>
     searchItem.item &&
-    ['dashboard', 'saved_chart'].includes(searchItem.type) &&
+    ['dashboard', 'saved_chart', 'table'].includes(searchItem.type) &&
     'validationErrors' in searchItem.item &&
     searchItem.item.validationErrors?.length > 0;
 

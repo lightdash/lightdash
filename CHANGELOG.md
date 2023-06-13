@@ -1,3 +1,85 @@
+## [0.609.1](https://github.com/lightdash/lightdash/compare/0.609.0...0.609.1) (2023-06-13)
+
+
+### Bug Fixes
+
+* prevent pivot table in third parties ([#5864](https://github.com/lightdash/lightdash/issues/5864)) ([b6cc8dd](https://github.com/lightdash/lightdash/commit/b6cc8dd11f9f2f7f2b47148afab208831cdcadf5))
+
+# [0.609.0](https://github.com/lightdash/lightdash/compare/0.608.0...0.609.0) (2023-06-13)
+
+
+### Features
+
+* validate against prod ([#5808](https://github.com/lightdash/lightdash/issues/5808)) ([965793e](https://github.com/lightdash/lightdash/commit/965793ea34c1aef8db7d50fa1d3015a8fbb9731a))
+
+# [0.608.0](https://github.com/lightdash/lightdash/compare/0.607.0...0.608.0) (2023-06-12)
+
+
+### Features
+
+* open SQL from explore in query runner ([#5843](https://github.com/lightdash/lightdash/issues/5843)) ([3f234d4](https://github.com/lightdash/lightdash/commit/3f234d487f1ceb1b638926a446f1df7892765353))
+
+# [0.607.0](https://github.com/lightdash/lightdash/compare/0.606.0...0.607.0) (2023-06-12)
+
+
+### Features
+
+* migrate user management settings to mantine ([#5857](https://github.com/lightdash/lightdash/issues/5857)) ([4089ef9](https://github.com/lightdash/lightdash/commit/4089ef9f334680b66eb008d4f0a6949102be0027))
+
+# [0.606.0](https://github.com/lightdash/lightdash/compare/0.605.1...0.606.0) (2023-06-12)
+
+
+### Features
+
+* keep validation if content deleted ([#5860](https://github.com/lightdash/lightdash/issues/5860)) ([8294fea](https://github.com/lightdash/lightdash/commit/8294fea5a43b4d3c762c1ae4ef672cbba95c3216))
+
+## [0.605.1](https://github.com/lightdash/lightdash/compare/0.605.0...0.605.1) (2023-06-12)
+
+
+### Bug Fixes
+
+* update snowflake sdk ([#5856](https://github.com/lightdash/lightdash/issues/5856)) ([bb797be](https://github.com/lightdash/lightdash/commit/bb797be088d017f5b62c265ca45b88275df30824))
+
+# [0.605.0](https://github.com/lightdash/lightdash/compare/0.604.0...0.605.0) (2023-06-12)
+
+
+### Bug Fixes
+
+* time format for scheduled deliveries dashboard ([#5841](https://github.com/lightdash/lightdash/issues/5841)) ([286990a](https://github.com/lightdash/lightdash/commit/286990a546b0178375c8a4e4cf0572ee5a6b1d63))
+
+
+### Features
+
+* "Ends with" option for filtering ([#5745](https://github.com/lightdash/lightdash/issues/5745)) ([58136a4](https://github.com/lightdash/lightdash/commit/58136a49bf4a4a8fb509498b8e7d62b5595d5b5b))
+
+# [0.604.0](https://github.com/lightdash/lightdash/compare/0.603.1...0.604.0) (2023-06-12)
+
+
+### Features
+
+* keep validation if content deleted ([#5839](https://github.com/lightdash/lightdash/issues/5839)) ([ba6cdf3](https://github.com/lightdash/lightdash/commit/ba6cdf369b25326b1ac425fb7914ae2c6dd5c133))
+
+## [0.603.1](https://github.com/lightdash/lightdash/compare/0.603.0...0.603.1) (2023-06-12)
+
+
+### Bug Fixes
+
+* all jobs shouldnt open all at once ([#5836](https://github.com/lightdash/lightdash/issues/5836)) ([9463a40](https://github.com/lightdash/lightdash/commit/9463a40e221a8007701fd24901963752590de1ef))
+
+# [0.603.0](https://github.com/lightdash/lightdash/compare/0.602.0...0.603.0) (2023-06-12)
+
+
+### Features
+
+* add visual indicator for model errors ([#5814](https://github.com/lightdash/lightdash/issues/5814)) ([8040018](https://github.com/lightdash/lightdash/commit/804001824950a119286a812bc916a7b27fa3b65c))
+
+# [0.602.0](https://github.com/lightdash/lightdash/compare/0.601.4...0.602.0) (2023-06-09)
+
+
+### Features
+
+* add query tags ([#5784](https://github.com/lightdash/lightdash/issues/5784)) ([a2db47d](https://github.com/lightdash/lightdash/commit/a2db47d1d4f748568c9ecfad80168ee1dba05c8a))
+
 ## [0.601.4](https://github.com/lightdash/lightdash/compare/0.601.3...0.601.4) (2023-06-09)
 
 

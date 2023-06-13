@@ -77,6 +77,8 @@ describe('validation', () => {
             name: 'Test chart',
             projectUuid: 'projectUuid',
             chartUuid: 'chartUuid',
+            source: 'chart',
+            chartName: 'Test chart',
         });
 
         const expectedErrors: string[] = [
@@ -105,6 +107,8 @@ describe('validation', () => {
             name: 'Test chart',
             projectUuid: 'projectUuid',
             chartUuid: 'chartUuid',
+            source: 'chart',
+            chartName: 'Test chart',
         });
 
         const expectedErrors: string[] = [
@@ -131,6 +135,7 @@ describe('validation', () => {
             error: 'Model "valid_explore" has a dimension reference: ${is_completed} which matches no dimension',
             errorType: 'model',
             projectUuid: 'projectUuid',
+            source: 'table',
         });
 
         expect(errors[0].error).toEqual(
