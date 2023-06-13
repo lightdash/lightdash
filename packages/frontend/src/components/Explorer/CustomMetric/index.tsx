@@ -251,11 +251,10 @@ export const CreateCustomMetricModal: FC<Props> = ({
 
     return (
         <Modal
-            withinPortal
-            closeOnClickOutside
-            zIndex={15}
             size="xl"
             centered
+            zIndex={15}
+            onClick={(e) => e.stopPropagation()}
             opened={isCreatingCustomMetric}
             onClose={() => setIsCreatingCustomMetric(false)}
             title={
