@@ -403,7 +403,7 @@ export class ValidationService {
     ): Promise<CreateValidation[]> {
         Logger.debug(
             `Generating validation for project ${projectUuid} with explores ${
-                compiledExplores ? 'from CLI' : 'from cach'
+                compiledExplores ? 'from CLI' : 'from cache'
             }`,
         );
         const explores =
