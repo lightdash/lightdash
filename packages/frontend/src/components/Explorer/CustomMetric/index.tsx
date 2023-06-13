@@ -230,7 +230,9 @@ export const CreateCustomMetricModal: FC<Props> = ({
                     dimension.label
                 } on the table ${dimension.tableLabel}`,
                 type,
-                filters: customMetricFilters,
+                ...(!!Object.keys(customMetricFilters).length && {
+                    filters: getTotalFilterRules(customMetricFilters),
+                }),
                 ...format,
                 ...round,
                 ...compact,
