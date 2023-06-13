@@ -55,6 +55,7 @@ const UserListItem: FC<{
     },
 }) => {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [showInviteSuccess, setShowInviteSuccess] = useState(true);
     const { mutate, isLoading: isDeleting } =
         useDeleteOrganizationUserMutation();
     const inviteLink = useCreateInviteLinkMutation();
@@ -68,6 +69,7 @@ const UserListItem: FC<{
             name: EventName.INVITE_BUTTON_CLICKED,
         });
         inviteLink.mutate({ email, role });
+        setShowInviteSuccess(true);
     };
 
     return (
@@ -214,8 +216,16 @@ const UserListItem: FC<{
                     </>
                 )}
             </tr>
-            {inviteLink.data && (
-                <InviteSuccess invite={inviteLink.data} hasMargin />
+
+            {inviteLink.data && showInviteSuccess && (
+                <tr>
+                    <td colSpan={3} style={{ borderTop: 0 }}>
+                        <InviteSuccess
+                            invite={inviteLink.data}
+                            onClose={() => setShowInviteSuccess(false)}
+                        />
+                    </td>
+                </tr>
             )}
         </>
     );
