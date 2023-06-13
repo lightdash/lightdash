@@ -36,6 +36,7 @@ import {
 import { useFieldsWithSuggestions } from '../FiltersCard/useFieldsWithSuggestions';
 
 type Props = {
+    isEditMode: boolean;
     isCreatingCustomMetric: boolean;
     setIsCreatingCustomMetric: Dispatch<SetStateAction<boolean>>;
     customMetricType: MetricType | undefined;
@@ -157,6 +158,7 @@ const FilterForm: FC<{
 };
 
 export const CreateCustomMetricModal: FC<Props> = ({
+    isEditMode,
     item,
     isCreatingCustomMetric,
     setIsCreatingCustomMetric,
@@ -256,7 +258,11 @@ export const CreateCustomMetricModal: FC<Props> = ({
             centered
             opened={isCreatingCustomMetric}
             onClose={() => setIsCreatingCustomMetric(false)}
-            title={<Title order={4}>Create Custom Metric</Title>}
+            title={
+                <Title order={4}>
+                    {isEditMode ? 'Edit' : 'Create'} Custom Metric
+                </Title>
+            }
         >
             <Stack>
                 <TextInput
@@ -268,11 +274,11 @@ export const CreateCustomMetricModal: FC<Props> = ({
                         setCustomMetricName(e.target.value);
                     }}
                     defaultValue={
-                        customMetricType
-                            ? `${friendlyName(customMetricType)} of ${
+                        isEditMode
+                            ? item.label
+                            : `${friendlyName(customMetricType!)} of ${
                                   item.label
                               }`
-                            : ''
                     }
                 />
                 <Accordion chevronPosition="left" chevronSize="xs">

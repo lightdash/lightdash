@@ -21,6 +21,7 @@ import {
 } from '@mantine/core';
 import {
     IconDots,
+    IconEdit,
     IconFilter,
     IconSparkles,
     IconTrash,
@@ -79,6 +80,7 @@ const TreeSingleNodeActions: FC<Props> = ({
     onMenuChange,
 }) => {
     const [isCreatingCustomMetric, setIsCreatingCustomMetric] = useState(false);
+    const [isEditingCustomMetric, setIsEditingCustomMetric] = useState(false);
     const [customMetricType, setCustomMetricType] = useState<MetricType>();
     const { addFilter } = useFilters();
     const { track } = useTracking();
@@ -122,22 +124,35 @@ const TreeSingleNodeActions: FC<Props> = ({
                 ) : null}
 
                 {isAdditionalMetric(item) ? (
-                    <Menu.Item
-                        color="red"
-                        key="custommetric"
-                        component="button"
-                        icon={<MantineIcon icon={IconTrash} />}
-                        onClick={(e) => {
-                            e.stopPropagation();
+                    <>
+                        <Menu.Item
+                            component="button"
+                            icon={<MantineIcon icon={IconEdit} />}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setIsEditingCustomMetric(true);
+                                setCustomMetricType(item.type);
+                            }}
+                        >
+                            Edit custom metric
+                        </Menu.Item>
+                        <Menu.Item
+                            color="red"
+                            key="custommetric"
+                            component="button"
+                            icon={<MantineIcon icon={IconTrash} />}
+                            onClick={(e) => {
+                                e.stopPropagation();
 
-                            track({
-                                name: EventName.REMOVE_CUSTOM_METRIC_CLICKED,
-                            });
-                            removeAdditionalMetric(fieldId(item));
-                        }}
-                    >
-                        Remove custom metric
-                    </Menu.Item>
+                                track({
+                                    name: EventName.REMOVE_CUSTOM_METRIC_CLICKED,
+                                });
+                                removeAdditionalMetric(fieldId(item));
+                            }}
+                        >
+                            Remove custom metric
+                        </Menu.Item>
+                    </>
                 ) : null}
 
                 {customMetrics.length > 0 && isDimension(item) ? (
@@ -170,11 +185,16 @@ const TreeSingleNodeActions: FC<Props> = ({
                     </>
                 ) : null}
             </Menu.Dropdown>
-            {isCreatingCustomMetric ? (
+            {isCreatingCustomMetric || isEditingCustomMetric ? (
                 <CreateCustomMetricModal
+                    isEditMode={isEditingCustomMetric}
                     item={item as Dimension}
-                    isCreatingCustomMetric={isCreatingCustomMetric}
-                    setIsCreatingCustomMetric={setIsCreatingCustomMetric}
+                    isCreatingCustomMetric={
+                        isCreatingCustomMetric || isEditingCustomMetric
+                    }
+                    setIsCreatingCustomMetric={
+                        setIsCreatingCustomMetric || setIsEditingCustomMetric
+                    }
                     customMetricType={customMetricType}
                 />
             ) : null}
