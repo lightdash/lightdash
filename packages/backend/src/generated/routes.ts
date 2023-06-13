@@ -1105,11 +1105,35 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    NumberSeparators: {
+        dataType: 'refEnum',
+        enums: [
+            'commaPeriod',
+            'spacePeriod',
+            'periodComma',
+            'noSeparatorPeriod',
+        ],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    TableCalculationFormat: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                separator: { ref: 'NumberSeparators' },
+                round: { dataType: 'double' },
+                type: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     TableCalculation: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                format: { ref: 'TableCalculationFormat' },
                 sql: { dataType: 'string', required: true },
                 displayName: { dataType: 'string', required: true },
                 name: { dataType: 'string', required: true },
@@ -2219,6 +2243,7 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        chartName: { dataType: 'string' },
                         chartViews: { dataType: 'double', required: true },
                         lastUpdatedAt: { dataType: 'datetime' },
                         lastUpdatedBy: { dataType: 'string' },

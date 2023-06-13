@@ -1,5 +1,10 @@
 import { Button, Callout, Classes, Intent } from '@blueprintjs/core';
-import { snakeCaseName, TableCalculation } from '@lightdash/common';
+import {
+    NumberSeparators,
+    snakeCaseName,
+    TableCalculation,
+    TableCalculationFormat,
+} from '@lightdash/common';
 import {
     Anchor,
     Box,
@@ -43,9 +48,7 @@ interface Props {
 type TableCalculationFormInputs = {
     name: string;
     sql: string;
-    formatType: string;
-    round?: number;
-    separator?: string;
+    format: TableCalculationFormat;
 };
 
 const getUniqueTableCalculationName = (
@@ -70,16 +73,12 @@ const getUniqueTableCalculationName = (
     return getCalcName(validSuffix);
 };
 
-const TableCalculationFormat: FC<{
+const TableCalculationFormatForm: FC<{
     methods: UseFormReturn<TableCalculationFormInputs, object>;
 }> = ({ methods }) => {
-    const formatType = methods.watch('formatType', 'default');
-    const round = methods.watch('round');
-    const separator = methods.watch('separator');
-
-    /*onChange={(type) => {
-               // methods.setValue('formatType', type || 'default')
-            }}*/
+    const formatType = methods.watch('format.type', 'default');
+    const round = methods.watch('format.round');
+    const separator = methods.watch('format.separator');
 
     //TODO this component is using Mantine components with a react-hook-form,
     //once we use mantine form we should refactor this to remove onChange methods
@@ -87,7 +86,7 @@ const TableCalculationFormat: FC<{
     const previewPercentSeparator = () => {
         if ((round === undefined ? 2 : round) <= 0) return '';
         switch (separator) {
-            case 'dot-comma':
+            case NumberSeparators.PERIOD_COMMA:
                 return ',';
             default:
                 return '.';
@@ -109,16 +108,15 @@ const TableCalculationFormat: FC<{
         <Box m="md">
             <Flex>
                 <Select
-                    w={150}
+                    w={200}
                     onChange={(type) => {
-                        methods.setValue('formatType', type || 'default');
+                        methods.setValue('format.type', type || 'default');
                     }}
                     label="Type"
-                    name="formatType"
+                    name="format.type"
                     defaultValue={'default'}
                     data={['default', 'percent']}
                 />
-                {/*<Select  label="Type" name='formatType' defaultValue={methods.getValues('formatType')} options={['default', 'percent']} ></Select>*/}
 
                 <Text ml="md" mt={30} color="gray.6">
                     {previewFormat()}
@@ -126,23 +124,16 @@ const TableCalculationFormat: FC<{
             </Flex>
             {formatType === 'percent' && (
                 <Flex>
-                    {/*<Input label="Round" name='round' defaultValue={methods.getValues('round') || 0} ></Input>
-                    <Select  label="Separator style" name='separator' defaultValue={methods.getValues('separator')} 
-                        options={[{value: 'comma-dot', label:'100,000.00'},
-                        {value: 'space-comma', label:'100,000.00'},
-                        {value: 'dot-comma', label:'100.000,00'},
-                        {value: 'dot', label:'100000.00'},
-                    ]} ></Select>*/}
                     <TextInput
-                        w={150}
+                        w={200}
                         label="Round"
-                        name="round"
-                        placeholder="2"
+                        name="format.round"
+                        placeholder="Number of decimal places"
                         onChange={(r) => {
                             //TODO check type
 
                             methods.setValue(
-                                'round',
+                                'format.round',
                                 r.target.value === ''
                                     ? undefined
                                     : parseInt(r.target.value),
@@ -152,16 +143,32 @@ const TableCalculationFormat: FC<{
                     <Select
                         ml="md"
                         onChange={(s) => {
-                            methods.setValue('separator', s || 'comma-dot');
+                            if (s)
+                                methods.setValue(
+                                    'format.separator',
+                                    s as NumberSeparators,
+                                );
                         }}
                         label="Type"
-                        name="separator"
+                        name="format.separator"
                         defaultValue={'comma-dot'}
                         data={[
-                            { value: 'comma-dot', label: '100,000.00' },
-                            { value: 'space-comma', label: '100 000.00' },
-                            { value: 'dot-comma', label: '100.000,00' },
-                            { value: 'dot', label: '100000.00' },
+                            {
+                                value: NumberSeparators.COMMA_PERIOD,
+                                label: '100,000.00',
+                            },
+                            {
+                                value: NumberSeparators.SPACE_PERIOD,
+                                label: '100 000.00',
+                            },
+                            {
+                                value: NumberSeparators.PERIOD_COMMA,
+                                label: '100.000,00',
+                            },
+                            {
+                                value: NumberSeparators.NO_SEPARATOR_PERIOD,
+                                label: '100000.00',
+                            },
                         ]}
                     />
                 </Flex>
@@ -196,9 +203,11 @@ const TableCalculationModal: FC<Props> = ({
         defaultValues: {
             name: tableCalculation?.displayName,
             sql: tableCalculation?.sql,
-            formatType: 'default',
-            round: 2,
-            separator: 'comma-dot',
+            format: {
+                type: 'default',
+                round: 2,
+                separator: NumberSeparators.COMMA_PERIOD,
+            },
         },
     });
 
@@ -235,6 +244,7 @@ const TableCalculationModal: FC<Props> = ({
                                 tableCalculations,
                             ),
                             displayName: name,
+                            format: data.format,
                         });
                     } catch (e: any) {
                         showToastError({
@@ -306,7 +316,7 @@ const TableCalculationModal: FC<Props> = ({
                             </TableCalculationSqlInputWrapper>
                         </Tabs.Panel>
                         <Tabs.Panel value="format">
-                            <TableCalculationFormat methods={methods} />
+                            <TableCalculationFormatForm methods={methods} />
                         </Tabs.Panel>
                     </Tabs>
                     <Callout intent="none" icon="clean">

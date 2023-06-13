@@ -171,6 +171,7 @@ const createSavedChartVersion = async (
                     display_name: tableCalculation.displayName,
                     calculation_raw_sql: tableCalculation.sql,
                     saved_queries_version_id: version.saved_queries_version_id,
+                    format: tableCalculation.format,
                     order: tableConfig.columnOrder.findIndex(
                         (column) => column === tableCalculation.name,
                     ),
@@ -506,6 +507,7 @@ export class SavedChartModel {
                             name: tableCalculation.name,
                             displayName: tableCalculation.display_name,
                             sql: tableCalculation.calculation_raw_sql,
+                            format: tableCalculation.calculation_format,
                         }),
                     ),
                     additionalMetrics: additionalMetricsFiltered,

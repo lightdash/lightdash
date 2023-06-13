@@ -3,6 +3,7 @@ import {
     ChartType,
     CompactOrAlias,
     DBFieldTypes,
+    TableCalculationFormat,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 
@@ -102,6 +103,7 @@ export type DbSavedChartTableCalculation = {
     order: number;
     calculation_raw_sql: string;
     saved_queries_version_id: number;
+    format?: TableCalculationFormat;
 };
 
 export type DbSavedChartTableCalculationInsert = Omit<

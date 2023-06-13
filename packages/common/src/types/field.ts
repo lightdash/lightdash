@@ -19,6 +19,12 @@ const CompactAlias = [
     'trillion',
 ] as const;
 
+export enum NumberSeparators {
+    COMMA_PERIOD = 'commaPeriod',
+    SPACE_PERIOD = 'spacePeriod',
+    PERIOD_COMMA = 'periodComma',
+    NO_SEPARATOR_PERIOD = 'noSeparatorPeriod',
+}
 type CompactConfig = {
     compact: Compact;
     alias: Array<typeof CompactAlias[number]>;
@@ -71,12 +77,17 @@ export function findCompactConfig(
 
 export type Item = Field | TableCalculation;
 
+export type TableCalculationFormat = {
+    type: string;
+    round?: number;
+    separator?: NumberSeparators;
+};
 export type TableCalculation = {
     index?: number;
     name: string;
     displayName: string;
     sql: string;
-    formatType: string;
+    format?: TableCalculationFormat;
 };
 
 export const isTableCalculation = (item: Item): item is TableCalculation =>
