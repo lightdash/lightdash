@@ -127,6 +127,3 @@ export const getItemLink = (item: SchedulerItem, projectUuid: string) => {
 
 export const formatTime = (date: Date) =>
     moment(date).format('YYYY/MM/DD HH:mm A');
-
-export const camelCaseToFlat = (str: string | undefined) =>
-    str ? str.replace(/([A-Z])/g, ' $1').toLowerCase() : undefined;
