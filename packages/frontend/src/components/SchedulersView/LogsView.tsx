@@ -11,6 +11,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconChevronDown } from '@tabler/icons-react';
+import groupBy from 'lodash-es/groupBy';
 import React, { FC, useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
@@ -55,7 +56,8 @@ const Logs: FC<LogsProps> = ({
         },
         [openedUuids],
     );
-
+    const groupByJobGroup = (allLogs: Log[]) => groupBy(allLogs, 'jobGroup');
+    console.log(groupByJobGroup(logs));
     const columns = useMemo<Column[]>(() => {
         const getCurrentLogs = (item: SchedulerItem, targets: Log[]) => {
             return targets.filter(
