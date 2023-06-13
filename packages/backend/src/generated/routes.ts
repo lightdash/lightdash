@@ -4833,6 +4833,18 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'object',
                 },
+                body: {
+                    in: 'body',
+                    name: 'body',
+                    required: true,
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        explores: {
+                            dataType: 'array',
+                            array: { dataType: 'any' },
+                        },
+                    },
+                },
             };
 
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -4882,6 +4894,7 @@ export function RegisterRoutes(app: express.Router) {
                     name: 'fromSettings',
                     dataType: 'boolean',
                 },
+                jobId: { in: 'query', name: 'jobId', dataType: 'string' },
             };
 
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa

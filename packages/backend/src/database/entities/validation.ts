@@ -12,6 +12,7 @@ export type DbValidationTable = {
     model_name: string | null;
     saved_chart_uuid: string | null;
     dashboard_uuid: string | null;
+    job_id: string | null;
     source: ValidationSourceType | null;
 };
 
