@@ -2102,6 +2102,57 @@
                     }
                 ]
             },
+            "FieldTarget": {
+                "properties": {
+                    "fieldId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["fieldId"],
+                "type": "object"
+            },
+            "ConditionalOperator": {
+                "enum": [
+                    "isNull",
+                    "notNull",
+                    "equals",
+                    "notEquals",
+                    "startsWith",
+                    "endsWith",
+                    "include",
+                    "doesNotInclude",
+                    "lessThan",
+                    "lessThanOrEqual",
+                    "greaterThan",
+                    "greaterThanOrEqual",
+                    "inThePast",
+                    "inTheNext",
+                    "inTheCurrent",
+                    "inBetween"
+                ],
+                "type": "string"
+            },
+            "FilterRule": {
+                "properties": {
+                    "values": {
+                        "items": {},
+                        "type": "array"
+                    },
+                    "operator": {
+                        "$ref": "#/components/schemas/ConditionalOperator"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "target": {
+                        "$ref": "#/components/schemas/FieldTarget"
+                    },
+                    "settings": {}
+                },
+                "required": ["operator", "id", "target"],
+                "type": "object",
+                "additionalProperties": false
+            },
             "AdditionalMetric": {
                 "properties": {
                     "label": {
@@ -2138,6 +2189,12 @@
                     "index": {
                         "type": "number",
                         "format": "double"
+                    },
+                    "filters": {
+                        "items": {
+                            "$ref": "#/components/schemas/FilterRule"
+                        },
+                        "type": "array"
                     }
                 },
                 "required": ["type", "sql", "table", "name"],
