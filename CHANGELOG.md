@@ -1,3 +1,10 @@
+## [0.609.2](https://github.com/lightdash/lightdash/compare/0.609.1...0.609.2) (2023-06-13)
+
+
+### Bug Fixes
+
+* remove unwanted footer text for unsupported ([#5846](https://github.com/lightdash/lightdash/issues/5846)) ([e18d54c](https://github.com/lightdash/lightdash/commit/e18d54caf41e67271f667da591a75119637226b1))
+
 ## [0.609.1](https://github.com/lightdash/lightdash/compare/0.609.0...0.609.1) (2023-06-13)
 
 
