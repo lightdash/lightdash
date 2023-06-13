@@ -1,14 +1,23 @@
 import { Button, Callout, Classes, Intent } from '@blueprintjs/core';
 import { snakeCaseName, TableCalculation } from '@lightdash/common';
-import { Anchor } from '@mantine/core';
+import {
+    Anchor,
+    Box,
+    Flex,
+    Select,
+    Tabs,
+    Text,
+    TextInput,
+} from '@mantine/core';
 import { FC } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, UseFormReturn } from 'react-hook-form';
 import { useToggle } from 'react-use';
 
 import useToaster from '../../hooks/toaster/useToaster';
 import { useExplorerAceEditorCompleter } from '../../hooks/useExplorerAceEditorCompleter';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
 import Input from '../ReactHookForm/Input';
+
 import SqlInput from '../ReactHookForm/SqlInput';
 import {
     DialogBody,
@@ -34,6 +43,9 @@ interface Props {
 type TableCalculationFormInputs = {
     name: string;
     sql: string;
+    formatType: string;
+    round?: number;
+    separator?: string;
 };
 
 const getUniqueTableCalculationName = (
@@ -58,6 +70,105 @@ const getUniqueTableCalculationName = (
     return getCalcName(validSuffix);
 };
 
+const TableCalculationFormat: FC<{
+    methods: UseFormReturn<TableCalculationFormInputs, object>;
+}> = ({ methods }) => {
+    const formatType = methods.watch('formatType', 'default');
+    const round = methods.watch('round');
+    const separator = methods.watch('separator');
+
+    /*onChange={(type) => {
+               // methods.setValue('formatType', type || 'default')
+            }}*/
+
+    //TODO this component is using Mantine components with a react-hook-form,
+    //once we use mantine form we should refactor this to remove onChange methods
+
+    const previewPercentSeparator = () => {
+        if ((round === undefined ? 2 : round) <= 0) return '';
+        switch (separator) {
+            case 'dot-comma':
+                return ',';
+            default:
+                return '.';
+        }
+    };
+    const previewRound = () => {
+        if ((round === undefined ? 2 : round) <= 0) return '';
+        return '0123456789'.slice(0, round || 2);
+    };
+    const previewFormat = () => {
+        switch (formatType) {
+            case 'percent':
+                return `Looks like: 23${previewPercentSeparator()}${previewRound()}%`;
+            default:
+                return '';
+        }
+    };
+    return (
+        <Box m="md">
+            <Flex>
+                <Select
+                    w={150}
+                    onChange={(type) => {
+                        methods.setValue('formatType', type || 'default');
+                    }}
+                    label="Type"
+                    name="formatType"
+                    defaultValue={'default'}
+                    data={['default', 'percent']}
+                />
+                {/*<Select  label="Type" name='formatType' defaultValue={methods.getValues('formatType')} options={['default', 'percent']} ></Select>*/}
+
+                <Text ml="md" mt={30} color="gray.6">
+                    {previewFormat()}
+                </Text>
+            </Flex>
+            {formatType === 'percent' && (
+                <Flex>
+                    {/*<Input label="Round" name='round' defaultValue={methods.getValues('round') || 0} ></Input>
+                    <Select  label="Separator style" name='separator' defaultValue={methods.getValues('separator')} 
+                        options={[{value: 'comma-dot', label:'100,000.00'},
+                        {value: 'space-comma', label:'100,000.00'},
+                        {value: 'dot-comma', label:'100.000,00'},
+                        {value: 'dot', label:'100000.00'},
+                    ]} ></Select>*/}
+                    <TextInput
+                        w={150}
+                        label="Round"
+                        name="round"
+                        placeholder="2"
+                        onChange={(r) => {
+                            //TODO check type
+
+                            methods.setValue(
+                                'round',
+                                r.target.value === ''
+                                    ? undefined
+                                    : parseInt(r.target.value),
+                            );
+                        }}
+                    />
+                    <Select
+                        ml="md"
+                        onChange={(s) => {
+                            methods.setValue('separator', s || 'comma-dot');
+                        }}
+                        label="Type"
+                        name="separator"
+                        defaultValue={'comma-dot'}
+                        data={[
+                            { value: 'comma-dot', label: '100,000.00' },
+                            { value: 'space-comma', label: '100 000.00' },
+                            { value: 'dot-comma', label: '100.000,00' },
+                            { value: 'dot', label: '100000.00' },
+                        ]}
+                    />
+                </Flex>
+            )}
+        </Box>
+    );
+};
 const TableCalculationModal: FC<Props> = ({
     isOpen,
     isDisabled,
@@ -85,6 +196,9 @@ const TableCalculationModal: FC<Props> = ({
         defaultValues: {
             name: tableCalculation?.displayName,
             sql: tableCalculation?.sql,
+            formatType: 'default',
+            round: 2,
+            separator: 'comma-dot',
         },
     });
 
@@ -112,15 +226,15 @@ const TableCalculationModal: FC<Props> = ({
                 name="table_calculation"
                 methods={methods}
                 onSubmit={(data: TableCalculationFormInputs) => {
-                    const { name, sql } = data;
+                    const { name } = data;
                     try {
                         onSave({
+                            ...data,
                             name: getUniqueTableCalculationName(
                                 name,
                                 tableCalculations,
                             ),
                             displayName: name,
-                            sql,
                         });
                     } catch (e: any) {
                         showToastError({
@@ -163,27 +277,38 @@ const TableCalculationModal: FC<Props> = ({
                             },
                         }}
                     />
-                    <TableCalculationSqlInputWrapper
-                        $isFullScreen={isFullscreen}
-                    >
-                        <SqlInput
-                            name="sql"
-                            label="SQL"
-                            attributes={{
-                                readOnly: isDisabled,
-                                height: '100%',
-                                width: '100%',
-                                maxLines: isFullscreen ? 40 : 20,
-                                minLines: isFullscreen ? 40 : 8,
-                                editorProps: { $blockScrolling: true },
-                                enableBasicAutocompletion: true,
-                                enableLiveAutocompletion: true,
-                                onLoad: setAceEditor,
-                                wrapEnabled: true,
-                            }}
-                            placeholder={SQL_PLACEHOLDER}
-                        />
-                    </TableCalculationSqlInputWrapper>
+                    <Tabs defaultValue="sql">
+                        <Tabs.List>
+                            <Tabs.Tab value="sql">SQL</Tabs.Tab>
+                            <Tabs.Tab value="format">Format</Tabs.Tab>
+                        </Tabs.List>
+                        <Tabs.Panel value="sql">
+                            {' '}
+                            <TableCalculationSqlInputWrapper
+                                $isFullScreen={isFullscreen}
+                            >
+                                <SqlInput
+                                    name="sql"
+                                    attributes={{
+                                        readOnly: isDisabled,
+                                        height: '100%',
+                                        width: '100%',
+                                        maxLines: isFullscreen ? 40 : 20,
+                                        minLines: isFullscreen ? 40 : 8,
+                                        editorProps: { $blockScrolling: true },
+                                        enableBasicAutocompletion: true,
+                                        enableLiveAutocompletion: true,
+                                        onLoad: setAceEditor,
+                                        wrapEnabled: true,
+                                    }}
+                                    placeholder={SQL_PLACEHOLDER}
+                                />
+                            </TableCalculationSqlInputWrapper>
+                        </Tabs.Panel>
+                        <Tabs.Panel value="format">
+                            <TableCalculationFormat methods={methods} />
+                        </Tabs.Panel>
+                    </Tabs>
                     <Callout intent="none" icon="clean">
                         <p>
                             Need inspiration?{' '}

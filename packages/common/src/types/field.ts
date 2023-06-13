@@ -76,6 +76,7 @@ export type TableCalculation = {
     name: string;
     displayName: string;
     sql: string;
+    formatType: string;
 };
 
 export const isTableCalculation = (item: Item): item is TableCalculation =>
