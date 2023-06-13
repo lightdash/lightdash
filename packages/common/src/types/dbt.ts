@@ -411,7 +411,6 @@ type ConvertAdditionalMetricArgs = {
     additionalMetric: AdditionalMetric;
     table: TableBase;
 };
-
 export const convertAdditionalMetric = ({
     additionalMetric,
     table,
@@ -420,7 +419,6 @@ export const convertAdditionalMetric = ({
         modelName: table.name,
         dimensionSql: additionalMetric.sql,
         name: additionalMetric.name,
-        // TODO: parse filters correctly
         metric: additionalMetric,
         tableLabel: table.label,
     });
