@@ -1,3 +1,10 @@
+# [0.609.0](https://github.com/lightdash/lightdash/compare/0.608.0...0.609.0) (2023-06-13)
+
+
+### Features
+
+* validate against prod ([#5808](https://github.com/lightdash/lightdash/issues/5808)) ([965793e](https://github.com/lightdash/lightdash/commit/965793ea34c1aef8db7d50fa1d3015a8fbb9731a))
+
 # [0.608.0](https://github.com/lightdash/lightdash/compare/0.607.0...0.608.0) (2023-06-12)
 
 
