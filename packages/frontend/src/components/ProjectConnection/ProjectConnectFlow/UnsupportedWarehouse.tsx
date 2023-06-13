@@ -5,7 +5,6 @@ import { FloatingBackButton } from '../../../pages/CreateProject.styles';
 import { EventName } from '../../../types/Events';
 import LinkButton from '../../common/LinkButton';
 import { ProjectCreationCard } from '../../common/Settings/SettingsCard';
-import InviteExpertFooter from './InviteExpertFooter';
 import { Wrapper } from './ProjectConnectFlow.styles';
 
 interface UnsupportedWarehouseProps {
@@ -59,13 +58,11 @@ const UnsupportedWarehouse: FC<UnsupportedWarehouseProps> = ({ onBack }) => {
                                 name: EventName.TRY_DEMO_CLICKED,
                             }}
                         >
-                            try our demo project
+                            Try our demo project
                         </LinkButton>
                     }
                 />
             </ProjectCreationCard>
-
-            <InviteExpertFooter />
         </Wrapper>
     );
 };
