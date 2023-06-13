@@ -142,7 +142,13 @@ const UserListItem: FC<{
                                 data={Object.values(OrganizationMemberRole).map(
                                     (orgMemberRole) => ({
                                         value: orgMemberRole,
-                                        label: orgMemberRole.replace('_', ' '),
+                                        label:
+                                            orgMemberRole
+                                                .charAt(0)
+                                                .toUpperCase() +
+                                            orgMemberRole
+                                                .slice(1)
+                                                .replace('_', ' '),
                                     }),
                                 )}
                                 onChange={(newRole: string) => {
