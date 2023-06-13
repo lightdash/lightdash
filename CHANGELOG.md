@@ -1,3 +1,10 @@
+# [0.610.0](https://github.com/lightdash/lightdash/compare/0.609.2...0.610.0) (2023-06-13)
+
+
+### Features
+
+* migrate InviteSuccess to Mantine ([#5871](https://github.com/lightdash/lightdash/issues/5871)) ([d1a1143](https://github.com/lightdash/lightdash/commit/d1a1143edcc3675dbaea2b0f2695c24d62ef0c1f))
+
 ## [0.609.2](https://github.com/lightdash/lightdash/compare/0.609.1...0.609.2) (2023-06-13)
 
 
