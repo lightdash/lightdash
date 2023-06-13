@@ -6,6 +6,7 @@ import React, {
     useEffect,
     useState,
 } from 'react';
+import useToaster from '../hooks/toaster/useToaster';
 
 const MAX_LOG_ENTRIES = 50;
 
@@ -30,6 +31,7 @@ const Context = createContext<ErrorLogs>(undefined as any);
 export const ErrorLogsProvider: FC = ({ children }) => {
     const [errorLogs, setErrorLogs] = useState<ErrorLogEntry[]>([]);
     const [errorLogsVisible, setErrorLogsVisible] = useState<boolean>(false);
+    const { showToastError } = useToaster();
 
     const setAllLogsRead = useCallback(() => {
         setErrorLogs((logs) =>
@@ -90,9 +92,15 @@ export const ErrorLogsProvider: FC = ({ children }) => {
             !errorLogsVisible &&
             errorLogs.filter((log) => log.isUnread).length > 0
         ) {
-            setErrorLogsVisible(true);
+            errorLogs.map((log) =>
+                showToastError({
+                    title: log.title,
+                    subtitle: log.body,
+                    key: log.timestamp.toString(),
+                }),
+            );
         }
-    }, [errorLogsVisible, errorLogs, setErrorLogsVisible]);
+    }, [showToastError, errorLogsVisible, errorLogs, setErrorLogsVisible]);
 
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };
