@@ -10,11 +10,12 @@ import { useSlackChannels } from '../../hooks/slack/useSlackChannels';
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
 import SchedulersViewActionMenu from './SchedulersViewActionMenu';
 import {
-    Column,
     formatTime,
     getLogStatusIcon,
     getSchedulerIcon,
     getSchedulerLink,
+    SchedulerColumnName,
+    SchedulerItem,
 } from './SchedulersViewUtils';
 
 interface SchedulersProps
@@ -24,6 +25,15 @@ interface SchedulersProps
     > {
     projectUuid: string;
 }
+
+type Column = {
+    id: SchedulerColumnName;
+    label?: string;
+    cell: (item: SchedulerItem) => React.ReactNode;
+    meta?: {
+        style: React.CSSProperties;
+    };
+};
 
 const Schedulers: FC<SchedulersProps> = ({
     projectUuid,
