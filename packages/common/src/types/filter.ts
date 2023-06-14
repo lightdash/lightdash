@@ -66,7 +66,7 @@ export type DashboardFilterRule<
 
 export type DateFilterRule = FilterRule<
     ConditionalOperator,
-    FieldTarget,
+    unknown,
     any,
     {
         unitOfTime?: UnitOfTime;
