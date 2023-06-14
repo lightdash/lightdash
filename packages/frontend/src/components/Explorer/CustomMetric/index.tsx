@@ -1,14 +1,14 @@
 import {
-    addFilterRule,
+    ConditionalOperator,
+    createFilterRuleFromField,
     Dimension,
     Field,
+    FieldTarget,
     FilterRule,
-    Filters,
     friendlyName,
-    getFilterRulesByFieldType,
-    getTotalFilterRules,
     isField,
     isFilterableField,
+    MetricFilterRule,
     MetricType,
     snakeCaseName,
     TableCalculation,
@@ -24,7 +24,6 @@ import {
 } from '@mantine/core';
 import { Dispatch, FC, SetStateAction, useCallback, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { v4 as uuidv4 } from 'uuid';
 import { useExplore } from '../../../hooks/useExplore';
 import { useProject } from '../../../hooks/useProject';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
@@ -34,6 +33,12 @@ import {
     useFiltersContext,
 } from '../../common/Filters/FiltersProvider';
 import { useFieldsWithSuggestions } from '../FiltersCard/useFieldsWithSuggestions';
+
+interface MetricFilterRuleWithFieldIds
+    extends FilterRule<
+        ConditionalOperator,
+        FieldTarget & { fieldRef: string }
+    > {}
 
 type Props = {
     isEditMode: boolean;
@@ -45,13 +50,14 @@ type Props = {
 
 const FilterForm: FC<{
     item: Dimension;
-    customMetricFilters: Filters;
-    setCustomMetricFilters: Dispatch<SetStateAction<Filters>>;
-}> = ({ item, customMetricFilters, setCustomMetricFilters }) => {
+    customMetricFiltersWithIds: MetricFilterRuleWithFieldIds[];
+    setCustomMetricFiltersWithIds: Dispatch<
+        SetStateAction<MetricFilterRuleWithFieldIds[]>
+    >;
+}> = ({ item, customMetricFiltersWithIds, setCustomMetricFiltersWithIds }) => {
     const isEditMode = useExplorerContext(
         (context) => context.state.isEditMode,
     );
-    const totalFilterRules = getTotalFilterRules(customMetricFilters);
 
     const { fieldsMap } = useFiltersContext();
 
@@ -60,78 +66,58 @@ const FilterForm: FC<{
     const addFieldRule = useCallback(
         (field: Field | TableCalculation | Dimension) => {
             if (isField(field) && isFilterableField(field)) {
-                setCustomMetricFilters(
-                    addFilterRule({ filters: customMetricFilters, field }),
-                );
+                const newFilterRule = createFilterRuleFromField(field);
+
+                setCustomMetricFiltersWithIds([
+                    ...customMetricFiltersWithIds,
+                    {
+                        ...newFilterRule,
+                        target: {
+                            ...newFilterRule.target,
+                            fieldRef: `${field.table}.${field.name}`,
+                        },
+                    },
+                ]);
             }
         },
-        [customMetricFilters, setCustomMetricFilters],
+        [customMetricFiltersWithIds, setCustomMetricFiltersWithIds],
     );
 
     const onChangeItem = useCallback(
-        (index: number, filterRule: FilterRule) => {
-            const result = getFilterRulesByFieldType(fields, [
-                ...totalFilterRules.slice(0, index),
-                filterRule,
-                ...totalFilterRules.slice(index + 1),
-            ]);
-
-            setCustomMetricFilters({
-                ...customMetricFilters,
-                dimensions:
-                    result.dimensions.length > 0
+        (itemIndex: number, filterRule: FilterRule) => {
+            setCustomMetricFiltersWithIds(
+                customMetricFiltersWithIds.map((customMetricFilter, index) =>
+                    itemIndex === index
                         ? {
-                              id: uuidv4(),
-                              ...customMetricFilters.dimensions,
-                              and: result.dimensions,
+                              ...filterRule,
+                              target: {
+                                  ...filterRule.target,
+                                  fieldRef: `${
+                                      fieldsMap[filterRule.target.fieldId].table
+                                  }.${
+                                      fieldsMap[filterRule.target.fieldId].name
+                                  }`,
+                              },
                           }
-                        : undefined,
-                metrics:
-                    result.metrics.length > 0
-                        ? {
-                              id: uuidv4(),
-                              ...customMetricFilters.metrics,
-                              and: result.metrics,
-                          }
-                        : undefined,
-            });
+                        : customMetricFilter,
+                ),
+            );
         },
-        [fields, customMetricFilters, totalFilterRules, setCustomMetricFilters],
+        [customMetricFiltersWithIds, fieldsMap, setCustomMetricFiltersWithIds],
     );
 
     const onDeleteItem = useCallback(
         (index: number) => {
-            const result = getFilterRulesByFieldType(fields, [
-                ...totalFilterRules.slice(0, index),
-                ...totalFilterRules.slice(index + 1),
-            ]);
-
-            setCustomMetricFilters({
-                ...customMetricFilters,
-                dimensions:
-                    result.dimensions.length > 0
-                        ? {
-                              id: uuidv4(),
-                              ...customMetricFilters.dimensions,
-                              and: result.dimensions,
-                          }
-                        : undefined,
-                metrics:
-                    result.metrics.length > 0
-                        ? {
-                              id: uuidv4(),
-                              ...customMetricFilters.metrics,
-                              and: result.metrics,
-                          }
-                        : undefined,
-            });
+            setCustomMetricFiltersWithIds(
+                customMetricFiltersWithIds.filter((value, i) => i !== index),
+            );
         },
-        [fields, customMetricFilters, totalFilterRules, setCustomMetricFilters],
+        [customMetricFiltersWithIds, setCustomMetricFiltersWithIds],
     );
 
     return (
         <Stack spacing="sm">
-            {totalFilterRules.map((filterRule, index) => (
+            {customMetricFiltersWithIds.map((filterRule, index) => (
                 <FilterRuleForm
                     key={filterRule.id}
                     filterRule={filterRule}
@@ -169,7 +155,9 @@ export const CreateCustomMetricModal: FC<Props> = ({
             ? `${friendlyName(customMetricType)} of ${item.label}`
             : '',
     );
-    const [customMetricFilters, setCustomMetricFilters] = useState<Filters>({});
+
+    const [customMetricFiltersWithIds, setCustomMetricFiltersWithIds] =
+        useState<MetricFilterRuleWithFieldIds[]>([]);
 
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const project = useProject(projectUuid);
@@ -223,6 +211,17 @@ export const CreateCustomMetricModal: FC<Props> = ({
                     ? { round: dimension.round }
                     : defaultRound;
 
+            const customMetricFilters: MetricFilterRule[] =
+                customMetricFiltersWithIds.map(
+                    ({
+                        target: { fieldId, ...restTarget },
+                        ...customMetricFilter
+                    }) => ({
+                        ...customMetricFilter,
+                        target: restTarget,
+                    }),
+                );
+
             addAdditionalMetric({
                 name: `${dimension.name}_${snakeCaseName(customMetricName)}`,
                 label: customMetricName,
@@ -232,8 +231,8 @@ export const CreateCustomMetricModal: FC<Props> = ({
                     dimension.label
                 } on the table ${dimension.tableLabel}`,
                 type,
-                ...(!!Object.keys(customMetricFilters).length && {
-                    filters: getTotalFilterRules(customMetricFilters),
+                ...(customMetricFilters.length > 0 && {
+                    filters: customMetricFilters,
                 }),
                 ...format,
                 ...round,
@@ -243,7 +242,7 @@ export const CreateCustomMetricModal: FC<Props> = ({
         },
         [
             addAdditionalMetric,
-            customMetricFilters,
+            customMetricFiltersWithIds,
             customMetricName,
             setIsCreatingCustomMetric,
         ],
@@ -301,9 +300,11 @@ export const CreateCustomMetricModal: FC<Props> = ({
                             >
                                 <FilterForm
                                     item={item}
-                                    customMetricFilters={customMetricFilters}
-                                    setCustomMetricFilters={
-                                        setCustomMetricFilters
+                                    customMetricFiltersWithIds={
+                                        customMetricFiltersWithIds
+                                    }
+                                    setCustomMetricFiltersWithIds={
+                                        setCustomMetricFiltersWithIds
                                     }
                                 />
                             </FiltersProvider>
