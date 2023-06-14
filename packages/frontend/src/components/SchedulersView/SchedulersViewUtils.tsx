@@ -35,7 +35,11 @@ type ColumnName =
 export interface Column {
     id: ColumnName;
     label?: string;
-    cell: (item: SchedulerItem, logs?: Log[]) => React.ReactNode;
+    cell: (
+        item: SchedulerItem,
+        logs?: Log[],
+        jobGroup?: string,
+    ) => React.ReactNode;
     meta?: {
         style: React.CSSProperties;
     };

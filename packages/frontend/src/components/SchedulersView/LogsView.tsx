@@ -22,7 +22,6 @@ import {
     getLogStatusIcon,
     getSchedulerIcon,
     getSchedulerLink,
-    Log,
 } from './SchedulersViewUtils';
 
 interface LogsProps
@@ -140,7 +139,7 @@ const Logs: FC<LogsProps> = ({
             {
                 id: 'jobs',
                 label: 'Job',
-                cell: (item, currentLogs) => {
+                cell: (item, currentLogs, jobGroup) => {
                     return !currentLogs || currentLogs.length === 0 ? (
                         <Text fz="xs" fw={500}>
                             No jobs yet
@@ -150,9 +149,7 @@ const Logs: FC<LogsProps> = ({
                             <Group spacing="two">
                                 <Text>All jobs</Text>
                                 <ActionIcon
-                                    onClick={() =>
-                                        handleTogle(currentLogs[0].jobGroup!)
-                                    }
+                                    onClick={() => handleTogle(jobGroup ?? '')}
                                     size="sm"
                                 >
                                     <MantineIcon
@@ -162,9 +159,7 @@ const Logs: FC<LogsProps> = ({
                                     />
                                 </ActionIcon>
                             </Group>
-                            <Collapse
-                                in={openedUuids.has(currentLogs[0].jobGroup!)}
-                            >
+                            <Collapse in={openedUuids.has(jobGroup ?? '')}>
                                 <Stack spacing="md">
                                     {currentLogs.map((log, i) => (
                                         <Text key={i}>
@@ -183,7 +178,7 @@ const Logs: FC<LogsProps> = ({
             {
                 id: 'deliveryScheduled',
                 label: 'Delivery scheduled',
-                cell: (item, currentLogs) => {
+                cell: (item, currentLogs, jobGroup) => {
                     return !currentLogs || currentLogs.length === 0 ? (
                         <Text fz="xs" color="gray.6">
                             -
@@ -193,9 +188,7 @@ const Logs: FC<LogsProps> = ({
                             <Text color="gray.6">
                                 {formatTime(currentLogs[0].scheduledTime)}
                             </Text>
-                            <Collapse
-                                in={openedUuids.has(currentLogs[0].jobGroup!)}
-                            >
+                            <Collapse in={openedUuids.has(jobGroup ?? '')}>
                                 <Stack spacing="md">
                                     {currentLogs.map((log, i) => (
                                         <Text key={i} color="gray.6">
@@ -211,7 +204,7 @@ const Logs: FC<LogsProps> = ({
             {
                 id: 'deliveryStarted',
                 label: 'Delivery start',
-                cell: (item, currentLogs) => {
+                cell: (item, currentLogs, jobGroup) => {
                     return !currentLogs || currentLogs.length === 0 ? (
                         <Text fz="xs" color="gray.6">
                             -
@@ -221,9 +214,7 @@ const Logs: FC<LogsProps> = ({
                             <Text color="gray.6">
                                 {formatTime(currentLogs[0].createdAt)}
                             </Text>
-                            <Collapse
-                                in={openedUuids.has(currentLogs[0].jobGroup!)}
-                            >
+                            <Collapse in={openedUuids.has(jobGroup ?? '')}>
                                 <Stack spacing="md">
                                     {currentLogs.map((log, i) => (
                                         <Text key={i} color="gray.6">
@@ -239,7 +230,7 @@ const Logs: FC<LogsProps> = ({
             {
                 id: 'status',
                 label: 'Status',
-                cell: (item, currentLogs) => {
+                cell: (item, currentLogs, jobGroup) => {
                     return (
                         <Center fz="xs" fw={500}>
                             {!currentLogs || currentLogs.length === 0 ? (
@@ -248,9 +239,7 @@ const Logs: FC<LogsProps> = ({
                                 <Stack>
                                     {getLogStatusIcon(currentLogs[0], theme)}
                                     <Collapse
-                                        in={openedUuids.has(
-                                            currentLogs[0].jobGroup!,
-                                        )}
+                                        in={openedUuids.has(jobGroup ?? '')}
                                     >
                                         <Stack>
                                             {currentLogs.map((log) =>
@@ -293,27 +282,26 @@ const Logs: FC<LogsProps> = ({
             </thead>
 
             <tbody>
-                {groupedLogs.map(
-                    ([jobGroup, schedulerLogs]: [string, Log[]]) => {
-                        const schedulerItem = schedulers.find(
-                            (item) =>
-                                item.schedulerUuid ===
-                                schedulerLogs[0].schedulerUuid,
-                        );
-                        return !schedulerItem ? null : (
-                            <tr key={jobGroup}>
-                                {columns.map((column) => (
-                                    <td key={column.id}>
-                                        {column.cell(
-                                            schedulerItem,
-                                            schedulerLogs,
-                                        )}
-                                    </td>
-                                ))}
-                            </tr>
-                        );
-                    },
-                )}
+                {groupedLogs.map(([jobGroup, schedulerLogs]) => {
+                    const schedulerItem = schedulers.find(
+                        (item) =>
+                            item.schedulerUuid ===
+                            schedulerLogs[0].schedulerUuid,
+                    );
+                    return !schedulerItem ? null : (
+                        <tr key={jobGroup}>
+                            {columns.map((column) => (
+                                <td key={column.id}>
+                                    {column.cell(
+                                        schedulerItem,
+                                        schedulerLogs,
+                                        jobGroup,
+                                    )}
+                                </td>
+                            ))}
+                        </tr>
+                    );
+                })}
             </tbody>
         </Table>
     );
