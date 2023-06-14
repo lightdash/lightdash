@@ -1225,6 +1225,9 @@ export class ProjectService {
                     modelsCount: explores.length,
                     modelsWithErrorsCount:
                         explores.filter(isExploreError).length,
+                    modelsWithGroupLabelCount: explores.filter(
+                        ({ groupLabel }) => !!groupLabel,
+                    ).length,
                     metricsCount: explores.reduce<number>((acc, explore) => {
                         if (!isExploreError(explore)) {
                             return (
