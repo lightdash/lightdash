@@ -1,3 +1,10 @@
+# [0.612.0](https://github.com/lightdash/lightdash/compare/0.611.3...0.612.0) (2023-06-14)
+
+
+### Features
+
+* user management panel should be a table ([#5878](https://github.com/lightdash/lightdash/issues/5878)) ([cd81dfa](https://github.com/lightdash/lightdash/commit/cd81dfa567cddff365d948d9e736a92dc05ac6c8))
+
 ## [0.611.3](https://github.com/lightdash/lightdash/compare/0.611.2...0.611.3) (2023-06-14)
 
 
