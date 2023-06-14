@@ -653,7 +653,7 @@ function reducer(
             };
         }
         case ActionType.UPDATE_TABLE_CALCULATION: {
-            const tc = {
+            return {
                 ...state,
                 unsavedChartVersion: {
                     ...state.unsavedChartVersion,
@@ -691,7 +691,6 @@ function reducer(
                     },
                 },
             };
-            return tc;
         }
         case ActionType.DELETE_TABLE_CALCULATION: {
             const newTableCalculations =

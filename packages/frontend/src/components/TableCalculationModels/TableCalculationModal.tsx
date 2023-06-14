@@ -235,15 +235,15 @@ const TableCalculationModal: FC<Props> = ({
                 name="table_calculation"
                 methods={methods}
                 onSubmit={(data: TableCalculationFormInputs) => {
-                    const { name } = data;
+                    const { name, sql } = data;
                     try {
                         onSave({
-                            ...data,
                             name: getUniqueTableCalculationName(
                                 name,
                                 tableCalculations,
                             ),
                             displayName: name,
+                            sql,
                             format: data.format,
                         });
                     } catch (e: any) {

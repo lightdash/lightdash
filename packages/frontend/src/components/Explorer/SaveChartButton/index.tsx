@@ -28,7 +28,6 @@ const SaveChartButton: FC<{ isExplorer?: boolean }> = ({ isExplorer }) => {
             });
         }
     };
-
     return (
         <>
             <SaveButton

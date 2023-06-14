@@ -20,10 +20,10 @@ const CompactAlias = [
 ] as const;
 
 export enum NumberSeparator {
-    COMMA_PERIOD = 'commaPeriod',
-    SPACE_PERIOD = 'spacePeriod',
-    PERIOD_COMMA = 'periodComma',
-    NO_SEPARATOR_PERIOD = 'noSeparatorPeriod',
+    COMMA_PERIOD = 'commaPeriod', // 100,000.00
+    SPACE_PERIOD = 'spacePeriod', // 100 000.00
+    PERIOD_COMMA = 'periodComma', // 100.000,00
+    NO_SEPARATOR_PERIOD = 'noSeparatorPeriod', // 100000.00
 }
 type CompactConfig = {
     compact: Compact;
