@@ -2102,15 +2102,6 @@
                     }
                 ]
             },
-            "FieldTarget": {
-                "properties": {
-                    "fieldId": {
-                        "type": "string"
-                    }
-                },
-                "required": ["fieldId"],
-                "type": "object"
-            },
             "ConditionalOperator": {
                 "enum": [
                     "isNull",
@@ -2132,7 +2123,7 @@
                 ],
                 "type": "string"
             },
-            "FilterRule": {
+            "MetricFilterRule": {
                 "properties": {
                     "values": {
                         "items": {},
@@ -2145,7 +2136,13 @@
                         "type": "string"
                     },
                     "target": {
-                        "$ref": "#/components/schemas/FieldTarget"
+                        "properties": {
+                            "fieldRef": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["fieldRef"],
+                        "type": "object"
                     },
                     "settings": {}
                 },
@@ -2192,9 +2189,12 @@
                     },
                     "filters": {
                         "items": {
-                            "$ref": "#/components/schemas/FilterRule"
+                            "$ref": "#/components/schemas/MetricFilterRule"
                         },
                         "type": "array"
+                    },
+                    "baseFieldId": {
+                        "type": "string"
                     }
                 },
                 "required": ["type", "sql", "table", "name"],

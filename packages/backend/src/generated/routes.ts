@@ -1825,17 +1825,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    FieldTarget: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                fieldId: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ConditionalOperator: {
         dataType: 'refEnum',
         enums: [
@@ -1858,13 +1847,19 @@ const models: TsoaRoute.Models = {
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    FilterRule: {
+    MetricFilterRule: {
         dataType: 'refObject',
         properties: {
             values: { dataType: 'array', array: { dataType: 'any' } },
             operator: { ref: 'ConditionalOperator', required: true },
             id: { dataType: 'string', required: true },
-            target: { ref: 'FieldTarget', required: true },
+            target: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    fieldRef: { dataType: 'string', required: true },
+                },
+                required: true,
+            },
             settings: { dataType: 'any' },
         },
         additionalProperties: false,
@@ -1886,8 +1881,9 @@ const models: TsoaRoute.Models = {
             index: { dataType: 'double' },
             filters: {
                 dataType: 'array',
-                array: { dataType: 'refObject', ref: 'FilterRule' },
+                array: { dataType: 'refObject', ref: 'MetricFilterRule' },
             },
+            baseFieldId: { dataType: 'string' },
         },
         additionalProperties: false,
     },
