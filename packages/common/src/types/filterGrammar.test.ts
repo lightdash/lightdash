@@ -1,5 +1,5 @@
 import peg from 'pegjs';
-import { FilterOperator, FilterRule } from './filter';
+import { FilterOperator, MetricFilterRule } from './filter';
 import filterGrammar, { parseFilters } from './filterGrammar';
 
 describe('Parse grammar', () => {
@@ -128,7 +128,7 @@ describe('Parse grammar', () => {
 });
 
 describe('Parse metric filters', () => {
-    const removeIds = (filters: FilterRule[]) =>
+    const removeIds = (filters: MetricFilterRule[]) =>
         filters.map((filter) => ({ ...filter, id: undefined }));
     it('Should directly transform boolean filter', () => {
         const filters = [{ is_active: true }];
