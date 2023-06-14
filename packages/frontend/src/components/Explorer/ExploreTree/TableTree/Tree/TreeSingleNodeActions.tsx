@@ -32,7 +32,7 @@ import { useExplorerContext } from '../../../../../providers/ExplorerProvider';
 import { useTracking } from '../../../../../providers/TrackingProvider';
 import { EventName } from '../../../../../types/Events';
 import MantineIcon from '../../../../common/MantineIcon';
-import { CreateCustomMetricModal } from '../../../CustomMetric';
+import { CustomMetricModal } from '../../../CustomMetricModal';
 
 const getCustomMetricType = (type: DimensionType): MetricType[] => {
     switch (type) {
@@ -186,7 +186,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                 ) : null}
             </Menu.Dropdown>
             {isCreatingCustomMetric || isEditingCustomMetric ? (
-                <CreateCustomMetricModal
+                <CustomMetricModal
                     isEditMode={isEditingCustomMetric}
                     item={item as Dimension}
                     isCreatingCustomMetric={
