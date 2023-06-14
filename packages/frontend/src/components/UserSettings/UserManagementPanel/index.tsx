@@ -22,6 +22,7 @@ import {
     IconCircleX,
     IconInfoCircle,
 } from '@tabler/icons-react';
+import { capitalize } from 'lodash-es';
 import { FC, useState } from 'react';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
@@ -144,13 +145,9 @@ const UserListItem: FC<{
                                 data={Object.values(OrganizationMemberRole).map(
                                     (orgMemberRole) => ({
                                         value: orgMemberRole,
-                                        label:
-                                            orgMemberRole
-                                                .charAt(0)
-                                                .toUpperCase() +
-                                            orgMemberRole
-                                                .slice(1)
-                                                .replace('_', ' '),
+                                        label: capitalize(
+                                            orgMemberRole.replace('_', ' '),
+                                        ),
                                     }),
                                 )}
                                 onChange={(newRole: string) => {
