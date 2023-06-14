@@ -1110,7 +1110,7 @@ const models: TsoaRoute.Models = {
         enums: ['default', 'percent'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    NumberSeparators: {
+    NumberSeparator: {
         dataType: 'refEnum',
         enums: [
             'commaPeriod',
@@ -1125,7 +1125,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                separator: { ref: 'NumberSeparators' },
+                separator: { ref: 'NumberSeparator' },
                 round: { dataType: 'double' },
                 type: { ref: 'TableCalculationFormatType', required: true },
             },

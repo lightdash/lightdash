@@ -1192,8 +1192,40 @@
                 "required": ["descending", "fieldId"],
                 "type": "object"
             },
+            "TableCalculationFormatType": {
+                "enum": ["default", "percent"],
+                "type": "string"
+            },
+            "NumberSeparator": {
+                "enum": [
+                    "commaPeriod",
+                    "spacePeriod",
+                    "periodComma",
+                    "noSeparatorPeriod"
+                ],
+                "type": "string"
+            },
+            "TableCalculationFormat": {
+                "properties": {
+                    "separator": {
+                        "$ref": "#/components/schemas/NumberSeparator"
+                    },
+                    "round": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/TableCalculationFormatType"
+                    }
+                },
+                "required": ["type"],
+                "type": "object"
+            },
             "TableCalculation": {
                 "properties": {
+                    "format": {
+                        "$ref": "#/components/schemas/TableCalculationFormat"
+                    },
                     "sql": {
                         "type": "string"
                     },
@@ -2517,6 +2549,9 @@
                     },
                     {
                         "properties": {
+                            "chartName": {
+                                "type": "string"
+                            },
                             "chartViews": {
                                 "type": "number",
                                 "format": "double"
@@ -2689,7 +2724,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.605.0",
+        "version": "0.611.1",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
