@@ -13,7 +13,6 @@ import {
     friendlyName,
     getAxisName,
     getDefaultSeriesColor,
-    getDimensions,
     getFieldMap,
     getFields,
     getItemId,
@@ -1041,14 +1040,28 @@ const getValidStack = (series: EChartSeries | undefined) => {
         : undefined;
 };
 
+
+type abc = {[name: string]: boolean} | undefined
+
 const calculateStackTotal = (
     row: ResultRow,
     series: EChartSeries[],
     flipAxis: boolean | undefined,
+    selectedLegendNames: abc,
 ) => {
     return series.reduce<number>((acc, s) => {
         const hash = flipAxis ? s.encode?.x : s.encode?.y;
-        const numberValue = hash ? toNumber(row[hash]?.value.raw) : 0;
+        // const numberValue = hash ? toNumber(row[hash]?.value.raw) : 0;
+        let lName = s?.dimensions[1].displayName;
+        let selected = true;
+        for (const key in selectedLegendNames) {
+            if (lName === key) {
+                selected = selectedLegendNames[key];
+            }
+        }
+        console.log(selectedLegendNames);
+        const numberValue =
+            hash && selected ? toNumber(row[hash]?.value.raw) : 0;
         if (!Number.isNaN(numberValue)) {
             acc += numberValue;
         }
@@ -1065,9 +1078,15 @@ const getStackTotalRows = (
     rows: ResultRow[],
     series: EChartSeries[],
     flipAxis: boolean | undefined,
+    selectedLegendNames: abc,
 ): [unknown, unknown, number][] => {
     return rows.map((row) => {
-        const total = calculateStackTotal(row, series, flipAxis);
+        const total = calculateStackTotal(
+            row,
+            series,
+            flipAxis,
+            selectedLegendNames,
+        );
         const hash = flipAxis ? series[0].encode?.y : series[0].encode?.x;
         if (!hash) {
             return [null, null, 0];
@@ -1084,6 +1103,7 @@ const getStackTotalSeries = (
     seriesWithStack: EChartSeries[],
     items: Array<Field | TableCalculation>,
     flipAxis: boolean | undefined,
+    selectedLegendNames: abc,
 ) => {
     const seriesGroupedByStack = groupBy(seriesWithStack, 'stack');
     return Object.entries(seriesGroupedByStack).reduce<EChartSeries[]>(
@@ -1118,7 +1138,12 @@ const getStackTotalSeries = (
                 tooltip: {
                     show: false,
                 },
-                data: getStackTotalRows(rows, series, flipAxis),
+                data: getStackTotalRows(
+                    rows,
+                    series,
+                    flipAxis,
+                    selectedLegendNames,
+                ),
             };
             return [...acc, stackSeries];
         },
@@ -1126,8 +1151,11 @@ const getStackTotalSeries = (
     );
 };
 
-const useEcharts = () => {
+const useEcharts = (selectedLegendNames?: abc) => {
+
     const context = useVisualizationContext();
+
+    // console.log(selectedLegendNames);
     const {
         cartesianConfig: { validCartesianConfig },
         explore,
@@ -1248,9 +1276,16 @@ const useEcharts = () => {
                 seriesWithValidStack,
                 items,
                 validCartesianConfig?.layout.flipAxes,
+                selectedLegendNames,
             ),
         ];
-    }, [series, rows, items, validCartesianConfig?.layout.flipAxes]);
+    }, [
+        series,
+        rows,
+        items,
+        validCartesianConfig?.layout.flipAxes,
+        selectedLegendNames,
+    ]);
 
     const colors = useMemo<string[]>(() => {
         const allColors =
@@ -1270,60 +1305,6 @@ const useEcharts = () => {
               )
             : allColors;
     }, [organizationData?.chartColors, validCartesianConfig]);
-    const sortedResults = useMemo(() => {
-        const results =
-            validCartesianConfig?.layout?.xField === EMPTY_X_AXIS
-                ? getResultValueArray(rows, true).map((s) => ({
-                      ...s,
-                      [EMPTY_X_AXIS]: ' ',
-                  }))
-                : getResultValueArray(rows, true);
-        try {
-            if (!explore) return results;
-            const dimensions = getDimensions(explore);
-
-            const xFieldId = validCartesianConfig?.layout?.xField;
-            if (xFieldId === undefined) return results;
-
-            const alreadySorted =
-                resultsData?.metricQuery.sorts?.[0].fieldId === xFieldId;
-            if (alreadySorted) return results;
-
-            const xField = dimensions.find(
-                (dimension) => getItemId(dimension) === xFieldId,
-            );
-
-            if (
-                xField !== undefined &&
-                results.length >= 0 &&
-                [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
-                    xField.type,
-                )
-            ) {
-                return results.sort((a, b) => {
-                    if (
-                        typeof a[xFieldId] === 'string' &&
-                        typeof b[xFieldId] === 'string'
-                    ) {
-                        return (a[xFieldId] as string).localeCompare(
-                            b[xFieldId] as string,
-                        );
-                    }
-                    return 0;
-                });
-            }
-
-            return results;
-        } catch (e) {
-            console.error('Unable to sort date results', e);
-            return results;
-        }
-    }, [
-        rows,
-        validCartesianConfig?.layout?.xField,
-        resultsData?.metricQuery.sorts,
-        explore,
-    ]);
 
     const eChartsOptions = useMemo(
         () => ({
@@ -1336,10 +1317,17 @@ const useEcharts = () => {
             ) || {
                 show: series.length > 1,
                 type: 'scroll',
+                // selected: selectedLegendNames,
             },
             dataset: {
                 id: 'lightdashResults',
-                source: sortedResults,
+                source:
+                    validCartesianConfig?.layout?.xField === EMPTY_X_AXIS
+                        ? getResultValueArray(rows, true).map((s) => ({
+                              ...s,
+                              [EMPTY_X_AXIS]: ' ',
+                          }))
+                        : getResultValueArray(rows, true),
             },
             tooltip: {
                 show: true,
@@ -1358,14 +1346,7 @@ const useEcharts = () => {
             },
             color: colors,
         }),
-        [
-            axis,
-            colors,
-            series,
-            stackedSeries,
-            validCartesianConfig,
-            sortedResults,
-        ],
+        [axis, colors, rows, series, stackedSeries, validCartesianConfig],
     );
     if (
         !explore ||

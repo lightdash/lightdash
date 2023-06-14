@@ -2,7 +2,7 @@ import { NonIdealState, Spinner } from '@blueprintjs/core';
 import { PivotReference } from '@lightdash/common';
 import EChartsReact from 'echarts-for-react';
 import { EChartsReactProps, Opts } from 'echarts-for-react/lib/types';
-import { FC, memo, useCallback, useEffect, useMemo } from 'react';
+import { FC, memo, useCallback, useEffect, useMemo, useState } from 'react';
 import useEcharts from '../../hooks/echarts/useEcharts';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 
@@ -44,6 +44,12 @@ export type EchartSeriesClickEvent = EchartBaseClickEvent & {
 
 type EchartClickEvent = EchartSeriesClickEvent | EchartBaseClickEvent;
 
+type LegendClickEvent = {
+    selected: {
+        [name: string]: boolean;
+    };
+};
+
 export const EmptyChart = () => (
     <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
         <NonIdealState
@@ -73,7 +79,10 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
     const { chartRef, isLoading, onSeriesContextMenu } =
         useVisualizationContext();
 
-    const eChartsOptions = useEcharts();
+    const [selectedLegends, setSelectedLegends] = useState({});
+
+    const eChartsOptions = useEcharts(selectedLegends);
+
     useEffect(() => {
         const listener = () => {
             const eCharts = chartRef.current?.getEchartsInstance();
@@ -105,13 +114,22 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
         [onSeriesContextMenu, eChartsOptions],
     );
 
+    const onLegendChange = useCallback(
+        (params: LegendClickEvent) => {
+            setSelectedLegends(params.selected);
+        },
+        [],
+    );
+
     const onEvents = useMemo(
         () => ({
             contextmenu: onChartContextMenu,
             click: onChartContextMenu,
+            legendselectchanged: onLegendChange,
         }),
-        [onChartContextMenu],
+        [onChartContextMenu, onLegendChange],
     );
+
     const opts = useMemo<Opts>(() => ({ renderer: 'svg' }), []);
 
     if (isLoading) return <LoadingChart />;
