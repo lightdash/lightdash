@@ -11,6 +11,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconChevronDown } from '@tabler/icons-react';
+import { capitalize } from 'lodash-es';
 import groupBy from 'lodash-es/groupBy';
 import { FC, useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -180,10 +181,12 @@ const Logs: FC<LogsProps> = ({
                                 <Stack spacing="md">
                                     {currentLogs.map((log, i) => (
                                         <Text key={i}>
-                                            {log.task ===
-                                            'handleScheduledDelivery'
-                                                ? 'Handle scheduled delivery'
-                                                : 'Send notification'}
+                                            {capitalize(
+                                                log.task.replace(
+                                                    /([A-Z])/g,
+                                                    ' $1',
+                                                ),
+                                            )}
                                         </Text>
                                     ))}
                                 </Stack>
