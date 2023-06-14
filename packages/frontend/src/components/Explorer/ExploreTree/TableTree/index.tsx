@@ -1,16 +1,10 @@
 import { AdditionalMetric, CompiledTable } from '@lightdash/common';
-import {
-    Group,
-    MantineProvider,
-    MantineThemeOverride,
-    NavLink,
-    Text,
-    Tooltip,
-} from '@mantine/core';
+import { Group, MantineProvider, NavLink, Text, Tooltip } from '@mantine/core';
 import { IconTable } from '@tabler/icons-react';
 import { FC } from 'react';
 import { useToggle } from 'react-use';
 
+import { getMantineThemeOverride } from '../../../../mantineTheme';
 import { TrackSection } from '../../../../providers/TrackingProvider';
 import { SectionName } from '../../../../types/Events';
 import MantineIcon from '../../../common/MantineIcon';
@@ -29,9 +23,12 @@ const TableTreeWrapper: FC<TableTreeWrapperProps> = ({ table, children }) => {
             icon={<MantineIcon icon={IconTable} size="lg" color="gray.7" />}
             label={
                 <Tooltip
-                    label={<Text truncate>{table.description}</Text>}
+                    label={table.description}
                     position="top-start"
+                    withinPortal
                     maw={350}
+                    multiline
+                    sx={{ whiteSpace: 'normal' }}
                 >
                     <Group>
                         <Text truncate fw={600}>
@@ -64,7 +61,7 @@ type Props = {
 
 const EmptyWrapper: FC = ({ children }) => <>{children}</>;
 
-const themeOverride: MantineThemeOverride = {
+const themeOverride = getMantineThemeOverride({
     components: {
         NavLink: {
             styles: (theme, _params) => ({
@@ -79,7 +76,7 @@ const themeOverride: MantineThemeOverride = {
             }),
         },
     },
-};
+});
 
 const TableTree: FC<Props> = ({
     showTableLabel,
