@@ -22,6 +22,7 @@ export interface AdditionalMetric {
     name: string;
     index?: number;
     filters?: MetricFilterRule[];
+    baseFieldId?: string;
 }
 
 export const isAdditionalMetric = (value: any): value is AdditionalMetric =>
