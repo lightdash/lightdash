@@ -7,7 +7,7 @@ import {
     MetricType,
     TableCalculation,
 } from './field';
-import { FilterRule, Filters } from './filter';
+import { Filters, MetricFilterRule } from './filter';
 
 export interface AdditionalMetric {
     label?: string;
@@ -21,7 +21,7 @@ export interface AdditionalMetric {
     table: string;
     name: string;
     index?: number;
-    filters?: FilterRule[];
+    filters?: MetricFilterRule[];
 }
 
 export const isAdditionalMetric = (value: any): value is AdditionalMetric =>
