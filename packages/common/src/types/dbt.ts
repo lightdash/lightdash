@@ -414,11 +414,19 @@ type ConvertAdditionalMetricArgs = {
 export const convertAdditionalMetric = ({
     additionalMetric,
     table,
-}: ConvertAdditionalMetricArgs): Metric =>
-    convertColumnMetric({
+}: ConvertAdditionalMetricArgs): Metric => {
+    const metric = convertColumnMetric({
         modelName: table.name,
         dimensionSql: additionalMetric.sql,
         name: additionalMetric.name,
-        metric: additionalMetric,
+        metric: { ...additionalMetric, filters: undefined },
         tableLabel: table.label,
     });
+
+    return {
+        ...metric,
+        ...(additionalMetric.filters && {
+            filters: additionalMetric.filters,
+        }),
+    };
+};
