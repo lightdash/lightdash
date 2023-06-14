@@ -204,7 +204,9 @@ const TableCalculationModal: FC<Props> = ({
             name: tableCalculation?.displayName,
             sql: tableCalculation?.sql,
             format: {
-                type: tableCalculation?.format?.type,
+                type:
+                    tableCalculation?.format?.type ||
+                    TableCalculationFormatType.DEFAULT,
                 round: tableCalculation?.format?.round,
                 separator: tableCalculation?.format?.separator,
             },
