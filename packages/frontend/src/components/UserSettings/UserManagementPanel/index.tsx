@@ -159,18 +159,23 @@ const UserListItem: FC<{
                                     });
                                 }}
                                 value={role}
+                                w={200}
                             />
                         </td>
                         <td>
-                            <Button
-                                leftIcon={<MantineIcon icon={IconCircleX} />}
-                                variant="outline"
-                                onClick={() => setIsDeleteDialogOpen(true)}
-                                disabled={disabled}
-                                color="red"
-                            >
-                                Delete
-                            </Button>
+                            <Group position="right">
+                                <Button
+                                    leftIcon={
+                                        <MantineIcon icon={IconCircleX} />
+                                    }
+                                    variant="outline"
+                                    onClick={() => setIsDeleteDialogOpen(true)}
+                                    disabled={disabled}
+                                    color="red"
+                                >
+                                    Delete
+                                </Button>
+                            </Group>
                             <Modal
                                 opened={isDeleteDialogOpen}
                                 onClose={() =>
@@ -219,7 +224,10 @@ const UserListItem: FC<{
 
             {inviteLink.data && showInviteSuccess && (
                 <tr>
-                    <td colSpan={3} style={{ borderTop: 0 }}>
+                    <td
+                        colSpan={3}
+                        style={{ borderTop: 0, padding: '0px 12px 12px' }}
+                    >
                         <InviteSuccess
                             invite={inviteLink.data}
                             onClose={() => setShowInviteSuccess(false)}
@@ -275,7 +283,7 @@ const UserManagementPanel: FC = () => {
                             <tr>
                                 <th>User</th>
                                 <th>Role</th>
-                                <th>Actions</th>
+                                <th></th>
                             </tr>
                         </thead>
                         <tbody>
