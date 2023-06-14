@@ -1,3 +1,10 @@
+## [0.611.1](https://github.com/lightdash/lightdash/compare/0.611.0...0.611.1) (2023-06-14)
+
+
+### Bug Fixes
+
+* docs typo of command ([#5881](https://github.com/lightdash/lightdash/issues/5881)) ([a7e898d](https://github.com/lightdash/lightdash/commit/a7e898d5f47390baf8219895b7d2425cbcd17f9a))
+
 # [0.611.0](https://github.com/lightdash/lightdash/compare/0.610.0...0.611.0) (2023-06-13)
 
 
