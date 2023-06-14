@@ -19,6 +19,7 @@ export interface ErrorLogEntry {
 export interface ErrorLogs {
     errorLogs: ErrorLogEntry[];
     appendError: (entry: Pick<ErrorLogEntry, 'title' | 'body'>) => void;
+    deleteError: (idx: number) => void;
 }
 
 const Context = createContext<ErrorLogs>(undefined as any);
@@ -54,22 +55,35 @@ export const ErrorLogsProvider: FC = ({ children }) => {
         },
         [appendErrorLogEntry],
     );
+
+    const deleteError = useCallback<(idx: number) => void>(
+        (idx) => {
+            setErrorLogs((logs) => [
+                ...logs.slice(0, idx),
+                ...logs.slice(idx + 1),
+            ]);
+        },
+        [setErrorLogs],
+    );
+
     const value = {
         errorLogs,
         appendError,
+        deleteError,
     };
 
     useEffect(() => {
         if (errorLogs.length > 0) {
-            errorLogs.map((log) =>
+            errorLogs.map((errorLog) => {
                 showToastError({
-                    title: log.title,
-                    subtitle: log.body,
-                    key: log.timestamp.toString(),
-                }),
-            );
+                    title: errorLog.title,
+                    subtitle: errorLog.body,
+                    key: errorLog.timestamp.toString(),
+                });
+                deleteError(errorLogs.indexOf(errorLog));
+            });
         }
-    }, [showToastError, errorLogs]);
+    }, [showToastError, errorLogs, deleteError]);
 
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };
