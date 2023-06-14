@@ -46,6 +46,9 @@ export interface FilterRule<
     settings?: S;
 }
 
+export interface MetricFilterRule
+    extends FilterRule<ConditionalOperator, { fieldRef: string }> {}
+
 export type DashboardFieldTarget = {
     fieldId: string;
     tableName: string;
