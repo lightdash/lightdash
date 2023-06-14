@@ -14,14 +14,13 @@ import {
     IconProgress,
 } from '@tabler/icons-react';
 import moment from 'moment';
-import React from 'react';
 import MantineIcon from '../common/MantineIcon';
 import { IconBox } from '../common/ResourceIcon';
 
 export type SchedulerItem = SchedulerWithLogs['schedulers'][number];
 export type Log = SchedulerWithLogs['logs'][number];
 
-type ColumnName =
+export type SchedulerColumnName =
     | 'name'
     | 'destinations'
     | 'frequency'
@@ -31,19 +30,6 @@ type ColumnName =
     | 'deliveryScheduled'
     | 'deliveryStarted'
     | 'status';
-
-export interface Column {
-    id: ColumnName;
-    label?: string;
-    cell: (
-        item: SchedulerItem,
-        logs?: Log[],
-        jobGroup?: string,
-    ) => React.ReactNode;
-    meta?: {
-        style: React.CSSProperties;
-    };
-}
 
 export const getSchedulerIcon = (item: SchedulerItem, theme: MantineTheme) => {
     switch (item.format) {

@@ -12,17 +12,32 @@ import {
 } from '@mantine/core';
 import { IconChevronDown } from '@tabler/icons-react';
 import groupBy from 'lodash-es/groupBy';
-import React, { FC, useCallback, useMemo, useState } from 'react';
+import { FC, useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
 import MantineIcon from '../common/MantineIcon';
 import {
-    Column,
     formatTime,
     getLogStatusIcon,
     getSchedulerIcon,
     getSchedulerLink,
+    Log,
+    SchedulerColumnName,
+    SchedulerItem,
 } from './SchedulersViewUtils';
+
+type Column = {
+    id: SchedulerColumnName;
+    label?: string;
+    cell: (
+        item: SchedulerItem,
+        logs: Log[],
+        jobGroup: string,
+    ) => React.ReactNode;
+    meta?: {
+        style: React.CSSProperties;
+    };
+};
 
 interface LogsProps
     extends Pick<
@@ -78,9 +93,11 @@ const Logs: FC<LogsProps> = ({
                                   dashboard.dashboardUuid ===
                                   item.dashboardUuid,
                           );
+
                     return (
                         <Group noWrap>
                             {getSchedulerIcon(item, theme)}
+
                             <Stack spacing="two">
                                 <Anchor
                                     unstyled
@@ -139,8 +156,8 @@ const Logs: FC<LogsProps> = ({
             {
                 id: 'jobs',
                 label: 'Job',
-                cell: (item, currentLogs, jobGroup) => {
-                    return !currentLogs || currentLogs.length === 0 ? (
+                cell: (_item, currentLogs, jobGroup) => {
+                    return currentLogs.length === 0 ? (
                         <Text fz="xs" fw={500}>
                             No jobs yet
                         </Text>
@@ -149,7 +166,7 @@ const Logs: FC<LogsProps> = ({
                             <Group spacing="two">
                                 <Text>All jobs</Text>
                                 <ActionIcon
-                                    onClick={() => handleTogle(jobGroup ?? '')}
+                                    onClick={() => handleTogle(jobGroup)}
                                     size="sm"
                                 >
                                     <MantineIcon
@@ -159,7 +176,7 @@ const Logs: FC<LogsProps> = ({
                                     />
                                 </ActionIcon>
                             </Group>
-                            <Collapse in={openedUuids.has(jobGroup ?? '')}>
+                            <Collapse in={openedUuids.has(jobGroup)}>
                                 <Stack spacing="md">
                                     {currentLogs.map((log, i) => (
                                         <Text key={i}>
@@ -178,8 +195,8 @@ const Logs: FC<LogsProps> = ({
             {
                 id: 'deliveryScheduled',
                 label: 'Delivery scheduled',
-                cell: (item, currentLogs, jobGroup) => {
-                    return !currentLogs || currentLogs.length === 0 ? (
+                cell: (_item, currentLogs, jobGroup) => {
+                    return currentLogs.length === 0 ? (
                         <Text fz="xs" color="gray.6">
                             -
                         </Text>
@@ -188,7 +205,7 @@ const Logs: FC<LogsProps> = ({
                             <Text color="gray.6">
                                 {formatTime(currentLogs[0].scheduledTime)}
                             </Text>
-                            <Collapse in={openedUuids.has(jobGroup ?? '')}>
+                            <Collapse in={openedUuids.has(jobGroup)}>
                                 <Stack spacing="md">
                                     {currentLogs.map((log, i) => (
                                         <Text key={i} color="gray.6">
@@ -204,8 +221,8 @@ const Logs: FC<LogsProps> = ({
             {
                 id: 'deliveryStarted',
                 label: 'Delivery start',
-                cell: (item, currentLogs, jobGroup) => {
-                    return !currentLogs || currentLogs.length === 0 ? (
+                cell: (_item, currentLogs, jobGroup) => {
+                    return currentLogs.length === 0 ? (
                         <Text fz="xs" color="gray.6">
                             -
                         </Text>
@@ -214,7 +231,7 @@ const Logs: FC<LogsProps> = ({
                             <Text color="gray.6">
                                 {formatTime(currentLogs[0].createdAt)}
                             </Text>
-                            <Collapse in={openedUuids.has(jobGroup ?? '')}>
+                            <Collapse in={openedUuids.has(jobGroup)}>
                                 <Stack spacing="md">
                                     {currentLogs.map((log, i) => (
                                         <Text key={i} color="gray.6">
@@ -230,17 +247,15 @@ const Logs: FC<LogsProps> = ({
             {
                 id: 'status',
                 label: 'Status',
-                cell: (item, currentLogs, jobGroup) => {
+                cell: (_item, currentLogs, jobGroup) => {
                     return (
                         <Center fz="xs" fw={500}>
-                            {!currentLogs || currentLogs.length === 0 ? (
+                            {currentLogs.length === 0 ? (
                                 <Text color="gray.6">-</Text>
                             ) : (
                                 <Stack>
                                     {getLogStatusIcon(currentLogs[0], theme)}
-                                    <Collapse
-                                        in={openedUuids.has(jobGroup ?? '')}
-                                    >
+                                    <Collapse in={openedUuids.has(jobGroup)}>
                                         <Stack>
                                             {currentLogs.map((log) =>
                                                 getLogStatusIcon(log, theme),
