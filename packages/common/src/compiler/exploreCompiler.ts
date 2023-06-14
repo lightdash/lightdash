@@ -73,6 +73,7 @@ export class ExploreCompiler {
         joinedTables,
         tables,
         targetDatabase,
+        groupLabel,
     }: UncompiledExplore): Explore {
         // Check that base table and joined tables exist
         if (!tables[baseTable]) {
@@ -183,6 +184,7 @@ export class ExploreCompiler {
             joinedTables: compiledJoins,
             tables: compiledTables,
             targetDatabase,
+            groupLabel,
         };
     }
 

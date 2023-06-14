@@ -201,6 +201,52 @@ export const model: DbtModelNode & { relation_name: string } = {
     original_file_path: '',
 };
 
+export const BASE_LIGHTDASH_TABLE: Omit<Table, 'lineageGraph'> = {
+    name: model.name,
+    label: 'My table',
+    database: model.database,
+    schema: model.schema,
+    sqlTable: model.relation_name,
+    description: model.description,
+    dimensions: {
+        myColumnName: {
+            compact: undefined,
+            description: undefined,
+            fieldType: FieldType.DIMENSION,
+            format: undefined,
+            group: undefined,
+            groupLabel: undefined,
+            hidden: false,
+            index: 0,
+            label: 'My column name',
+            name: 'myColumnName',
+            round: undefined,
+            source: undefined,
+            sql: '${TABLE}.myColumnName',
+            table: 'myTable',
+            tableLabel: 'My table',
+            timeInterval: undefined,
+            type: DimensionType.STRING,
+        },
+    },
+    metrics: {},
+    orderFieldsBy: OrderFieldsByStrategy.LABEL,
+    groupLabel: 'revenue',
+};
+
+export const MODEL_WITH_GROUP_LABEL: DbtModelNode & { relation_name: string } =
+    {
+        ...model,
+        meta: {
+            group_label: 'revenue',
+        },
+    };
+
+export const LIGHTDASH_TABLE_WITH_GROUP_LABEL: Omit<Table, 'lineageGraph'> = {
+    ...BASE_LIGHTDASH_TABLE,
+    groupLabel: 'revenue',
+};
+
 export const MODEL_WITH_NO_METRICS: DbtModelNode & { relation_name: string } = {
     ...model,
     columns: {

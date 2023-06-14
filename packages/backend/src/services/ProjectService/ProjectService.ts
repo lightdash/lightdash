@@ -1487,7 +1487,7 @@ export class ProjectService {
                         explore.tables?.[explore.baseTable]?.description,
                 };
             }
-            console.log('summary', explore.name, explore.groupLabel);
+
             return {
                 name: explore.name,
                 label: explore.label,
