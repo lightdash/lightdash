@@ -1,11 +1,9 @@
 import {
     Field,
     FieldType,
-    LightdashMode,
     MetricQuery,
     TableCalculation,
 } from '@lightdash/common';
-import { LightdashConfig } from '../../config/parseConfig';
 
 export const metricQuery: MetricQuery = {
     dimensions: ['column_number', 'column_date'],
@@ -27,6 +25,8 @@ export const metricQuery: MetricQuery = {
 export const itemMap: Record<string, Field | TableCalculation> = {
     column_number: {
         name: 'column_number',
+        table: 'table',
+        hidden: false,
         fieldType: FieldType.DIMENSION,
         type: 'number',
         displayName: 'column number',
