@@ -1,3 +1,10 @@
+## [0.613.1](https://github.com/lightdash/lightdash/compare/0.613.0...0.613.1) (2023-06-14)
+
+
+### Bug Fixes
+
+* duplicated chart ([#5899](https://github.com/lightdash/lightdash/issues/5899)) ([cd1c79c](https://github.com/lightdash/lightdash/commit/cd1c79cc06a1d326fdbcb9cab730e38274691e5e))
+
 # [0.613.0](https://github.com/lightdash/lightdash/compare/0.612.0...0.613.0) (2023-06-14)
 
 
