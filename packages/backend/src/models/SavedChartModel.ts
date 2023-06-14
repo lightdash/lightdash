@@ -421,6 +421,7 @@ export class SavedChartModel {
                     'display_name',
                     'calculation_raw_sql',
                     'order',
+                    'format',
                 ])
                 .where(
                     'saved_queries_version_id',
@@ -507,7 +508,7 @@ export class SavedChartModel {
                             name: tableCalculation.name,
                             displayName: tableCalculation.display_name,
                             sql: tableCalculation.calculation_raw_sql,
-                            format: tableCalculation.calculation_format,
+                            format: tableCalculation.format || undefined,
                         }),
                     ),
                     additionalMetrics: additionalMetricsFiltered,

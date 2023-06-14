@@ -29,5 +29,4 @@ export const tableCalculation: TableCalculation = {
     name: 'name',
     displayName: 'displayName',
     sql: 'sql',
-    format: { type: 'default' },
 };

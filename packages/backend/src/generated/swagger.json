@@ -1192,6 +1192,10 @@
                 "required": ["descending", "fieldId"],
                 "type": "object"
             },
+            "TableCalculationFormatType": {
+                "enum": ["default", "percent"],
+                "type": "string"
+            },
             "NumberSeparators": {
                 "enum": [
                     "commaPeriod",
@@ -1211,7 +1215,7 @@
                         "format": "double"
                     },
                     "type": {
-                        "type": "string"
+                        "$ref": "#/components/schemas/TableCalculationFormatType"
                     }
                 },
                 "required": ["type"],

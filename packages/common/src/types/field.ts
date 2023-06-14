@@ -19,7 +19,7 @@ const CompactAlias = [
     'trillion',
 ] as const;
 
-export enum NumberSeparators {
+export enum NumberSeparator {
     COMMA_PERIOD = 'commaPeriod',
     SPACE_PERIOD = 'spacePeriod',
     PERIOD_COMMA = 'periodComma',
@@ -77,10 +77,14 @@ export function findCompactConfig(
 
 export type Item = Field | TableCalculation;
 
+export enum TableCalculationFormatType {
+    DEFAULT = 'default',
+    PERCENT = 'percent',
+}
 export type TableCalculationFormat = {
-    type: string;
+    type: TableCalculationFormatType;
     round?: number;
-    separator?: NumberSeparators;
+    separator?: NumberSeparator;
 };
 export type TableCalculation = {
     index?: number;

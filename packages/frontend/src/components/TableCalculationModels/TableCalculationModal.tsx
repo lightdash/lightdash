@@ -1,9 +1,11 @@
 import { Button, Callout, Classes, Intent } from '@blueprintjs/core';
 import {
-    NumberSeparators,
+    formatTableCalculationValue,
+    NumberSeparator,
     snakeCaseName,
     TableCalculation,
     TableCalculationFormat,
+    TableCalculationFormatType,
 } from '@lightdash/common';
 import {
     Anchor,
@@ -76,68 +78,66 @@ const getUniqueTableCalculationName = (
 const TableCalculationFormatForm: FC<{
     methods: UseFormReturn<TableCalculationFormInputs, object>;
 }> = ({ methods }) => {
-    const formatType = methods.watch('format.type', 'default');
+    const formatType = methods.watch(
+        'format.type',
+        TableCalculationFormatType.DEFAULT,
+    );
     const round = methods.watch('format.round');
-    const separator = methods.watch('format.separator');
+    const separator = methods.watch(
+        'format.separator',
+        NumberSeparator.COMMA_PERIOD,
+    );
 
     //TODO this component is using Mantine components with a react-hook-form,
     //once we use mantine form we should refactor this to remove onChange methods
 
-    const previewPercentSeparator = () => {
-        if ((round === undefined ? 2 : round) <= 0) return '';
-        switch (separator) {
-            case NumberSeparators.PERIOD_COMMA:
-                return ',';
-            default:
-                return '.';
-        }
-    };
-    const previewRound = () => {
-        if ((round === undefined ? 2 : round) <= 0) return '';
-        return '0123456789'.slice(0, round || 2);
-    };
-    const previewFormat = () => {
-        switch (formatType) {
-            case 'percent':
-                return `Looks like: 23${previewPercentSeparator()}${previewRound()}%`;
-            default:
-                return '';
-        }
-    };
     return (
         <Box m="md">
             <Flex>
                 <Select
                     w={200}
                     onChange={(type) => {
-                        methods.setValue('format.type', type || 'default');
+                        methods.setValue(
+                            'format.type',
+                            type as TableCalculationFormatType,
+                        );
                     }}
                     label="Type"
                     name="format.type"
-                    defaultValue={'default'}
-                    data={['default', 'percent']}
+                    value={formatType}
+                    data={[
+                        TableCalculationFormatType.DEFAULT,
+                        TableCalculationFormatType.PERCENT,
+                    ]}
                 />
 
                 <Text ml="md" mt={30} color="gray.6">
-                    {previewFormat()}
+                    {formatTableCalculationValue(
+                        {
+                            name: 'preview',
+                            sql: '',
+                            displayName: 'preview',
+                            format: methods.getValues('format'),
+                        },
+                        '0.75',
+                    )}
                 </Text>
             </Flex>
-            {formatType === 'percent' && (
+            {formatType === TableCalculationFormatType.PERCENT && (
                 <Flex>
                     <TextInput
                         w={200}
                         label="Round"
                         name="format.round"
                         placeholder="Number of decimal places"
+                        value={round}
                         onChange={(r) => {
-                            //TODO check type
-
-                            methods.setValue(
-                                'format.round',
-                                r.target.value === ''
-                                    ? undefined
-                                    : parseInt(r.target.value),
-                            );
+                            const number = parseInt(r.target.value);
+                            if (!Number.isNaN(number)) {
+                                methods.setValue('format.round', number);
+                            } else {
+                                methods.setValue('format.round', undefined);
+                            }
                         }}
                     />
                     <Select
@@ -146,27 +146,27 @@ const TableCalculationFormatForm: FC<{
                             if (s)
                                 methods.setValue(
                                     'format.separator',
-                                    s as NumberSeparators,
+                                    s as NumberSeparator,
                                 );
                         }}
                         label="Type"
+                        value={separator}
                         name="format.separator"
-                        defaultValue={'comma-dot'}
                         data={[
                             {
-                                value: NumberSeparators.COMMA_PERIOD,
+                                value: NumberSeparator.COMMA_PERIOD,
                                 label: '100,000.00',
                             },
                             {
-                                value: NumberSeparators.SPACE_PERIOD,
+                                value: NumberSeparator.SPACE_PERIOD,
                                 label: '100 000.00',
                             },
                             {
-                                value: NumberSeparators.PERIOD_COMMA,
+                                value: NumberSeparator.PERIOD_COMMA,
                                 label: '100.000,00',
                             },
                             {
-                                value: NumberSeparators.NO_SEPARATOR_PERIOD,
+                                value: NumberSeparator.NO_SEPARATOR_PERIOD,
                                 label: '100000.00',
                             },
                         ]}
@@ -204,9 +204,9 @@ const TableCalculationModal: FC<Props> = ({
             name: tableCalculation?.displayName,
             sql: tableCalculation?.sql,
             format: {
-                type: 'default',
-                round: 2,
-                separator: NumberSeparators.COMMA_PERIOD,
+                type: tableCalculation?.format?.type,
+                round: tableCalculation?.format?.round,
+                separator: tableCalculation?.format?.separator,
             },
         },
     });
@@ -287,13 +287,12 @@ const TableCalculationModal: FC<Props> = ({
                             },
                         }}
                     />
-                    <Tabs defaultValue="sql">
+                    <Tabs defaultValue="sqlEditor">
                         <Tabs.List>
-                            <Tabs.Tab value="sql">SQL</Tabs.Tab>
+                            <Tabs.Tab value="sqlEditor">SQL</Tabs.Tab>
                             <Tabs.Tab value="format">Format</Tabs.Tab>
                         </Tabs.List>
-                        <Tabs.Panel value="sql">
-                            {' '}
+                        <Tabs.Panel value="sqlEditor">
                             <TableCalculationSqlInputWrapper
                                 $isFullScreen={isFullscreen}
                             >
@@ -301,7 +300,6 @@ const TableCalculationModal: FC<Props> = ({
                                     name="sql"
                                     attributes={{
                                         readOnly: isDisabled,
-                                        height: '100%',
                                         width: '100%',
                                         maxLines: isFullscreen ? 40 : 20,
                                         minLines: isFullscreen ? 40 : 8,
