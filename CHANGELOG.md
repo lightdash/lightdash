@@ -1,3 +1,10 @@
+## [0.611.3](https://github.com/lightdash/lightdash/compare/0.611.2...0.611.3) (2023-06-14)
+
+
+### Bug Fixes
+
+* add gap between label and comparison ([#5895](https://github.com/lightdash/lightdash/issues/5895)) ([e9fb9a7](https://github.com/lightdash/lightdash/commit/e9fb9a70899e93ca256f2a3f45ba79d3c23d4f67))
+
 ## [0.611.2](https://github.com/lightdash/lightdash/compare/0.611.1...0.611.2) (2023-06-14)
 
 
