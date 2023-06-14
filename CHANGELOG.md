@@ -1,3 +1,10 @@
+# [0.613.0](https://github.com/lightdash/lightdash/compare/0.612.0...0.613.0) (2023-06-14)
+
+
+### Features
+
+* stick table names to the top while scrolling ([#5845](https://github.com/lightdash/lightdash/issues/5845)) ([e0309fc](https://github.com/lightdash/lightdash/commit/e0309fc3c019902f75afe3c2ed904c8dc3705ce1))
+
 # [0.612.0](https://github.com/lightdash/lightdash/compare/0.611.3...0.612.0) (2023-06-14)
 
 
