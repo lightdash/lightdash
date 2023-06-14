@@ -1,3 +1,45 @@
+## [0.611.1](https://github.com/lightdash/lightdash/compare/0.611.0...0.611.1) (2023-06-14)
+
+
+### Bug Fixes
+
+* docs typo of command ([#5881](https://github.com/lightdash/lightdash/issues/5881)) ([a7e898d](https://github.com/lightdash/lightdash/commit/a7e898d5f47390baf8219895b7d2425cbcd17f9a))
+
+# [0.611.0](https://github.com/lightdash/lightdash/compare/0.610.0...0.611.0) (2023-06-13)
+
+
+### Features
+
+* Add APIs to add and revoke space-level access ([#5849](https://github.com/lightdash/lightdash/issues/5849)) ([479cb63](https://github.com/lightdash/lightdash/commit/479cb632cf03ecf6302a64875c57469c0a42d471))
+
+# [0.610.0](https://github.com/lightdash/lightdash/compare/0.609.2...0.610.0) (2023-06-13)
+
+
+### Features
+
+* migrate InviteSuccess to Mantine ([#5871](https://github.com/lightdash/lightdash/issues/5871)) ([d1a1143](https://github.com/lightdash/lightdash/commit/d1a1143edcc3675dbaea2b0f2695c24d62ef0c1f))
+
+## [0.609.2](https://github.com/lightdash/lightdash/compare/0.609.1...0.609.2) (2023-06-13)
+
+
+### Bug Fixes
+
+* remove unwanted footer text for unsupported ([#5846](https://github.com/lightdash/lightdash/issues/5846)) ([e18d54c](https://github.com/lightdash/lightdash/commit/e18d54caf41e67271f667da591a75119637226b1))
+
+## [0.609.1](https://github.com/lightdash/lightdash/compare/0.609.0...0.609.1) (2023-06-13)
+
+
+### Bug Fixes
+
+* prevent pivot table in third parties ([#5864](https://github.com/lightdash/lightdash/issues/5864)) ([b6cc8dd](https://github.com/lightdash/lightdash/commit/b6cc8dd11f9f2f7f2b47148afab208831cdcadf5))
+
+# [0.609.0](https://github.com/lightdash/lightdash/compare/0.608.0...0.609.0) (2023-06-13)
+
+
+### Features
+
+* validate against prod ([#5808](https://github.com/lightdash/lightdash/issues/5808)) ([965793e](https://github.com/lightdash/lightdash/commit/965793ea34c1aef8db7d50fa1d3015a8fbb9731a))
+
 # [0.608.0](https://github.com/lightdash/lightdash/compare/0.607.0...0.608.0) (2023-06-12)
 
 
