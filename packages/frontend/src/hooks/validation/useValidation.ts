@@ -73,7 +73,7 @@ export const useValidationMutation = (
     onComplete: () => void,
 ) => {
     const queryClient = useQueryClient();
-    const { showError } = useErrorLogs();
+    const { appendError } = useErrorLogs();
     const { showToastSuccess } = useToaster();
 
     return useMutation<ApiJobScheduledResponse['results'], ApiError>({
@@ -89,7 +89,7 @@ export const useValidationMutation = (
                     showToastSuccess({ title: 'Validation completed' });
                 })
                 .catch((error: Error) => {
-                    showError({
+                    appendError({
                         title: 'Unable to update validation',
                         body: error.message,
                     });
@@ -98,12 +98,12 @@ export const useValidationMutation = (
         onError: useCallback(
             (error) => {
                 const [title, ...rest] = error.error.message.split('\n');
-                showError({
+                appendError({
                     title,
                     body: rest.join('\n'),
                 });
             },
-            [showError],
+            [appendError],
         ),
     });
 };

@@ -14,40 +14,18 @@ export interface ErrorLogEntry {
     title: string;
     body?: string;
     timestamp: Date;
-    isUnread: boolean;
 }
 
 export interface ErrorLogs {
     errorLogs: ErrorLogEntry[];
-    errorLogsVisible: boolean;
-    setErrorLogsVisible: (visible: boolean) => void;
-    showError: (entry: Pick<ErrorLogEntry, 'title' | 'body'>) => void;
-    setAllLogsRead: () => void;
-    deleteErrorLogEntry: (idx: number) => void;
+    appendError: (entry: Pick<ErrorLogEntry, 'title' | 'body'>) => void;
 }
 
 const Context = createContext<ErrorLogs>(undefined as any);
 
 export const ErrorLogsProvider: FC = ({ children }) => {
     const [errorLogs, setErrorLogs] = useState<ErrorLogEntry[]>([]);
-    const [errorLogsVisible, setErrorLogsVisible] = useState<boolean>(false);
     const { showToastError } = useToaster();
-
-    const setAllLogsRead = useCallback(() => {
-        setErrorLogs((logs) =>
-            logs.map((log) => ({ ...log, isUnread: false })),
-        );
-    }, [setErrorLogs]);
-
-    const deleteErrorLogEntry = useCallback<(idx: number) => void>(
-        (idx) => {
-            setErrorLogs((logs) => [
-                ...logs.slice(0, idx),
-                ...logs.slice(idx + 1),
-            ]);
-        },
-        [setErrorLogs],
-    );
 
     const appendErrorLogEntry = useCallback<(errorLog: ErrorLogEntry) => void>(
         (errorLog: ErrorLogEntry) => {
@@ -66,32 +44,23 @@ export const ErrorLogsProvider: FC = ({ children }) => {
         [setErrorLogs],
     );
 
-    const showError = useCallback<ErrorLogs['showError']>(
+    const appendError = useCallback<ErrorLogs['appendError']>(
         ({ title, body }) => {
             appendErrorLogEntry({
                 title,
                 body,
                 timestamp: new Date(),
-                isUnread: true,
             });
-            setErrorLogsVisible(true);
         },
-        [setErrorLogsVisible, appendErrorLogEntry],
+        [appendErrorLogEntry],
     );
     const value = {
         errorLogs,
-        errorLogsVisible,
-        setErrorLogsVisible,
-        showError,
-        setAllLogsRead,
-        deleteErrorLogEntry,
+        appendError,
     };
 
     useEffect(() => {
-        if (
-            !errorLogsVisible &&
-            errorLogs.filter((log) => log.isUnread).length > 0
-        ) {
+        if (errorLogs.length > 0) {
             errorLogs.map((log) =>
                 showToastError({
                     title: log.title,
@@ -100,7 +69,7 @@ export const ErrorLogsProvider: FC = ({ children }) => {
                 }),
             );
         }
-    }, [showToastError, errorLogsVisible, errorLogs, setErrorLogsVisible]);
+    }, [showToastError, errorLogs]);
 
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };
