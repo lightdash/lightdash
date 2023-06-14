@@ -18,6 +18,9 @@ import FilterRuleForm from '../../common/Filters/FilterRuleForm';
 import { useFiltersContext } from '../../common/Filters/FiltersProvider';
 import { addFieldRefToFilterRule } from './utils';
 
+// TODO: fix when editing, a new custom metric is added rather than making changes to existing one
+// TODO: see if baseFieldId is a correct way of dealing with edit mode custom metric modal
+
 export interface MetricFilterRuleWithFieldId
     extends FilterRule<
         ConditionalOperator,
