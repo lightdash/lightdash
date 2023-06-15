@@ -1884,6 +1884,7 @@ const models: TsoaRoute.Models = {
                 array: { dataType: 'refObject', ref: 'MetricFilterRule' },
             },
             baseFieldId: { dataType: 'string' },
+            id: { dataType: 'string' },
         },
         additionalProperties: false,
     },
