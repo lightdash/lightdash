@@ -84,7 +84,7 @@ const ResourceView: React.FC<ResourceViewProps> = ({
         type: ResourceViewItemAction.CLOSE,
     });
 
-    const [activeTabId, setActiveTabId] = useState(tabs?.[0]?.id);
+    const [activeTabId, setActiveTabId] = useState(tabs?.[3]?.id);
 
     const handleAction = useCallback(
         (newAction: ResourceViewItemActionState) => {
