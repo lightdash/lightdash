@@ -1,3 +1,10 @@
+# [0.614.0](https://github.com/lightdash/lightdash/compare/0.613.2...0.614.0) (2023-06-15)
+
+
+### Features
+
+* add the API to get projects of an organization ([#5906](https://github.com/lightdash/lightdash/issues/5906)) ([5f20eeb](https://github.com/lightdash/lightdash/commit/5f20eeb58f791fa2be2573cf2f41c171d792d315))
+
 ## [0.613.2](https://github.com/lightdash/lightdash/compare/0.613.1...0.613.2) (2023-06-15)
 
 
