@@ -128,7 +128,10 @@ type Action =
       }
     | {
           type: ActionType.EDIT_ADDITIONAL_METRIC;
-          payload: AdditionalMetric;
+          payload: {
+              additionalMetric: AdditionalMetric;
+              previousAdditionalMetricName: string;
+          };
       }
     | {
           type: ActionType.REMOVE_ADDITIONAL_METRIC;
@@ -186,7 +189,10 @@ export interface ExplorerContext {
             syncPristineState: boolean,
         ) => void;
         addAdditionalMetric: (metric: AdditionalMetric) => void;
-        editAdditionalMetric: (metric: AdditionalMetric) => void;
+        editAdditionalMetric: (
+            metric: AdditionalMetric,
+            previousMetricName: string,
+        ) => void;
         removeAdditionalMetric: (key: FieldId) => void;
         setColumnOrder: (order: string[]) => void;
         addTableCalculation: (tableCalculation: TableCalculation) => void;
@@ -587,11 +593,18 @@ function reducer(
                     ...state.unsavedChartVersion,
                     metricQuery: {
                         ...state.unsavedChartVersion.metricQuery,
+                        metrics:
+                            state.unsavedChartVersion.metricQuery.metrics.filter(
+                                (metric) =>
+                                    metric !==
+                                    action.payload.previousAdditionalMetricName,
+                            ),
                         additionalMetrics:
                             state.unsavedChartVersion.metricQuery.additionalMetrics?.map(
                                 (metric) =>
-                                    metric.id === action.payload.id
-                                        ? action.payload
+                                    metric.id ===
+                                    action.payload.additionalMetric.id
+                                        ? action.payload.additionalMetric
                                         : metric,
                             ),
                     },
@@ -989,15 +1002,18 @@ export const ExplorerProvider: FC<{
     );
 
     const editAdditionalMetric = useCallback(
-        (additionalMetric: AdditionalMetric) => {
+        (
+            additionalMetric: AdditionalMetric,
+            previousAdditionalMetricName: string,
+        ) => {
             dispatch({
                 type: ActionType.EDIT_ADDITIONAL_METRIC,
-                payload: additionalMetric,
+                payload: { additionalMetric, previousAdditionalMetricName },
             });
-            // dispatch({
-            //     type: ActionType.TOGGLE_METRIC,
-            //     payload: getFieldId(additionalMetric),
-            // });
+            dispatch({
+                type: ActionType.TOGGLE_METRIC,
+                payload: getFieldId(additionalMetric),
+            });
         },
         [],
     );
