@@ -1865,6 +1865,34 @@ const models: TsoaRoute.Models = {
         additionalProperties: false,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DimensionType: {
+        dataType: 'refEnum',
+        enums: ['string', 'number', 'timestamp', 'date', 'boolean'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'FieldType.DIMENSION': {
+        dataType: 'refEnum',
+        enums: ['dimension'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_Dimension.name-or-type-or-label-or-table-or-fieldType-or-description-or-tableLabel_':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    name: { dataType: 'string', required: true },
+                    description: { dataType: 'string' },
+                    type: { ref: 'DimensionType', required: true },
+                    label: { dataType: 'string', required: true },
+                    table: { dataType: 'string', required: true },
+                    fieldType: { ref: 'FieldType.DIMENSION', required: true },
+                    tableLabel: { dataType: 'string', required: true },
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AdditionalMetric: {
         dataType: 'refObject',
         properties: {
@@ -1883,7 +1911,9 @@ const models: TsoaRoute.Models = {
                 dataType: 'array',
                 array: { dataType: 'refObject', ref: 'MetricFilterRule' },
             },
-            baseFieldId: { dataType: 'string' },
+            baseDimension: {
+                ref: 'Pick_Dimension.name-or-type-or-label-or-table-or-fieldType-or-description-or-tableLabel_',
+            },
             id: { dataType: 'string' },
         },
         additionalProperties: false,

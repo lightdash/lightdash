@@ -2150,6 +2150,49 @@
                 "type": "object",
                 "additionalProperties": false
             },
+            "DimensionType": {
+                "enum": ["string", "number", "timestamp", "date", "boolean"],
+                "type": "string"
+            },
+            "FieldType.DIMENSION": {
+                "enum": ["dimension"],
+                "type": "string"
+            },
+            "Pick_Dimension.name-or-type-or-label-or-table-or-fieldType-or-description-or-tableLabel_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DimensionType"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "table": {
+                        "type": "string"
+                    },
+                    "fieldType": {
+                        "$ref": "#/components/schemas/FieldType.DIMENSION"
+                    },
+                    "tableLabel": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "name",
+                    "type",
+                    "label",
+                    "table",
+                    "fieldType",
+                    "tableLabel"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
             "AdditionalMetric": {
                 "properties": {
                     "label": {
@@ -2193,8 +2236,8 @@
                         },
                         "type": "array"
                     },
-                    "baseFieldId": {
-                        "type": "string"
+                    "baseDimension": {
+                        "$ref": "#/components/schemas/Pick_Dimension.name-or-type-or-label-or-table-or-fieldType-or-description-or-tableLabel_"
                     },
                     "id": {
                         "type": "string"
