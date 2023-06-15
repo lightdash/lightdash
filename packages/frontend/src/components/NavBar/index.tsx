@@ -17,7 +17,6 @@ import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProjects } from '../../hooks/useProjects';
 import { ReactComponent as Logo } from '../../svgs/logo-icon.svg';
 import MantineIcon from '../common/MantineIcon';
-import { ErrorLogsDrawer } from '../ErrorLogsDrawer';
 import BrowseMenu from './BrowseMenu';
 import ExploreMenu from './ExploreMenu';
 import GlobalSearch from './GlobalSearch';
@@ -111,8 +110,6 @@ const NavBar = memo(() => {
                 <Box sx={{ flexGrow: 1 }} />
 
                 <Group sx={{ flexShrink: 0 }}>
-                    <ErrorLogsDrawer />
-
                     <Button.Group>
                         <SettingsMenu />
 
