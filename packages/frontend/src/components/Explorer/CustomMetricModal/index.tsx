@@ -1,6 +1,9 @@
 import {
+    AdditionalMetric,
     Dimension,
     friendlyName,
+    isAdditionalMetric,
+    isDimension,
     MetricFilterRule,
     MetricType,
     snakeCaseName,
@@ -16,6 +19,7 @@ import {
 } from '@mantine/core';
 import { Dispatch, FC, SetStateAction, useCallback, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { v4 as uuidv4 } from 'uuid';
 import { useExplore } from '../../../hooks/useExplore';
 import { useProject } from '../../../hooks/useProject';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
@@ -29,7 +33,7 @@ type Props = {
     isCreatingCustomMetric: boolean;
     setIsCreatingCustomMetric: Dispatch<SetStateAction<boolean>>;
     customMetricType: MetricType | undefined;
-    item: Dimension;
+    item: Dimension | AdditionalMetric;
 };
 
 export const CustomMetricModal: FC<Props> = ({
@@ -44,6 +48,9 @@ export const CustomMetricModal: FC<Props> = ({
 
     const addAdditionalMetric = useExplorerContext(
         (context) => context.actions.addAdditionalMetric,
+    );
+    const editAdditionalMetric = useExplorerContext(
+        (context) => context.actions.editAdditionalMetric,
     );
     const tableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
@@ -75,18 +82,16 @@ export const CustomMetricModal: FC<Props> = ({
     );
 
     const getCurrentCustomMetricFiltersWithIds = useCallback(() => {
-        const currentCustomMetric = additionalMetrics?.find(
-            (metric) => metric.label === customMetricName,
-        );
-
-        if (currentCustomMetric && currentCustomMetric.filters) {
-            return currentCustomMetric.filters.map((filterRule) =>
-                addFieldIdToMetricFilterRule(filterRule),
+        if (isAdditionalMetric(item)) {
+            return (
+                item.filters?.map((filterRule) =>
+                    addFieldIdToMetricFilterRule(filterRule),
+                ) || []
             );
         }
 
         return [];
-    }, [additionalMetrics, customMetricName]);
+    }, [item]);
 
     const [customMetricFiltersWithIds, setCustomMetricFiltersWithIds] =
         useState<MetricFilterRuleWithFieldId[]>(
@@ -94,7 +99,7 @@ export const CustomMetricModal: FC<Props> = ({
         );
 
     const createCustomMetric = useCallback(
-        (dimension: Dimension, type: MetricType) => {
+        (dimension: Dimension | AdditionalMetric, type: MetricType) => {
             const shouldCopyFormatting = [
                 MetricType.PERCENTILE,
                 MetricType.MEDIAN,
@@ -130,29 +135,56 @@ export const CustomMetricModal: FC<Props> = ({
                     }),
                 );
 
-            addAdditionalMetric({
-                name: `${dimension.name}_${snakeCaseName(customMetricName)}`,
-                label: customMetricName,
-                table: dimension.table,
-                sql: dimension.sql,
-                description: `${friendlyName(type)} of ${
-                    dimension.label
-                } on the table ${dimension.tableLabel}`,
-                type,
-                ...(customMetricFilters.length > 0 && {
-                    filters: customMetricFilters,
-                }),
-                baseFieldId: dimension.name,
-                ...format,
-                ...round,
-                ...compact,
-            });
+            if (
+                isEditMode &&
+                isAdditionalMetric(item) &&
+                isAdditionalMetric(dimension) &&
+                customMetricName
+            ) {
+                editAdditionalMetric({
+                    ...item,
+                    name: snakeCaseName(customMetricName),
+                    label: customMetricName,
+                    sql: dimension.sql,
+                    type,
+                    ...(customMetricFilters.length > 0 && {
+                        filters: customMetricFilters,
+                    }),
+                    ...format,
+                    ...round,
+                    ...compact,
+                });
+            } else if (isDimension(dimension)) {
+                addAdditionalMetric({
+                    id: uuidv4(),
+                    name: `${dimension.name}_${snakeCaseName(
+                        customMetricName ?? '',
+                    )}`,
+                    label: customMetricName,
+                    table: dimension.table,
+                    sql: dimension.sql,
+                    description: `${friendlyName(type)} of ${
+                        dimension.label
+                    } on the table ${dimension.tableLabel}`,
+                    type,
+                    ...(customMetricFilters.length > 0 && {
+                        filters: customMetricFilters,
+                    }),
+                    baseFieldId: dimension.name,
+                    ...format,
+                    ...round,
+                    ...compact,
+                });
+            }
             setIsCreatingCustomMetric(false);
         },
         [
             addAdditionalMetric,
             customMetricFiltersWithIds,
             customMetricName,
+            editAdditionalMetric,
+            isEditMode,
+            item,
             setIsCreatingCustomMetric,
         ],
     );
