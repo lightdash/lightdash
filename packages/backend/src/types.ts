@@ -20,11 +20,11 @@ export interface ProjectAdapter {
 }
 
 export interface DbtClient {
-    installDeps(): Promise<void>;
-    getDbtManifest(): Promise<DbtRpcGetManifestResults>;
-    getDbtCatalog(): Promise<DbtRpcDocsGenerateResults>;
+    installDeps(warehouseType: string): Promise<void>;
+    getDbtManifest(warehouseType: string): Promise<DbtRpcGetManifestResults>;
+    getDbtCatalog(warehouseType: string): Promise<DbtRpcDocsGenerateResults>;
     getDbtPackages?(): Promise<DbtPackages | undefined>;
-    test(): Promise<void>;
+    test(warehouseType: string): Promise<void>;
 }
 
 export type CachedWarehouse = {

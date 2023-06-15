@@ -120,7 +120,10 @@ export class DbtCliClient implements DbtClient {
         }, []);
     }
 
-    private async _runDbtEnvCommand(...command: string[]): Promise<DbtLog[]> {
+    private async _runDbtEnvCommand(
+        warehouseType: string,
+        ...command: string[]
+    ): Promise<DbtLog[]> {
         // Undefined version means running dbt native without dbtenv
         const versions = ['1.4.0', '1.5.0', undefined];
 
@@ -128,7 +131,7 @@ export class DbtCliClient implements DbtClient {
         for await (const version of versions) {
             const dbtExec = version !== undefined ? 'dbtenv' : ' native dbt'; // just for logs
             // TODO get right adapter
-            const adapter = 'postgres';
+            const adapter = warehouseType;
             const dbtVersion =
                 version !== undefined
                     ? `dbt-${adapter}==${version}`
@@ -170,6 +173,7 @@ export class DbtCliClient implements DbtClient {
             '--project-dir',
             this.dbtProjectDirectory,
         ];
+
         if (this.target) {
             dbtArgs.push('--target', this.target);
         }
@@ -204,7 +208,7 @@ export class DbtCliClient implements DbtClient {
         }
     }
 
-    async installDeps(): Promise<void> {
+    async installDeps(warehouseType: string): Promise<void> {
         const transaction = Sentry.getCurrentHub()
             ?.getScope()
             ?.getTransaction();
@@ -212,11 +216,13 @@ export class DbtCliClient implements DbtClient {
             op: 'dbt',
             description: 'installDeps',
         });
-        await this._runDbtEnvCommand('deps');
+        await this._runDbtEnvCommand(warehouseType, 'deps');
         span?.finish();
     }
 
-    async getDbtManifest(): Promise<DbtRpcGetManifestResults> {
+    async getDbtManifest(
+        warehouseType: string,
+    ): Promise<DbtRpcGetManifestResults> {
         const transaction = Sentry.getCurrentHub()
             ?.getScope()
             ?.getTransaction();
@@ -224,7 +230,7 @@ export class DbtCliClient implements DbtClient {
             op: 'dbt',
             description: 'getDbtManifest',
         });
-        const dbtLogs = await this._runDbtEnvCommand('compile');
+        const dbtLogs = await this._runDbtEnvCommand(warehouseType, 'compile');
         const rawManifest = {
             manifest: await this.loadDbtTargetArtifact('manifest.json'),
         };
@@ -284,7 +290,9 @@ export class DbtCliClient implements DbtClient {
         }
     }
 
-    async getDbtCatalog(): Promise<DbtRpcDocsGenerateResults> {
+    async getDbtCatalog(
+        warehouseType: string,
+    ): Promise<DbtRpcDocsGenerateResults> {
         const transaction = Sentry.getCurrentHub()
             ?.getScope()
             ?.getTransaction();
@@ -292,7 +300,11 @@ export class DbtCliClient implements DbtClient {
             op: 'dbt',
             description: 'getDbtbCatalog',
         });
-        const dbtLogs = await this._runDbtEnvCommand('docs', 'generate');
+        const dbtLogs = await this._runDbtEnvCommand(
+            warehouseType,
+            'docs',
+            'generate',
+        );
         const rawCatalog = await this.loadDbtTargetArtifact('catalog.json');
         span?.finish();
         if (isDbtRpcDocsGenerateResults(rawCatalog)) {
@@ -304,7 +316,7 @@ export class DbtCliClient implements DbtClient {
         );
     }
 
-    async test(): Promise<void> {
+    async test(warehouseType: string): Promise<void> {
         const transaction = Sentry.getCurrentHub()
             ?.getScope()
             ?.getTransaction();
@@ -312,7 +324,7 @@ export class DbtCliClient implements DbtClient {
             op: 'dbt',
             description: 'test',
         });
-        await this.installDeps();
+        await this.installDeps(warehouseType);
         await this._runDbtEnvCommand('parse');
         span?.finish();
     }

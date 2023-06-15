@@ -78,7 +78,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
     public async test(): Promise<void> {
         Logger.debug('Test dbt client');
-        await this.dbtClient.test();
+        await this.dbtClient.test(this.warehouseClient.credentials.type);
         Logger.debug('Test warehouse client');
         await this.warehouseClient.test();
     }
@@ -96,9 +96,11 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
     ): Promise<(Explore | ExploreError)[]> {
         Logger.debug('Install dependencies');
         // Install dependencies for dbt and fetch the manifest - may raise error meaning no explores compile
-        await this.dbtClient.installDeps();
+        await this.dbtClient.installDeps(this.warehouseClient.credentials.type);
         Logger.debug('Get dbt manifest');
-        const { manifest } = await this.dbtClient.getDbtManifest();
+        const { manifest } = await this.dbtClient.getDbtManifest(
+            this.warehouseClient.credentials.type,
+        );
 
         // Type of the target warehouse
         if (!isSupportedDbtAdapter(manifest.metadata)) {
