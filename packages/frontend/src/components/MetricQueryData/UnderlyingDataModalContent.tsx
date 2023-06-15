@@ -188,7 +188,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                     target: {
                         fieldId: getFieldId({
                             ...metric,
-                            name: filter.target.fieldId,
+                            name: filter.target.fieldRef,
                         }),
                     },
                 };
