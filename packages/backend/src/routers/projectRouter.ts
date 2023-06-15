@@ -33,25 +33,6 @@ const { Readable } = require('stream');
 
 export const projectRouter = express.Router({ mergeParams: true });
 
-projectRouter.get(
-    '/',
-    allowApiKeyAuthentication,
-    isAuthenticated,
-    async (req, res, next) => {
-        try {
-            res.json({
-                status: 'ok',
-                results: await projectService.getProject(
-                    req.params.projectUuid,
-                    req.user!,
-                ),
-            });
-        } catch (e) {
-            next(e);
-        }
-    },
-);
-
 projectRouter.patch(
     '/',
     allowApiKeyAuthentication,
