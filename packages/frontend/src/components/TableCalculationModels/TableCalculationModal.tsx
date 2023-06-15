@@ -23,7 +23,6 @@ import { useToggle } from 'react-use';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useExplorerAceEditorCompleter } from '../../hooks/useExplorerAceEditorCompleter';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
-import Input from '../ReactHookForm/Input';
 
 import SqlInput from '../ReactHookForm/SqlInput';
 import {
@@ -124,7 +123,7 @@ const TableCalculationFormatForm: FC<{
                 </Text>
             </Flex>
             {formatType === TableCalculationFormatType.PERCENT && (
-                <Flex>
+                <Flex mt="md">
                     <TextInput
                         w={200}
                         label="Round"
@@ -149,25 +148,25 @@ const TableCalculationFormatForm: FC<{
                                     s as NumberSeparator,
                                 );
                         }}
-                        label="Type"
+                        label="Separator style"
                         value={separator}
                         name="format.separator"
                         data={[
                             {
                                 value: NumberSeparator.COMMA_PERIOD,
-                                label: '100,000.00',
+                                label: '100,000.00%',
                             },
                             {
                                 value: NumberSeparator.SPACE_PERIOD,
-                                label: '100 000.00',
+                                label: '100 000.00%',
                             },
                             {
                                 value: NumberSeparator.PERIOD_COMMA,
-                                label: '100.000,00',
+                                label: '100.000,00%',
                             },
                             {
                                 value: NumberSeparator.NO_SEPARATOR_PERIOD,
-                                label: '100000.00',
+                                label: '100000.00%',
                             },
                         ]}
                     />
@@ -186,12 +185,6 @@ const TableCalculationModal: FC<Props> = ({
     const [isFullscreen, toggleFullscreen] = useToggle(false);
     const { showToastError } = useToaster();
 
-    const dimensions = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.metricQuery.dimensions,
-    );
-    const metrics = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.metricQuery.metrics,
-    );
     const tableCalculations = useExplorerContext(
         (context) =>
             context.state.unsavedChartVersion.metricQuery.tableCalculations,
@@ -208,11 +201,14 @@ const TableCalculationModal: FC<Props> = ({
                     tableCalculation?.format?.type ||
                     TableCalculationFormatType.DEFAULT,
                 round: tableCalculation?.format?.round,
-                separator: tableCalculation?.format?.separator,
+                separator:
+                    tableCalculation?.format?.separator ||
+                    NumberSeparator.COMMA_PERIOD,
             },
         },
     });
 
+    const tableCalculationName = methods.watch('name');
     return (
         <TableCalculationDialog
             isOpen={isOpen}
@@ -257,36 +253,14 @@ const TableCalculationModal: FC<Props> = ({
                 }}
             >
                 <DialogBody className={Classes.DIALOG_BODY}>
-                    <Input
+                    <TextInput
                         label="Name"
                         name="name"
                         disabled={isDisabled}
-                        rules={{
-                            required: true,
-                            validate: {
-                                unique_column_name: (columnName) =>
-                                    !dimensions
-                                        .concat(metrics)
-                                        .concat(
-                                            tableCalculations
-                                                .filter(
-                                                    ({ name }) =>
-                                                        !tableCalculation ||
-                                                        name !==
-                                                            tableCalculation.name,
-                                                )
-                                                .map(
-                                                    ({ displayName }) =>
-                                                        displayName,
-                                                ),
-                                        )
-                                        .some(
-                                            (fieldName) =>
-                                                fieldName ===
-                                                snakeCaseName(columnName),
-                                        ) ||
-                                    'Column with same name already exists',
-                            },
+                        required
+                        value={tableCalculationName}
+                        onChange={(e) => {
+                            methods.setValue('name', e.target.value);
                         }}
                     />
                     <Tabs defaultValue="sqlEditor">
@@ -314,23 +288,23 @@ const TableCalculationModal: FC<Props> = ({
                                     placeholder={SQL_PLACEHOLDER}
                                 />
                             </TableCalculationSqlInputWrapper>
+                            <Callout intent="none" icon="clean">
+                                <p>
+                                    Need inspiration?{' '}
+                                    <Anchor
+                                        target="_blank"
+                                        href="https://docs.lightdash.com/guides/table-calculations/sql-templates"
+                                        rel="noreferrer"
+                                    >
+                                        Check out our templates!
+                                    </Anchor>
+                                </p>
+                            </Callout>
                         </Tabs.Panel>
                         <Tabs.Panel value="format">
                             <TableCalculationFormatForm methods={methods} />
                         </Tabs.Panel>
                     </Tabs>
-                    <Callout intent="none" icon="clean">
-                        <p>
-                            Need inspiration?{' '}
-                            <Anchor
-                                target="_blank"
-                                href="https://docs.lightdash.com/guides/table-calculations/sql-templates"
-                                rel="noreferrer"
-                            >
-                                Check out our templates!
-                            </Anchor>
-                        </p>
-                    </Callout>
                 </DialogBody>
                 <div className={Classes.DIALOG_FOOTER}>
                     <DialogButtons className={Classes.DIALOG_FOOTER_ACTIONS}>

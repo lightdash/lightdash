@@ -283,14 +283,17 @@ export function formatNumberWithSeparator(
     const options =
         round <= 0
             ? {
-                  maximumSignificantDigits:
+                  maximumSignificantDigits: Math.max(
                       Math.floor(value).toString().length + round,
+                      1,
+                  ),
                   maximumFractionDigits: 0,
               }
             : {
-                  maximumFractionDigits: round,
-                  minimumFractionDigits: round,
+                  maximumFractionDigits: Math.min(round, 20),
+                  minimumFractionDigits: Math.min(round, 20),
               };
+
     switch (separator) {
         case NumberSeparator.COMMA_PERIOD:
             return value.toLocaleString('en-US', options);

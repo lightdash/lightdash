@@ -9,6 +9,7 @@ import {
     Field,
     findItem,
     formatItemValue,
+    formatTableCalculationValue,
     formatValue,
     friendlyName,
     getAxisName,
@@ -585,7 +586,11 @@ type GetSimpleSeriesArg = {
     series: Series;
     items: Array<Field | TableCalculation>;
     formats:
-        | Record<string, Pick<CompiledField, 'format' | 'round' | 'compact'>>
+        | Record<
+              string,
+              | Pick<CompiledField, 'format' | 'round' | 'compact'>
+              | TableCalculation
+          >
         | undefined;
     flipAxes: boolean | undefined;
     yFieldHash: string;
@@ -633,12 +638,21 @@ const getSimpleSeries = ({
             ...series.label,
             ...(formats &&
                 formats[yFieldHash] && {
-                    formatter: (value: any) =>
-                        formatValue(value?.value?.[yFieldHash], {
-                            format: formats[yFieldHash].format,
-                            round: formats[yFieldHash].round,
-                            compact: formats[yFieldHash].compact,
-                        }),
+                    formatter: (value: any) => {
+                        const field = formats[yFieldHash];
+                        if ('round' in field) {
+                            return formatValue(value?.value?.[yFieldHash], {
+                                format: field.format,
+                                round: field.round,
+                                compact: field.compact,
+                            });
+                        } else {
+                            return formatTableCalculationValue(
+                                field as TableCalculation,
+                                value?.value?.[yFieldHash],
+                            );
+                        }
+                    },
                 }),
         },
         labelLayout: {
@@ -1173,6 +1187,7 @@ const useEcharts = () => {
                 ? getFieldMap(
                       explore,
                       resultsData?.metricQuery.additionalMetrics,
+                      resultsData?.metricQuery.tableCalculations,
                   )
                 : undefined,
         [explore, resultsData],

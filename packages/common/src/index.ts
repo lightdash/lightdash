@@ -19,6 +19,7 @@ import {
     FieldId,
     fieldId,
     FilterableField,
+    isTableCalculation,
     Metric,
     TableCalculation,
 } from './types/field';
@@ -675,11 +676,18 @@ export const getAxisName = ({
 export function getFieldMap(
     explore: Explore,
     additionalMetrics: AdditionalMetric[] = [],
+    tableCalculations: TableCalculation[] = [],
 ): Record<string, CompiledField | AdditionalMetric> {
-    return [...getFields(explore), ...additionalMetrics].reduce(
+    return [
+        ...getFields(explore),
+        ...tableCalculations,
+        ...additionalMetrics,
+    ].reduce(
         (sum, field) => ({
             ...sum,
-            [fieldId(field)]: field,
+            [!isAdditionalMetric(field) && isTableCalculation(field)
+                ? field.name
+                : fieldId(field)]: field,
         }),
         {},
     );

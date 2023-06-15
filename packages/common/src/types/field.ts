@@ -177,6 +177,7 @@ export interface CompiledDimension extends Dimension {
 }
 
 export type CompiledField = CompiledDimension | CompiledMetric;
+
 export const isDimension = (field: any): field is Dimension =>
     isField(field) && field.fieldType === FieldType.DIMENSION;
 
