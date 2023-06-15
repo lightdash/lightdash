@@ -6,6 +6,7 @@ import {
     Field,
     FieldTarget,
     FilterRule,
+    isAdditionalMetric,
     isDimension,
     isField,
     isFilterableField,
@@ -17,8 +18,6 @@ import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import FilterRuleForm from '../../common/Filters/FilterRuleForm';
 import { useFiltersContext } from '../../common/Filters/FiltersProvider';
 import { addFieldRefToFilterRule } from './utils';
-
-// TODO: see if baseFieldId is a correct way of dealing with edit mode custom metric modal
 
 export interface MetricFilterRuleWithFieldId
     extends FilterRule<
@@ -42,8 +41,12 @@ export const FilterForm: FC<{
 
     const addFieldRule = useCallback(
         (field: Field | TableCalculation | Dimension | AdditionalMetric) => {
-            if ('baseFieldId' in field && field.baseFieldId) {
-                const baseFieldName = `${field.table}_${field.baseFieldId}`;
+            if (
+                isAdditionalMetric(field) &&
+                'baseDimension' in field &&
+                field.baseDimension
+            ) {
+                const baseFieldName = `${field.table}_${field.baseDimension.name}`;
 
                 const baseField = fieldsMap[baseFieldName];
                 const newFilterRule = createFilterRuleFromField(

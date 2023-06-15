@@ -138,22 +138,36 @@ export const CustomMetricModal: FC<Props> = ({
             if (
                 isEditMode &&
                 isAdditionalMetric(item) &&
-                isAdditionalMetric(dimension) &&
-                customMetricName
+                customMetricName &&
+                item.baseDimension
             ) {
-                editAdditionalMetric({
-                    ...item,
-                    name: snakeCaseName(customMetricName),
-                    label: customMetricName,
-                    sql: dimension.sql,
-                    type,
-                    ...(customMetricFilters.length > 0 && {
-                        filters: customMetricFilters,
-                    }),
-                    ...format,
-                    ...round,
-                    ...compact,
-                });
+                editAdditionalMetric(
+                    {
+                        ...item,
+                        name: `${item.baseDimension.name}_${snakeCaseName(
+                            customMetricName ?? '',
+                        )}`,
+                        description: `${friendlyName(type)} of ${
+                            dimension.label
+                        } on the table ${item.baseDimension.tableLabel} ${
+                            customMetricFilters.length > 0
+                                ? `with filters ${customMetricFilters
+                                      .map((filter) => filter.target.fieldRef)
+                                      .join(', ')}`
+                                : ''
+                        }`,
+                        label: customMetricName,
+                        sql: dimension.sql,
+                        type,
+                        ...(customMetricFilters.length > 0 && {
+                            filters: customMetricFilters,
+                        }),
+                        ...format,
+                        ...round,
+                        ...compact,
+                    },
+                    `${item.table}_${item.name}`,
+                );
             } else if (isDimension(dimension)) {
                 addAdditionalMetric({
                     id: uuidv4(),
@@ -165,12 +179,26 @@ export const CustomMetricModal: FC<Props> = ({
                     sql: dimension.sql,
                     description: `${friendlyName(type)} of ${
                         dimension.label
-                    } on the table ${dimension.tableLabel}`,
+                    } on the table ${dimension.tableLabel} ${
+                        customMetricFilters.length > 0
+                            ? `with filters ${customMetricFilters
+                                  .map((filter) => filter.target.fieldRef)
+                                  .join(', ')}`
+                            : ''
+                    }`,
                     type,
                     ...(customMetricFilters.length > 0 && {
                         filters: customMetricFilters,
                     }),
-                    baseFieldId: dimension.name,
+                    baseDimension: {
+                        name: dimension.name,
+                        type: dimension.type,
+                        label: dimension.label,
+                        table: dimension.table,
+                        fieldType: dimension.fieldType,
+                        description: dimension.description,
+                        tableLabel: dimension.tableLabel,
+                    },
                     ...format,
                     ...round,
                     ...compact,
