@@ -1,6 +1,6 @@
 import { Button, Callout, Classes, Intent } from '@blueprintjs/core';
 import { snakeCaseName, TableCalculation } from '@lightdash/common';
-import { Anchor } from '@mantine/core';
+import { Anchor, Text } from '@mantine/core';
 import { FC } from 'react';
 import { useForm } from 'react-hook-form';
 import { useToggle } from 'react-use';
@@ -185,7 +185,7 @@ const TableCalculationModal: FC<Props> = ({
                         />
                     </TableCalculationSqlInputWrapper>
                     <Callout intent="none" icon="clean">
-                        <p>
+                        <Text>
                             Need inspiration?{' '}
                             <Anchor
                                 target="_blank"
@@ -194,7 +194,7 @@ const TableCalculationModal: FC<Props> = ({
                             >
                                 Check out our templates!
                             </Anchor>
-                        </p>
+                        </Text>
                     </Callout>
                 </DialogBody>
                 <div className={Classes.DIALOG_FOOTER}>
