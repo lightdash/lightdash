@@ -56,13 +56,7 @@ const BasePanel = () => {
     }
 
     if (exploresResult.status === 'error') {
-        return (
-            <NonIdealState
-                icon="error"
-                title="Could not load explores"
-                description="Check error toasts for more details"
-            />
-        );
+        return <NonIdealState icon="error" title="Could not load explores" />;
     }
 
     if (exploresResult.data) {

@@ -80,7 +80,7 @@ export const ErrorLogsProvider: FC = ({ children }) => {
                     subtitle: errorLog.body,
                     key: errorLog.timestamp.toString(),
                     onDismiss: () => deleteError(errorLogs.indexOf(errorLog)),
-                    timeout: 3000,
+                    timeout: 5000,
                 });
             });
         }
