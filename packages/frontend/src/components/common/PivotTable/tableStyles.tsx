@@ -40,20 +40,14 @@ export const usePivotTableStyles = createStyles((theme) => ({
 
     floatingHeader: {
         position: 'absolute',
-        top: -1,
-        right: -1,
-        bottom: 0,
-        left: -1,
+        inset: '-1px -1px 0 -1px',
         background: theme.colors.gray[3],
         zIndex: 1,
     },
 
     floatingHeaderShadow: {
         position: 'inherit',
-        top: 0,
-        right: 0,
-        bottom: 0,
-        left: 0,
+        inset: 0,
 
         transition: 'opacity 200ms ease-in-out',
         opacity: 0,
