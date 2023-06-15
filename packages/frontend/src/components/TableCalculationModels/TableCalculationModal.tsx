@@ -111,6 +111,7 @@ const TableCalculationFormatForm: FC<{
                 />
 
                 <Text ml="md" mt={30} color="gray.6">
+                    {'Looks like: '}
                     {formatTableCalculationValue(
                         {
                             name: 'preview',
