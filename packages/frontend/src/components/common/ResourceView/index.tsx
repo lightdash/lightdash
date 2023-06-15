@@ -84,7 +84,7 @@ const ResourceView: React.FC<ResourceViewProps> = ({
         type: ResourceViewItemAction.CLOSE,
     });
 
-    const [activeTabId, setActiveTabId] = useState<string | null>(null);
+    const [activeTabId, setActiveTabId] = useState(tabs?.[0].id);
 
     const handleAction = useCallback(
         (newAction: ResourceViewItemActionState) => {
@@ -97,11 +97,21 @@ const ResourceView: React.FC<ResourceViewProps> = ({
         let sortedItems = items;
 
         const activeTab = tabs?.find((tab) => tab.id === activeTabId);
-        if (activeTab && activeTab.sort) {
+        console.log('activeTab', activeTab);
+        console.log('items', items);
+        if (
+            activeTab &&
+            activeTab.sort &&
+            items.some((item) => item.type === activeTab.id)
+        ) {
             sortedItems = items.sort(activeTab.sort);
         }
 
-        if (activeTab && activeTab.filter) {
+        if (
+            activeTab &&
+            activeTab.filter &&
+            items.some((item) => item.type === activeTab.id)
+        ) {
             sortedItems = sortedItems.filter(activeTab.filter);
         }
 
