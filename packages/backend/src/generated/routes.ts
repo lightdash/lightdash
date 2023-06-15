@@ -2235,6 +2235,7 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        chartName: { dataType: 'string' },
                         chartViews: { dataType: 'double', required: true },
                         lastUpdatedAt: { dataType: 'datetime' },
                         lastUpdatedBy: { dataType: 'string' },
@@ -4639,10 +4640,10 @@ export function RegisterRoutes(app: express.Router) {
         '/api/v1/projects/:projectUuid/spaces/:spaceUuid/share/:userUuid',
         ...fetchMiddlewares<RequestHandler>(SpaceController),
         ...fetchMiddlewares<RequestHandler>(
-            SpaceController.prototype.revokeProjectAccessForUser,
+            SpaceController.prototype.revokeSpaceAccessForUser,
         ),
 
-        function SpaceController_revokeProjectAccessForUser(
+        function SpaceController_revokeSpaceAccessForUser(
             request: any,
             response: any,
             next: any,
@@ -4682,7 +4683,7 @@ export function RegisterRoutes(app: express.Router) {
 
                 const controller = new SpaceController();
 
-                const promise = controller.revokeProjectAccessForUser.apply(
+                const promise = controller.revokeSpaceAccessForUser.apply(
                     controller,
                     validatedArgs as any,
                 );
