@@ -2,7 +2,6 @@ import {
     CompactOrAlias,
     CompiledMetric,
     CompiledTableCalculation,
-    Dimension,
     FieldId,
     friendlyName,
     MetricType,
@@ -23,16 +22,7 @@ export interface AdditionalMetric {
     name: string;
     index?: number;
     filters?: MetricFilterRule[];
-    baseDimension?: Pick<
-        Dimension,
-        | 'name'
-        | 'type'
-        | 'label'
-        | 'table'
-        | 'fieldType'
-        | 'description'
-        | 'tableLabel'
-    >;
+    baseDimensionName?: string;
     id?: string;
 }
 

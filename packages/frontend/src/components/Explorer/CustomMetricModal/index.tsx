@@ -139,17 +139,17 @@ export const CustomMetricModal: FC<Props> = ({
                 isEditMode &&
                 isAdditionalMetric(item) &&
                 customMetricName &&
-                item.baseDimension
+                item.baseDimensionName
             ) {
                 editAdditionalMetric(
                     {
                         ...item,
-                        name: `${item.baseDimension.name}_${snakeCaseName(
+                        name: `${item.baseDimensionName}_${snakeCaseName(
                             customMetricName ?? '',
                         )}`,
                         description: `${friendlyName(type)} of ${
                             dimension.label
-                        } on the table ${item.baseDimension.tableLabel} ${
+                        } on the table ${data?.tables[item.table].label} ${
                             customMetricFilters.length > 0
                                 ? `with filters ${customMetricFilters
                                       .map((filter) => filter.target.fieldRef)
@@ -190,15 +190,7 @@ export const CustomMetricModal: FC<Props> = ({
                     ...(customMetricFilters.length > 0 && {
                         filters: customMetricFilters,
                     }),
-                    baseDimension: {
-                        name: dimension.name,
-                        type: dimension.type,
-                        label: dimension.label,
-                        table: dimension.table,
-                        fieldType: dimension.fieldType,
-                        description: dimension.description,
-                        tableLabel: dimension.tableLabel,
-                    },
+                    baseDimensionName: dimension.name,
                     ...format,
                     ...round,
                     ...compact,
@@ -210,6 +202,7 @@ export const CustomMetricModal: FC<Props> = ({
             addAdditionalMetric,
             customMetricFiltersWithIds,
             customMetricName,
+            data?.tables,
             editAdditionalMetric,
             isEditMode,
             item,

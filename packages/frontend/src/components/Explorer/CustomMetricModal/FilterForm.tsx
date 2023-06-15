@@ -43,10 +43,10 @@ export const FilterForm: FC<{
         (field: Field | TableCalculation | Dimension | AdditionalMetric) => {
             if (
                 isAdditionalMetric(field) &&
-                'baseDimension' in field &&
-                field.baseDimension
+                'baseDimensionName' in field &&
+                field.baseDimensionName
             ) {
-                const baseFieldName = `${field.table}_${field.baseDimension.name}`;
+                const baseFieldName = `${field.table}_${field.baseDimensionName}`;
 
                 const baseField = fieldsMap[baseFieldName];
                 const newFilterRule = createFilterRuleFromField(
