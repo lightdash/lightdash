@@ -399,44 +399,6 @@ projectRouter.patch(
     },
 );
 
-projectRouter.post(
-    '/spaces/:spaceUUid/share',
-    allowApiKeyAuthentication,
-    isAuthenticated,
-    unauthorisedInDemo,
-    async (req, res, next) => {
-        spaceService
-            .addSpaceShare(req.user!, req.params.spaceUUid, req.body.userUuid)
-            .then(() => {
-                res.json({
-                    status: 'ok',
-                });
-            })
-            .catch(next);
-    },
-);
-
-projectRouter.delete(
-    '/spaces/:spaceUUid/share/:userUuid',
-    allowApiKeyAuthentication,
-    isAuthenticated,
-    unauthorisedInDemo,
-    async (req, res, next) => {
-        spaceService
-            .removeSpaceShare(
-                req.user!,
-                req.params.spaceUUid,
-                req.params.userUuid,
-            )
-            .then(() => {
-                res.json({
-                    status: 'ok',
-                });
-            })
-            .catch(next);
-    },
-);
-
 projectRouter.get(
     '/dashboards',
     allowApiKeyAuthentication,

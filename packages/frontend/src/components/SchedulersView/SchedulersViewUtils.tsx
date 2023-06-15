@@ -14,14 +14,13 @@ import {
     IconProgress,
 } from '@tabler/icons-react';
 import moment from 'moment';
-import React from 'react';
 import MantineIcon from '../common/MantineIcon';
 import { IconBox } from '../common/ResourceIcon';
 
 export type SchedulerItem = SchedulerWithLogs['schedulers'][number];
 export type Log = SchedulerWithLogs['logs'][number];
 
-type ColumnName =
+export type SchedulerColumnName =
     | 'name'
     | 'destinations'
     | 'frequency'
@@ -31,15 +30,6 @@ type ColumnName =
     | 'deliveryScheduled'
     | 'deliveryStarted'
     | 'status';
-
-export interface Column {
-    id: ColumnName;
-    label?: string;
-    cell: (item: SchedulerItem) => React.ReactNode;
-    meta?: {
-        style: React.CSSProperties;
-    };
-}
 
 export const getSchedulerIcon = (item: SchedulerItem, theme: MantineTheme) => {
     switch (item.format) {
@@ -127,6 +117,3 @@ export const getItemLink = (item: SchedulerItem, projectUuid: string) => {
 
 export const formatTime = (date: Date) =>
     moment(date).format('YYYY/MM/DD HH:mm A');
-
-export const camelCaseToFlat = (str: string | undefined) =>
-    str ? str.replace(/([A-Z])/g, ' $1').toLowerCase() : undefined;

@@ -2070,6 +2070,22 @@ const models: TsoaRoute.Models = {
         type: { ref: 'Pick_Space.name-or-isPrivate_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_SpaceShare.userUuid_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                userUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AddSpaceShare: {
+        dataType: 'refAlias',
+        type: { ref: 'Pick_SpaceShare.userUuid_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_SshKeyPair.publicKey_': {
         dataType: 'refAlias',
         type: {
@@ -2253,6 +2269,7 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        chartName: { dataType: 'string' },
                         chartViews: { dataType: 'double', required: true },
                         lastUpdatedAt: { dataType: 'datetime' },
                         lastUpdatedBy: { dataType: 'string' },
@@ -4636,6 +4653,122 @@ export function RegisterRoutes(app: express.Router) {
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.post(
+        '/api/v1/projects/:projectUuid/spaces/:spaceUuid/share',
+        ...fetchMiddlewares<RequestHandler>(SpaceController),
+        ...fetchMiddlewares<RequestHandler>(
+            SpaceController.prototype.addSpaceShare,
+        ),
+
+        function SpaceController_addSpaceShare(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                spaceUuid: {
+                    in: 'path',
+                    name: 'spaceUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                body: {
+                    in: 'body',
+                    name: 'body',
+                    required: true,
+                    ref: 'AddSpaceShare',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const controller = new SpaceController();
+
+                const promise = controller.addSpaceShare.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.delete(
+        '/api/v1/projects/:projectUuid/spaces/:spaceUuid/share/:userUuid',
+        ...fetchMiddlewares<RequestHandler>(SpaceController),
+        ...fetchMiddlewares<RequestHandler>(
+            SpaceController.prototype.revokeSpaceAccessForUser,
+        ),
+
+        function SpaceController_revokeSpaceAccessForUser(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                spaceUuid: {
+                    in: 'path',
+                    name: 'spaceUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                userUuid: {
+                    in: 'path',
+                    name: 'userUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const controller = new SpaceController();
+
+                const promise = controller.revokeSpaceAccessForUser.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.post(
         '/api/v1/ssh/key-pairs',
         ...fetchMiddlewares<RequestHandler>(SshController),
         ...fetchMiddlewares<RequestHandler>(
@@ -4907,6 +5040,18 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'object',
                 },
+                body: {
+                    in: 'body',
+                    name: 'body',
+                    required: true,
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        explores: {
+                            dataType: 'array',
+                            array: { dataType: 'any' },
+                        },
+                    },
+                },
             };
 
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -4956,6 +5101,7 @@ export function RegisterRoutes(app: express.Router) {
                     name: 'fromSettings',
                     dataType: 'boolean',
                 },
+                jobId: { in: 'query', name: 'jobId', dataType: 'string' },
             };
 
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa

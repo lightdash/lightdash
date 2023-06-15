@@ -3,6 +3,7 @@ import { ColorScheme, MantineThemeOverride, rem } from '@mantine/core';
 
 export const getMantineThemeOverride = (overrides?: {
     colorScheme?: ColorScheme;
+    components?: Partial<MantineThemeOverride['components']>;
 }): MantineThemeOverride => ({
     ...overrides,
 
@@ -122,6 +123,8 @@ export const getMantineThemeOverride = (overrides?: {
                 },
             }),
         },
+
+        ...overrides?.components,
     },
 
     globalStyles: (theme) => ({

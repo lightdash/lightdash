@@ -1,3 +1,115 @@
+## [0.613.2](https://github.com/lightdash/lightdash/compare/0.613.1...0.613.2) (2023-06-15)
+
+
+### Bug Fixes
+
+* correct the method name to revoke space-level access ([#5907](https://github.com/lightdash/lightdash/issues/5907)) ([2d6cb07](https://github.com/lightdash/lightdash/commit/2d6cb07ad15650365c88ad5bb706f6e42c582f2e))
+
+## [0.613.1](https://github.com/lightdash/lightdash/compare/0.613.0...0.613.1) (2023-06-14)
+
+
+### Bug Fixes
+
+* duplicated chart ([#5899](https://github.com/lightdash/lightdash/issues/5899)) ([cd1c79c](https://github.com/lightdash/lightdash/commit/cd1c79cc06a1d326fdbcb9cab730e38274691e5e))
+
+# [0.613.0](https://github.com/lightdash/lightdash/compare/0.612.0...0.613.0) (2023-06-14)
+
+
+### Features
+
+* stick table names to the top while scrolling ([#5845](https://github.com/lightdash/lightdash/issues/5845)) ([e0309fc](https://github.com/lightdash/lightdash/commit/e0309fc3c019902f75afe3c2ed904c8dc3705ce1))
+
+# [0.612.0](https://github.com/lightdash/lightdash/compare/0.611.3...0.612.0) (2023-06-14)
+
+
+### Features
+
+* user management panel should be a table ([#5878](https://github.com/lightdash/lightdash/issues/5878)) ([cd81dfa](https://github.com/lightdash/lightdash/commit/cd81dfa567cddff365d948d9e736a92dc05ac6c8))
+
+## [0.611.3](https://github.com/lightdash/lightdash/compare/0.611.2...0.611.3) (2023-06-14)
+
+
+### Bug Fixes
+
+* add gap between label and comparison ([#5895](https://github.com/lightdash/lightdash/issues/5895)) ([e9fb9a7](https://github.com/lightdash/lightdash/commit/e9fb9a70899e93ca256f2a3f45ba79d3c23d4f67))
+
+## [0.611.2](https://github.com/lightdash/lightdash/compare/0.611.1...0.611.2) (2023-06-14)
+
+
+### Bug Fixes
+
+* show all runs in scheduled deliveries dash ([#5884](https://github.com/lightdash/lightdash/issues/5884)) ([a2113e4](https://github.com/lightdash/lightdash/commit/a2113e4fe118b9dd155f770df5ab3731c7907efb))
+
+## [0.611.1](https://github.com/lightdash/lightdash/compare/0.611.0...0.611.1) (2023-06-14)
+
+
+### Bug Fixes
+
+* docs typo of command ([#5881](https://github.com/lightdash/lightdash/issues/5881)) ([a7e898d](https://github.com/lightdash/lightdash/commit/a7e898d5f47390baf8219895b7d2425cbcd17f9a))
+
+# [0.611.0](https://github.com/lightdash/lightdash/compare/0.610.0...0.611.0) (2023-06-13)
+
+
+### Features
+
+* Add APIs to add and revoke space-level access ([#5849](https://github.com/lightdash/lightdash/issues/5849)) ([479cb63](https://github.com/lightdash/lightdash/commit/479cb632cf03ecf6302a64875c57469c0a42d471))
+
+# [0.610.0](https://github.com/lightdash/lightdash/compare/0.609.2...0.610.0) (2023-06-13)
+
+
+### Features
+
+* migrate InviteSuccess to Mantine ([#5871](https://github.com/lightdash/lightdash/issues/5871)) ([d1a1143](https://github.com/lightdash/lightdash/commit/d1a1143edcc3675dbaea2b0f2695c24d62ef0c1f))
+
+## [0.609.2](https://github.com/lightdash/lightdash/compare/0.609.1...0.609.2) (2023-06-13)
+
+
+### Bug Fixes
+
+* remove unwanted footer text for unsupported ([#5846](https://github.com/lightdash/lightdash/issues/5846)) ([e18d54c](https://github.com/lightdash/lightdash/commit/e18d54caf41e67271f667da591a75119637226b1))
+
+## [0.609.1](https://github.com/lightdash/lightdash/compare/0.609.0...0.609.1) (2023-06-13)
+
+
+### Bug Fixes
+
+* prevent pivot table in third parties ([#5864](https://github.com/lightdash/lightdash/issues/5864)) ([b6cc8dd](https://github.com/lightdash/lightdash/commit/b6cc8dd11f9f2f7f2b47148afab208831cdcadf5))
+
+# [0.609.0](https://github.com/lightdash/lightdash/compare/0.608.0...0.609.0) (2023-06-13)
+
+
+### Features
+
+* validate against prod ([#5808](https://github.com/lightdash/lightdash/issues/5808)) ([965793e](https://github.com/lightdash/lightdash/commit/965793ea34c1aef8db7d50fa1d3015a8fbb9731a))
+
+# [0.608.0](https://github.com/lightdash/lightdash/compare/0.607.0...0.608.0) (2023-06-12)
+
+
+### Features
+
+* open SQL from explore in query runner ([#5843](https://github.com/lightdash/lightdash/issues/5843)) ([3f234d4](https://github.com/lightdash/lightdash/commit/3f234d487f1ceb1b638926a446f1df7892765353))
+
+# [0.607.0](https://github.com/lightdash/lightdash/compare/0.606.0...0.607.0) (2023-06-12)
+
+
+### Features
+
+* migrate user management settings to mantine ([#5857](https://github.com/lightdash/lightdash/issues/5857)) ([4089ef9](https://github.com/lightdash/lightdash/commit/4089ef9f334680b66eb008d4f0a6949102be0027))
+
+# [0.606.0](https://github.com/lightdash/lightdash/compare/0.605.1...0.606.0) (2023-06-12)
+
+
+### Features
+
+* keep validation if content deleted ([#5860](https://github.com/lightdash/lightdash/issues/5860)) ([8294fea](https://github.com/lightdash/lightdash/commit/8294fea5a43b4d3c762c1ae4ef672cbba95c3216))
+
+## [0.605.1](https://github.com/lightdash/lightdash/compare/0.605.0...0.605.1) (2023-06-12)
+
+
+### Bug Fixes
+
+* update snowflake sdk ([#5856](https://github.com/lightdash/lightdash/issues/5856)) ([bb797be](https://github.com/lightdash/lightdash/commit/bb797be088d017f5b62c265ca45b88275df30824))
+
 # [0.605.0](https://github.com/lightdash/lightdash/compare/0.604.0...0.605.0) (2023-06-12)
 
 

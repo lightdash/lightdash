@@ -157,6 +157,7 @@ export class ValidationService {
                 name: chart.name,
                 projectUuid: chart.projectUuid,
                 source: ValidationSourceType.Chart,
+                chartName: chart.name,
             };
             const containsFieldId = ({
                 acc,
@@ -397,10 +398,19 @@ export class ValidationService {
         return results;
     }
 
-    async generateValidation(projectUuid: string): Promise<CreateValidation[]> {
-        const explores = await this.projectModel.getExploresFromCache(
-            projectUuid,
+    async generateValidation(
+        projectUuid: string,
+        compiledExplores?: (Explore | ExploreError)[],
+    ): Promise<CreateValidation[]> {
+        Logger.debug(
+            `Generating validation for project ${projectUuid} with explores ${
+                compiledExplores ? 'from CLI' : 'from cache'
+            }`,
         );
+        const explores =
+            compiledExplores !== undefined
+                ? compiledExplores
+                : await this.projectModel.getExploresFromCache(projectUuid);
 
         const existingFields = explores?.reduce<CompiledField[]>(
             (acc, explore) => {
@@ -451,6 +461,7 @@ export class ValidationService {
         user: SessionUser,
         projectUuid: string,
         context?: RequestMethod,
+        explores?: (Explore | ExploreError)[],
     ): Promise<string> {
         const { organizationUuid } = await this.projectModel.get(projectUuid);
 
@@ -473,6 +484,7 @@ export class ValidationService {
             projectUuid,
             context: fromCLI ? 'cli' : 'lightdash_app',
             organizationUuid: user.organizationUuid,
+            explores,
         });
         return jobId;
     }
@@ -480,11 +492,13 @@ export class ValidationService {
     async storeValidation(
         projectUuid: string,
         validationErrors: CreateValidation[],
+        jobId?: string,
     ) {
-        await this.validationModel.delete(projectUuid);
+        // If not storing for an specific CLI validation, delete previous validations
+        if (jobId === undefined) await this.validationModel.delete(projectUuid);
 
         if (validationErrors.length > 0)
-            await this.validationModel.create(validationErrors);
+            await this.validationModel.create(validationErrors, jobId);
     }
 
     async hidePrivateContent(
@@ -514,6 +528,7 @@ export class ValidationService {
         user: SessionUser,
         projectUuid: string,
         fromSettings = false,
+        jobId?: string,
     ): Promise<ValidationResponse[]> {
         const { organizationUuid } = await this.projectModel.get(projectUuid);
 
@@ -528,7 +543,7 @@ export class ValidationService {
         ) {
             throw new ForbiddenError();
         }
-        const validations = await this.validationModel.get(projectUuid);
+        const validations = await this.validationModel.get(projectUuid, jobId);
 
         if (fromSettings) {
             const contentIds = validations.map(

@@ -275,4 +275,33 @@ describe('Explore', () => {
             });
         });
     });
+
+    it('Should open SQL Runner with current query', () => {
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
+
+        cy.findByText('Orders').click();
+        cy.findByText('Is completed').click();
+
+        // open SQL
+        cy.findByText('SQL').parent().findByRole('button').click();
+
+        // wait to compile query
+        cy.findByText('Open in SQL Runner').parent().should('not.be.disabled');
+
+        cy.get('pre > code').then(($code) => {
+            const queryLines = $code.text().split('\n');
+
+            // follow link
+            cy.findByText('Open in SQL Runner').parent().click();
+
+            // wait page loading
+            cy.get('.ace_content').should('exist');
+
+            // compare SQL query
+            cy.get('.ace_line').should('have.length', queryLines.length);
+            cy.get('.ace_line').each(($line, index) => {
+                cy.wrap($line).should('have.text', queryLines[index]);
+            });
+        });
+    });
 });

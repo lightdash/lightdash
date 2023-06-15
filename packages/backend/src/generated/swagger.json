@@ -2320,6 +2320,19 @@
             "UpdateSpace": {
                 "$ref": "#/components/schemas/Pick_Space.name-or-isPrivate_"
             },
+            "Pick_SpaceShare.userUuid_": {
+                "properties": {
+                    "userUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["userUuid"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "AddSpaceShare": {
+                "$ref": "#/components/schemas/Pick_SpaceShare.userUuid_"
+            },
             "Pick_SshKeyPair.publicKey_": {
                 "properties": {
                     "publicKey": {
@@ -2544,6 +2557,9 @@
                     },
                     {
                         "properties": {
+                            "chartName": {
+                                "type": "string"
+                            },
                             "chartViews": {
                                 "type": "number",
                                 "format": "double"
@@ -2716,7 +2732,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.605.0",
+        "version": "0.613.2",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -4794,6 +4810,124 @@
                 }
             }
         },
+        "/api/v1/projects/{projectUuid}/spaces/{spaceUuid}/share": {
+            "post": {
+                "operationId": "AddSpaceShareToUser",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Grant a user access to a space",
+                "tags": ["Roles & Permissions", "Spaces"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The uuid of the space's parent project",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "spaceUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AddSpaceShare"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/spaces/{spaceUuid}/share/{userUuid}": {
+            "delete": {
+                "operationId": "RevokeSpaceAccessForUser",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Remove a user's access to a space",
+                "tags": ["Roles & Permissions", "Spaces"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The uuid of the space's parent project",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "The uuid of the space to update",
+                        "in": "path",
+                        "name": "spaceUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "The uuid of the user to revoke access from",
+                        "in": "path",
+                        "name": "userUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/ssh/key-pairs": {
             "post": {
                 "operationId": "createSshKeyPair",
@@ -5037,7 +5171,25 @@
                             "type": "string"
                         }
                     }
-                ]
+                ],
+                "requestBody": {
+                    "description": "the compiled explores to validate against an existing project, this is used in the CLI to validate a project without creating a preview",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "explores": {
+                                        "items": {},
+                                        "type": "array"
+                                    }
+                                },
+                                "type": "object",
+                                "description": "the compiled explores to validate against an existing project, this is used in the CLI to validate a project without creating a preview"
+                            }
+                        }
+                    }
+                }
             },
             "get": {
                 "operationId": "GetLatestValidationResults",
@@ -5083,6 +5235,15 @@
                         "required": false,
                         "schema": {
                             "type": "boolean"
+                        }
+                    },
+                    {
+                        "description": "optional jobId to get results for a specific job, used on CLI",
+                        "in": "query",
+                        "name": "jobId",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 ]
