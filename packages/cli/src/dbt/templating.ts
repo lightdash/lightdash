@@ -1,7 +1,7 @@
 import * as nunjucks from 'nunjucks';
 
 // jinja filters
-const nunjucksEnv = new nunjucks.Environment();
+const nunjucksEnv = new nunjucks.Environment(null, { autoescape: false });
 nunjucksEnv.addFilter('as_number', (str) => parseFloat(str));
 
 // jinja global functions
