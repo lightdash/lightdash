@@ -1,6 +1,6 @@
 import { isField, SortField } from '@lightdash/common';
 import { ActionIcon, Box, Group, SegmentedControl, Text } from '@mantine/core';
-import { IconGripHorizontal, IconX } from '@tabler/icons-react';
+import { IconGripVertical, IconX } from '@tabler/icons-react';
 import { forwardRef } from 'react';
 import {
     DraggableProvidedDraggableProps,
@@ -82,7 +82,7 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                                 '&:hover': { opacity: 1 },
                             }}
                         >
-                            <MantineIcon icon={IconGripHorizontal} />
+                            <MantineIcon icon={IconGripVertical} />
                         </Box>
                     )}
 
