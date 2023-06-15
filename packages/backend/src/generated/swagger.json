@@ -2517,6 +2517,9 @@
                     },
                     {
                         "properties": {
+                            "chartName": {
+                                "type": "string"
+                            },
                             "chartViews": {
                                 "type": "number",
                                 "format": "double"
@@ -2689,7 +2692,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.605.0",
+        "version": "0.613.1",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -4797,7 +4800,7 @@
         },
         "/api/v1/projects/{projectUuid}/spaces/{spaceUuid}/share/{userUuid}": {
             "delete": {
-                "operationId": "RevokeProjectAccessForUser",
+                "operationId": "RevokeSpaceAccessForUser",
                 "responses": {
                     "200": {
                         "description": "Success",

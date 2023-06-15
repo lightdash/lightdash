@@ -198,9 +198,9 @@ export class SpaceController extends Controller {
     ])
     @SuccessResponse('200', 'Success')
     @Delete('{spaceUuid}/share/{userUuid}')
-    @OperationId('RevokeProjectAccessForUser')
+    @OperationId('RevokeSpaceAccessForUser')
     @Tags('Roles & Permissions')
-    async revokeProjectAccessForUser(
+    async revokeSpaceAccessForUser(
         @Path() projectUuid: string,
         @Path() spaceUuid: string,
         @Path() userUuid: string,
