@@ -91,7 +91,7 @@ const TableCalculationFormatForm: FC<{
     //once we use mantine form we should refactor this to remove onChange methods
 
     return (
-        <Box m="md">
+        <Box mt="md">
             <Flex>
                 <Select
                     w={200}
