@@ -103,7 +103,9 @@ export class DbtCliClient implements DbtClient {
     }
 
     static parseDbtJsonLogs(logs: string | undefined): DbtLog[] {
+        if (logs === undefined || logs === '') return [];
         const lines = logs?.split('\n');
+
         return (lines || []).reduce<DbtLog[]>((acc, line) => {
             try {
                 const log = JSON.parse(line);
@@ -118,7 +120,46 @@ export class DbtCliClient implements DbtClient {
         }, []);
     }
 
-    private async _runDbtCommand(...command: string[]): Promise<DbtLog[]> {
+    private async _runDbtEnvCommand(...command: string[]): Promise<DbtLog[]> {
+        // Undefined version means running dbt native without dbtenv
+        const versions = ['1.4.0', '1.5.0', undefined];
+
+        // eslint-disable-next-line no-restricted-syntax
+        for await (const version of versions) {
+            const dbtExec = version !== undefined ? 'dbtenv' : ' native dbt'; // just for logs
+            // TODO get right adapter
+            const adapter = 'postgres';
+            const dbtVersion =
+                version !== undefined
+                    ? `dbt-${adapter}==${version}`
+                    : undefined;
+            Logger.info(
+                `Running ${dbtExec} command "${command.join(
+                    ' ',
+                )}" with dbt version: ${dbtVersion}`,
+            );
+
+            try {
+                return await this._runDbtCommand(dbtVersion, ...command);
+            } catch (e) {
+                Sentry.captureException(e, { extra: { dbtExec, dbtVersion } });
+                Logger.warn(
+                    `Error running ${dbtExec} command "${command.join(
+                        ' ',
+                    )}" with version ${dbtVersion}: "${e}"`,
+                );
+                if (version === undefined) {
+                    throw e; // Throw last error
+                }
+            }
+        }
+        return [];
+    }
+
+    private async _runDbtCommand(
+        version?: string,
+        ...command: string[]
+    ): Promise<DbtLog[]> {
         const dbtArgs = [
             '--no-use-colors',
             '--log-format',
@@ -136,10 +177,18 @@ export class DbtCliClient implements DbtClient {
             dbtArgs.push('--profile', this.profileName);
         }
         try {
-            Logger.debug(`Running dbt command: dbt ${dbtArgs.join(' ')}`);
-            const dbtProcess = await execa('dbt', dbtArgs, {
+            const dbtExec = version !== undefined ? 'dbtenv' : 'dbt';
+            const dbtEnvArgs =
+                version !== undefined
+                    ? ['execute', '--dbt', version, '--']
+                    : [];
+
+            const args = [...dbtEnvArgs, ...dbtArgs];
+            Logger.debug(`Running dbt command: ${command} ${args.join(' ')}`);
+
+            const dbtProcess = await execa(dbtExec, args, {
                 all: true,
-                stdio: ['pipe', 'pipe', process.stderr],
+                stdio: ['pipe', 'pipe', process.stdout],
                 env: {
                     ...this.environment,
                 },
@@ -163,7 +212,7 @@ export class DbtCliClient implements DbtClient {
             op: 'dbt',
             description: 'installDeps',
         });
-        await this._runDbtCommand('deps');
+        await this._runDbtEnvCommand('deps');
         span?.finish();
     }
 
@@ -175,7 +224,7 @@ export class DbtCliClient implements DbtClient {
             op: 'dbt',
             description: 'getDbtManifest',
         });
-        const dbtLogs = await this._runDbtCommand('compile');
+        const dbtLogs = await this._runDbtEnvCommand('compile');
         const rawManifest = {
             manifest: await this.loadDbtTargetArtifact('manifest.json'),
         };
@@ -243,7 +292,7 @@ export class DbtCliClient implements DbtClient {
             op: 'dbt',
             description: 'getDbtbCatalog',
         });
-        const dbtLogs = await this._runDbtCommand('docs', 'generate');
+        const dbtLogs = await this._runDbtEnvCommand('docs', 'generate');
         const rawCatalog = await this.loadDbtTargetArtifact('catalog.json');
         span?.finish();
         if (isDbtRpcDocsGenerateResults(rawCatalog)) {
@@ -264,7 +313,7 @@ export class DbtCliClient implements DbtClient {
             description: 'test',
         });
         await this.installDeps();
-        await this._runDbtCommand('parse');
+        await this._runDbtEnvCommand('parse');
         span?.finish();
     }
 }
