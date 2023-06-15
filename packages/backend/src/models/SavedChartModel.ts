@@ -1,9 +1,11 @@
 import {
+    AdditionalMetric,
     ChartConfig,
     ChartSummary,
     CreateSavedChart,
     CreateSavedChartVersion,
     DBFieldTypes,
+    MetricFilterRule,
     NotFoundError,
     SavedChart,
     SessionUser,
@@ -23,6 +25,8 @@ import { ProjectTableName } from '../database/entities/projects';
 import {
     CreateDbSavedChartVersionField,
     CreateDbSavedChartVersionSort,
+    DBFilteredAdditionalMetrics,
+    DbSavedChartAdditionalMetric,
     DbSavedChartAdditionalMetricInsert,
     DbSavedChartTableCalculationInsert,
     SavedChartAdditionalMetricTableName,
@@ -192,6 +196,14 @@ const createSavedChartVersion = async (
                     round: additionalMetric.round,
                     format: additionalMetric.format,
                     saved_queries_version_id: version.saved_queries_version_id,
+                    filters:
+                        additionalMetric.filters &&
+                        additionalMetric.filters.length > 0
+                            ? JSON.stringify(additionalMetric.filters)
+                            : null,
+                    base_dimension_name:
+                        additionalMetric.baseDimensionName ?? null,
+                    id: additionalMetric.id ?? null,
                 }),
             );
         });
@@ -427,39 +439,60 @@ export class SavedChartModel {
                     'saved_queries_version_id',
                     savedQuery.saved_queries_version_id,
                 );
-            const additionalMetrics = await this.database(
-                SavedChartAdditionalMetricTableName,
-            )
-                .select([
-                    'table',
-                    'name',
-                    'type',
-                    'label',
-                    'description',
-                    'sql',
-                    'hidden',
-                    'round',
-                    'format',
-                ])
-                .where(
-                    'saved_queries_version_id',
-                    savedQuery.saved_queries_version_id,
-                );
+
+            const additionalMetricsRows: DbSavedChartAdditionalMetric[] =
+                await this.database(SavedChartAdditionalMetricTableName)
+                    .select([
+                        'table',
+                        'name',
+                        'type',
+                        'label',
+                        'description',
+                        'sql',
+                        'hidden',
+                        'round',
+                        'format',
+                        'filters',
+                        'base_dimension_name',
+                        'id',
+                    ])
+                    .where(
+                        'saved_queries_version_id',
+                        savedQuery.saved_queries_version_id,
+                    );
 
             // Filters out "null" fields
-            const additionalMetricsFiltered = additionalMetrics.map(
-                (addMetric) =>
-                    Object.keys(addMetric).reduce(
-                        (acc, key) => ({
-                            ...acc,
-                            [key]:
-                                addMetric[key] !== null
-                                    ? addMetric[key]
-                                    : undefined,
+            const additionalMetricsFiltered: DBFilteredAdditionalMetrics[] =
+                additionalMetricsRows.map(
+                    (addMetric) =>
+                        Object.fromEntries(
+                            Object.entries(addMetric).filter(
+                                ([_, value]) => value !== null,
+                            ),
+                        ) as DBFilteredAdditionalMetrics,
+                );
+
+            const additionalMetrics: AdditionalMetric[] =
+                additionalMetricsFiltered.map((additionalMetric) => ({
+                    name: additionalMetric.name,
+                    label: additionalMetric.label,
+                    description: additionalMetric.description,
+                    hidden: additionalMetric.hidden,
+                    round: additionalMetric.round,
+                    compact: additionalMetric.compact,
+                    format: additionalMetric.format,
+                    id: additionalMetric.id,
+                    sql: additionalMetric.sql,
+                    table: additionalMetric.table,
+                    type: additionalMetric.type,
+                    ...(additionalMetric.base_dimension_name && {
+                        baseDimensionName: additionalMetric.base_dimension_name,
+                    }),
+                    ...(additionalMetric.filters &&
+                        JSON.parse(additionalMetric.filters) && {
+                            filters: JSON.parse(additionalMetric.filters),
                         }),
-                        { ...addMetric },
-                    ),
-            );
+                }));
 
             const [dimensions, metrics]: [string[], string[]] = fields.reduce<
                 [string[], string[]]
@@ -511,7 +544,7 @@ export class SavedChartModel {
                             format: tableCalculation.format || undefined,
                         }),
                     ),
-                    additionalMetrics: additionalMetricsFiltered,
+                    additionalMetrics,
                 },
                 chartConfig,
                 tableConfig: {
