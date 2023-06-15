@@ -6,6 +6,7 @@ import {
     ApiOrganizationAllowedEmailDomains,
     ApiOrganizationMemberProfile,
     ApiOrganizationMemberProfiles,
+    ApiOrganizationProjects,
     ApiSuccessEmpty,
     CreateGroup,
     CreateOrganization,
@@ -136,6 +137,23 @@ export class OrganizationController extends Controller {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    /**
+     * Gets all projects of the current user's organization
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('/projects')
+    @OperationId('ListOrganizationProjects')
+    async getProjects(
+        @Request() req: express.Request,
+    ): Promise<ApiOrganizationProjects> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await organizationService.getProjects(req.user!),
         };
     }
 
