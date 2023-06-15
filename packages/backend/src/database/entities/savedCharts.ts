@@ -3,6 +3,7 @@ import {
     ChartType,
     CompactOrAlias,
     DBFieldTypes,
+    MetricType,
     TableCalculationFormat,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -122,16 +123,42 @@ export type DbSavedChartAdditionalMetric = {
     table: string;
     name: string;
     label?: string;
-    type: string;
+    type: MetricType;
     description?: string;
-    sql?: string;
+    sql: string;
     hidden?: boolean;
     round?: number;
     compact?: CompactOrAlias;
     format?: string;
     saved_queries_version_id: number;
+    filters: string | null;
+    base_dimension_name: string | null;
+    id: string | null;
 };
 export type DbSavedChartAdditionalMetricInsert = Omit<
     DbSavedChartAdditionalMetric,
     'saved_queries_version_additional_metric_id'
 >;
+
+export type DBFilteredAdditionalMetrics = Pick<
+    DbSavedChartAdditionalMetric,
+    | 'saved_queries_version_additional_metric_id'
+    | 'table'
+    | 'name'
+    | 'type'
+    | 'sql'
+> &
+    Partial<
+        Pick<
+            DbSavedChartAdditionalMetric,
+            | 'label'
+            | 'description'
+            | 'hidden'
+            | 'round'
+            | 'compact'
+            | 'format'
+            | 'filters'
+            | 'base_dimension_name'
+            | 'id'
+        >
+    >;
