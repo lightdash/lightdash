@@ -59,3 +59,4 @@ credentials.json
 
 # dbt
 /target
+packages/backend/target/

@@ -127,7 +127,7 @@ export class DbtCliClient implements DbtClient {
         for await (const dbtExec of dbtExecs) {
 
             Logger.info(
-                `Running ${dbtExec} command "${command.join(
+                `Running dbt exec "${dbtExec}" with command "${command.join(
                     ' ',
                 )}"`,
             );
