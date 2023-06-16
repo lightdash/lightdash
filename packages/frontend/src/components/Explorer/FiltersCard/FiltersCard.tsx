@@ -62,7 +62,7 @@ const FiltersCard: FC = memo(() => {
         [filters],
     );
     const fieldsWithSuggestions = useFieldsWithSuggestions({
-        data,
+        exploreData: data,
         queryResults,
         additionalMetrics,
     });
