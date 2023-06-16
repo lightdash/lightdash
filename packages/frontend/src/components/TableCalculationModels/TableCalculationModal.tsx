@@ -255,6 +255,7 @@ const TableCalculationModal: FC<Props> = ({
             >
                 <DialogBody className={Classes.DIALOG_BODY}>
                     <TextInput
+                        mb="sm"
                         label="Name"
                         name="name"
                         disabled={isDisabled}
