@@ -7,11 +7,13 @@ import {
     DBT_METRIC_WITH_CUSTOM_SQL,
     DBT_METRIC_WITH_FILTER,
     DBT_METRIC_WITH_SQL_FIELD,
+    DBT_V9_METRIC,
     expectedModelWithType,
     INVALID_ID_COLUMN_NAMES,
     LIGHTDASH_TABLE_WITHOUT_AUTO_METRICS,
     LIGHTDASH_TABLE_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS,
     LIGHTDASH_TABLE_WITH_DBT_METRICS,
+    LIGHTDASH_TABLE_WITH_DBT_V9_METRICS,
     LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY,
     LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE,
     LIGHTDASH_TABLE_WITH_GROUP_LABEL,
@@ -133,6 +135,12 @@ describe('convert tables from dbt models', () => {
                 DBT_METRIC_DERIVED,
             ]),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_DBT_METRICS);
+        // dbt 1.5 metrics
+        expect(
+            convertTable(SupportedDbtAdapter.BIGQUERY, MODEL_WITH_NO_METRICS, [
+                DBT_V9_METRIC,
+            ]),
+        ).toStrictEqual(LIGHTDASH_TABLE_WITH_DBT_V9_METRICS);
     });
     it('should convert dbt model with metrics in meta', () => {
         expect(

@@ -228,7 +228,7 @@ export const isDbtPackages = (
     results: Record<string, any>,
 ): results is DbtPackages => 'packages' in results;
 
-type V9MetricRef = {
+export type V9MetricRef = {
     name: string;
     package?: string | null;
     version?: string | number | null;
@@ -237,9 +237,9 @@ type V9MetricRef = {
 export const isV9MetricRef = (x: string[] | V9MetricRef): x is V9MetricRef =>
     typeof x === 'object' && x !== null && 'name' in x;
 
-export type DbtMetric = ParsedMetric & {
+export type DbtMetric = Omit<ParsedMetric, 'refs'> & {
     meta?: Record<string, any> & DbtMetricLightdashMetadata;
-    refs?: ParsedMetric['refs'] | V9MetricRef[];
+    refs?: string[][] | V9MetricRef[];
 };
 
 export type DbtMetricLightdashMetadata = {
