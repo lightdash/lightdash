@@ -55,8 +55,15 @@ const PivotTable: FC<PivotTableProps> = ({
 }) => {
     const { cx, classes } = usePivotTableStyles();
 
-    const tFootRef = React.useRef<HTMLTableSectionElement>(null);
     const containerScroll = useScroll(containerRef);
+
+    const isAtTop = useMemo(() => {
+        if (!containerRef.current) return false;
+
+        const containerScrollPosY = containerScroll.y;
+
+        return containerScrollPosY === 0;
+    }, [containerScroll, containerRef]);
 
     const isAtBottom = useMemo(() => {
         if (!containerRef.current) return false;
@@ -211,7 +218,12 @@ const PivotTable: FC<PivotTableProps> = ({
             unstyled
             withBorder
             withColumnBorders
-            className={cx(classes.root, classes.withStickyFooter, className)}
+            className={cx(
+                classes.root,
+                classes.withStickyHeader,
+                classes.withStickyFooter,
+                className,
+            )}
             {...tableProps}
         >
             <thead>
@@ -312,6 +324,13 @@ const PivotTable: FC<PivotTableProps> = ({
                             : null}
                     </tr>
                 ))}
+
+                <div className={classes.floatingHeader}>
+                    <div
+                        className={classes.floatingHeaderShadow}
+                        data-floating-header-shadow={!isAtTop}
+                    />
+                </div>
             </thead>
 
             <tbody>
@@ -439,7 +458,7 @@ const PivotTable: FC<PivotTableProps> = ({
             </tbody>
 
             {hasColumnTotals ? (
-                <tfoot ref={tFootRef}>
+                <tfoot>
                     <div className={classes.floatingFooter}>
                         <div
                             className={classes.floatingFooterShadow}

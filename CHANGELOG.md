@@ -1,3 +1,64 @@
+# [0.615.0](https://github.com/lightdash/lightdash/compare/0.614.0...0.615.0) (2023-06-15)
+
+
+### Bug Fixes
+
+* update errors to use toasts ([#5893](https://github.com/lightdash/lightdash/issues/5893)) ([40f9777](https://github.com/lightdash/lightdash/commit/40f97775e89faada498757a72804a344e8d6b851))
+
+
+### Features
+
+* pivot table freeze headers ([#5903](https://github.com/lightdash/lightdash/issues/5903)) ([b089f3a](https://github.com/lightdash/lightdash/commit/b089f3ad1354cdd0faf972ef4bda388d3700b58e))
+
+# [0.614.0](https://github.com/lightdash/lightdash/compare/0.613.2...0.614.0) (2023-06-15)
+
+
+### Features
+
+* add the API to get projects of an organization ([#5906](https://github.com/lightdash/lightdash/issues/5906)) ([5f20eeb](https://github.com/lightdash/lightdash/commit/5f20eeb58f791fa2be2573cf2f41c171d792d315))
+
+## [0.613.2](https://github.com/lightdash/lightdash/compare/0.613.1...0.613.2) (2023-06-15)
+
+
+### Bug Fixes
+
+* correct the method name to revoke space-level access ([#5907](https://github.com/lightdash/lightdash/issues/5907)) ([2d6cb07](https://github.com/lightdash/lightdash/commit/2d6cb07ad15650365c88ad5bb706f6e42c582f2e))
+
+## [0.613.1](https://github.com/lightdash/lightdash/compare/0.613.0...0.613.1) (2023-06-14)
+
+
+### Bug Fixes
+
+* duplicated chart ([#5899](https://github.com/lightdash/lightdash/issues/5899)) ([cd1c79c](https://github.com/lightdash/lightdash/commit/cd1c79cc06a1d326fdbcb9cab730e38274691e5e))
+
+# [0.613.0](https://github.com/lightdash/lightdash/compare/0.612.0...0.613.0) (2023-06-14)
+
+
+### Features
+
+* stick table names to the top while scrolling ([#5845](https://github.com/lightdash/lightdash/issues/5845)) ([e0309fc](https://github.com/lightdash/lightdash/commit/e0309fc3c019902f75afe3c2ed904c8dc3705ce1))
+
+# [0.612.0](https://github.com/lightdash/lightdash/compare/0.611.3...0.612.0) (2023-06-14)
+
+
+### Features
+
+* user management panel should be a table ([#5878](https://github.com/lightdash/lightdash/issues/5878)) ([cd81dfa](https://github.com/lightdash/lightdash/commit/cd81dfa567cddff365d948d9e736a92dc05ac6c8))
+
+## [0.611.3](https://github.com/lightdash/lightdash/compare/0.611.2...0.611.3) (2023-06-14)
+
+
+### Bug Fixes
+
+* add gap between label and comparison ([#5895](https://github.com/lightdash/lightdash/issues/5895)) ([e9fb9a7](https://github.com/lightdash/lightdash/commit/e9fb9a70899e93ca256f2a3f45ba79d3c23d4f67))
+
+## [0.611.2](https://github.com/lightdash/lightdash/compare/0.611.1...0.611.2) (2023-06-14)
+
+
+### Bug Fixes
+
+* show all runs in scheduled deliveries dash ([#5884](https://github.com/lightdash/lightdash/issues/5884)) ([a2113e4](https://github.com/lightdash/lightdash/commit/a2113e4fe118b9dd155f770df5ab3731c7907efb))
+
 ## [0.611.1](https://github.com/lightdash/lightdash/compare/0.611.0...0.611.1) (2023-06-14)
 
 

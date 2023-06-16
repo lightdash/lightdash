@@ -6,7 +6,7 @@ import { useErrorLogs } from '../providers/ErrorLogsProvider';
 const useQueryError = (): Dispatch<SetStateAction<ApiError | undefined>> => {
     const queryClient = useQueryClient();
     const [errorResponse, setErrorResponse] = useState<ApiError | undefined>();
-    const { showError } = useErrorLogs();
+    const { appendError } = useErrorLogs();
     useEffect(() => {
         (async function doIfError() {
             const { error } = errorResponse || {};
@@ -20,14 +20,13 @@ const useQueryError = (): Dispatch<SetStateAction<ApiError | undefined>> => {
                 } else if (statusCode === 401) {
                     await queryClient.invalidateQueries('health');
                 } else {
-                    // drawer
                     const { message } = error;
                     const [first, ...rest] = message.split('\n');
-                    showError({ title: first, body: rest.join('\n') });
+                    appendError({ title: first, body: rest.join('\n') });
                 }
             }
         })();
-    }, [errorResponse, queryClient, showError]);
+    }, [errorResponse, queryClient, appendError]);
     return setErrorResponse;
 };
 

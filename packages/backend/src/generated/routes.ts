@@ -339,6 +339,40 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ProjectType: {
+        dataType: 'refEnum',
+        enums: ['DEFAULT', 'PREVIEW'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    OrganizationProject: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                type: { ref: 'ProjectType', required: true },
+                name: { dataType: 'string', required: true },
+                projectUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiOrganizationProjects: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'OrganizationProject' },
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     OrganizationMemberRole: {
         dataType: 'refEnum',
         enums: [
@@ -3110,6 +3144,46 @@ export function RegisterRoutes(app: express.Router) {
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.get(
+        '/api/v1/org/projects',
+        ...fetchMiddlewares<RequestHandler>(OrganizationController),
+        ...fetchMiddlewares<RequestHandler>(
+            OrganizationController.prototype.getProjects,
+        ),
+
+        function OrganizationController_getProjects(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const controller = new OrganizationController();
+
+                const promise = controller.getProjects.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, undefined, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.get(
         '/api/v1/org/users',
         ...fetchMiddlewares<RequestHandler>(OrganizationController),
         ...fetchMiddlewares<RequestHandler>(
@@ -4669,10 +4743,10 @@ export function RegisterRoutes(app: express.Router) {
         '/api/v1/projects/:projectUuid/spaces/:spaceUuid/share/:userUuid',
         ...fetchMiddlewares<RequestHandler>(SpaceController),
         ...fetchMiddlewares<RequestHandler>(
-            SpaceController.prototype.revokeProjectAccessForUser,
+            SpaceController.prototype.revokeSpaceAccessForUser,
         ),
 
-        function SpaceController_revokeProjectAccessForUser(
+        function SpaceController_revokeSpaceAccessForUser(
             request: any,
             response: any,
             next: any,
@@ -4712,7 +4786,7 @@ export function RegisterRoutes(app: express.Router) {
 
                 const controller = new SpaceController();
 
-                const promise = controller.revokeProjectAccessForUser.apply(
+                const promise = controller.revokeSpaceAccessForUser.apply(
                     controller,
                     validatedArgs as any,
                 );
