@@ -32,6 +32,7 @@ export type Explore = {
     name: string; // Must be sql friendly (a-Z, 0-9, _)
     label: string; // Friendly name
     tags: string[];
+    groupLabel?: string;
     baseTable: string; // Must match a tableName in tables
     joinedTables: CompiledExploreJoin[]; // Must match a tableName in tables
     tables: { [tableName: string]: CompiledTable }; // All tables in this explore
@@ -49,7 +50,7 @@ export type InlineError = {
 };
 
 export type ExploreError = Partial<Explore> &
-    Pick<Explore, 'name' | 'label'> & {
+    Pick<Explore, 'name' | 'label' | 'groupLabel'> & {
         errors: InlineError[];
     };
 
@@ -57,7 +58,7 @@ export const isExploreError = (
     explore: Explore | ExploreError,
 ): explore is ExploreError => 'errors' in explore;
 
-type SummaryExploreFields = 'name' | 'label' | 'tags';
+type SummaryExploreFields = 'name' | 'label' | 'tags' | 'groupLabel';
 type SummaryExploreErrorFields = SummaryExploreFields | 'errors';
 type SummaryExtraFields = {
     description?: string;

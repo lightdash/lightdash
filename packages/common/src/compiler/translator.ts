@@ -399,6 +399,7 @@ export const convertTable = (
             )
                 ? (meta.order_fields_by.toUpperCase() as OrderFieldsByStrategy)
                 : OrderFieldsByStrategy.LABEL,
+        groupLabel: meta.group_label,
     };
 };
 
@@ -480,6 +481,7 @@ export const convertExplores = async (
                     name: model.name,
                     label: meta.label || friendlyName(model.name),
                     tags: model.tags,
+                    groupLabel: meta.group_label,
                     errors: [
                         {
                             type: e.name,
@@ -510,6 +512,7 @@ export const convertExplores = async (
                 label: meta.label || friendlyName(model.name),
                 tags: model.tags || [],
                 baseTable: model.name,
+                groupLabel: meta.group_label,
                 joinedTables: (meta?.joins || []).map((join) => ({
                     table: join.join,
                     sqlOn: join.sql_on,
@@ -524,6 +527,7 @@ export const convertExplores = async (
             return {
                 name: model.name,
                 label: meta.label || friendlyName(model.name),
+                groupLabel: meta.group_label,
                 errors: [{ type: e.name, message: e.message }],
             };
         }

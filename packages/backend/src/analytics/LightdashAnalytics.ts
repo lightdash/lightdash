@@ -278,6 +278,7 @@ type ProjectCompiledEvent = BaseTrack & {
         warehouseType?: WarehouseTypes;
         modelsCount: number;
         modelsWithErrorsCount: number;
+        modelsWithGroupLabelCount: number;
         metricsCount: number;
         packagesCount?: number;
         roundCount?: number;
