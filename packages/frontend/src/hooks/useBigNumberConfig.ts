@@ -8,6 +8,7 @@ import {
     Explore,
     Field,
     fieldId,
+    formatItemValue,
     formatValue,
     friendlyName,
     getDimensions,
@@ -231,15 +232,7 @@ const useBigNumberConfig = (
     const bigNumber = !isNumber(item, firstRowValueRaw)
         ? selectedField &&
           resultsData?.rows?.[0]?.[selectedField]?.value.formatted
-        : formatValue(firstRowValueRaw, {
-              format: isField(item) ? item.format : undefined,
-              round: bigNumberStyle
-                  ? 2
-                  : isField(item)
-                  ? item.round
-                  : undefined,
-              compact: bigNumberStyle,
-          });
+        : formatItemValue(item, firstRowValueRaw);
 
     const unformattedValue =
         isNumber(item, secondRowValueRaw) && isNumber(item, firstRowValueRaw)

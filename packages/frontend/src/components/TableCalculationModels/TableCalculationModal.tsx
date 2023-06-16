@@ -110,18 +110,20 @@ const TableCalculationFormatForm: FC<{
                     ]}
                 />
 
-                <Text ml="md" mt={30} color="gray.6">
-                    {'Looks like: '}
-                    {formatTableCalculationValue(
-                        {
-                            name: 'preview',
-                            sql: '',
-                            displayName: 'preview',
-                            format: methods.getValues('format'),
-                        },
-                        '0.75',
-                    )}
-                </Text>
+                {formatType !== TableCalculationFormatType.DEFAULT && (
+                    <Text ml="md" mt={30} color="gray.6">
+                        {'Looks like: '}
+                        {formatTableCalculationValue(
+                            {
+                                name: 'preview',
+                                sql: '',
+                                displayName: 'preview',
+                                format: methods.getValues('format'),
+                            },
+                            '0.75',
+                        )}
+                    </Text>
+                )}
             </Flex>
             {formatType === TableCalculationFormatType.PERCENT && (
                 <Flex mt="md">
