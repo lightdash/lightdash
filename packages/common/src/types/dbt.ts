@@ -412,3 +412,8 @@ export const convertAdditionalMetric = ({
         metric: additionalMetric,
         tableLabel: table.label,
     });
+
+export enum DbtManifestVersion {
+    V7 = 'v7',
+    V9 = 'v9',
+}

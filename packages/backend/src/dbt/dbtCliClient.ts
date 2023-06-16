@@ -9,6 +9,7 @@ import {
     isDbtRpcDocsGenerateResults,
     isDbtRpcManifestResults,
     ParseError,
+    DbtManifestVersion
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import execa from 'execa';
@@ -120,8 +121,8 @@ export class DbtCliClient implements DbtClient {
 
     private async _runDbtVersionCommand(
         ...command: string[]
-    ): Promise<DbtLog[]> {
-        const dbtExecs = ['dbt', 'dbt1.5'];
+    ): Promise<{version: DbtManifestVersion, logs: DbtLog[]}> {
+        const dbtExecs = ['dbt1.5', 'dbt'];
 
         // eslint-disable-next-line no-restricted-syntax
         for await (const dbtExec of dbtExecs) {
@@ -133,7 +134,7 @@ export class DbtCliClient implements DbtClient {
             );
 
             try {
-                return await this._runDbtCommand(dbtExec, ...command);
+                return {version: dbtExec==='dbt1.5'?DbtManifestVersion.V9 : DbtManifestVersion.V7, logs:  await this._runDbtCommand(dbtExec, ...command)};
             } catch (e) {
                 Sentry.captureException(e, { extra: { dbtExec } });
                 Logger.warn(
@@ -146,7 +147,7 @@ export class DbtCliClient implements DbtClient {
                 }
             }
         }
-        return [];
+        return { version: DbtManifestVersion.V7, logs: []};
     }
 
     private async _runDbtCommand(dbtExec: string, ...command: string[]): Promise<DbtLog[]> {
@@ -198,7 +199,7 @@ export class DbtCliClient implements DbtClient {
         span?.finish();
     }
 
-    async getDbtManifest(): Promise<DbtRpcGetManifestResults> {
+    async getDbtManifest(): Promise<{version: DbtManifestVersion, manifest: DbtRpcGetManifestResults}> {
         const transaction = Sentry.getCurrentHub()
             ?.getScope()
             ?.getTransaction();
@@ -206,17 +207,17 @@ export class DbtCliClient implements DbtClient {
             op: 'dbt',
             description: 'getDbtManifest',
         });
-        const dbtLogs = await this._runDbtVersionCommand('compile');
+        const {version, logs} = await this._runDbtVersionCommand('compile');
         const rawManifest = {
-            manifest: await this.loadDbtTargetArtifact('manifest.json'),
+            manifest: await this.loadDbtTargetArtifact(version, 'manifest.json'),
         };
         span?.finish();
         if (isDbtRpcManifestResults(rawManifest)) {
-            return rawManifest;
+            return {version, manifest: rawManifest};
         }
         throw new DbtError(
             'Cannot read response from dbt, manifest.json not valid',
-            dbtLogs,
+            logs,
         );
     }
 
@@ -238,14 +239,20 @@ export class DbtCliClient implements DbtClient {
         }
     }
 
-    private async loadDbtTargetArtifact(filename: string): Promise<any> {
-        const targetDir = await this._getTargetDirectory();
-        const fullPath = path.join(
-            this.dbtProjectDirectory,
-            targetDir,
-            filename,
-        );
-        return DbtCliClient.loadDbtFile(fullPath);
+    private async loadDbtTargetArtifact(version: DbtManifestVersion, filename: string): Promise<any> {
+        switch(version){
+            case DbtManifestVersion.V9: 
+                return DbtCliClient.loadDbtFile('./target/manifest.json');
+            default: 
+                const targetDir = await this._getTargetDirectory();
+                const fullPath = path.join(
+                    this.dbtProjectDirectory,
+                    targetDir,
+                    filename,
+                );
+                return DbtCliClient.loadDbtFile(fullPath);
+        }
+        
     }
 
     static async loadDbtFile(
@@ -274,15 +281,15 @@ export class DbtCliClient implements DbtClient {
             op: 'dbt',
             description: 'getDbtbCatalog',
         });
-        const dbtLogs = await this._runDbtVersionCommand('docs', 'generate');
-        const rawCatalog = await this.loadDbtTargetArtifact('catalog.json');
+        const {version, logs} = await this._runDbtVersionCommand('docs', 'generate');
+        const rawCatalog = await this.loadDbtTargetArtifact(version, 'catalog.json');
         span?.finish();
         if (isDbtRpcDocsGenerateResults(rawCatalog)) {
             return rawCatalog;
         }
         throw new DbtError(
             'Cannot read response from dbt, catalog.json is not a valid dbt catalog',
-            dbtLogs,
+            logs,
         );
     }
 
