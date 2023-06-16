@@ -2196,8 +2196,9 @@
                     "baseDimensionName": {
                         "type": "string"
                     },
-                    "id": {
-                        "type": "string"
+                    "uuid": {
+                        "type": "string",
+                        "nullable": true
                     }
                 },
                 "required": ["type", "sql", "table", "name"],

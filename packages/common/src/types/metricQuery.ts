@@ -23,7 +23,7 @@ export interface AdditionalMetric {
     index?: number;
     filters?: MetricFilterRule[];
     baseDimensionName?: string;
-    id?: string;
+    uuid?: string | null;
 }
 
 export const isAdditionalMetric = (value: any): value is AdditionalMetric =>

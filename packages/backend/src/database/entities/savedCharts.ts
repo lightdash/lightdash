@@ -3,6 +3,7 @@ import {
     ChartType,
     CompactOrAlias,
     DBFieldTypes,
+    MetricFilterRule,
     MetricType,
     TableCalculationFormat,
 } from '@lightdash/common';
@@ -131,14 +132,16 @@ export type DbSavedChartAdditionalMetric = {
     compact?: CompactOrAlias;
     format?: string;
     saved_queries_version_id: number;
-    filters: string | null;
+    filters: MetricFilterRule[] | null; // JSONB
     base_dimension_name: string | null;
-    id: string | null;
+    uuid: string | null;
 };
 export type DbSavedChartAdditionalMetricInsert = Omit<
     DbSavedChartAdditionalMetric,
-    'saved_queries_version_additional_metric_id'
->;
+    'saved_queries_version_additional_metric_id' | 'filters'
+> & {
+    filters: string | null;
+};
 
 export type DBFilteredAdditionalMetrics = Pick<
     DbSavedChartAdditionalMetric,
@@ -147,6 +150,7 @@ export type DBFilteredAdditionalMetrics = Pick<
     | 'name'
     | 'type'
     | 'sql'
+    | 'uuid'
 > &
     Partial<
         Pick<
@@ -159,6 +163,5 @@ export type DBFilteredAdditionalMetrics = Pick<
             | 'format'
             | 'filters'
             | 'base_dimension_name'
-            | 'id'
         >
     >;
