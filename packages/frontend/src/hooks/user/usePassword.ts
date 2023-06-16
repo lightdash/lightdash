@@ -28,7 +28,7 @@ const updateUserPasswordQuery = async (data: {
     });
 
 export const useUserUpdatePasswordMutation = () => {
-    const { showError } = useErrorLogs();
+    const { appendError } = useErrorLogs();
 
     return useMutation<
         undefined,
@@ -42,12 +42,12 @@ export const useUserUpdatePasswordMutation = () => {
         onError: useCallback(
             (error) => {
                 const [title, ...rest] = error.error.message.split('\n');
-                showError({
+                appendError({
                     title,
                     body: rest.join('\n'),
                 });
             },
-            [showError],
+            [appendError],
         ),
     });
 };

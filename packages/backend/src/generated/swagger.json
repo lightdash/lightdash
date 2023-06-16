@@ -348,6 +348,46 @@
             "UpdateOrganization": {
                 "$ref": "#/components/schemas/Partial_Omit_Organization.organizationUuid-or-needsProject__"
             },
+            "ProjectType": {
+                "enum": ["DEFAULT", "PREVIEW"],
+                "type": "string"
+            },
+            "OrganizationProject": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/ProjectType"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string",
+                        "description": "The unique identifier of the project",
+                        "format": "uuid"
+                    }
+                },
+                "required": ["type", "name", "projectUuid"],
+                "type": "object",
+                "description": "Summary of a project under an organization"
+            },
+            "ApiOrganizationProjects": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/OrganizationProject"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object",
+                "description": "List of projects in the current organization"
+            },
             "OrganizationMemberRole": {
                 "enum": [
                     "member",
@@ -4108,6 +4148,37 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/org/projects": {
+            "get": {
+                "operationId": "ListOrganizationProjects",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationProjects"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Gets all projects of the current user's organization",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": []
             }
         },
         "/api/v1/org/users": {

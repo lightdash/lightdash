@@ -6,13 +6,11 @@ import { memo, useCallback, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 
 import { useExplores } from '../../../hooks/useExplores';
-import { useErrorLogs } from '../../../providers/ErrorLogsProvider';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import PageBreadcrumbs from '../../common/PageBreadcrumbs';
-import { ShowErrorsButton } from '../../ShowErrorsButton';
 import ExplorePanel from '../ExplorePanel';
 import ExploreNavLink from './ExploreNavLink';
 
@@ -33,7 +31,6 @@ const LoadingSkeleton = () => (
 const BasePanel = () => {
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const errorLogs = useErrorLogs();
     const [search, setSearch] = useState<string>('');
     const exploresResult = useExplores(projectUuid, true);
 
@@ -59,19 +56,7 @@ const BasePanel = () => {
     }
 
     if (exploresResult.status === 'error') {
-        return (
-            <NonIdealState
-                icon="error"
-                title="Could not load explores"
-                description="Check error logs for more details"
-                action={
-                    <ShowErrorsButton
-                        errorLogs={errorLogs.errorLogs}
-                        setErrorLogsVisible={errorLogs.setErrorLogsVisible}
-                    />
-                }
-            />
-        );
+        return <NonIdealState icon="error" title="Could not load explores" />;
     }
 
     if (exploresResult.data) {
