@@ -38,8 +38,6 @@ import {
 } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
 
-// TODO: check if needed to do JSON stringift et al
-
 type DbSavedChartDetails = {
     project_uuid: string;
     saved_query_id: number;
