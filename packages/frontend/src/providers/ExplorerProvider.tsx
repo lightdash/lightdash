@@ -602,8 +602,8 @@ function reducer(
                         additionalMetrics:
                             state.unsavedChartVersion.metricQuery.additionalMetrics?.map(
                                 (metric) =>
-                                    metric.id ===
-                                    action.payload.additionalMetric.id
+                                    metric.uuid ===
+                                    action.payload.additionalMetric.uuid
                                         ? action.payload.additionalMetric
                                         : metric,
                             ),
