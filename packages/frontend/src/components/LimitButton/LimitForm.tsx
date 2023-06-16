@@ -25,8 +25,6 @@ const LimitForm = forwardRef<HTMLFormElement, LimitFormProps>(
             initialValues: { limit },
         });
 
-        console.log(form.isValid);
-
         if (!health.data) {
             return null;
         }
