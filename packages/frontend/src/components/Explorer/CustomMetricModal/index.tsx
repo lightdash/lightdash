@@ -17,6 +17,7 @@ import {
     TextInput,
     Title,
 } from '@mantine/core';
+import { useForm } from '@mantine/form';
 import { Dispatch, FC, SetStateAction, useCallback, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
@@ -73,13 +74,25 @@ export const CustomMetricModal: FC<Props> = ({
         additionalMetrics,
     });
 
-    const [customMetricName, setCustomMetricName] = useState(
-        isEditMode
-            ? item.label
-            : customMetricType
-            ? `${friendlyName(customMetricType)} of ${item.label}`
-            : '',
-    );
+    const form = useForm({
+        validateInputOnChange: true,
+        initialValues: {
+            customMetricLabel: isEditMode
+                ? item.label
+                : customMetricType
+                ? `${friendlyName(customMetricType)} of ${item.label}`
+                : '',
+        },
+        validate: {
+            customMetricLabel: (label) =>
+                additionalMetrics?.some(
+                    (metric) =>
+                        metric.label?.toLowerCase() === label?.toLowerCase(),
+                )
+                    ? 'Metric with this label already exists'
+                    : null,
+        },
+    });
 
     const getCurrentCustomMetricFiltersWithIds = useCallback(() => {
         if (isAdditionalMetric(item)) {
@@ -138,14 +151,14 @@ export const CustomMetricModal: FC<Props> = ({
             if (
                 isEditMode &&
                 isAdditionalMetric(item) &&
-                customMetricName &&
+                form.values.customMetricLabel &&
                 item.baseDimensionName
             ) {
                 editAdditionalMetric(
                     {
                         ...item,
                         name: `${item.baseDimensionName}_${snakeCaseName(
-                            customMetricName ?? '',
+                            form.values.customMetricLabel ?? '',
                         )}`,
                         description: `${friendlyName(type)} of ${
                             dimension.label
@@ -156,7 +169,7 @@ export const CustomMetricModal: FC<Props> = ({
                                       .join(', ')}`
                                 : ''
                         }`,
-                        label: customMetricName,
+                        label: form.values.customMetricLabel,
                         sql: dimension.sql,
                         type,
                         ...(customMetricFilters.length > 0 && {
@@ -172,9 +185,9 @@ export const CustomMetricModal: FC<Props> = ({
                 addAdditionalMetric({
                     id: uuidv4(),
                     name: `${dimension.name}_${snakeCaseName(
-                        customMetricName ?? '',
+                        form.values.customMetricLabel ?? '',
                     )}`,
-                    label: customMetricName,
+                    label: form.values.customMetricLabel,
                     table: dimension.table,
                     sql: dimension.sql,
                     description: `${friendlyName(type)} of ${
@@ -201,9 +214,9 @@ export const CustomMetricModal: FC<Props> = ({
         [
             addAdditionalMetric,
             customMetricFiltersWithIds,
-            customMetricName,
             data?.tables,
             editAdditionalMetric,
+            form.values.customMetricLabel,
             isEditMode,
             item,
             setIsCreatingCustomMetric,
@@ -225,63 +238,52 @@ export const CustomMetricModal: FC<Props> = ({
             }
         >
             <Stack>
-                <TextInput
-                    name="customMetricName"
-                    label="Name"
-                    required
-                    placeholder="Enter custom metric name"
-                    onChange={(e) => {
-                        setCustomMetricName(e.target.value);
-                    }}
-                    defaultValue={
-                        isEditMode
-                            ? item.label
-                            : `${friendlyName(customMetricType!)} of ${
-                                  item.label
-                              }`
-                    }
-                />
-                <Accordion chevronPosition="left" chevronSize="xs">
-                    <Accordion.Item value="filters">
-                        <Accordion.Control>
-                            <Text fw={500} fz="sm">
-                                Filters{' '}
-                                <Text span fz="xs" color="gray.5" fw={400}>
-                                    (optional)
-                                </Text>
-                            </Text>
-                        </Accordion.Control>
-                        <Accordion.Panel>
-                            <FiltersProvider
-                                projectUuid={projectUuid}
-                                fieldsMap={fieldsWithSuggestions}
-                                startOfWeek={
-                                    project.data?.warehouseConnection
-                                        ?.startOfWeek
-                                }
-                            >
-                                <FilterForm
-                                    item={item}
-                                    customMetricFiltersWithIds={
-                                        customMetricFiltersWithIds
-                                    }
-                                    setCustomMetricFiltersWithIds={
-                                        setCustomMetricFiltersWithIds
-                                    }
-                                />
-                            </FiltersProvider>
-                        </Accordion.Panel>
-                    </Accordion.Item>
-                </Accordion>
-
-                <Button
-                    display="block"
-                    ml="auto"
-                    type="submit"
-                    onClick={() => createCustomMetric(item, customMetricType!)}
+                <form
+                    onSubmit={() => createCustomMetric(item, customMetricType!)}
                 >
-                    {isEditMode ? 'Save changes' : 'Create'}
-                </Button>
+                    <TextInput
+                        label="Label"
+                        required
+                        placeholder="Enter custom metric label"
+                        {...form.getInputProps('customMetricLabel')}
+                    />
+                    <Accordion chevronPosition="left" chevronSize="xs">
+                        <Accordion.Item value="filters">
+                            <Accordion.Control>
+                                <Text fw={500} fz="sm">
+                                    Filters{' '}
+                                    <Text span fz="xs" color="gray.5" fw={400}>
+                                        (optional)
+                                    </Text>
+                                </Text>
+                            </Accordion.Control>
+                            <Accordion.Panel>
+                                <FiltersProvider
+                                    projectUuid={projectUuid}
+                                    fieldsMap={fieldsWithSuggestions}
+                                    startOfWeek={
+                                        project.data?.warehouseConnection
+                                            ?.startOfWeek
+                                    }
+                                >
+                                    <FilterForm
+                                        item={item}
+                                        customMetricFiltersWithIds={
+                                            customMetricFiltersWithIds
+                                        }
+                                        setCustomMetricFiltersWithIds={
+                                            setCustomMetricFiltersWithIds
+                                        }
+                                    />
+                                </FiltersProvider>
+                            </Accordion.Panel>
+                        </Accordion.Item>
+                    </Accordion>
+
+                    <Button display="block" ml="auto" type="submit">
+                        {isEditMode ? 'Save changes' : 'Create'}
+                    </Button>
+                </form>
             </Stack>
         </Modal>
     );
