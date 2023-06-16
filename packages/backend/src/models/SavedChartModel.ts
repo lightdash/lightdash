@@ -97,6 +97,8 @@ const createSavedChartVersionAdditionalMetrics = async (
 ) => {
     const results = await trx(SavedChartAdditionalMetricTableName)
         .insert(data)
+        .onConflict('uuid')
+        .merge()
         .returning('*');
     return results[0];
 };
