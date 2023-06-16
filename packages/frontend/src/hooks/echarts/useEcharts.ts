@@ -25,6 +25,7 @@ import {
     isDimension,
     isField,
     isPivotReferenceWithValues,
+    isTableCalculation,
     isTimeInterval,
     Metric,
     MetricType,
@@ -497,7 +498,11 @@ type GetPivotSeriesArg = {
     series: Series;
     items: Array<Field | TableCalculation>;
     formats:
-        | Record<string, Pick<CompiledField, 'format' | 'round' | 'compact'>>
+        | Record<
+              string,
+              | Pick<CompiledField, 'format' | 'round' | 'compact'>
+              | TableCalculation
+          >
         | undefined;
     cartesianChart: CartesianChart;
     flipAxes: boolean | undefined;
@@ -565,14 +570,21 @@ const getPivotSeries = ({
                 ...series.label,
                 ...(formats &&
                     formats[series.encode.yRef.field] && {
-                        formatter: (val: any) =>
-                            formatValue(val?.value?.[yFieldHash], {
-                                format: formats[series.encode.yRef.field]
-                                    .format,
-                                round: formats[series.encode.yRef.field].round,
-                                compact:
-                                    formats[series.encode.yRef.field].compact,
-                            }),
+                        formatter: (value: any) => {
+                            const field = formats[series.encode.yRef.field];
+                            if ('round' in field) {
+                                return formatValue(value?.value?.[yFieldHash], {
+                                    format: field.format,
+                                    round: field.round,
+                                    compact: field.compact,
+                                });
+                            } else {
+                                return formatTableCalculationValue(
+                                    field as TableCalculation,
+                                    value?.value?.[yFieldHash],
+                                );
+                            }
+                        },
                     }),
             },
             labelLayout: {
@@ -808,6 +820,16 @@ const getEchartAxis = ({
         } else if (axisLabelFormatter) {
             axisConfig.axisLabel = {
                 formatter: axisLabelFormatter,
+            };
+        } else if (
+            field !== '' &&
+            field !== undefined &&
+            isTableCalculation(field)
+        ) {
+            axisConfig.axisLabel = {
+                formatter: (value: any) => {
+                    return formatTableCalculationValue(field, value);
+                },
             };
         }
         if (axisMinInterval) {
