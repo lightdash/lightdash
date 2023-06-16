@@ -1,6 +1,7 @@
-import { Button, Group, NumberInput } from '@mantine/core';
-import { useForm } from '@mantine/form';
+import { Button, NumberInput, Stack } from '@mantine/core';
+import { useForm, zodResolver } from '@mantine/form';
 import { forwardRef } from 'react';
+import { z } from 'zod';
 import useHealth from '../../hooks/health/useHealth';
 import { Props } from './index';
 
@@ -10,7 +11,21 @@ const LimitForm = forwardRef<HTMLFormElement, LimitFormProps>(
     ({ limit, onLimitChange }, ref) => {
         const health = useHealth();
 
-        const form = useForm({ initialValues: { limit } });
+        const schema = z.object({
+            limit: z
+                .number()
+                .int()
+                .min(1)
+                .max(health.data?.query.maxLimit || 5000),
+        });
+
+        const form = useForm({
+            validate: zodResolver(schema),
+            validateInputOnChange: true,
+            initialValues: { limit },
+        });
+
+        console.log(form.isValid);
 
         if (!health.data) {
             return null;
@@ -23,19 +38,19 @@ const LimitForm = forwardRef<HTMLFormElement, LimitFormProps>(
                     onLimitChange(newLimit);
                 })}
             >
-                <Group align="end">
+                <Stack w={320}>
                     <NumberInput
                         autoFocus
-                        w="8xl"
                         step={100}
                         required
                         label="Total rows:"
-                        min={1}
-                        max={health.data.query.maxLimit}
                         {...form.getInputProps('limit')}
                     />
-                    <Button type="submit">Apply</Button>
-                </Group>
+
+                    <Button type="submit" disabled={!form.isValid()}>
+                        Apply
+                    </Button>
+                </Stack>
             </form>
         );
     },
