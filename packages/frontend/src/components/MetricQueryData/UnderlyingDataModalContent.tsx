@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 
 import {
     ChartType,
+    convertFieldRefToFieldId,
     CreateSavedChartVersion,
     Field,
     fieldId as getFieldId,
@@ -107,6 +108,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
         if (!underlyingDataConfig) return defaultMetricQuery;
         const { item, fieldValues, pivotReference, dimensions, value } =
             underlyingDataConfig;
+
         if (item === undefined) return defaultMetricQuery;
 
         // We include tables from all fields that appear on the SQL query (aka tables from all columns in results)
@@ -181,18 +183,14 @@ const UnderlyingDataModalContent: FC<Props> = () => {
         // Metric filters fieldId don't have table prefixes, we add it here
         const metric: Metric | undefined =
             isField(item) && isMetric(item) ? item : undefined;
+
         const metricFilters =
-            metric?.filters?.map((filter) => {
-                return {
-                    ...filter,
-                    target: {
-                        fieldId: getFieldId({
-                            ...metric,
-                            name: filter.target.fieldRef,
-                        }),
-                    },
-                };
-            }) || [];
+            metric?.filters?.map((filter) => ({
+                ...filter,
+                target: {
+                    fieldId: convertFieldRefToFieldId(filter.target.fieldRef),
+                },
+            })) || [];
         const exploreFilters =
             metricQuery?.filters?.dimensions !== undefined
                 ? [metricQuery.filters.dimensions]
