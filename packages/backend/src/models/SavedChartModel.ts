@@ -5,7 +5,6 @@ import {
     CreateSavedChart,
     CreateSavedChartVersion,
     DBFieldTypes,
-    MetricFilterRule,
     NotFoundError,
     SavedChart,
     SessionUser,
@@ -38,6 +37,8 @@ import {
     SpaceTableName,
 } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
+
+// TODO: check if needed to do JSON stringift et al
 
 type DbSavedChartDetails = {
     project_uuid: string;
@@ -203,7 +204,7 @@ const createSavedChartVersion = async (
                             : null,
                     base_dimension_name:
                         additionalMetric.baseDimensionName ?? null,
-                    id: additionalMetric.id ?? null,
+                    uuid: additionalMetric.uuid ?? null,
                 }),
             );
         });
@@ -454,7 +455,7 @@ export class SavedChartModel {
                         'format',
                         'filters',
                         'base_dimension_name',
-                        'id',
+                        'uuid',
                     ])
                     .where(
                         'saved_queries_version_id',
@@ -481,17 +482,16 @@ export class SavedChartModel {
                     round: additionalMetric.round,
                     compact: additionalMetric.compact,
                     format: additionalMetric.format,
-                    id: additionalMetric.id,
+                    uuid: additionalMetric.uuid,
                     sql: additionalMetric.sql,
                     table: additionalMetric.table,
                     type: additionalMetric.type,
                     ...(additionalMetric.base_dimension_name && {
                         baseDimensionName: additionalMetric.base_dimension_name,
                     }),
-                    ...(additionalMetric.filters &&
-                        JSON.parse(additionalMetric.filters) && {
-                            filters: JSON.parse(additionalMetric.filters),
-                        }),
+                    ...(additionalMetric.filters && {
+                        filters: additionalMetric.filters,
+                    }),
                 }));
 
             const [dimensions, metrics]: [string[], string[]] = fields.reduce<
