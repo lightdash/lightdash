@@ -118,7 +118,38 @@ export class DbtCliClient implements DbtClient {
         }, []);
     }
 
-    private async _runDbtCommand(...command: string[]): Promise<DbtLog[]> {
+    private async _runDbtVersionCommand(
+        ...command: string[]
+    ): Promise<DbtLog[]> {
+        const dbtExecs = ['dbt', 'dbt1.5'];
+
+        // eslint-disable-next-line no-restricted-syntax
+        for await (const dbtExec of dbtExecs) {
+
+            Logger.info(
+                `Running ${dbtExec} command "${command.join(
+                    ' ',
+                )}"`,
+            );
+
+            try {
+                return await this._runDbtCommand(dbtExec, ...command);
+            } catch (e) {
+                Sentry.captureException(e, { extra: { dbtExec } });
+                Logger.warn(
+                    `Error running ${dbtExec} command "${command.join(
+                        ' ',
+                    )}"`,
+                );
+                if (dbtExecs[dbtExecs.length-1]=== dbtExec) {
+                    throw e; // Throw last error
+                }
+            }
+        }
+        return [];
+    }
+
+    private async _runDbtCommand(dbtExec: string, ...command: string[]): Promise<DbtLog[]> {
         const dbtArgs = [
             '--no-use-colors',
             '--log-format',
@@ -137,7 +168,7 @@ export class DbtCliClient implements DbtClient {
         }
         try {
             Logger.debug(`Running dbt command: dbt ${dbtArgs.join(' ')}`);
-            const dbtProcess = await execa('dbt', dbtArgs, {
+            const dbtProcess = await execa(dbtExec, dbtArgs, {
                 all: true,
                 stdio: ['pipe', 'pipe', process.stderr],
                 env: {
@@ -163,7 +194,7 @@ export class DbtCliClient implements DbtClient {
             op: 'dbt',
             description: 'installDeps',
         });
-        await this._runDbtCommand('deps');
+        await this._runDbtVersionCommand('deps');
         span?.finish();
     }
 
@@ -175,7 +206,7 @@ export class DbtCliClient implements DbtClient {
             op: 'dbt',
             description: 'getDbtManifest',
         });
-        const dbtLogs = await this._runDbtCommand('compile');
+        const dbtLogs = await this._runDbtVersionCommand('compile');
         const rawManifest = {
             manifest: await this.loadDbtTargetArtifact('manifest.json'),
         };
@@ -243,7 +274,7 @@ export class DbtCliClient implements DbtClient {
             op: 'dbt',
             description: 'getDbtbCatalog',
         });
-        const dbtLogs = await this._runDbtCommand('docs', 'generate');
+        const dbtLogs = await this._runDbtVersionCommand('docs', 'generate');
         const rawCatalog = await this.loadDbtTargetArtifact('catalog.json');
         span?.finish();
         if (isDbtRpcDocsGenerateResults(rawCatalog)) {
@@ -264,7 +295,7 @@ export class DbtCliClient implements DbtClient {
             description: 'test',
         });
         await this.installDeps();
-        await this._runDbtCommand('parse');
+        await this._runDbtVersionCommand('parse');
         span?.finish();
     }
 }
