@@ -201,6 +201,52 @@ export const model: DbtModelNode & { relation_name: string } = {
     original_file_path: '',
 };
 
+export const BASE_LIGHTDASH_TABLE: Omit<Table, 'lineageGraph'> = {
+    name: model.name,
+    label: 'My table',
+    database: model.database,
+    schema: model.schema,
+    sqlTable: model.relation_name,
+    description: model.description,
+    dimensions: {
+        myColumnName: {
+            compact: undefined,
+            description: undefined,
+            fieldType: FieldType.DIMENSION,
+            format: undefined,
+            group: undefined,
+            groupLabel: undefined,
+            hidden: false,
+            index: 0,
+            label: 'My column name',
+            name: 'myColumnName',
+            round: undefined,
+            source: undefined,
+            sql: '${TABLE}.myColumnName',
+            table: 'myTable',
+            tableLabel: 'My table',
+            timeInterval: undefined,
+            type: DimensionType.STRING,
+        },
+    },
+    metrics: {},
+    orderFieldsBy: OrderFieldsByStrategy.LABEL,
+    groupLabel: undefined,
+};
+
+export const MODEL_WITH_GROUP_LABEL: DbtModelNode & { relation_name: string } =
+    {
+        ...model,
+        meta: {
+            group_label: 'revenue',
+        },
+    };
+
+export const LIGHTDASH_TABLE_WITH_GROUP_LABEL: Omit<Table, 'lineageGraph'> = {
+    ...BASE_LIGHTDASH_TABLE,
+    groupLabel: 'revenue',
+};
+
 export const MODEL_WITH_NO_METRICS: DbtModelNode & { relation_name: string } = {
     ...model,
     columns: {
@@ -210,12 +256,7 @@ export const MODEL_WITH_NO_METRICS: DbtModelNode & { relation_name: string } = {
 
 export const LIGHTDASH_TABLE_WITHOUT_AUTO_METRICS: Omit<Table, 'lineageGraph'> =
     {
-        name: MODEL_WITH_NO_METRICS.name,
-        label: 'My table',
-        database: MODEL_WITH_NO_METRICS.database,
-        schema: MODEL_WITH_NO_METRICS.schema,
-        sqlTable: MODEL_WITH_NO_METRICS.relation_name,
-        description: MODEL_WITH_NO_METRICS.description,
+        ...BASE_LIGHTDASH_TABLE,
         dimensions: {
             user_id: {
                 fieldType: FieldType.DIMENSION,
@@ -237,8 +278,6 @@ export const LIGHTDASH_TABLE_WITHOUT_AUTO_METRICS: Omit<Table, 'lineageGraph'> =
                 index: 0,
             },
         },
-        metrics: {},
-        orderFieldsBy: OrderFieldsByStrategy.LABEL,
     };
 
 export const LIGHTDASH_TABLE_WITH_DBT_METRICS: Omit<Table, 'lineageGraph'> = {
@@ -404,11 +443,7 @@ export const MODEL_WITH_WRONG_METRICS: DbtModelNode = {
 };
 
 export const LIGHTDASH_TABLE_WITH_METRICS: Omit<Table, 'lineageGraph'> = {
-    name: MODEL_WITH_METRIC.name,
-    label: 'My table',
-    database: MODEL_WITH_METRIC.database,
-    schema: MODEL_WITH_METRIC.schema,
-    sqlTable: MODEL_WITH_METRIC.relation_name,
+    ...BASE_LIGHTDASH_TABLE,
     description: MODEL_WITH_METRIC.description,
     dimensions: {
         user_id: {
@@ -494,7 +529,6 @@ export const LIGHTDASH_TABLE_WITH_METRICS: Omit<Table, 'lineageGraph'> = {
             index: 1,
         },
     },
-    orderFieldsBy: OrderFieldsByStrategy.LABEL,
 };
 
 export const MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS: DbtModelNode & {
@@ -513,12 +547,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
     Table,
     'lineageGraph'
 > = {
-    name: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
-    label: 'My table',
-    database: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.database,
-    schema: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.schema,
-    sqlTable: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.relation_name,
-    description: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.description,
+    ...BASE_LIGHTDASH_TABLE,
     dimensions: {
         user_created: {
             fieldType: FieldType.DIMENSION,
@@ -654,20 +683,13 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             index: 0,
         },
     },
-    metrics: {},
-    orderFieldsBy: OrderFieldsByStrategy.LABEL,
 };
 
 export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Omit<
     Table,
     'lineageGraph'
 > = {
-    name: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
-    label: 'My table',
-    database: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.database,
-    schema: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.schema,
-    sqlTable: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.relation_name,
-    description: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.description,
+    ...BASE_LIGHTDASH_TABLE,
     dimensions: {
         user_created: {
             fieldType: FieldType.DIMENSION,
@@ -815,8 +837,6 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             index: 0,
         },
     },
-    metrics: {},
-    orderFieldsBy: OrderFieldsByStrategy.LABEL,
 };
 
 export const MODEL_WITH_OFF_TIME_INTERVAL_DIMENSIONS: DbtModelNode & {
@@ -830,12 +850,7 @@ export const LIGHTDASH_TABLE_WITH_OFF_TIME_INTERVAL_DIMENSIONS: Omit<
     Table,
     'lineageGraph'
 > = {
-    name: MODEL_WITH_OFF_TIME_INTERVAL_DIMENSIONS.name,
-    label: 'My table',
-    database: MODEL_WITH_OFF_TIME_INTERVAL_DIMENSIONS.database,
-    schema: MODEL_WITH_OFF_TIME_INTERVAL_DIMENSIONS.schema,
-    sqlTable: MODEL_WITH_OFF_TIME_INTERVAL_DIMENSIONS.relation_name,
-    description: MODEL_WITH_OFF_TIME_INTERVAL_DIMENSIONS.description,
+    ...BASE_LIGHTDASH_TABLE,
     dimensions: {
         user_created: {
             fieldType: FieldType.DIMENSION,
@@ -857,8 +872,6 @@ export const LIGHTDASH_TABLE_WITH_OFF_TIME_INTERVAL_DIMENSIONS: Omit<
             index: 0,
         },
     },
-    metrics: {},
-    orderFieldsBy: OrderFieldsByStrategy.LABEL,
 };
 
 export const MODEL_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS: DbtModelNode & {
@@ -872,12 +885,7 @@ export const LIGHTDASH_TABLE_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS: Omit<
     Table,
     'lineageGraph'
 > = {
-    name: MODEL_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS.name,
-    label: 'My table',
-    database: MODEL_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS.database,
-    schema: MODEL_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS.schema,
-    sqlTable: MODEL_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS.relation_name,
-    description: MODEL_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS.description,
+    ...BASE_LIGHTDASH_TABLE,
     dimensions: {
         user_created: {
             fieldType: FieldType.DIMENSION,
@@ -918,8 +926,6 @@ export const LIGHTDASH_TABLE_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS: Omit<
             index: 0,
         },
     },
-    metrics: {},
-    orderFieldsBy: OrderFieldsByStrategy.LABEL,
 };
 
 export const warehouseSchema: WarehouseCatalog = {

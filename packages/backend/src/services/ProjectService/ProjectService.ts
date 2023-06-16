@@ -1225,6 +1225,9 @@ export class ProjectService {
                     modelsCount: explores.length,
                     modelsWithErrorsCount:
                         explores.filter(isExploreError).length,
+                    modelsWithGroupLabelCount: explores.filter(
+                        ({ groupLabel }) => !!groupLabel,
+                    ).length,
                     metricsCount: explores.reduce<number>((acc, explore) => {
                         if (!isExploreError(explore)) {
                             return (
@@ -1474,6 +1477,7 @@ export class ProjectService {
                     name: explore.name,
                     label: explore.label,
                     tags: explore.tags,
+                    groupLabel: explore.groupLabel,
                     errors: explore.errors,
                     databaseName:
                         explore.baseTable &&
@@ -1491,6 +1495,7 @@ export class ProjectService {
                 name: explore.name,
                 label: explore.label,
                 tags: explore.tags,
+                groupLabel: explore.groupLabel,
                 databaseName: explore.tables[explore.baseTable].database,
                 schemaName: explore.tables[explore.baseTable].schema,
                 description: explore.tables[explore.baseTable].description,
