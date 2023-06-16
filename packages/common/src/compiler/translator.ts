@@ -5,6 +5,7 @@ import {
     DbtMetric,
     DbtModelColumn,
     DbtModelNode,
+    isV9MetricRef,
     LineageGraph,
     SupportedDbtAdapter,
 } from '../types/dbt';
@@ -427,10 +428,16 @@ const modelCanUseMetric = (
     if (!metric) {
         return false;
     }
-    const modelRef = metric.refs?.[0]?.[0];
-    if (modelRef === modelName) {
-        return true;
+    const modelRef = metric?.refs?.[0];
+    if (modelRef) {
+        const modelRefName = isV9MetricRef(modelRef)
+            ? modelRef.name
+            : modelRef[0];
+        if (modelRefName === modelName) {
+            return true;
+        }
     }
+
     if (metric.calculation_method === 'derived') {
         const referencedMetrics = (metric.metrics || []).map((m) => m[0]);
         return referencedMetrics.every((m) =>
