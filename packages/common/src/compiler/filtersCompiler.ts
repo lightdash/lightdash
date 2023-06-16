@@ -29,10 +29,12 @@ export const renderStringFilterSql = (
     const filterType = filter.operator;
     const escapedFilterValues = filter.values?.map((v) =>
         typeof v === 'string'
-            ? v.replaceAll(
-                  stringQuoteChar,
-                  `${escapeStringQuoteChar}${stringQuoteChar}`,
-              )
+            ? v
+                  .replaceAll(
+                      stringQuoteChar,
+                      `${escapeStringQuoteChar}${stringQuoteChar}`,
+                  )
+                  .replaceAll('', '\\_')
             : v,
     );
 
