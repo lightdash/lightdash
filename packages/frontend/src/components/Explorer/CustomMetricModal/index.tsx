@@ -26,6 +26,7 @@ import {
     useState,
 } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { FiltersProvider } from '../../common/Filters/FiltersProvider';
@@ -52,6 +53,7 @@ export const CustomMetricModal: FC<Props> = ({
     setIsCreatingCustomMetric,
     customMetricType,
 }) => {
+    const { showToastSuccess } = useToaster();
     const addAdditionalMetric = useExplorerContext(
         (context) => context.actions.addAdditionalMetric,
     );
@@ -140,6 +142,9 @@ export const CustomMetricModal: FC<Props> = ({
                     },
                     getFieldId(item),
                 );
+                showToastSuccess({
+                    title: 'Custom metric edited successfully',
+                });
             } else if (
                 isDimension(dimension) &&
                 form.values.customMetricLabel
@@ -152,7 +157,11 @@ export const CustomMetricModal: FC<Props> = ({
                     baseDimensionName: dimension.name,
                     ...data,
                 });
+                showToastSuccess({
+                    title: 'Custom metric added successfully',
+                });
             }
+
             setIsCreatingCustomMetric(false);
         },
         [
@@ -164,6 +173,7 @@ export const CustomMetricModal: FC<Props> = ({
             isEditingCustomMetric,
             item,
             setIsCreatingCustomMetric,
+            showToastSuccess,
         ],
     );
 
