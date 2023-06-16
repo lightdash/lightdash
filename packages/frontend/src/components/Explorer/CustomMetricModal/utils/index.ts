@@ -1,4 +1,14 @@
-import { Field, FilterRule, MetricFilterRule } from '@lightdash/common';
+import {
+    AdditionalMetric,
+    Dimension,
+    Field,
+    FilterRule,
+    friendlyName,
+    isAdditionalMetric,
+    MetricFilterRule,
+    MetricType,
+    snakeCaseName,
+} from '@lightdash/common';
 import { MetricFilterRuleWithFieldId } from '../FilterForm';
 
 export const addFieldRefToFilterRule = (
@@ -25,3 +35,30 @@ export const addFieldIdToMetricFilterRule = (
         }`,
     },
 });
+
+export const getMetricName = (
+    label: string,
+    item: AdditionalMetric | Dimension,
+    isEditMode: boolean,
+) => {
+    let baseName =
+        isEditMode && isAdditionalMetric(item) && 'baseDimensionName' in item
+            ? item.baseDimensionName
+            : item.name;
+
+    return `${baseName}_${snakeCaseName(label)}`;
+};
+
+export const getMetricDescription = (
+    metricType: MetricType,
+    label: string,
+    tableLabel: string,
+    filters: MetricFilterRule[],
+) =>
+    `${friendlyName(metricType)} of ${label} on the table ${tableLabel} ${
+        filters.length > 0
+            ? `with filters ${filters
+                  .map((filter) => filter.target.fieldRef)
+                  .join(', ')}`
+            : ''
+    }`;
