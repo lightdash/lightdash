@@ -15,6 +15,8 @@ export interface CellProps extends BoxProps {
     withBolderFont?: boolean;
     withLighterBoldFont?: boolean;
     withValue?: boolean;
+
+    children?: string;
 }
 
 const Cell = forwardRef<HTMLTableCellElement, CellProps>(
