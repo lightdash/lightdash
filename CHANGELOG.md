@@ -1,3 +1,10 @@
+# [0.617.0](https://github.com/lightdash/lightdash/compare/0.616.3...0.617.0) (2023-06-16)
+
+
+### Features
+
+* Add the API to get a project ([#5911](https://github.com/lightdash/lightdash/issues/5911)) ([b1dd89a](https://github.com/lightdash/lightdash/commit/b1dd89a63dd8f8db64682f7dd3e34e19633bed8c))
+
 ## [0.616.3](https://github.com/lightdash/lightdash/compare/0.616.2...0.616.3) (2023-06-16)
 
 
