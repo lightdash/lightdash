@@ -14,13 +14,13 @@ import { useEffect, useState } from 'react';
 import { FieldsWithSuggestions } from '../../common/Filters/FiltersProvider';
 
 interface FieldsWithSuggestionsHookParams {
-    data: Explore | undefined;
+    exploreData: Explore | undefined;
     queryResults: ApiQueryResults | undefined;
     additionalMetrics: AdditionalMetric[] | undefined;
 }
 
 export const useFieldsWithSuggestions = ({
-    data,
+    exploreData,
     queryResults,
     additionalMetrics,
 }: FieldsWithSuggestionsHookParams) => {
@@ -28,13 +28,13 @@ export const useFieldsWithSuggestions = ({
         useState<FieldsWithSuggestions>({});
 
     useEffect(() => {
-        if (data) {
+        if (exploreData) {
             setFieldsWithSuggestions((prev) => {
-                const visibleFields = getVisibleFields(data);
+                const visibleFields = getVisibleFields(exploreData);
                 const customMetrics = (additionalMetrics || []).reduce<
                     Metric[]
                 >((acc, additionalMetric) => {
-                    const table = data.tables[additionalMetric.table];
+                    const table = exploreData.tables[additionalMetric.table];
                     if (table) {
                         const metric = convertAdditionalMetric({
                             additionalMetric,
@@ -86,7 +86,7 @@ export const useFieldsWithSuggestions = ({
                 );
             });
         }
-    }, [data, queryResults, additionalMetrics]);
+    }, [exploreData, queryResults, additionalMetrics]);
 
     return fieldsWithSuggestions;
 };
