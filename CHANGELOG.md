@@ -1,3 +1,10 @@
+## [0.616.2](https://github.com/lightdash/lightdash/compare/0.616.1...0.616.2) (2023-06-16)
+
+
+### Bug Fixes
+
+* resource view tabs not visible when there is one item ([#5938](https://github.com/lightdash/lightdash/issues/5938)) ([68a1548](https://github.com/lightdash/lightdash/commit/68a1548590ffec3389b321b4717eea7e8d2f6661))
+
 ## [0.616.1](https://github.com/lightdash/lightdash/compare/0.616.0...0.616.1) (2023-06-16)
 
 
