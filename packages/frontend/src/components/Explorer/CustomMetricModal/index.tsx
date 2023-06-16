@@ -5,7 +5,6 @@ import {
     friendlyName,
     isAdditionalMetric,
     isDimension,
-    MetricFilterRule,
     MetricType,
 } from '@lightdash/common';
 import {
@@ -34,8 +33,8 @@ import { FilterForm, MetricFilterRuleWithFieldId } from './FilterForm';
 import { useDataForFiltersProvider } from './hooks/useDataForFiltersProvider';
 import {
     addFieldIdToMetricFilterRule,
-    getCustomMetricDescription,
     getCustomMetricName,
+    prepareCustomMetricData,
 } from './utils';
 
 type Props = {
@@ -84,7 +83,16 @@ export const CustomMetricModal: FC<Props> = ({
         validate: {
             customMetricLabel: (label) => {
                 if (!label) return null;
-                const metricName = getCustomMetricName(label, item, isEditMode);
+
+                const metricName = getCustomMetricName(
+                    label,
+                    isEditMode &&
+                        isAdditionalMetric(item) &&
+                        'baseDimensionName' in item &&
+                        item.baseDimensionName
+                        ? item.baseDimensionName
+                        : item.name,
+                );
                 return additionalMetrics?.some(
                     (metric) => metric.name === metricName,
                 )
@@ -112,74 +120,23 @@ export const CustomMetricModal: FC<Props> = ({
 
     const editOrAddCustomMetric = useCallback(
         (dimension: Dimension | AdditionalMetric, type: MetricType) => {
-            const shouldCopyFormatting = [
-                MetricType.PERCENTILE,
-                MetricType.MEDIAN,
-                MetricType.AVERAGE,
-                MetricType.SUM,
-                MetricType.MIN,
-                MetricType.MAX,
-            ].includes(type);
-            const compact =
-                shouldCopyFormatting && dimension.compact
-                    ? { compact: dimension.compact }
-                    : {};
-            const format =
-                shouldCopyFormatting && dimension.format
-                    ? { format: dimension.format }
-                    : {};
+            if (!form.values.customMetricLabel) return;
 
-            const defaultRound =
-                type === MetricType.AVERAGE ? { round: 2 } : {};
-            const round =
-                shouldCopyFormatting && dimension.round
-                    ? { round: dimension.round }
-                    : defaultRound;
+            const data = prepareCustomMetricData({
+                dimension,
+                type,
+                customMetricLabel: form.values.customMetricLabel,
+                customMetricFiltersWithIds,
+                isEditMode,
+                item,
+                exploreData,
+            });
 
-            const customMetricFilters: MetricFilterRule[] =
-                customMetricFiltersWithIds.map(
-                    ({
-                        target: { fieldId, ...restTarget },
-                        ...customMetricFilter
-                    }) => ({
-                        ...customMetricFilter,
-                        target: restTarget,
-                    }),
-                );
-
-            if (
-                isEditMode &&
-                isAdditionalMetric(item) &&
-                form.values.customMetricLabel &&
-                item.baseDimensionName &&
-                dimension.label &&
-                exploreData
-            ) {
-                const tableLabel = exploreData.tables[item.table].label;
+            if (isEditMode && isAdditionalMetric(item)) {
                 editAdditionalMetric(
                     {
                         ...item,
-                        name: getCustomMetricName(
-                            form.values.customMetricLabel,
-                            item,
-                            true,
-                        ),
-                        description: getCustomMetricDescription(
-                            type,
-                            dimension.label,
-                            tableLabel,
-                            customMetricFilters,
-                        ),
-                        label: form.values.customMetricLabel,
-                        sql: dimension.sql,
-                        type,
-                        filters:
-                            customMetricFilters.length > 0
-                                ? customMetricFilters
-                                : [],
-                        ...format,
-                        ...round,
-                        ...compact,
+                        ...data,
                     },
                     getFieldId(item),
                 );
@@ -189,29 +146,11 @@ export const CustomMetricModal: FC<Props> = ({
             ) {
                 addAdditionalMetric({
                     uuid: uuidv4(),
-                    name: getCustomMetricName(
-                        form.values.customMetricLabel,
-                        dimension,
-                        false,
-                    ),
-                    description: getCustomMetricDescription(
-                        type,
-                        dimension.label,
-                        dimension.tableLabel,
-                        customMetricFilters,
-                    ),
-                    label: form.values.customMetricLabel,
                     table: dimension.table,
                     sql: dimension.sql,
                     type,
-                    filters:
-                        customMetricFilters.length > 0
-                            ? customMetricFilters
-                            : [],
                     baseDimensionName: dimension.name,
-                    ...format,
-                    ...round,
-                    ...compact,
+                    ...data,
                 });
             }
             setIsCreatingCustomMetric(false);

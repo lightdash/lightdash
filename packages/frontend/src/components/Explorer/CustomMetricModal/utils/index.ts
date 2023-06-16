@@ -1,10 +1,12 @@
 import {
     AdditionalMetric,
     Dimension,
+    Explore,
     Field,
     FilterRule,
     friendlyName,
     isAdditionalMetric,
+    isDimension,
     MetricFilterRule,
     MetricType,
     snakeCaseName,
@@ -36,20 +38,10 @@ export const addFieldIdToMetricFilterRule = (
     },
 });
 
-export const getCustomMetricName = (
-    label: string,
-    item: AdditionalMetric | Dimension,
-    isEditMode: boolean,
-) => {
-    const baseName =
-        isEditMode && isAdditionalMetric(item) && 'baseDimensionName' in item
-            ? item.baseDimensionName
-            : item.name;
+export const getCustomMetricName = (label: string, dimensionName: string) =>
+    `${dimensionName}_${snakeCaseName(label)}`;
 
-    return `${baseName}_${snakeCaseName(label)}`;
-};
-
-export const getCustomMetricDescription = (
+const getCustomMetricDescription = (
     metricType: MetricType,
     label: string,
     tableLabel: string,
@@ -62,3 +54,93 @@ export const getCustomMetricDescription = (
                   .join(', ')}`
             : ''
     }`;
+
+export const prepareCustomMetricData = ({
+    dimension,
+    type,
+    customMetricLabel,
+    customMetricFiltersWithIds,
+    isEditMode,
+    item,
+    exploreData,
+}: {
+    dimension: Dimension | AdditionalMetric;
+    type: MetricType;
+    customMetricLabel: string;
+    customMetricFiltersWithIds: MetricFilterRuleWithFieldId[];
+    isEditMode: boolean;
+    item: Dimension | AdditionalMetric;
+    exploreData?: Explore;
+}) => {
+    const shouldCopyFormatting = [
+        MetricType.PERCENTILE,
+        MetricType.MEDIAN,
+        MetricType.AVERAGE,
+        MetricType.SUM,
+        MetricType.MIN,
+        MetricType.MAX,
+    ].includes(type);
+    const compact =
+        shouldCopyFormatting && dimension.compact
+            ? { compact: dimension.compact }
+            : {};
+    const format =
+        shouldCopyFormatting && dimension.format
+            ? { format: dimension.format }
+            : {};
+
+    const defaultRound = type === MetricType.AVERAGE ? { round: 2 } : {};
+    const round =
+        shouldCopyFormatting && dimension.round
+            ? { round: dimension.round }
+            : defaultRound;
+
+    const customMetricFilters: MetricFilterRule[] =
+        customMetricFiltersWithIds.map(
+            ({
+                target: { fieldId, ...restTarget },
+                ...customMetricFilter
+            }) => ({
+                ...customMetricFilter,
+                target: restTarget,
+            }),
+        );
+
+    const tableLabel = exploreData?.tables[item.table].label;
+
+    return {
+        ...format,
+        ...round,
+        ...compact,
+        filters: customMetricFilters.length > 0 ? customMetricFilters : [],
+        label: customMetricLabel,
+        name: getCustomMetricName(
+            customMetricLabel,
+            isEditMode &&
+                isAdditionalMetric(item) &&
+                'baseDimensionName' in item &&
+                item.baseDimensionName
+                ? item.baseDimensionName
+                : item.name,
+        ),
+        ...(isEditMode &&
+            dimension.label &&
+            tableLabel && {
+                description: getCustomMetricDescription(
+                    type,
+                    dimension.label,
+                    tableLabel,
+                    customMetricFilters,
+                ),
+            }),
+        ...(!isEditMode &&
+            isDimension(dimension) && {
+                description: getCustomMetricDescription(
+                    type,
+                    dimension.label,
+                    dimension.tableLabel,
+                    customMetricFilters,
+                ),
+            }),
+    };
+};
