@@ -5,6 +5,7 @@ import Fuse from 'fuse.js';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 
+import { SummaryExplore } from '@lightdash/common';
 import { useExplores } from '../../../hooks/useExplores';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
@@ -12,6 +13,7 @@ import { SectionName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import ExplorePanel from '../ExplorePanel';
+import ExploreGroup from './ExploreGroup';
 import ExploreNavLink from './ExploreNavLink';
 
 const LoadingSkeleton = () => (
@@ -34,11 +36,12 @@ const BasePanel = () => {
     const [search, setSearch] = useState<string>('');
     const exploresResult = useExplores(projectUuid, true);
 
-    const filteredTables = useMemo(() => {
+    const [exploreGroupMap, ungroupedExplores] = useMemo(() => {
         const validSearch = search ? search.toLowerCase() : '';
         if (exploresResult.data) {
+            let explores = Object.values(exploresResult.data);
             if (validSearch !== '') {
-                return new Fuse(Object.values(exploresResult.data), {
+                explores = new Fuse(Object.values(exploresResult.data), {
                     keys: ['label'],
                     ignoreLocation: true,
                     threshold: 0.3,
@@ -46,9 +49,28 @@ const BasePanel = () => {
                     .search(validSearch)
                     .map((res) => res.item);
             }
-            return Object.values(exploresResult.data);
+
+            return explores.reduce<
+                [Record<string, SummaryExplore[]>, SummaryExplore[]]
+            >(
+                (acc, explore) => {
+                    if (explore.groupLabel) {
+                        return [
+                            {
+                                ...acc[0],
+                                [explore.groupLabel]: acc[0][explore.groupLabel]
+                                    ? [...acc[0][explore.groupLabel], explore]
+                                    : [explore],
+                            },
+                            acc[1],
+                        ];
+                    }
+                    return [acc[0], [...acc[1], explore]];
+                },
+                [{}, []],
+            );
         }
-        return [];
+        return [{}, []];
     }, [exploresResult.data, search]);
 
     if (exploresResult.status === 'loading') {
@@ -82,7 +104,29 @@ const BasePanel = () => {
                 />
 
                 <Stack spacing="xxs" sx={{ flexGrow: 1, overflowY: 'auto' }}>
-                    {filteredTables
+                    {Object.keys(exploreGroupMap)
+                        .sort((a, b) => a.localeCompare(b))
+                        .map((groupLabel) => (
+                            <ExploreGroup label={groupLabel} key={groupLabel}>
+                                {exploreGroupMap[groupLabel]
+                                    .sort((a, b) =>
+                                        a.label.localeCompare(b.label),
+                                    )
+                                    .map((explore) => (
+                                        <ExploreNavLink
+                                            key={explore.name}
+                                            explore={explore}
+                                            query={search}
+                                            onClick={() => {
+                                                history.push(
+                                                    `/projects/${projectUuid}/tables/${explore.name}`,
+                                                );
+                                            }}
+                                        />
+                                    ))}
+                            </ExploreGroup>
+                        ))}
+                    {ungroupedExplores
                         .sort((a, b) => a.label.localeCompare(b.label))
                         .map((explore) => (
                             <ExploreNavLink
