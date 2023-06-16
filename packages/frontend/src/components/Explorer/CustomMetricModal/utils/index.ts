@@ -36,7 +36,7 @@ export const addFieldIdToMetricFilterRule = (
     },
 });
 
-export const getMetricName = (
+export const getCustomMetricName = (
     label: string,
     item: AdditionalMetric | Dimension,
     isEditMode: boolean,
@@ -49,7 +49,7 @@ export const getMetricName = (
     return `${baseName}_${snakeCaseName(label)}`;
 };
 
-export const getMetricDescription = (
+export const getCustomMetricDescription = (
     metricType: MetricType,
     label: string,
     tableLabel: string,

@@ -34,8 +34,8 @@ import { FilterForm, MetricFilterRuleWithFieldId } from './FilterForm';
 import { useDataForFiltersProvider } from './hooks/useDataForFiltersProvider';
 import {
     addFieldIdToMetricFilterRule,
-    getMetricDescription,
-    getMetricName,
+    getCustomMetricDescription,
+    getCustomMetricName,
 } from './utils';
 
 type Props = {
@@ -84,7 +84,7 @@ export const CustomMetricModal: FC<Props> = ({
         validate: {
             customMetricLabel: (label) => {
                 if (!label) return null;
-                const metricName = getMetricName(label, item, isEditMode);
+                const metricName = getCustomMetricName(label, item, isEditMode);
                 return additionalMetrics?.some(
                     (metric) => metric.name === metricName,
                 )
@@ -159,12 +159,12 @@ export const CustomMetricModal: FC<Props> = ({
                 editAdditionalMetric(
                     {
                         ...item,
-                        name: getMetricName(
+                        name: getCustomMetricName(
                             form.values.customMetricLabel,
                             item,
                             true,
                         ),
-                        description: getMetricDescription(
+                        description: getCustomMetricDescription(
                             type,
                             dimension.label,
                             tableLabel,
@@ -188,12 +188,12 @@ export const CustomMetricModal: FC<Props> = ({
             ) {
                 addAdditionalMetric({
                     uuid: uuidv4(),
-                    name: getMetricName(
+                    name: getCustomMetricName(
                         form.values.customMetricLabel,
                         dimension,
                         false,
                     ),
-                    description: getMetricDescription(
+                    description: getCustomMetricDescription(
                         type,
                         dimension.label,
                         dimension.tableLabel,
