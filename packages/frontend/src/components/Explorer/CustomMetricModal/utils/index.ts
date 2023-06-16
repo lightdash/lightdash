@@ -41,7 +41,7 @@ export const getMetricName = (
     item: AdditionalMetric | Dimension,
     isEditMode: boolean,
 ) => {
-    let baseName =
+    const baseName =
         isEditMode && isAdditionalMetric(item) && 'baseDimensionName' in item
             ? item.baseDimensionName
             : item.name;
