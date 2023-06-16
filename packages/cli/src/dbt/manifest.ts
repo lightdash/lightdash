@@ -1,4 +1,4 @@
-import { DbtManifest } from '@lightdash/common';
+import { DbtManifest, DbtManifestVersion } from '@lightdash/common';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import globalState from '../globalState';
@@ -7,7 +7,6 @@ import { getDbtVersion } from '../handlers/dbt/getDbtVersion';
 type LoadManifestArgs = {
     targetDir: string;
 };
-
 
 export const getDbtManifest = async (): Promise<DbtManifestVersion> => {
     const version = await getDbtVersion();
