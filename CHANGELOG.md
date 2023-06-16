@@ -1,3 +1,10 @@
+## [0.616.3](https://github.com/lightdash/lightdash/compare/0.616.2...0.616.3) (2023-06-16)
+
+
+### Bug Fixes
+
+* dbt 1.5 metrics in CLI commands ([#5940](https://github.com/lightdash/lightdash/issues/5940)) ([f8aad0f](https://github.com/lightdash/lightdash/commit/f8aad0fed7103840c5a53738e265543dcf2a2bc7))
+
 ## [0.616.2](https://github.com/lightdash/lightdash/compare/0.616.1...0.616.2) (2023-06-16)
 
 
