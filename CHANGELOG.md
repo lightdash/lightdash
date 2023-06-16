@@ -1,3 +1,10 @@
+## [0.616.1](https://github.com/lightdash/lightdash/compare/0.616.0...0.616.1) (2023-06-16)
+
+
+### Bug Fixes
+
+* dashboard URL should have filters (temporary and saved) ([#5922](https://github.com/lightdash/lightdash/issues/5922)) ([0ecedb1](https://github.com/lightdash/lightdash/commit/0ecedb136eb7a4278aaad7f2fcda8ba65118d820))
+
 # [0.616.0](https://github.com/lightdash/lightdash/compare/0.615.0...0.616.0) (2023-06-16)
 
 
