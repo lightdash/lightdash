@@ -1,3 +1,10 @@
+# [0.618.0](https://github.com/lightdash/lightdash/compare/0.617.0...0.618.0) (2023-06-16)
+
+
+### Features
+
+* pivot table truncate large texts ([#5939](https://github.com/lightdash/lightdash/issues/5939)) ([05aca0d](https://github.com/lightdash/lightdash/commit/05aca0dbb71eece457591e3ad8aeac3a784b48d7))
+
 # [0.617.0](https://github.com/lightdash/lightdash/compare/0.616.3...0.617.0) (2023-06-16)
 
 
