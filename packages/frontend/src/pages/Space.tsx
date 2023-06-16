@@ -317,6 +317,7 @@ const Space: FC = () => {
                         icon: <IconLayoutDashboard size={30} />,
                         title: 'No items added yet',
                     }}
+                    dashboards={dashboards}
                 />
 
                 {addToSpace && (

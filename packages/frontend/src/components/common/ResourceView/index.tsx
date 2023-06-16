@@ -1,4 +1,8 @@
-import { assertUnreachable, ResourceViewItem } from '@lightdash/common';
+import {
+    assertUnreachable,
+    DashboardBasicDetails,
+    ResourceViewItem,
+} from '@lightdash/common';
 import {
     Box,
     Divider,
@@ -59,6 +63,7 @@ export enum ResourceViewType {
 interface ResourceViewProps extends ResourceViewCommonProps {
     listProps?: ResourceViewListCommonProps;
     gridProps?: ResourceViewGridCommonProps;
+    dashboards?: DashboardBasicDetails[];
 }
 
 const ResourceView: React.FC<ResourceViewProps> = ({
@@ -71,6 +76,7 @@ const ResourceView: React.FC<ResourceViewProps> = ({
     headerProps = {},
     emptyStateProps = {},
     hasReorder = false,
+    dashboards,
 }) => {
     const theme = useMantineTheme();
     const tableTabStyles = useTableTabStyles();
@@ -79,7 +85,11 @@ const ResourceView: React.FC<ResourceViewProps> = ({
         type: ResourceViewItemAction.CLOSE,
     });
 
-    const [activeTabId, setActiveTabId] = useState(tabs?.[0]?.id);
+    const [activeTabId, setActiveTabId] = useState(
+        dashboards?.length === undefined || dashboards?.length === 0
+            ? tabs?.[1]?.id
+            : tabs?.[0]?.id,
+    );
 
     const handleAction = useCallback(
         (newAction: ResourceViewItemActionState) => {
