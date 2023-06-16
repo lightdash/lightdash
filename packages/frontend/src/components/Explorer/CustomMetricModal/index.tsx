@@ -173,9 +173,10 @@ export const CustomMetricModal: FC<Props> = ({
                         label: form.values.customMetricLabel,
                         sql: dimension.sql,
                         type,
-                        ...(customMetricFilters.length > 0 && {
-                            filters: customMetricFilters,
-                        }),
+                        filters:
+                            customMetricFilters.length > 0
+                                ? customMetricFilters
+                                : [],
                         ...format,
                         ...round,
                         ...compact,
@@ -203,9 +204,10 @@ export const CustomMetricModal: FC<Props> = ({
                     table: dimension.table,
                     sql: dimension.sql,
                     type,
-                    ...(customMetricFilters.length > 0 && {
-                        filters: customMetricFilters,
-                    }),
+                    filters:
+                        customMetricFilters.length > 0
+                            ? customMetricFilters
+                            : [],
                     baseDimensionName: dimension.name,
                     ...format,
                     ...round,
