@@ -158,7 +158,7 @@ export const CustomMetricModal: FC<Props> = ({
                     {
                         ...item,
                         name: `${item.baseDimensionName}_${snakeCaseName(
-                            form.values.customMetricLabel ?? '',
+                            form.values.customMetricLabel,
                         )}`,
                         description: `${friendlyName(type)} of ${
                             dimension.label
@@ -181,11 +181,14 @@ export const CustomMetricModal: FC<Props> = ({
                     },
                     `${item.table}_${item.name}`,
                 );
-            } else if (isDimension(dimension)) {
+            } else if (
+                isDimension(dimension) &&
+                form.values.customMetricLabel
+            ) {
                 addAdditionalMetric({
                     id: uuidv4(),
                     name: `${dimension.name}_${snakeCaseName(
-                        form.values.customMetricLabel ?? '',
+                        form.values.customMetricLabel,
                     )}`,
                     label: form.values.customMetricLabel,
                     table: dimension.table,
