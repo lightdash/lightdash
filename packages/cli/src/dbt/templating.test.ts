@@ -16,6 +16,16 @@ describe('Templating', () => {
 
     describe('renderProfilesYml', () => {
         describe('env_var()', () => {
+            test('should not escape values', () => {
+                process.env.SPAN = '<span>';
+                expect(renderProfilesYml("{{ env_var('SPAN') }}")).toBe(
+                    '<span>',
+                );
+                process.env.WINDOWS_PATH = 'C:\\example';
+                expect(renderProfilesYml("{{ env_var('WINDOWS_PATH') }}")).toBe(
+                    'C:\\example',
+                );
+            });
             test('should convert env_var functions and return env var values', () => {
                 process.env.DBT_USER = 'test';
                 expect(renderProfilesYml("{{ env_var('DBT_USER') }}")).toBe(
