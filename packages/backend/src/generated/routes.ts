@@ -887,11 +887,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ProjectType: {
-        dataType: 'refEnum',
-        enums: ['DEFAULT', 'PREVIEW'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'DbtProjectType.DBT': {
         dataType: 'refEnum',
         enums: ['dbt'],

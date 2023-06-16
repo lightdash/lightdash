@@ -954,10 +954,6 @@
                 "required": ["data", "type"],
                 "type": "object"
             },
-            "ProjectType": {
-                "enum": ["DEFAULT", "PREVIEW"],
-                "type": "string"
-            },
             "DbtProjectType.DBT": {
                 "enum": ["dbt"],
                 "type": "string"
@@ -3518,7 +3514,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.613.2",
+        "version": "0.616.2",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
