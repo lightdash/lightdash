@@ -1,12 +1,12 @@
 import {
     AdditionalMetric,
     Dimension,
+    fieldId as getFieldId,
     friendlyName,
     isAdditionalMetric,
     isDimension,
     MetricFilterRule,
     MetricType,
-    snakeCaseName,
 } from '@lightdash/common';
 import {
     Accordion,
@@ -18,16 +18,25 @@ import {
     Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { Dispatch, FC, SetStateAction, useCallback, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import {
+    Dispatch,
+    FC,
+    SetStateAction,
+    useCallback,
+    useMemo,
+    useState,
+} from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useExplore } from '../../../hooks/useExplore';
-import { useProject } from '../../../hooks/useProject';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { FiltersProvider } from '../../common/Filters/FiltersProvider';
-import { useFieldsWithSuggestions } from '../FiltersCard/useFieldsWithSuggestions';
 import { FilterForm, MetricFilterRuleWithFieldId } from './FilterForm';
-import { addFieldIdToMetricFilterRule } from './utils';
+import { useDataForFiltersProvider } from './hooks/useDataForFiltersProvider';
+import {
+    addFieldIdToMetricFilterRule,
+    getMetricDescription,
+    getMetricName,
+} from './utils';
 
 type Props = {
     isEditMode: boolean;
@@ -44,9 +53,6 @@ export const CustomMetricModal: FC<Props> = ({
     setIsCreatingCustomMetric,
     customMetricType,
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
-    const project = useProject(projectUuid);
-
     const addAdditionalMetric = useExplorerContext(
         (context) => context.actions.addAdditionalMetric,
     );
@@ -57,22 +63,14 @@ export const CustomMetricModal: FC<Props> = ({
         (context) => context.state.unsavedChartVersion.tableName,
     );
 
-    const queryResults = useExplorerContext(
-        (context) => context.queryResults.data,
-    );
-
-    const { data } = useExplore(tableName);
+    const { data: exploreData } = useExplore(tableName);
 
     const additionalMetrics = useExplorerContext(
         (context) =>
             context.state.unsavedChartVersion.metricQuery.additionalMetrics,
     );
 
-    const fieldsWithSuggestions = useFieldsWithSuggestions({
-        data,
-        queryResults,
-        additionalMetrics,
-    });
+    const { projectUuid, fieldsMap, startOfWeek } = useDataForFiltersProvider();
 
     const form = useForm({
         validateInputOnChange: true,
@@ -84,34 +82,35 @@ export const CustomMetricModal: FC<Props> = ({
                 : '',
         },
         validate: {
-            customMetricLabel: (label) =>
-                additionalMetrics?.some(
-                    (metric) =>
-                        metric.label?.toLowerCase() === label?.toLowerCase(),
+            customMetricLabel: (label) => {
+                if (!label) return null;
+                const metricName = getMetricName(label, item, isEditMode);
+                return additionalMetrics?.some(
+                    (metric) => metric.name === metricName,
                 )
                     ? 'Metric with this label already exists'
-                    : null,
+                    : null;
+            },
         },
     });
 
-    const getCurrentCustomMetricFiltersWithIds = useCallback(() => {
-        if (isAdditionalMetric(item)) {
-            return (
-                item.filters?.map((filterRule) =>
-                    addFieldIdToMetricFilterRule(filterRule),
-                ) || []
-            );
-        }
+    const currentCustomMetricFiltersWithIds = useMemo(
+        () =>
+            isAdditionalMetric(item)
+                ? item.filters?.map((filterRule) =>
+                      addFieldIdToMetricFilterRule(filterRule),
+                  ) || []
+                : [],
 
-        return [];
-    }, [item]);
+        [item],
+    );
 
     const [customMetricFiltersWithIds, setCustomMetricFiltersWithIds] =
         useState<MetricFilterRuleWithFieldId[]>(
-            isEditMode ? getCurrentCustomMetricFiltersWithIds() : [],
+            isEditMode ? currentCustomMetricFiltersWithIds : [],
         );
 
-    const createCustomMetric = useCallback(
+    const editOrAddCustomMetric = useCallback(
         (dimension: Dimension | AdditionalMetric, type: MetricType) => {
             const shouldCopyFormatting = [
                 MetricType.PERCENTILE,
@@ -152,23 +151,25 @@ export const CustomMetricModal: FC<Props> = ({
                 isEditMode &&
                 isAdditionalMetric(item) &&
                 form.values.customMetricLabel &&
-                item.baseDimensionName
+                item.baseDimensionName &&
+                dimension.label &&
+                exploreData
             ) {
+                const tableLabel = exploreData.tables[item.table].label;
                 editAdditionalMetric(
                     {
                         ...item,
-                        name: `${item.baseDimensionName}_${snakeCaseName(
+                        name: getMetricName(
                             form.values.customMetricLabel,
-                        )}`,
-                        description: `${friendlyName(type)} of ${
-                            dimension.label
-                        } on the table ${data?.tables[item.table].label} ${
-                            customMetricFilters.length > 0
-                                ? `with filters ${customMetricFilters
-                                      .map((filter) => filter.target.fieldRef)
-                                      .join(', ')}`
-                                : ''
-                        }`,
+                            item,
+                            true,
+                        ),
+                        description: getMetricDescription(
+                            type,
+                            dimension.label,
+                            tableLabel,
+                            customMetricFilters,
+                        ),
                         label: form.values.customMetricLabel,
                         sql: dimension.sql,
                         type,
@@ -179,29 +180,28 @@ export const CustomMetricModal: FC<Props> = ({
                         ...round,
                         ...compact,
                     },
-                    `${item.table}_${item.name}`,
+                    getFieldId(item),
                 );
             } else if (
                 isDimension(dimension) &&
                 form.values.customMetricLabel
             ) {
                 addAdditionalMetric({
-                    id: uuidv4(),
-                    name: `${dimension.name}_${snakeCaseName(
+                    uuid: uuidv4(),
+                    name: getMetricName(
                         form.values.customMetricLabel,
-                    )}`,
+                        dimension,
+                        false,
+                    ),
+                    description: getMetricDescription(
+                        type,
+                        dimension.label,
+                        dimension.tableLabel,
+                        customMetricFilters,
+                    ),
                     label: form.values.customMetricLabel,
                     table: dimension.table,
                     sql: dimension.sql,
-                    description: `${friendlyName(type)} of ${
-                        dimension.label
-                    } on the table ${dimension.tableLabel} ${
-                        customMetricFilters.length > 0
-                            ? `with filters ${customMetricFilters
-                                  .map((filter) => filter.target.fieldRef)
-                                  .join(', ')}`
-                            : ''
-                    }`,
                     type,
                     ...(customMetricFilters.length > 0 && {
                         filters: customMetricFilters,
@@ -217,8 +217,8 @@ export const CustomMetricModal: FC<Props> = ({
         [
             addAdditionalMetric,
             customMetricFiltersWithIds,
-            data?.tables,
             editAdditionalMetric,
+            exploreData,
             form.values.customMetricLabel,
             isEditMode,
             item,
@@ -240,10 +240,10 @@ export const CustomMetricModal: FC<Props> = ({
                 </Title>
             }
         >
-            <Stack>
-                <form
-                    onSubmit={() => createCustomMetric(item, customMetricType!)}
-                >
+            <form
+                onSubmit={() => editOrAddCustomMetric(item, customMetricType!)}
+            >
+                <Stack>
                     <TextInput
                         label="Label"
                         required
@@ -263,11 +263,8 @@ export const CustomMetricModal: FC<Props> = ({
                             <Accordion.Panel>
                                 <FiltersProvider
                                     projectUuid={projectUuid}
-                                    fieldsMap={fieldsWithSuggestions}
-                                    startOfWeek={
-                                        project.data?.warehouseConnection
-                                            ?.startOfWeek
-                                    }
+                                    fieldsMap={fieldsMap}
+                                    startOfWeek={startOfWeek}
                                 >
                                     <FilterForm
                                         item={item}
@@ -286,8 +283,8 @@ export const CustomMetricModal: FC<Props> = ({
                     <Button display="block" ml="auto" type="submit">
                         {isEditMode ? 'Save changes' : 'Create'}
                     </Button>
-                </form>
-            </Stack>
+                </Stack>
+            </form>
         </Modal>
     );
 };
