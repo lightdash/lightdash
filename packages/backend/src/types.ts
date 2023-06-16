@@ -1,17 +1,16 @@
 import {
+    DbtManifestVersion,
     DbtPackages,
     DbtRpcDocsGenerateResults,
     DbtRpcGetManifestResults,
     DimensionType,
     Explore,
     ExploreError,
-    DbtManifestVersion
 } from '@lightdash/common';
 import { WarehouseCatalog } from '@lightdash/warehouses';
 
 export interface ProjectAdapter {
-    compileAllExplores(
-        ): Promise<(Explore | ExploreError)[]>;
+    compileAllExplores(): Promise<(Explore | ExploreError)[]>;
     getDbtPackages(): Promise<DbtPackages | undefined>;
     runQuery(sql: string): Promise<{
         fields: Record<string, { type: DimensionType }>;
@@ -23,7 +22,10 @@ export interface ProjectAdapter {
 
 export interface DbtClient {
     installDeps(): Promise<void>;
-    getDbtManifest(): Promise< {version: DbtManifestVersion, manifest: DbtRpcGetManifestResults}>;
+    getDbtManifest(): Promise<{
+        version: DbtManifestVersion;
+        results: DbtRpcGetManifestResults;
+    }>;
     getDbtCatalog(): Promise<DbtRpcDocsGenerateResults>;
     getDbtPackages?(): Promise<DbtPackages | undefined>;
     test(): Promise<void>;
