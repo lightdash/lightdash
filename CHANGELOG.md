@@ -1,3 +1,15 @@
+# [0.616.0](https://github.com/lightdash/lightdash/compare/0.615.0...0.616.0) (2023-06-16)
+
+
+### Bug Fixes
+
+* dont escape env_var values ([#5927](https://github.com/lightdash/lightdash/issues/5927)) ([d650c3c](https://github.com/lightdash/lightdash/commit/d650c3c54b4735bbafcb6cca9cbf35e1ff95ea5e))
+
+
+### Features
+
+* table group label ([#5898](https://github.com/lightdash/lightdash/issues/5898)) ([8376cba](https://github.com/lightdash/lightdash/commit/8376cba8ab90a3cd1bd6ebe9ca699f4b3a015f1e))
+
 # [0.615.0](https://github.com/lightdash/lightdash/compare/0.614.0...0.615.0) (2023-06-15)
 
 
