@@ -456,6 +456,7 @@ export class SavedChartModel {
                         'filters',
                         'base_dimension_name',
                         'uuid',
+                        'compact',
                     ])
                     .where(
                         'saved_queries_version_id',
