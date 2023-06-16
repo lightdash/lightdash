@@ -187,7 +187,7 @@ const TreeSingleNodeActions: FC<Props> = ({
             </Menu.Dropdown>
             {isCreatingCustomMetric || isEditingCustomMetric ? (
                 <CustomMetricModal
-                    isEditMode={isEditingCustomMetric}
+                    isEditingCustomMetric={isEditingCustomMetric}
                     item={item as Dimension}
                     isCreatingCustomMetric={
                         isCreatingCustomMetric || isEditingCustomMetric

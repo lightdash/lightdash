@@ -38,7 +38,7 @@ import {
 } from './utils';
 
 type Props = {
-    isEditMode: boolean;
+    isEditingCustomMetric: boolean;
     isCreatingCustomMetric: boolean;
     setIsCreatingCustomMetric: Dispatch<SetStateAction<boolean>>;
     customMetricType: MetricType | undefined;
@@ -46,7 +46,7 @@ type Props = {
 };
 
 export const CustomMetricModal: FC<Props> = ({
-    isEditMode,
+    isEditingCustomMetric,
     item,
     isCreatingCustomMetric,
     setIsCreatingCustomMetric,
@@ -74,7 +74,7 @@ export const CustomMetricModal: FC<Props> = ({
     const form = useForm({
         validateInputOnChange: true,
         initialValues: {
-            customMetricLabel: isEditMode
+            customMetricLabel: isEditingCustomMetric
                 ? item.label
                 : customMetricType
                 ? `${friendlyName(customMetricType)} of ${item.label}`
@@ -86,7 +86,7 @@ export const CustomMetricModal: FC<Props> = ({
 
                 const metricName = getCustomMetricName(
                     label,
-                    isEditMode &&
+                    isEditingCustomMetric &&
                         isAdditionalMetric(item) &&
                         'baseDimensionName' in item &&
                         item.baseDimensionName
@@ -115,7 +115,7 @@ export const CustomMetricModal: FC<Props> = ({
 
     const [customMetricFiltersWithIds, setCustomMetricFiltersWithIds] =
         useState<MetricFilterRuleWithFieldId[]>(
-            isEditMode ? currentCustomMetricFiltersWithIds : [],
+            isEditingCustomMetric ? currentCustomMetricFiltersWithIds : [],
         );
 
     const editOrAddCustomMetric = useCallback(
@@ -127,12 +127,12 @@ export const CustomMetricModal: FC<Props> = ({
                 type,
                 customMetricLabel: form.values.customMetricLabel,
                 customMetricFiltersWithIds,
-                isEditMode,
+                isEditingCustomMetric,
                 item,
                 exploreData,
             });
 
-            if (isEditMode && isAdditionalMetric(item)) {
+            if (isEditingCustomMetric && isAdditionalMetric(item)) {
                 editAdditionalMetric(
                     {
                         ...item,
@@ -161,7 +161,7 @@ export const CustomMetricModal: FC<Props> = ({
             editAdditionalMetric,
             exploreData,
             form.values.customMetricLabel,
-            isEditMode,
+            isEditingCustomMetric,
             item,
             setIsCreatingCustomMetric,
         ],
@@ -177,7 +177,7 @@ export const CustomMetricModal: FC<Props> = ({
             onClose={() => setIsCreatingCustomMetric(false)}
             title={
                 <Title order={4}>
-                    {isEditMode ? 'Edit' : 'Create'} Custom Metric
+                    {isEditingCustomMetric ? 'Edit' : 'Create'} Custom Metric
                 </Title>
             }
         >
@@ -222,7 +222,7 @@ export const CustomMetricModal: FC<Props> = ({
                     </Accordion>
 
                     <Button display="block" ml="auto" type="submit">
-                        {isEditMode ? 'Save changes' : 'Create'}
+                        {isEditingCustomMetric ? 'Save changes' : 'Create'}
                     </Button>
                 </Stack>
             </form>

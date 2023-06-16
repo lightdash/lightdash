@@ -60,7 +60,7 @@ export const prepareCustomMetricData = ({
     type,
     customMetricLabel,
     customMetricFiltersWithIds,
-    isEditMode,
+    isEditingCustomMetric,
     item,
     exploreData,
 }: {
@@ -68,7 +68,7 @@ export const prepareCustomMetricData = ({
     type: MetricType;
     customMetricLabel: string;
     customMetricFiltersWithIds: MetricFilterRuleWithFieldId[];
-    isEditMode: boolean;
+    isEditingCustomMetric: boolean;
     item: Dimension | AdditionalMetric;
     exploreData?: Explore;
 }) => {
@@ -116,14 +116,14 @@ export const prepareCustomMetricData = ({
         label: customMetricLabel,
         name: getCustomMetricName(
             customMetricLabel,
-            isEditMode &&
+            isEditingCustomMetric &&
                 isAdditionalMetric(item) &&
                 'baseDimensionName' in item &&
                 item.baseDimensionName
                 ? item.baseDimensionName
                 : item.name,
         ),
-        ...(isEditMode &&
+        ...(isEditingCustomMetric &&
             dimension.label &&
             tableLabel && {
                 description: getCustomMetricDescription(
@@ -133,7 +133,7 @@ export const prepareCustomMetricData = ({
                     customMetricFilters,
                 ),
             }),
-        ...(!isEditMode &&
+        ...(!isEditingCustomMetric &&
             isDimension(dimension) && {
                 description: getCustomMetricDescription(
                     type,
