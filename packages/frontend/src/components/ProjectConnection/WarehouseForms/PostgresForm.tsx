@@ -108,6 +108,7 @@ const PostgresForm: FC<{
                     disabled || !requireSecrets ? '**************' : undefined
                 }
                 disabled={disabled}
+                autoComplete="new-password"
             />
             <Input
                 name="warehouse.dbname"
