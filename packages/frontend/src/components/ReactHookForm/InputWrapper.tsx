@@ -1,7 +1,7 @@
 import { FormGroup, Icon } from '@blueprintjs/core';
 import { ErrorMessage } from '@hookform/error-message';
 import { ArgumentsOf } from '@lightdash/common';
-import React, { FC, ReactElement, useState } from 'react';
+import React, { FC, HTMLProps, ReactElement, useState } from 'react';
 import { Controller, get, useFormContext } from 'react-hook-form';
 import DocumentationHelpButton from '../DocumentationHelpButton';
 import { LabelInfoToggleButton } from './FromGroup.styles';
@@ -11,6 +11,7 @@ interface InputProps {
     id: string;
     disabled?: boolean;
     placeholder?: string;
+    autoComplete?: HTMLProps<HTMLInputElement>['autoComplete'];
 }
 
 export interface InputWrapperProps {
@@ -25,6 +26,7 @@ export interface InputWrapperProps {
     labelHelp?: string | JSX.Element;
     helperText?: string | JSX.Element;
     rules?: React.ComponentProps<typeof Controller>['rules'];
+    autoComplete?: HTMLProps<HTMLInputElement>['autoComplete'];
     render: (
         inputProps: InputProps,
         controllerProps: ArgumentsOf<
