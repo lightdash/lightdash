@@ -8,7 +8,7 @@ import {
     Explore,
     Field,
     fieldId,
-    formatItemValue,
+    formatTableCalculationValue,
     formatValue,
     friendlyName,
     getDimensions,
@@ -17,6 +17,7 @@ import {
     getMetrics,
     isField,
     isNumericItem,
+    isTableCalculation,
     Metric,
     TableCalculation,
     valueIsNaN,
@@ -229,10 +230,26 @@ const useBigNumberConfig = (
     const isNumber = (i: Field | TableCalculation | undefined, value: any) =>
         isNumericItem(i) && !(value instanceof Date) && !valueIsNaN(value);
 
-    const bigNumber = !isNumber(item, firstRowValueRaw)
-        ? selectedField &&
-          resultsData?.rows?.[0]?.[selectedField]?.value.formatted
-        : formatItemValue(item, firstRowValueRaw);
+    const bigNumber = useMemo(() => {
+        if (!isNumber(item, firstRowValueRaw)) {
+            return (
+                selectedField &&
+                resultsData?.rows?.[0]?.[selectedField]?.value.formatted
+            );
+        } else if (item !== undefined && isTableCalculation(item)) {
+            return formatTableCalculationValue(item, firstRowValueRaw);
+        } else {
+            return formatValue(firstRowValueRaw, {
+                format: isField(item) ? item.format : undefined,
+                round: bigNumberStyle
+                    ? 2
+                    : isField(item)
+                    ? item.round
+                    : undefined,
+                compact: bigNumberStyle,
+            });
+        }
+    }, [item, firstRowValueRaw, selectedField, bigNumberStyle, resultsData]);
 
     const unformattedValue =
         isNumber(item, secondRowValueRaw) && isNumber(item, firstRowValueRaw)
@@ -284,6 +301,8 @@ const useBigNumberConfig = (
 
     const showStyle =
         isNumber(item, firstRowValueRaw) &&
+        item !== undefined &&
+        !isTableCalculation(item) &&
         (!isField(item) || item.format !== 'percent');
 
     const validBigNumberConfig: BigNumber = useMemo(() => {
