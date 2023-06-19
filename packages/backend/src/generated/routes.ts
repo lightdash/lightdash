@@ -434,13 +434,19 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    OrganizationMemberProfileUpdate: {
+    'Partial_Pick_OrganizationMemberProfile.role__': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                role: { ref: 'OrganizationMemberRole', required: true },
-            },
+            nestedProperties: { role: { ref: 'OrganizationMemberRole' } },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    OrganizationMemberProfileUpdate: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Partial_Pick_OrganizationMemberProfile.role__',
             validators: {},
         },
     },
@@ -485,12 +491,12 @@ const models: TsoaRoute.Models = {
             type: {
                 dataType: 'nestedObjectLiteral',
                 nestedProperties: {
+                    role: { ref: 'OrganizationMemberRole', required: true },
                     emailDomains: {
                         dataType: 'array',
                         array: { dataType: 'string' },
                         required: true,
                     },
-                    role: { ref: 'OrganizationMemberRole', required: true },
                     projectUuids: {
                         dataType: 'array',
                         array: { dataType: 'string' },
@@ -1735,11 +1741,40 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    TableCalculationFormatType: {
+        dataType: 'refEnum',
+        enums: ['default', 'percent'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    NumberSeparator: {
+        dataType: 'refEnum',
+        enums: [
+            'commaPeriod',
+            'spacePeriod',
+            'periodComma',
+            'noSeparatorPeriod',
+        ],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    TableCalculationFormat: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                separator: { ref: 'NumberSeparator' },
+                round: { dataType: 'double' },
+                type: { ref: 'TableCalculationFormatType', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     TableCalculation: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                format: { ref: 'TableCalculationFormat' },
                 sql: { dataType: 'string', required: true },
                 displayName: { dataType: 'string', required: true },
                 name: { dataType: 'string', required: true },

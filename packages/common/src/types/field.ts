@@ -19,6 +19,12 @@ const CompactAlias = [
     'trillion',
 ] as const;
 
+export enum NumberSeparator {
+    COMMA_PERIOD = 'commaPeriod', // 100,000.00
+    SPACE_PERIOD = 'spacePeriod', // 100 000.00
+    PERIOD_COMMA = 'periodComma', // 100.000,00
+    NO_SEPARATOR_PERIOD = 'noSeparatorPeriod', // 100000.00
+}
 type CompactConfig = {
     compact: Compact;
     alias: Array<typeof CompactAlias[number]>;
@@ -71,11 +77,21 @@ export function findCompactConfig(
 
 export type Item = Field | TableCalculation;
 
+export enum TableCalculationFormatType {
+    DEFAULT = 'default',
+    PERCENT = 'percent',
+}
+export type TableCalculationFormat = {
+    type: TableCalculationFormatType;
+    round?: number;
+    separator?: NumberSeparator;
+};
 export type TableCalculation = {
     index?: number;
     name: string;
     displayName: string;
     sql: string;
+    format?: TableCalculationFormat;
 };
 
 export const isTableCalculation = (item: Item): item is TableCalculation =>
@@ -161,6 +177,7 @@ export interface CompiledDimension extends Dimension {
 }
 
 export type CompiledField = CompiledDimension | CompiledMetric;
+
 export const isDimension = (field: any): field is Dimension =>
     isField(field) && field.fieldType === FieldType.DIMENSION;
 
