@@ -2666,7 +2666,7 @@ const models: TsoaRoute.Models = {
         type: { ref: 'Pick_Space.name-or-isPrivate_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_SpaceShare.userUuid_': {
+    AddSpaceShare: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -2675,11 +2675,6 @@ const models: TsoaRoute.Models = {
             },
             validators: {},
         },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AddSpaceShare: {
-        dataType: 'refAlias',
-        type: { ref: 'Pick_SpaceShare.userUuid_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_SshKeyPair.publicKey_': {
