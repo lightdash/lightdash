@@ -1,3 +1,10 @@
+## [0.618.1](https://github.com/lightdash/lightdash/compare/0.618.0...0.618.1) (2023-06-19)
+
+
+### Bug Fixes
+
+* add the path parameter `projectUuid` to `DeleteValidationDismiss` ([#5952](https://github.com/lightdash/lightdash/issues/5952)) ([68bbb69](https://github.com/lightdash/lightdash/commit/68bbb69cc1c69e9b405c1ebf7ef3088cc78f9f51))
+
 # [0.618.0](https://github.com/lightdash/lightdash/compare/0.617.0...0.618.0) (2023-06-16)
 
 
