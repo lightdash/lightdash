@@ -147,7 +147,6 @@ export const CustomMetricModal = () => {
             });
         }
         toggleModal();
-        // setIsCreatingCustomMetric(false);
     });
 
     return item ? (
@@ -163,7 +162,6 @@ export const CustomMetricModal = () => {
                     {isEditing ? 'Edit' : 'Create'} Custom Metric
                 </Title>
             }
-            // withOverlay={false}
         >
             <form onSubmit={handleOnSubmit}>
                 <Stack>
