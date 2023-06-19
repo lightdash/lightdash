@@ -13,11 +13,13 @@
         "@lightdash/common": "^0.616.3",
         "lodash": "^4.17.21",
         "pg": "^8.7.1",
+        "pg-query-stream": "^4.5.0",
         "snowflake-sdk": "^1.6.22",
         "ssh2-promise": "^1.0.3",
         "trino-client": "^0.2.0"
     },
     "devDependencies": {
+        "@types/pg-query-stream": "^3.4.0",
         "@types/snowflake-sdk": "^1.6.12"
     },
     "description": "Warehouse connectors for Lightdash",

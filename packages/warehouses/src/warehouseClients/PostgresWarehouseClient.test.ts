@@ -1,4 +1,5 @@
 import * as pg from 'pg';
+import { PassThrough } from 'stream';
 import { PostgresWarehouseClient } from './PostgresWarehouseClient';
 import {
     columns,
@@ -19,6 +20,22 @@ jest.mock('pg', () => ({
             fields: queryColumnsMock,
             rows: [expectedRow],
         })),
+        connect: jest.fn((callback) => {
+            callback(
+                null,
+                {
+                    query: jest.fn(() => {
+                        const mockedStream = new PassThrough();
+                        setTimeout(() => {
+                            mockedStream.emit('data', expectedRow);
+                            mockedStream.end();
+                        }, 100);
+                        return mockedStream;
+                    }),
+                },
+                jest.fn(),
+            );
+        }),
         end: jest.fn(),
     })),
 }));
@@ -37,6 +54,24 @@ describe('PostgresWarehouseClient', () => {
                 fields: queryColumnsMock,
                 rows: columns,
             })),
+            connect: jest.fn((callback) => {
+                callback(
+                    null,
+                    {
+                        query: jest.fn(() => {
+                            const mockedStream = new PassThrough();
+                            setTimeout(() => {
+                                columns.forEach((column) => {
+                                    mockedStream.emit('data', column);
+                                });
+                                mockedStream.end();
+                            }, 100);
+                            return mockedStream;
+                        }),
+                    },
+                    jest.fn(),
+                );
+            }),
             end: jest.fn(),
         }));
         expect(await warehouse.getCatalog(config)).toEqual(

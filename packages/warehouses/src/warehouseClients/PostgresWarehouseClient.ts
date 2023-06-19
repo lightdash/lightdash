@@ -10,6 +10,8 @@ import { readFileSync } from 'fs';
 import path from 'path';
 import * as pg from 'pg';
 import { PoolConfig } from 'pg';
+import QueryStream from 'pg-query-stream';
+import { Writable } from 'stream';
 import { rootCertificates } from 'tls';
 import WarehouseBaseClient from './WarehouseBaseClient';
 
@@ -138,27 +140,73 @@ export class PostgresClient<
         this.config = config;
     }
 
+    static async getFields(pool: pg.Pool, sql: string) {
+        // Mimic dry run by limiting to 0 rows
+        const fieldsQuery = sql.replace(/LIMIT ([0-9]*[0-9])/gm, 'LIMIT 0');
+        // CodeQL: This will raise a security warning because user defined raw SQL is being passed into the database module.
+        //         In this case this is exactly what we want to do. We're hitting the user's warehouse not the application's database.
+        const results = await pool.query(fieldsQuery); // automatically checkouts client and cleans up
+        return results.fields.reduce(
+            (acc, { name, dataTypeID }) => ({
+                ...acc,
+                [name]: {
+                    type: convertDataTypeIdToDimensionType(dataTypeID),
+                },
+            }),
+            {},
+        );
+    }
+
+    private async getRows(
+        pool: pg.Pool,
+        sql: string,
+        tags?: Record<string, string>,
+    ) {
+        return new Promise<any[]>((resolve, reject) => {
+            pool.connect((err, client, done) => {
+                if (err) {
+                    reject(err);
+                }
+                let alteredQuery = sql;
+                if (tags) {
+                    alteredQuery = `${alteredQuery}\n-- ${JSON.stringify(
+                        tags,
+                    )}`;
+                }
+
+                // CodeQL: This will raise a security warning because user defined raw SQL is being passed into the database module.
+                //         In this case this is exactly what we want to do. We're hitting the user's warehouse not the application's database.
+                const stream = client.query(new QueryStream(alteredQuery));
+                const rows: any[] = [];
+                // release the client when the stream is finished
+                stream.on('end', () => {
+                    done();
+                    resolve(rows);
+                });
+                stream.on('error', (err2) => {
+                    reject(err2);
+                });
+
+                stream.pipe(
+                    new Writable({
+                        objectMode: true,
+                        write(chunk, encoding, callback) {
+                            rows.push(chunk);
+                            callback();
+                        },
+                    }),
+                );
+            });
+        });
+    }
+
     async runQuery(sql: string, tags?: Record<string, string>) {
         let pool: pg.Pool | undefined;
         try {
             pool = new pg.Pool(this.config);
-            let alteredQuery = sql;
-            if (tags) {
-                alteredQuery = `${alteredQuery}\n-- ${JSON.stringify(tags)}`;
-            }
-            // CodeQL: This will raise a security warning because user defined raw SQL is being passed into the database module.
-            //         In this case this is exactly what we want to do. We're hitting the user's warehouse not the application's database.
-            const results = await pool.query(alteredQuery); // automatically checkouts client and cleans up
-            const fields = results.fields.reduce(
-                (acc, { name, dataTypeID }) => ({
-                    ...acc,
-                    [name]: {
-                        type: convertDataTypeIdToDimensionType(dataTypeID),
-                    },
-                }),
-                {},
-            );
-            return { fields, rows: results.rows };
+            const rows = await this.getRows(pool, sql, tags);
+            const fields = await PostgresClient.getFields(pool, sql);
+            return { fields, rows };
         } catch (e) {
             throw new WarehouseQueryError(`Error running postgres query: ${e}`);
         } finally {

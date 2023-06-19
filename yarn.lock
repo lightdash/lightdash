@@ -4656,6 +4656,13 @@
   dependencies:
     "@types/pg" "*"
 
+"@types/pg-query-stream@^3.4.0":
+  version "3.4.0"
+  resolved "https://registry.yarnpkg.com/@types/pg-query-stream/-/pg-query-stream-3.4.0.tgz#71e65bdf788792d75f3482734731e95149e929d3"
+  integrity sha512-oqGAu+5CMPAVNqemN9xYT3LBDy2qXBke15cstEuVYIvJL6lcKSNKeG61fONlVrxTYIFi9sPuGVtIweanrEZcJw==
+  dependencies:
+    pg-query-stream "*"
+
 "@types/pg@*":
   version "8.10.1"
   resolved "https://registry.yarnpkg.com/@types/pg/-/pg-8.10.1.tgz#abdeb37983c1ad96d9eb8fc47e444cbe4711ec89"
@@ -14070,6 +14077,11 @@ pg-connection-string@2.5.0, pg-connection-string@^2.5.0:
   resolved "https://registry.npmjs.org/pg-connection-string/-/pg-connection-string-2.5.0.tgz"
   integrity sha512-r5o/V/ORTA6TmUnyWZR9nCj1klXCO2CEKNRlVuJptZe85QuhFayC7WeMic7ndayT5IRIR0S0xFxFi2ousartlQ==
 
+pg-cursor@^2.10.0:
+  version "2.10.0"
+  resolved "https://registry.yarnpkg.com/pg-cursor/-/pg-cursor-2.10.0.tgz#96174d61698c9709c7a0ab504b739d532443c7d3"
+  integrity sha512-azXIjeIGBwlv/icYyuki5xJYfVSXeirGn4+mvAmYTB8SY0gS1xhluc2CENnq1JrcVSA81lWZgtqc1GAAhH/UuQ==
+
 pg-int8@1.0.1:
   version "1.0.1"
   resolved "https://registry.npmjs.org/pg-int8/-/pg-int8-1.0.1.tgz"
@@ -14094,6 +14106,13 @@ pg-protocol@^1.6.0:
   version "1.6.0"
   resolved "https://registry.yarnpkg.com/pg-protocol/-/pg-protocol-1.6.0.tgz#4c91613c0315349363af2084608db843502f8833"
   integrity sha512-M+PDm637OY5WM307051+bsDia5Xej6d9IR4GwJse1qA1DIhiKlksvrneZOYQq42OM+spubpcNYEo2FcKQrDk+Q==
+
+pg-query-stream@*, pg-query-stream@^4.5.0:
+  version "4.5.0"
+  resolved "https://registry.yarnpkg.com/pg-query-stream/-/pg-query-stream-4.5.0.tgz#51f914a29fe4e906bf36cac3b58d0148703bb8f4"
+  integrity sha512-9slxIXMssuqKUVyCtuVU5/pr2+RLTKva5VE90PFzi6Mi8o3crbyZQvReoWJimgm9c1zY2+Jv3lvYYsqvaKmQ4g==
+  dependencies:
+    pg-cursor "^2.10.0"
 
 pg-types@^2.1.0, pg-types@^2.2.0:
   version "2.2.0"
