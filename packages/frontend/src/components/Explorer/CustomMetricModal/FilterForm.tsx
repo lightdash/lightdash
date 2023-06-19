@@ -3,23 +3,38 @@ import {
     ConditionalOperator,
     createFilterRuleFromField,
     Dimension,
-    Field,
     FieldTarget,
     FilterRule,
     getFieldRef,
     isAdditionalMetric,
     isDimension,
-    isField,
-    isFilterableField,
-    TableCalculation,
 } from '@lightdash/common';
 import { Button, Stack } from '@mantine/core';
 import { Dispatch, FC, SetStateAction, useCallback } from 'react';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import FilterRuleForm from '../../common/Filters/FilterRuleForm';
-import { useFiltersContext } from '../../common/Filters/FiltersProvider';
+import {
+    FieldsWithSuggestions,
+    useFiltersContext,
+} from '../../common/Filters/FiltersProvider';
 import { addFieldRefToFilterRule } from './utils';
 
+const getField = (
+    item: Dimension | AdditionalMetric,
+    fieldsMap: FieldsWithSuggestions,
+) => {
+    // To add filters to an existing custom metric, we must use its base dimension
+    if (
+        isAdditionalMetric(item) &&
+        'baseDimensionName' in item &&
+        item.baseDimensionName
+    ) {
+        const baseFieldName = `${item.table}_${item.baseDimensionName}`;
+        return fieldsMap[baseFieldName];
+    } else if (isDimension(item)) {
+        return item;
+    }
+};
 export interface MetricFilterRuleWithFieldId
     extends FilterRule<
         ConditionalOperator,
@@ -40,51 +55,27 @@ export const FilterForm: FC<{
 
     const dimensions = Object.values(fieldsMap).filter(isDimension);
 
-    const addFieldRule = useCallback(
-        (field: Field | TableCalculation | Dimension | AdditionalMetric) => {
-            if (
-                isAdditionalMetric(field) &&
-                'baseDimensionName' in field &&
-                field.baseDimensionName
-            ) {
-                const baseFieldName = `${field.table}_${field.baseDimensionName}`;
+    const addFieldRule = useCallback(() => {
+        const field = getField(item, fieldsMap);
+        if (!field) return;
 
-                const baseField = fieldsMap[baseFieldName];
-                const newFilterRule = createFilterRuleFromField(
-                    fieldsMap[baseFieldName],
-                );
-
-                if (isField(baseField) && isFilterableField(baseField)) {
-                    setCustomMetricFiltersWithIds([
-                        ...customMetricFiltersWithIds,
-                        {
-                            ...newFilterRule,
-                            target: {
-                                ...newFilterRule.target,
-                                fieldRef: getFieldRef(baseField),
-                            },
-                        },
-                    ]);
-                }
-            } else {
-                if (isField(field) && isFilterableField(field)) {
-                    const newFilterRule = createFilterRuleFromField(field);
-
-                    setCustomMetricFiltersWithIds([
-                        ...customMetricFiltersWithIds,
-                        {
-                            ...newFilterRule,
-                            target: {
-                                ...newFilterRule.target,
-                                fieldRef: getFieldRef(field),
-                            },
-                        },
-                    ]);
-                }
-            }
-        },
-        [customMetricFiltersWithIds, fieldsMap, setCustomMetricFiltersWithIds],
-    );
+        const newFilterRule = createFilterRuleFromField(field);
+        setCustomMetricFiltersWithIds([
+            ...customMetricFiltersWithIds,
+            {
+                ...newFilterRule,
+                target: {
+                    fieldId: newFilterRule.target.fieldId,
+                    fieldRef: getFieldRef(field),
+                },
+            },
+        ]);
+    }, [
+        customMetricFiltersWithIds,
+        fieldsMap,
+        item,
+        setCustomMetricFiltersWithIds,
+    ]);
 
     const onChangeItem = useCallback(
         (itemIndex: number, filterRule: FilterRule) => {
@@ -126,7 +117,7 @@ export const FilterForm: FC<{
                 size="xs"
                 variant="outline"
                 onClick={() => {
-                    addFieldRule(item);
+                    addFieldRule();
                 }}
                 disabled={dimensions.length <= 0}
             >
