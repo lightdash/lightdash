@@ -22,10 +22,16 @@ export type SpaceSummary = Pick<
     access: string[];
 };
 
-export type CreateSpace = Pick<Space, 'name'> &
-    Partial<Pick<Space, 'isPrivate' | 'access'>>;
+export type CreateSpace = {
+    name: string;
+    isPrivate?: boolean;
+    access: SpaceShare[];
+};
 
-export type UpdateSpace = Pick<Space, 'name' | 'isPrivate'>;
+export type UpdateSpace = {
+    name: string;
+    isPrivate: boolean;
+};
 
 export type SpaceShare = {
     userUuid: string;
