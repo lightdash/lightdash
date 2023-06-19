@@ -108,24 +108,27 @@ export const CustomMetricModal = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [item, customMetricType]);
 
-    const currentCustomMetricFiltersWithIds = useMemo(
-        () =>
-            isAdditionalMetric(item)
-                ? item.filters?.map((filterRule) =>
-                      addFieldIdToMetricFilterRule(filterRule),
-                  ) || []
-                : [],
+    const initialCustomMetricFiltersWithIds = useMemo(() => {
+        if (!isEditing) return [];
 
-        [item],
-    );
+        return isAdditionalMetric(item)
+            ? item.filters?.map((filterRule) =>
+                  addFieldIdToMetricFilterRule(filterRule),
+              ) || []
+            : [];
+    }, [isEditing, item]);
 
     const [customMetricFiltersWithIds, setCustomMetricFiltersWithIds] =
         useState<MetricFilterRuleWithFieldId[]>(
-            isEditing ? currentCustomMetricFiltersWithIds : [],
+            initialCustomMetricFiltersWithIds,
         );
 
+    useEffect(() => {
+        setCustomMetricFiltersWithIds(initialCustomMetricFiltersWithIds);
+    }, [initialCustomMetricFiltersWithIds]);
+
     const handleOnSubmit = form.onSubmit(({ customMetricLabel }) => {
-        if (!customMetricLabel || !item) return;
+        if (!item) return;
 
         const data = prepareCustomMetricData({
             dimension: item,
