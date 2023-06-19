@@ -65,9 +65,10 @@ const getModelValidator = (manifestVersion: DbtManifestVersion) => {
 };
 
 const getMetricValidator = (manifestVersion: DbtManifestVersion) => {
-    const schema = DbtManifestVersion.V9
-        ? `https://schemas.getdbt.com/dbt/manifest/v9.json#/definitions/Metric`
-        : `https://schemas.getdbt.com/dbt/manifest/v7.json#/definitions/ParsedMetric`;
+    const schema =
+        manifestVersion === DbtManifestVersion.V9
+            ? `https://schemas.getdbt.com/dbt/manifest/v9.json#/definitions/Metric`
+            : `https://schemas.getdbt.com/dbt/manifest/v7.json#/definitions/ParsedMetric`;
     const metricValidator = ajv.getSchema<DbtMetric>(schema);
     if (metricValidator === undefined) {
         throw new ParseError('Could not parse dbt schema.');
