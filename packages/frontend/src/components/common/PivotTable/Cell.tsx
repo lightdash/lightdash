@@ -15,6 +15,7 @@ export interface CellProps extends BoxProps {
     withBolderFont?: boolean;
     withLighterBoldFont?: boolean;
     withValue?: boolean;
+    withNumericValue?: boolean;
 
     children?: number | string;
 }
@@ -33,6 +34,7 @@ const Cell = forwardRef<HTMLTableCellElement, CellProps>(
             withBolderFont = false,
             withLighterBoldFont = false,
             withValue = false,
+            withNumericValue = false,
 
             children,
 
@@ -58,6 +60,7 @@ const Cell = forwardRef<HTMLTableCellElement, CellProps>(
                         classes.root,
                         withGrayBackground ? classes.withGrayBackground : null,
                         withAlignRight ? classes.withAlignRight : null,
+                        withNumericValue ? classes.withNumericValue : null,
                         withMinimalWidth ? classes.withMinimalWidth : null,
                         withBolderFont ? classes.withBolderFont : null,
                         withLighterBoldFont
