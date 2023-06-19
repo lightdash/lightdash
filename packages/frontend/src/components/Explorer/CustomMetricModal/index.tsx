@@ -84,6 +84,11 @@ export const CustomMetricModal = () => {
                         ? item.baseDimensionName
                         : item.name,
                 );
+
+                if (isEditing && metricName === item.name) {
+                    return null;
+                }
+
                 return additionalMetrics?.some(
                     (metric) => metric.name === metricName,
                 )
