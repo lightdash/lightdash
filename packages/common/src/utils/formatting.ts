@@ -345,13 +345,12 @@ export function formatItemValue(
 ): string {
     if (value === null) return '∅';
     if (value === undefined) return '-';
-    if (
-        item !== undefined &&
-        !isAdditionalMetric(item) &&
-        isTableCalculation(item)
-    )
+
+    if (isField(item) || isAdditionalMetric(item)) {
+        return formatFieldValue(item, value, convertToUTC);
+    }
+    if (item !== undefined && isTableCalculation(item)) {
         return formatTableCalculationValue(item, value);
-    return isField(item) || isAdditionalMetric(item)
-        ? formatFieldValue(item, value, convertToUTC)
-        : formatValue(value);
+    }
+    return formatValue(value);
 }

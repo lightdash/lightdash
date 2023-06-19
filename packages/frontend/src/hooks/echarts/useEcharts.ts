@@ -2,7 +2,6 @@ import {
     ApiQueryResults,
     CartesianChart,
     CartesianSeriesType,
-    CompiledField,
     convertAdditionalMetric,
     DimensionType,
     ECHARTS_DEFAULT_COLORS,
@@ -15,10 +14,10 @@ import {
     getAxisName,
     getDefaultSeriesColor,
     getDimensions,
-    getFieldMap,
     getFields,
     getItemId,
     getItemLabelWithoutTableName,
+    getItemMap,
     getResultValueArray,
     hashFieldReference,
     isCompleteLayout,
@@ -497,13 +496,8 @@ const getMinAndMaxReferenceLines = (
 type GetPivotSeriesArg = {
     series: Series;
     items: Array<Field | TableCalculation>;
-    formats:
-        | Record<
-              string,
-              | Pick<CompiledField, 'format' | 'round' | 'compact'>
-              | TableCalculation
-          >
-        | undefined;
+    formats: Record<string, TableCalculation | Field> | undefined;
+
     cartesianChart: CartesianChart;
     flipAxes: boolean | undefined;
     yFieldHash: string;
@@ -572,17 +566,17 @@ const getPivotSeries = ({
                     formats[series.encode.yRef.field] && {
                         formatter: (value: any) => {
                             const field = formats[series.encode.yRef.field];
-                            if ('round' in field) {
+                            if (isTableCalculation(field)) {
+                                return formatTableCalculationValue(
+                                    field as TableCalculation,
+                                    value?.value?.[yFieldHash],
+                                );
+                            } else {
                                 return formatValue(value?.value?.[yFieldHash], {
                                     format: field.format,
                                     round: field.round,
                                     compact: field.compact,
                                 });
-                            } else {
-                                return formatTableCalculationValue(
-                                    field as TableCalculation,
-                                    value?.value?.[yFieldHash],
-                                );
                             }
                         },
                     }),
@@ -597,13 +591,7 @@ const getPivotSeries = ({
 type GetSimpleSeriesArg = {
     series: Series;
     items: Array<Field | TableCalculation>;
-    formats:
-        | Record<
-              string,
-              | Pick<CompiledField, 'format' | 'round' | 'compact'>
-              | TableCalculation
-          >
-        | undefined;
+    formats: Record<string, TableCalculation | Field> | undefined;
     flipAxes: boolean | undefined;
     yFieldHash: string;
     xFieldHash: string;
@@ -652,17 +640,17 @@ const getSimpleSeries = ({
                 formats[yFieldHash] && {
                     formatter: (value: any) => {
                         const field = formats[yFieldHash];
-                        if ('round' in field) {
+                        if (isTableCalculation(field)) {
+                            return formatTableCalculationValue(
+                                field as TableCalculation,
+                                value?.value?.[yFieldHash],
+                            );
+                        } else {
                             return formatValue(value?.value?.[yFieldHash], {
                                 format: field.format,
                                 round: field.round,
                                 compact: field.compact,
                             });
-                        } else {
-                            return formatTableCalculationValue(
-                                field as TableCalculation,
-                                value?.value?.[yFieldHash],
-                            );
                         }
                     },
                 }),
@@ -678,9 +666,7 @@ const getEchartsSeries = (
     originalData: ApiQueryResults['rows'],
     cartesianChart: CartesianChart,
     pivotKeys: string[] | undefined,
-    formats:
-        | Record<string, Pick<CompiledField, 'format' | 'round'>>
-        | undefined,
+    formats: Record<string, TableCalculation | Field> | undefined,
 ): EChartSeries[] => {
     return (cartesianChart.eChartsConfig.series || [])
         .filter((s) => !s.hidden)
@@ -1206,7 +1192,7 @@ const useEcharts = () => {
     const formats = useMemo(
         () =>
             explore
-                ? getFieldMap(
+                ? getItemMap(
                       explore,
                       resultsData?.metricQuery.additionalMetrics,
                       resultsData?.metricQuery.tableCalculations,
