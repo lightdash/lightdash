@@ -31,11 +31,6 @@ export const startWithHTTPSProtocol: FieldValidator<string> =
             ? undefined
             : `${fieldName} should start with a "https://"`;
 
-export const isOnlyNumbers: FieldValidator<string> = (fieldName) => (value) =>
-    !value || value.match(/\D/)
-        ? `${fieldName} should only contain numbers`
-        : undefined;
-
 export const isValidGithubToken: FieldValidator<string> =
     (_fieldName) => (value) => {
         if (value) {
