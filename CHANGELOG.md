@@ -1,3 +1,10 @@
+## [0.620.1](https://github.com/lightdash/lightdash/compare/0.620.0...0.620.1) (2023-06-19)
+
+
+### Bug Fixes
+
+* date inputs max date ([#5967](https://github.com/lightdash/lightdash/issues/5967)) ([3451a99](https://github.com/lightdash/lightdash/commit/3451a996ffe918e5ee92a612687dbd5c3918804a))
+
 # [0.620.0](https://github.com/lightdash/lightdash/compare/0.619.2...0.620.0) (2023-06-19)
 
 
