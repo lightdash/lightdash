@@ -203,44 +203,37 @@ export const CustomMetricModal = () => {
                         placeholder="Enter custom metric label"
                         {...form.getInputProps('customMetricLabel')}
                     />
-                    {defaultFilterRuleFieldId && (
-                        <Accordion chevronPosition="left" chevronSize="xs">
-                            <Accordion.Item value="filters">
-                                <Accordion.Control>
-                                    <Text fw={500} fz="sm">
-                                        Filters{' '}
-                                        <Text
-                                            span
-                                            fz="xs"
-                                            color="gray.5"
-                                            fw={400}
-                                        >
-                                            (optional)
-                                        </Text>
+                    <Accordion chevronPosition="left" chevronSize="xs">
+                        <Accordion.Item value="filters">
+                            <Accordion.Control>
+                                <Text fw={500} fz="sm">
+                                    Filters{' '}
+                                    <Text span fz="xs" color="gray.5" fw={400}>
+                                        (optional)
                                     </Text>
-                                </Accordion.Control>
-                                <Accordion.Panel>
-                                    <FiltersProvider
-                                        projectUuid={projectUuid}
-                                        fieldsMap={fieldsMap}
-                                        startOfWeek={startOfWeek}
-                                    >
-                                        <FilterForm
-                                            defaultFilterRuleFieldId={
-                                                defaultFilterRuleFieldId
-                                            }
-                                            customMetricFiltersWithIds={
-                                                customMetricFiltersWithIds
-                                            }
-                                            setCustomMetricFiltersWithIds={
-                                                setCustomMetricFiltersWithIds
-                                            }
-                                        />
-                                    </FiltersProvider>
-                                </Accordion.Panel>
-                            </Accordion.Item>
-                        </Accordion>
-                    )}
+                                </Text>
+                            </Accordion.Control>
+                            <Accordion.Panel>
+                                <FiltersProvider
+                                    projectUuid={projectUuid}
+                                    fieldsMap={fieldsMap}
+                                    startOfWeek={startOfWeek}
+                                >
+                                    <FilterForm
+                                        defaultFilterRuleFieldId={
+                                            defaultFilterRuleFieldId
+                                        }
+                                        customMetricFiltersWithIds={
+                                            customMetricFiltersWithIds
+                                        }
+                                        setCustomMetricFiltersWithIds={
+                                            setCustomMetricFiltersWithIds
+                                        }
+                                    />
+                                </FiltersProvider>
+                            </Accordion.Panel>
+                        </Accordion.Item>
+                    </Accordion>
                     <Button display="block" ml="auto" type="submit">
                         {isEditing ? 'Save changes' : 'Create'}
                     </Button>

@@ -20,7 +20,7 @@ export interface MetricFilterRuleWithFieldId
     > {}
 
 export const FilterForm: FC<{
-    defaultFilterRuleFieldId: string;
+    defaultFilterRuleFieldId: string | undefined;
     customMetricFiltersWithIds: MetricFilterRuleWithFieldId[];
     setCustomMetricFiltersWithIds: Dispatch<
         SetStateAction<MetricFilterRuleWithFieldId[]>
@@ -38,7 +38,7 @@ export const FilterForm: FC<{
     const dimensions = Object.values(fieldsMap).filter(isDimension);
 
     const addFieldRule = useCallback(() => {
-        const field = fieldsMap[defaultFilterRuleFieldId];
+        const field = fieldsMap[defaultFilterRuleFieldId ?? 0];
 
         const newFilterRule = createFilterRuleFromField(field);
         setCustomMetricFiltersWithIds([
