@@ -94,9 +94,10 @@ export const CustomMetricModal = () => {
         },
     });
 
+    const { setFieldValue } = form;
     useEffect(() => {
         if (item?.label && customMetricType) {
-            form.setFieldValue(
+            setFieldValue(
                 'customMetricLabel',
                 isEditing
                     ? item.label
@@ -105,8 +106,7 @@ export const CustomMetricModal = () => {
                     : '',
             );
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [item, customMetricType]);
+    }, [setFieldValue, item, customMetricType, isEditing]);
 
     const initialCustomMetricFiltersWithIds = useMemo(() => {
         if (!isEditing) return [];
