@@ -2621,7 +2621,6 @@ const models: TsoaRoute.Models = {
                 access: {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'SpaceShare' },
-                    required: true,
                 },
                 isPrivate: { dataType: 'boolean' },
                 name: { dataType: 'string', required: true },

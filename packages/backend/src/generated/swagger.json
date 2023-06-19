@@ -3062,7 +3062,7 @@
                         "type": "string"
                     }
                 },
-                "required": ["access", "name"],
+                "required": ["name"],
                 "type": "object"
             },
             "UpdateSpace": {

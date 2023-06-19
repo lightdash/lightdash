@@ -25,7 +25,7 @@ export type SpaceSummary = Pick<
 export type CreateSpace = {
     name: string;
     isPrivate?: boolean;
-    access: SpaceShare[];
+    access?: SpaceShare[];
 };
 
 export type UpdateSpace = {
