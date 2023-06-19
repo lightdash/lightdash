@@ -167,6 +167,20 @@ export const CustomMetricModal = () => {
         toggleModal();
     });
 
+    const defaultFilterRuleFieldId = useMemo(() => {
+        if (item) {
+            if (!isEditing) return getFieldId(item);
+
+            if (
+                isEditing &&
+                'baseDimensionName' in item &&
+                item.baseDimensionName
+            ) {
+                return `${item.table}_${item.baseDimensionName}`;
+            }
+        }
+    }, [isEditing, item]);
+
     return item ? (
         <Modal
             size="xl"
@@ -189,36 +203,44 @@ export const CustomMetricModal = () => {
                         placeholder="Enter custom metric label"
                         {...form.getInputProps('customMetricLabel')}
                     />
-                    <Accordion chevronPosition="left" chevronSize="xs">
-                        <Accordion.Item value="filters">
-                            <Accordion.Control>
-                                <Text fw={500} fz="sm">
-                                    Filters{' '}
-                                    <Text span fz="xs" color="gray.5" fw={400}>
-                                        (optional)
+                    {defaultFilterRuleFieldId && (
+                        <Accordion chevronPosition="left" chevronSize="xs">
+                            <Accordion.Item value="filters">
+                                <Accordion.Control>
+                                    <Text fw={500} fz="sm">
+                                        Filters{' '}
+                                        <Text
+                                            span
+                                            fz="xs"
+                                            color="gray.5"
+                                            fw={400}
+                                        >
+                                            (optional)
+                                        </Text>
                                     </Text>
-                                </Text>
-                            </Accordion.Control>
-                            <Accordion.Panel>
-                                <FiltersProvider
-                                    projectUuid={projectUuid}
-                                    fieldsMap={fieldsMap}
-                                    startOfWeek={startOfWeek}
-                                >
-                                    <FilterForm
-                                        item={item}
-                                        customMetricFiltersWithIds={
-                                            customMetricFiltersWithIds
-                                        }
-                                        setCustomMetricFiltersWithIds={
-                                            setCustomMetricFiltersWithIds
-                                        }
-                                    />
-                                </FiltersProvider>
-                            </Accordion.Panel>
-                        </Accordion.Item>
-                    </Accordion>
-
+                                </Accordion.Control>
+                                <Accordion.Panel>
+                                    <FiltersProvider
+                                        projectUuid={projectUuid}
+                                        fieldsMap={fieldsMap}
+                                        startOfWeek={startOfWeek}
+                                    >
+                                        <FilterForm
+                                            defaultFilterRuleFieldId={
+                                                defaultFilterRuleFieldId
+                                            }
+                                            customMetricFiltersWithIds={
+                                                customMetricFiltersWithIds
+                                            }
+                                            setCustomMetricFiltersWithIds={
+                                                setCustomMetricFiltersWithIds
+                                            }
+                                        />
+                                    </FiltersProvider>
+                                </Accordion.Panel>
+                            </Accordion.Item>
+                        </Accordion>
+                    )}
                     <Button display="block" ml="auto" type="submit">
                         {isEditing ? 'Save changes' : 'Create'}
                     </Button>

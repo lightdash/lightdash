@@ -1,40 +1,18 @@
 import {
-    AdditionalMetric,
     ConditionalOperator,
     createFilterRuleFromField,
-    Dimension,
     FieldTarget,
     FilterRule,
     getFieldRef,
-    isAdditionalMetric,
     isDimension,
 } from '@lightdash/common';
 import { Button, Stack } from '@mantine/core';
 import { Dispatch, FC, SetStateAction, useCallback } from 'react';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import FilterRuleForm from '../../common/Filters/FilterRuleForm';
-import {
-    FieldsWithSuggestions,
-    useFiltersContext,
-} from '../../common/Filters/FiltersProvider';
+import { useFiltersContext } from '../../common/Filters/FiltersProvider';
 import { addFieldRefToFilterRule } from './utils';
 
-const getField = (
-    item: Dimension | AdditionalMetric,
-    fieldsMap: FieldsWithSuggestions,
-) => {
-    // To add filters to an existing custom metric, we must use its base dimension
-    if (
-        isAdditionalMetric(item) &&
-        'baseDimensionName' in item &&
-        item.baseDimensionName
-    ) {
-        const baseFieldName = `${item.table}_${item.baseDimensionName}`;
-        return fieldsMap[baseFieldName];
-    } else if (isDimension(item)) {
-        return item;
-    }
-};
 export interface MetricFilterRuleWithFieldId
     extends FilterRule<
         ConditionalOperator,
@@ -42,12 +20,16 @@ export interface MetricFilterRuleWithFieldId
     > {}
 
 export const FilterForm: FC<{
-    item: Dimension | AdditionalMetric;
+    defaultFilterRuleFieldId: string;
     customMetricFiltersWithIds: MetricFilterRuleWithFieldId[];
     setCustomMetricFiltersWithIds: Dispatch<
         SetStateAction<MetricFilterRuleWithFieldId[]>
     >;
-}> = ({ item, customMetricFiltersWithIds, setCustomMetricFiltersWithIds }) => {
+}> = ({
+    defaultFilterRuleFieldId,
+    customMetricFiltersWithIds,
+    setCustomMetricFiltersWithIds,
+}) => {
     const isEditMode = useExplorerContext(
         (context) => context.state.isEditMode,
     );
@@ -56,8 +38,7 @@ export const FilterForm: FC<{
     const dimensions = Object.values(fieldsMap).filter(isDimension);
 
     const addFieldRule = useCallback(() => {
-        const field = getField(item, fieldsMap);
-        if (!field) return;
+        const field = fieldsMap[defaultFilterRuleFieldId];
 
         const newFilterRule = createFilterRuleFromField(field);
         setCustomMetricFiltersWithIds([
@@ -72,8 +53,8 @@ export const FilterForm: FC<{
         ]);
     }, [
         customMetricFiltersWithIds,
+        defaultFilterRuleFieldId,
         fieldsMap,
-        item,
         setCustomMetricFiltersWithIds,
     ]);
 
