@@ -1,5 +1,5 @@
-import PercentOfTotal from './assets/percent-of-total.png';
-import PercentOfTotalRounded from './assets/percent-of-total-rounded.png';
+import PercentOfTotal from './assets/percent-of-total.jpg';
+import FormatPercent from './assets/format-percent.jpg';
 
 # Percent of column total
 
@@ -9,33 +9,27 @@ The percent of the column total will give you the percentage of each value in th
 
 Here's an example of a percent of the total column:
 
-<img src={PercentOfTotal} width="1254" height="561" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={PercentOfTotal} width="862" height="417" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 And here's the SQL used in the table calculation:
 
 ```sql
-${pages.page_view_count} * 100 / SUM(${pages.page_view_count}) OVER()
+${orders.total_order_amount} / SUM(${orders.total_order_amount}) OVER()
 ```
 
 In general, the SQL used for calculating the percent of the total has just one important column:
 
 - `column_i_want_to_see_the_percent_of_total` - this is the column that you want to see each value's percent of the total values in that column
 
-### 👀 Here's the SQL you can copy-paste to calculate the percent of the column total
+### Here's the SQL you can copy-paste to calculate the percent of the column total
 
 ```sql
-${table.column_i_want_to_see_the_percent_of_total} * 100 / 
+${table.column_i_want_to_see_the_percent_of_total} / 
   SUM(${table.column_i_want_to_see_the_percent_of_total}) OVER()
 ```
 
-:::info
+### Make sure to add percent formatting to your calculation
 
-**💎 Level up your SQL**:
+In the `format` tab, make sure to update the format to `percent` so that your table calculation is shown as a percentage value (instead of a number).
 
-- You can round your table calculation to only show a certain number of decimal points. Here's an example where I only show two decimal points:
-
- >```ROUND(${table.column_i_want_to_see_the_percent_of_total} * 100 / SUM(${table.  column_i_want_to_see_the_percent_of_total}) OVER(), 2)```
-
-<img src={PercentOfTotalRounded} width="160" height="194" style={{display: "block", margin: "0 auto 20px auto"}}/>
-
-:::
+<img src={FormatPercent} width="793" height="454" style={{display: "block", margin: "0 auto 20px auto"}}/>
