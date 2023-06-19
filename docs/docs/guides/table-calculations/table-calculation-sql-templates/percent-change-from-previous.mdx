@@ -1,5 +1,5 @@
-import PercentOfTotalRounded from './assets/percent-of-total-rounded.png';
-import PercentChange from './assets/percent-change.png';
+import FormatPercent from './assets/format-percent.jpg';
+import PercentChange from './assets/percent-change.jpg';
 
 # Percent change from previous
 
@@ -9,15 +9,15 @@ The percent change gives you the percent change in a value compared to the value
 
 Here's an example of a percent change calculation:
 
-<img src={PercentChange} width="1274" height="630" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={PercentChange} width="846" height="425" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 And here's the SQL that was used to generate it:
 
 ```sql
 (
-  ${pages.page_view_count} * 100 / 
+  ${pages.page_view_count} / 
     LAG(${pages.page_view_count}) OVER(ORDER BY ${pages.date_day}, ${pages.path})
-) - 100
+) - 1
 ```
 
 In general, the SQL used for calculating the percent change from the previous value has two bits (with an optional third bit):
@@ -30,34 +30,17 @@ In general, the SQL used for calculating the percent change from the previous va
 
 ```sql
 (
-  ${table.column_i_want_to_compare} * 100 / 
+  ${table.column_i_want_to_compare} / 
   LAG(${table.column_i_want_to_compare}) OVER(
     ORDER BY 
       ${table.column_I_want_to_order_by}, 
       ${table.optional_other_column_I_want_to_order_by}
   )
-) - 100
+) - 1
 ```
 
-:::info
+### Make sure to add percent formatting to your calculation
 
-**💎 Level up your SQL**:
+In the `format` tab, make sure to update the format to `percent` so that your table calculation is shown as a percentage value (instead of a number).
 
-- You can round your table calculation to only show a certain number of decimal points. Here's an example where I only show two decimal points:
-
-```sql
-ROUND(
-  (
-    ${table.column_i_want_to_compare} * 100 / 
-    LAG(${table.column_i_want_to_compare}) OVER(
-      ORDER BY 
-        ${table.column_I_want_to_order_by}, 
-        ${table.optional_other_column_I_want_to_order_by}
-    )
-  ) - 100
-, 2)
-```
-
-<img src={PercentOfTotalRounded} width="160" height="194" style={{display: "block", margin: "0 auto 20px auto"}}/>
-
-:::
+<img src={FormatPercent} width="793" height="454" style={{display: "block", margin: "0 auto 20px auto"}}/>
