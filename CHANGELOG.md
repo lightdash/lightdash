@@ -1,3 +1,11 @@
+# [0.620.0](https://github.com/lightdash/lightdash/compare/0.619.2...0.620.0) (2023-06-19)
+
+
+### Features
+
+* inter font for tabular data ([#5960](https://github.com/lightdash/lightdash/issues/5960)) ([b0f811f](https://github.com/lightdash/lightdash/commit/b0f811ff15c4285530f25c6b226fa7a273be7e53))
+* migrate sort popover to mantine ([#5916](https://github.com/lightdash/lightdash/issues/5916)) ([d1a8f08](https://github.com/lightdash/lightdash/commit/d1a8f0882617d7e5e19865c85caf4266a6e04ee3))
+
 ## [0.619.2](https://github.com/lightdash/lightdash/compare/0.619.1...0.619.2) (2023-06-19)
 
 
