@@ -44,4 +44,6 @@ export type ApiSpaceResponse = {
     results: Space;
 };
 
-export type AddSpaceShare = Pick<SpaceShare, 'userUuid'>;
+export type AddSpaceShare = {
+    userUuid: string;
+};
