@@ -1,3 +1,50 @@
+# [0.618.0](https://github.com/lightdash/lightdash/compare/0.617.0...0.618.0) (2023-06-16)
+
+
+### Features
+
+* pivot table truncate large texts ([#5939](https://github.com/lightdash/lightdash/issues/5939)) ([05aca0d](https://github.com/lightdash/lightdash/commit/05aca0dbb71eece457591e3ad8aeac3a784b48d7))
+
+# [0.617.0](https://github.com/lightdash/lightdash/compare/0.616.3...0.617.0) (2023-06-16)
+
+
+### Features
+
+* Add the API to get a project ([#5911](https://github.com/lightdash/lightdash/issues/5911)) ([b1dd89a](https://github.com/lightdash/lightdash/commit/b1dd89a63dd8f8db64682f7dd3e34e19633bed8c))
+
+## [0.616.3](https://github.com/lightdash/lightdash/compare/0.616.2...0.616.3) (2023-06-16)
+
+
+### Bug Fixes
+
+* dbt 1.5 metrics in CLI commands ([#5940](https://github.com/lightdash/lightdash/issues/5940)) ([f8aad0f](https://github.com/lightdash/lightdash/commit/f8aad0fed7103840c5a53738e265543dcf2a2bc7))
+
+## [0.616.2](https://github.com/lightdash/lightdash/compare/0.616.1...0.616.2) (2023-06-16)
+
+
+### Bug Fixes
+
+* resource view tabs not visible when there is one item ([#5938](https://github.com/lightdash/lightdash/issues/5938)) ([68a1548](https://github.com/lightdash/lightdash/commit/68a1548590ffec3389b321b4717eea7e8d2f6661))
+
+## [0.616.1](https://github.com/lightdash/lightdash/compare/0.616.0...0.616.1) (2023-06-16)
+
+
+### Bug Fixes
+
+* dashboard URL should have filters (temporary and saved) ([#5922](https://github.com/lightdash/lightdash/issues/5922)) ([0ecedb1](https://github.com/lightdash/lightdash/commit/0ecedb136eb7a4278aaad7f2fcda8ba65118d820))
+
+# [0.616.0](https://github.com/lightdash/lightdash/compare/0.615.0...0.616.0) (2023-06-16)
+
+
+### Bug Fixes
+
+* dont escape env_var values ([#5927](https://github.com/lightdash/lightdash/issues/5927)) ([d650c3c](https://github.com/lightdash/lightdash/commit/d650c3c54b4735bbafcb6cca9cbf35e1ff95ea5e))
+
+
+### Features
+
+* table group label ([#5898](https://github.com/lightdash/lightdash/issues/5898)) ([8376cba](https://github.com/lightdash/lightdash/commit/8376cba8ab90a3cd1bd6ebe9ca699f4b3a015f1e))
+
 # [0.615.0](https://github.com/lightdash/lightdash/compare/0.614.0...0.615.0) (2023-06-15)
 
 

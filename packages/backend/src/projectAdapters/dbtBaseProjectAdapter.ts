@@ -238,6 +238,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     const exploreError: ExploreError = {
                         name: model.name,
                         label: model.meta.label || friendlyName(model.name),
+                        groupLabel: model.meta.group_label,
                         errors: [
                             error.type === InlineErrorType.METADATA_PARSE_ERROR
                                 ? {

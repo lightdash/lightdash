@@ -242,17 +242,34 @@ export const DashboardProvider: React.FC = ({ children }) => {
 
     useMount(() => {
         const searchParams = new URLSearchParams(search);
-        const filterSearchParam = searchParams.get('filters');
-        if (filterSearchParam) {
-            setDashboardTemporaryFilters(JSON.parse(filterSearchParam));
+        const tempFilterSearchParam = searchParams.get('tempFilters');
+        const filtersSearchParam = searchParams.get('filters');
+        if (tempFilterSearchParam) {
+            setDashboardTemporaryFilters(JSON.parse(tempFilterSearchParam));
+        }
+        if (filtersSearchParam) {
+            setDashboardFilters(JSON.parse(filtersSearchParam));
         }
     });
 
     useEffect(() => {
         const newParams = new URLSearchParams(search);
+
         if (
             dashboardTemporaryFilters?.dimensions?.length === 0 &&
             dashboardTemporaryFilters?.metrics?.length === 0
+        ) {
+            newParams.delete('tempFilters');
+        } else {
+            newParams.set(
+                'tempFilters',
+                JSON.stringify(dashboardTemporaryFilters),
+            );
+        }
+
+        if (
+            dashboardFilters?.dimensions?.length === 0 &&
+            dashboardFilters?.metrics?.length === 0
         ) {
             newParams.delete('filters');
         } else {
@@ -263,7 +280,13 @@ export const DashboardProvider: React.FC = ({ children }) => {
             pathname,
             search: newParams.toString(),
         });
-    }, [dashboardTemporaryFilters, history, pathname, search]);
+    }, [
+        dashboardTemporaryFilters,
+        dashboardFilters,
+        history,
+        pathname,
+        search,
+    ]);
 
     const allFilters = useMemo(() => {
         return {
