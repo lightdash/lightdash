@@ -1,3 +1,10 @@
+## [0.619.1](https://github.com/lightdash/lightdash/compare/0.619.0...0.619.1) (2023-06-19)
+
+
+### Bug Fixes
+
+* define `OrganizationMemberProfileUpdate` without `Pick<>` ([#5954](https://github.com/lightdash/lightdash/issues/5954)) ([6e12bf7](https://github.com/lightdash/lightdash/commit/6e12bf79134385273428823ba659f5c2ce18b31a))
+
 # [0.619.0](https://github.com/lightdash/lightdash/compare/0.618.1...0.619.0) (2023-06-19)
 
 
