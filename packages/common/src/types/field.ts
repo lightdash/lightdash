@@ -140,9 +140,6 @@ export type FieldId = string;
 export const fieldId = (field: Pick<Field, 'table' | 'name'>): FieldId =>
     `${field.table}_${field.name}`;
 
-export const convertFieldIdToFieldRef = (field: Field) =>
-    `${field.table}.${field.name}`;
-
 export const convertFieldRefToFieldId = (fieldRef: string) => {
     const parts = fieldRef.split('.');
     if (parts.length !== 2) {

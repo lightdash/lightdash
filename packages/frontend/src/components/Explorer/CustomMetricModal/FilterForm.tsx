@@ -1,12 +1,12 @@
 import {
     AdditionalMetric,
     ConditionalOperator,
-    convertFieldIdToFieldRef,
     createFilterRuleFromField,
     Dimension,
     Field,
     FieldTarget,
     FilterRule,
+    getFieldRef,
     isAdditionalMetric,
     isDimension,
     isField,
@@ -61,7 +61,7 @@ export const FilterForm: FC<{
                             ...newFilterRule,
                             target: {
                                 ...newFilterRule.target,
-                                fieldRef: convertFieldIdToFieldRef(baseField),
+                                fieldRef: getFieldRef(baseField),
                             },
                         },
                     ]);
@@ -76,7 +76,7 @@ export const FilterForm: FC<{
                             ...newFilterRule,
                             target: {
                                 ...newFilterRule.target,
-                                fieldRef: convertFieldIdToFieldRef(field),
+                                fieldRef: getFieldRef(field),
                             },
                         },
                     ]);
