@@ -17,17 +17,6 @@ export async function up(knex: Knex): Promise<void> {
                 .unique();
         },
     );
-
-    const rows = await knex(SavedChartAdditionalMetricsTableName).whereNull(
-        'uuid',
-    );
-    await Promise.all(
-        rows.map((row) =>
-            knex(SavedChartAdditionalMetricsTableName)
-                .where('uuid', row.uuid)
-                .update({ uuid: uuidv4() }),
-        ),
-    );
 }
 
 export async function down(knex: Knex): Promise<void> {
