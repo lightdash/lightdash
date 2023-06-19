@@ -1,3 +1,10 @@
+# [0.621.0](https://github.com/lightdash/lightdash/compare/0.620.1...0.621.0) (2023-06-19)
+
+
+### Features
+
+* format table calculation ([#5883](https://github.com/lightdash/lightdash/issues/5883)) ([8f6eb2d](https://github.com/lightdash/lightdash/commit/8f6eb2d8d8b654a15e638cf3219badd2487d2cb7))
+
 ## [0.620.1](https://github.com/lightdash/lightdash/compare/0.620.0...0.620.1) (2023-06-19)
 
 
