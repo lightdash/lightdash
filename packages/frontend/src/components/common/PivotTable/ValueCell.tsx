@@ -3,6 +3,7 @@ import {
     Field,
     getConditionalFormattingConfig,
     getConditionalFormattingDescription,
+    isNumericItem,
     ResultValue,
     TableCalculation,
 } from '@lightdash/common';
@@ -97,6 +98,7 @@ const ValueCell: FC<ValueCellProps> = ({
         >
             <Cell
                 withValue={!!formattedValue}
+                withNumericValue={isNumericItem(item)}
                 className={cx(
                     {
                         [classes.conditionalFormatting]: conditionalFormatting,
