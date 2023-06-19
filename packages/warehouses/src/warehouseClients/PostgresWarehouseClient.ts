@@ -140,7 +140,7 @@ export class PostgresClient<
         this.config = config;
     }
 
-    static async getFields(pool: pg.Pool, sql: string) {
+    private async getFields(pool: pg.Pool, sql: string) {
         // Mimic dry run by limiting to 0 rows
         const fieldsQuery = sql.replace(/LIMIT ([0-9]*[0-9])/gm, 'LIMIT 0');
         // CodeQL: This will raise a security warning because user defined raw SQL is being passed into the database module.
@@ -205,7 +205,7 @@ export class PostgresClient<
         try {
             pool = new pg.Pool(this.config);
             const rows = await this.getRows(pool, sql, tags);
-            const fields = await PostgresClient.getFields(pool, sql);
+            const fields = await this.getFields(pool, sql);
             return { fields, rows };
         } catch (e) {
             throw new WarehouseQueryError(`Error running postgres query: ${e}`);
