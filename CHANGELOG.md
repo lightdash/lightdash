@@ -1,3 +1,11 @@
+## [0.619.2](https://github.com/lightdash/lightdash/compare/0.619.1...0.619.2) (2023-06-19)
+
+
+### Bug Fixes
+
+* project switcher dropdown overflow ([#5956](https://github.com/lightdash/lightdash/issues/5956)) ([0b48aa5](https://github.com/lightdash/lightdash/commit/0b48aa5ad3b199ec5bb686a0c55cf50f1acf86a5))
+* tile name on hover not appearing ([#5957](https://github.com/lightdash/lightdash/issues/5957)) ([69d15b7](https://github.com/lightdash/lightdash/commit/69d15b78d34172703ed648c4671c170a92b0bac0))
+
 ## [0.619.1](https://github.com/lightdash/lightdash/compare/0.619.0...0.619.1) (2023-06-19)
 
 
