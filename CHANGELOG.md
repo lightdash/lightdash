@@ -1,3 +1,40 @@
+# [0.620.0](https://github.com/lightdash/lightdash/compare/0.619.2...0.620.0) (2023-06-19)
+
+
+### Features
+
+* inter font for tabular data ([#5960](https://github.com/lightdash/lightdash/issues/5960)) ([b0f811f](https://github.com/lightdash/lightdash/commit/b0f811ff15c4285530f25c6b226fa7a273be7e53))
+* migrate sort popover to mantine ([#5916](https://github.com/lightdash/lightdash/issues/5916)) ([d1a8f08](https://github.com/lightdash/lightdash/commit/d1a8f0882617d7e5e19865c85caf4266a6e04ee3))
+
+## [0.619.2](https://github.com/lightdash/lightdash/compare/0.619.1...0.619.2) (2023-06-19)
+
+
+### Bug Fixes
+
+* project switcher dropdown overflow ([#5956](https://github.com/lightdash/lightdash/issues/5956)) ([0b48aa5](https://github.com/lightdash/lightdash/commit/0b48aa5ad3b199ec5bb686a0c55cf50f1acf86a5))
+* tile name on hover not appearing ([#5957](https://github.com/lightdash/lightdash/issues/5957)) ([69d15b7](https://github.com/lightdash/lightdash/commit/69d15b78d34172703ed648c4671c170a92b0bac0))
+
+## [0.619.1](https://github.com/lightdash/lightdash/compare/0.619.0...0.619.1) (2023-06-19)
+
+
+### Bug Fixes
+
+* define `OrganizationMemberProfileUpdate` without `Pick<>` ([#5954](https://github.com/lightdash/lightdash/issues/5954)) ([6e12bf7](https://github.com/lightdash/lightdash/commit/6e12bf79134385273428823ba659f5c2ce18b31a))
+
+# [0.619.0](https://github.com/lightdash/lightdash/compare/0.618.1...0.619.0) (2023-06-19)
+
+
+### Features
+
+* migrate limit popover to mantine ([#5915](https://github.com/lightdash/lightdash/issues/5915)) ([dfe78aa](https://github.com/lightdash/lightdash/commit/dfe78aa26bcc6c1cf2cf9422c4ae3e37a5e9b9cf))
+
+## [0.618.1](https://github.com/lightdash/lightdash/compare/0.618.0...0.618.1) (2023-06-19)
+
+
+### Bug Fixes
+
+* add the path parameter `projectUuid` to `DeleteValidationDismiss` ([#5952](https://github.com/lightdash/lightdash/issues/5952)) ([68bbb69](https://github.com/lightdash/lightdash/commit/68bbb69cc1c69e9b405c1ebf7ef3088cc78f9f51))
+
 # [0.618.0](https://github.com/lightdash/lightdash/compare/0.617.0...0.618.0) (2023-06-16)
 
 

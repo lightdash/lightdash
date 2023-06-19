@@ -101,6 +101,14 @@ const ProjectSwitcher = () => {
         <Select
             size="xs"
             w={250}
+            dropdownComponent="div"
+            styles={{
+                item: {
+                    textOverflow: 'ellipsis',
+                    overflow: 'hidden',
+                    whiteSpace: 'nowrap',
+                },
+            }}
             disabled={
                 isLoadingProjects ||
                 isLoadingActiveProjectUuid ||

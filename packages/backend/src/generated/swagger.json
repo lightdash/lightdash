@@ -3546,7 +3546,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.618.0",
+        "version": "0.620.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -6132,6 +6132,14 @@
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
                     {
                         "description": "the projectId for the validation",
                         "in": "path",

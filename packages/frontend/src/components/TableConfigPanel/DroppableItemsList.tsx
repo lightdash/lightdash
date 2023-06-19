@@ -7,7 +7,6 @@ import {
     Droppable,
 } from 'react-beautiful-dnd';
 import { createPortal } from 'react-dom';
-import { Spacer } from '../SortButton/SortButton.styles';
 import ColumnConfiguration from './ColumnConfiguration';
 
 type DraggablePortalHandlerProps = {
@@ -91,7 +90,9 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
                                             icon="drag-handle-vertical"
                                             {...dragHandleProps}
                                         />
-                                        <Spacer $width={6} />
+
+                                        <div style={{ width: 6 }} />
+
                                         <ColumnConfiguration fieldId={itemId} />
                                     </div>
                                 </DraggablePortalHandler>

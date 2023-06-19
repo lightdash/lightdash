@@ -5,8 +5,9 @@ import {
     MenuDivider,
     PopoverPosition,
 } from '@blueprintjs/core';
-import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
+import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { Dashboard, DashboardTileTypes } from '@lightdash/common';
+import { Tooltip } from '@mantine/core';
 import { useHover, useToggle } from '@mantine/hooks';
 import React, { ReactNode, useState } from 'react';
 import TileUpdateModal from '../TileForms/TileUpdateModal';
@@ -17,7 +18,6 @@ import {
     TileBaseWrapper,
     TileTitleLink,
     TitleWrapper,
-    TooltipContent,
 } from './TileBase.styles';
 
 type Props<T> = {
@@ -73,32 +73,26 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                         onMouseEnter={() => setIsHovering(true)}
                         onMouseLeave={() => setIsHovering(false)}
                     >
-                        <Tooltip2
+                        <Tooltip
                             disabled={!description}
-                            content={
-                                <TooltipContent>{description}</TooltipContent>
-                            }
-                            position="top-left"
-                            renderTarget={({ ref: tooltipRef, ...props }) => (
-                                <TitleWrapper
-                                    ref={tooltipRef}
-                                    $hovered={titleHovered}
-                                >
-                                    {!hideTitle ? (
-                                        <TileTitleLink
-                                            ref={titleRef}
-                                            href={titleHref}
-                                            $hovered={titleHovered}
-                                            target="_blank"
-                                            {...props}
-                                            className="non-draggable"
-                                        >
-                                            {title}
-                                        </TileTitleLink>
-                                    ) : null}
-                                </TitleWrapper>
-                            )}
-                        />
+                            label={description}
+                            multiline
+                            position="top-start"
+                        >
+                            <TitleWrapper $hovered={titleHovered}>
+                                {!hideTitle ? (
+                                    <TileTitleLink
+                                        ref={titleRef}
+                                        href={titleHref}
+                                        $hovered={titleHovered}
+                                        target="_blank"
+                                        className="non-draggable"
+                                    >
+                                        {title}
+                                    </TileTitleLink>
+                                ) : null}
+                            </TitleWrapper>
+                        </Tooltip>
 
                         {(containerHovered && !titleHovered) || isMenuOpen ? (
                             <ButtonsWrapper className="non-draggable">

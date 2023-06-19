@@ -5813,6 +5813,12 @@ export function RegisterRoutes(app: express.Router) {
             next: any,
         ) {
             const args = {
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
                 validationId: {
                     in: 'path',
                     name: 'validationId',
