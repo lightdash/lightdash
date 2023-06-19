@@ -1,9 +1,8 @@
 import TableCalculationsAddImage from './assets/table-calculations-add.jpg';
-import DataResultsTable from './assets/data-in-results-table.png';
-import CreateNewCalc from './assets/create-new-table-calc.png';
-import WriteNewCalc from './assets/add-table-calc-sql.png';
-import RunQuerySeeCalc from './assets/run-query-to-see-table-calcs.png';
-import EditDeleteCalc from './assets/edit-delete-table-calc.png';
+import CreateNewCalc from './assets/create-new-table-calc.jpg';
+import WriteNewCalc from './assets/add-table-calc-sql.jpg';
+import EditDeleteCalc from './assets/edit-delete-table-calc.jpg';
+import FormatCalc from './assets/format-table-calc.jpg';
 
 # Using table calculations
 
@@ -31,13 +30,11 @@ Watch out: table calculations can be easier to create than regular metrics/dimen
 
 Table calculations can only be built using the dimensions + metrics that you've included in your results table. So, to create a table calculation, first, you need to add the dimensions and/or metrics for your table calculation to your results table.
 
-<img src={DataResultsTable} width="1280" height="518" style={{display: "block", margin: "0 auto 20px auto"}}/>
-
 #### 2. To add a table calculation just click on `+ Table calculation` in the `Results` tab
 
 Once you've got some data in your results table, you can create a table calculation by clicking on the `+ Table calculation` in the `Results` tab of the Explore view:
 
-<img src={CreateNewCalc} width="1280" height="518" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={CreateNewCalc} width="970" height="505" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 #### 3. Write the SQL for your table calculation in the pop-up box
 
@@ -45,21 +42,19 @@ Your table calculation is defined using raw SQL that you write up in this pop up
 
 To reference the metrics and dimensions in your results table, you can either use the autocomplete, or you can manually write the full field name using the format `${table_name.field_name}`.
 
-<img src={WriteNewCalc} width="1052" height="566" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={WriteNewCalc} width="870" height="563" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 #### 4. Update the format of your table calculation (if needed)
 
-#### 5. Once you've saved your new table calculation, hit `run query` to see the results
+If needed, you can update the format of your table calculation to things like percent formatting using the `format` tab. 
 
-Once you've created a new table calculation, you need to hit `run query` to see the values in your results table. And voilà!
+<img src={FormatCalc} width="793" height="454" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
-<img src={RunQuerySeeCalc} width="1296" height="548" style={{display: "block", margin: "0 auto 20px auto"}}/>
+#### 5. To delete or edit your table calculation, just click on the gear icon by the field name
 
-#### 6. To delete or edit your table calculation, just click on the gear icon by the field name
+If you need to edit or delete a table calculation, you can just click on the toggle beside the field and do what you need to do!
 
-If you need to edit or delete a table calculation, you can just click on the gear icon beside the field and do what you need to do!
-
-<img src={EditDeleteCalc} width="300" height="135" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={EditDeleteCalc} width="330" height="273" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 ---
 
