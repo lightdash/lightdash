@@ -1,3 +1,10 @@
+# [0.619.0](https://github.com/lightdash/lightdash/compare/0.618.1...0.619.0) (2023-06-19)
+
+
+### Features
+
+* migrate limit popover to mantine ([#5915](https://github.com/lightdash/lightdash/issues/5915)) ([dfe78aa](https://github.com/lightdash/lightdash/commit/dfe78aa26bcc6c1cf2cf9422c4ae3e37a5e9b9cf))
+
 ## [0.618.1](https://github.com/lightdash/lightdash/compare/0.618.0...0.618.1) (2023-06-19)
 
 
