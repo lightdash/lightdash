@@ -475,18 +475,14 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Partial_Pick_OrganizationMemberProfile.role__": {
+            "OrganizationMemberProfileUpdate": {
                 "properties": {
                     "role": {
-                        "$ref": "#/components/schemas/OrganizationMemberRole",
-                        "description": "The role of the user in the organization"
+                        "$ref": "#/components/schemas/OrganizationMemberRole"
                     }
                 },
-                "type": "object",
-                "description": "Make all properties in T optional"
-            },
-            "OrganizationMemberProfileUpdate": {
-                "$ref": "#/components/schemas/Partial_Pick_OrganizationMemberProfile.role__"
+                "required": ["role"],
+                "type": "object"
             },
             "AllowedEmailDomains": {
                 "properties": {
@@ -533,14 +529,14 @@
             },
             "Pick_AllowedEmailDomains.Exclude_keyofAllowedEmailDomains.organizationUuid__": {
                 "properties": {
-                    "role": {
-                        "$ref": "#/components/schemas/OrganizationMemberRole"
-                    },
                     "emailDomains": {
                         "items": {
                             "type": "string"
                         },
                         "type": "array"
+                    },
+                    "role": {
+                        "$ref": "#/components/schemas/OrganizationMemberRole"
                     },
                     "projectUuids": {
                         "items": {
@@ -549,7 +545,7 @@
                         "type": "array"
                     }
                 },
-                "required": ["role", "emailDomains", "projectUuids"],
+                "required": ["emailDomains", "role", "projectUuids"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
