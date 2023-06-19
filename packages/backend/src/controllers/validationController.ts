@@ -101,6 +101,7 @@ export class ValidationController extends Controller {
     @Delete('/{validationId}')
     @OperationId('DeleteValidationDismiss')
     async dismiss(
+        @Path() projectUuid: string,
         @Path() validationId: number,
         @Request() req: express.Request,
     ): Promise<ApiValidationDismissResponse> {
