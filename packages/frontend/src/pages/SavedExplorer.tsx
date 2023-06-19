@@ -58,6 +58,11 @@ const SavedExplorer = () => {
                               tableConfig: data.tableConfig,
                               pivotConfig: data.pivotConfig,
                           },
+                          modals: {
+                              additionalMetric: {
+                                  isOpen: false,
+                              },
+                          },
                       }
                     : undefined
             }

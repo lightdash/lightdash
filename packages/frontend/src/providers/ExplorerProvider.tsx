@@ -5,12 +5,14 @@ import {
     ChartType,
     CreateSavedChartVersion,
     deepEqual,
+    Dimension,
     FieldId,
     fieldId as getFieldId,
     isBigNumberConfig,
     isCartesianChartConfig,
     isTableChartConfig,
     MetricQuery,
+    MetricType,
     removeEmptyProperties,
     SavedChart,
     SortField,
@@ -59,6 +61,7 @@ export enum ActionType {
     ADD_ADDITIONAL_METRIC,
     EDIT_ADDITIONAL_METRIC,
     REMOVE_ADDITIONAL_METRIC,
+    TOGGLE_ADDITIONAL_METRIC_MODAL,
     SET_PIVOT_FIELDS,
     SET_CHART_TYPE,
     SET_CHART_CONFIG,
@@ -138,6 +141,13 @@ type Action =
           payload: FieldId;
       }
     | {
+          type: ActionType.TOGGLE_ADDITIONAL_METRIC_MODAL;
+          payload?: Omit<
+              ExplorerReduceState['modals']['additionalMetric'],
+              'isOpen'
+          >;
+      }
+    | {
           type: ActionType.SET_PIVOT_FIELDS;
           payload: FieldId[];
       }
@@ -155,6 +165,14 @@ export interface ExplorerReduceState {
     expandedSections: ExplorerSection[];
     unsavedChartVersion: CreateSavedChartVersion;
     previouslyFetchedState?: MetricQuery;
+    modals: {
+        additionalMetric: {
+            isOpen: boolean;
+            isEditing?: boolean;
+            item?: Dimension | AdditionalMetric;
+            type?: MetricType;
+        };
+    };
 }
 
 export interface ExplorerState extends ExplorerReduceState {
@@ -194,6 +212,12 @@ export interface ExplorerContext {
             previousMetricName: string,
         ) => void;
         removeAdditionalMetric: (key: FieldId) => void;
+        toggleAdditionalMetricModal: (
+            additionalMetricModalData?: Omit<
+                ExplorerReduceState['modals']['additionalMetric'],
+                'isOpen'
+            >,
+        ) => void;
         setColumnOrder: (order: string[]) => void;
         addTableCalculation: (tableCalculation: TableCalculation) => void;
         updateTableCalculation: (
@@ -235,6 +259,11 @@ const defaultState: ExplorerReduceState = {
         chartConfig: {
             type: ChartType.CARTESIAN,
             config: { layout: {}, eChartsConfig: {} },
+        },
+    },
+    modals: {
+        additionalMetric: {
+            isOpen: false,
         },
     },
 };
@@ -643,6 +672,18 @@ function reducer(
                 },
             };
         }
+        case ActionType.TOGGLE_ADDITIONAL_METRIC_MODAL: {
+            return {
+                ...state,
+                modals: {
+                    ...state.modals,
+                    additionalMetric: {
+                        isOpen: !state.modals.additionalMetric.isOpen,
+                        ...(action.payload && { ...action.payload }),
+                    },
+                },
+            };
+        }
         case ActionType.SET_COLUMN_ORDER: {
             return {
                 ...state,
@@ -1025,6 +1066,23 @@ export const ExplorerProvider: FC<{
         });
     }, []);
 
+    const toggleAdditionalMetricModal = useCallback(
+        (
+            additionalMetricModalData?: Omit<
+                ExplorerReduceState['modals']['additionalMetric'],
+                'isOpen'
+            >,
+        ) => {
+            dispatch({
+                type: ActionType.TOGGLE_ADDITIONAL_METRIC_MODAL,
+                ...(additionalMetricModalData && {
+                    payload: additionalMetricModalData,
+                }),
+            });
+        },
+        [],
+    );
+
     const setColumnOrder = useCallback((order: string[]) => {
         dispatch({
             type: ActionType.SET_COLUMN_ORDER,
@@ -1196,6 +1254,7 @@ export const ExplorerProvider: FC<{
             addAdditionalMetric,
             editAdditionalMetric,
             removeAdditionalMetric,
+            toggleAdditionalMetricModal,
             addTableCalculation,
             deleteTableCalculation,
             updateTableCalculation,
@@ -1222,6 +1281,7 @@ export const ExplorerProvider: FC<{
             addAdditionalMetric,
             editAdditionalMetric,
             removeAdditionalMetric,
+            toggleAdditionalMetricModal,
             addTableCalculation,
             deleteTableCalculation,
             updateTableCalculation,

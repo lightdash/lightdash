@@ -26,13 +26,12 @@ import {
     IconSparkles,
     IconTrash,
 } from '@tabler/icons-react';
-import { FC, useMemo, useState } from 'react';
+import { FC, useMemo } from 'react';
 import { useFilters } from '../../../../../hooks/useFilters';
 import { useExplorerContext } from '../../../../../providers/ExplorerProvider';
 import { useTracking } from '../../../../../providers/TrackingProvider';
 import { EventName } from '../../../../../types/Events';
 import MantineIcon from '../../../../common/MantineIcon';
-import { CustomMetricModal } from '../../../CustomMetricModal';
 
 const getCustomMetricType = (type: DimensionType): MetricType[] => {
     switch (type) {
@@ -79,14 +78,15 @@ const TreeSingleNodeActions: FC<Props> = ({
     isOpened,
     onMenuChange,
 }) => {
-    const [isCreatingCustomMetric, setIsCreatingCustomMetric] = useState(false);
-    const [isEditingCustomMetric, setIsEditingCustomMetric] = useState(false);
-    const [customMetricType, setCustomMetricType] = useState<MetricType>();
     const { addFilter } = useFilters();
     const { track } = useTracking();
 
     const removeAdditionalMetric = useExplorerContext(
         (context) => context.actions.removeAdditionalMetric,
+    );
+
+    const toggleAdditionalMetricModal = useExplorerContext(
+        (context) => context.actions.toggleAdditionalMetricModal,
     );
 
     const customMetrics = useMemo(
@@ -130,8 +130,11 @@ const TreeSingleNodeActions: FC<Props> = ({
                             icon={<MantineIcon icon={IconEdit} />}
                             onClick={(e) => {
                                 e.stopPropagation();
-                                setIsEditingCustomMetric(true);
-                                setCustomMetricType(item.type);
+                                toggleAdditionalMetricModal({
+                                    type: item.type,
+                                    item,
+                                    isEditing: true,
+                                });
                             }}
                         >
                             Edit custom metric
@@ -175,8 +178,11 @@ const TreeSingleNodeActions: FC<Props> = ({
                                     track({
                                         name: EventName.ADD_CUSTOM_METRIC_CLICKED,
                                     });
-                                    setIsCreatingCustomMetric(true);
-                                    setCustomMetricType(metric);
+                                    toggleAdditionalMetricModal({
+                                        type: metric,
+                                        item,
+                                        isEditing: false,
+                                    });
                                 }}
                             >
                                 {friendlyName(metric)}
@@ -185,21 +191,6 @@ const TreeSingleNodeActions: FC<Props> = ({
                     </>
                 ) : null}
             </Menu.Dropdown>
-            {isCreatingCustomMetric || isEditingCustomMetric ? (
-                <CustomMetricModal
-                    isEditingCustomMetric={isEditingCustomMetric}
-                    item={item as Dimension}
-                    isCreatingCustomMetric={
-                        isCreatingCustomMetric || isEditingCustomMetric
-                    }
-                    setIsCreatingCustomMetric={
-                        isEditingCustomMetric
-                            ? setIsEditingCustomMetric
-                            : setIsCreatingCustomMetric
-                    }
-                    customMetricType={customMetricType}
-                />
-            ) : null}
 
             {/* prevents bubbling of click event to NavLink */}
             <Box

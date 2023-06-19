@@ -1,11 +1,8 @@
 import {
-    AdditionalMetric,
-    Dimension,
     fieldId as getFieldId,
     friendlyName,
     isAdditionalMetric,
     isDimension,
-    MetricType,
 } from '@lightdash/common';
 import {
     Accordion,
@@ -17,7 +14,7 @@ import {
     Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { Dispatch, FC, SetStateAction, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useExplore } from '../../../hooks/useExplore';
@@ -31,21 +28,18 @@ import {
     prepareCustomMetricData,
 } from './utils';
 
-type Props = {
-    isEditingCustomMetric: boolean;
-    isCreatingCustomMetric: boolean;
-    setIsCreatingCustomMetric: Dispatch<SetStateAction<boolean>>;
-    customMetricType: MetricType | undefined;
-    item: Dimension | AdditionalMetric;
-};
+export const CustomMetricModal = () => {
+    const {
+        isOpen,
+        isEditing,
+        item,
+        type: customMetricType,
+    } = useExplorerContext((context) => context.state.modals.additionalMetric);
 
-export const CustomMetricModal: FC<Props> = ({
-    isEditingCustomMetric,
-    item,
-    isCreatingCustomMetric,
-    setIsCreatingCustomMetric,
-    customMetricType,
-}) => {
+    const toggleModal = useExplorerContext(
+        (context) => context.actions.toggleAdditionalMetricModal,
+    );
+
     const { showToastSuccess } = useToaster();
     const addAdditionalMetric = useExplorerContext(
         (context) => context.actions.addAdditionalMetric,
@@ -69,19 +63,21 @@ export const CustomMetricModal: FC<Props> = ({
     const form = useForm({
         validateInputOnChange: true,
         initialValues: {
-            customMetricLabel: isEditingCustomMetric
-                ? item.label
+            customMetricLabel: isEditing
+                ? item?.label
                 : customMetricType
-                ? `${friendlyName(customMetricType)} of ${item.label}`
+                ? `${friendlyName(customMetricType)} of ${item?.label}`
                 : '',
         },
         validate: {
             customMetricLabel: (label) => {
                 if (!label) return null;
 
+                if (!item) return null;
+
                 const metricName = getCustomMetricName(
                     label,
-                    isEditingCustomMetric &&
+                    isEditing &&
                         isAdditionalMetric(item) &&
                         'baseDimensionName' in item &&
                         item.baseDimensionName
@@ -110,23 +106,23 @@ export const CustomMetricModal: FC<Props> = ({
 
     const [customMetricFiltersWithIds, setCustomMetricFiltersWithIds] =
         useState<MetricFilterRuleWithFieldId[]>(
-            isEditingCustomMetric ? currentCustomMetricFiltersWithIds : [],
+            isEditing ? currentCustomMetricFiltersWithIds : [],
         );
 
     const handleOnSubmit = form.onSubmit(({ customMetricLabel }) => {
-        if (!customMetricLabel) return;
+        if (!customMetricLabel || !item) return;
 
         const data = prepareCustomMetricData({
             dimension: item,
             type: customMetricType!,
             customMetricLabel,
             customMetricFiltersWithIds,
-            isEditingCustomMetric,
+            isEditingCustomMetric: !!isEditing,
             item,
             exploreData,
         });
 
-        if (isEditingCustomMetric && isAdditionalMetric(item)) {
+        if (isEditing && isAdditionalMetric(item)) {
             editAdditionalMetric(
                 {
                     ...item,
@@ -150,22 +146,24 @@ export const CustomMetricModal: FC<Props> = ({
                 title: 'Custom metric added successfully',
             });
         }
-        setIsCreatingCustomMetric(false);
+        toggleModal();
+        // setIsCreatingCustomMetric(false);
     });
 
-    return (
+    return item ? (
         <Modal
             size="xl"
             centered
             zIndex={15}
             onClick={(e) => e.stopPropagation()}
-            opened={isCreatingCustomMetric}
-            onClose={() => setIsCreatingCustomMetric(false)}
+            opened={isOpen}
+            onClose={() => toggleModal(undefined)}
             title={
                 <Title order={4}>
-                    {isEditingCustomMetric ? 'Edit' : 'Create'} Custom Metric
+                    {isEditing ? 'Edit' : 'Create'} Custom Metric
                 </Title>
             }
+            // withOverlay={false}
         >
             <form onSubmit={handleOnSubmit}>
                 <Stack>
@@ -206,10 +204,10 @@ export const CustomMetricModal: FC<Props> = ({
                     </Accordion>
 
                     <Button display="block" ml="auto" type="submit">
-                        {isEditingCustomMetric ? 'Save changes' : 'Create'}
+                        {isEditing ? 'Save changes' : 'Create'}
                     </Button>
                 </Stack>
             </form>
         </Modal>
-    );
+    ) : null;
 };
