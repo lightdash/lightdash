@@ -28,7 +28,7 @@ const LimitButton: FC<Props> = memo(
             <Popover
                 disabled={disabled}
                 opened={opened}
-                position="bottom"
+                position="top"
                 withArrow
                 shadow="md"
                 arrowSize={10}
