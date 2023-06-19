@@ -17,14 +17,7 @@ import {
     Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import {
-    Dispatch,
-    FC,
-    SetStateAction,
-    useCallback,
-    useMemo,
-    useState,
-} from 'react';
+import { Dispatch, FC, SetStateAction, useMemo, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useExplore } from '../../../hooks/useExplore';
@@ -120,62 +113,45 @@ export const CustomMetricModal: FC<Props> = ({
             isEditingCustomMetric ? currentCustomMetricFiltersWithIds : [],
         );
 
-    const editOrAddCustomMetric = useCallback(
-        (dimension: Dimension | AdditionalMetric, type: MetricType) => {
-            if (!form.values.customMetricLabel) return;
+    const handleOnSubmit = form.onSubmit(({ customMetricLabel }) => {
+        if (!customMetricLabel) return;
 
-            const data = prepareCustomMetricData({
-                dimension,
-                type,
-                customMetricLabel: form.values.customMetricLabel,
-                customMetricFiltersWithIds,
-                isEditingCustomMetric,
-                item,
-                exploreData,
-            });
-
-            if (isEditingCustomMetric && isAdditionalMetric(item)) {
-                editAdditionalMetric(
-                    {
-                        ...item,
-                        ...data,
-                    },
-                    getFieldId(item),
-                );
-                showToastSuccess({
-                    title: 'Custom metric edited successfully',
-                });
-            } else if (
-                isDimension(dimension) &&
-                form.values.customMetricLabel
-            ) {
-                addAdditionalMetric({
-                    uuid: uuidv4(),
-                    table: dimension.table,
-                    sql: dimension.sql,
-                    type,
-                    baseDimensionName: dimension.name,
-                    ...data,
-                });
-                showToastSuccess({
-                    title: 'Custom metric added successfully',
-                });
-            }
-
-            setIsCreatingCustomMetric(false);
-        },
-        [
-            addAdditionalMetric,
+        const data = prepareCustomMetricData({
+            dimension: item,
+            type: customMetricType!,
+            customMetricLabel,
             customMetricFiltersWithIds,
-            editAdditionalMetric,
-            exploreData,
-            form.values.customMetricLabel,
             isEditingCustomMetric,
             item,
-            setIsCreatingCustomMetric,
-            showToastSuccess,
-        ],
-    );
+            exploreData,
+        });
+
+        if (isEditingCustomMetric && isAdditionalMetric(item)) {
+            editAdditionalMetric(
+                {
+                    ...item,
+                    ...data,
+                },
+                getFieldId(item),
+            );
+            showToastSuccess({
+                title: 'Custom metric edited successfully',
+            });
+        } else if (isDimension(item) && form.values.customMetricLabel) {
+            addAdditionalMetric({
+                uuid: uuidv4(),
+                table: item.table,
+                sql: item.sql,
+                type: customMetricType!,
+                baseDimensionName: item.name,
+                ...data,
+            });
+            showToastSuccess({
+                title: 'Custom metric added successfully',
+            });
+        }
+        setIsCreatingCustomMetric(false);
+    });
 
     return (
         <Modal
@@ -191,9 +167,7 @@ export const CustomMetricModal: FC<Props> = ({
                 </Title>
             }
         >
-            <form
-                onSubmit={() => editOrAddCustomMetric(item, customMetricType!)}
-            >
+            <form onSubmit={handleOnSubmit}>
                 <Stack>
                     <TextInput
                         label="Label"
