@@ -120,6 +120,8 @@ export const usePivotTableCellStyles = createStyles<
         textOverflow: 'ellipsis',
         overflow: 'hidden',
 
+        fontFamily: "'Inter', sans-serif",
+
         fontWeight: 400,
         fontSize: 13,
 
@@ -192,6 +194,11 @@ export const usePivotTableCellStyles = createStyles<
         ':hover:not([data-expanded="true"]):not([data-copied="true"])': {
             outline: `1px solid ${theme.colors.gray[6]}`,
         },
+    },
+
+    withNumericValue: {
+        fontFeatureSettings: '"tnum"',
+        textAlign: 'right',
     },
 
     withLargeText: {
