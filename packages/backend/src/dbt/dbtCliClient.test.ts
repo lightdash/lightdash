@@ -58,7 +58,8 @@ describe('DbtCliClient', () => {
         const client = new DbtCliClient(cliArgs);
 
         await expect(client.getDbtManifest()).resolves.toEqual({
-            manifest: manifestMock,
+            results: { manifest: manifestMock },
+            version: 'v7',
         });
         await expect(execaMock).toHaveBeenCalledTimes(1);
         await expect(execaMock).toHaveBeenCalledWith(
