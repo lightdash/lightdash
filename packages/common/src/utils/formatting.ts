@@ -6,11 +6,15 @@ import {
     findCompactConfig,
     isDimension,
     isField,
+    isTableCalculation,
     MetricType,
+    NumberSeparator,
     TableCalculation,
+    TableCalculationFormatType,
 } from '../types/field';
 import { AdditionalMetric, isAdditionalMetric } from '../types/metricQuery';
 import { TimeFrames } from '../types/timeFrames';
+import assertUnreachable from './assertUnreachable';
 
 export const formatBoolean = <T>(v: T) =>
     ['True', 'true', 'yes', 'Yes', '1', 'T'].includes(`${v}`) ? 'Yes' : 'No';
@@ -271,6 +275,69 @@ export function formatFieldValue(
     }
 }
 
+export function formatNumberWithSeparator(
+    value: number,
+    separator: NumberSeparator = NumberSeparator.COMMA_PERIOD,
+    round: number = 0,
+): string {
+    const options =
+        round <= 0
+            ? {
+                  maximumSignificantDigits: Math.max(
+                      Math.floor(value).toString().length + round,
+                      1,
+                  ),
+                  maximumFractionDigits: 0,
+              }
+            : {
+                  maximumFractionDigits: Math.min(round, 20),
+                  minimumFractionDigits: Math.min(round, 20),
+              };
+
+    switch (separator) {
+        case NumberSeparator.COMMA_PERIOD:
+            return value.toLocaleString('en-US', options);
+        case NumberSeparator.SPACE_PERIOD:
+            return value.toLocaleString('en-US', options).replace(/,/g, ' ');
+        case NumberSeparator.PERIOD_COMMA:
+            return value.toLocaleString('de-DE', options);
+        case NumberSeparator.NO_SEPARATOR_PERIOD:
+            return value.toLocaleString('en-US', {
+                ...options,
+                useGrouping: false,
+            });
+        default:
+            return assertUnreachable(separator, 'Unknown separator');
+    }
+}
+export function formatTableCalculationValue(
+    field: TableCalculation,
+    value: unknown,
+): string {
+    if (field.format?.type === undefined) return formatValue(value);
+    switch (field.format.type) {
+        case TableCalculationFormatType.DEFAULT:
+            return formatValue(value);
+
+        case TableCalculationFormatType.PERCENT:
+            if (valueIsNaN(value)) {
+                return `${value}`;
+            }
+            const formatted = formatNumberWithSeparator(
+                Number(value) * 100,
+                field.format.separator,
+                field.format.round,
+            );
+            return `${formatted}%`;
+
+        default:
+            return assertUnreachable(
+                field.format.type,
+                `Table calculation format type ${field.format.type} is not valid`,
+            );
+    }
+}
+
 export function formatItemValue(
     item: Field | AdditionalMetric | TableCalculation | undefined,
     value: unknown,
@@ -278,7 +345,12 @@ export function formatItemValue(
 ): string {
     if (value === null) return '∅';
     if (value === undefined) return '-';
-    return isField(item) || isAdditionalMetric(item)
-        ? formatFieldValue(item, value, convertToUTC)
-        : formatValue(value);
+
+    if (isField(item) || isAdditionalMetric(item)) {
+        return formatFieldValue(item, value, convertToUTC);
+    }
+    if (item !== undefined && isTableCalculation(item)) {
+        return formatTableCalculationValue(item, value);
+    }
+    return formatValue(value);
 }

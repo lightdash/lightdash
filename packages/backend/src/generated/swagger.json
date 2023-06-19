@@ -475,14 +475,18 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "OrganizationMemberProfileUpdate": {
+            "Partial_Pick_OrganizationMemberProfile.role__": {
                 "properties": {
                     "role": {
-                        "$ref": "#/components/schemas/OrganizationMemberRole"
+                        "$ref": "#/components/schemas/OrganizationMemberRole",
+                        "description": "The role of the user in the organization"
                     }
                 },
-                "required": ["role"],
-                "type": "object"
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "OrganizationMemberProfileUpdate": {
+                "$ref": "#/components/schemas/Partial_Pick_OrganizationMemberProfile.role__"
             },
             "AllowedEmailDomains": {
                 "properties": {
@@ -529,14 +533,14 @@
             },
             "Pick_AllowedEmailDomains.Exclude_keyofAllowedEmailDomains.organizationUuid__": {
                 "properties": {
+                    "role": {
+                        "$ref": "#/components/schemas/OrganizationMemberRole"
+                    },
                     "emailDomains": {
                         "items": {
                             "type": "string"
                         },
                         "type": "array"
-                    },
-                    "role": {
-                        "$ref": "#/components/schemas/OrganizationMemberRole"
                     },
                     "projectUuids": {
                         "items": {
@@ -545,7 +549,7 @@
                         "type": "array"
                     }
                 },
-                "required": ["emailDomains", "role", "projectUuids"],
+                "required": ["role", "emailDomains", "projectUuids"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -2010,8 +2014,40 @@
                 "required": ["descending", "fieldId"],
                 "type": "object"
             },
+            "TableCalculationFormatType": {
+                "enum": ["default", "percent"],
+                "type": "string"
+            },
+            "NumberSeparator": {
+                "enum": [
+                    "commaPeriod",
+                    "spacePeriod",
+                    "periodComma",
+                    "noSeparatorPeriod"
+                ],
+                "type": "string"
+            },
+            "TableCalculationFormat": {
+                "properties": {
+                    "separator": {
+                        "$ref": "#/components/schemas/NumberSeparator"
+                    },
+                    "round": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/TableCalculationFormatType"
+                    }
+                },
+                "required": ["type"],
+                "type": "object"
+            },
             "TableCalculation": {
                 "properties": {
+                    "format": {
+                        "$ref": "#/components/schemas/TableCalculationFormat"
+                    },
                     "sql": {
                         "type": "string"
                     },
@@ -3510,7 +3546,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.618.1",
+        "version": "0.620.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"

@@ -1,5 +1,16 @@
-import { Compact, DimensionType, MetricType } from '../types/field';
-import { formatFieldValue, formatItemValue, formatValue } from './formatting';
+import {
+    Compact,
+    DimensionType,
+    MetricType,
+    NumberSeparator,
+    TableCalculationFormatType,
+} from '../types/field';
+import {
+    formatFieldValue,
+    formatItemValue,
+    formatNumberWithSeparator,
+    formatValue,
+} from './formatting';
 import { dimension, metric, tableCalculation } from './formatting.mock';
 
 describe('Formatting', () => {
@@ -475,6 +486,139 @@ describe('Formatting', () => {
             expect(formatItemValue(tableCalculation, null)).toEqual('∅');
             expect(formatItemValue(tableCalculation, '5')).toEqual('5');
             expect(formatItemValue(tableCalculation, 5)).toEqual('5');
+        });
+    });
+
+    describe('format table calculation', () => {
+        test('table calculation with default format', async () => {
+            const defaultFormat = {
+                ...tableCalculation,
+                format: { type: TableCalculationFormatType.DEFAULT },
+            };
+            expect(formatItemValue(defaultFormat, undefined)).toEqual('-');
+            expect(formatItemValue(defaultFormat, null)).toEqual('∅');
+            expect(formatItemValue(defaultFormat, '5')).toEqual('5');
+            expect(formatItemValue(defaultFormat, 5)).toEqual('5');
+        });
+        test('table calculation with default format and extra arguments', async () => {
+            // This round or separator should not affect default format
+            const withExtraFormat = {
+                ...tableCalculation,
+                format: {
+                    type: TableCalculationFormatType.DEFAULT,
+                    round: 2,
+                    separator: NumberSeparator.COMMA_PERIOD,
+                },
+            };
+            expect(formatItemValue(withExtraFormat, undefined)).toEqual('-');
+            expect(formatItemValue(withExtraFormat, null)).toEqual('∅');
+            expect(formatItemValue(withExtraFormat, '5')).toEqual('5');
+            expect(formatItemValue(withExtraFormat, 5)).toEqual('5');
+        });
+
+        test('table calculation with percent format', async () => {
+            const percentFormat = {
+                ...tableCalculation,
+                format: { type: TableCalculationFormatType.PERCENT },
+            };
+            expect(formatItemValue(percentFormat, undefined)).toEqual('-');
+            expect(formatItemValue(percentFormat, null)).toEqual('∅');
+            expect(formatItemValue(percentFormat, '0.05')).toEqual('5%');
+            expect(formatItemValue(percentFormat, 0.05)).toEqual('5%');
+            expect(formatItemValue(percentFormat, 1)).toEqual('100%');
+            expect(formatItemValue(percentFormat, 5)).toEqual('500%');
+            expect(formatItemValue(percentFormat, '0.05123')).toEqual('5%');
+        });
+        test('table calculation with percent format and round', async () => {
+            const percentFormat = {
+                ...tableCalculation,
+                format: { type: TableCalculationFormatType.PERCENT, round: 1 },
+            };
+            expect(formatItemValue(percentFormat, undefined)).toEqual('-');
+            expect(formatItemValue(percentFormat, null)).toEqual('∅');
+            expect(formatItemValue(percentFormat, '0.05')).toEqual('5.0%');
+            expect(formatItemValue(percentFormat, 0.05)).toEqual('5.0%');
+            expect(formatItemValue(percentFormat, 1)).toEqual('100.0%');
+            expect(formatItemValue(percentFormat, 5)).toEqual('500.0%');
+            expect(formatItemValue(percentFormat, '0.05123')).toEqual('5.1%');
+        });
+        test('table calculation with percent format and number separator', async () => {
+            const percentFormat = {
+                ...tableCalculation,
+                format: {
+                    type: TableCalculationFormatType.PERCENT,
+                    round: 2,
+                    separator: NumberSeparator.PERIOD_COMMA,
+                },
+            };
+            expect(formatItemValue(percentFormat, undefined)).toEqual('-');
+            expect(formatItemValue(percentFormat, null)).toEqual('∅');
+            expect(formatItemValue(percentFormat, '0.05')).toEqual('5,00%');
+            expect(formatItemValue(percentFormat, '0.05123')).toEqual('5,12%');
+        });
+
+        test('format number separator', async () => {
+            const number = 123456789.12345;
+            expect(
+                formatNumberWithSeparator(
+                    number,
+                    NumberSeparator.COMMA_PERIOD,
+                    0,
+                ),
+            ).toEqual('123,456,789');
+            expect(
+                formatNumberWithSeparator(
+                    number,
+                    NumberSeparator.PERIOD_COMMA,
+                    0,
+                ),
+            ).toEqual('123.456.789');
+            expect(
+                formatNumberWithSeparator(
+                    number,
+                    NumberSeparator.SPACE_PERIOD,
+                    2,
+                ),
+            ).toEqual('123 456 789.12');
+            expect(
+                formatNumberWithSeparator(
+                    number,
+                    NumberSeparator.NO_SEPARATOR_PERIOD,
+                    2,
+                ),
+            ).toEqual('123456789.12');
+        });
+
+        test('format negative round', async () => {
+            const number = 123456789.12345;
+            expect(
+                formatNumberWithSeparator(
+                    number,
+                    NumberSeparator.COMMA_PERIOD,
+                    -1,
+                ),
+            ).toEqual('123,456,790');
+            expect(
+                formatNumberWithSeparator(
+                    number,
+                    NumberSeparator.PERIOD_COMMA,
+                    -2,
+                ),
+            ).toEqual('123.456.800');
+            expect(
+                formatNumberWithSeparator(
+                    number,
+                    NumberSeparator.SPACE_PERIOD,
+                    -3,
+                ),
+            ).toEqual('123 457 000');
+            expect(
+                formatNumberWithSeparator(
+                    number,
+                    NumberSeparator.NO_SEPARATOR_PERIOD,
+                    -4,
+                ),
+            ).toEqual('123460000');
         });
     });
 });
