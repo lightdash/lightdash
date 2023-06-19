@@ -37,8 +37,9 @@ export type OrganizationMemberProfile = {
     isInviteExpired?: boolean;
 };
 
-export type OrganizationMemberProfileUpdate = Partial<
-    Pick<OrganizationMemberProfile, 'role'>
+export type OrganizationMemberProfileUpdate = Pick<
+    OrganizationMemberProfile,
+    'role'
 >;
 
 export type ApiOrganizationMemberProfiles = {
