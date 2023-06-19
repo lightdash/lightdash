@@ -14,7 +14,7 @@ import {
     Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useExplore } from '../../../hooks/useExplore';
@@ -63,11 +63,7 @@ export const CustomMetricModal = () => {
     const form = useForm({
         validateInputOnChange: true,
         initialValues: {
-            customMetricLabel: isEditing
-                ? item?.label
-                : customMetricType
-                ? `${friendlyName(customMetricType)} of ${item?.label}`
-                : '',
+            customMetricLabel: '',
         },
         validate: {
             customMetricLabel: (label) => {
@@ -97,6 +93,20 @@ export const CustomMetricModal = () => {
             },
         },
     });
+
+    useEffect(() => {
+        if (item?.label && customMetricType) {
+            form.setFieldValue(
+                'customMetricLabel',
+                isEditing
+                    ? item.label
+                    : customMetricType
+                    ? `${friendlyName(customMetricType)} of ${item.label}`
+                    : '',
+            );
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [item, customMetricType]);
 
     const currentCustomMetricFiltersWithIds = useMemo(
         () =>
