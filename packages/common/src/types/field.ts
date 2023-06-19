@@ -1,3 +1,4 @@
+import { CompileError } from './errors';
 import { MetricFilterRule } from './filter';
 import { TimeFrames } from './timeFrames';
 
@@ -143,8 +144,16 @@ export const convertFieldIdToFieldRef = (field: Field) =>
     `${field.table}.${field.name}`;
 
 export const convertFieldRefToFieldId = (fieldRef: string) => {
-    const [table, name] = fieldRef.split('.');
-    return `${table}_${name}`;
+    const parts = fieldRef.split('.');
+    if (parts.length !== 2) {
+        throw new CompileError(
+            `Table calculation contains an invalid reference: ${fieldRef}. References must be of the format "table.field"`,
+            {},
+        );
+    }
+    const [tableName, fieldName] = parts;
+
+    return `${tableName}_${fieldName}`;
 };
 
 export type Source = {
