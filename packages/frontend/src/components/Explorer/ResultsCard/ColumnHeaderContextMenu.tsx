@@ -1,9 +1,7 @@
 import { Divider, Menu, Position } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import {
-    AdditionalMetric,
     fieldId,
-    isAdditionalMetric,
     isField,
     isFilterableField,
     TableCalculation,
@@ -47,17 +45,16 @@ const ContextMenu: FC<ContextMenuProps> = ({
         (context) =>
             context.state.unsavedChartVersion.metricQuery.additionalMetrics,
     );
-    console.log(additionalMetrics);
 
-    const isItemAdditionalMetric = useMemo(
+    const additionalMetric = useMemo(
         () =>
             !!additionalMetrics &&
             !!item &&
-            additionalMetrics.find(
-                (additionalMetric) => additionalMetric.name === item.name,
-            ),
+            additionalMetrics.find((am) => am.name === item.name),
         [additionalMetrics, item],
     );
+
+    const isItemAdditionalMetric = !!additionalMetric;
 
     const toggleAdditionalMetricModal = useExplorerContext(
         (context) => context.actions.toggleAdditionalMetricModal,
@@ -92,15 +89,11 @@ const ContextMenu: FC<ContextMenuProps> = ({
                             text={<>Edit custom metric</>}
                             icon="edit"
                             onClick={() => {
-                                if (
-                                    isAdditionalMetric(isItemAdditionalMetric)
-                                ) {
-                                    toggleAdditionalMetricModal({
-                                        item: isItemAdditionalMetric,
-                                        type: (item as AdditionalMetric).type,
-                                        isEditing: true,
-                                    });
-                                }
+                                toggleAdditionalMetricModal({
+                                    item: additionalMetric,
+                                    type: additionalMetric.type,
+                                    isEditing: true,
+                                });
                             }}
                         />
                     </>
