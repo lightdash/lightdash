@@ -1,13 +1,11 @@
 import { Colors, Divider, Menu } from '@blueprintjs/core';
 import { ItemListRendererProps } from '@blueprintjs/select';
 import { Field, getItemTableName, TableCalculation } from '@lightdash/common';
+import { Group, Text } from '@mantine/core';
+import { IconTable } from '@tabler/icons-react';
 import React, { FC } from 'react';
 import styled from 'styled-components';
-
-const TableName = styled.span`
-    font-weight: 600;
-    color: ${Colors.GRAY2};
-`;
+import MantineIcon from '../MantineIcon';
 
 type MenuDividerProps = {
     $isFirst: boolean;
@@ -45,8 +43,12 @@ const StickyMenuDivider: FC<StickyMenuDividerProps> = ({ index, title }) => {
     return (
         <MenuDivider $isFirst={index === 0}>
             {index !== 0 && <StyledDivider />}
-
-            <TableName>{title}</TableName>
+            <Group spacing="xxs">
+                <MantineIcon icon={IconTable} color="gray.6" />
+                <Text color="gray.6" fw={600}>
+                    {title}
+                </Text>
+            </Group>
         </MenuDivider>
     );
 };
