@@ -106,7 +106,6 @@ FROM node:16-bullseye as prod
 WORKDIR /usr/app
 
 ENV NODE_ENV production
-ENV PATH $PATH:/usr/local/venv/bin
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
@@ -114,8 +113,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-venv \
     && apt-get clean
 
-COPY --from=prod-builder /usr/local/venv /usr/local/venv
+COPY --from=prod-builder  /usr/local/dbt1.4 /usr/local/dbt1.4
+COPY --from=prod-builder  /usr/local/dbt1.5 /usr/local/dbt1.5
 COPY --from=prod-builder /usr/app /usr/app
+
+RUN ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt
+RUN ln -s /usr/local/dbt1.5/bin/dbt /usr/local/bin/dbt1.5
+
 
 # Production config
 COPY lightdash.yml /usr/app/lightdash.yml
