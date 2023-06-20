@@ -173,7 +173,7 @@ const UserActivity: FC = () => {
                 <ActivityCard grid="total-users">
                     <BigNumberContainer>
                         <BigNumber>{data.numberUsers}</BigNumber>
-                        <BigNumberLabel>Total users in organization</BigNumberLabel>
+                        <BigNumberLabel>Total users in project</BigNumberLabel>
                     </BigNumberContainer>
                 </ActivityCard>
                 <ActivityCard grid="viewers">
