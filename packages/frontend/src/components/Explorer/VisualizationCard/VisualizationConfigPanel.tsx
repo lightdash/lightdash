@@ -1,4 +1,4 @@
-import { ChartType } from '@lightdash/common';
+import { assertUnreachable, ChartType } from '@lightdash/common';
 import { FC, memo } from 'react';
 import BigNumberConfigPanel from '../../BigNumberConfig';
 import ChartConfigPanel from '../../ChartConfigPanel';
@@ -11,8 +11,15 @@ const VisualizationConfigPanel: FC<{ chartType: ChartType }> = memo(
                 return <BigNumberConfigPanel />;
             case ChartType.TABLE:
                 return <TableConfigPanel />;
-            default:
+            case ChartType.CARTESIAN:
                 return <ChartConfigPanel />;
+            case ChartType.PIE:
+                return <div>PIE CONFIG GOES HERE</div>;
+            default:
+                return assertUnreachable(
+                    chartType,
+                    `Chart type ${chartType} not supported`,
+                );
         }
     },
 );
