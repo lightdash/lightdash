@@ -293,7 +293,7 @@ const TableCalculationModal: FC<Props> = ({
                                 />
                             </TableCalculationSqlInputWrapper>
                             <Callout intent="none" icon="clean">
-                                <p>
+                                <Text>
                                     Need inspiration?{' '}
                                     <Anchor
                                         target="_blank"
@@ -302,7 +302,7 @@ const TableCalculationModal: FC<Props> = ({
                                     >
                                         Check out our templates!
                                     </Anchor>
-                                </p>
+                                </Text>
                             </Callout>
                         </Tabs.Panel>
                         <Tabs.Panel value="format">
