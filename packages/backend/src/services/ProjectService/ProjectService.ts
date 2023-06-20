@@ -1037,6 +1037,14 @@ export class ProjectService {
                 ).filter((metric) =>
                     metricQuery.metrics.includes(getFieldId(metric)),
                 ).length,
+                additionalMetricFilterCount: (
+                    metricQuery.additionalMetrics || []
+                ).filter(
+                    (metric) =>
+                        metricQuery.metrics.includes(getFieldId(metric)) &&
+                        metric.filters &&
+                        metric.filters.length > 0,
+                ).length,
             },
         });
 
