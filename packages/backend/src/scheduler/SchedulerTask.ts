@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     CompileProjectPayload,
     DownloadCsvPayload,
     EmailNotificationPayload,
@@ -118,7 +119,7 @@ export const getNotificationPageData = async (
         if (imageUrl === undefined) {
             throw new Error('Unable to unfurl image');
         }
-    } else {
+    } else if (format === SchedulerFormat.CSV) {
         const user = await userService.getSessionByUserUuid(userUuid);
         const csvOptions = isSchedulerCsvOptions(options) ? options : undefined;
 
@@ -182,6 +183,11 @@ export const getNotificationPageData = async (
             });
             throw e; // cascade error
         }
+    } else {
+        return assertUnreachable(
+            format,
+            `Format ${format} is not supported for scheduled delivery`,
+        );
     }
 
     return {
