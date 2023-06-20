@@ -715,6 +715,7 @@
                     "scatter",
                     "area",
                     "mixed",
+                    "pie",
                     "table",
                     "big_number"
                 ],
@@ -1773,7 +1774,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "ChartType": {
-                "enum": ["cartesian", "table", "big_number"],
+                "enum": ["cartesian", "table", "big_number", "pie"],
                 "type": "string"
             },
             "ChartSummary": {
@@ -3578,7 +3579,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.623.1",
+        "version": "0.624.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"

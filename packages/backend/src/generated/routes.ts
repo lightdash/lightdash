@@ -657,6 +657,7 @@ const models: TsoaRoute.Models = {
             'scatter',
             'area',
             'mixed',
+            'pie',
             'table',
             'big_number',
         ],
@@ -1511,7 +1512,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ChartType: {
         dataType: 'refEnum',
-        enums: ['cartesian', 'table', 'big_number'],
+        enums: ['cartesian', 'table', 'big_number', 'pie'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ChartSummary: {
