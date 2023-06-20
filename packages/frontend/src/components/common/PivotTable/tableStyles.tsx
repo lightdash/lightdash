@@ -115,7 +115,13 @@ export const usePivotTableCellStyles = createStyles<
 >((theme, props = {}) => ({
     root: {
         textAlign: 'left',
+        maxWidth: '300px',
         whiteSpace: 'nowrap',
+        textOverflow: 'ellipsis',
+        overflow: 'hidden',
+
+        fontFamily: "'Inter', sans-serif",
+
         fontWeight: 400,
         fontSize: 13,
 
@@ -187,6 +193,20 @@ export const usePivotTableCellStyles = createStyles<
         cursor: 'pointer',
         ':hover:not([data-expanded="true"]):not([data-copied="true"])': {
             outline: `1px solid ${theme.colors.gray[6]}`,
+        },
+    },
+
+    withNumericValue: {
+        fontFeatureSettings: '"tnum"',
+        textAlign: 'right',
+    },
+
+    withLargeText: {
+        minWidth: '300px',
+
+        '&:hover, &[data-expanded="true"]': {
+            wordBreak: 'break-all',
+            whiteSpace: 'normal',
         },
     },
 }));

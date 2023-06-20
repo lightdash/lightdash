@@ -2,6 +2,7 @@ import {
     ApiChartSummaryListResponse,
     ApiErrorPayload,
     ApiProjectAccessListResponse,
+    ApiProjectResponse,
     ApiSpaceSummaryListResponse,
     ApiSuccessEmpty,
     CreateProjectMember,
@@ -35,6 +36,24 @@ import {
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Projects')
 export class ProjectController extends Controller {
+    /**
+     * Get a project of an organiztion
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}')
+    @OperationId('GetProject')
+    async getProject(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiProjectResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await projectService.getProject(projectUuid, req.user!),
+        };
+    }
+
     /**
      * List all charts in a project
      * @param projectUuid The uuid of the project to get charts for
