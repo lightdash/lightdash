@@ -401,6 +401,8 @@ export const getChartType = (
     if (value === undefined) return undefined;
 
     switch (chartType) {
+        case ChartType.PIE:
+            return ChartKind.PIE;
         case ChartType.BIG_NUMBER:
             return ChartKind.BIG_NUMBER;
         case ChartType.TABLE:
@@ -439,7 +441,10 @@ export const getChartType = (
 
             return undefined;
         default:
-            return undefined;
+            return assertUnreachable(
+                chartType,
+                `Unknown chart type: ${chartType}`,
+            );
     }
 };
 
