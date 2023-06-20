@@ -54,6 +54,15 @@ export type BigNumberConfig = {
     config?: BigNumber;
 };
 
+export type PieChart = {
+    donut?: boolean;
+};
+
+export type PieChartConfig = {
+    type: ChartType.PIE;
+    config?: PieChart;
+};
+
 export type ColumnProperties = {
     visible?: boolean;
     name?: string;
@@ -212,6 +221,7 @@ export type CartesianChartConfig = {
 };
 
 export type ChartConfig =
+    | PieChartConfig
     | BigNumberConfig
     | TableChartConfig
     | CartesianChartConfig;
@@ -317,6 +327,10 @@ export const isBigNumberConfig = (
 export const isTableChartConfig = (
     value: ChartConfig['config'],
 ): value is TableChart => !!value && !isCartesianChartConfig(value);
+
+export const isPieChartConfig = (
+    value: ChartConfig['config'],
+): value is PieChart => !!value && 'donut' in value;
 
 export const getCustomLabelsFromColumnProperties = (
     columns: Record<string, ColumnProperties> | undefined,
