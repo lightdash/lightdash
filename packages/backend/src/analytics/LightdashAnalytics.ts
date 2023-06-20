@@ -302,12 +302,26 @@ type ProjectErrorEvent = BaseTrack & {
     };
 };
 
-type DashboardEvent = BaseTrack & {
-    event: 'dashboard.updated' | 'dashboard.deleted';
+type DeletedDashboardEvent = BaseTrack & {
+    event: 'dashboard.deleted';
     userId: string;
     properties: {
         projectId: string;
         dashboardId: string;
+    };
+};
+
+type UpdatedDashboardEvent = BaseTrack & {
+    event: 'dashboard.updated';
+    userId: string;
+    properties: {
+        projectId: string;
+        dashboardId: string;
+        tilesCount: number;
+        chartTilesCount: number;
+        markdownTilesCount: number;
+        loomTilesCount: number;
+        filtersCount: number;
     };
 };
 
@@ -658,7 +672,8 @@ type Track =
     | ProjectEvent
     | ProjectDeletedEvent
     | ProjectCompiledEvent
-    | DashboardEvent
+    | UpdatedDashboardEvent
+    | DeletedDashboardEvent
     | CreateDashboardOrVersionEvent
     | ProjectTablesConfigurationEvent
     | TrackOrganizationEvent
