@@ -209,7 +209,7 @@ const UserActivity: FC = () => {
                             {data.numberWeeklyQueryingUsers} %
                         </BigNumber>
                         <BigNumberLabel>
-                            Users that ran a query in the last 7 days
+                            Users that viewed a chart in the last 7 days
                         </BigNumberLabel>
                     </BigNumberContainer>
                 </ActivityCard>
