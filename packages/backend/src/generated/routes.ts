@@ -2648,49 +2648,17 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Space.name_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: { name: { dataType: 'string', required: true } },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Partial_Pick_Space.isPrivate-or-access__': {
+    CreateSpace: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                isPrivate: { dataType: 'boolean' },
                 access: {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'SpaceShare' },
                 },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    CreateSpace: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'intersection',
-            subSchemas: [
-                { ref: 'Pick_Space.name_' },
-                { ref: 'Partial_Pick_Space.isPrivate-or-access__' },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Space.name-or-isPrivate_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
+                isPrivate: { dataType: 'boolean' },
                 name: { dataType: 'string', required: true },
-                isPrivate: { dataType: 'boolean', required: true },
             },
             validators: {},
         },
@@ -2698,10 +2666,17 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     UpdateSpace: {
         dataType: 'refAlias',
-        type: { ref: 'Pick_Space.name-or-isPrivate_', validators: {} },
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                isPrivate: { dataType: 'boolean', required: true },
+                name: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_SpaceShare.userUuid_': {
+    AddSpaceShare: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -2710,11 +2685,6 @@ const models: TsoaRoute.Models = {
             },
             validators: {},
         },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AddSpaceShare: {
-        dataType: 'refAlias',
-        type: { ref: 'Pick_SpaceShare.userUuid_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_SshKeyPair.publicKey_': {
