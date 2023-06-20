@@ -1,3 +1,10 @@
+## [0.621.2](https://github.com/lightdash/lightdash/compare/0.621.1...0.621.2) (2023-06-20)
+
+
+### Bug Fixes
+
+* remove unexpected columns field in chart config ([#5975](https://github.com/lightdash/lightdash/issues/5975)) ([98dc25d](https://github.com/lightdash/lightdash/commit/98dc25d5752bfcee7e05bcbe88439551896665a3))
+
 ## [0.621.1](https://github.com/lightdash/lightdash/compare/0.621.0...0.621.1) (2023-06-20)
 
 
