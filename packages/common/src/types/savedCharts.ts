@@ -13,6 +13,7 @@ export enum ChartKind {
     SCATTER = 'scatter',
     AREA = 'area',
     MIXED = 'mixed',
+    PIE = 'pie',
     TABLE = 'table',
     BIG_NUMBER = 'big_number',
 }
@@ -21,6 +22,7 @@ export enum ChartType {
     CARTESIAN = 'cartesian',
     TABLE = 'table',
     BIG_NUMBER = 'big_number',
+    PIE = 'pie',
 }
 
 export enum ComparisonFormatTypes {
