@@ -16,10 +16,6 @@ import {
 jest.mock('pg', () => ({
     ...jest.requireActual('pg'),
     Pool: jest.fn(() => ({
-        query: jest.fn(() => ({
-            fields: queryColumnsMock,
-            rows: [expectedRow],
-        })),
         connect: jest.fn((callback) => {
             callback(
                 null,
@@ -27,7 +23,10 @@ jest.mock('pg', () => ({
                     query: jest.fn(() => {
                         const mockedStream = new PassThrough();
                         setTimeout(() => {
-                            mockedStream.emit('data', expectedRow);
+                            mockedStream.emit('data', {
+                                row: expectedRow,
+                                fields: queryColumnsMock,
+                            });
                             mockedStream.end();
                         }, 100);
                         return mockedStream;
@@ -36,7 +35,7 @@ jest.mock('pg', () => ({
                 jest.fn(),
             );
         }),
-        end: jest.fn(),
+        end: jest.fn(async () => undefined),
     })),
 }));
 
@@ -50,10 +49,6 @@ describe('PostgresWarehouseClient', () => {
     it('expect schema with postgres types mapped to dimension types', async () => {
         const warehouse = new PostgresWarehouseClient(credentials);
         (pg.Pool as unknown as jest.Mock).mockImplementationOnce(() => ({
-            query: jest.fn(() => ({
-                fields: queryColumnsMock,
-                rows: columns,
-            })),
             connect: jest.fn((callback) => {
                 callback(
                     null,
@@ -62,7 +57,10 @@ describe('PostgresWarehouseClient', () => {
                             const mockedStream = new PassThrough();
                             setTimeout(() => {
                                 columns.forEach((column) => {
-                                    mockedStream.emit('data', column);
+                                    mockedStream.emit('data', {
+                                        row: column,
+                                        fields: [],
+                                    });
                                 });
                                 mockedStream.end();
                             }, 100);
@@ -72,7 +70,7 @@ describe('PostgresWarehouseClient', () => {
                     jest.fn(),
                 );
             }),
-            end: jest.fn(),
+            end: jest.fn(async () => undefined),
         }));
         expect(await warehouse.getCatalog(config)).toEqual(
             expectedWarehouseSchema,
