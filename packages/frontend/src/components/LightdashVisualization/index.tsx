@@ -1,4 +1,4 @@
-import { ChartType } from '@lightdash/common';
+import { assertUnreachable, ChartType } from '@lightdash/common';
 import { FC, memo } from 'react';
 import SimpleChart from '../SimpleChart';
 import SimpleStatistic from '../SimpleStatistic';
@@ -58,8 +58,13 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
                         {...props}
                     />
                 );
+            case ChartType.PIE:
+                return <div>PIE VIZ GOES HERE</div>;
             default:
-                return null;
+                return assertUnreachable(
+                    chartType,
+                    `Chart type ${chartType} not implemented`,
+                );
         }
     },
 );
