@@ -1,16 +1,19 @@
 import { /* ApiQueryResults, Explore, */ PieChart } from '@lightdash/common';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 const usePieChartConfig = (
     pieChartConfig: PieChart | undefined,
     // resultsData: ApiQueryResults | undefined,
     // explore: Explore | undefined,
 ) => {
+    const [isDonut /*, setIsDonut */] = useState<boolean>(
+        pieChartConfig?.donut ?? false,
+    );
     const validPieChartConfig: PieChart = useMemo(() => {
         return {
-            donut: pieChartConfig?.donut,
+            donut: isDonut,
         };
-    }, [pieChartConfig]);
+    }, [isDonut]);
 
     return {
         validPieChartConfig,
