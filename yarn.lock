@@ -4649,19 +4649,20 @@
   resolved "https://registry.npmjs.org/@types/pegjs/-/pegjs-0.10.3.tgz"
   integrity sha512-C/ZkUNe7HONOaDHXfNTZOUzrOvOgrWdrJj1JZ3QTEPi5gOIygcjCpXyxpdJTKVvWFzbobajRbMbQY8d0WrZ6fg==
 
+"@types/pg-cursor@^2.7.0":
+  version "2.7.0"
+  resolved "https://registry.yarnpkg.com/@types/pg-cursor/-/pg-cursor-2.7.0.tgz#9f11ffb2fa77d5c693429ba188ee55fce5928316"
+  integrity sha512-4Milg/OUqTO2VuPvvRwPxaQTaiVb+bXvSK+ZCwiHjwinbD4/lPqV9AREg8sJAT0cy5ruY38aaajBc2FbdPaKcA==
+  dependencies:
+    "@types/node" "*"
+    "@types/pg" "*"
+
 "@types/pg-pool@2.0.3":
   version "2.0.3"
   resolved "https://registry.yarnpkg.com/@types/pg-pool/-/pg-pool-2.0.3.tgz#3eb8df2933f617f219a53091ad4080c94ba1c959"
   integrity sha512-fwK5WtG42Yb5RxAwxm3Cc2dJ39FlgcaNiXKvtTLAwtCn642X7dgel+w1+cLWwpSOFImR3YjsZtbkfjxbHtFAeg==
   dependencies:
     "@types/pg" "*"
-
-"@types/pg-query-stream@^3.4.0":
-  version "3.4.0"
-  resolved "https://registry.yarnpkg.com/@types/pg-query-stream/-/pg-query-stream-3.4.0.tgz#71e65bdf788792d75f3482734731e95149e929d3"
-  integrity sha512-oqGAu+5CMPAVNqemN9xYT3LBDy2qXBke15cstEuVYIvJL6lcKSNKeG61fONlVrxTYIFi9sPuGVtIweanrEZcJw==
-  dependencies:
-    pg-query-stream "*"
 
 "@types/pg@*":
   version "8.10.1"
@@ -14106,13 +14107,6 @@ pg-protocol@^1.6.0:
   version "1.6.0"
   resolved "https://registry.yarnpkg.com/pg-protocol/-/pg-protocol-1.6.0.tgz#4c91613c0315349363af2084608db843502f8833"
   integrity sha512-M+PDm637OY5WM307051+bsDia5Xej6d9IR4GwJse1qA1DIhiKlksvrneZOYQq42OM+spubpcNYEo2FcKQrDk+Q==
-
-pg-query-stream@*, pg-query-stream@^4.5.0:
-  version "4.5.0"
-  resolved "https://registry.yarnpkg.com/pg-query-stream/-/pg-query-stream-4.5.0.tgz#51f914a29fe4e906bf36cac3b58d0148703bb8f4"
-  integrity sha512-9slxIXMssuqKUVyCtuVU5/pr2+RLTKva5VE90PFzi6Mi8o3crbyZQvReoWJimgm9c1zY2+Jv3lvYYsqvaKmQ4g==
-  dependencies:
-    pg-cursor "^2.10.0"
 
 pg-types@^2.1.0, pg-types@^2.2.0:
   version "2.2.0"
