@@ -22,5 +22,5 @@ module.exports = {
         'no-template-curly-in-string': 'off',
         eqeqeq: 'error',
     },
-    ignorePatterns: ["routes.ts", "swagger.json"],
+    ignorePatterns: ["packages/backend/src/generated/routes.ts", "packages/backend/src/generated/swagger.json"],
 };
