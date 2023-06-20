@@ -47,6 +47,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
         (context) =>
             context.state.unsavedChartVersion.metricQuery.additionalMetrics,
     );
+    console.log(additionalMetrics);
 
     const isItemAdditionalMetric = useMemo(
         () =>
