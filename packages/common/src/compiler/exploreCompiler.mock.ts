@@ -992,7 +992,7 @@ export const tablesWithMetricsWithFilters: Record<string, Table> = {
                 filters: [
                     {
                         id: 'filter1',
-                        target: { fieldId: 'shared' },
+                        target: { fieldRef: 'shared' },
                         operator: FilterOperator.INCLUDE,
                         values: ['foo'],
                     },
@@ -1011,7 +1011,7 @@ export const tablesWithMetricsWithFilters: Record<string, Table> = {
                 filters: [
                     {
                         id: 'filter1',
-                        target: { fieldId: 'shared' },
+                        target: { fieldRef: 'shared' },
                         operator: FilterOperator.INCLUDE,
                         values: ['foo'],
                     },
@@ -1063,13 +1063,13 @@ export const tablesWithMetricsWithFilters: Record<string, Table> = {
                 filters: [
                     {
                         id: 'filter2_1',
-                        target: { fieldId: 'dim2' },
+                        target: { fieldRef: 'dim2' },
                         operator: FilterOperator.LESS_THAN,
                         values: [10],
                     },
                     {
                         id: 'filter2_2',
-                        target: { fieldId: 'dim2' },
+                        target: { fieldRef: 'dim2' },
                         operator: FilterOperator.GREATER_THAN,
                         values: [5],
                     },

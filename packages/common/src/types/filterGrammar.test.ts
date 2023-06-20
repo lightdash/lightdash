@@ -1,5 +1,5 @@
 import peg from 'pegjs';
-import { FilterOperator, FilterRule } from './filter';
+import { FilterOperator, MetricFilterRule } from './filter';
 import filterGrammar, { parseFilters } from './filterGrammar';
 
 describe('Parse grammar', () => {
@@ -128,7 +128,7 @@ describe('Parse grammar', () => {
 });
 
 describe('Parse metric filters', () => {
-    const removeIds = (filters: FilterRule[]) =>
+    const removeIds = (filters: MetricFilterRule[]) =>
         filters.map((filter) => ({ ...filter, id: undefined }));
     it('Should directly transform boolean filter', () => {
         const filters = [{ is_active: true }];
@@ -137,7 +137,7 @@ describe('Parse metric filters', () => {
                 id: undefined,
                 operator: FilterOperator.EQUALS,
                 target: {
-                    fieldId: 'is_active',
+                    fieldRef: 'is_active',
                 },
                 values: [true],
             },
@@ -150,7 +150,7 @@ describe('Parse metric filters', () => {
                 id: undefined,
                 operator: FilterOperator.EQUALS,
                 target: {
-                    fieldId: 'position',
+                    fieldRef: 'position',
                 },
                 values: [1],
             },
@@ -163,7 +163,7 @@ describe('Parse metric filters', () => {
                 id: undefined,
                 operator: FilterOperator.INCLUDE,
                 target: {
-                    fieldId: 'name',
+                    fieldRef: 'name',
                 },
                 values: ['katie'],
             },
@@ -178,7 +178,7 @@ describe('Parse metric filters', () => {
                 id: undefined,
                 operator: FilterOperator.NOT_INCLUDE,
                 target: {
-                    fieldId: 'name',
+                    fieldRef: 'name',
                 },
                 values: ['katie'],
             },
@@ -186,7 +186,7 @@ describe('Parse metric filters', () => {
                 id: undefined,
                 operator: FilterOperator.EQUALS,
                 target: {
-                    fieldId: 'money',
+                    fieldRef: 'money',
                 },
                 values: [15.33],
             },
@@ -201,7 +201,7 @@ describe('Parse metric filters', () => {
                 id: undefined,
                 operator: FilterOperator.GREATER_THAN,
                 target: {
-                    fieldId: 'order_id',
+                    fieldRef: 'order_id',
                 },
                 values: [5],
             },
@@ -209,7 +209,7 @@ describe('Parse metric filters', () => {
                 id: undefined,
                 operator: FilterOperator.LESS_THAN,
                 target: {
-                    fieldId: 'order_id',
+                    fieldRef: 'order_id',
                 },
                 values: [10],
             },
@@ -223,7 +223,7 @@ describe('Parse metric filters', () => {
                 id: undefined,
                 operator: FilterOperator.NULL,
                 target: {
-                    fieldId: 'name',
+                    fieldRef: 'name',
                 },
                 values: [1],
             },
@@ -236,7 +236,7 @@ describe('Parse metric filters', () => {
                 id: undefined,
                 operator: FilterOperator.NOT_NULL,
                 target: {
-                    fieldId: 'name',
+                    fieldRef: 'name',
                 },
                 values: [1],
             },
