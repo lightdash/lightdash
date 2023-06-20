@@ -1,3 +1,16 @@
+# [0.622.0](https://github.com/lightdash/lightdash/compare/0.621.2...0.622.0) (2023-06-20)
+
+
+### Bug Fixes
+
+* add grouping to explore filters ([#5980](https://github.com/lightdash/lightdash/issues/5980)) ([7bed882](https://github.com/lightdash/lightdash/commit/7bed88265cd259ae0312aeca41c9e3bb438cfce1))
+* add table icon in front of table names ([#5978](https://github.com/lightdash/lightdash/issues/5978)) ([e036818](https://github.com/lightdash/lightdash/commit/e036818cd38d1480f760835199198e0916318d1a))
+
+
+### Features
+
+* allow definition of custom metrics with filters ([#5865](https://github.com/lightdash/lightdash/issues/5865)) ([9059656](https://github.com/lightdash/lightdash/commit/9059656eef5295b5106142418001db3716861b8f))
+
 ## [0.621.2](https://github.com/lightdash/lightdash/compare/0.621.1...0.621.2) (2023-06-20)
 
 
