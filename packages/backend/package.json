@@ -105,7 +105,7 @@
         "scheduler": "node dist/scheduler.js",
         "scheduler-dev": "ts-node-dev --rs --respawn -- src/scheduler.ts",
         "test": "TZ=UTC jest",
-        "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
+        "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore  --ignore-pattern ./src/generated/*",
         "formatter": "prettier --config .prettierrc.js --ignore-unknown --ignore-path ./../../.gitignore",
         "lint": "yarn run linter ./src",
         "fix-lint": "yarn run linter ./src --fix",
