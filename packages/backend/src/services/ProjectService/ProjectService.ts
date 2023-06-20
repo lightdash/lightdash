@@ -55,6 +55,7 @@ import {
     SessionUser,
     SpaceSummary,
     SummaryExplore,
+    TableCalculationFormatType,
     TablesConfiguration,
     TableSelectionType,
     UpdateProject,
@@ -1032,6 +1033,12 @@ export class ProjectService {
                 filtersCount: countTotalFilterRules(metricQuery.filters),
                 sortsCount: metricQuery.sorts.length,
                 tableCalculationsCount: metricQuery.tableCalculations.length,
+                tableCalculationsPercentFormatCount:
+                    metricQuery.tableCalculations.filter(
+                        (tableCalculation) =>
+                            tableCalculation.format?.type ===
+                            TableCalculationFormatType.PERCENT,
+                    ).length,
                 additionalMetricsCount: (
                     metricQuery.additionalMetrics || []
                 ).filter((metric) =>
