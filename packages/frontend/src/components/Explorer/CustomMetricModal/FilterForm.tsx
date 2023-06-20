@@ -38,7 +38,15 @@ export const FilterForm: FC<{
     const dimensions = Object.values(fieldsMap).filter(isDimension);
 
     const addFieldRule = useCallback(() => {
-        const field = fieldsMap[defaultFilterRuleFieldId ?? 0];
+        const fallbackField = Object.values(fieldsMap)[0];
+        const defaultField = defaultFilterRuleFieldId
+            ? fieldsMap[defaultFilterRuleFieldId]
+            : undefined;
+        const field = defaultField || fallbackField;
+
+        if (!field) {
+            return;
+        }
 
         const newFilterRule = createFilterRuleFromField(field);
         setCustomMetricFiltersWithIds([
