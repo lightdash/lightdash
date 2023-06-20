@@ -201,6 +201,9 @@ export type CreateSavedChartOrVersionEvent = BaseTrack & {
             margins: string;
             showLegend: boolean;
         };
+        pie?: {
+            donut: boolean;
+        };
         table?: {
             conditionalFormattingRulesCount: number;
             hasMetricsAsRows: boolean;
