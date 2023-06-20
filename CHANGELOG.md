@@ -1,3 +1,10 @@
+## [0.621.1](https://github.com/lightdash/lightdash/compare/0.621.0...0.621.1) (2023-06-20)
+
+
+### Bug Fixes
+
+* use material design text ([#5928](https://github.com/lightdash/lightdash/issues/5928)) ([87b77f7](https://github.com/lightdash/lightdash/commit/87b77f77648a26a856041a0d2c1919a9b5f53437))
+
 # [0.621.0](https://github.com/lightdash/lightdash/compare/0.620.1...0.621.0) (2023-06-19)
 
 
