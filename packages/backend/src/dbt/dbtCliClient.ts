@@ -144,7 +144,9 @@ export class DbtCliClient implements DbtClient {
             } catch (e) {
                 Sentry.captureException(e, { extra: { dbtExec } });
                 Logger.warn(
-                    `Error running ${dbtExec} command "${command.join(' ')}"`,
+                    `Error running ${dbtExec} command "${command.join(
+                        ' ',
+                    )}": ${e}`,
                 );
                 if (dbtExecs[dbtExecs.length - 1] === dbtExec) {
                     throw e; // Throw last error
