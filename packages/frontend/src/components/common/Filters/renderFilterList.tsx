@@ -43,8 +43,8 @@ const StickyMenuDivider: FC<StickyMenuDividerProps> = ({ index, title }) => {
     return (
         <MenuDivider $isFirst={index === 0}>
             {index !== 0 && <StyledDivider />}
-            <Group spacing="xxs">
-                <MantineIcon icon={IconTable} color="gray.6" />
+            <Group spacing="xs">
+                <MantineIcon icon={IconTable} color="gray.6" size="lg" />
                 <Text color="gray.6" fw={600}>
                     {title}
                 </Text>
