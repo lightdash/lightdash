@@ -1,26 +1,15 @@
 import { Tag } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import {
-    convertAdditionalMetric,
     countTotalFilterRules,
-    DimensionType,
     Field,
     fieldId,
     FilterRule,
-    getResultValueArray,
     getTotalFilterRules,
     getVisibleFields,
     isFilterableField,
-    Metric,
 } from '@lightdash/common';
-import React, {
-    FC,
-    memo,
-    useCallback,
-    useEffect,
-    useMemo,
-    useState,
-} from 'react';
+import { FC, memo, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useExplore } from '../../../hooks/useExplore';
 import { useProject } from '../../../hooks/useProject';
@@ -31,11 +20,9 @@ import {
 import CollapsableCard from '../../common/CollapsableCard';
 import FiltersForm from '../../common/Filters';
 import { getConditionalRuleLabel } from '../../common/Filters/configs';
-import {
-    FieldsWithSuggestions,
-    FiltersProvider,
-} from '../../common/Filters/FiltersProvider';
+import { FiltersProvider } from '../../common/Filters/FiltersProvider';
 import { DisabledFilterHeader, FilterValues } from './FiltersCard.styles';
+import { useFieldsWithSuggestions } from './useFieldsWithSuggestions';
 
 const FiltersCard: FC = memo(() => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -74,67 +61,11 @@ const FiltersCard: FC = memo(() => {
         () => countTotalFilterRules(filters),
         [filters],
     );
-    const [fieldsWithSuggestions, setFieldsWithSuggestions] =
-        useState<FieldsWithSuggestions>({});
-    useEffect(() => {
-        if (data) {
-            setFieldsWithSuggestions((prev) => {
-                const visibleFields = getVisibleFields(data);
-                const customMetrics = (additionalMetrics || []).reduce<
-                    Metric[]
-                >((acc, additionalMetric) => {
-                    const table = data.tables[additionalMetric.table];
-                    if (table) {
-                        const metric = convertAdditionalMetric({
-                            additionalMetric,
-                            table,
-                        });
-                        return [...acc, metric];
-                    }
-                    return acc;
-                }, []);
-                return [...visibleFields, ...customMetrics].reduce(
-                    (sum, field) => {
-                        if (isFilterableField(field)) {
-                            let suggestions: string[] = [];
-                            if (field.type === DimensionType.STRING) {
-                                const currentSuggestions =
-                                    prev[fieldId(field)]?.suggestions || [];
-                                const newSuggestions: string[] =
-                                    (queryResults &&
-                                        getResultValueArray(
-                                            queryResults.rows,
-                                            true,
-                                        ).reduce<string[]>((acc, row) => {
-                                            const value = row[fieldId(field)];
-                                            if (typeof value === 'string') {
-                                                return [...acc, value];
-                                            }
-                                            return acc;
-                                        }, [])) ||
-                                    [];
-                                suggestions = Array.from(
-                                    new Set([
-                                        ...currentSuggestions,
-                                        ...newSuggestions,
-                                    ]),
-                                ).sort((a, b) => a.localeCompare(b));
-                            }
-                            return {
-                                ...sum,
-                                [fieldId(field)]: {
-                                    ...field,
-                                    suggestions,
-                                },
-                            };
-                        }
-                        return sum;
-                    },
-                    {},
-                );
-            });
-        }
-    }, [data, queryResults, additionalMetrics]);
+    const fieldsWithSuggestions = useFieldsWithSuggestions({
+        exploreData: data,
+        queryResults,
+        additionalMetrics,
+    });
     const allFilterRules = useMemo(
         () => getTotalFilterRules(filters),
         [filters],

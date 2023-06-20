@@ -2102,6 +2102,54 @@
                     }
                 ]
             },
+            "ConditionalOperator": {
+                "enum": [
+                    "isNull",
+                    "notNull",
+                    "equals",
+                    "notEquals",
+                    "startsWith",
+                    "endsWith",
+                    "include",
+                    "doesNotInclude",
+                    "lessThan",
+                    "lessThanOrEqual",
+                    "greaterThan",
+                    "greaterThanOrEqual",
+                    "inThePast",
+                    "inTheNext",
+                    "inTheCurrent",
+                    "inBetween"
+                ],
+                "type": "string"
+            },
+            "MetricFilterRule": {
+                "properties": {
+                    "values": {
+                        "items": {},
+                        "type": "array"
+                    },
+                    "operator": {
+                        "$ref": "#/components/schemas/ConditionalOperator"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "target": {
+                        "properties": {
+                            "fieldRef": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["fieldRef"],
+                        "type": "object"
+                    },
+                    "settings": {}
+                },
+                "required": ["operator", "id", "target"],
+                "type": "object",
+                "additionalProperties": false
+            },
             "AdditionalMetric": {
                 "properties": {
                     "label": {
@@ -2138,6 +2186,19 @@
                     "index": {
                         "type": "number",
                         "format": "double"
+                    },
+                    "filters": {
+                        "items": {
+                            "$ref": "#/components/schemas/MetricFilterRule"
+                        },
+                        "type": "array"
+                    },
+                    "baseDimensionName": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string",
+                        "nullable": true
                     }
                 },
                 "required": ["type", "sql", "table", "name"],
@@ -3517,7 +3578,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.621.1",
+        "version": "0.621.2",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"

@@ -1,7 +1,7 @@
 import * as peg from 'pegjs';
 import { v4 as uuidv4 } from 'uuid';
 import { UnexpectedServerError } from './errors';
-import { FilterOperator, FilterRule } from './filter';
+import { FilterOperator, MetricFilterRule } from './filter';
 
 export type ParsedFilter = {
     type: string;
@@ -207,13 +207,13 @@ export const parseOperator = (
 
 export const parseFilters = (
     rawFilters: Record<string, any>[] | undefined,
-): FilterRule[] => {
+): MetricFilterRule[] => {
     if (!rawFilters || rawFilters.length === 0) {
         return [];
     }
     const parser = peg.generate(filterGrammar);
 
-    return rawFilters.reduce<FilterRule[]>((acc, filter) => {
+    return rawFilters.reduce<MetricFilterRule[]>((acc, filter) => {
         if (Object.entries(filter).length !== 1) return acc;
 
         const [key, value] = Object.entries(filter)[0];
@@ -223,7 +223,7 @@ export const parseFilters = (
                 ...acc,
                 {
                     id: uuidv4(),
-                    target: { fieldId: key },
+                    target: { fieldRef: key },
                     operator: FilterOperator.NULL,
                     values: [1],
                 },
@@ -236,7 +236,7 @@ export const parseFilters = (
                 ...acc,
                 {
                     id: uuidv4(),
-                    target: { fieldId: key },
+                    target: { fieldRef: key },
                     operator: parseOperator(
                         parsedFilter.type,
                         !!parsedFilter.is,
@@ -249,7 +249,7 @@ export const parseFilters = (
             ...acc,
             {
                 id: uuidv4(),
-                target: { fieldId: key },
+                target: { fieldRef: key },
                 operator: FilterOperator.EQUALS,
                 values: [value],
             },

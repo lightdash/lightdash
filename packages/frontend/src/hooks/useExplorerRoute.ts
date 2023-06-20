@@ -120,6 +120,11 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                           ]
                         : [ExplorerSection.RESULTS],
                     unsavedChartVersion,
+                    modals: {
+                        additionalMetric: {
+                            isOpen: false,
+                        },
+                    },
                 };
             } catch (e: any) {
                 showToastError({ title: 'Error parsing url', subtitle: e });
