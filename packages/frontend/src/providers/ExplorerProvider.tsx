@@ -162,7 +162,7 @@ export interface ExplorerContext {
     queryResults: ReturnType<typeof useQueryResults>;
     hasUnfetchedChanges: boolean;
     actions: {
-        clear: () => void;
+        clearExplore: () => void;
         reset: () => void;
         setTableName: (tableName: string) => void;
         removeActiveField: (fieldId: FieldId) => void;
@@ -1105,7 +1105,7 @@ export const ExplorerProvider: FC<{
         });
     }, [mutateAsync, state.shouldFetchResults]);
 
-    const clear = useCallback(async () => {
+    const clearExplore = useCallback(async () => {
         dispatch({
             type: ActionType.RESET,
             payload: defaultState,
@@ -1125,7 +1125,7 @@ export const ExplorerProvider: FC<{
 
     const actions = useMemo(
         () => ({
-            clear,
+            clearExplore,
             reset,
             setTableName,
             removeActiveField,
@@ -1150,7 +1150,7 @@ export const ExplorerProvider: FC<{
             toggleExpandedSection,
         }),
         [
-            clear,
+            clearExplore,
             reset,
             setTableName,
             removeActiveField,
