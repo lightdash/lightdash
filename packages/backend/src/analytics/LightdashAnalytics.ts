@@ -137,7 +137,7 @@ type QueryExecutionEvent = BaseTrack & {
         sortsCount: number;
         hasExampleMetric: boolean;
         additionalMetricsCount: number;
-        additionalMetricFilterCount: number;
+        additionalMetricsFilterCount: number;
     };
 };
 

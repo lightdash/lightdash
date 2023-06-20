@@ -1037,7 +1037,7 @@ export class ProjectService {
                 ).filter((metric) =>
                     metricQuery.metrics.includes(getFieldId(metric)),
                 ).length,
-                additionalMetricFilterCount: (
+                additionalMetricsFilterCount: (
                     metricQuery.additionalMetrics || []
                 ).filter(
                     (metric) =>
