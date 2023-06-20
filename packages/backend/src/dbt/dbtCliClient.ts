@@ -256,23 +256,13 @@ export class DbtCliClient implements DbtClient {
         version: DbtManifestVersion,
         filename: string,
     ): Promise<any> {
-        switch (version) {
-            case DbtManifestVersion.V9:
-                return DbtCliClient.loadDbtFile('./target/manifest.json');
-            case DbtManifestVersion.V7:
-                const targetDir = await this._getTargetDirectory();
-                const fullPath = path.join(
-                    this.dbtProjectDirectory,
-                    targetDir,
-                    filename,
-                );
-                return DbtCliClient.loadDbtFile(fullPath);
-            default:
-                return assertUnreachable(
-                    version,
-                    `Missing target for dbt manifest version ${version}`,
-                );
-        }
+        const targetDir = await this._getTargetDirectory();
+        const fullPath = path.join(
+            version === DbtManifestVersion.V9 ? '.' : this.dbtProjectDirectory,
+            targetDir,
+            filename,
+        );
+        return DbtCliClient.loadDbtFile(fullPath);
     }
 
     static async loadDbtFile(
