@@ -48,16 +48,6 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
     savedChartUuid,
     onClose,
 }) => {
-    const form = useForm({
-        initialValues: {
-            dashboardUuid: '',
-            dashboardName: '',
-            dashboardDescription: '',
-            spaceUuid: '',
-            spaceName: '',
-        },
-    });
-
     const [isCreatingNewDashboard, setIsCreatingNewDashboard] = useState(false);
     const [isCreatingNewSpace, setIsCreatingNewSpace] =
         useState<boolean>(false);
@@ -68,9 +58,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
         projectUuid,
         {
             onSuccess: (data) => {
-                if (data.length > 0) {
-                    form.setFieldValue('dashboardUuid', data[0].uuid);
-                } else {
+                if (data.length === 0) {
                     setIsCreatingNewDashboard(true);
                 }
             },
@@ -80,14 +68,26 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
         projectUuid,
         {
             onSuccess: (data) => {
-                if (data.length > 0) {
-                    form.setFieldValue('spaceUuid', data[0].uuid);
-                } else {
+                if (data.length === 0) {
                     setIsCreatingNewSpace(true);
                 }
             },
         },
     );
+    const currentSpace = spaces?.find((s) => s.uuid === savedChart?.spaceUuid);
+
+    const form = useForm({
+        initialValues: {
+            dashboardUuid:
+                dashboards?.find((d) => d.spaceUuid === currentSpace?.uuid)
+                    ?.uuid ?? '',
+            dashboardName: '',
+            dashboardDescription: '',
+            spaceUuid: currentSpace?.uuid ?? '',
+            spaceName: '',
+        },
+    });
+
     const { data: selectedDashboard } = useDashboardQuery(
         form.getInputProps('dashboardUuid').value,
     );
@@ -132,7 +132,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                 };
 
                 if (isCreatingNewDashboard) {
-                    createDashboard({
+                    await createDashboard({
                         name: dashboardName,
                         description: dashboardDescription,
                         spaceUuid: spaceUuid,
@@ -153,9 +153,10 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                     });
                     onClose?.();
                 } else {
-                    if (!selectedDashboard)
+                    if (!selectedDashboard) {
                         throw new Error('Expected dashboard');
-                    updateDashboard({
+                    }
+                    await updateDashboard({
                         name: selectedDashboard.name,
                         filters: selectedDashboard.filters,
                         tiles: appendNewTilesToBottom(selectedDashboard.tiles, [
@@ -214,8 +215,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                                 defaultValue={
                                     dashboards.find(
                                         (d) =>
-                                            d.spaceUuid ===
-                                            savedChart?.spaceUuid,
+                                            d.spaceUuid === currentSpace?.uuid,
                                     )?.uuid
                                 }
                                 withinPortal
@@ -256,13 +256,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                                             value: space.uuid,
                                             label: space.name,
                                         }))}
-                                        defaultValue={
-                                            spaces.find(
-                                                (s) =>
-                                                    s.uuid ===
-                                                    savedChart?.spaceUuid,
-                                            )?.uuid
-                                        }
+                                        defaultValue={currentSpace?.uuid}
                                         required
                                         withinPortal
                                         {...form.getInputProps('spaceUuid')}
