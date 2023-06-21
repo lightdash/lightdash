@@ -163,6 +163,7 @@ export interface ExplorerContext {
     hasUnfetchedChanges: boolean;
     actions: {
         clearExplore: () => void;
+        clearQuery: () => void;
         reset: () => void;
         setTableName: (tableName: string) => void;
         removeActiveField: (fieldId: FieldId) => void;
@@ -1113,6 +1114,20 @@ export const ExplorerProvider: FC<{
         resetQueryResults();
     }, [resetQueryResults]);
 
+    const clearQuery = useCallback(async () => {
+        dispatch({
+            type: ActionType.RESET,
+            payload: {
+                ...defaultState,
+                unsavedChartVersion: {
+                    ...defaultState.unsavedChartVersion,
+                    tableName: unsavedChartVersion.tableName,
+                },
+            },
+        });
+        resetQueryResults();
+    }, [resetQueryResults, unsavedChartVersion.tableName]);
+
     const defaultSort = useDefaultSortField(unsavedChartVersion);
 
     const fetchResults = useCallback(() => {
@@ -1126,6 +1141,7 @@ export const ExplorerProvider: FC<{
     const actions = useMemo(
         () => ({
             clearExplore,
+            clearQuery,
             reset,
             setTableName,
             removeActiveField,
@@ -1151,6 +1167,7 @@ export const ExplorerProvider: FC<{
         }),
         [
             clearExplore,
+            clearQuery,
             reset,
             setTableName,
             removeActiveField,
