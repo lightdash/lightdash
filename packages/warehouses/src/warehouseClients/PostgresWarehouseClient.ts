@@ -9,8 +9,10 @@ import {
 import { readFileSync } from 'fs';
 import path from 'path';
 import * as pg from 'pg';
-import { PoolConfig } from 'pg';
+import { PoolConfig, QueryResult } from 'pg';
+import { Writable } from 'stream';
 import { rootCertificates } from 'tls';
+import QueryStream from './PgQueryStream';
 import WarehouseBaseClient from './WarehouseBaseClient';
 
 const POSTGRES_CA_BUNDLES = [
@@ -138,32 +140,86 @@ export class PostgresClient<
         this.config = config;
     }
 
+    private getSQLWithMetadata(sql: string, tags?: Record<string, string>) {
+        let alteredQuery = sql;
+        if (tags) {
+            alteredQuery = `${alteredQuery}\n-- ${JSON.stringify(tags)}`;
+        }
+        return alteredQuery;
+    }
+
+    private convertQueryResultFields(
+        fields: QueryResult<any>['fields'],
+    ): Record<string, { type: DimensionType }> {
+        return fields.reduce(
+            (acc, { name, dataTypeID }) => ({
+                ...acc,
+                [name]: {
+                    type: convertDataTypeIdToDimensionType(dataTypeID),
+                },
+            }),
+            {},
+        );
+    }
+
     async runQuery(sql: string, tags?: Record<string, string>) {
         let pool: pg.Pool | undefined;
-        try {
+        return new Promise<{
+            fields: Record<string, { type: DimensionType }>;
+            rows: Record<string, any>[];
+        }>((resolve, reject) => {
             pool = new pg.Pool(this.config);
-            let alteredQuery = sql;
-            if (tags) {
-                alteredQuery = `${alteredQuery}\n-- ${JSON.stringify(tags)}`;
-            }
-            // CodeQL: This will raise a security warning because user defined raw SQL is being passed into the database module.
-            //         In this case this is exactly what we want to do. We're hitting the user's warehouse not the application's database.
-            const results = await pool.query(alteredQuery); // automatically checkouts client and cleans up
-            const fields = results.fields.reduce(
-                (acc, { name, dataTypeID }) => ({
-                    ...acc,
-                    [name]: {
-                        type: convertDataTypeIdToDimensionType(dataTypeID),
-                    },
-                }),
-                {},
-            );
-            return { fields, rows: results.rows };
-        } catch (e) {
-            throw new WarehouseQueryError(`Error running postgres query: ${e}`);
-        } finally {
-            await pool?.end();
-        }
+            pool.connect((err, client, done) => {
+                if (err) {
+                    reject(err);
+                }
+                // CodeQL: This will raise a security warning because user defined raw SQL is being passed into the database module.
+                //         In this case this is exactly what we want to do. We're hitting the user's warehouse not the application's database.
+                const stream = client.query(
+                    new QueryStream(this.getSQLWithMetadata(sql, tags)),
+                );
+                const rows: any[] = [];
+                let fields: QueryResult<any>['fields'] = [];
+                // release the client when the stream is finished
+                stream.on('end', () => {
+                    done();
+                    resolve({
+                        rows,
+                        fields: this.convertQueryResultFields(fields),
+                    });
+                });
+                stream.on('error', (err2) => {
+                    reject(err2);
+                });
+                stream.pipe(
+                    new Writable({
+                        objectMode: true,
+                        write(
+                            chunk: {
+                                row: any;
+                                fields: QueryResult<any>['fields'];
+                            },
+                            encoding,
+                            callback,
+                        ) {
+                            rows.push(chunk.row);
+                            fields = chunk.fields;
+                            callback();
+                        },
+                    }),
+                );
+            });
+        })
+            .catch((e) => {
+                throw new WarehouseQueryError(
+                    `Error running postgres query: ${e}`,
+                );
+            })
+            .finally(() => {
+                pool?.end().catch(() => {
+                    console.info('Failed to end postgres pool');
+                });
+            });
     }
 
     async getCatalog(
