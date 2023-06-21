@@ -1,3 +1,10 @@
+# [0.624.0](https://github.com/lightdash/lightdash/compare/0.623.3...0.624.0) (2023-06-21)
+
+
+### Features
+
+* postgres query stream ([#5966](https://github.com/lightdash/lightdash/issues/5966)) ([771f4bb](https://github.com/lightdash/lightdash/commit/771f4bba12b9e1751a0779bf579bc97198c6a006))
+
 ## [0.623.3](https://github.com/lightdash/lightdash/compare/0.623.2...0.623.3) (2023-06-21)
 
 
