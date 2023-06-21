@@ -13,6 +13,7 @@ import CollapsableCard from '../../common/CollapsableCard';
 import LightdashVisualization from '../../LightdashVisualization';
 import VisualizationProvider from '../../LightdashVisualization/VisualizationProvider';
 import { EchartSeriesClickEvent } from '../../SimpleChart';
+import LegendProvider from '../../SimpleChart/LegendProvider';
 import VisualizationCardOptions from '../VisualizationCardOptions';
 import { SeriesContextMenu } from './SeriesContextMenu';
 import ShowTotalsToggle from './ShowTotalsToggle';
@@ -150,10 +151,12 @@ const VisualizationCard: FC<{ projectUuid?: string }> = memo(
                                 {!isEditMode && chartType === 'table' && (
                                     <ShowTotalsToggle />
                                 )}
-                                <ChartDownloadMenu
-                                    getCsvLink={getCsvLink}
-                                    projectUuid={projectUuid!}
-                                />
+                                <LegendProvider>
+                                    <ChartDownloadMenu
+                                        getCsvLink={getCsvLink}
+                                        projectUuid={projectUuid!}
+                                    />
+                                </LegendProvider>
                             </>
                         )
                     }

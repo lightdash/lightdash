@@ -40,6 +40,7 @@ import moment from 'moment';
 import { useMemo } from 'react';
 import { defaultGrid } from '../../components/ChartConfigPanel/Grid';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
+import { useLegend } from '../../components/SimpleChart/LegendProvider';
 import { EMPTY_X_AXIS } from '../cartesianChartConfig/useCartesianChartConfig';
 import { useOrganization } from '../organization/useOrganization';
 import usePlottedData from '../plottedData/usePlottedData';
@@ -1063,8 +1064,7 @@ const getValidStack = (series: EChartSeries | undefined) => {
         : undefined;
 };
 
-
-type abc = {[name: string]: boolean} | undefined
+type abc = { [name: string]: boolean } | undefined;
 
 const calculateStackTotal = (
     row: ResultRow,
@@ -1082,7 +1082,6 @@ const calculateStackTotal = (
                 selected = selectedLegendNames[key];
             }
         }
-        console.log(selectedLegendNames);
         const numberValue =
             hash && selected ? toNumber(row[hash]?.value.raw) : 0;
         if (!Number.isNaN(numberValue)) {
@@ -1174,11 +1173,9 @@ const getStackTotalSeries = (
     );
 };
 
-const useEcharts = (selectedLegendNames?: abc) => {
-
+const useEcharts = () => {
     const context = useVisualizationContext();
 
-    // console.log(selectedLegendNames);
     const {
         cartesianConfig: { validCartesianConfig },
         explore,
@@ -1187,6 +1184,10 @@ const useEcharts = (selectedLegendNames?: abc) => {
         resultsData,
     } = context;
     const { data: organizationData } = useOrganization();
+    
+    const legendContext = useLegend();
+
+    const { validCartesianConfigLegend } = legendContext;
 
     const [pivotedKeys, nonPivotedKeys] = useMemo(() => {
         if (
@@ -1300,7 +1301,7 @@ const useEcharts = (selectedLegendNames?: abc) => {
                 seriesWithValidStack,
                 items,
                 validCartesianConfig?.layout.flipAxes,
-                selectedLegendNames,
+                validCartesianConfigLegend,
             ),
         ];
     }, [
@@ -1308,7 +1309,7 @@ const useEcharts = (selectedLegendNames?: abc) => {
         rows,
         items,
         validCartesianConfig?.layout.flipAxes,
-        selectedLegendNames,
+        validCartesianConfigLegend,
     ]);
 
     const colors = useMemo<string[]>(() => {
@@ -1395,7 +1396,7 @@ const useEcharts = (selectedLegendNames?: abc) => {
             ) || {
                 show: series.length > 1,
                 type: 'scroll',
-                // selected: selectedLegendNames,
+                selected: validCartesianConfigLegend,
             },
             dataset: {
                 id: 'lightdashResults',
@@ -1425,6 +1426,7 @@ const useEcharts = (selectedLegendNames?: abc) => {
             stackedSeries,
             validCartesianConfig,
             sortedResults,
+            validCartesianConfigLegend,
         ],
     );
     if (

@@ -5,6 +5,7 @@ import { EChartsReactProps, Opts } from 'echarts-for-react/lib/types';
 import { FC, memo, useCallback, useEffect, useMemo, useState } from 'react';
 import useEcharts from '../../hooks/echarts/useEcharts';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
+import LegendProvider, { useLegend } from './LegendProvider';
 
 type EchartBaseClickEvent = {
     // The component name clicked,
@@ -79,9 +80,15 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
     const { chartRef, isLoading, onSeriesContextMenu } =
         useVisualizationContext();
 
+    const { addLegends } = useLegend();
+
     const [selectedLegends, setSelectedLegends] = useState({});
 
-    const eChartsOptions = useEcharts(selectedLegends);
+    useEffect(() => {
+        addLegends(selectedLegends);
+    }, [addLegends, selectedLegends]);
+
+    const eChartsOptions = useEcharts();
 
     useEffect(() => {
         const listener = () => {
@@ -114,12 +121,9 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
         [onSeriesContextMenu, eChartsOptions],
     );
 
-    const onLegendChange = useCallback(
-        (params: LegendClickEvent) => {
-            setSelectedLegends(params.selected);
-        },
-        [],
-    );
+    const onLegendChange = useCallback((params: LegendClickEvent) => {
+        setSelectedLegends(params.selected);
+    }, []);
 
     const onEvents = useMemo(
         () => ({
@@ -136,29 +140,31 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
     if (!eChartsOptions) return <EmptyChart />;
 
     return (
-        <EChartsReact
-            data-testid={props['data-testid']}
-            className={props.className}
-            style={
-                props.$shouldExpand
-                    ? {
-                          minHeight: 'inherit',
-                          height: '100%',
-                          width: '100%',
-                      }
-                    : {
-                          minHeight: 'inherit',
-                          // height defaults to 300px
-                          width: '100%',
-                      }
-            }
-            ref={chartRef}
-            option={eChartsOptions}
-            notMerge
-            opts={opts}
-            onEvents={onEvents}
-            {...props}
-        />
+        <LegendProvider>
+            <EChartsReact
+                data-testid={props['data-testid']}
+                className={props.className}
+                style={
+                    props.$shouldExpand
+                        ? {
+                              minHeight: 'inherit',
+                              height: '100%',
+                              width: '100%',
+                          }
+                        : {
+                              minHeight: 'inherit',
+                              // height defaults to 300px
+                              width: '100%',
+                          }
+                }
+                ref={chartRef}
+                option={eChartsOptions}
+                notMerge
+                opts={opts}
+                onEvents={onEvents}
+                {...props}
+            />
+        </LegendProvider>
     );
 });
 

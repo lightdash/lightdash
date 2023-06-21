@@ -1,6 +1,7 @@
 import { ChartType } from '@lightdash/common';
 import { FC, memo } from 'react';
 import SimpleChart from '../SimpleChart';
+import LegendProvider from '../SimpleChart/LegendProvider';
 import SimpleStatistic from '../SimpleStatistic';
 import SimpleTable from '../SimpleTable';
 import { useVisualizationContext } from './VisualizationProvider';
@@ -51,12 +52,14 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
                 );
             case ChartType.CARTESIAN:
                 return (
-                    <SimpleChart
-                        className={className}
-                        $shouldExpand
-                        data-testid={props['data-testid']}
-                        {...props}
-                    />
+                    <LegendProvider>
+                        <SimpleChart
+                            className={className}
+                            $shouldExpand
+                            data-testid={props['data-testid']}
+                            {...props}
+                        />
+                    </LegendProvider>
                 );
             default:
                 return null;

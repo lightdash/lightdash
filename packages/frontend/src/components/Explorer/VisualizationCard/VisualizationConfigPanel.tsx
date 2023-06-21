@@ -2,6 +2,7 @@ import { ChartType } from '@lightdash/common';
 import { FC, memo } from 'react';
 import BigNumberConfigPanel from '../../BigNumberConfig';
 import ChartConfigPanel from '../../ChartConfigPanel';
+import LegendProvider from '../../SimpleChart/LegendProvider';
 import TableConfigPanel from '../../TableConfigPanel';
 
 const VisualizationConfigPanel: FC<{ chartType: ChartType }> = memo(
@@ -12,7 +13,11 @@ const VisualizationConfigPanel: FC<{ chartType: ChartType }> = memo(
             case ChartType.TABLE:
                 return <TableConfigPanel />;
             default:
-                return <ChartConfigPanel />;
+                return (
+                    <LegendProvider>
+                        <ChartConfigPanel />
+                    </LegendProvider>
+                );
         }
     },
 );
