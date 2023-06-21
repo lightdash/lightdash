@@ -320,7 +320,10 @@ describe('Explore', () => {
         // clear query hotkeys
         cy.get('body').type('{ctrl}{alt}{k}');
 
-        // verify empty selections
-        cy.findByText('Select a table').should('exist');
+        // verify empty query keeping selected table
+        cy.findByText('Tables', { selector: 'a' })
+            .parent()
+            .should('have.text', 'Tables/Orders');
+        cy.findByText('Pick a metric & select its dimensions').should('exist');
     });
 });

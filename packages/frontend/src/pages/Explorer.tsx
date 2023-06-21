@@ -27,7 +27,7 @@ const ExplorerWithUrlParams = memo(() => {
     const { data } = useExplore(tableId);
 
     const clearQuery = useExplorerContext(
-        (context) => context.actions.clearExplore,
+        (context) => context.actions.clearQuery,
     );
     useHotkeys([['mod + alt + k', clearQuery]]);
 
