@@ -19,22 +19,6 @@ import {
 
 export const organizationRouter = express.Router();
 
-organizationRouter.get(
-    '/projects',
-    allowApiKeyAuthentication,
-    isAuthenticated,
-    async (req, res, next) =>
-        organizationService
-            .getProjects(req.user!)
-            .then((results) => {
-                res.json({
-                    status: 'ok',
-                    results,
-                });
-            })
-            .catch(next),
-);
-
 organizationRouter.post(
     '/projects/precompiled',
     allowApiKeyAuthentication,

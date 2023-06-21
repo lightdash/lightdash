@@ -1,9 +1,4 @@
-import {
-    ConditionalOperator as FilterOperator,
-    ConditionalRule,
-} from './conditionalRule';
-
-export { FilterOperator };
+import { ConditionalOperator, ConditionalRule } from './conditionalRule';
 
 export enum FilterType {
     STRING = 'string',
@@ -41,7 +36,7 @@ export type FieldTarget = {
 };
 
 export interface FilterRule<
-    O = FilterOperator,
+    O = ConditionalOperator,
     T = FieldTarget,
     V = any,
     S = any,
@@ -51,13 +46,16 @@ export interface FilterRule<
     settings?: S;
 }
 
+export interface MetricFilterRule
+    extends FilterRule<ConditionalOperator, { fieldRef: string }> {}
+
 export type DashboardFieldTarget = {
     fieldId: string;
     tableName: string;
 };
 
 export type DashboardFilterRule<
-    O = FilterOperator,
+    O = ConditionalOperator,
     T extends DashboardFieldTarget = DashboardFieldTarget,
     V = any,
     S = any,
@@ -67,8 +65,8 @@ export type DashboardFilterRule<
 };
 
 export type DateFilterRule = FilterRule<
-    FilterOperator,
-    FieldTarget,
+    ConditionalOperator,
+    unknown,
     any,
     {
         unitOfTime?: UnitOfTime;
@@ -172,3 +170,5 @@ export const convertDashboardFiltersToFilters = (
     }
     return filters;
 };
+
+export { ConditionalOperator as FilterOperator };

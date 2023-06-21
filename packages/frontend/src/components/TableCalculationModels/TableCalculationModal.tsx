@@ -1,14 +1,29 @@
 import { Button, Callout, Classes, Intent } from '@blueprintjs/core';
-import { snakeCaseName, TableCalculation } from '@lightdash/common';
-import { Anchor } from '@mantine/core';
+import {
+    formatTableCalculationValue,
+    NumberSeparator,
+    snakeCaseName,
+    TableCalculation,
+    TableCalculationFormat,
+    TableCalculationFormatType,
+} from '@lightdash/common';
+import {
+    Anchor,
+    Box,
+    Flex,
+    Select,
+    Tabs,
+    Text,
+    TextInput,
+} from '@mantine/core';
 import { FC } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, UseFormReturn } from 'react-hook-form';
 import { useToggle } from 'react-use';
 
 import useToaster from '../../hooks/toaster/useToaster';
 import { useExplorerAceEditorCompleter } from '../../hooks/useExplorerAceEditorCompleter';
 import { useExplorerContext } from '../../providers/ExplorerProvider';
-import Input from '../ReactHookForm/Input';
+
 import SqlInput from '../ReactHookForm/SqlInput';
 import {
     DialogBody,
@@ -34,6 +49,7 @@ interface Props {
 type TableCalculationFormInputs = {
     name: string;
     sql: string;
+    format: TableCalculationFormat;
 };
 
 const getUniqueTableCalculationName = (
@@ -58,6 +74,110 @@ const getUniqueTableCalculationName = (
     return getCalcName(validSuffix);
 };
 
+const TableCalculationFormatForm: FC<{
+    methods: UseFormReturn<TableCalculationFormInputs, object>;
+}> = ({ methods }) => {
+    const formatType = methods.watch(
+        'format.type',
+        TableCalculationFormatType.DEFAULT,
+    );
+    const round = methods.watch('format.round');
+    const separator = methods.watch(
+        'format.separator',
+        NumberSeparator.COMMA_PERIOD,
+    );
+
+    //TODO this component is using Mantine components with a react-hook-form,
+    //once we use mantine form we should refactor this to remove onChange methods
+
+    return (
+        <Box mt="md">
+            <Flex>
+                <Select
+                    w={200}
+                    onChange={(type) => {
+                        methods.setValue(
+                            'format.type',
+                            type as TableCalculationFormatType,
+                        );
+                    }}
+                    label="Type"
+                    name="format.type"
+                    value={formatType}
+                    data={[
+                        TableCalculationFormatType.DEFAULT,
+                        TableCalculationFormatType.PERCENT,
+                    ]}
+                />
+
+                {formatType !== TableCalculationFormatType.DEFAULT && (
+                    <Text ml="md" mt={30} color="gray.6">
+                        {'Looks like: '}
+                        {formatTableCalculationValue(
+                            {
+                                name: 'preview',
+                                sql: '',
+                                displayName: 'preview',
+                                format: methods.getValues('format'),
+                            },
+                            '0.75',
+                        )}
+                    </Text>
+                )}
+            </Flex>
+            {formatType === TableCalculationFormatType.PERCENT && (
+                <Flex mt="md">
+                    <TextInput
+                        w={200}
+                        label="Round"
+                        name="format.round"
+                        placeholder="Number of decimal places"
+                        value={round}
+                        onChange={(r) => {
+                            const number = parseInt(r.target.value);
+                            if (!Number.isNaN(number)) {
+                                methods.setValue('format.round', number);
+                            } else {
+                                methods.setValue('format.round', undefined);
+                            }
+                        }}
+                    />
+                    <Select
+                        ml="md"
+                        onChange={(s) => {
+                            if (s)
+                                methods.setValue(
+                                    'format.separator',
+                                    s as NumberSeparator,
+                                );
+                        }}
+                        label="Separator style"
+                        value={separator}
+                        name="format.separator"
+                        data={[
+                            {
+                                value: NumberSeparator.COMMA_PERIOD,
+                                label: '100,000.00%',
+                            },
+                            {
+                                value: NumberSeparator.SPACE_PERIOD,
+                                label: '100 000.00%',
+                            },
+                            {
+                                value: NumberSeparator.PERIOD_COMMA,
+                                label: '100.000,00%',
+                            },
+                            {
+                                value: NumberSeparator.NO_SEPARATOR_PERIOD,
+                                label: '100000.00%',
+                            },
+                        ]}
+                    />
+                </Flex>
+            )}
+        </Box>
+    );
+};
 const TableCalculationModal: FC<Props> = ({
     isOpen,
     isDisabled,
@@ -68,12 +188,6 @@ const TableCalculationModal: FC<Props> = ({
     const [isFullscreen, toggleFullscreen] = useToggle(false);
     const { showToastError } = useToaster();
 
-    const dimensions = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.metricQuery.dimensions,
-    );
-    const metrics = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.metricQuery.metrics,
-    );
     const tableCalculations = useExplorerContext(
         (context) =>
             context.state.unsavedChartVersion.metricQuery.tableCalculations,
@@ -85,9 +199,19 @@ const TableCalculationModal: FC<Props> = ({
         defaultValues: {
             name: tableCalculation?.displayName,
             sql: tableCalculation?.sql,
+            format: {
+                type:
+                    tableCalculation?.format?.type ||
+                    TableCalculationFormatType.DEFAULT,
+                round: tableCalculation?.format?.round,
+                separator:
+                    tableCalculation?.format?.separator ||
+                    NumberSeparator.COMMA_PERIOD,
+            },
         },
     });
 
+    const tableCalculationName = methods.watch('name');
     return (
         <TableCalculationDialog
             isOpen={isOpen}
@@ -121,6 +245,7 @@ const TableCalculationModal: FC<Props> = ({
                             ),
                             displayName: name,
                             sql,
+                            format: data.format,
                         });
                     } catch (e: any) {
                         showToastError({
@@ -131,71 +256,59 @@ const TableCalculationModal: FC<Props> = ({
                 }}
             >
                 <DialogBody className={Classes.DIALOG_BODY}>
-                    <Input
+                    <TextInput
+                        mb="sm"
                         label="Name"
                         name="name"
                         disabled={isDisabled}
-                        rules={{
-                            required: true,
-                            validate: {
-                                unique_column_name: (columnName) =>
-                                    !dimensions
-                                        .concat(metrics)
-                                        .concat(
-                                            tableCalculations
-                                                .filter(
-                                                    ({ name }) =>
-                                                        !tableCalculation ||
-                                                        name !==
-                                                            tableCalculation.name,
-                                                )
-                                                .map(
-                                                    ({ displayName }) =>
-                                                        displayName,
-                                                ),
-                                        )
-                                        .some(
-                                            (fieldName) =>
-                                                fieldName ===
-                                                snakeCaseName(columnName),
-                                        ) ||
-                                    'Column with same name already exists',
-                            },
+                        required
+                        value={tableCalculationName}
+                        onChange={(e) => {
+                            methods.setValue('name', e.target.value);
                         }}
                     />
-                    <TableCalculationSqlInputWrapper
-                        $isFullScreen={isFullscreen}
-                    >
-                        <SqlInput
-                            name="sql"
-                            label="SQL"
-                            attributes={{
-                                readOnly: isDisabled,
-                                height: '100%',
-                                width: '100%',
-                                maxLines: isFullscreen ? 40 : 20,
-                                minLines: isFullscreen ? 40 : 8,
-                                editorProps: { $blockScrolling: true },
-                                enableBasicAutocompletion: true,
-                                enableLiveAutocompletion: true,
-                                onLoad: setAceEditor,
-                                wrapEnabled: true,
-                            }}
-                            placeholder={SQL_PLACEHOLDER}
-                        />
-                    </TableCalculationSqlInputWrapper>
-                    <Callout intent="none" icon="clean">
-                        <p>
-                            Need inspiration?{' '}
-                            <Anchor
-                                target="_blank"
-                                href="https://docs.lightdash.com/guides/table-calculations/sql-templates"
-                                rel="noreferrer"
+                    <Tabs defaultValue="sqlEditor">
+                        <Tabs.List>
+                            <Tabs.Tab value="sqlEditor">SQL</Tabs.Tab>
+                            <Tabs.Tab value="format">Format</Tabs.Tab>
+                        </Tabs.List>
+                        <Tabs.Panel value="sqlEditor">
+                            <TableCalculationSqlInputWrapper
+                                $isFullScreen={isFullscreen}
                             >
-                                Check out our templates!
-                            </Anchor>
-                        </p>
-                    </Callout>
+                                <SqlInput
+                                    name="sql"
+                                    attributes={{
+                                        readOnly: isDisabled,
+                                        width: '100%',
+                                        maxLines: isFullscreen ? 40 : 20,
+                                        minLines: isFullscreen ? 40 : 8,
+                                        editorProps: { $blockScrolling: true },
+                                        enableBasicAutocompletion: true,
+                                        enableLiveAutocompletion: true,
+                                        onLoad: setAceEditor,
+                                        wrapEnabled: true,
+                                    }}
+                                    placeholder={SQL_PLACEHOLDER}
+                                />
+                            </TableCalculationSqlInputWrapper>
+                            <Callout intent="none" icon="clean">
+                                <Text>
+                                    Need inspiration?{' '}
+                                    <Anchor
+                                        target="_blank"
+                                        href="https://docs.lightdash.com/guides/table-calculations/sql-templates"
+                                        rel="noreferrer"
+                                    >
+                                        Check out our templates!
+                                    </Anchor>
+                                </Text>
+                            </Callout>
+                        </Tabs.Panel>
+                        <Tabs.Panel value="format">
+                            <TableCalculationFormatForm methods={methods} />
+                        </Tabs.Panel>
+                    </Tabs>
                 </DialogBody>
                 <div className={Classes.DIALOG_FOOTER}>
                     <DialogButtons className={Classes.DIALOG_FOOTER_ACTIONS}>

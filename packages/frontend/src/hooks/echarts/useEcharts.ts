@@ -2,28 +2,29 @@ import {
     ApiQueryResults,
     CartesianChart,
     CartesianSeriesType,
-    CompiledField,
     convertAdditionalMetric,
     DimensionType,
     ECHARTS_DEFAULT_COLORS,
     Field,
     findItem,
     formatItemValue,
+    formatTableCalculationValue,
     formatValue,
     friendlyName,
     getAxisName,
     getDefaultSeriesColor,
     getDimensions,
-    getFieldMap,
     getFields,
     getItemId,
     getItemLabelWithoutTableName,
+    getItemMap,
     getResultValueArray,
     hashFieldReference,
     isCompleteLayout,
     isDimension,
     isField,
     isPivotReferenceWithValues,
+    isTableCalculation,
     isTimeInterval,
     Metric,
     MetricType,
@@ -495,9 +496,8 @@ const getMinAndMaxReferenceLines = (
 type GetPivotSeriesArg = {
     series: Series;
     items: Array<Field | TableCalculation>;
-    formats:
-        | Record<string, Pick<CompiledField, 'format' | 'round' | 'compact'>>
-        | undefined;
+    formats: Record<string, TableCalculation | Field> | undefined;
+
     cartesianChart: CartesianChart;
     flipAxes: boolean | undefined;
     yFieldHash: string;
@@ -564,14 +564,21 @@ const getPivotSeries = ({
                 ...series.label,
                 ...(formats &&
                     formats[series.encode.yRef.field] && {
-                        formatter: (val: any) =>
-                            formatValue(val?.value?.[yFieldHash], {
-                                format: formats[series.encode.yRef.field]
-                                    .format,
-                                round: formats[series.encode.yRef.field].round,
-                                compact:
-                                    formats[series.encode.yRef.field].compact,
-                            }),
+                        formatter: (value: any) => {
+                            const field = formats[series.encode.yRef.field];
+                            if (isTableCalculation(field)) {
+                                return formatTableCalculationValue(
+                                    field as TableCalculation,
+                                    value?.value?.[yFieldHash],
+                                );
+                            } else {
+                                return formatValue(value?.value?.[yFieldHash], {
+                                    format: field.format,
+                                    round: field.round,
+                                    compact: field.compact,
+                                });
+                            }
+                        },
                     }),
             },
             labelLayout: {
@@ -584,9 +591,7 @@ const getPivotSeries = ({
 type GetSimpleSeriesArg = {
     series: Series;
     items: Array<Field | TableCalculation>;
-    formats:
-        | Record<string, Pick<CompiledField, 'format' | 'round' | 'compact'>>
-        | undefined;
+    formats: Record<string, TableCalculation | Field> | undefined;
     flipAxes: boolean | undefined;
     yFieldHash: string;
     xFieldHash: string;
@@ -633,12 +638,21 @@ const getSimpleSeries = ({
             ...series.label,
             ...(formats &&
                 formats[yFieldHash] && {
-                    formatter: (value: any) =>
-                        formatValue(value?.value?.[yFieldHash], {
-                            format: formats[yFieldHash].format,
-                            round: formats[yFieldHash].round,
-                            compact: formats[yFieldHash].compact,
-                        }),
+                    formatter: (value: any) => {
+                        const field = formats[yFieldHash];
+                        if (isTableCalculation(field)) {
+                            return formatTableCalculationValue(
+                                field as TableCalculation,
+                                value?.value?.[yFieldHash],
+                            );
+                        } else {
+                            return formatValue(value?.value?.[yFieldHash], {
+                                format: field.format,
+                                round: field.round,
+                                compact: field.compact,
+                            });
+                        }
+                    },
                 }),
         },
         labelLayout: {
@@ -652,9 +666,7 @@ const getEchartsSeries = (
     originalData: ApiQueryResults['rows'],
     cartesianChart: CartesianChart,
     pivotKeys: string[] | undefined,
-    formats:
-        | Record<string, Pick<CompiledField, 'format' | 'round'>>
-        | undefined,
+    formats: Record<string, TableCalculation | Field> | undefined,
 ): EChartSeries[] => {
     return (cartesianChart.eChartsConfig.series || [])
         .filter((s) => !s.hidden)
@@ -794,6 +806,16 @@ const getEchartAxis = ({
         } else if (axisLabelFormatter) {
             axisConfig.axisLabel = {
                 formatter: axisLabelFormatter,
+            };
+        } else if (
+            field !== '' &&
+            field !== undefined &&
+            isTableCalculation(field)
+        ) {
+            axisConfig.axisLabel = {
+                formatter: (value: any) => {
+                    return formatTableCalculationValue(field, value);
+                },
             };
         }
         if (axisMinInterval) {
@@ -1199,9 +1221,10 @@ const useEcharts = (selectedLegendNames?: abc) => {
     const formats = useMemo(
         () =>
             explore
-                ? getFieldMap(
+                ? getItemMap(
                       explore,
                       resultsData?.metricQuery.additionalMetrics,
+                      resultsData?.metricQuery.tableCalculations,
                   )
                 : undefined,
         [explore, resultsData],

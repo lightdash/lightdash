@@ -5,6 +5,7 @@ import {
     DbtMetric,
     DbtModelColumn,
     DbtModelNode,
+    isV9MetricRef,
     LineageGraph,
     SupportedDbtAdapter,
 } from '../types/dbt';
@@ -399,6 +400,7 @@ export const convertTable = (
             )
                 ? (meta.order_fields_by.toUpperCase() as OrderFieldsByStrategy)
                 : OrderFieldsByStrategy.LABEL,
+        groupLabel: meta.group_label,
     };
 };
 
@@ -426,10 +428,16 @@ const modelCanUseMetric = (
     if (!metric) {
         return false;
     }
-    const modelRef = metric.refs?.[0]?.[0];
-    if (modelRef === modelName) {
-        return true;
+    const modelRef = metric?.refs?.[0];
+    if (modelRef) {
+        const modelRefName = isV9MetricRef(modelRef)
+            ? modelRef.name
+            : modelRef[0];
+        if (modelRefName === modelName) {
+            return true;
+        }
     }
+
     if (metric.calculation_method === 'derived') {
         const referencedMetrics = (metric.metrics || []).map((m) => m[0]);
         return referencedMetrics.every((m) =>
@@ -480,6 +488,7 @@ export const convertExplores = async (
                     name: model.name,
                     label: meta.label || friendlyName(model.name),
                     tags: model.tags,
+                    groupLabel: meta.group_label,
                     errors: [
                         {
                             type: e.name,
@@ -510,6 +519,7 @@ export const convertExplores = async (
                 label: meta.label || friendlyName(model.name),
                 tags: model.tags || [],
                 baseTable: model.name,
+                groupLabel: meta.group_label,
                 joinedTables: (meta?.joins || []).map((join) => ({
                     table: join.join,
                     sqlOn: join.sql_on,
@@ -524,6 +534,7 @@ export const convertExplores = async (
             return {
                 name: model.name,
                 label: meta.label || friendlyName(model.name),
+                groupLabel: meta.group_label,
                 errors: [{ type: e.name, message: e.message }],
             };
         }

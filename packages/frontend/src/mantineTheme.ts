@@ -3,6 +3,7 @@ import { ColorScheme, MantineThemeOverride, rem } from '@mantine/core';
 
 export const getMantineThemeOverride = (overrides?: {
     colorScheme?: ColorScheme;
+    components?: Partial<MantineThemeOverride['components']>;
 }): MantineThemeOverride => ({
     ...overrides,
 
@@ -50,6 +51,15 @@ export const getMantineThemeOverride = (overrides?: {
 
     components: {
         TextInput: {
+            styles: (theme, _params) => ({
+                label: {
+                    // FIXME: this is a hack to fix label position. remove after Blueprint migration is complete
+                    marginBottom: theme.spacing.xxs,
+                },
+            }),
+        },
+
+        NumberInput: {
             styles: (theme, _params) => ({
                 label: {
                     // FIXME: this is a hack to fix label position. remove after Blueprint migration is complete
@@ -122,6 +132,8 @@ export const getMantineThemeOverride = (overrides?: {
                 },
             }),
         },
+
+        ...overrides?.components,
     },
 
     globalStyles: (theme) => ({

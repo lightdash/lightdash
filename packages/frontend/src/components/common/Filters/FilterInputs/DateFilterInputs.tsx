@@ -145,6 +145,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                 ? convertWeekDayToDayPickerWeekDay(startOfWeek)
                                 : undefined,
                         }}
+                        maxDate={moment(new Date()).add(7, 'years').toDate()}
                     />
                 );
             }
@@ -180,6 +181,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                             ? convertWeekDayToDayPickerWeekDay(startOfWeek)
                             : undefined,
                     }}
+                    maxDate={moment(new Date()).add(7, 'years').toDate()}
                 />
             );
         case FilterOperator.IN_THE_PAST:
@@ -299,6 +301,9 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                             }}
                             closeOnSelection={false}
                             shortcuts={false}
+                            maxDate={moment(new Date())
+                                .add(7, 'years')
+                                .toDate()}
                         />
                     </MultipleInputsWrapper>
                 );
@@ -376,6 +381,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         }}
                         closeOnSelection={true}
                         shortcuts={false}
+                        maxDate={moment(new Date()).add(7, 'years').toDate()}
                     />
                 </MultipleInputsWrapper>
             );

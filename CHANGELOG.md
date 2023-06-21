@@ -1,3 +1,217 @@
+# [0.624.0](https://github.com/lightdash/lightdash/compare/0.623.3...0.624.0) (2023-06-21)
+
+
+### Features
+
+* postgres query stream ([#5966](https://github.com/lightdash/lightdash/issues/5966)) ([771f4bb](https://github.com/lightdash/lightdash/commit/771f4bba12b9e1751a0779bf579bc97198c6a006))
+
+## [0.623.3](https://github.com/lightdash/lightdash/compare/0.623.2...0.623.3) (2023-06-21)
+
+
+### Bug Fixes
+
+* only show selected tables on validation ([#5981](https://github.com/lightdash/lightdash/issues/5981)) ([b3eb01c](https://github.com/lightdash/lightdash/commit/b3eb01c2ce314f3781bf0057a6f0ab5439095eda))
+
+## [0.623.2](https://github.com/lightdash/lightdash/compare/0.623.1...0.623.2) (2023-06-21)
+
+
+### Bug Fixes
+
+* get correct key for date filters ([#5997](https://github.com/lightdash/lightdash/issues/5997)) ([ec008cd](https://github.com/lightdash/lightdash/commit/ec008cd21b4c33db8664af2dc6b8275f97bbae78))
+
+## [0.623.1](https://github.com/lightdash/lightdash/compare/0.623.0...0.623.1) (2023-06-21)
+
+
+### Bug Fixes
+
+* address issues with fieldId to fieldRef migration file ([#5992](https://github.com/lightdash/lightdash/issues/5992)) ([dd1a585](https://github.com/lightdash/lightdash/commit/dd1a585145c5d5dced30dbd8ca1cfaf13d57cffd))
+
+# [0.623.0](https://github.com/lightdash/lightdash/compare/0.622.0...0.623.0) (2023-06-21)
+
+
+### Features
+
+* allow API key authentication on `UpdateOrganizationMember` ([#5988](https://github.com/lightdash/lightdash/issues/5988)) ([9f8498c](https://github.com/lightdash/lightdash/commit/9f8498c37e64141b55edda5655dc756323a05b26))
+
+# [0.622.0](https://github.com/lightdash/lightdash/compare/0.621.2...0.622.0) (2023-06-20)
+
+
+### Bug Fixes
+
+* add grouping to explore filters ([#5980](https://github.com/lightdash/lightdash/issues/5980)) ([7bed882](https://github.com/lightdash/lightdash/commit/7bed88265cd259ae0312aeca41c9e3bb438cfce1))
+* add table icon in front of table names ([#5978](https://github.com/lightdash/lightdash/issues/5978)) ([e036818](https://github.com/lightdash/lightdash/commit/e036818cd38d1480f760835199198e0916318d1a))
+
+
+### Features
+
+* allow definition of custom metrics with filters ([#5865](https://github.com/lightdash/lightdash/issues/5865)) ([9059656](https://github.com/lightdash/lightdash/commit/9059656eef5295b5106142418001db3716861b8f))
+
+## [0.621.2](https://github.com/lightdash/lightdash/compare/0.621.1...0.621.2) (2023-06-20)
+
+
+### Bug Fixes
+
+* remove unexpected columns field in chart config ([#5975](https://github.com/lightdash/lightdash/issues/5975)) ([98dc25d](https://github.com/lightdash/lightdash/commit/98dc25d5752bfcee7e05bcbe88439551896665a3))
+
+## [0.621.1](https://github.com/lightdash/lightdash/compare/0.621.0...0.621.1) (2023-06-20)
+
+
+### Bug Fixes
+
+* use material design text ([#5928](https://github.com/lightdash/lightdash/issues/5928)) ([87b77f7](https://github.com/lightdash/lightdash/commit/87b77f77648a26a856041a0d2c1919a9b5f53437))
+
+# [0.621.0](https://github.com/lightdash/lightdash/compare/0.620.1...0.621.0) (2023-06-19)
+
+
+### Features
+
+* format table calculation ([#5883](https://github.com/lightdash/lightdash/issues/5883)) ([8f6eb2d](https://github.com/lightdash/lightdash/commit/8f6eb2d8d8b654a15e638cf3219badd2487d2cb7))
+
+## [0.620.1](https://github.com/lightdash/lightdash/compare/0.620.0...0.620.1) (2023-06-19)
+
+
+### Bug Fixes
+
+* date inputs max date ([#5967](https://github.com/lightdash/lightdash/issues/5967)) ([3451a99](https://github.com/lightdash/lightdash/commit/3451a996ffe918e5ee92a612687dbd5c3918804a))
+
+# [0.620.0](https://github.com/lightdash/lightdash/compare/0.619.2...0.620.0) (2023-06-19)
+
+
+### Features
+
+* inter font for tabular data ([#5960](https://github.com/lightdash/lightdash/issues/5960)) ([b0f811f](https://github.com/lightdash/lightdash/commit/b0f811ff15c4285530f25c6b226fa7a273be7e53))
+* migrate sort popover to mantine ([#5916](https://github.com/lightdash/lightdash/issues/5916)) ([d1a8f08](https://github.com/lightdash/lightdash/commit/d1a8f0882617d7e5e19865c85caf4266a6e04ee3))
+
+## [0.619.2](https://github.com/lightdash/lightdash/compare/0.619.1...0.619.2) (2023-06-19)
+
+
+### Bug Fixes
+
+* project switcher dropdown overflow ([#5956](https://github.com/lightdash/lightdash/issues/5956)) ([0b48aa5](https://github.com/lightdash/lightdash/commit/0b48aa5ad3b199ec5bb686a0c55cf50f1acf86a5))
+* tile name on hover not appearing ([#5957](https://github.com/lightdash/lightdash/issues/5957)) ([69d15b7](https://github.com/lightdash/lightdash/commit/69d15b78d34172703ed648c4671c170a92b0bac0))
+
+## [0.619.1](https://github.com/lightdash/lightdash/compare/0.619.0...0.619.1) (2023-06-19)
+
+
+### Bug Fixes
+
+* define `OrganizationMemberProfileUpdate` without `Pick<>` ([#5954](https://github.com/lightdash/lightdash/issues/5954)) ([6e12bf7](https://github.com/lightdash/lightdash/commit/6e12bf79134385273428823ba659f5c2ce18b31a))
+
+# [0.619.0](https://github.com/lightdash/lightdash/compare/0.618.1...0.619.0) (2023-06-19)
+
+
+### Features
+
+* migrate limit popover to mantine ([#5915](https://github.com/lightdash/lightdash/issues/5915)) ([dfe78aa](https://github.com/lightdash/lightdash/commit/dfe78aa26bcc6c1cf2cf9422c4ae3e37a5e9b9cf))
+
+## [0.618.1](https://github.com/lightdash/lightdash/compare/0.618.0...0.618.1) (2023-06-19)
+
+
+### Bug Fixes
+
+* add the path parameter `projectUuid` to `DeleteValidationDismiss` ([#5952](https://github.com/lightdash/lightdash/issues/5952)) ([68bbb69](https://github.com/lightdash/lightdash/commit/68bbb69cc1c69e9b405c1ebf7ef3088cc78f9f51))
+
+# [0.618.0](https://github.com/lightdash/lightdash/compare/0.617.0...0.618.0) (2023-06-16)
+
+
+### Features
+
+* pivot table truncate large texts ([#5939](https://github.com/lightdash/lightdash/issues/5939)) ([05aca0d](https://github.com/lightdash/lightdash/commit/05aca0dbb71eece457591e3ad8aeac3a784b48d7))
+
+# [0.617.0](https://github.com/lightdash/lightdash/compare/0.616.3...0.617.0) (2023-06-16)
+
+
+### Features
+
+* Add the API to get a project ([#5911](https://github.com/lightdash/lightdash/issues/5911)) ([b1dd89a](https://github.com/lightdash/lightdash/commit/b1dd89a63dd8f8db64682f7dd3e34e19633bed8c))
+
+## [0.616.3](https://github.com/lightdash/lightdash/compare/0.616.2...0.616.3) (2023-06-16)
+
+
+### Bug Fixes
+
+* dbt 1.5 metrics in CLI commands ([#5940](https://github.com/lightdash/lightdash/issues/5940)) ([f8aad0f](https://github.com/lightdash/lightdash/commit/f8aad0fed7103840c5a53738e265543dcf2a2bc7))
+
+## [0.616.2](https://github.com/lightdash/lightdash/compare/0.616.1...0.616.2) (2023-06-16)
+
+
+### Bug Fixes
+
+* resource view tabs not visible when there is one item ([#5938](https://github.com/lightdash/lightdash/issues/5938)) ([68a1548](https://github.com/lightdash/lightdash/commit/68a1548590ffec3389b321b4717eea7e8d2f6661))
+
+## [0.616.1](https://github.com/lightdash/lightdash/compare/0.616.0...0.616.1) (2023-06-16)
+
+
+### Bug Fixes
+
+* dashboard URL should have filters (temporary and saved) ([#5922](https://github.com/lightdash/lightdash/issues/5922)) ([0ecedb1](https://github.com/lightdash/lightdash/commit/0ecedb136eb7a4278aaad7f2fcda8ba65118d820))
+
+# [0.616.0](https://github.com/lightdash/lightdash/compare/0.615.0...0.616.0) (2023-06-16)
+
+
+### Bug Fixes
+
+* dont escape env_var values ([#5927](https://github.com/lightdash/lightdash/issues/5927)) ([d650c3c](https://github.com/lightdash/lightdash/commit/d650c3c54b4735bbafcb6cca9cbf35e1ff95ea5e))
+
+
+### Features
+
+* table group label ([#5898](https://github.com/lightdash/lightdash/issues/5898)) ([8376cba](https://github.com/lightdash/lightdash/commit/8376cba8ab90a3cd1bd6ebe9ca699f4b3a015f1e))
+
+# [0.615.0](https://github.com/lightdash/lightdash/compare/0.614.0...0.615.0) (2023-06-15)
+
+
+### Bug Fixes
+
+* update errors to use toasts ([#5893](https://github.com/lightdash/lightdash/issues/5893)) ([40f9777](https://github.com/lightdash/lightdash/commit/40f97775e89faada498757a72804a344e8d6b851))
+
+
+### Features
+
+* pivot table freeze headers ([#5903](https://github.com/lightdash/lightdash/issues/5903)) ([b089f3a](https://github.com/lightdash/lightdash/commit/b089f3ad1354cdd0faf972ef4bda388d3700b58e))
+
+# [0.614.0](https://github.com/lightdash/lightdash/compare/0.613.2...0.614.0) (2023-06-15)
+
+
+### Features
+
+* add the API to get projects of an organization ([#5906](https://github.com/lightdash/lightdash/issues/5906)) ([5f20eeb](https://github.com/lightdash/lightdash/commit/5f20eeb58f791fa2be2573cf2f41c171d792d315))
+
+## [0.613.2](https://github.com/lightdash/lightdash/compare/0.613.1...0.613.2) (2023-06-15)
+
+
+### Bug Fixes
+
+* correct the method name to revoke space-level access ([#5907](https://github.com/lightdash/lightdash/issues/5907)) ([2d6cb07](https://github.com/lightdash/lightdash/commit/2d6cb07ad15650365c88ad5bb706f6e42c582f2e))
+
+## [0.613.1](https://github.com/lightdash/lightdash/compare/0.613.0...0.613.1) (2023-06-14)
+
+
+### Bug Fixes
+
+* duplicated chart ([#5899](https://github.com/lightdash/lightdash/issues/5899)) ([cd1c79c](https://github.com/lightdash/lightdash/commit/cd1c79cc06a1d326fdbcb9cab730e38274691e5e))
+
+# [0.613.0](https://github.com/lightdash/lightdash/compare/0.612.0...0.613.0) (2023-06-14)
+
+
+### Features
+
+* stick table names to the top while scrolling ([#5845](https://github.com/lightdash/lightdash/issues/5845)) ([e0309fc](https://github.com/lightdash/lightdash/commit/e0309fc3c019902f75afe3c2ed904c8dc3705ce1))
+
+# [0.612.0](https://github.com/lightdash/lightdash/compare/0.611.3...0.612.0) (2023-06-14)
+
+
+### Features
+
+* user management panel should be a table ([#5878](https://github.com/lightdash/lightdash/issues/5878)) ([cd81dfa](https://github.com/lightdash/lightdash/commit/cd81dfa567cddff365d948d9e736a92dc05ac6c8))
+
+## [0.611.3](https://github.com/lightdash/lightdash/compare/0.611.2...0.611.3) (2023-06-14)
+
+
+### Bug Fixes
+
+* add gap between label and comparison ([#5895](https://github.com/lightdash/lightdash/issues/5895)) ([e9fb9a7](https://github.com/lightdash/lightdash/commit/e9fb9a70899e93ca256f2a3f45ba79d3c23d4f67))
+
 ## [0.611.2](https://github.com/lightdash/lightdash/compare/0.611.1...0.611.2) (2023-06-14)
 
 

@@ -55,6 +55,7 @@ import {
     SessionUser,
     SpaceSummary,
     SummaryExplore,
+    TableCalculationFormatType,
     TablesConfiguration,
     TableSelectionType,
     UpdateProject,
@@ -1032,10 +1033,24 @@ export class ProjectService {
                 filtersCount: countTotalFilterRules(metricQuery.filters),
                 sortsCount: metricQuery.sorts.length,
                 tableCalculationsCount: metricQuery.tableCalculations.length,
+                tableCalculationsPercentFormatCount:
+                    metricQuery.tableCalculations.filter(
+                        (tableCalculation) =>
+                            tableCalculation.format?.type ===
+                            TableCalculationFormatType.PERCENT,
+                    ).length,
                 additionalMetricsCount: (
                     metricQuery.additionalMetrics || []
                 ).filter((metric) =>
                     metricQuery.metrics.includes(getFieldId(metric)),
+                ).length,
+                additionalMetricsFilterCount: (
+                    metricQuery.additionalMetrics || []
+                ).filter(
+                    (metric) =>
+                        metricQuery.metrics.includes(getFieldId(metric)) &&
+                        metric.filters &&
+                        metric.filters.length > 0,
                 ).length,
             },
         });
@@ -1225,6 +1240,9 @@ export class ProjectService {
                     modelsCount: explores.length,
                     modelsWithErrorsCount:
                         explores.filter(isExploreError).length,
+                    modelsWithGroupLabelCount: explores.filter(
+                        ({ groupLabel }) => !!groupLabel,
+                    ).length,
                     metricsCount: explores.reduce<number>((acc, explore) => {
                         if (!isExploreError(explore)) {
                             return (
@@ -1474,6 +1492,7 @@ export class ProjectService {
                     name: explore.name,
                     label: explore.label,
                     tags: explore.tags,
+                    groupLabel: explore.groupLabel,
                     errors: explore.errors,
                     databaseName:
                         explore.baseTable &&
@@ -1491,6 +1510,7 @@ export class ProjectService {
                 name: explore.name,
                 label: explore.label,
                 tags: explore.tags,
+                groupLabel: explore.groupLabel,
                 databaseName: explore.tables[explore.baseTable].database,
                 schemaName: explore.tables[explore.baseTable].schema,
                 description: explore.tables[explore.baseTable].description,

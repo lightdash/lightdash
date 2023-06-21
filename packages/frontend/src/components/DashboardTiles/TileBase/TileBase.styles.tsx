@@ -70,7 +70,7 @@ export const TitleWrapper = styled.div<TileTitleProps>`
                 ? css`
                       white-space: normal;
                       overflow: visible;
-                      z-index: 1;
+                      z-index: 10;
 
                       a {
                           outline: 8px solid ${Colors.WHITE};
@@ -127,11 +127,6 @@ export const ChartContainer = styled.div`
     flex: 1;
     overflow: hidden;
     display: flex;
-`;
-
-export const TooltipContent = styled.p`
-    max-width: 400px;
-    margin: 0;
 `;
 
 export const FilterWrapper = styled.div`

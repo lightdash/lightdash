@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/warehouses",
-    "version": "0.611.2",
+    "version": "0.624.0",
     "license": "MIT",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
@@ -10,14 +10,16 @@
     "dependencies": {
         "@databricks/sql": "1.1.0",
         "@google-cloud/bigquery": "^5.9.1",
-        "@lightdash/common": "^0.611.2",
+        "@lightdash/common": "^0.624.0",
         "lodash": "^4.17.21",
         "pg": "^8.7.1",
+        "pg-cursor": "^2.10.0",
         "snowflake-sdk": "^1.6.22",
         "ssh2-promise": "^1.0.3",
         "trino-client": "^0.2.0"
     },
     "devDependencies": {
+        "@types/pg-cursor": "^2.7.0",
         "@types/snowflake-sdk": "^1.6.12"
     },
     "description": "Warehouse connectors for Lightdash",

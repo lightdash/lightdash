@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    assertUnreachable,
     CompiledField,
     CreateChartValidation,
     CreateDashboardValidation,
@@ -19,6 +20,7 @@ import {
     RequestMethod,
     SessionUser,
     TableCalculation,
+    TableSelectionType,
     ValidationErrorType,
     ValidationResponse,
     ValidationSourceType,
@@ -93,16 +95,77 @@ export class ValidationService {
         return tableCalculationFieldsInSql;
     }
 
-    private static async validateTables(
+    private async validateTables(
         projectUuid: string,
         explores: (Explore | ExploreError)[] | undefined,
     ): Promise<CreateTableValidation[]> {
+        const tablesConfiguration =
+            await this.projectModel.getTablesConfiguration(projectUuid);
+
         // Get existing errors from ExploreError and convert to ValidationInsert
         if (explores === undefined) {
             return [];
         }
+
+        const isTableEnabled = (explore: Explore | ExploreError) => {
+            switch (tablesConfiguration.tableSelection.type) {
+                case TableSelectionType.ALL:
+                    return true;
+                case TableSelectionType.WITH_TAGS:
+                    const hasSelectedJoinedExploredWithTags = explores.some(
+                        (e) =>
+                            e.joinedTables?.some(
+                                (jt) => jt.table === explore.name,
+                            ) &&
+                            e.tags?.some((tag) =>
+                                tablesConfiguration.tableSelection.value?.includes(
+                                    tag,
+                                ),
+                            ),
+                    );
+                    const exploreIsSelectedWithTags = explore.tags?.some(
+                        (tag) =>
+                            tablesConfiguration.tableSelection.value?.includes(
+                                tag,
+                            ),
+                    );
+                    return (
+                        hasSelectedJoinedExploredWithTags ||
+                        exploreIsSelectedWithTags
+                    );
+
+                case TableSelectionType.WITH_NAMES:
+                    const hasSelectedJoinedExplored = explores.some(
+                        (e) =>
+                            e.joinedTables?.some(
+                                (jt) => jt.table === explore.name,
+                            ) &&
+                            tablesConfiguration.tableSelection.value?.includes(
+                                e.name,
+                            ),
+                    );
+                    const exploreIsSelected =
+                        tablesConfiguration.tableSelection.value?.includes(
+                            explore.name,
+                        );
+
+                    return hasSelectedJoinedExplored || exploreIsSelected;
+                default:
+                    return assertUnreachable(
+                        tablesConfiguration.tableSelection.type,
+                        'Invalid table selection type',
+                    );
+            }
+        };
+
         const errors = explores.reduce<CreateTableValidation[]>(
             (acc, explore) => {
+                if (!isTableEnabled(explore)) {
+                    Logger.debug(
+                        `Table ${explore.name} is disabled, skipping validation`,
+                    );
+                    return acc;
+                }
                 if (isExploreError(explore)) {
                     const exploreErrors = explore.errors
                         .filter(
@@ -435,10 +498,7 @@ export class ValidationService {
             return [];
         }
 
-        const tableErrors = await ValidationService.validateTables(
-            projectUuid,
-            explores,
-        );
+        const tableErrors = await this.validateTables(projectUuid, explores);
         const chartErrors = await this.validateCharts(
             projectUuid,
             existingFields,

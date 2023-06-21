@@ -49,10 +49,6 @@ export interface ResourceViewCommonProps {
     emptyStateProps?: ResourceEmptyStateProps;
     view?: ResourceViewType;
     hasReorder?: boolean;
-    pinnedItemsProps?: {
-        projectUuid: string;
-        pinnedListUuid: string;
-    };
 }
 
 export enum ResourceViewType {
@@ -75,7 +71,6 @@ const ResourceView: React.FC<ResourceViewProps> = ({
     headerProps = {},
     emptyStateProps = {},
     hasReorder = false,
-    pinnedItemsProps = { projectUuid: '', pinnedListUuid: '' },
 }) => {
     const theme = useMantineTheme();
     const tableTabStyles = useTableTabStyles();
@@ -121,7 +116,7 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                   defaultSort: listProps.defaultSort,
               };
 
-    const hasTabs = tabs && tabs.length > 0 && items.length > 1;
+    const hasTabs = tabs && tabs.length > 0 && items.length > 0;
     const hasHeader = headerProps && (headerProps.title || headerProps.action);
 
     if (hasTabs && headerProps.title) {
@@ -223,7 +218,6 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                         groups={gridProps.groups}
                         onAction={handleAction}
                         hasReorder={hasReorder}
-                        pinnedItemsProps={pinnedItemsProps}
                     />
                 ) : (
                     assertUnreachable(view, 'Unknown resource view type')

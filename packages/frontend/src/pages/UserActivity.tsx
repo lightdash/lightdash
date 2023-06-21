@@ -173,7 +173,7 @@ const UserActivity: FC = () => {
                 <ActivityCard grid="total-users">
                     <BigNumberContainer>
                         <BigNumber>{data.numberUsers}</BigNumber>
-                        <BigNumberLabel>Number of users</BigNumberLabel>
+                        <BigNumberLabel>Total users in project</BigNumberLabel>
                     </BigNumberContainer>
                 </ActivityCard>
                 <ActivityCard grid="viewers">
@@ -209,7 +209,7 @@ const UserActivity: FC = () => {
                             {data.numberWeeklyQueryingUsers} %
                         </BigNumber>
                         <BigNumberLabel>
-                            % of weekly querying users
+                            Users that viewed a chart in the last 7 days
                         </BigNumberLabel>
                     </BigNumberContainer>
                 </ActivityCard>

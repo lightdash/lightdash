@@ -25,6 +25,40 @@ export const usePivotTableStyles = createStyles((theme) => ({
         },
     },
 
+    withStickyHeader: {
+        thead: {
+            position: 'sticky',
+            top: 1,
+            zIndex: 1,
+        },
+
+        'thead th, thead td': {
+            position: 'relative',
+            zIndex: 2,
+        },
+    },
+
+    floatingHeader: {
+        position: 'absolute',
+        inset: '-1px -1px 0 -1px',
+        background: theme.colors.gray[3],
+        zIndex: 1,
+    },
+
+    floatingHeaderShadow: {
+        position: 'inherit',
+        inset: 0,
+
+        transition: 'opacity 200ms ease-in-out',
+        opacity: 0,
+
+        boxShadow: `rgba(0, 0, 0, 0.15) 0 0 ${rem(5)}}`,
+
+        '&[data-floating-header-shadow="true"]': {
+            opacity: 1,
+        },
+    },
+
     withStickyFooter: {
         tfoot: {
             position: 'sticky',
@@ -40,7 +74,7 @@ export const usePivotTableStyles = createStyles((theme) => ({
 
     floatingFooter: {
         position: 'absolute',
-        top: -1,
+        top: 0,
         right: -1,
         bottom: -1,
         left: -1,
@@ -57,14 +91,10 @@ export const usePivotTableStyles = createStyles((theme) => ({
         bottom: 0,
         left: 0,
 
-        opacity: 0,
         transition: 'opacity 200ms ease-in-out',
+        opacity: 0,
 
-        boxShadow: `
-            0 ${rem(-1)} ${rem(3)} rgba(0, 0, 0, 0.05),
-            rgba(0, 0, 0, 0.05) 0 ${rem(-10)} ${rem(15)} ${rem(-5)},
-            rgba(0, 0, 0, 0.04) 0 ${rem(-7)} ${rem(7)} ${rem(-5)}
-        `,
+        boxShadow: `rgba(0, 0, 0, 0.15) 0 0 ${rem(5)}}`,
 
         '&[data-floating-footer-shadow="true"]': {
             opacity: 1,
@@ -85,7 +115,13 @@ export const usePivotTableCellStyles = createStyles<
 >((theme, props = {}) => ({
     root: {
         textAlign: 'left',
+        maxWidth: '300px',
         whiteSpace: 'nowrap',
+        textOverflow: 'ellipsis',
+        overflow: 'hidden',
+
+        fontFamily: "'Inter', sans-serif",
+
         fontWeight: 400,
         fontSize: 13,
 
@@ -157,6 +193,20 @@ export const usePivotTableCellStyles = createStyles<
         cursor: 'pointer',
         ':hover:not([data-expanded="true"]):not([data-copied="true"])': {
             outline: `1px solid ${theme.colors.gray[6]}`,
+        },
+    },
+
+    withNumericValue: {
+        fontFeatureSettings: '"tnum"',
+        textAlign: 'right',
+    },
+
+    withLargeText: {
+        minWidth: '300px',
+
+        '&:hover, &[data-expanded="true"]': {
+            wordBreak: 'break-all',
+            whiteSpace: 'normal',
         },
     },
 }));
