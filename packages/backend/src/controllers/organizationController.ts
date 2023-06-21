@@ -180,7 +180,11 @@ export class OrganizationController extends Controller {
      * @param userUuid the uuid of the user to update
      * @param body the new membership profile
      */
-    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @Middlewares([
+        isAuthenticated,
+        allowApiKeyAuthentication,
+        unauthorisedInDemo,
+    ])
     @Patch('/users/{userUuid}')
     @OperationId('UpdateOrganizationMember')
     @Tags('Roles & Permissions')
