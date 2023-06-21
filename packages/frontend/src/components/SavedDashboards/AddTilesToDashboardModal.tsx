@@ -194,10 +194,10 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                     <Title order={4}> Add chart to dashboard</Title>
                 </Group>
             }
-            yOffset="30vh"
+            centered
             withCloseButton={false}
         >
-            <Stack spacing="md">
+            <Stack spacing="md" mih="100%">
                 <form onSubmit={handleSubmit}>
                     {!showNewDashboardInput ? (
                         <Stack spacing="md">
