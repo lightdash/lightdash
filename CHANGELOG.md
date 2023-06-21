@@ -1,3 +1,10 @@
+## [0.623.1](https://github.com/lightdash/lightdash/compare/0.623.0...0.623.1) (2023-06-21)
+
+
+### Bug Fixes
+
+* address issues with fieldId to fieldRef migration file ([#5992](https://github.com/lightdash/lightdash/issues/5992)) ([dd1a585](https://github.com/lightdash/lightdash/commit/dd1a585145c5d5dced30dbd8ca1cfaf13d57cffd))
+
 # [0.623.0](https://github.com/lightdash/lightdash/compare/0.622.0...0.623.0) (2023-06-21)
 
 
