@@ -1,3 +1,10 @@
+## [0.623.3](https://github.com/lightdash/lightdash/compare/0.623.2...0.623.3) (2023-06-21)
+
+
+### Bug Fixes
+
+* only show selected tables on validation ([#5981](https://github.com/lightdash/lightdash/issues/5981)) ([b3eb01c](https://github.com/lightdash/lightdash/commit/b3eb01c2ce314f3781bf0057a6f0ab5439095eda))
+
 ## [0.623.2](https://github.com/lightdash/lightdash/compare/0.623.1...0.623.2) (2023-06-21)
 
 
