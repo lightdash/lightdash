@@ -1,4 +1,4 @@
-import RunningTotal from './assets/running-total.png';
+import RunningTotal from './assets/running-total.jpg';
 
 # Running total
 
@@ -8,12 +8,16 @@ Running totals give you the sum of a value + all of the previous values in that 
 
 Here's an example of a running total:
 
-<img src={RunningTotal} width="1260" height="516" style={{display: "block", margin: "0 auto 20px auto"}}/>
+<img src={RunningTotal} width="874" height="242" style={{display: "block", margin: "0 auto 20px auto"}}/>
 
 And here's the SQL used in the table calculation:
 
 ```sql
-SUM(${pages.page_view_count}) OVER(ORDER BY ${pages.date_day}, ${pages.path} ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+SUM(${orders.total_order_amount}) OVER(
+  ORDER BY 
+    ${orders.order_date_month}
+  ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+)
 ```
 
 In general, the SQL used for calculating running totals has two bits (with an optional third bit):
@@ -22,7 +26,7 @@ In general, the SQL used for calculating running totals has two bits (with an op
 - `column_I_want_to_order_by` - this is the column you want to order your running total over
 - `optional_other_column_I_want_to_order_by` - this column is optional and you can add as many more `order by` columns as you need. For your running total to only go up an increment of one row, you'll need to add every dimension in your results table to the `ORDER BY` bit in your SQL. And, the order of these will need to be the same as the ordering you've added to the columns in your results table.
 
-### 👀 Here's the SQL you can copy-paste to calculate a running total
+### Here's the SQL you can copy-paste to calculate a running total
 
 ```sql
 SUM(${table.column_I_want_to_sum}) OVER(

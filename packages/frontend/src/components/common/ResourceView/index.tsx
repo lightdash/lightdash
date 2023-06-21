@@ -121,7 +121,7 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                   defaultSort: listProps.defaultSort,
               };
 
-    const hasTabs = tabs && tabs.length > 0 && items.length > 1;
+    const hasTabs = tabs && tabs.length > 0 && items.length > 0;
     const hasHeader = headerProps && (headerProps.title || headerProps.action);
 
     if (hasTabs && headerProps.title) {

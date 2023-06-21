@@ -2,6 +2,7 @@ import moment from 'moment/moment';
 import {
     CompiledField,
     DimensionType,
+    fieldId,
     isMetric,
     MetricType,
 } from '../types/field';
@@ -22,7 +23,7 @@ const formatTimestamp = (date: Date): string =>
 
 export const renderStringFilterSql = (
     dimensionSql: string,
-    filter: FilterRule,
+    filter: FilterRule<FilterOperator, unknown>,
     stringQuoteChar: string,
     escapeStringQuoteChar: string,
 ): string => {
@@ -84,7 +85,7 @@ export const renderStringFilterSql = (
 
 export const renderNumberFilterSql = (
     dimensionSql: string,
-    filter: FilterRule,
+    filter: FilterRule<FilterOperator, unknown>,
 ): string => {
     const filterType = filter.operator;
     switch (filter.operator) {
@@ -247,7 +248,7 @@ export const renderDateFilterSql = (
 
 const renderBooleanFilterSql = (
     dimensionSql: string,
-    filter: FilterRule,
+    filter: FilterRule<FilterOperator, unknown>,
 ): string => {
     const { operator } = filter;
     switch (filter.operator) {
@@ -265,7 +266,7 @@ const renderBooleanFilterSql = (
 };
 
 export const renderFilterRuleSql = (
-    filterRule: FilterRule,
+    filterRule: FilterRule<FilterOperator, unknown>,
     field: CompiledField,
     fieldQuoteChar: string,
     stringQuoteChar: string,
@@ -274,7 +275,7 @@ export const renderFilterRuleSql = (
 ): string => {
     const fieldType = field.type;
     const fieldSql = isMetric(field)
-        ? `${fieldQuoteChar}${filterRule.target.fieldId}${fieldQuoteChar}`
+        ? `${fieldQuoteChar}${fieldId(field)}${fieldQuoteChar}`
         : field.compiledSql;
 
     switch (field.type) {

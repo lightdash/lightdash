@@ -281,13 +281,13 @@ export class ExploreCompiler {
         if (metric.filters !== undefined && metric.filters.length > 0) {
             const conditions = metric.filters.map((filter) => {
                 const { refTable, refName } = getParsedReference(
-                    filter.target.fieldId,
+                    filter.target.fieldRef,
                     metric.table,
                 );
                 const dimensionField = tables[refTable]?.dimensions[refName];
                 if (!dimensionField) {
                     throw new CompileError(
-                        `Filter for metric "${metric.name}" has a reference to an unknown dimension: ${filter.target.fieldId}`,
+                        `Filter for metric "${metric.name}" has a reference to an unknown dimension: ${filter.target.fieldRef}`,
                     );
                 }
                 const compiledDimension = this.compileDimension(

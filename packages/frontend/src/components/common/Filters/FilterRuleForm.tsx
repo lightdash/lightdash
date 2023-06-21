@@ -81,6 +81,7 @@ const FilterRuleForm: FC<Props> = ({
                             }
                         }}
                         disabled={!isEditMode}
+                        hasGrouping
                     />
                     <HTMLSelect
                         className={!isEditMode ? 'disabled-filter' : ''}

@@ -3,6 +3,7 @@ import {
     Field,
     getConditionalFormattingConfig,
     getConditionalFormattingDescription,
+    isNumericItem,
     ResultValue,
     TableCalculation,
 } from '@lightdash/common';
@@ -26,6 +27,8 @@ interface ValueCellProps extends CellProps {
         rowIndex: number,
     ) => Record<string, ResultValue>;
 }
+
+const SMALL_TEXT_LENGTH = 30;
 
 const ValueCell: FC<ValueCellProps> = ({
     item,
@@ -79,6 +82,8 @@ const ValueCell: FC<ValueCellProps> = ({
         conditionalFormatting,
     });
 
+    const formattedValue = value?.formatted;
+
     return (
         <ValueCellMenu
             rowIndex={rowIndex}
@@ -92,9 +97,15 @@ const ValueCell: FC<ValueCellProps> = ({
             onClose={() => setIsMenuOpen(false)}
         >
             <Cell
-                withValue={!!value?.formatted}
+                withValue={!!formattedValue}
+                withNumericValue={isNumericItem(item)}
                 className={cx(
-                    { [classes.conditionalFormatting]: conditionalFormatting },
+                    {
+                        [classes.conditionalFormatting]: conditionalFormatting,
+                        [classes.withLargeText]:
+                            formattedValue &&
+                            formattedValue?.length > SMALL_TEXT_LENGTH,
+                    },
                     rest.className,
                 )}
                 data-conditional-formatting={!!conditionalFormatting}
@@ -102,7 +113,7 @@ const ValueCell: FC<ValueCellProps> = ({
                 tooltipContent={conditionalFormatting?.tooltipContent}
                 {...rest}
             >
-                {value?.formatted}
+                {formattedValue}
             </Cell>
         </ValueCellMenu>
     );
