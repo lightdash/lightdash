@@ -181,8 +181,8 @@ export class OrganizationController extends Controller {
      * @param body the new membership profile
      */
     @Middlewares([
-        isAuthenticated,
         allowApiKeyAuthentication,
+        isAuthenticated,
         unauthorisedInDemo,
     ])
     @Patch('/users/{userUuid}')
