@@ -1,3 +1,10 @@
+## [0.623.2](https://github.com/lightdash/lightdash/compare/0.623.1...0.623.2) (2023-06-21)
+
+
+### Bug Fixes
+
+* get correct key for date filters ([#5997](https://github.com/lightdash/lightdash/issues/5997)) ([ec008cd](https://github.com/lightdash/lightdash/commit/ec008cd21b4c33db8664af2dc6b8275f97bbae78))
+
 ## [0.623.1](https://github.com/lightdash/lightdash/compare/0.623.0...0.623.1) (2023-06-21)
 
 
