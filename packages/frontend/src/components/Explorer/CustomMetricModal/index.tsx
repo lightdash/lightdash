@@ -207,7 +207,12 @@ export const CustomMetricModal = () => {
                         <Accordion.Item value="filters">
                             <Accordion.Control>
                                 <Text fw={500} fz="sm">
-                                    Filters{' '}
+                                    Filters
+                                    <Text span fw={400} fz="xs">
+                                        {customMetricFiltersWithIds.length > 0
+                                            ? `(${customMetricFiltersWithIds.length}) `
+                                            : ' '}
+                                    </Text>
                                     <Text span fz="xs" color="gray.5" fw={400}>
                                         (optional)
                                     </Text>
