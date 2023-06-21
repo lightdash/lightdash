@@ -280,14 +280,17 @@ export class ExploreCompiler {
         );
         if (metric.filters !== undefined && metric.filters.length > 0) {
             const conditions = metric.filters.map((filter) => {
+                const fieldRef =
+                    // @ts-expect-error This fallback is to support old metric filters in yml. We can delete this after a few months since we can assume all projects have been redeployed
+                    filter.target.fieldRef || filter.target.fieldId;
                 const { refTable, refName } = getParsedReference(
-                    filter.target.fieldRef,
+                    fieldRef,
                     metric.table,
                 );
                 const dimensionField = tables[refTable]?.dimensions[refName];
                 if (!dimensionField) {
                     throw new CompileError(
-                        `Filter for metric "${metric.name}" has a reference to an unknown dimension: ${filter.target.fieldRef}`,
+                        `Filter for metric "${metric.name}" has a reference to an unknown dimension: ${fieldRef}`,
                     );
                 }
                 const compiledDimension = this.compileDimension(
