@@ -1,3 +1,4 @@
+import { TableSelectionType } from '@lightdash/common';
 import {
     dashboardModel,
     projectModel,
@@ -16,6 +17,7 @@ import {
     exploreWithoutDimension,
     exploreWithoutMetric,
     project,
+    tableConfiguration,
 } from './ValidationService.mock';
 
 jest.mock('../../clients/clients', () => ({
@@ -30,6 +32,7 @@ jest.mock('../../models/models', () => ({
     projectModel: {
         getExploresFromCache: jest.fn(async () => [explore]),
         get: jest.fn(async () => project),
+        getTablesConfiguration: jest.fn(async () => tableConfiguration),
     },
     validationModel: {
         delete: jest.fn(async () => {}),
@@ -128,7 +131,71 @@ describe('validation', () => {
             chart.projectUuid,
         );
 
-        expect({ ...errors[0], createdAt: undefined }).toEqual({
+        const tableErrors = errors.filter((ve) => ve.source === 'table');
+
+        expect({ ...tableErrors[0], createdAt: undefined }).toEqual({
+            createdAt: undefined,
+            name: 'valid_explore',
+            modelName: 'valid_explore',
+            error: 'Model "valid_explore" has a dimension reference: ${is_completed} which matches no dimension',
+            errorType: 'model',
+            projectUuid: 'projectUuid',
+            source: 'table',
+        });
+
+        expect(errors[0].error).toEqual(
+            'Model "valid_explore" has a dimension reference: ${is_completed} which matches no dimension',
+        );
+    });
+
+    it('Should not show unselected table errors', async () => {
+        (projectModel.getExploresFromCache as jest.Mock).mockImplementationOnce(
+            async () => [exploreError],
+        );
+
+        (
+            projectModel.getTablesConfiguration as jest.Mock
+        ).mockImplementationOnce(async () => ({
+            tableSelection: {
+                type: TableSelectionType.WITH_NAMES,
+                value: ['another_explore'],
+            },
+        }));
+        const errors = await validationService.generateValidation(
+            chart.projectUuid,
+        );
+        const tableErrors = errors.filter((ve) => ve.source === 'table');
+
+        expect(tableErrors.length).toEqual(0);
+    });
+
+    it('Should show unselected table errors on joins', async () => {
+        (projectModel.getExploresFromCache as jest.Mock).mockImplementationOnce(
+            async () => [
+                exploreError,
+                {
+                    name: 'joined_explore',
+                    joinedTables: [{ table: 'valid_explore' }],
+                },
+            ],
+        );
+
+        (
+            projectModel.getTablesConfiguration as jest.Mock
+        ).mockImplementationOnce(async () => ({
+            tableSelection: {
+                type: TableSelectionType.WITH_NAMES,
+                value: ['joined_explore'],
+            },
+        }));
+        const errors = await validationService.generateValidation(
+            chart.projectUuid,
+        );
+        const tableErrors = errors.filter((ve) => ve.source === 'table');
+
+        expect(tableErrors.length).toEqual(1);
+
+        expect({ ...tableErrors[0], createdAt: undefined }).toEqual({
             createdAt: undefined,
             name: 'valid_explore',
             modelName: 'valid_explore',

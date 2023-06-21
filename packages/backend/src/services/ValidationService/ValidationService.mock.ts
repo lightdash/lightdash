@@ -16,6 +16,8 @@ import {
     SessionUser,
     ShareUrl,
     SupportedDbtAdapter,
+    TablesConfiguration,
+    TableSelectionType,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
 
@@ -259,4 +261,11 @@ export const exploreError: ExploreError = {
             type: InlineErrorType.METADATA_PARSE_ERROR,
         },
     ],
+};
+
+export const tableConfiguration: TablesConfiguration = {
+    tableSelection: {
+        type: TableSelectionType.ALL,
+        value: [],
+    },
 };
