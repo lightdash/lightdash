@@ -1,3 +1,10 @@
+# [0.623.0](https://github.com/lightdash/lightdash/compare/0.622.0...0.623.0) (2023-06-21)
+
+
+### Features
+
+* allow API key authentication on `UpdateOrganizationMember` ([#5988](https://github.com/lightdash/lightdash/issues/5988)) ([9f8498c](https://github.com/lightdash/lightdash/commit/9f8498c37e64141b55edda5655dc756323a05b26))
+
 # [0.622.0](https://github.com/lightdash/lightdash/compare/0.621.2...0.622.0) (2023-06-20)
 
 
