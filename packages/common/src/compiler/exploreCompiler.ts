@@ -287,7 +287,18 @@ export class ExploreCompiler {
                     fieldRef,
                     metric.table,
                 );
-                const dimensionField = tables[refTable]?.dimensions[refName];
+
+                const table = tables[refTable];
+
+                // NOTE: date dimensions from explores have their time format uppercased (.e.g. order_date_DAY)
+                const dimensionRefName = Object.keys(table.dimensions).find(
+                    (key) => key.toLowerCase() === refName.toLowerCase(),
+                );
+
+                const dimensionField = dimensionRefName
+                    ? table.dimensions[dimensionRefName]
+                    : undefined;
+
                 if (!dimensionField) {
                     throw new CompileError(
                         `Filter for metric "${metric.name}" has a reference to an unknown dimension: ${fieldRef}`,
