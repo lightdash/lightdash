@@ -112,13 +112,44 @@ export class ValidationService {
                 case TableSelectionType.ALL:
                     return true;
                 case TableSelectionType.WITH_TAGS:
-                    return explore.tags?.some((tag) =>
-                        tablesConfiguration.tableSelection.value?.includes(tag),
+                    const hasSelectedJoinedExploredWithTags = explores.some(
+                        (e) =>
+                            e.joinedTables?.some(
+                                (jt) => jt.table === explore.name,
+                            ) &&
+                            e.tags?.some((tag) =>
+                                tablesConfiguration.tableSelection.value?.includes(
+                                    tag,
+                                ),
+                            ),
                     );
+                    const exploreIsSelectedWithTags = explore.tags?.some(
+                        (tag) =>
+                            tablesConfiguration.tableSelection.value?.includes(
+                                tag,
+                            ),
+                    );
+                    return (
+                        hasSelectedJoinedExploredWithTags ||
+                        exploreIsSelectedWithTags
+                    );
+
                 case TableSelectionType.WITH_NAMES:
-                    return tablesConfiguration.tableSelection.value?.includes(
-                        explore.name,
+                    const hasSelectedJoinedExplored = explores.some(
+                        (e) =>
+                            e.joinedTables?.some(
+                                (jt) => jt.table === explore.name,
+                            ) &&
+                            tablesConfiguration.tableSelection.value?.includes(
+                                e.name,
+                            ),
                     );
+                    const exploreIsSelected =
+                        tablesConfiguration.tableSelection.value?.includes(
+                            explore.name,
+                        );
+
+                    return hasSelectedJoinedExplored || exploreIsSelected;
                 default:
                     return assertUnreachable(
                         tablesConfiguration.tableSelection.type,
