@@ -290,6 +290,12 @@ export class ExploreCompiler {
 
                 const table = tables[refTable];
 
+                if (!table) {
+                    throw new CompileError(
+                        `Filter for metric "${metric.name}" has a reference to an unknown table`,
+                    );
+                }
+
                 // NOTE: date dimensions from explores have their time format uppercased (e.g. order_date_DAY) - see ticket: https://github.com/lightdash/lightdash/issues/5998
                 const dimensionRefName = Object.keys(table.dimensions).find(
                     (key) => key.toLowerCase() === refName.toLowerCase(),
