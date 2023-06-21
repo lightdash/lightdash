@@ -7,11 +7,11 @@ const usePieChartConfig = (
     // explore: Explore | undefined,
 ) => {
     const [isDonut /*, setIsDonut */] = useState<boolean>(
-        pieChartConfig?.donut ?? false,
+        pieChartConfig?.isDonut ?? false,
     );
     const validPieChartConfig: PieChart = useMemo(() => {
         return {
-            donut: isDonut,
+            isDonut,
         };
     }, [isDonut]);
 

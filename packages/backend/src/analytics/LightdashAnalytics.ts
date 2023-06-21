@@ -202,7 +202,7 @@ export type CreateSavedChartOrVersionEvent = BaseTrack & {
             showLegend: boolean;
         };
         pie?: {
-            donut: boolean;
+            isDonut: boolean;
         };
         table?: {
             conditionalFormattingRulesCount: number;

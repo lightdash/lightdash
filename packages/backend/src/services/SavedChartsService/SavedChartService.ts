@@ -120,7 +120,8 @@ export class SavedChartService {
             pie:
                 savedChart.chartConfig.type === ChartType.PIE
                     ? {
-                          donut: savedChart.chartConfig?.config?.donut ?? false,
+                          isDonut:
+                              savedChart.chartConfig?.config?.isDonut ?? false,
                       }
                     : undefined,
             table:
