@@ -121,6 +121,11 @@ const Space: FC = () => {
         ...wrapResourceView(chartsInSpace, ResourceViewItemType.CHART),
     ];
 
+    let defaultTab: string = 'all-items';
+    
+    if (dashboards.length > 0) defaultTab = 'dashboards';
+    else if (savedCharts.length > 0) defaultTab = 'charts';
+
     return (
         <Page title={space?.name} withFixedContent withPaddedContent>
             <Stack spacing="xl">
@@ -317,11 +322,7 @@ const Space: FC = () => {
                         icon: <IconLayoutDashboard size={30} />,
                         title: 'No items added yet',
                     }}
-                    defaultActiveTab={
-                        !dashboards || dashboards.length === 0
-                            ? 'charts'
-                            : 'dashboards'
-                    }
+                    defaultActiveTab={defaultTab}
                 />
 
                 {addToSpace && (
