@@ -331,6 +331,19 @@ export class DashboardService {
                 properties: {
                     dashboardId: updatedDashboard.uuid,
                     projectId: updatedDashboard.projectUuid,
+                    tilesCount: updatedDashboard.tiles.length,
+                    chartTilesCount: updatedDashboard.tiles.filter(
+                        (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
+                    ).length,
+                    markdownTilesCount: updatedDashboard.tiles.filter(
+                        (tile) => tile.type === DashboardTileTypes.MARKDOWN,
+                    ).length,
+                    loomTilesCount: updatedDashboard.tiles.filter(
+                        (tile) => tile.type === DashboardTileTypes.LOOM,
+                    ).length,
+                    filtersCount:
+                        updatedDashboard.filters.dimensions.length +
+                        updatedDashboard.filters.metrics.length,
                 },
             });
         }
