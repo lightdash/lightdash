@@ -303,7 +303,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                             )}
                         </Stack>
                     )}
-                    <Group spacing="xs" position="right" my="sm">
+                    <Group spacing="xs" position="right" mt="md">
                         <Button
                             onClick={() => {
                                 if (onClose) onClose();
