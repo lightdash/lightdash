@@ -134,6 +134,7 @@ type QueryExecutionEvent = BaseTrack & {
         dimensionsCount: number;
         tableCalculationsCount: number;
         tableCalculationsPercentFormatCount: number;
+        tableCalculationsCurrencyFormatCount: number;
         filtersCount: number;
         sortsCount: number;
         hasExampleMetric: boolean;

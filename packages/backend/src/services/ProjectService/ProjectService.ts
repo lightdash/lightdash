@@ -1039,6 +1039,13 @@ export class ProjectService {
                             tableCalculation.format?.type ===
                             TableCalculationFormatType.PERCENT,
                     ).length,
+                tableCalculationsCurrencyFormatCount:
+                    metricQuery.tableCalculations.filter(
+                        (tableCalculation) =>
+                            tableCalculation.format?.type ===
+                            TableCalculationFormatType.CURRENCY,
+                    ).length,
+
                 additionalMetricsCount: (
                     metricQuery.additionalMetrics || []
                 ).filter((metric) =>
