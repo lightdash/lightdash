@@ -12,6 +12,7 @@ import {
     IconChartBar,
     IconChartDots,
     IconChartLine,
+    IconChartPie,
     IconSquareNumber1,
     IconTable,
 } from '@tabler/icons-react';
@@ -161,6 +162,16 @@ const VisualizationCardOptions: FC = memo(() => {
                         />
                     ),
                 };
+            case ChartType.PIE:
+                return {
+                    text: 'Pie chart',
+                    icon: (
+                        <IconChartPie
+                            size={20}
+                            color={disabled ? Colors.LIGHT_GRAY1 : Colors.GRAY1}
+                        />
+                    ),
+                };
             default: {
                 return assertUnreachable(
                     chartType,
@@ -288,6 +299,22 @@ const VisualizationCardOptions: FC = memo(() => {
                         disabled={disabled}
                         text="Scatter chart"
                     />
+
+                    {localStorage.getItem('enablePieCharts') === 'true' && (
+                        <MenuItem2
+                            active={chartType === ChartType.PIE}
+                            icon={
+                                <IconChartPie size={20} color={Colors.GRAY1} />
+                            }
+                            onClick={() => {
+                                setChartType(ChartType.PIE);
+                                setPivotDimensions(undefined);
+                                setIsOpen(false);
+                            }}
+                            disabled={disabled}
+                            text="Pie chart"
+                        />
+                    )}
 
                     <MenuItem2
                         active={chartType === ChartType.TABLE}
