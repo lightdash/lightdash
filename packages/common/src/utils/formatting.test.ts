@@ -604,21 +604,21 @@ describe('Formatting', () => {
                 formatTableCalculationNumber(number, {
                     type: TableCalculationFormatType.DEFAULT,
                     round: -2,
-                    separator: NumberSeparator.COMMA_PERIOD,
+                    separator: NumberSeparator.PERIOD_COMMA,
                 }),
             ).toEqual('123.456.800');
             expect(
                 formatTableCalculationNumber(number, {
                     type: TableCalculationFormatType.DEFAULT,
                     round: -3,
-                    separator: NumberSeparator.COMMA_PERIOD,
+                    separator: NumberSeparator.SPACE_PERIOD,
                 }),
             ).toEqual('123 457 000');
             expect(
                 formatTableCalculationNumber(number, {
                     type: TableCalculationFormatType.DEFAULT,
                     round: -99,
-                    separator: NumberSeparator.COMMA_PERIOD,
+                    separator: NumberSeparator.NO_SEPARATOR_PERIOD,
                 }),
             ).toEqual('100000000');
         });
@@ -745,7 +745,7 @@ describe('Formatting', () => {
                         12345.1235,
                     ),
                 ),
-            ).toEqual(['K$12.35', 'K€12.35', 'K£12.35', 'K¥12']);
+            ).toEqual(['$12.35K', '€12.35K', '£12.35K', '¥12K']);
 
             expect(
                 currencies.slice(0, 4).map((currency) =>
@@ -762,7 +762,7 @@ describe('Formatting', () => {
                         123456789.1235,
                     ),
                 ),
-            ).toEqual(['M$123', 'M€123', 'M£123', 'M¥123']);
+            ).toEqual(['$123M', '€123M', '£123M', '¥123M']);
         });
     });
 });
