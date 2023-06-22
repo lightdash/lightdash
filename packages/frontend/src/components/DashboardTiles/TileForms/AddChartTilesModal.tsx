@@ -11,6 +11,7 @@ import {
     Stack,
     Text,
     Title,
+    Tooltip,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { uuid4 } from '@sentry/utils';
@@ -28,15 +29,20 @@ type Props = {
 
 interface ItemProps extends React.ComponentPropsWithoutRef<'div'> {
     label: string;
-    description: string;
+    description?: string;
 }
 
 const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
     ({ label, description, ...others }: ItemProps, ref) => (
         <div ref={ref} {...others}>
             <Stack spacing="two">
-                <Text>{label}</Text>
-                <Text size="xs">{description}</Text>
+                {description ? (
+                    <Tooltip label={description} position="top-start">
+                        <Text>{label}</Text>
+                    </Tooltip>
+                ) : (
+                    <Text>{label}</Text>
+                )}
             </Stack>
         </div>
     ),
@@ -72,9 +78,9 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                 label: name,
                 group: spaceName,
                 disabled: alreadyAddedChart !== undefined,
-                description:
-                    alreadyAddedChart &&
-                    'This chart has been already added to this dashboard',
+                description: alreadyAddedChart
+                    ? 'This chart has been already added to this dashboard'
+                    : undefined,
             };
         });
     }, [dashboardTiles, savedCharts, dashboard?.spaceUuid]);
@@ -131,7 +137,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                 >
                     <MultiSelect
                         id="saved-charts"
-                        label={`Select the charts that you want to add to ${dashboardTitleName}`}
+                        label={`Select the charts you want to add to this dashboard`}
                         data={allSavedCharts}
                         disabled={isLoading}
                         defaultValue={[]}
