@@ -190,7 +190,7 @@ const UserListItem: FC<{
                                         <Title order={4}>Delete user</Title>
                                     </Group>
                                 }
-                                yOffset="30vh"
+                                centered
                             >
                                 <Text pb="md">
                                     Are you sure you want to delete this user ?
