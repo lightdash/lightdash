@@ -14,10 +14,10 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { uuid4 } from '@sentry/utils';
 import { IconChartAreaLine } from '@tabler/icons-react';
 import React, { FC, forwardRef, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
+import { v4 as uuid4 } from 'uuid';
 import { useChartSummaries } from '../../../hooks/useChartSummaries';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import MantineIcon from '../../common/MantineIcon';
@@ -36,13 +36,13 @@ const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
     ({ label, description, ...others }: ItemProps, ref) => (
         <div ref={ref} {...others}>
             <Stack spacing="two">
-                {description ? (
-                    <Tooltip label={description} position="top-start">
-                        <Text>{label}</Text>
-                    </Tooltip>
-                ) : (
+                <Tooltip
+                    label={description}
+                    disabled={!description}
+                    position="top-start"
+                >
                     <Text>{label}</Text>
-                )}
+                </Tooltip>
             </Stack>
         </div>
     ),
