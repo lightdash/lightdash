@@ -6,9 +6,11 @@ import {
     TableCalculationFormatType,
 } from '../types/field';
 import {
+    currencies,
     formatFieldValue,
     formatItemValue,
     formatNumberWithSeparator,
+    formatTableCalculationValue,
     formatValue,
 } from './formatting';
 import { dimension, metric, tableCalculation } from './formatting.mock';
@@ -619,6 +621,148 @@ describe('Formatting', () => {
                     -4,
                 ),
             ).toEqual('123460000');
+        });
+
+        test('available currencies', async () => {
+            const symbols = currencies.map((currency) => {
+                const format = Intl.NumberFormat(undefined, {
+                    style: 'currency',
+                    currency,
+                });
+                return format.format(1).replace(' ', ' ');
+            });
+            expect(symbols).toEqual([
+                '$1.00',
+                '€1.00',
+                '£1.00',
+                '¥1',
+                'CHF 1.00',
+                'CA$1.00',
+                'A$1.00',
+                'CN¥1.00',
+                'ARS 1.00',
+                'R$1.00',
+                'CLP 1',
+                'COP 1.00',
+                'CZK 1.00',
+                'DKK 1.00',
+                'HK$1.00',
+                'HUF 1.00',
+                '₹1.00',
+                '₪1.00',
+                '₩1',
+                'MYR 1.00',
+                'MX$1.00',
+                'MAD 1.00',
+                'NZ$1.00',
+                'NOK 1.00',
+                '₱1.00',
+                'PLN 1.00',
+                'RUB 1.00',
+                'SAR 1.00',
+                'SGD 1.00',
+                'ZAR 1.00',
+                'SEK 1.00',
+                'NT$1.00',
+                'THB 1.00',
+                'TRY 1.00',
+                '₫1',
+            ]);
+        });
+        test('convert currencies with default settings', async () => {
+            expect(
+                currencies.slice(0, 4).map((currency) =>
+                    formatTableCalculationValue(
+                        {
+                            ...tableCalculation,
+                            format: {
+                                type: TableCalculationFormatType.CURRENCY,
+                                currency,
+                            },
+                        },
+                        12345.1235,
+                    ),
+                ),
+            ).toEqual(['$12,345.12', '€12,345.12', '£12,345.12', '¥12,345']);
+        });
+        test('convert currencies with round', async () => {
+            expect(
+                currencies.slice(0, 4).map((currency) =>
+                    formatTableCalculationValue(
+                        {
+                            ...tableCalculation,
+                            format: {
+                                type: TableCalculationFormatType.CURRENCY,
+                                currency,
+                                round: 3,
+                            },
+                        },
+                        12345.1235,
+                    ),
+                ),
+            ).toEqual([
+                '$12,345.124',
+                '€12,345.124',
+                '£12,345.124',
+                '¥12,345.124',
+            ]);
+        });
+        test('convert currencies with separator ', async () => {
+            // Using PERIOD_COMMA changes the position of the currency symbol
+            expect(
+                currencies.slice(0, 4).map((currency) =>
+                    formatTableCalculationValue(
+                        {
+                            ...tableCalculation,
+                            format: {
+                                type: TableCalculationFormatType.CURRENCY,
+                                currency,
+                                separator: NumberSeparator.PERIOD_COMMA,
+                            },
+                        },
+                        12345.1235,
+                    ),
+                ),
+            ).toEqual([
+                '12.345,12 $',
+                '12.345,12 €',
+                '12.345,12 £',
+                '12.345 ¥',
+            ]);
+        });
+        test('convert currencies with compact ', async () => {
+            expect(
+                currencies.slice(0, 4).map((currency) =>
+                    formatTableCalculationValue(
+                        {
+                            ...tableCalculation,
+                            format: {
+                                type: TableCalculationFormatType.CURRENCY,
+                                currency,
+                                compact: Compact.THOUSANDS,
+                            },
+                        },
+                        12345.1235,
+                    ),
+                ),
+            ).toEqual(['K$12.35', 'K€12.35', 'K£12.35', 'K¥12']);
+
+            expect(
+                currencies.slice(0, 4).map((currency) =>
+                    formatTableCalculationValue(
+                        {
+                            ...tableCalculation,
+                            format: {
+                                type: TableCalculationFormatType.CURRENCY,
+                                currency,
+                                compact: Compact.MILLIONS,
+                                round: 0,
+                            },
+                        },
+                        123456789.1235,
+                    ),
+                ),
+            ).toEqual(['M$123', 'M€123', 'M£123', 'M¥123']);
         });
     });
 });

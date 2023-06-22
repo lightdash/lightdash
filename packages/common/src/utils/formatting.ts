@@ -1,5 +1,6 @@
 import moment, { MomentInput } from 'moment';
 import {
+    CompactConfigMap,
     CompactOrAlias,
     DimensionType,
     Field,
@@ -275,41 +276,97 @@ export function formatFieldValue(
     }
 }
 
+export const currencies = [
+    'USD',
+    'EUR',
+    'GBP',
+    'JPY',
+    'CHF',
+    'CAD',
+    'AUD',
+    'CNY',
+    'ARS',
+    'BRL',
+    'CLP',
+    'COP',
+    'CZK',
+    'DKK',
+    'HKD',
+    'HUF',
+    'INR',
+    'ILS',
+    'KRW',
+    'MYR',
+    'MXN',
+    'MAD',
+    'NZD',
+    'NOK',
+    'PHP',
+    'PLN',
+    'RUB',
+    'SAR',
+    'SGD',
+    'ZAR',
+    'SEK',
+    'TWD',
+    'THB',
+    'TRY',
+    'VND',
+];
+
 export function formatNumberWithSeparator(
     value: number,
-    separator: NumberSeparator = NumberSeparator.COMMA_PERIOD,
-    round: number = 0,
+    round: number | undefined,
+    currency?: string,
+    separator: NumberSeparator = NumberSeparator.DEFAULT,
 ): string {
-    const options =
-        round <= 0
+    const getFormatOptions = () => {
+        const currencyOptions =
+            currency !== undefined ? { style: 'currency', currency } : {};
+
+        if (round === undefined && currency !== undefined) {
+            // We apply the default round and separator from the currency
+            return currencyOptions;
+        }
+        const validRound = round || 0;
+        return validRound <= 0
             ? {
                   maximumSignificantDigits: Math.max(
-                      Math.floor(value).toString().length + round,
+                      Math.floor(value).toString().length + validRound,
                       1,
                   ),
                   maximumFractionDigits: 0,
+                  ...currencyOptions,
               }
             : {
-                  maximumFractionDigits: Math.min(round, 20),
-                  minimumFractionDigits: Math.min(round, 20),
+                  maximumFractionDigits: Math.min(validRound, 20),
+                  minimumFractionDigits: Math.min(validRound, 20),
+                  ...currencyOptions,
               };
+    };
 
+    const options = getFormatOptions();
     switch (separator) {
         case NumberSeparator.COMMA_PERIOD:
             return value.toLocaleString('en-US', options);
         case NumberSeparator.SPACE_PERIOD:
             return value.toLocaleString('en-US', options).replace(/,/g, ' ');
         case NumberSeparator.PERIOD_COMMA:
+            // If currency is provided, having a PERIOD_COMMA separator will also change the position of the currency symbol
             return value.toLocaleString('de-DE', options);
         case NumberSeparator.NO_SEPARATOR_PERIOD:
             return value.toLocaleString('en-US', {
                 ...options,
                 useGrouping: false,
             });
+        case NumberSeparator.DEFAULT:
+            // This will apply the default style for each currency
+            return value.toLocaleString(undefined, options);
         default:
             return assertUnreachable(separator, 'Unknown separator');
     }
 }
+
 export function formatTableCalculationValue(
     field: TableCalculation,
     value: unknown,
@@ -329,6 +386,28 @@ export function formatTableCalculationValue(
                 field.format.round,
             );
             return `${formatted}%`;
+        case TableCalculationFormatType.CURRENCY:
+            if (valueIsNaN(value)) {
+                return `${value}`;
+            }
+
+            const compactValue = field.format.compact
+                ? CompactConfigMap[field.format.compact].convertFn(
+                      Number(value),
+                  )
+                : Number(value);
+            const compactSuffix = field.format.compact
+                ? CompactConfigMap[field.format.compact].suffix
+                : '';
+
+            const currencyFormatted = formatNumberWithSeparator(
+                compactValue,
+                field.format.separator,
+                field.format.round,
+                field.format.currency,
+            ).replace(/\u00A0/, ' ');
+
+            return `${compactSuffix}${currencyFormatted}`;
 
         default:
             return assertUnreachable(

@@ -2011,11 +2011,12 @@
                 "type": "object"
             },
             "TableCalculationFormatType": {
-                "enum": ["default", "percent"],
+                "enum": ["default", "percent", "currency"],
                 "type": "string"
             },
             "NumberSeparator": {
                 "enum": [
+                    "default",
                     "commaPeriod",
                     "spacePeriod",
                     "periodComma",
@@ -2023,8 +2024,18 @@
                 ],
                 "type": "string"
             },
+            "Compact": {
+                "enum": ["thousands", "millions", "billions", "trillions"],
+                "type": "string"
+            },
             "TableCalculationFormat": {
                 "properties": {
+                    "compact": {
+                        "$ref": "#/components/schemas/Compact"
+                    },
+                    "currency": {
+                        "type": "string"
+                    },
                     "separator": {
                         "$ref": "#/components/schemas/NumberSeparator"
                     },
@@ -2076,10 +2087,6 @@
                     "date",
                     "boolean"
                 ],
-                "type": "string"
-            },
-            "Compact": {
-                "enum": ["thousands", "millions", "billions", "trillions"],
                 "type": "string"
             },
             "CompactOrAlias": {
@@ -3578,7 +3585,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.623.1",
+        "version": "0.623.2",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"

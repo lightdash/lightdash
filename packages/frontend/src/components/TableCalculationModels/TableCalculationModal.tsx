@@ -1,5 +1,8 @@
 import { Button, Callout, Classes, Intent } from '@blueprintjs/core';
 import {
+    Compact,
+    CompactConfigMap,
+    currencies,
     formatTableCalculationValue,
     NumberSeparator,
     snakeCaseName,
@@ -84,9 +87,10 @@ const TableCalculationFormatForm: FC<{
     const round = methods.watch('format.round');
     const separator = methods.watch(
         'format.separator',
-        NumberSeparator.COMMA_PERIOD,
+        NumberSeparator.DEFAULT,
     );
-
+    const currency = methods.watch('format.currency');
+    const compact = methods.watch('format.compact');
     //TODO this component is using Mantine components with a react-hook-form,
     //once we use mantine form we should refactor this to remove onChange methods
 
@@ -107,6 +111,7 @@ const TableCalculationFormatForm: FC<{
                     data={[
                         TableCalculationFormatType.DEFAULT,
                         TableCalculationFormatType.PERCENT,
+                        TableCalculationFormatType.CURRENCY,
                     ]}
                 />
 
@@ -120,13 +125,49 @@ const TableCalculationFormatForm: FC<{
                                 displayName: 'preview',
                                 format: methods.getValues('format'),
                             },
-                            '0.75',
+                            TableCalculationFormatType.PERCENT === formatType
+                                ? '0.75'
+                                : '1234.56',
                         )}
                     </Text>
                 )}
             </Flex>
-            {formatType === TableCalculationFormatType.PERCENT && (
+
+            {[
+                TableCalculationFormatType.CURRENCY,
+                TableCalculationFormatType.PERCENT,
+            ].includes(formatType) && (
                 <Flex mt="md">
+                    {formatType === TableCalculationFormatType.CURRENCY && (
+                        <Select
+                            mr="md"
+                            w={200}
+                            searchable
+                            onChange={(s) => {
+                                if (s)
+                                    methods.setValue(
+                                        'format.currency',
+                                        s as NumberSeparator,
+                                    );
+                            }}
+                            label="Currency"
+                            value={currency}
+                            name="format.currency"
+                            data={currencies.map((c) => {
+                                const currencyFormat = Intl.NumberFormat(
+                                    undefined,
+                                    { style: 'currency', currency: c },
+                                );
+
+                                return {
+                                    value: c,
+                                    label: `${c} (${currencyFormat
+                                        .format(1234.56)
+                                        .replace(/\u00A0/, ' ')})`,
+                                };
+                            })}
+                        />
+                    )}
                     <TextInput
                         w={200}
                         label="Round"
@@ -143,6 +184,7 @@ const TableCalculationFormatForm: FC<{
                         }}
                     />
                     <Select
+                        w={200}
                         ml="md"
                         onChange={(s) => {
                             if (s)
@@ -155,6 +197,10 @@ const TableCalculationFormatForm: FC<{
                         value={separator}
                         name="format.separator"
                         data={[
+                            {
+                                value: NumberSeparator.DEFAULT,
+                                label: 'Default separator',
+                            },
                             {
                                 value: NumberSeparator.COMMA_PERIOD,
                                 label: '100,000.00%',
@@ -171,6 +217,33 @@ const TableCalculationFormatForm: FC<{
                                 value: NumberSeparator.NO_SEPARATOR_PERIOD,
                                 label: '100000.00%',
                             },
+                        ]}
+                    />
+                </Flex>
+            )}
+            {formatType === TableCalculationFormatType.CURRENCY && (
+                <Flex>
+                    <Select
+                        mr="md"
+                        mt="md"
+                        w={200}
+                        onChange={(s) => {
+                            methods.setValue(
+                                'format.compact',
+                                s === 'None' ? undefined : (s as Compact),
+                            );
+                        }}
+                        label="Compact"
+                        value={compact || 'None'}
+                        name="format.compact"
+                        data={[
+                            'None',
+                            ...Object.values(Compact).map((c) => {
+                                return {
+                                    value: c,
+                                    label: CompactConfigMap[c].label,
+                                };
+                            }),
                         ]}
                     />
                 </Flex>
@@ -206,7 +279,9 @@ const TableCalculationModal: FC<Props> = ({
                 round: tableCalculation?.format?.round,
                 separator:
                     tableCalculation?.format?.separator ||
-                    NumberSeparator.COMMA_PERIOD,
+                    NumberSeparator.DEFAULT,
+                currency: tableCalculation?.format?.currency || 'USD',
+                compact: tableCalculation?.format?.compact,
             },
         },
     });
