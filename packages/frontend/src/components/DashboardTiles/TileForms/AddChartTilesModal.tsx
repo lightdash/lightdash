@@ -26,6 +26,22 @@ type Props = {
     onClose: () => void;
 };
 
+interface ItemProps extends React.ComponentPropsWithoutRef<'div'> {
+    label: string;
+    description: string;
+}
+
+const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
+    ({ label, description, ...others }: ItemProps, ref) => (
+        <div ref={ref} {...others}>
+            <Stack spacing="two">
+                <Text>{label}</Text>
+                <Text size="xs">{description}</Text>
+            </Stack>
+        </div>
+    ),
+);
+
 const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: savedCharts, isLoading } = useChartSummaries(projectUuid);
@@ -62,22 +78,6 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
             };
         });
     }, [dashboardTiles, savedCharts, dashboard?.spaceUuid]);
-
-    interface ItemProps extends React.ComponentPropsWithoutRef<'div'> {
-        label: string;
-        description: string;
-    }
-
-    const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
-        ({ label, description, ...others }: ItemProps, ref) => (
-            <div ref={ref} {...others}>
-                <Stack spacing="two">
-                    <Text>{label}</Text>
-                    <Text size="xs">{description}</Text>
-                </Stack>
-            </div>
-        ),
-    );
 
     const handleSubmit = form.onSubmit(({ savedChartsUuids }) => {
         onAddTiles(
@@ -122,7 +122,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                 </Group>
             }
             centered
-            withCloseButton={false}
+            withCloseButton
         >
             <Stack spacing="md">
                 <form
@@ -139,11 +139,6 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                         withinPortal
                         itemComponent={SelectItem}
                         {...form.getInputProps('savedChartsUuids')}
-                        styles={(theme) => ({
-                            input: {
-                                padding: theme.spacing.xxs,
-                            },
-                        })}
                     />
                     <Group spacing="xs" position="right" mt="md">
                         <Button
