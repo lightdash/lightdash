@@ -20,19 +20,17 @@ interface ItemProps extends React.ComponentPropsWithoutRef<'div'> {
 }
 
 const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
-    ({ icon, item, disabled, ...rest }: ItemProps, ref) => {
-        return (
-            <div ref={ref} {...rest}>
-                <Group spacing="xs">
-                    <FieldIcon item={item} />
+    ({ icon, item, disabled, ...rest }: ItemProps, ref) => (
+        <div ref={ref} {...rest}>
+            <Group spacing="xs">
+                <FieldIcon item={item} />
 
-                    <Text color={disabled ? 'dimmed' : undefined}>
-                        <FieldLabel item={item} />
-                    </Text>
-                </Group>
-            </div>
-        );
-    },
+                <Text color={disabled ? 'dimmed' : undefined}>
+                    <FieldLabel item={item} />
+                </Text>
+            </Group>
+        </div>
+    ),
 );
 
 const PieLayoutConfig: React.FC = () => {
