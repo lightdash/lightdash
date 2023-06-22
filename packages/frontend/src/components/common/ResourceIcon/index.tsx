@@ -19,6 +19,7 @@ import {
     IconChartBar,
     IconChartDots,
     IconChartLine,
+    IconChartPie,
     IconFolder,
     IconLayoutDashboard,
     IconSquareNumber1,
@@ -84,6 +85,8 @@ export const getChartIcon = (chartType: ChartKind | undefined) => {
             return <IconBox icon={IconChartArea} color="blue.8" />;
         case ChartKind.MIXED:
             return <IconBox icon={IconChartAreaLine} color="blue.8" />;
+        case ChartKind.PIE:
+            return <IconBox icon={IconChartPie} color="blue.8" />;
         case ChartKind.TABLE:
             return <IconBox icon={IconTable} color="blue.8" />;
         case ChartKind.BIG_NUMBER:

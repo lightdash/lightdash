@@ -10,6 +10,7 @@ import {
     fieldId as getFieldId,
     isBigNumberConfig,
     isCartesianChartConfig,
+    isPieChartConfig,
     isTableChartConfig,
     MetricQuery,
     MetricType,
@@ -293,6 +294,14 @@ export const getValidChartConfig = (
                 config: isTableChartConfig(config) ? config : {},
             };
         }
+        case ChartType.PIE: {
+            return {
+                type,
+                config: isPieChartConfig(config) ? config : {},
+            };
+        }
+        default:
+            return assertUnreachable(type, 'Invalid chart type');
     }
 };
 

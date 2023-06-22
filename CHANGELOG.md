@@ -1,3 +1,17 @@
+# [0.628.0](https://github.com/lightdash/lightdash/compare/0.627.0...0.628.0) (2023-06-22)
+
+
+### Features
+
+* pie charts - add chart type and dropdown item ([#5991](https://github.com/lightdash/lightdash/issues/5991)) ([f3d4fd4](https://github.com/lightdash/lightdash/commit/f3d4fd40ce800f7d2ed5456affeacdd6f2989791))
+
+# [0.627.0](https://github.com/lightdash/lightdash/compare/0.626.0...0.627.0) (2023-06-22)
+
+
+### Features
+
+* migrate `Add charts to dashboard` modal and multiselect ([#6001](https://github.com/lightdash/lightdash/issues/6001)) ([d6d4c34](https://github.com/lightdash/lightdash/commit/d6d4c34b89caff7d92f747c0d9b3afcc031cc7fb))
+
 # [0.626.0](https://github.com/lightdash/lightdash/compare/0.625.0...0.626.0) (2023-06-22)
 
 

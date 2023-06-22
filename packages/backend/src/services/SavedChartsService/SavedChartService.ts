@@ -117,6 +117,13 @@ export class SavedChartService {
                 savedChart.metricQuery.tableCalculations.length,
             pivotCount: (savedChart.pivotConfig?.columns || []).length,
             chartType: savedChart.chartConfig.type,
+            pie:
+                savedChart.chartConfig.type === ChartType.PIE
+                    ? {
+                          isDonut:
+                              savedChart.chartConfig?.config?.isDonut ?? false,
+                      }
+                    : undefined,
             table:
                 savedChart.chartConfig.type === ChartType.TABLE
                     ? {
