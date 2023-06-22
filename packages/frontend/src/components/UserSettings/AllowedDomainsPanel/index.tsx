@@ -15,6 +15,16 @@ import { isValidEmailDomain } from '../../../utils/fieldValidators';
 
 const roleOptions = [
     {
+        value: OrganizationMemberRole.EDITOR,
+        label: 'Organization Editor',
+        subLabel: 'Has edit access across all projects in the org',
+    },
+    {
+        value: OrganizationMemberRole.INTERACTIVE_VIEWER,
+        label: 'Organization Interactive Viewer',
+        subLabel: 'Has interactive access across all projects in the org',
+    },
+    {
         value: OrganizationMemberRole.VIEWER,
         label: 'Organization Viewer',
         subLabel: 'Has view access across all projects in the org',
@@ -154,7 +164,7 @@ const AllowedDomainsPanel: FC = () => {
                                     </Stack>
                                 ),
                             )}
-                            defaultValue="viewer"
+                            defaultValue={OrganizationMemberRole.VIEWER}
                             {...form.getInputProps('role')}
                         />
 
