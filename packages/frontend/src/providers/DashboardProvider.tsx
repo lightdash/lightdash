@@ -133,11 +133,11 @@ export const DashboardProvider: React.FC = ({ children }) => {
         useState<boolean>(false);
 
     useEffect(() => {
-        if (dashboard) {
+        if (dashboard && dashboardFilters === emptyFilters) {
             setDashboardFilters(dashboard.filters);
             setHaveFiltersChanged(false);
         }
-    }, [dashboard]);
+    }, [dashboardFilters, dashboard]);
 
     const addDimensionDashboardFilter = useCallback(
         (filter: DashboardFilterRule, isTemporary: boolean) => {
@@ -254,7 +254,6 @@ export const DashboardProvider: React.FC = ({ children }) => {
 
     useEffect(() => {
         const newParams = new URLSearchParams(search);
-
         if (
             dashboardTemporaryFilters?.dimensions?.length === 0 &&
             dashboardTemporaryFilters?.metrics?.length === 0
@@ -273,7 +272,9 @@ export const DashboardProvider: React.FC = ({ children }) => {
         ) {
             newParams.delete('filters');
         } else {
-            newParams.set('filters', JSON.stringify(dashboardTemporaryFilters));
+            newParams.set('filters', JSON.stringify(dashboardFilters));
+            const searchParams = new URLSearchParams(search);
+            console.log(searchParams.get('filters'));
         }
 
         history.replace({
