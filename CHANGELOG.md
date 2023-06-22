@@ -1,3 +1,24 @@
+# [0.626.0](https://github.com/lightdash/lightdash/compare/0.625.0...0.626.0) (2023-06-22)
+
+
+### Features
+
+* migrate `Move chart to dashboard` modal ([#5996](https://github.com/lightdash/lightdash/issues/5996)) ([670862a](https://github.com/lightdash/lightdash/commit/670862aa8c44f3ba254eac3ac2527c48f9176a7c))
+
+# [0.625.0](https://github.com/lightdash/lightdash/compare/0.624.1...0.625.0) (2023-06-22)
+
+
+### Features
+
+* multiple dbt version on Dockerfile ([#5936](https://github.com/lightdash/lightdash/issues/5936)) ([d6c58c7](https://github.com/lightdash/lightdash/commit/d6c58c79bc85c9e07d6b8ccbf41589bb5480c792))
+
+## [0.624.1](https://github.com/lightdash/lightdash/compare/0.624.0...0.624.1) (2023-06-22)
+
+
+### Bug Fixes
+
+* assert unreachable scheduled delivery format ([#5984](https://github.com/lightdash/lightdash/issues/5984)) ([ee7c932](https://github.com/lightdash/lightdash/commit/ee7c932e6c4f89dc8b54d5498598d2f33a88285e))
+
 # [0.624.0](https://github.com/lightdash/lightdash/compare/0.623.3...0.624.0) (2023-06-21)
 
 

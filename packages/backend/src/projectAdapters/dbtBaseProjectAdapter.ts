@@ -1,6 +1,8 @@
 import {
+    assertUnreachable,
     attachTypesToModels,
     convertExplores,
+    DbtManifestVersion,
     DbtMetric,
     DbtModelNode,
     DbtPackages,
@@ -16,22 +18,45 @@ import {
     normaliseModelDatabase,
     ParseError,
     SupportedDbtAdapter,
+    UnexpectedServerError,
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import { AnyValidateFunction } from 'ajv/dist/types';
 import Logger from '../logger';
-import dbtManifestSchema from '../manifestv7.json';
-import lightdashDbtSchema from '../schema.json';
+import dbtManifestSchemaV7 from '../manifestv7.json';
+import dbtManifestSchemaV9 from '../manifestv9.json';
+import lightdashDbtSchemaV7 from '../schema.json';
+import lightdashDbtSchemaV9 from '../schemav9.json';
 import { CachedWarehouse, DbtClient, ProjectAdapter } from '../types';
 
-const ajv = new Ajv({ schemas: [lightdashDbtSchema, dbtManifestSchema] });
-addFormats(ajv);
+let ajv: Ajv;
 
-const getModelValidator = () => {
+const getModelValidator = (manifestVersion: DbtManifestVersion) => {
+    switch (manifestVersion) {
+        case DbtManifestVersion.V7:
+            ajv = new Ajv({
+                schemas: [lightdashDbtSchemaV7, dbtManifestSchemaV7],
+            });
+            break;
+        case DbtManifestVersion.V9:
+            ajv = new Ajv({
+                schemas: [lightdashDbtSchemaV9, dbtManifestSchemaV9],
+            });
+            break;
+        default:
+            return assertUnreachable(
+                manifestVersion,
+                new UnexpectedServerError(
+                    `Missing dbt manifest version "${manifestVersion}" in validation.`,
+                ),
+            );
+    }
+    addFormats(ajv);
+
     const modelValidator = ajv.getSchema<DbtRawModelNode>(
-        'https://schemas.lightdash.com/dbt/manifest/v7.json#/definitions/LightdashCompiledModelNode',
+        `https://schemas.lightdash.com/dbt/manifest/${manifestVersion}.json#/definitions/LightdashCompiledModelNode`,
     );
     if (modelValidator === undefined) {
         throw new ParseError('Could not parse Lightdash schema.');
@@ -39,10 +64,12 @@ const getModelValidator = () => {
     return modelValidator;
 };
 
-const getMetricValidator = () => {
-    const metricValidator = ajv.getSchema<DbtMetric>(
-        'https://schemas.getdbt.com/dbt/manifest/v7.json#/definitions/ParsedMetric',
-    );
+const getMetricValidator = (manifestVersion: DbtManifestVersion) => {
+    const schema =
+        manifestVersion === DbtManifestVersion.V9
+            ? `https://schemas.getdbt.com/dbt/manifest/v9.json#/definitions/Metric`
+            : `https://schemas.getdbt.com/dbt/manifest/v7.json#/definitions/ParsedMetric`;
+    const metricValidator = ajv.getSchema<DbtMetric>(schema);
     if (metricValidator === undefined) {
         throw new ParseError('Could not parse dbt schema.');
     }
@@ -98,7 +125,10 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         // Install dependencies for dbt and fetch the manifest - may raise error meaning no explores compile
         await this.dbtClient.installDeps();
         Logger.debug('Get dbt manifest');
-        const { manifest } = await this.dbtClient.getDbtManifest();
+        const {
+            version,
+            results: { manifest },
+        } = await this.dbtClient.getDbtManifest();
 
         // Type of the target warehouse
         if (!isSupportedDbtAdapter(manifest.metadata)) {
@@ -111,14 +141,19 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
         // Validate models in the manifest - models with invalid metadata will compile to failed Explores
         const models = Object.values(manifest.nodes).filter(
-            (node) => node.resource_type === 'model',
+            (node: any) => node.resource_type === 'model',
         ) as DbtRawModelNode[];
         Logger.debug(`Validate ${models.length} models in manifest`);
         const [validModels, failedExplores] =
-            DbtBaseProjectAdapter._validateDbtModel(adapterType, models);
+            DbtBaseProjectAdapter._validateDbtModel(
+                adapterType,
+                models,
+                version,
+            );
 
         // Validate metrics in the manifest - compile fails if any invalid
         const metrics = DbtBaseProjectAdapter._validateDbtMetrics(
+            version,
             Object.values(manifest.metrics),
         );
 
@@ -194,8 +229,11 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         return this.warehouseClient.runQuery(sql);
     }
 
-    static _validateDbtMetrics(metrics: DbtMetric[]): DbtMetric[] {
-        const validator = getMetricValidator();
+    static _validateDbtMetrics(
+        version: DbtManifestVersion,
+        metrics: DbtMetric[],
+    ): DbtMetric[] {
+        const validator = getMetricValidator(version);
         metrics.forEach((metric) => {
             const isValid = validator(metric);
             if (isValid !== true) {
@@ -213,8 +251,9 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
     static _validateDbtModel(
         adapterType: SupportedDbtAdapter,
         models: DbtRawModelNode[],
+        manifestVersion: DbtManifestVersion,
     ): [DbtModelNode[], ExploreError[]] {
-        const validator = getModelValidator();
+        const validator = getModelValidator(manifestVersion);
         return models.reduce(
             ([validModels, invalidModels], model) => {
                 let error: InlineError | undefined;

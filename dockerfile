@@ -18,9 +18,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     && apt-get clean
 
-# dbt
-RUN python3 -m venv /usr/local/venv
-RUN /usr/local/venv/bin/pip install \
+# Installing multiple versions of dbt
+# dbt 1.4 is the default
+RUN python3 -m venv /usr/local/dbt1.4
+RUN /usr/local/dbt1.4/bin/pip install \
     "dbt-postgres~=1.4.0" \
     "dbt-redshift~=1.4.0" \
     "dbt-snowflake~=1.4.0" \
@@ -28,8 +29,19 @@ RUN /usr/local/venv/bin/pip install \
     "dbt-databricks~=1.4.0" \
     "dbt-trino~=1.4.0" \
     "psycopg2-binary==2.8.6"
-ENV PATH $PATH:/usr/local/venv/bin
 
+RUN ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt
+
+RUN python3 -m venv /usr/local/dbt1.5
+RUN /usr/local/dbt1.5/bin/pip install \
+    "dbt-postgres~=1.5.0" \
+    "dbt-redshift~=1.5.0" \
+    "dbt-snowflake~=1.5.0" \
+    "dbt-bigquery~=1.5.0" \
+    "dbt-databricks~=1.5.0" \
+    "dbt-trino~=1.5.0" \
+    "psycopg2-binary==2.8.6"
+RUN ln -s /usr/local/dbt1.5/bin/dbt /usr/local/bin/dbt1.5
 
 # -----------------------------
 # Stage 1: stop here for dev environment
@@ -94,7 +106,6 @@ FROM node:16-bullseye as prod
 WORKDIR /usr/app
 
 ENV NODE_ENV production
-ENV PATH $PATH:/usr/local/venv/bin
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
@@ -102,8 +113,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-venv \
     && apt-get clean
 
-COPY --from=prod-builder /usr/local/venv /usr/local/venv
+COPY --from=prod-builder  /usr/local/dbt1.4 /usr/local/dbt1.4
+COPY --from=prod-builder  /usr/local/dbt1.5 /usr/local/dbt1.5
 COPY --from=prod-builder /usr/app /usr/app
+
+RUN ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt
+RUN ln -s /usr/local/dbt1.5/bin/dbt /usr/local/bin/dbt1.5
+
 
 # Production config
 COPY lightdash.yml /usr/app/lightdash.yml
