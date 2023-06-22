@@ -1,3 +1,10 @@
+## [0.624.1](https://github.com/lightdash/lightdash/compare/0.624.0...0.624.1) (2023-06-22)
+
+
+### Bug Fixes
+
+* assert unreachable scheduled delivery format ([#5984](https://github.com/lightdash/lightdash/issues/5984)) ([ee7c932](https://github.com/lightdash/lightdash/commit/ee7c932e6c4f89dc8b54d5498598d2f33a88285e))
+
 # [0.624.0](https://github.com/lightdash/lightdash/compare/0.623.3...0.624.0) (2023-06-21)
 
 
