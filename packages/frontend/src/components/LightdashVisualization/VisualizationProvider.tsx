@@ -3,7 +3,14 @@ import {
     assertUnreachable,
     ChartConfig,
     ChartType,
+    convertAdditionalMetric,
+    Dimension,
     Explore,
+    fieldId,
+    getDimensions,
+    getMetrics,
+    Metric,
+    TableCalculation,
 } from '@lightdash/common';
 import EChartsReact from 'echarts-for-react';
 import {
@@ -32,6 +39,7 @@ type VisualizationContext = {
     chartType: ChartType;
     cartesianConfig: ReturnType<typeof useCartesianChartConfig>;
     bigNumberConfig: ReturnType<typeof useBigNumberConfig>;
+    pieChartConfig: ReturnType<typeof usePieChartConfig>;
     tableConfig: ReturnType<typeof useTableConfig>;
     pivotDimensions: string[] | undefined;
     explore: Explore | undefined;
@@ -40,6 +48,10 @@ type VisualizationContext = {
     isLoading: boolean;
     columnOrder: string[];
     isSqlRunner: boolean;
+    dimensions: Dimension[];
+    metrics: Metric[];
+    customMetrics: Metric[];
+    tableCalculations: TableCalculation[];
     onSeriesContextMenu?: (
         e: EchartSeriesClickEvent,
         series: EChartSeries[],
@@ -208,12 +220,48 @@ const VisualizationProvider: FC<Props> = ({
         onPivotDimensionsChange?.(validPivotDimensions);
     }, [validPivotDimensions, onPivotDimensionsChange]);
 
-    const value = useMemo(
+    const dimensions = useMemo(() => {
+        if (!explore) return [];
+        return getDimensions(explore).filter((field) =>
+            resultsData?.metricQuery.dimensions.includes(fieldId(field)),
+        );
+    }, [explore, resultsData?.metricQuery.dimensions]);
+
+    const metrics = useMemo(() => {
+        if (!explore) return [];
+        return getMetrics(explore).filter((field) =>
+            resultsData?.metricQuery.metrics.includes(fieldId(field)),
+        );
+    }, [explore, resultsData?.metricQuery.metrics]);
+
+    const customMetrics = useMemo(() => {
+        if (!explore) return [];
+
+        return (resultsData?.metricQuery.additionalMetrics || []).reduce<
+            Metric[]
+        >((acc, additionalMetric) => {
+            const table = explore.tables[additionalMetric.table];
+            if (!table) return acc;
+
+            const metric = convertAdditionalMetric({
+                additionalMetric,
+                table,
+            });
+            return [...acc, metric];
+        }, []);
+    }, [explore, resultsData?.metricQuery.additionalMetrics]);
+
+    const tableCalculations = useMemo(() => {
+        return resultsData?.metricQuery.tableCalculations ?? [];
+    }, [resultsData?.metricQuery.tableCalculations]);
+
+    const value: VisualizationContext = useMemo(
         () => ({
             minimal,
             pivotDimensions: validPivotDimensions,
             cartesianConfig,
             bigNumberConfig,
+            pieChartConfig,
             tableConfig,
             chartRef,
             chartType,
@@ -223,25 +271,34 @@ const VisualizationProvider: FC<Props> = ({
             isLoading,
             columnOrder,
             isSqlRunner,
+            dimensions,
+            metrics,
+            customMetrics,
+            tableCalculations,
             onSeriesContextMenu,
             setChartType,
             setPivotDimensions,
         }),
         [
             minimal,
-            bigNumberConfig,
-            cartesianConfig,
             chartType,
             columnOrder,
             explore,
             isLoading,
             isSqlRunner,
             lastValidResultsData,
+            tableConfig,
+            bigNumberConfig,
+            cartesianConfig,
+            pieChartConfig,
+            validPivotDimensions,
+            dimensions,
+            metrics,
+            customMetrics,
+            tableCalculations,
             onSeriesContextMenu,
             setChartType,
             setPivotDimensions,
-            tableConfig,
-            validPivotDimensions,
         ],
     );
 
