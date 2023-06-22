@@ -430,3 +430,8 @@ export const convertAdditionalMetric = ({
         }),
     };
 };
+
+export enum DbtManifestVersion {
+    V7 = 'v7',
+    V9 = 'v9',
+}
