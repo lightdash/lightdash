@@ -7,7 +7,7 @@ import {
 } from '@lightdash/common';
 import { Button, Group, Select, Stack, Text } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
-import React, { forwardRef, useCallback, useMemo, useState } from 'react';
+import React, { forwardRef, useMemo } from 'react';
 import FieldIcon from '../common/Filters/FieldIcon';
 import FieldLabel, { fieldLabelText } from '../common/Filters/FieldLabel';
 import MantineIcon from '../common/MantineIcon';
@@ -34,38 +34,24 @@ const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
 );
 
 const PieLayoutConfig: React.FC = () => {
-    const { dimensions, metrics, customMetrics, tableCalculations } =
-        useVisualizationContext();
+    const {
+        dimensions,
+        metrics,
+        customMetrics,
+        tableCalculations,
+        pieChartConfig: {
+            metricId,
+            metricChange,
 
-    const [groupIds, setGroupIds] = useState<Set<string | null>>(
-        new Set([null]),
-    );
-    const [metricId, setMetricId] = useState<string | null>(null);
+            groupFieldIds,
+            groupAdd,
+            groupChange,
+            groupRemove,
 
-    const handleGroupChange = useCallback((prevValue, newValue) => {
-        setGroupIds((prev) => {
-            const newSet = new Set(prev);
-            newSet.delete(prevValue);
-            newSet.add(newValue);
-            return newSet;
-        });
-    }, []);
-
-    const handleGroupAdd = useCallback(() => {
-        setGroupIds((prev) => {
-            const newSet = new Set(prev);
-            newSet.add(null);
-            return newSet;
-        });
-    }, []);
-
-    const handleRemoveGroup = useCallback((dimensionId) => {
-        setGroupIds((prev) => {
-            const newSet = new Set(prev);
-            newSet.delete(dimensionId);
-            return newSet;
-        });
-    }, []);
+            // isDonut,
+            // isDonutChange,
+        },
+    } = useVisualizationContext();
 
     const selectedMetric = useMemo(() => {
         return [...metrics, ...customMetrics, ...tableCalculations].find((m) =>
@@ -76,7 +62,7 @@ const PieLayoutConfig: React.FC = () => {
     return (
         <Stack w={320}>
             <Stack spacing="xs">
-                {[...groupIds.values()].map((dimensionId, index) => {
+                {groupFieldIds.map((dimensionId, index) => {
                     const dimension = dimensions.find(
                         (d) => fieldId(d) === dimensionId,
                     );
@@ -93,13 +79,13 @@ const PieLayoutConfig: React.FC = () => {
                                 item: d,
                                 label: fieldLabelText(d),
                                 value: fieldId(d),
-                                disabled: groupIds.has(fieldId(d)),
+                                disabled: groupFieldIds.includes(fieldId(d)),
                             }))}
                             itemComponent={SelectItem}
                             onChange={(newValue) =>
                                 newValue === null
-                                    ? handleRemoveGroup(dimensionId)
-                                    : handleGroupChange(dimensionId, newValue)
+                                    ? groupRemove(dimensionId)
+                                    : groupChange(dimensionId, newValue)
                             }
                         />
                     );
@@ -110,10 +96,10 @@ const PieLayoutConfig: React.FC = () => {
                     size="xs"
                     leftIcon={<MantineIcon icon={IconPlus} />}
                     variant="outline"
-                    onClick={handleGroupAdd}
+                    onClick={groupAdd}
                     disabled={
-                        groupIds.has(null) ||
-                        groupIds.size === dimensions.length
+                        groupFieldIds.includes(null) ||
+                        groupFieldIds.length === dimensions.length
                     }
                 >
                     Add Group
@@ -140,7 +126,7 @@ const PieLayoutConfig: React.FC = () => {
                     },
                 )}
                 onChange={(newValue) => {
-                    setMetricId(newValue);
+                    metricChange(newValue);
                 }}
             />
         </Stack>

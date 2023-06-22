@@ -56,6 +56,8 @@ export type BigNumberConfig = {
 
 export type PieChart = {
     isDonut?: boolean;
+    groupFieldIds?: string[];
+    metricId?: string;
 };
 
 export type PieChartConfig = {
