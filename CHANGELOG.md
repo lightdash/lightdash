@@ -1,3 +1,10 @@
+# [0.625.0](https://github.com/lightdash/lightdash/compare/0.624.1...0.625.0) (2023-06-22)
+
+
+### Features
+
+* multiple dbt version on Dockerfile ([#5936](https://github.com/lightdash/lightdash/issues/5936)) ([d6c58c7](https://github.com/lightdash/lightdash/commit/d6c58c79bc85c9e07d6b8ccbf41589bb5480c792))
+
 ## [0.624.1](https://github.com/lightdash/lightdash/compare/0.624.0...0.624.1) (2023-06-22)
 
 
