@@ -7,6 +7,7 @@ import {
     DbtProjectConfig,
     Explore,
     ExploreError,
+    getFieldRef,
     NotExistsError,
     OrganizationProject,
     PreviewContentMapping,
@@ -481,7 +482,34 @@ export class ProjectModel {
                 `Explore "${exploreName}" does not exist.`,
             );
         }
-        return row.explore;
+
+        const exploreFromCache: Explore = row.explore;
+
+        if (exploreFromCache.tables) {
+            Object.values(exploreFromCache.tables).forEach((table) => {
+                if (table.metrics) {
+                    Object.values(table.metrics).forEach((metric) => {
+                        if (metric.filters) {
+                            metric.filters.forEach((filter) => {
+                                // eslint-disable-next-line no-param-reassign
+                                filter.target = {
+                                    ...filter.target,
+                                    fieldRef: getFieldRef({
+                                        ...metric,
+                                        name:
+                                            // @ts-expect-error cached explore types might not be up to date
+                                            filter.target.fieldId ??
+                                            filter.target.fieldRef,
+                                    }),
+                                };
+                            });
+                        }
+                    });
+                }
+            });
+        }
+
+        return exploreFromCache;
     }
 
     async saveExploresToCache(
