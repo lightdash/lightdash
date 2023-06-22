@@ -1,3 +1,10 @@
+# [0.627.0](https://github.com/lightdash/lightdash/compare/0.626.0...0.627.0) (2023-06-22)
+
+
+### Features
+
+* migrate `Add charts to dashboard` modal and multiselect ([#6001](https://github.com/lightdash/lightdash/issues/6001)) ([d6d4c34](https://github.com/lightdash/lightdash/commit/d6d4c34b89caff7d92f747c0d9b3afcc031cc7fb))
+
 # [0.626.0](https://github.com/lightdash/lightdash/compare/0.625.0...0.626.0) (2023-06-22)
 
 
