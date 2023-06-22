@@ -141,6 +141,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                         data={allSavedCharts}
                         disabled={isLoading}
                         defaultValue={[]}
+                        placeholder="Search..."
                         required
                         withinPortal
                         itemComponent={SelectItem}
