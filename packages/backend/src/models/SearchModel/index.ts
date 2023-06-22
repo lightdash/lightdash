@@ -10,6 +10,7 @@ import {
     SavedChartSearchResult,
     SearchResults,
     SpaceSearchResult,
+    TableErrorSearchResult,
     TableSearchResult,
     TableSelectionType,
 } from '@lightdash/common';
@@ -21,7 +22,6 @@ import {
 } from '../../database/entities/projects';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { SpaceTableName } from '../../database/entities/spaces';
-import { DbValidationTable } from '../../database/entities/validation';
 
 type ModelDependencies = {
     database: Knex;
@@ -90,6 +90,7 @@ export class SearchModel {
         const dashboardUuids = dashboards.map((dashboard) => dashboard.uuid);
 
         const validationErrors = await this.database('validations')
+            .where('project_uuid', projectUuid)
             .whereIn('dashboard_uuid', dashboardUuids)
             .andWhereNot('dashboard_uuid', null)
             .select('validation_id', 'dashboard_uuid')
@@ -166,6 +167,7 @@ export class SearchModel {
         const chartUuids = savedCharts.map((chart) => chart.uuid);
 
         const validationErrors = await this.database('validations')
+            .where('project_uuid', projectUuid)
             .whereIn('saved_chart_uuid', chartUuids)
             .andWhereNot('saved_chart_uuid', null)
             .select('validation_id', 'saved_chart_uuid')
@@ -213,26 +215,18 @@ export class SearchModel {
         if (explores.length > 0 && explores[0].explores) {
             return explores[0].explores.filter(
                 (explore: Explore | ExploreError) => {
-                    if (!isExploreError(explore)) {
-                        if (
-                            tableSelection.type === TableSelectionType.WITH_TAGS
-                        ) {
-                            return hasIntersection(
-                                explore.tags || [],
-                                tableSelection.value || [],
-                            );
-                        }
-                        if (
-                            tableSelection.type ===
-                            TableSelectionType.WITH_NAMES
-                        ) {
-                            return (tableSelection.value || []).includes(
-                                explore.name,
-                            );
-                        }
-                        return true;
+                    if (tableSelection.type === TableSelectionType.WITH_TAGS) {
+                        return hasIntersection(
+                            explore.tags || [],
+                            tableSelection.value || [],
+                        );
                     }
-                    return false;
+                    if (tableSelection.type === TableSelectionType.WITH_NAMES) {
+                        return (tableSelection.value || []).includes(
+                            explore.name,
+                        );
+                    }
+                    return true;
                 },
             );
         }
@@ -245,55 +239,104 @@ export class SearchModel {
     ): Promise<[TableSearchResult[], FieldSearchResult[]]> {
         const explores = await this.getProjectExplores(projectUuid);
         const lowerCaseQuery = query.toLowerCase();
-        return explores.reduce<[TableSearchResult[], FieldSearchResult[]]>(
-            (acc, explore) =>
-                Object.values(explore.tables).reduce<
-                    [TableSearchResult[], FieldSearchResult[]]
-                >(([tables, fields], table) => {
-                    if (
-                        table.label.toLowerCase().includes(lowerCaseQuery) ||
-                        table.description
-                            ?.toLowerCase()
-                            .includes(lowerCaseQuery)
-                    ) {
-                        tables.push({
-                            name: table.name,
-                            label: table.label,
-                            description: table.description,
-                            explore: explore.name,
-                            exploreLabel: explore.label,
-                        });
-                    }
-                    [
-                        ...Object.values(table.dimensions),
-                        ...Object.values(table.metrics),
-                    ].forEach((field) => {
+        return explores
+            .filter((explore) => !isExploreError(explore))
+            .reduce<[TableSearchResult[], FieldSearchResult[]]>(
+                (acc, explore) =>
+                    Object.values(explore.tables).reduce<
+                        [TableSearchResult[], FieldSearchResult[]]
+                    >(([tables, fields], table) => {
                         if (
-                            !field.hidden &&
-                            (field.label
+                            table.label
                                 .toLowerCase()
                                 .includes(lowerCaseQuery) ||
-                                field.description
-                                    ?.toLowerCase()
-                                    .includes(lowerCaseQuery))
+                            table.description
+                                ?.toLowerCase()
+                                .includes(lowerCaseQuery)
                         ) {
-                            fields.push({
-                                name: field.name,
-                                label: field.label,
-                                description: field.description,
-                                type: field.type,
-                                fieldType: field.fieldType,
-                                table: field.table,
-                                tableLabel: field.tableLabel,
+                            tables.push({
+                                name: table.name,
+                                label: table.label,
+                                description: table.description,
                                 explore: explore.name,
                                 exploreLabel: explore.label,
                             });
                         }
-                    });
-                    return [tables, fields];
-                }, acc),
-            [[], []],
-        );
+                        [
+                            ...Object.values(table.dimensions),
+                            ...Object.values(table.metrics),
+                        ].forEach((field) => {
+                            if (
+                                !field.hidden &&
+                                (field.label
+                                    .toLowerCase()
+                                    .includes(lowerCaseQuery) ||
+                                    field.description
+                                        ?.toLowerCase()
+                                        .includes(lowerCaseQuery))
+                            ) {
+                                fields.push({
+                                    name: field.name,
+                                    label: field.label,
+                                    description: field.description,
+                                    type: field.type,
+                                    fieldType: field.fieldType,
+                                    table: field.table,
+                                    tableLabel: field.tableLabel,
+                                    explore: explore.name,
+                                    exploreLabel: explore.label,
+                                });
+                            }
+                        });
+                        return [tables, fields];
+                    }, acc),
+                [[], []],
+            );
+    }
+
+    private async searchTableErrors(
+        projectUuid: string,
+        query: string,
+    ): Promise<TableErrorSearchResult[]> {
+        const explores = await this.getProjectExplores(projectUuid);
+        const lowerCaseQuery = query.toLowerCase();
+
+        const validationErrors = await this.database('validations')
+            .where('project_uuid', projectUuid)
+            .whereNotNull('model_name')
+            .select('validation_id', 'model_name')
+            .then((rows) =>
+                rows.reduce<Record<string, Array<{ validationId: number }>>>(
+                    (acc, row) => {
+                        if (row.model_name) {
+                            acc[row.model_name] = [
+                                ...(acc[row.model_name] ?? []),
+                                { validationId: row.validation_id },
+                            ];
+                        }
+                        return acc;
+                    },
+                    {},
+                ),
+            );
+
+        return explores.reduce<TableErrorSearchResult[]>((acc, explore) => {
+            if (
+                isExploreError(explore) &&
+                explore.name.toLowerCase().includes(lowerCaseQuery) &&
+                explore.name in validationErrors
+            ) {
+                return [
+                    ...acc,
+                    {
+                        explore: explore.name,
+                        exploreLabel: explore.label,
+                        validationErrors: validationErrors[explore.name],
+                    },
+                ];
+            }
+            return acc;
+        }, []);
     }
 
     async search(projectUuid: string, query: string): Promise<SearchResults> {
@@ -304,6 +347,8 @@ export class SearchModel {
             projectUuid,
             query,
         );
+        const tableErrors = await this.searchTableErrors(projectUuid, query);
+        const tablesAndErrors = [...tables, ...tableErrors];
         const allPages = [
             {
                 uuid: `user-activity`,
@@ -319,7 +364,7 @@ export class SearchModel {
             spaces,
             dashboards,
             savedCharts,
-            tables,
+            tables: tablesAndErrors,
             fields,
             pages,
         };

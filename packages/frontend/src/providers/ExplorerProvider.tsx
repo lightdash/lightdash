@@ -5,12 +5,14 @@ import {
     ChartType,
     CreateSavedChartVersion,
     deepEqual,
+    Dimension,
     FieldId,
     fieldId as getFieldId,
     isBigNumberConfig,
     isCartesianChartConfig,
     isTableChartConfig,
     MetricQuery,
+    MetricType,
     removeEmptyProperties,
     SavedChart,
     SortField,
@@ -57,7 +59,9 @@ export enum ActionType {
     SET_FETCH_RESULTS_FALSE,
     SET_PREVIOUSLY_FETCHED_STATE,
     ADD_ADDITIONAL_METRIC,
+    EDIT_ADDITIONAL_METRIC,
     REMOVE_ADDITIONAL_METRIC,
+    TOGGLE_ADDITIONAL_METRIC_MODAL,
     SET_PIVOT_FIELDS,
     SET_CHART_TYPE,
     SET_CHART_CONFIG,
@@ -126,8 +130,22 @@ type Action =
           payload: AdditionalMetric;
       }
     | {
+          type: ActionType.EDIT_ADDITIONAL_METRIC;
+          payload: {
+              additionalMetric: AdditionalMetric;
+              previousAdditionalMetricName: string;
+          };
+      }
+    | {
           type: ActionType.REMOVE_ADDITIONAL_METRIC;
           payload: FieldId;
+      }
+    | {
+          type: ActionType.TOGGLE_ADDITIONAL_METRIC_MODAL;
+          payload?: Omit<
+              ExplorerReduceState['modals']['additionalMetric'],
+              'isOpen'
+          >;
       }
     | {
           type: ActionType.SET_PIVOT_FIELDS;
@@ -147,6 +165,14 @@ export interface ExplorerReduceState {
     expandedSections: ExplorerSection[];
     unsavedChartVersion: CreateSavedChartVersion;
     previouslyFetchedState?: MetricQuery;
+    modals: {
+        additionalMetric: {
+            isOpen: boolean;
+            isEditing?: boolean;
+            item?: Dimension | AdditionalMetric;
+            type?: MetricType;
+        };
+    };
 }
 
 export interface ExplorerState extends ExplorerReduceState {
@@ -181,7 +207,17 @@ export interface ExplorerContext {
             syncPristineState: boolean,
         ) => void;
         addAdditionalMetric: (metric: AdditionalMetric) => void;
+        editAdditionalMetric: (
+            metric: AdditionalMetric,
+            previousMetricName: string,
+        ) => void;
         removeAdditionalMetric: (key: FieldId) => void;
+        toggleAdditionalMetricModal: (
+            additionalMetricModalData?: Omit<
+                ExplorerReduceState['modals']['additionalMetric'],
+                'isOpen'
+            >,
+        ) => void;
         setColumnOrder: (order: string[]) => void;
         addTableCalculation: (tableCalculation: TableCalculation) => void;
         updateTableCalculation: (
@@ -223,6 +259,11 @@ const defaultState: ExplorerReduceState = {
         chartConfig: {
             type: ChartType.CARTESIAN,
             config: { layout: {}, eChartsConfig: {} },
+        },
+    },
+    modals: {
+        additionalMetric: {
+            isOpen: false,
         },
     },
 };
@@ -574,6 +615,32 @@ function reducer(
             };
         }
 
+        case ActionType.EDIT_ADDITIONAL_METRIC: {
+            return {
+                ...state,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
+                    metricQuery: {
+                        ...state.unsavedChartVersion.metricQuery,
+                        metrics:
+                            state.unsavedChartVersion.metricQuery.metrics.filter(
+                                (metric) =>
+                                    metric !==
+                                    action.payload.previousAdditionalMetricName,
+                            ),
+                        additionalMetrics:
+                            state.unsavedChartVersion.metricQuery.additionalMetrics?.map(
+                                (metric) =>
+                                    metric.uuid ===
+                                    action.payload.additionalMetric.uuid
+                                        ? action.payload.additionalMetric
+                                        : metric,
+                            ),
+                    },
+                },
+            };
+        }
+
         case ActionType.REMOVE_ADDITIONAL_METRIC: {
             return {
                 ...state,
@@ -601,6 +668,18 @@ function reducer(
                             state.unsavedChartVersion.tableConfig.columnOrder.filter(
                                 (fieldId) => fieldId !== action.payload,
                             ),
+                    },
+                },
+            };
+        }
+        case ActionType.TOGGLE_ADDITIONAL_METRIC_MODAL: {
+            return {
+                ...state,
+                modals: {
+                    ...state.modals,
+                    additionalMetric: {
+                        isOpen: !state.modals.additionalMetric.isOpen,
+                        ...(action.payload && { ...action.payload }),
                     },
                 },
             };
@@ -963,12 +1042,46 @@ export const ExplorerProvider: FC<{
         [],
     );
 
+    const editAdditionalMetric = useCallback(
+        (
+            additionalMetric: AdditionalMetric,
+            previousAdditionalMetricName: string,
+        ) => {
+            dispatch({
+                type: ActionType.EDIT_ADDITIONAL_METRIC,
+                payload: { additionalMetric, previousAdditionalMetricName },
+            });
+            dispatch({
+                type: ActionType.TOGGLE_METRIC,
+                payload: getFieldId(additionalMetric),
+            });
+        },
+        [],
+    );
+
     const removeAdditionalMetric = useCallback((key: FieldId) => {
         dispatch({
             type: ActionType.REMOVE_ADDITIONAL_METRIC,
             payload: key,
         });
     }, []);
+
+    const toggleAdditionalMetricModal = useCallback(
+        (
+            additionalMetricModalData?: Omit<
+                ExplorerReduceState['modals']['additionalMetric'],
+                'isOpen'
+            >,
+        ) => {
+            dispatch({
+                type: ActionType.TOGGLE_ADDITIONAL_METRIC_MODAL,
+                ...(additionalMetricModalData && {
+                    payload: additionalMetricModalData,
+                }),
+            });
+        },
+        [],
+    );
 
     const setColumnOrder = useCallback((order: string[]) => {
         dispatch({
@@ -1139,7 +1252,9 @@ export const ExplorerProvider: FC<{
             setRowLimit,
             setColumnOrder,
             addAdditionalMetric,
+            editAdditionalMetric,
             removeAdditionalMetric,
+            toggleAdditionalMetricModal,
             addTableCalculation,
             deleteTableCalculation,
             updateTableCalculation,
@@ -1164,7 +1279,9 @@ export const ExplorerProvider: FC<{
             setRowLimit,
             setColumnOrder,
             addAdditionalMetric,
+            editAdditionalMetric,
             removeAdditionalMetric,
+            toggleAdditionalMetricModal,
             addTableCalculation,
             deleteTableCalculation,
             updateTableCalculation,

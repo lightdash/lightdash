@@ -1,5 +1,6 @@
-import { Button, Icon } from '@blueprintjs/core';
 import { isField, SortField } from '@lightdash/common';
+import { ActionIcon, Box, Group, SegmentedControl, Text } from '@mantine/core';
+import { IconGripVertical, IconX } from '@tabler/icons-react';
 import { forwardRef } from 'react';
 import {
     DraggableProvidedDraggableProps,
@@ -11,15 +12,8 @@ import {
     getSortLabel,
     SortDirection,
 } from '../../utils/sortUtils';
+import MantineIcon from '../common/MantineIcon';
 import { TableColumn } from '../common/Table/types';
-import {
-    ColumnNameWrapper,
-    LabelWrapper,
-    SortItemContainer,
-    Spacer,
-    StretchSpacer,
-    StyledButtonGroup,
-} from './SortButton.styles';
 
 interface SortItemProps {
     isFirstItem: boolean;
@@ -63,75 +57,67 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
         }
 
         return (
-            <SortItemContainer
+            <Group
                 ref={ref}
                 {...draggableProps}
-                $isDragging={isDragging}
+                noWrap
+                position="apart"
+                bg="white"
+                pl="xs"
+                pr="xxs"
+                py="two"
+                miw={420}
+                sx={(theme) => ({
+                    borderRadius: theme.radius.sm,
+                    transition: 'all 100ms ease',
+                    boxShadow: isDragging ? theme.shadows.md : 'none',
+                })}
             >
-                {isEditMode && !isOnlyItem && (
-                    <>
-                        <Icon
-                            tagName="div"
-                            icon="drag-handle-vertical"
+                <Group spacing="sm">
+                    {isEditMode && !isOnlyItem && (
+                        <Box
                             {...dragHandleProps}
-                        />
-
-                        <Spacer $width={6} />
-                    </>
-                )}
-
-                <LabelWrapper>
-                    {isFirstItem ? 'Sort by' : 'then by'}
-                </LabelWrapper>
-
-                <ColumnNameWrapper>
-                    {(isField(item) ? item.label : item.name) || sort.fieldId}
-                </ColumnNameWrapper>
-
-                <StretchSpacer />
-
-                <StyledButtonGroup>
-                    {getSortDirectionOrder(item).map((direction) => (
-                        <Button
-                            key={direction}
-                            small
-                            disabled={!isEditMode}
-                            active={direction === selectedSortDirection}
-                            intent={
-                                selectedSortDirection === direction
-                                    ? 'primary'
-                                    : 'none'
-                            }
-                            onClick={() =>
-                                isEditMode
-                                    ? selectedSortDirection === direction
-                                        ? undefined
-                                        : onAddSortField({
-                                              descending:
-                                                  direction ===
-                                                  SortDirection.DESC,
-                                          })
-                                    : undefined
-                            }
+                            sx={{
+                                opacity: 0.6,
+                                '&:hover': { opacity: 1 },
+                            }}
                         >
-                            {getSortLabel(item, direction)}
-                        </Button>
-                    ))}
-                </StyledButtonGroup>
+                            <MantineIcon icon={IconGripVertical} />
+                        </Box>
+                    )}
 
-                <Spacer $width={6} />
+                    <Text>{isFirstItem ? 'Sort by' : 'then by'}</Text>
 
-                {isEditMode && (
-                    <Button
-                        minimal
-                        small
-                        icon="small-cross"
-                        onClick={() => {
-                            onRemoveSortField();
+                    <Text fw={500}>
+                        {(isField(item) ? item.label : item.name) ||
+                            sort.fieldId}
+                    </Text>
+                </Group>
+
+                <Group spacing="xs">
+                    <SegmentedControl
+                        disabled={!isEditMode}
+                        value={selectedSortDirection}
+                        size="xs"
+                        color="blue"
+                        data={getSortDirectionOrder(item).map((direction) => ({
+                            label: getSortLabel(item, direction),
+                            value: direction,
+                        }))}
+                        onChange={(value) => {
+                            onAddSortField({
+                                descending: value === SortDirection.DESC,
+                            });
                         }}
                     />
-                )}
-            </SortItemContainer>
+
+                    {isEditMode && (
+                        <ActionIcon onClick={onRemoveSortField} size="sm">
+                            <MantineIcon icon={IconX} />
+                        </ActionIcon>
+                    )}
+                </Group>
+            </Group>
         );
     },
 );

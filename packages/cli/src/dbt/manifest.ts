@@ -1,4 +1,4 @@
-import { DbtManifest } from '@lightdash/common';
+import { DbtManifest, DbtManifestVersion } from '@lightdash/common';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import globalState from '../globalState';
@@ -8,10 +8,6 @@ type LoadManifestArgs = {
     targetDir: string;
 };
 
-export enum DbtManifestVersion {
-    V7 = 'v7',
-    V9 = 'v9',
-}
 export const getDbtManifest = async (): Promise<DbtManifestVersion> => {
     const version = await getDbtVersion();
     if (version.startsWith('1.5.')) return DbtManifestVersion.V9;

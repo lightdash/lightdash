@@ -128,6 +128,14 @@ export class SavedChartService {
                               !!tableConfig?.showColumnCalculation,
                       }
                     : undefined,
+
+            bigValue:
+                savedChart.chartConfig.type === ChartType.BIG_NUMBER
+                    ? {
+                          hasBigValueComparison:
+                              savedChart.chartConfig.config?.showComparison,
+                      }
+                    : undefined,
             cartesian:
                 savedChart.chartConfig.type === ChartType.CARTESIAN
                     ? {

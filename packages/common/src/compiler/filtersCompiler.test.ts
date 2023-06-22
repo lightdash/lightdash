@@ -382,6 +382,39 @@ describe('Filter SQL', () => {
         ).toBe(stringFilterRuleMocks.startsWithFilterWithNoValSQL);
     });
 
+    test('should return single value in endsWith filter sql', () => {
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                stringFilterRuleMocks.endsWithFilterWithSingleVal,
+                "'",
+                "'",
+            ),
+        ).toBe(stringFilterRuleMocks.endsWithFilterWithSingleValSQL);
+    });
+
+    test('should return multiple values joined by OR in endsWith filter sql', () => {
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                stringFilterRuleMocks.endsWithFilterWithMultiVal,
+                "'",
+                "'",
+            ),
+        ).toBe(stringFilterRuleMocks.endsWithFilterWithMultiValSQL);
+    });
+
+    test('should return true in endsWith filter sql for empty filter', () => {
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                stringFilterRuleMocks.endsWithFilterWithNoVal,
+                "'",
+                "'",
+            ),
+        ).toBe(stringFilterRuleMocks.endsWithFilterWithNoValSQL);
+    });
+
     test('should return escaped query for unescaped single filter value', () => {
         expect(
             renderStringFilterSql(

@@ -6,24 +6,23 @@ import ProjectId from './assets/project-id.png';
 You can check to see if your changes break any of the content in your project using `lightdash validate`. This command will run the validator which will return a list of content in your project that is broken and details about the errors. 
 
 You can trigger a validation on a project using the Lightdash CLI so you can check locally if your changes will break anything. You can also add `lightdash validate` to your [GitHub Actions](#configure-github-actions) so changes can't be merged unless they pass the validation. 
-if a table/chart/dashboard is broken on a [preview environment](/guides/cli/how-to-use-lightdash-preview). 
-
-Preview environments will copy all spaces/charts/dashboards into your new preview environment. 
-This is only copied on preview creation, you can't sync the content afterwards. 
 
 ## Usage 
 
 ![CLI validate](./assets/cli-validate.png)
 
-### Validate your most recently created preview environment or current selected project
+### Validate your changes against your project by running lightdash validate
 
-If you just created a preview environment and you want to validate it, you can run `lightdash validate` to check its content. To learn more about using preview environments, [check out the docs here](/guides/cli/how-to-use-lightdash-preview).
-
-If no preview environment exists, it will use by default the selected project on the CLI. You can chagne your project using `lightdash config set-project`
+You can run `lightdash validate` to check if your changes break any of the content in production. 
+By default, `lightdash validate` will check your changes against the content in the project you've selected on the CLI.
+You can change your project using `lightdash config set-project`.
 
 ```
 lightdash validate 
 ```
+
+You will get a list of errors if your local files are going to break some content on your project.
+These errors will not be reflected on the validation table on Lightdash settings.
 
 ### Validate any project using the project UUID
 

@@ -33,25 +33,6 @@ const { Readable } = require('stream');
 
 export const projectRouter = express.Router({ mergeParams: true });
 
-projectRouter.get(
-    '/',
-    allowApiKeyAuthentication,
-    isAuthenticated,
-    async (req, res, next) => {
-        try {
-            res.json({
-                status: 'ok',
-                results: await projectService.getProject(
-                    req.params.projectUuid,
-                    req.user!,
-                ),
-            });
-        } catch (e) {
-            next(e);
-        }
-    },
-);
-
 projectRouter.patch(
     '/',
     allowApiKeyAuthentication,
@@ -393,44 +374,6 @@ projectRouter.patch(
                 res.json({
                     status: 'ok',
                     results,
-                });
-            })
-            .catch(next);
-    },
-);
-
-projectRouter.post(
-    '/spaces/:spaceUUid/share',
-    allowApiKeyAuthentication,
-    isAuthenticated,
-    unauthorisedInDemo,
-    async (req, res, next) => {
-        spaceService
-            .addSpaceShare(req.user!, req.params.spaceUUid, req.body.userUuid)
-            .then(() => {
-                res.json({
-                    status: 'ok',
-                });
-            })
-            .catch(next);
-    },
-);
-
-projectRouter.delete(
-    '/spaces/:spaceUUid/share/:userUuid',
-    allowApiKeyAuthentication,
-    isAuthenticated,
-    unauthorisedInDemo,
-    async (req, res, next) => {
-        spaceService
-            .removeSpaceShare(
-                req.user!,
-                req.params.spaceUUid,
-                req.params.userUuid,
-            )
-            .then(() => {
-                res.json({
-                    status: 'ok',
                 });
             })
             .catch(next);

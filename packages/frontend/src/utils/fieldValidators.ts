@@ -1,4 +1,4 @@
-import { validateEmail, validateGithubToken } from '@lightdash/common';
+import { validateGithubToken } from '@lightdash/common';
 
 type FieldValidator<T> = (
     fieldName: string,
@@ -30,14 +30,6 @@ export const startWithHTTPSProtocol: FieldValidator<string> =
         !value || value.match(/^https:\/\/.*/)
             ? undefined
             : `${fieldName} should start with a "https://"`;
-
-export const isValidEmail: FieldValidator<string> = (fieldName) => (value) =>
-    !value || validateEmail(value) ? undefined : `${fieldName} is not valid`;
-
-export const isOnlyNumbers: FieldValidator<string> = (fieldName) => (value) =>
-    !value || value.match(/\D/)
-        ? `${fieldName} should only contain numbers`
-        : undefined;
 
 export const isValidGithubToken: FieldValidator<string> =
     (_fieldName) => (value) => {

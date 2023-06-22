@@ -8,6 +8,7 @@ export type ValidationResponseBase = {
     errorType: ValidationErrorType;
     projectUuid: string;
     spaceUuid?: string;
+    source?: ValidationSourceType;
 };
 
 export type ValidationErrorChartResponse = ValidationResponseBase & {
@@ -17,6 +18,7 @@ export type ValidationErrorChartResponse = ValidationResponseBase & {
     lastUpdatedBy?: string;
     lastUpdatedAt?: Date;
     chartViews: number;
+    chartName?: string;
 };
 
 export type ValidationErrorDashboardResponse = ValidationResponseBase & {
@@ -42,14 +44,21 @@ export type ValidationResponse =
 
 export type CreateTableValidation = Pick<
     ValidationErrorTableResponse,
-    'error' | 'errorType' | 'projectUuid' | 'name'
+    'error' | 'errorType' | 'projectUuid' | 'name' | 'source'
 > & {
     modelName: string;
 };
 
 export type CreateChartValidation = Pick<
     ValidationErrorChartResponse,
-    'error' | 'errorType' | 'fieldName' | 'name' | 'projectUuid' | 'chartUuid'
+    | 'error'
+    | 'errorType'
+    | 'fieldName'
+    | 'name'
+    | 'projectUuid'
+    | 'chartUuid'
+    | 'source'
+    | 'chartName'
 >;
 
 export type CreateDashboardValidation = Pick<
@@ -61,6 +70,7 @@ export type CreateDashboardValidation = Pick<
     | 'projectUuid'
     | 'dashboardUuid'
     | 'chartName'
+    | 'source'
 >;
 
 export type CreateValidation =
@@ -91,18 +101,23 @@ export enum ValidationErrorType {
     Dimension = 'dimension',
 }
 
+export enum ValidationSourceType {
+    Chart = 'chart',
+    Dashboard = 'dashboard',
+    Table = 'table',
+}
+
 export const isTableValidationError = (
     error: ValidationResponse | CreateValidation,
 ): error is ValidationErrorTableResponse | CreateTableValidation =>
-    !('chartUuid' in error && error.chartUuid) &&
-    !('dashboardUuid' in error && error.dashboardUuid);
+    error.source === ValidationSourceType.Table;
 
 export const isChartValidationError = (
     error: ValidationResponse | CreateValidation,
 ): error is ValidationErrorChartResponse | CreateChartValidation =>
-    'chartUuid' in error;
+    error.source === ValidationSourceType.Chart;
 
 export const isDashboardValidationError = (
     error: ValidationResponse | CreateValidation,
 ): error is ValidationErrorDashboardResponse | CreateDashboardValidation =>
-    'dashboardUuid' in error;
+    error.source === ValidationSourceType.Dashboard;

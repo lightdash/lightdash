@@ -58,6 +58,7 @@ export const hasMatchingConditionalRules = (
                     ? rule.values.some((v) => parsedValue > v)
                     : false;
             case ConditionalOperator.STARTS_WITH:
+            case ConditionalOperator.ENDS_WITH:
             case ConditionalOperator.INCLUDE:
             case ConditionalOperator.NOT_INCLUDE:
             case ConditionalOperator.LESS_THAN_OR_EQUAL:

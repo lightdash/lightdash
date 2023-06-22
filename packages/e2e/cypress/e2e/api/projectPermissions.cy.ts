@@ -164,7 +164,22 @@ describe('Lightdash API tests for member user with admin project permissions', (
             url: `${apiUrl}${endpoint}`,
             headers: { 'Content-type': 'application/json' },
             method: 'POST',
-            body: runqueryBody,
+            body: {},
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body).to.have.property('status', 'ok');
+        });
+    });
+
+    it('Should get success response (200) from POST validation with explores', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        const endpoint = `/projects/${projectUuid}/validate`;
+        cy.request({
+            url: `${apiUrl}${endpoint}`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            body: { explores: [] },
         }).then((resp) => {
             expect(resp.status).to.eq(200);
             expect(resp.body).to.have.property('status', 'ok');
@@ -555,7 +570,7 @@ describe('Lightdash API tests for member user with editor project permissions', 
             url: `${apiUrl}${endpoint}`,
             headers: { 'Content-type': 'application/json' },
             method: 'POST',
-            body: runqueryBody,
+            body: {},
             failOnStatusCode: false,
         }).then((resp) => {
             expect(resp.status).to.eq(403);
@@ -730,7 +745,7 @@ describe('Lightdash API tests for member user with developer project permissions
             url: `${apiUrl}${endpoint}`,
             headers: { 'Content-type': 'application/json' },
             method: 'POST',
-            body: runqueryBody,
+            body: {},
         }).then((resp) => {
             expect(resp.status).to.eq(200);
             expect(resp.body).to.have.property('status', 'ok');

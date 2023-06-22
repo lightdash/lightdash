@@ -133,9 +133,12 @@ type QueryExecutionEvent = BaseTrack & {
         metricsCount: number;
         dimensionsCount: number;
         tableCalculationsCount: number;
+        tableCalculationsPercentFormatCount: number;
         filtersCount: number;
         sortsCount: number;
         hasExampleMetric: boolean;
+        additionalMetricsCount: number;
+        additionalMetricsFilterCount: number;
     };
 };
 
@@ -203,6 +206,9 @@ export type CreateSavedChartOrVersionEvent = BaseTrack & {
             hasMetricsAsRows: boolean;
             hasRowCalculation: boolean;
             hasColumnCalculations: boolean;
+        };
+        bigValue?: {
+            hasBigValueComparison?: boolean;
         };
         duplicated?: boolean;
     };
@@ -275,6 +281,7 @@ type ProjectCompiledEvent = BaseTrack & {
         warehouseType?: WarehouseTypes;
         modelsCount: number;
         modelsWithErrorsCount: number;
+        modelsWithGroupLabelCount: number;
         metricsCount: number;
         packagesCount?: number;
         roundCount?: number;
@@ -296,12 +303,26 @@ type ProjectErrorEvent = BaseTrack & {
     };
 };
 
-type DashboardEvent = BaseTrack & {
-    event: 'dashboard.updated' | 'dashboard.deleted';
+type DeletedDashboardEvent = BaseTrack & {
+    event: 'dashboard.deleted';
     userId: string;
     properties: {
         projectId: string;
         dashboardId: string;
+    };
+};
+
+type UpdatedDashboardEvent = BaseTrack & {
+    event: 'dashboard.updated';
+    userId: string;
+    properties: {
+        projectId: string;
+        dashboardId: string;
+        tilesCount: number;
+        chartTilesCount: number;
+        markdownTilesCount: number;
+        loomTilesCount: number;
+        filtersCount: number;
     };
 };
 
@@ -652,7 +673,8 @@ type Track =
     | ProjectEvent
     | ProjectDeletedEvent
     | ProjectCompiledEvent
-    | DashboardEvent
+    | UpdatedDashboardEvent
+    | DeletedDashboardEvent
     | CreateDashboardOrVersionEvent
     | ProjectTablesConfigurationEvent
     | TrackOrganizationEvent

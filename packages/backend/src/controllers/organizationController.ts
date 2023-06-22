@@ -6,6 +6,7 @@ import {
     ApiOrganizationAllowedEmailDomains,
     ApiOrganizationMemberProfile,
     ApiOrganizationMemberProfiles,
+    ApiOrganizationProjects,
     ApiSuccessEmpty,
     CreateGroup,
     CreateOrganization,
@@ -140,6 +141,23 @@ export class OrganizationController extends Controller {
     }
 
     /**
+     * Gets all projects of the current user's organization
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('/projects')
+    @OperationId('ListOrganizationProjects')
+    async getProjects(
+        @Request() req: express.Request,
+    ): Promise<ApiOrganizationProjects> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await organizationService.getProjects(req.user!),
+        };
+    }
+
+    /**
      * Gets all the members of the current user's organization
      * @param req express request
      */
@@ -162,7 +180,11 @@ export class OrganizationController extends Controller {
      * @param userUuid the uuid of the user to update
      * @param body the new membership profile
      */
-    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @Patch('/users/{userUuid}')
     @OperationId('UpdateOrganizationMember')
     @Tags('Roles & Permissions')

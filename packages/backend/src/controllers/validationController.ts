@@ -6,7 +6,7 @@ import {
     getRequestMethod,
     LightdashRequestMethodHeader,
 } from '@lightdash/common';
-import { Delete, Get, Post, Query } from '@tsoa/runtime';
+import { Body, Delete, Get, Post, Query } from '@tsoa/runtime';
 import express from 'express';
 import {
     Controller,
@@ -33,6 +33,7 @@ export class ValidationController extends Controller {
      * to metrics or dimensions that aren't available. Results are available after the job is completed.
      * @param projectUuid the projectId for the validation
      * @param req express request
+     * @param body the compiled explores to validate against an existing project, this is used in the CLI to validate a project without creating a preview
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -41,6 +42,7 @@ export class ValidationController extends Controller {
     async post(
         @Path() projectUuid: string,
         @Request() req: express.Request,
+        @Body() body: { explores?: any[] }, // TODO: This should be (Explore| ExploreError)[] but using this type will not process metrics/dimensions
     ): Promise<ApiJobScheduledResponse> {
         this.setStatus(200);
         const context = getRequestMethod(
@@ -53,6 +55,7 @@ export class ValidationController extends Controller {
                     req.user!,
                     projectUuid,
                     context,
+                    body.explores,
                 ),
             },
         };
@@ -63,6 +66,7 @@ export class ValidationController extends Controller {
      * @param projectUuid the projectId for the validation
      * @param req express request
      * @param fromSettings boolean to know if this request is made from the settings page, for analytics
+     * @param jobId optional jobId to get results for a specific job, used on CLI
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -72,6 +76,7 @@ export class ValidationController extends Controller {
         @Path() projectUuid: string,
         @Request() req: express.Request,
         @Query() fromSettings?: boolean,
+        @Query() jobId?: string,
     ): Promise<ApiValidateResponse> {
         this.setStatus(200);
         return {
@@ -80,6 +85,7 @@ export class ValidationController extends Controller {
                 req.user!,
                 projectUuid,
                 fromSettings,
+                jobId,
             ),
         };
     }
@@ -95,6 +101,7 @@ export class ValidationController extends Controller {
     @Delete('/{validationId}')
     @OperationId('DeleteValidationDismiss')
     async dismiss(
+        @Path() projectUuid: string,
         @Path() validationId: number,
         @Request() req: express.Request,
     ): Promise<ApiValidationDismissResponse> {

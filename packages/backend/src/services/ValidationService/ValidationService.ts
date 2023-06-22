@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    assertUnreachable,
     CompiledField,
     CreateChartValidation,
     CreateDashboardValidation,
@@ -19,8 +20,10 @@ import {
     RequestMethod,
     SessionUser,
     TableCalculation,
+    TableSelectionType,
     ValidationErrorType,
     ValidationResponse,
+    ValidationSourceType,
 } from '@lightdash/common';
 import { analytics } from '../../analytics/client';
 import { schedulerClient } from '../../clients/clients';
@@ -92,16 +95,77 @@ export class ValidationService {
         return tableCalculationFieldsInSql;
     }
 
-    private static async validateTables(
+    private async validateTables(
         projectUuid: string,
         explores: (Explore | ExploreError)[] | undefined,
     ): Promise<CreateTableValidation[]> {
+        const tablesConfiguration =
+            await this.projectModel.getTablesConfiguration(projectUuid);
+
         // Get existing errors from ExploreError and convert to ValidationInsert
         if (explores === undefined) {
             return [];
         }
+
+        const isTableEnabled = (explore: Explore | ExploreError) => {
+            switch (tablesConfiguration.tableSelection.type) {
+                case TableSelectionType.ALL:
+                    return true;
+                case TableSelectionType.WITH_TAGS:
+                    const hasSelectedJoinedExploredWithTags = explores.some(
+                        (e) =>
+                            e.joinedTables?.some(
+                                (jt) => jt.table === explore.name,
+                            ) &&
+                            e.tags?.some((tag) =>
+                                tablesConfiguration.tableSelection.value?.includes(
+                                    tag,
+                                ),
+                            ),
+                    );
+                    const exploreIsSelectedWithTags = explore.tags?.some(
+                        (tag) =>
+                            tablesConfiguration.tableSelection.value?.includes(
+                                tag,
+                            ),
+                    );
+                    return (
+                        hasSelectedJoinedExploredWithTags ||
+                        exploreIsSelectedWithTags
+                    );
+
+                case TableSelectionType.WITH_NAMES:
+                    const hasSelectedJoinedExplored = explores.some(
+                        (e) =>
+                            e.joinedTables?.some(
+                                (jt) => jt.table === explore.name,
+                            ) &&
+                            tablesConfiguration.tableSelection.value?.includes(
+                                e.name,
+                            ),
+                    );
+                    const exploreIsSelected =
+                        tablesConfiguration.tableSelection.value?.includes(
+                            explore.name,
+                        );
+
+                    return hasSelectedJoinedExplored || exploreIsSelected;
+                default:
+                    return assertUnreachable(
+                        tablesConfiguration.tableSelection.type,
+                        'Invalid table selection type',
+                    );
+            }
+        };
+
         const errors = explores.reduce<CreateTableValidation[]>(
             (acc, explore) => {
+                if (!isTableEnabled(explore)) {
+                    Logger.debug(
+                        `Table ${explore.name} is disabled, skipping validation`,
+                    );
+                    return acc;
+                }
                 if (isExploreError(explore)) {
                     const exploreErrors = explore.errors
                         .filter(
@@ -115,6 +179,7 @@ export class ValidationService {
                             errorType: ValidationErrorType.Model,
                             modelName: explore.name,
                             projectUuid,
+                            source: ValidationSourceType.Table,
                         }));
                     return [...acc, ...exploreErrors];
                 }
@@ -154,6 +219,8 @@ export class ValidationService {
                 chartUuid: chart.uuid,
                 name: chart.name,
                 projectUuid: chart.projectUuid,
+                source: ValidationSourceType.Chart,
+                chartName: chart.name,
             };
             const containsFieldId = ({
                 acc,
@@ -313,6 +380,7 @@ export class ValidationService {
                     name: dashboard.name,
                     dashboardUuid: dashboard.uuid,
                     projectUuid: dashboard.projectUuid,
+                    source: ValidationSourceType.Dashboard,
                 };
 
                 const containsFieldId = ({
@@ -393,10 +461,19 @@ export class ValidationService {
         return results;
     }
 
-    async generateValidation(projectUuid: string): Promise<CreateValidation[]> {
-        const explores = await this.projectModel.getExploresFromCache(
-            projectUuid,
+    async generateValidation(
+        projectUuid: string,
+        compiledExplores?: (Explore | ExploreError)[],
+    ): Promise<CreateValidation[]> {
+        Logger.debug(
+            `Generating validation for project ${projectUuid} with explores ${
+                compiledExplores ? 'from CLI' : 'from cache'
+            }`,
         );
+        const explores =
+            compiledExplores !== undefined
+                ? compiledExplores
+                : await this.projectModel.getExploresFromCache(projectUuid);
 
         const existingFields = explores?.reduce<CompiledField[]>(
             (acc, explore) => {
@@ -421,10 +498,7 @@ export class ValidationService {
             return [];
         }
 
-        const tableErrors = await ValidationService.validateTables(
-            projectUuid,
-            explores,
-        );
+        const tableErrors = await this.validateTables(projectUuid, explores);
         const chartErrors = await this.validateCharts(
             projectUuid,
             existingFields,
@@ -447,6 +521,7 @@ export class ValidationService {
         user: SessionUser,
         projectUuid: string,
         context?: RequestMethod,
+        explores?: (Explore | ExploreError)[],
     ): Promise<string> {
         const { organizationUuid } = await this.projectModel.get(projectUuid);
 
@@ -469,6 +544,7 @@ export class ValidationService {
             projectUuid,
             context: fromCLI ? 'cli' : 'lightdash_app',
             organizationUuid: user.organizationUuid,
+            explores,
         });
         return jobId;
     }
@@ -476,11 +552,13 @@ export class ValidationService {
     async storeValidation(
         projectUuid: string,
         validationErrors: CreateValidation[],
+        jobId?: string,
     ) {
-        await this.validationModel.delete(projectUuid);
+        // If not storing for an specific CLI validation, delete previous validations
+        if (jobId === undefined) await this.validationModel.delete(projectUuid);
 
         if (validationErrors.length > 0)
-            await this.validationModel.create(validationErrors);
+            await this.validationModel.create(validationErrors, jobId);
     }
 
     async hidePrivateContent(
@@ -510,6 +588,7 @@ export class ValidationService {
         user: SessionUser,
         projectUuid: string,
         fromSettings = false,
+        jobId?: string,
     ): Promise<ValidationResponse[]> {
         const { organizationUuid } = await this.projectModel.get(projectUuid);
 
@@ -524,7 +603,7 @@ export class ValidationService {
         ) {
             throw new ForbiddenError();
         }
-        const validations = await this.validationModel.get(projectUuid);
+        const validations = await this.validationModel.get(projectUuid, jobId);
 
         if (fromSettings) {
             const contentIds = validations.map(

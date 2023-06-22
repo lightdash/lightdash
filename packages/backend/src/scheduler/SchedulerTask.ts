@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     CompileProjectPayload,
     DownloadCsvPayload,
     EmailNotificationPayload,
@@ -108,80 +109,91 @@ export const getNotificationPageData = async (
         organizationUuid,
         projectUuid,
     } = await getChartOrDashboard(savedChartUuid, dashboardUuid);
-    if (format === SchedulerFormat.IMAGE) {
-        imageUrl = await unfurlService.unfurlImage(
-            minimalUrl,
-            pageType,
-            `slack-image-notification-${nanoid()}`,
-            userUuid,
-        );
-        if (imageUrl === undefined) {
-            throw new Error('Unable to unfurl image');
-        }
-    } else {
-        const user = await userService.getSessionByUserUuid(userUuid);
-        const csvOptions = isSchedulerCsvOptions(options) ? options : undefined;
 
-        const baseAnalyticsProperties: DownloadCsv['properties'] = {
-            jobId,
-            userId: userUuid,
-            organizationId: user.organizationUuid,
-            projectId: projectUuid,
-            fileType: SchedulerFormat.CSV,
-            values: csvOptions?.formatted ? 'formatted' : 'raw',
-            limit: parseAnalyticsLimit(csvOptions?.limit),
-            storage: s3Service.isEnabled() ? 's3' : 'local',
-        };
-
-        try {
-            if (savedChartUuid) {
-                csvUrl = await csvService.getCsvForChart(
-                    user,
-                    savedChartUuid,
-                    csvOptions,
-                    jobId,
-                );
-            } else if (dashboardUuid) {
-                analytics.track({
-                    event: 'download_results.started',
-                    userId: userUuid,
-                    properties: {
-                        ...baseAnalyticsProperties,
-                        context: 'scheduled delivery dashboard',
-                    },
-                });
-
-                csvUrls = await csvService.getCsvsForDashboard(
-                    user,
-                    dashboardUuid,
-                    csvOptions,
-                );
-
-                analytics.track({
-                    event: 'download_results.completed',
-                    userId: userUuid,
-                    properties: {
-                        ...baseAnalyticsProperties,
-                        context: 'scheduled delivery dashboard',
-                        numCharts: csvUrls.length,
-                    },
-                });
-            } else {
-                throw new Error('Not implemented');
+    switch (format) {
+        case SchedulerFormat.IMAGE:
+            imageUrl = await unfurlService.unfurlImage(
+                minimalUrl,
+                pageType,
+                `slack-image-notification-${nanoid()}`,
+                userUuid,
+            );
+            if (imageUrl === undefined) {
+                throw new Error('Unable to unfurl image');
             }
-        } catch (e) {
-            Logger.error(`Unable to download CSV on scheduled task: ${e}`);
+            break;
+        case SchedulerFormat.CSV:
+            const user = await userService.getSessionByUserUuid(userUuid);
+            const csvOptions = isSchedulerCsvOptions(options)
+                ? options
+                : undefined;
 
-            analytics.track({
-                event: 'download_results.error',
+            const baseAnalyticsProperties: DownloadCsv['properties'] = {
+                jobId,
                 userId: userUuid,
-                properties: {
-                    ...baseAnalyticsProperties,
-                    error: `${e}`,
-                },
-            });
-            throw e; // cascade error
-        }
+                organizationId: user.organizationUuid,
+                projectId: projectUuid,
+                fileType: SchedulerFormat.CSV,
+                values: csvOptions?.formatted ? 'formatted' : 'raw',
+                limit: parseAnalyticsLimit(csvOptions?.limit),
+                storage: s3Service.isEnabled() ? 's3' : 'local',
+            };
+
+            try {
+                if (savedChartUuid) {
+                    csvUrl = await csvService.getCsvForChart(
+                        user,
+                        savedChartUuid,
+                        csvOptions,
+                        jobId,
+                    );
+                } else if (dashboardUuid) {
+                    analytics.track({
+                        event: 'download_results.started',
+                        userId: userUuid,
+                        properties: {
+                            ...baseAnalyticsProperties,
+                            context: 'scheduled delivery dashboard',
+                        },
+                    });
+
+                    csvUrls = await csvService.getCsvsForDashboard(
+                        user,
+                        dashboardUuid,
+                        csvOptions,
+                    );
+
+                    analytics.track({
+                        event: 'download_results.completed',
+                        userId: userUuid,
+                        properties: {
+                            ...baseAnalyticsProperties,
+                            context: 'scheduled delivery dashboard',
+                            numCharts: csvUrls.length,
+                        },
+                    });
+                } else {
+                    throw new Error('Not implemented');
+                }
+            } catch (e) {
+                Logger.error(`Unable to download CSV on scheduled task: ${e}`);
+
+                analytics.track({
+                    event: 'download_results.error',
+                    userId: userUuid,
+                    properties: {
+                        ...baseAnalyticsProperties,
+                        error: `${e}`,
+                    },
+                });
+                throw e; // cascade error
+            }
+            break;
+        default:
+            return assertUnreachable(
+                format,
+                `Format ${format} is not supported for scheduled delivery`,
+            );
     }
 
     return {
@@ -491,6 +503,7 @@ export const validateProject = async (
     try {
         const errors = await validationService.generateValidation(
             payload.projectUuid,
+            payload.explores,
         );
 
         const contentIds = errors.map((validation) => {
@@ -501,7 +514,11 @@ export const validateProject = async (
             return validation.name;
         });
 
-        await validationService.storeValidation(payload.projectUuid, errors);
+        await validationService.storeValidation(
+            payload.projectUuid,
+            errors,
+            payload.explores ? jobId : undefined,
+        );
 
         analytics.track({
             event: 'validation.completed',

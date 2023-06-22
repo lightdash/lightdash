@@ -24,7 +24,7 @@ import * as styles from '../styles';
 import { dbtCompile, DbtCompileOptions } from './dbt/compile';
 import { getDbtVersion, isSupportedDbtVersion } from './dbt/getDbtVersion';
 
-type GenerateHandlerOptions = DbtCompileOptions & {
+export type CompileHandlerOptions = DbtCompileOptions & {
     projectDir: string;
     profilesDir: string;
     target: string | undefined;
@@ -33,7 +33,7 @@ type GenerateHandlerOptions = DbtCompileOptions & {
     startOfWeek?: number;
 };
 
-export const compile = async (options: GenerateHandlerOptions) => {
+export const compile = async (options: CompileHandlerOptions) => {
     await LightdashAnalytics.track({
         event: 'compile.started',
         properties: {},
@@ -170,7 +170,7 @@ ${errors.join('')}`),
     });
     return explores;
 };
-export const compileHandler = async (options: GenerateHandlerOptions) => {
+export const compileHandler = async (options: CompileHandlerOptions) => {
     GlobalState.setVerbose(options.verbose);
     const explores = await compile(options);
     const errorsCount = explores.filter((e) => isExploreError(e)).length;

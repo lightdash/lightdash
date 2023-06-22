@@ -76,6 +76,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 >
                     {pivotTableData.data ? (
                         <PivotTable
+                            className={className}
                             containerRef={scrollableContainerRef}
                             data={pivotTableData.data}
                             conditionalFormattings={conditionalFormattings}

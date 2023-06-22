@@ -6,6 +6,7 @@ import { Space } from './space';
 import {
     ValidationErrorChartResponse,
     ValidationErrorDashboardResponse,
+    ValidationErrorTableResponse,
 } from './validation';
 
 export type SpaceSearchResult = Pick<Space, 'uuid' | 'name' | 'uuid'>;
@@ -34,6 +35,16 @@ export type TableSearchResult = Pick<
     explore: string;
     exploreLabel: string;
 };
+
+export type TableErrorSearchResult = Pick<
+    TableSearchResult,
+    'explore' | 'exploreLabel'
+> & {
+    validationErrors: {
+        validationId: ValidationErrorTableResponse['validationId'];
+    }[];
+};
+
 export type FieldSearchResult = Pick<
     Dimension | Metric,
     | 'name'
@@ -58,6 +69,7 @@ export type SearchResult =
     | SpaceSearchResult
     | DashboardSearchResult
     | SavedChartSearchResult
+    | TableErrorSearchResult
     | TableSearchResult
     | FieldSearchResult
     | PageResult;
@@ -70,17 +82,22 @@ export const isFieldSearchResult = (
     value: SearchResult,
 ): value is FieldSearchResult => 'table' in value;
 
+export const isTableErrorSearchResult = (
+    value: SearchResult,
+): value is TableErrorSearchResult =>
+    'explore' in value && 'validationErrors' in value;
+
 export type SearchResults = {
     spaces: SpaceSearchResult[];
     dashboards: DashboardSearchResult[];
     savedCharts: SavedChartSearchResult[];
-    tables: TableSearchResult[];
+    tables: (TableSearchResult | TableErrorSearchResult)[];
     fields: FieldSearchResult[];
     pages: PageResult[];
 };
 
 export const getSearchResultId = (meta: SearchResult | undefined) => {
-    if (!meta) {
+    if (!meta || isTableErrorSearchResult(meta)) {
         return '';
     }
     if (isExploreSearchResult(meta)) {

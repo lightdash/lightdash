@@ -27,7 +27,7 @@ const getCompiledQuery = async (
     });
 };
 
-export const useCompliedSql = () => {
+export const useCompiledSql = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const tableId = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,

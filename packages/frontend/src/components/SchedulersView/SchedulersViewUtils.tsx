@@ -13,14 +13,14 @@ import {
     IconPhoto,
     IconProgress,
 } from '@tabler/icons-react';
-import React from 'react';
+import moment from 'moment';
 import MantineIcon from '../common/MantineIcon';
 import { IconBox } from '../common/ResourceIcon';
 
 export type SchedulerItem = SchedulerWithLogs['schedulers'][number];
 export type Log = SchedulerWithLogs['logs'][number];
 
-type ColumnName =
+export type SchedulerColumnName =
     | 'name'
     | 'destinations'
     | 'frequency'
@@ -30,15 +30,6 @@ type ColumnName =
     | 'deliveryScheduled'
     | 'deliveryStarted'
     | 'status';
-
-export interface Column {
-    id: ColumnName;
-    label?: string;
-    cell: (item: SchedulerItem) => React.ReactNode;
-    meta?: {
-        style: React.CSSProperties;
-    };
-}
 
 export const getSchedulerIcon = (item: SchedulerItem, theme: MantineTheme) => {
     switch (item.format) {
@@ -124,13 +115,5 @@ export const getItemLink = (item: SchedulerItem, projectUuid: string) => {
         : `/projects/${projectUuid}/dashboards/${item.dashboardUuid}/view`;
 };
 
-export const formatTime = (date: Date) => {
-    return new Date(date).toLocaleString('en-US', {
-        timeZone: 'UTC',
-        dateStyle: 'short',
-        timeStyle: 'short',
-    });
-};
-
-export const camelCaseToFlat = (str: string | undefined) =>
-    str ? str.replace(/([A-Z])/g, ' $1').toLowerCase() : undefined;
+export const formatTime = (date: Date) =>
+    moment(date).format('YYYY/MM/DD HH:mm A');
