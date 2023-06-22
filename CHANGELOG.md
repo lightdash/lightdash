@@ -1,3 +1,10 @@
+# [0.629.0](https://github.com/lightdash/lightdash/compare/0.628.1...0.629.0) (2023-06-22)
+
+
+### Features
+
+* add clear query shortcut ([#5904](https://github.com/lightdash/lightdash/issues/5904)) ([92d3f16](https://github.com/lightdash/lightdash/commit/92d3f1654a1cb07899d43d62ab0b191c5c473c8a))
+
 ## [0.628.1](https://github.com/lightdash/lightdash/compare/0.628.0...0.628.1) (2023-06-22)
 
 
