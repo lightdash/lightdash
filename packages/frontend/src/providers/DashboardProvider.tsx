@@ -273,8 +273,6 @@ export const DashboardProvider: React.FC = ({ children }) => {
             newParams.delete('filters');
         } else {
             newParams.set('filters', JSON.stringify(dashboardFilters));
-            const searchParams = new URLSearchParams(search);
-            console.log(searchParams.get('filters'));
         }
 
         history.replace({
