@@ -9,7 +9,7 @@ import {
     currencies,
     formatFieldValue,
     formatItemValue,
-    formatNumberWithSeparator,
+    formatTableCalculationNumber,
     formatTableCalculationValue,
     formatValue,
 } from './formatting';
@@ -562,65 +562,65 @@ describe('Formatting', () => {
         test('format number separator', async () => {
             const number = 123456789.12345;
             expect(
-                formatNumberWithSeparator(
-                    number,
-                    NumberSeparator.COMMA_PERIOD,
-                    0,
-                ),
+                formatTableCalculationNumber(number, {
+                    type: TableCalculationFormatType.DEFAULT,
+                    round: 0,
+                    separator: NumberSeparator.COMMA_PERIOD,
+                }),
             ).toEqual('123,456,789');
             expect(
-                formatNumberWithSeparator(
-                    number,
-                    NumberSeparator.PERIOD_COMMA,
-                    0,
-                ),
+                formatTableCalculationNumber(number, {
+                    type: TableCalculationFormatType.DEFAULT,
+                    round: 0,
+                    separator: NumberSeparator.PERIOD_COMMA,
+                }),
             ).toEqual('123.456.789');
             expect(
-                formatNumberWithSeparator(
-                    number,
-                    NumberSeparator.SPACE_PERIOD,
-                    2,
-                ),
+                formatTableCalculationNumber(number, {
+                    type: TableCalculationFormatType.DEFAULT,
+                    round: 2,
+                    separator: NumberSeparator.SPACE_PERIOD,
+                }),
             ).toEqual('123 456 789.12');
             expect(
-                formatNumberWithSeparator(
-                    number,
-                    NumberSeparator.NO_SEPARATOR_PERIOD,
-                    2,
-                ),
+                formatTableCalculationNumber(number, {
+                    type: TableCalculationFormatType.DEFAULT,
+                    round: 2,
+                    separator: NumberSeparator.NO_SEPARATOR_PERIOD,
+                }),
             ).toEqual('123456789.12');
         });
 
         test('format negative round', async () => {
             const number = 123456789.12345;
             expect(
-                formatNumberWithSeparator(
-                    number,
-                    NumberSeparator.COMMA_PERIOD,
-                    -1,
-                ),
+                formatTableCalculationNumber(number, {
+                    type: TableCalculationFormatType.DEFAULT,
+                    round: -1,
+                    separator: NumberSeparator.COMMA_PERIOD,
+                }),
             ).toEqual('123,456,790');
             expect(
-                formatNumberWithSeparator(
-                    number,
-                    NumberSeparator.PERIOD_COMMA,
-                    -2,
-                ),
+                formatTableCalculationNumber(number, {
+                    type: TableCalculationFormatType.DEFAULT,
+                    round: -2,
+                    separator: NumberSeparator.COMMA_PERIOD,
+                }),
             ).toEqual('123.456.800');
             expect(
-                formatNumberWithSeparator(
-                    number,
-                    NumberSeparator.SPACE_PERIOD,
-                    -3,
-                ),
+                formatTableCalculationNumber(number, {
+                    type: TableCalculationFormatType.DEFAULT,
+                    round: -3,
+                    separator: NumberSeparator.COMMA_PERIOD,
+                }),
             ).toEqual('123 457 000');
             expect(
-                formatNumberWithSeparator(
-                    number,
-                    NumberSeparator.NO_SEPARATOR_PERIOD,
-                    -4,
-                ),
-            ).toEqual('123460000');
+                formatTableCalculationNumber(number, {
+                    type: TableCalculationFormatType.DEFAULT,
+                    round: -99,
+                    separator: NumberSeparator.COMMA_PERIOD,
+                }),
+            ).toEqual('100000000');
         });
 
         test('available currencies', async () => {

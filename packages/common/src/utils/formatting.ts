@@ -11,6 +11,7 @@ import {
     MetricType,
     NumberSeparator,
     TableCalculation,
+    TableCalculationFormat,
     TableCalculationFormatType,
 } from '../types/field';
 import { AdditionalMetric, isAdditionalMetric } from '../types/metricQuery';
@@ -314,38 +315,40 @@ export const currencies = [
     'VND',
 ];
 
-export function formatNumberWithSeparator(
+export function formatTableCalculationNumber(
     value: number,
-    round: number | undefined,
-    currency?: string,
-    separator: NumberSeparator = NumberSeparator.DEFAULT,
+    format: TableCalculationFormat,
 ): string {
     const getFormatOptions = () => {
         const currencyOptions =
-            currency !== undefined ? { style: 'currency', currency } : {};
+            format.type === TableCalculationFormatType.CURRENCY &&
+            format.currency !== undefined
+                ? { style: 'currency', currency: format.currency }
+                : {};
 
-        if (round === undefined && currency !== undefined) {
+        if (format.round === undefined && format.currency !== undefined) {
             // We apply the default round and separator from the currency
             return currencyOptions;
         }
-        const validRound = round || 0;
-        return validRound <= 0
+        const round = format.round || 0;
+        return round <= 0
             ? {
                   maximumSignificantDigits: Math.max(
-                      Math.floor(value).toString().length + validRound,
+                      Math.floor(value).toString().length + round,
                       1,
                   ),
                   maximumFractionDigits: 0,
                   ...currencyOptions,
               }
             : {
-                  maximumFractionDigits: Math.min(validRound, 20),
-                  minimumFractionDigits: Math.min(validRound, 20),
+                  maximumFractionDigits: Math.min(round, 20),
+                  minimumFractionDigits: Math.min(round, 20),
                   ...currencyOptions,
               };
     };
 
     const options = getFormatOptions();
+    const separator = format.separator || NumberSeparator.DEFAULT;
     switch (separator) {
         case NumberSeparator.COMMA_PERIOD:
             return value.toLocaleString('en-US', options);
@@ -380,10 +383,9 @@ export function formatTableCalculationValue(
             if (valueIsNaN(value)) {
                 return `${value}`;
             }
-            const formatted = formatNumberWithSeparator(
+            const formatted = formatTableCalculationNumber(
                 Number(value) * 100,
-                field.format.separator,
-                field.format.round,
+                field.format,
             );
             return `${formatted}%`;
         case TableCalculationFormatType.CURRENCY:
@@ -400,14 +402,12 @@ export function formatTableCalculationValue(
                 ? CompactConfigMap[field.format.compact].suffix
                 : '';
 
-            const currencyFormatted = formatNumberWithSeparator(
+            const currencyFormatted = formatTableCalculationNumber(
                 compactValue,
-                field.format.separator,
-                field.format.round,
-                field.format.currency,
+                field.format,
             ).replace(/\u00A0/, ' ');
 
-            return `${compactSuffix}${currencyFormatted}`;
+            return `${currencyFormatted}${compactSuffix}`;
 
         default:
             return assertUnreachable(
