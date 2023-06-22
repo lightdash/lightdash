@@ -180,7 +180,6 @@ const UnderlyingDataModalContent: FC<Props> = () => {
             values: [pivot.value],
         }));
 
-        // Metric filters fieldId don't have table prefixes, we add it here
         const metric: Metric | undefined =
             isField(item) && isMetric(item) ? item : undefined;
 
@@ -188,16 +187,10 @@ const UnderlyingDataModalContent: FC<Props> = () => {
             metric?.filters?.map((filter) => ({
                 ...filter,
                 target: {
-                    fieldId:
-                        // NOTE: This check is to support old metric filters in yml. We can delete this after a few months since we can assume all projects have been redeployed - see https://github.com/lightdash/lightdash/pull/5992
-                        'fieldId' in filter.target && filter.target.fieldId
-                            ? getFieldId({
-                                  ...metric,
-                                  name: filter.target.fieldId as string,
-                              })
-                            : convertFieldRefToFieldId(filter.target.fieldRef),
+                    fieldId: convertFieldRefToFieldId(filter.target.fieldRef),
                 },
             })) || [];
+
         const exploreFilters =
             metricQuery?.filters?.dimensions !== undefined
                 ? [metricQuery.filters.dimensions]
