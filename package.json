@@ -19,7 +19,7 @@
         "@typescript-eslint/eslint-plugin": "^5.36.2",
         "@typescript-eslint/parser": "^5.36.2",
         "confusing-browser-globals": "^1.0.11",
-        "dotenv": "^16.0.2",
+        "dotenv": "^16.1.4",
         "dotenv-cli": "^6.0.0",
         "eslint": "^8.23.0",
         "eslint-config-airbnb": "^19.0.4",
