@@ -184,7 +184,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
     return (
         <Modal
             opened={isOpen}
-            onClose={() => onClose}
+            onClose={() => onClose?.()}
             title={
                 <Group spacing="xs">
                     <MantineIcon
@@ -196,7 +196,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                 </Group>
             }
             centered
-            withCloseButton={false}
+            withCloseButton
         >
             <Stack spacing="md" mih="100%">
                 <form onSubmit={handleSubmit}>
