@@ -1,4 +1,5 @@
 import {
+    AllowedEmailDomains,
     OrganizationMemberRole,
     ProjectType,
     validateOrganizationEmailDomains,
@@ -13,7 +14,11 @@ import {
 import { useProjects } from '../../../hooks/useProjects';
 import { isValidEmailDomain } from '../../../utils/fieldValidators';
 
-const roleOptions = [
+const roleOptions: Array<{
+    value: AllowedEmailDomains['role'];
+    label: string;
+    subLabel: string;
+}> = [
     {
         value: OrganizationMemberRole.EDITOR,
         label: 'Organization Editor',
@@ -40,7 +45,7 @@ const AllowedDomainsPanel: FC = () => {
     const form = useForm({
         initialValues: {
             emailDomains: [] as string[],
-            role: OrganizationMemberRole.VIEWER,
+            role: OrganizationMemberRole.VIEWER as AllowedEmailDomains['role'],
             projects: [] as string[],
         },
     });

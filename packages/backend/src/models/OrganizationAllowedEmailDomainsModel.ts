@@ -1,4 +1,8 @@
-import { AllowedEmailDomains } from '@lightdash/common';
+import {
+    AllowedEmailDomains,
+    isAllowedEmailDomainsRole,
+    OrganizationMemberRole,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     DbOrganizationAllowedEmailDomains,
@@ -23,7 +27,11 @@ export class OrganizationAllowedEmailDomainsModel {
             organizationUuid:
                 dbOrganizationAllowedEmailDomains.organization_uuid,
             emailDomains: dbOrganizationAllowedEmailDomains.email_domains,
-            role: dbOrganizationAllowedEmailDomains.role,
+            role: isAllowedEmailDomainsRole(
+                dbOrganizationAllowedEmailDomains.role,
+            )
+                ? dbOrganizationAllowedEmailDomains.role
+                : OrganizationMemberRole.MEMBER,
             projectUuids: dbOrganizationAllowedEmailDomains.project_uuids,
         };
     }
