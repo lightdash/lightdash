@@ -330,7 +330,7 @@ export const isTableChartConfig = (
 
 export const isPieChartConfig = (
     value: ChartConfig['config'],
-): value is PieChart => !!value && 'donut' in value;
+): value is PieChart => !!value && 'isDonut' in value;
 
 export const getCustomLabelsFromColumnProperties = (
     columns: Record<string, ColumnProperties> | undefined,
