@@ -1,3 +1,17 @@
+# [0.629.0](https://github.com/lightdash/lightdash/compare/0.628.1...0.629.0) (2023-06-22)
+
+
+### Features
+
+* add clear query shortcut ([#5904](https://github.com/lightdash/lightdash/issues/5904)) ([92d3f16](https://github.com/lightdash/lightdash/commit/92d3f1654a1cb07899d43d62ab0b191c5c473c8a))
+
+## [0.628.1](https://github.com/lightdash/lightdash/compare/0.628.0...0.628.1) (2023-06-22)
+
+
+### Bug Fixes
+
+* dashboard URL should update with filter values ([#6025](https://github.com/lightdash/lightdash/issues/6025)) ([f43db2a](https://github.com/lightdash/lightdash/commit/f43db2a5e1814ba41c0f40cd766ff5727a2faaf9))
+
 # [0.628.0](https://github.com/lightdash/lightdash/compare/0.627.0...0.628.0) (2023-06-22)
 
 
