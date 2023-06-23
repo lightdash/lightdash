@@ -244,8 +244,9 @@ export class OrganizationController extends Controller {
     }
 
     /**
-     * Gets the allowed email domains for the current user's organization
+     * Updates the allowed email domains for the current user's organization
      * @param req express request
+     * @param body the new allowed email domains
      */
     @Middlewares([isAuthenticated, unauthorisedInDemo])
     @Patch('/allowedEmailDomains')
@@ -267,6 +268,7 @@ export class OrganizationController extends Controller {
     /**
      * Creates a new group in the current user's organization
      * @param req express request
+     * @param body the new group details
      */
     @Middlewares([
         allowApiKeyAuthentication,

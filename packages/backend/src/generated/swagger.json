@@ -484,6 +484,38 @@
                 "required": ["role"],
                 "type": "object"
             },
+            "OrganizationMemberRole.EDITOR": {
+                "enum": ["editor"],
+                "type": "string"
+            },
+            "OrganizationMemberRole.INTERACTIVE_VIEWER": {
+                "enum": ["interactive_viewer"],
+                "type": "string"
+            },
+            "OrganizationMemberRole.VIEWER": {
+                "enum": ["viewer"],
+                "type": "string"
+            },
+            "OrganizationMemberRole.MEMBER": {
+                "enum": ["member"],
+                "type": "string"
+            },
+            "AllowedEmailDomainsRole": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/OrganizationMemberRole.EDITOR"
+                    },
+                    {
+                        "$ref": "#/components/schemas/OrganizationMemberRole.INTERACTIVE_VIEWER"
+                    },
+                    {
+                        "$ref": "#/components/schemas/OrganizationMemberRole.VIEWER"
+                    },
+                    {
+                        "$ref": "#/components/schemas/OrganizationMemberRole.MEMBER"
+                    }
+                ]
+            },
             "AllowedEmailDomains": {
                 "properties": {
                     "projectUuids": {
@@ -493,7 +525,7 @@
                         "type": "array"
                     },
                     "role": {
-                        "$ref": "#/components/schemas/OrganizationMemberRole"
+                        "$ref": "#/components/schemas/AllowedEmailDomainsRole"
                     },
                     "emailDomains": {
                         "items": {
@@ -536,7 +568,7 @@
                         "type": "array"
                     },
                     "role": {
-                        "$ref": "#/components/schemas/OrganizationMemberRole"
+                        "$ref": "#/components/schemas/AllowedEmailDomainsRole"
                     },
                     "projectUuids": {
                         "items": {
@@ -4421,16 +4453,18 @@
                         }
                     }
                 },
-                "description": "Gets the allowed email domains for the current user's organization",
+                "description": "Updates the allowed email domains for the current user's organization",
                 "tags": ["Organizations"],
                 "security": [],
                 "parameters": [],
                 "requestBody": {
+                    "description": "the new allowed email domains",
                     "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/UpdateAllowedEmailDomains"
+                                "$ref": "#/components/schemas/UpdateAllowedEmailDomains",
+                                "description": "the new allowed email domains"
                             }
                         }
                     }
@@ -4467,11 +4501,13 @@
                 "security": [],
                 "parameters": [],
                 "requestBody": {
+                    "description": "the new group details",
                     "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Pick_CreateGroup.name_"
+                                "$ref": "#/components/schemas/Pick_CreateGroup.name_",
+                                "description": "the new group details"
                             }
                         }
                     }
