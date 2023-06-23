@@ -23,6 +23,10 @@ export type Organization = {
      * The organization needs a project if it doesn't have at least one project.
      */
     needsProject?: boolean;
+    /**
+     * The project a user sees when they first log in to the organization
+     */
+    defaultProjectUuid?: string;
 };
 
 export type CreateOrganization = Pick<Organization, 'name'>;

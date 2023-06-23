@@ -414,6 +414,9 @@ export class UserService {
                             : 'self-hosted',
                     organizationId: user.organizationUuid,
                     organizationName,
+                    defaultProjectUuid: undefined,
+                    defaultColourPaletteUpdated: false,
+                    defaultProjectUuidUpdated: false,
                 },
             });
             if (enableEmailDomainAccess && user.email) {
