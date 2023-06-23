@@ -56,14 +56,17 @@ export const useExplorerRoute = () => {
 
     // Update url params based on pristine state
     useEffect(() => {
-        history.replace(
-            getExplorerUrlFromCreateSavedChartVersion(pathParams.projectUuid, {
-                ...unsavedChartVersion,
-                metricQuery:
-                    queryResultsData?.metricQuery ??
-                    unsavedChartVersion.metricQuery,
-            }),
-        );
+        if (queryResultsData?.metricQuery) {
+            history.replace(
+                getExplorerUrlFromCreateSavedChartVersion(
+                    pathParams.projectUuid,
+                    {
+                        ...unsavedChartVersion,
+                        metricQuery: queryResultsData.metricQuery,
+                    },
+                ),
+            );
+        }
     }, [
         queryResultsData,
         history,

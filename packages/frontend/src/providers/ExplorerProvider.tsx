@@ -24,6 +24,7 @@ import produce from 'immer';
 import cloneDeep from 'lodash-es/cloneDeep';
 import isEqual from 'lodash-es/isEqual';
 import { FC, useCallback, useEffect, useMemo, useReducer } from 'react';
+import { useHistory } from 'react-router-dom';
 import { createContext, useContextSelector } from 'use-context-selector';
 import useDefaultSortField from '../hooks/useDefaultSortField';
 import { useQueryResults } from '../hooks/useQueryResults';
@@ -1235,7 +1236,7 @@ export const ExplorerProvider: FC<{
         });
         resetQueryResults();
     }, [resetQueryResults]);
-
+    const history = useHistory();
     const clearQuery = useCallback(async () => {
         dispatch({
             type: ActionType.RESET,
@@ -1248,7 +1249,11 @@ export const ExplorerProvider: FC<{
             },
         });
         resetQueryResults();
-    }, [resetQueryResults, unsavedChartVersion.tableName]);
+        // clear state in url params
+        history.replace({
+            search: '',
+        });
+    }, [history, resetQueryResults, unsavedChartVersion.tableName]);
 
     const defaultSort = useDefaultSortField(unsavedChartVersion);
 
