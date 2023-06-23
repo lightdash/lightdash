@@ -1,51 +1,89 @@
 import {
+    ChartKind,
     Dashboard,
     DashboardTileTypes,
     defaultTileSize,
+    getChartType,
 } from '@lightdash/common';
 import {
     Button,
+    Flex,
     Group,
     Modal,
     MultiSelect,
+    SelectItem,
     Stack,
     Text,
     Title,
     Tooltip,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconChartAreaLine } from '@tabler/icons-react';
-import React, { FC, forwardRef, useMemo } from 'react';
+import { IconChartAreaLine, IconCircleCheck } from '@tabler/icons-react';
+import { FC, forwardRef, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuid4 } from 'uuid';
 import { useChartSummaries } from '../../../hooks/useChartSummaries';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import MantineIcon from '../../common/MantineIcon';
+import { getChartIcon, ResourceIndicator } from '../../common/ResourceIcon';
 
 type Props = {
     onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
     onClose: () => void;
 };
 
-interface ItemProps extends React.ComponentPropsWithoutRef<'div'> {
+interface ItemProps extends SelectItem {
     label: string;
     description?: string;
+    chartType?: ChartKind | undefined;
 }
 
-const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
-    ({ label, description, ...others }: ItemProps, ref) => (
-        <div ref={ref} {...others}>
-            <Stack spacing="two">
-                <Tooltip
-                    label={description}
-                    disabled={!description}
-                    position="top-start"
-                >
-                    <Text>{label}</Text>
-                </Tooltip>
-            </Stack>
-        </div>
-    ),
+const MultiSelectItem = forwardRef<HTMLDivElement, ItemProps>(
+    (
+        {
+            label,
+            description,
+            chartType,
+            selected,
+            disabled,
+            ...others
+        }: ItemProps,
+        ref,
+    ) => {
+        return (
+            <div ref={ref} {...others}>
+                <Stack spacing="two">
+                    <Tooltip
+                        label={description}
+                        disabled={!description}
+                        position="top-start"
+                    >
+                        <Flex align="center" gap="sm">
+                            <ResourceIndicator
+                                indicatorProps={{
+                                    disabled: !disabled,
+                                    position: 'top-start',
+                                    size: 8,
+                                    inline: true,
+                                }}
+                                iconProps={{
+                                    icon: IconCircleCheck,
+                                    fill: 'green',
+                                    color: 'white',
+                                }}
+                                tooltipProps={{ disabled: true }}
+                                tooltipLabel={undefined}
+                            >
+                                {getChartIcon(chartType)}
+                            </ResourceIndicator>
+
+                            <Text>{label}</Text>
+                        </Flex>
+                    </Tooltip>
+                </Stack>
+            </div>
+        );
+    },
 );
 
 const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
@@ -65,24 +103,30 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                 ? 1
                 : 0,
         );
-        return (reorderedCharts || []).map(({ uuid, name, spaceName }) => {
-            const alreadyAddedChart = dashboardTiles.find((tile) => {
-                return (
-                    tile.type === DashboardTileTypes.SAVED_CHART &&
-                    tile.properties.savedChartUuid === uuid
-                );
-            });
+        return (reorderedCharts || []).map(
+            ({ uuid, name, spaceName, chartType, chartConfig }) => {
+                const alreadyAddedChart = dashboardTiles.find((tile) => {
+                    return (
+                        tile.type === DashboardTileTypes.SAVED_CHART &&
+                        tile.properties.savedChartUuid === uuid
+                    );
+                });
 
-            return {
-                value: uuid,
-                label: name,
-                group: spaceName,
-                disabled: alreadyAddedChart !== undefined,
-                description: alreadyAddedChart
-                    ? 'This chart has been already added to this dashboard'
-                    : undefined,
-            };
-        });
+                return {
+                    value: uuid,
+                    label: name,
+                    group: spaceName,
+                    disabled: alreadyAddedChart !== undefined,
+                    description: alreadyAddedChart
+                        ? 'This chart has been already added to this dashboard'
+                        : undefined,
+                    ...(chartConfig &&
+                        chartType && {
+                            chartType: getChartType(chartType, chartConfig),
+                        }),
+                };
+            },
+        );
     }, [dashboardTiles, savedCharts, dashboard?.spaceUuid]);
 
     const handleSubmit = form.onSubmit(({ savedChartsUuids }) => {
@@ -114,6 +158,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
     return (
         <Modal
             opened={true}
+            size="lg"
             onClose={onClose}
             title={
                 <Group spacing="xs">
@@ -144,7 +189,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                         placeholder="Search..."
                         required
                         withinPortal
-                        itemComponent={SelectItem}
+                        itemComponent={MultiSelectItem}
                         {...form.getInputProps('savedChartsUuids')}
                     />
                     <Group spacing="xs" position="right" mt="md">
