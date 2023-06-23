@@ -60,9 +60,11 @@ const MultiSelectItem = forwardRef<HTMLDivElement, ItemProps>(
                         position="top-start"
                     >
                         <Flex align="center" gap="sm">
-                            <Box opacity={disabled ? 0.5 : 1}>
-                                {getChartIcon(chartType)}
-                            </Box>
+                            {chartType && (
+                                <Box opacity={disabled ? 0.5 : 1}>
+                                    {getChartIcon(chartType)}
+                                </Box>
+                            )}
 
                             <Text>{label}</Text>
                         </Flex>
