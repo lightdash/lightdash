@@ -107,6 +107,8 @@ describe('ProjectModel', () => {
                             isOutdated: isOutdatedMetricFilter(filter),
                         });
                         if (isOutdatedMetricFilter(filter)) {
+                            // @ts-expect-error fieldId is allowed for outdated explores
+                            expect(filter.target.fieldId).toBeDefined();
                             expect(filter.target.fieldRef).toBe(
                                 // @ts-expect-error fieldId is allowed for outdated explores
                                 filter.target.fieldId,
