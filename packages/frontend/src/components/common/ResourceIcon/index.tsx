@@ -158,19 +158,11 @@ export const ResourceTypeIcon: FC<ResourceTypeIconProps> = ({ type }) => {
 export const ResourceIndicator: FC<
     {
         children: ReactNode;
-        tooltipLabel?: ReactNode;
+        tooltipLabel: ReactNode;
         iconProps: MantineIconProps;
         tooltipProps: Partial<TooltipProps>;
-        indicatorProps?: Partial<IndicatorProps>;
     } & Pick<IndicatorProps, 'disabled'>
-> = ({
-    disabled,
-    tooltipLabel,
-    iconProps,
-    tooltipProps,
-    indicatorProps = {},
-    children,
-}) => {
+> = ({ disabled, tooltipLabel, iconProps, tooltipProps, children }) => {
     // NOTE: Control the Tooltip visibility manually to allow hovering on Label.
     const [opened, setOpened] = useState(false);
     const [isHovering, setIsHovering] = useState(false);
@@ -211,14 +203,12 @@ export const ResourceIndicator: FC<
                     {...tooltipProps}
                     sx={{ pointerEvents: 'auto' }}
                     label={
-                        tooltipLabel && (
-                            <div
-                                onMouseEnter={handleLabelMouseEnter}
-                                onMouseLeave={handleLabelMouseLeave}
-                            >
-                                {tooltipLabel}
-                            </div>
-                        )
+                        <div
+                            onMouseEnter={handleLabelMouseEnter}
+                            onMouseLeave={handleLabelMouseLeave}
+                        >
+                            {tooltipLabel}
+                        </div>
                     }
                     opened={opened || isHovering}
                 >
@@ -229,7 +219,6 @@ export const ResourceIndicator: FC<
                     />
                 </Tooltip>
             }
-            {...indicatorProps}
         >
             {children}
         </Indicator>
