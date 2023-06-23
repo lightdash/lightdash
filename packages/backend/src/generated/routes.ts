@@ -1772,7 +1772,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     TableCalculationFormatType: {
         dataType: 'refEnum',
-        enums: ['default', 'percent', 'currency'],
+        enums: ['default', 'percent', 'currency', 'number'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     NumberSeparator: {
@@ -1796,6 +1796,8 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                suffix: { dataType: 'string' },
+                prefix: { dataType: 'string' },
                 compact: { ref: 'Compact' },
                 currency: { dataType: 'string' },
                 separator: { ref: 'NumberSeparator' },

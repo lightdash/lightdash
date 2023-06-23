@@ -91,9 +91,11 @@ const TableCalculationFormatForm: FC<{
     );
     const currency = methods.watch('format.currency');
     const compact = methods.watch('format.compact');
+    const prefix = methods.watch('format.prefix');
+    const suffix = methods.watch('format.suffix');
+
     //TODO this component is using Mantine components with a react-hook-form,
     //once we use mantine form we should refactor this to remove onChange methods
-
     return (
         <Box mt="md">
             <Flex>
@@ -112,6 +114,7 @@ const TableCalculationFormatForm: FC<{
                         TableCalculationFormatType.DEFAULT,
                         TableCalculationFormatType.PERCENT,
                         TableCalculationFormatType.CURRENCY,
+                        TableCalculationFormatType.NUMBER,
                     ]}
                 />
 
@@ -133,10 +136,7 @@ const TableCalculationFormatForm: FC<{
                 )}
             </Flex>
 
-            {[
-                TableCalculationFormatType.CURRENCY,
-                TableCalculationFormatType.PERCENT,
-            ].includes(formatType) && (
+            {formatType !== TableCalculationFormatType.DEFAULT && (
                 <Flex mt="md">
                     {formatType === TableCalculationFormatType.CURRENCY && (
                         <Select
@@ -221,11 +221,11 @@ const TableCalculationFormatForm: FC<{
                     />
                 </Flex>
             )}
-            {formatType === TableCalculationFormatType.CURRENCY && (
-                <Flex>
+            {(formatType === TableCalculationFormatType.CURRENCY ||
+                formatType === TableCalculationFormatType.NUMBER) && (
+                <Flex mt="md">
                     <Select
                         mr="md"
-                        mt="md"
                         w={200}
                         onChange={(s) => {
                             methods.setValue(
@@ -246,6 +246,38 @@ const TableCalculationFormatForm: FC<{
                             }),
                         ]}
                     />
+
+                    {formatType === TableCalculationFormatType.NUMBER && (
+                        <>
+                            <TextInput
+                                w={200}
+                                mr="md"
+                                label="Prefix"
+                                name="format.prefix"
+                                placeholder="E.g. GBP revenue:"
+                                value={prefix}
+                                onChange={(r) => {
+                                    methods.setValue(
+                                        'format.prefix',
+                                        r.target.value,
+                                    );
+                                }}
+                            />
+                            <TextInput
+                                w={200}
+                                label="Suffix"
+                                name="format.suffix"
+                                placeholder="E.g. km/h"
+                                value={suffix}
+                                onChange={(r) => {
+                                    methods.setValue(
+                                        'format.suffix',
+                                        r.target.value,
+                                    );
+                                }}
+                            />
+                        </>
+                    )}
                 </Flex>
             )}
         </Box>
@@ -282,6 +314,8 @@ const TableCalculationModal: FC<Props> = ({
                     NumberSeparator.DEFAULT,
                 currency: tableCalculation?.format?.currency || 'USD',
                 compact: tableCalculation?.format?.compact,
+                prefix: tableCalculation?.format?.prefix,
+                suffix: tableCalculation?.format?.suffix,
             },
         },
     });

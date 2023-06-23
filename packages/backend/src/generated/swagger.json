@@ -2044,7 +2044,7 @@
                 "type": "object"
             },
             "TableCalculationFormatType": {
-                "enum": ["default", "percent", "currency"],
+                "enum": ["default", "percent", "currency", "number"],
                 "type": "string"
             },
             "NumberSeparator": {
@@ -2063,6 +2063,12 @@
             },
             "TableCalculationFormat": {
                 "properties": {
+                    "suffix": {
+                        "type": "string"
+                    },
+                    "prefix": {
+                        "type": "string"
+                    },
                     "compact": {
                         "$ref": "#/components/schemas/Compact"
                     },
@@ -3618,7 +3624,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.629.0",
+        "version": "0.630.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
