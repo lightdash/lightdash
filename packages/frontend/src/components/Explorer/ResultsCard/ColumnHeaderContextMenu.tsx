@@ -2,6 +2,7 @@ import { Divider, Menu, Position } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import {
     fieldId,
+    getItemId,
     isField,
     isFilterableField,
     TableCalculation,
@@ -50,7 +51,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
         () =>
             !!additionalMetrics &&
             !!item &&
-            additionalMetrics.find((am) => am.name === item.name),
+            additionalMetrics.find((am) => getItemId(am) === getItemId(item)),
         [additionalMetrics, item],
     );
 
