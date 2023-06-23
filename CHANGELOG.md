@@ -1,3 +1,11 @@
+## [0.632.1](https://github.com/lightdash/lightdash/compare/0.632.0...0.632.1) (2023-06-23)
+
+
+### Bug Fixes
+
+* get correct fieldId when viewing underlying data ([#6023](https://github.com/lightdash/lightdash/issues/6023)) ([bbb0143](https://github.com/lightdash/lightdash/commit/bbb0143341f8f3ed7b725acfa8374b676961b24c))
+* only set url params with pristine state ([#6034](https://github.com/lightdash/lightdash/issues/6034)) ([2b8689f](https://github.com/lightdash/lightdash/commit/2b8689f984d1575eb1c5f395252d34d338eb21fe))
+
 # [0.632.0](https://github.com/lightdash/lightdash/compare/0.631.0...0.632.0) (2023-06-23)
 
 
