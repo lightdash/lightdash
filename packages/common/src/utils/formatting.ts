@@ -98,8 +98,7 @@ export const parseTimestamp = (
 ): Date => moment(str, getTimeFormat(timeInterval)).toDate();
 
 export function valueIsNaN(value: unknown) {
-    if (typeof value === 'boolean' || value === '' || value === null)
-        return true;
+    if (typeof value === 'boolean') return true;
 
     return Number.isNaN(Number(value));
 }
@@ -397,7 +396,7 @@ export function formatTableCalculationValue(
 
         return { compactValue, compactSuffix };
     };
-    if (valueIsNaN(value)) {
+    if (valueIsNaN(value) || value === '' || value === null) {
         return formatValue(value);
     }
     switch (field.format.type) {
