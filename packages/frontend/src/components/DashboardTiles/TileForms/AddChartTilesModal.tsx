@@ -6,6 +6,7 @@ import {
     getChartType,
 } from '@lightdash/common';
 import {
+    Box,
     Button,
     Flex,
     Group,
@@ -18,14 +19,14 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconChartAreaLine, IconCircleCheck } from '@tabler/icons-react';
+import { IconChartAreaLine } from '@tabler/icons-react';
 import { FC, forwardRef, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuid4 } from 'uuid';
 import { useChartSummaries } from '../../../hooks/useChartSummaries';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import MantineIcon from '../../common/MantineIcon';
-import { getChartIcon, ResourceIndicator } from '../../common/ResourceIcon';
+import { getChartIcon } from '../../common/ResourceIcon';
 
 type Props = {
     onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
@@ -59,23 +60,9 @@ const MultiSelectItem = forwardRef<HTMLDivElement, ItemProps>(
                         position="top-start"
                     >
                         <Flex align="center" gap="sm">
-                            <ResourceIndicator
-                                indicatorProps={{
-                                    disabled: !disabled,
-                                    position: 'top-start',
-                                    size: 8,
-                                    inline: true,
-                                }}
-                                iconProps={{
-                                    icon: IconCircleCheck,
-                                    fill: 'green',
-                                    color: 'white',
-                                }}
-                                tooltipProps={{ disabled: true }}
-                                tooltipLabel={undefined}
-                            >
+                            <Box opacity={disabled ? 0.5 : 1}>
                                 {getChartIcon(chartType)}
-                            </ResourceIndicator>
+                            </Box>
 
                             <Text>{label}</Text>
                         </Flex>
