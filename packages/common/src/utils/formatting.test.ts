@@ -3,6 +3,7 @@ import {
     DimensionType,
     MetricType,
     NumberSeparator,
+    TableCalculationFormat,
     TableCalculationFormatType,
 } from '../types/field';
 import {
@@ -763,6 +764,130 @@ describe('Formatting', () => {
                     ),
                 ),
             ).toEqual(['$123M', '€123M', '£123M', '¥123M']);
+        });
+
+        test('convert numbers ', async () => {
+            expect(
+                formatTableCalculationValue(
+                    {
+                        ...tableCalculation,
+                        format: {
+                            type: TableCalculationFormatType.NUMBER,
+                        },
+                    },
+                    12345.56789,
+                ),
+            ).toEqual('12,346');
+            expect(
+                formatTableCalculationValue(
+                    {
+                        ...tableCalculation,
+                        format: {
+                            type: TableCalculationFormatType.NUMBER,
+                            round: 2,
+                            prefix: 'foo ',
+                            suffix: ' bar',
+                            compact: Compact.THOUSANDS,
+                        },
+                    },
+                    12345.1235,
+                ),
+            ).toEqual('foo 12.35K bar');
+        });
+        test('convert table calculation formats with invalid numbers', async () => {
+            const formatTableCalculation = (
+                value: any,
+                format: TableCalculationFormat,
+            ) =>
+                formatTableCalculationValue(
+                    {
+                        ...tableCalculation,
+                        format,
+                    },
+                    value,
+                );
+            // This method should return the original value if the value is not a number
+
+            const values = [
+                'this is a string',
+                '',
+                undefined,
+                null,
+                true,
+                false,
+            ];
+            const expectedValue = [
+                'this is a string',
+                '',
+                '-',
+                '∅',
+                'true',
+                'false',
+            ];
+            values.map((value, i) =>
+                expect(
+                    formatTableCalculation(value, {
+                        type: TableCalculationFormatType.DEFAULT,
+                    }),
+                ).toEqual(expectedValue[i]),
+            );
+
+            values.map((value, i) =>
+                expect(
+                    formatTableCalculation(value, {
+                        type: TableCalculationFormatType.CURRENCY,
+                        currency: 'USD',
+                    }),
+                ).toEqual(expectedValue[i]),
+            );
+            values.map((value, i) =>
+                expect(
+                    formatTableCalculation(value, {
+                        type: TableCalculationFormatType.CURRENCY,
+                        currency: 'USD',
+                        round: 2,
+                        compact: Compact.THOUSANDS,
+                        separator: NumberSeparator.PERIOD_COMMA,
+                    }),
+                ).toEqual(expectedValue[i]),
+            );
+
+            values.map((value, i) =>
+                expect(
+                    formatTableCalculation(value, {
+                        type: TableCalculationFormatType.NUMBER,
+                    }),
+                ).toEqual(expectedValue[i]),
+            );
+            values.map((value, i) =>
+                expect(
+                    formatTableCalculation(value, {
+                        type: TableCalculationFormatType.NUMBER,
+                        prefix: 'foo',
+                        suffix: 'bar',
+                        round: 2,
+                        compact: Compact.THOUSANDS,
+                        separator: NumberSeparator.PERIOD_COMMA,
+                    }),
+                ).toEqual(expectedValue[i]),
+            );
+
+            values.map((value, i) =>
+                expect(
+                    formatTableCalculation(value, {
+                        type: TableCalculationFormatType.PERCENT,
+                    }),
+                ).toEqual(expectedValue[i]),
+            );
+            values.map((value, i) =>
+                expect(
+                    formatTableCalculation(value, {
+                        type: TableCalculationFormatType.PERCENT,
+                        round: 2,
+                        separator: NumberSeparator.PERIOD_COMMA,
+                    }),
+                ).toEqual(expectedValue[i]),
+            );
         });
     });
 });

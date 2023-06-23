@@ -83,6 +83,7 @@ export enum TableCalculationFormatType {
     DEFAULT = 'default',
     PERCENT = 'percent',
     CURRENCY = 'currency',
+    NUMBER = 'number',
 }
 export type TableCalculationFormat = {
     type: TableCalculationFormatType;
@@ -90,6 +91,8 @@ export type TableCalculationFormat = {
     separator?: NumberSeparator;
     currency?: string;
     compact?: Compact;
+    prefix?: string;
+    suffix?: string;
 };
 export type TableCalculation = {
     index?: number;

@@ -98,7 +98,9 @@ export const parseTimestamp = (
 ): Date => moment(str, getTimeFormat(timeInterval)).toDate();
 
 export function valueIsNaN(value: unknown) {
-    if (typeof value === 'boolean') return true;
+    if (typeof value === 'boolean' || value === '' || value === null)
+        return true;
+
     return Number.isNaN(Number(value));
 }
 
@@ -326,7 +328,11 @@ export function formatTableCalculationNumber(
                 ? { style: 'currency', currency: format.currency }
                 : {};
 
-        if (format.round === undefined && format.currency !== undefined) {
+        if (
+            format.round === undefined &&
+            format.type === TableCalculationFormatType.CURRENCY &&
+            format.currency !== undefined
+        ) {
             // We apply the default round and separator from the currency
             return currencyOptions;
         }
@@ -375,40 +381,50 @@ export function formatTableCalculationValue(
     value: unknown,
 ): string {
     if (field.format?.type === undefined) return formatValue(value);
+
+    const applyCompact = (): { compactValue: any; compactSuffix: string } => {
+        if (field.format?.compact === undefined)
+            return { compactValue: value, compactSuffix: '' };
+        const compactValue = CompactConfigMap[field.format.compact].convertFn(
+            Number(value),
+        );
+        const compactSuffix = field.format.compact
+            ? CompactConfigMap[field.format.compact].suffix
+            : '';
+
+        return { compactValue, compactSuffix };
+    };
+    const { compactValue, compactSuffix } = applyCompact();
+    if (valueIsNaN(value)) {
+        return formatValue(value);
+    }
     switch (field.format.type) {
         case TableCalculationFormatType.DEFAULT:
             return formatValue(value);
 
         case TableCalculationFormatType.PERCENT:
-            if (valueIsNaN(value)) {
-                return `${value}`;
-            }
             const formatted = formatTableCalculationNumber(
                 Number(value) * 100,
                 field.format,
             );
             return `${formatted}%`;
         case TableCalculationFormatType.CURRENCY:
-            if (valueIsNaN(value)) {
-                return `${value}`;
-            }
-
-            const compactValue = field.format.compact
-                ? CompactConfigMap[field.format.compact].convertFn(
-                      Number(value),
-                  )
-                : Number(value);
-            const compactSuffix = field.format.compact
-                ? CompactConfigMap[field.format.compact].suffix
-                : '';
-
             const currencyFormatted = formatTableCalculationNumber(
                 compactValue,
                 field.format,
             ).replace(/\u00A0/, ' ');
 
             return `${currencyFormatted}${compactSuffix}`;
+        case TableCalculationFormatType.NUMBER:
+            const prefix = field.format.prefix || '';
+            const suffix = field.format.suffix || '';
 
+            const numberFormatted = formatTableCalculationNumber(
+                compactValue,
+                field.format,
+            );
+
+            return `${prefix}${numberFormatted}${compactSuffix}${suffix}`;
         default:
             return assertUnreachable(
                 field.format.type,
