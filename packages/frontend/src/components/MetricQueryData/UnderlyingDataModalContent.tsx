@@ -189,7 +189,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                 target: {
                     fieldId: convertFieldRefToFieldId(
                         filter.target.fieldRef,
-                        metric.name,
+                        metric.table,
                     ),
                 },
             })) || [];

@@ -103,7 +103,7 @@ describe('ProjectModel', () => {
                     metric.filters?.forEach((filter) => {
                         fieldRefsToTest.push({
                             fieldRef: filter.target.fieldRef,
-                            tableName: metric.name,
+                            tableName: metric.table,
                             isOutdated: isOutdatedMetricFilter(filter),
                         });
                         if (isOutdatedMetricFilter(filter)) {
