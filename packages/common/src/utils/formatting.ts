@@ -354,7 +354,6 @@ export function formatTableCalculationNumber(
     };
 
     const options = getFormatOptions();
-
     const separator = format.separator || NumberSeparator.DEFAULT;
     switch (separator) {
         case NumberSeparator.COMMA_PERIOD:

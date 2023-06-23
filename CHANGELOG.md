@@ -1,3 +1,10 @@
+# [0.630.0](https://github.com/lightdash/lightdash/compare/0.629.0...0.630.0) (2023-06-23)
+
+
+### Features
+
+* add editor and interactive viewer to default role options ([#6018](https://github.com/lightdash/lightdash/issues/6018)) ([6f8b790](https://github.com/lightdash/lightdash/commit/6f8b79001613cb8bb111fda4e3ae00fc3e25669a))
+
 # [0.629.0](https://github.com/lightdash/lightdash/compare/0.628.1...0.629.0) (2023-06-22)
 
 

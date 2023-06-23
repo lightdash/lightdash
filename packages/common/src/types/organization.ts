@@ -71,10 +71,29 @@ export type ApiOnboardingStatusResponse = {
     results: OnboardingStatus;
 };
 
+export type AllowedEmailDomainsRole =
+    | OrganizationMemberRole.EDITOR
+    | OrganizationMemberRole.INTERACTIVE_VIEWER
+    | OrganizationMemberRole.VIEWER
+    | OrganizationMemberRole.MEMBER;
+
+export const AllowedEmailDomainsRoles: Array<AllowedEmailDomainsRole> = [
+    OrganizationMemberRole.EDITOR,
+    OrganizationMemberRole.INTERACTIVE_VIEWER,
+    OrganizationMemberRole.VIEWER,
+    OrganizationMemberRole.MEMBER,
+];
+
+export function isAllowedEmailDomainsRole(
+    role: OrganizationMemberRole,
+): role is AllowedEmailDomainsRole {
+    return AllowedEmailDomainsRoles.includes(role as any);
+}
+
 export type AllowedEmailDomains = {
     organizationUuid: string;
     emailDomains: string[];
-    role: OrganizationMemberRole;
+    role: AllowedEmailDomainsRole;
     projectUuids: string[];
 };
 
