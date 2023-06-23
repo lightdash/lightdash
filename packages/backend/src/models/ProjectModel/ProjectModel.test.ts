@@ -1,4 +1,3 @@
-import { convertFieldRefToFieldId, MetricFilterRule } from '@lightdash/common';
 import knex from 'knex';
 import { getTracker, MockClient, RawQuery, Tracker } from 'knex-mock-client';
 import { FunctionQueryMatcher } from 'knex-mock-client/types/mock-client';
@@ -8,8 +7,9 @@ import {
     encryptionServiceMock,
     expectedProject,
     expectedTablesConfiguration,
+    exploreWithMetricFilters,
     lightdashConfigMock,
-    mockExploresFromCache,
+    mockExploreWithOutdatedMetricFilters,
     projectMock,
     projectUuid,
     tableSelectionMock,
@@ -80,63 +80,20 @@ describe('ProjectModel', () => {
         expect(tracker.history.update).toHaveLength(1);
     });
 
-    describe('should update outdated metric filters in explores', () => {
-        const fieldRefsToTest: {
-            fieldRef: string;
-            tableName: string;
-            isOutdated: boolean;
-        }[] = [];
-        const convertedExplore =
-            ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
-                mockExploresFromCache[0],
-            );
-
-        const isOutdatedMetricFilter = (filter: MetricFilterRule) =>
-            'fieldId' in filter.target;
-
-        const isMetricFilterFromJoinedTable = (fieldRef: string) =>
-            fieldRef.split('.').length === 2;
-
-        test('should add fieldRef property from metric filters fieldId', () => {
-            Object.values(convertedExplore.tables).forEach((table) => {
-                Object.values(table.metrics).forEach((metric) => {
-                    metric.filters?.forEach((filter) => {
-                        fieldRefsToTest.push({
-                            fieldRef: filter.target.fieldRef,
-                            tableName: metric.table,
-                            isOutdated: isOutdatedMetricFilter(filter),
-                        });
-                        if (isOutdatedMetricFilter(filter)) {
-                            // @ts-expect-error fieldId is allowed for outdated explores
-                            expect(filter.target.fieldId).toBeDefined();
-                            expect(filter.target.fieldRef).toBe(
-                                // @ts-expect-error fieldId is allowed for outdated explores
-                                filter.target.fieldId,
-                            );
-                        } else {
-                            expect(filter.target.fieldRef).toBe(
-                                filter.target.fieldRef,
-                            );
-                        }
-                    });
-                });
-            });
-
-            expect(fieldRefsToTest.filter((f) => f.isOutdated)).toHaveLength(2);
+    describe('should convert outdated metric filters in explores', () => {
+        test('should add fieldRef property when metric filters have fieldId', () => {
+            expect(
+                ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
+                    mockExploreWithOutdatedMetricFilters,
+                ),
+            ).toEqual(exploreWithMetricFilters);
         });
-
-        test('should convert fieldRefs to fieldIds for regular metric filters and filters that target joined models', () => {
-            fieldRefsToTest.forEach(({ fieldRef, tableName }) => {
-                if (isMetricFilterFromJoinedTable(fieldRef)) {
-                    expect(convertFieldRefToFieldId(fieldRef)).toBe(
-                        `${fieldRef.split('.')[0]}_${fieldRef.split('.')[1]}`,
-                    );
-                } else {
-                    expect(convertFieldRefToFieldId(fieldRef, tableName)).toBe(
-                        `${tableName}_${fieldRef}`,
-                    );
-                }
-            });
+        test('should keep fieldRef property when metric filters have fieldRef', () => {
+            expect(
+                ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
+                    exploreWithMetricFilters,
+                ),
+            ).toEqual(exploreWithMetricFilters);
         });
     });
 });
