@@ -42,7 +42,6 @@ import {
     ProjectTableName,
 } from '../../database/entities/projects';
 import { DbSavedChart } from '../../database/entities/savedCharts';
-import { CreateDbSpace, DbSpace } from '../../database/entities/spaces';
 import { DbUser } from '../../database/entities/users';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
 import Logger from '../../logger';
@@ -464,6 +463,32 @@ export class ProjectModel {
         return undefined;
     }
 
+    static convertMetricFiltersFieldIdsToFieldRef = (explore: Explore) => {
+        const convertedExplore = { ...explore };
+        if (convertedExplore.tables) {
+            Object.values(convertedExplore.tables).forEach((table) => {
+                if (table.metrics) {
+                    Object.values(table.metrics).forEach((metric) => {
+                        if (metric.filters) {
+                            metric.filters.forEach((filter) => {
+                                // eslint-disable-next-line no-param-reassign
+                                filter.target = {
+                                    ...filter.target,
+                                    fieldRef:
+                                        // @ts-expect-error cached explore types might not be up to date
+                                        filter.target.fieldId ??
+                                        filter.target.fieldRef,
+                                };
+                            });
+                        }
+                    });
+                }
+            });
+        }
+
+        return convertedExplore;
+    };
+
     async getExploreFromCache(
         projectUuid: string,
         exploreName: string,
@@ -483,31 +508,8 @@ export class ProjectModel {
             );
         }
 
-        const exploreFromCache: Explore = row.explore;
-
-        if (exploreFromCache.tables) {
-            Object.values(exploreFromCache.tables).forEach((table) => {
-                if (table.metrics) {
-                    Object.values(table.metrics).forEach((metric) => {
-                        if (metric.filters) {
-                            metric.filters.forEach((filter) => {
-                                // eslint-disable-next-line no-param-reassign
-                                filter.target = {
-                                    ...filter.target,
-                                    fieldRef: getFieldRef({
-                                        ...metric,
-                                        name:
-                                            // @ts-expect-error cached explore types might not be up to date
-                                            filter.target.fieldId ??
-                                            filter.target.fieldRef,
-                                    }),
-                                };
-                            });
-                        }
-                    });
-                }
-            });
-        }
+        const exploreFromCache: Explore =
+            ProjectModel.convertMetricFiltersFieldIdsToFieldRef(row.explore);
 
         return exploreFromCache;
     }
