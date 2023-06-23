@@ -354,6 +354,7 @@ export function formatTableCalculationNumber(
     };
 
     const options = getFormatOptions();
+
     const separator = format.separator || NumberSeparator.DEFAULT;
     switch (separator) {
         case NumberSeparator.COMMA_PERIOD:
@@ -382,9 +383,12 @@ export function formatTableCalculationValue(
 ): string {
     if (field.format?.type === undefined) return formatValue(value);
 
-    const applyCompact = (): { compactValue: any; compactSuffix: string } => {
+    const applyCompact = (): {
+        compactValue: number;
+        compactSuffix: string;
+    } => {
         if (field.format?.compact === undefined)
-            return { compactValue: value, compactSuffix: '' };
+            return { compactValue: Number(value), compactSuffix: '' };
         const compactValue = CompactConfigMap[field.format.compact].convertFn(
             Number(value),
         );
@@ -394,7 +398,6 @@ export function formatTableCalculationValue(
 
         return { compactValue, compactSuffix };
     };
-    const { compactValue, compactSuffix } = applyCompact();
     if (valueIsNaN(value)) {
         return formatValue(value);
     }
@@ -409,6 +412,8 @@ export function formatTableCalculationValue(
             );
             return `${formatted}%`;
         case TableCalculationFormatType.CURRENCY:
+            const { compactValue, compactSuffix } = applyCompact();
+
             const currencyFormatted = formatTableCalculationNumber(
                 compactValue,
                 field.format,
@@ -418,13 +423,17 @@ export function formatTableCalculationValue(
         case TableCalculationFormatType.NUMBER:
             const prefix = field.format.prefix || '';
             const suffix = field.format.suffix || '';
+            const {
+                compactValue: compactNumber,
+                compactSuffix: compactNumberSuffix,
+            } = applyCompact();
 
             const numberFormatted = formatTableCalculationNumber(
-                compactValue,
+                compactNumber,
                 field.format,
             );
 
-            return `${prefix}${numberFormatted}${compactSuffix}${suffix}`;
+            return `${prefix}${numberFormatted}${compactNumberSuffix}${suffix}`;
         default:
             return assertUnreachable(
                 field.format.type,

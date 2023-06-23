@@ -96,7 +96,6 @@ const TableCalculationFormatForm: FC<{
 
     //TODO this component is using Mantine components with a react-hook-form,
     //once we use mantine form we should refactor this to remove onChange methods
-
     return (
         <Box mt="md">
             <Flex>

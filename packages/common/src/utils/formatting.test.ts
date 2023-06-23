@@ -685,6 +685,22 @@ describe('Formatting', () => {
                     ),
                 ),
             ).toEqual(['$12,345.12', '€12,345.12', '£12,345.12', '¥12,345']);
+
+            // Number as string
+            expect(
+                currencies.slice(0, 4).map((currency) =>
+                    formatTableCalculationValue(
+                        {
+                            ...tableCalculation,
+                            format: {
+                                type: TableCalculationFormatType.CURRENCY,
+                                currency,
+                            },
+                        },
+                        '12345.1235',
+                    ),
+                ),
+            ).toEqual(['$12,345.12', '€12,345.12', '£12,345.12', '¥12,345']);
         });
         test('convert currencies with round', async () => {
             expect(
@@ -793,6 +809,21 @@ describe('Formatting', () => {
                     12345.1235,
                 ),
             ).toEqual('foo 12.35K bar');
+
+            // Number as string
+            expect(
+                formatTableCalculationValue(
+                    {
+                        ...tableCalculation,
+                        format: {
+                            type: TableCalculationFormatType.NUMBER,
+                            prefix: 'foo ',
+                            suffix: ' bar',
+                        },
+                    },
+                    '12345.1235',
+                ),
+            ).toEqual('foo 12,345 bar');
         });
         test('convert table calculation formats with invalid numbers', async () => {
             const formatTableCalculation = (
