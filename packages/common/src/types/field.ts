@@ -147,9 +147,15 @@ export type FieldId = string;
 export const fieldId = (field: Pick<Field, 'table' | 'name'>): FieldId =>
     `${field.table}_${field.name}`;
 
-export const convertFieldRefToFieldId = (fieldRef: string) => {
+export const convertFieldRefToFieldId = (
+    fieldRef: string,
+    fallbackTableName?: string,
+) => {
     const parts = fieldRef.split('.');
     if (parts.length !== 2) {
+        if (fallbackTableName) {
+            return `${fallbackTableName}_${fieldRef}`;
+        }
         throw new CompileError(
             `Table calculation contains an invalid reference: ${fieldRef}. References must be of the format "table.field"`,
             {},

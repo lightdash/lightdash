@@ -180,7 +180,6 @@ const UnderlyingDataModalContent: FC<Props> = () => {
             values: [pivot.value],
         }));
 
-        // Metric filters fieldId don't have table prefixes, we add it here
         const metric: Metric | undefined =
             isField(item) && isMetric(item) ? item : undefined;
 
@@ -188,9 +187,13 @@ const UnderlyingDataModalContent: FC<Props> = () => {
             metric?.filters?.map((filter) => ({
                 ...filter,
                 target: {
-                    fieldId: convertFieldRefToFieldId(filter.target.fieldRef),
+                    fieldId: convertFieldRefToFieldId(
+                        filter.target.fieldRef,
+                        metric.table,
+                    ),
                 },
             })) || [];
+
         const exploreFilters =
             metricQuery?.filters?.dimensions !== undefined
                 ? [metricQuery.filters.dimensions]
