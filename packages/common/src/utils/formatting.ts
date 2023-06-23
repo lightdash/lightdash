@@ -396,7 +396,8 @@ export function formatTableCalculationValue(
 
         return { compactValue, compactSuffix };
     };
-    if (valueIsNaN(value) || value === '' || value === null) {
+    if (value === '') return '';
+    if (valueIsNaN(value) || value === null) {
         return formatValue(value);
     }
     switch (field.format.type) {
