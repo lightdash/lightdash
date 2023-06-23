@@ -7,7 +7,6 @@ export async function up(knex: Knex): Promise<void> {
             .references('project_uuid')
             .inTable('projects')
             .nullable()
-            .unique()
             .onDelete('SET NULL');
     });
 }
