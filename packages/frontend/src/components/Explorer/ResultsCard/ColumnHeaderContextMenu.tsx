@@ -85,19 +85,17 @@ const ContextMenu: FC<ContextMenuProps> = ({
                 <Divider />
 
                 {isItemAdditionalMetric ? (
-                    <>
-                        <MenuItem2
-                            text={<>Edit custom metric</>}
-                            icon="edit"
-                            onClick={() => {
-                                toggleAdditionalMetricModal({
-                                    item: additionalMetric,
-                                    type: additionalMetric.type,
-                                    isEditing: true,
-                                });
-                            }}
-                        />
-                    </>
+                    <MenuItem2
+                        text={<>Edit custom metric</>}
+                        icon="edit"
+                        onClick={() => {
+                            toggleAdditionalMetricModal({
+                                item: additionalMetric,
+                                type: additionalMetric.type,
+                                isEditing: true,
+                            });
+                        }}
+                    />
                 ) : null}
 
                 <MenuItem2
