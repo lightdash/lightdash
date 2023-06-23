@@ -1,3 +1,10 @@
+# [0.631.0](https://github.com/lightdash/lightdash/compare/0.630.0...0.631.0) (2023-06-23)
+
+
+### Features
+
+* table calculation currency format ([#6019](https://github.com/lightdash/lightdash/issues/6019)) ([612fa1b](https://github.com/lightdash/lightdash/commit/612fa1b6a966b4a523253fc5cacd664f5de74aad))
+
 # [0.630.0](https://github.com/lightdash/lightdash/compare/0.629.0...0.630.0) (2023-06-23)
 
 
