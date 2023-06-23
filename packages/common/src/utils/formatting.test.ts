@@ -6,9 +6,11 @@ import {
     TableCalculationFormatType,
 } from '../types/field';
 import {
+    currencies,
     formatFieldValue,
     formatItemValue,
-    formatNumberWithSeparator,
+    formatTableCalculationNumber,
+    formatTableCalculationValue,
     formatValue,
 } from './formatting';
 import { dimension, metric, tableCalculation } from './formatting.mock';
@@ -560,65 +562,207 @@ describe('Formatting', () => {
         test('format number separator', async () => {
             const number = 123456789.12345;
             expect(
-                formatNumberWithSeparator(
-                    number,
-                    NumberSeparator.COMMA_PERIOD,
-                    0,
-                ),
+                formatTableCalculationNumber(number, {
+                    type: TableCalculationFormatType.DEFAULT,
+                    round: 0,
+                    separator: NumberSeparator.COMMA_PERIOD,
+                }),
             ).toEqual('123,456,789');
             expect(
-                formatNumberWithSeparator(
-                    number,
-                    NumberSeparator.PERIOD_COMMA,
-                    0,
-                ),
+                formatTableCalculationNumber(number, {
+                    type: TableCalculationFormatType.DEFAULT,
+                    round: 0,
+                    separator: NumberSeparator.PERIOD_COMMA,
+                }),
             ).toEqual('123.456.789');
             expect(
-                formatNumberWithSeparator(
-                    number,
-                    NumberSeparator.SPACE_PERIOD,
-                    2,
-                ),
+                formatTableCalculationNumber(number, {
+                    type: TableCalculationFormatType.DEFAULT,
+                    round: 2,
+                    separator: NumberSeparator.SPACE_PERIOD,
+                }),
             ).toEqual('123 456 789.12');
             expect(
-                formatNumberWithSeparator(
-                    number,
-                    NumberSeparator.NO_SEPARATOR_PERIOD,
-                    2,
-                ),
+                formatTableCalculationNumber(number, {
+                    type: TableCalculationFormatType.DEFAULT,
+                    round: 2,
+                    separator: NumberSeparator.NO_SEPARATOR_PERIOD,
+                }),
             ).toEqual('123456789.12');
         });
 
         test('format negative round', async () => {
             const number = 123456789.12345;
             expect(
-                formatNumberWithSeparator(
-                    number,
-                    NumberSeparator.COMMA_PERIOD,
-                    -1,
-                ),
+                formatTableCalculationNumber(number, {
+                    type: TableCalculationFormatType.DEFAULT,
+                    round: -1,
+                    separator: NumberSeparator.COMMA_PERIOD,
+                }),
             ).toEqual('123,456,790');
             expect(
-                formatNumberWithSeparator(
-                    number,
-                    NumberSeparator.PERIOD_COMMA,
-                    -2,
-                ),
+                formatTableCalculationNumber(number, {
+                    type: TableCalculationFormatType.DEFAULT,
+                    round: -2,
+                    separator: NumberSeparator.PERIOD_COMMA,
+                }),
             ).toEqual('123.456.800');
             expect(
-                formatNumberWithSeparator(
-                    number,
-                    NumberSeparator.SPACE_PERIOD,
-                    -3,
-                ),
+                formatTableCalculationNumber(number, {
+                    type: TableCalculationFormatType.DEFAULT,
+                    round: -3,
+                    separator: NumberSeparator.SPACE_PERIOD,
+                }),
             ).toEqual('123 457 000');
             expect(
-                formatNumberWithSeparator(
-                    number,
-                    NumberSeparator.NO_SEPARATOR_PERIOD,
-                    -4,
+                formatTableCalculationNumber(number, {
+                    type: TableCalculationFormatType.DEFAULT,
+                    round: -99,
+                    separator: NumberSeparator.NO_SEPARATOR_PERIOD,
+                }),
+            ).toEqual('100000000');
+        });
+
+        test('available currencies', async () => {
+            const symbols = currencies.map((currency) => {
+                const format = Intl.NumberFormat(undefined, {
+                    style: 'currency',
+                    currency,
+                });
+                return format.format(1).replace(' ', ' ');
+            });
+            expect(symbols).toEqual([
+                '$1.00',
+                '€1.00',
+                '£1.00',
+                '¥1',
+                'CHF 1.00',
+                'CA$1.00',
+                'A$1.00',
+                'CN¥1.00',
+                'ARS 1.00',
+                'R$1.00',
+                'CLP 1',
+                'COP 1.00',
+                'CZK 1.00',
+                'DKK 1.00',
+                'HK$1.00',
+                'HUF 1.00',
+                '₹1.00',
+                '₪1.00',
+                '₩1',
+                'MYR 1.00',
+                'MX$1.00',
+                'MAD 1.00',
+                'NZ$1.00',
+                'NOK 1.00',
+                '₱1.00',
+                'PLN 1.00',
+                'RUB 1.00',
+                'SAR 1.00',
+                'SGD 1.00',
+                'ZAR 1.00',
+                'SEK 1.00',
+                'NT$1.00',
+                'THB 1.00',
+                'TRY 1.00',
+                '₫1',
+            ]);
+        });
+        test('convert currencies with default settings', async () => {
+            expect(
+                currencies.slice(0, 4).map((currency) =>
+                    formatTableCalculationValue(
+                        {
+                            ...tableCalculation,
+                            format: {
+                                type: TableCalculationFormatType.CURRENCY,
+                                currency,
+                            },
+                        },
+                        12345.1235,
+                    ),
                 ),
-            ).toEqual('123460000');
+            ).toEqual(['$12,345.12', '€12,345.12', '£12,345.12', '¥12,345']);
+        });
+        test('convert currencies with round', async () => {
+            expect(
+                currencies.slice(0, 4).map((currency) =>
+                    formatTableCalculationValue(
+                        {
+                            ...tableCalculation,
+                            format: {
+                                type: TableCalculationFormatType.CURRENCY,
+                                currency,
+                                round: 3,
+                            },
+                        },
+                        12345.1235,
+                    ),
+                ),
+            ).toEqual([
+                '$12,345.124',
+                '€12,345.124',
+                '£12,345.124',
+                '¥12,345.124',
+            ]);
+        });
+        test('convert currencies with separator ', async () => {
+            // Using PERIOD_COMMA changes the position of the currency symbol
+            expect(
+                currencies.slice(0, 4).map((currency) =>
+                    formatTableCalculationValue(
+                        {
+                            ...tableCalculation,
+                            format: {
+                                type: TableCalculationFormatType.CURRENCY,
+                                currency,
+                                separator: NumberSeparator.PERIOD_COMMA,
+                            },
+                        },
+                        12345.1235,
+                    ),
+                ),
+            ).toEqual([
+                '12.345,12 $',
+                '12.345,12 €',
+                '12.345,12 £',
+                '12.345 ¥',
+            ]);
+        });
+        test('convert currencies with compact ', async () => {
+            expect(
+                currencies.slice(0, 4).map((currency) =>
+                    formatTableCalculationValue(
+                        {
+                            ...tableCalculation,
+                            format: {
+                                type: TableCalculationFormatType.CURRENCY,
+                                currency,
+                                compact: Compact.THOUSANDS,
+                            },
+                        },
+                        12345.1235,
+                    ),
+                ),
+            ).toEqual(['$12.35K', '€12.35K', '£12.35K', '¥12K']);
+
+            expect(
+                currencies.slice(0, 4).map((currency) =>
+                    formatTableCalculationValue(
+                        {
+                            ...tableCalculation,
+                            format: {
+                                type: TableCalculationFormatType.CURRENCY,
+                                currency,
+                                compact: Compact.MILLIONS,
+                                round: 0,
+                            },
+                        },
+                        123456789.1235,
+                    ),
+                ),
+            ).toEqual(['$123M', '€123M', '£123M', '¥123M']);
         });
     });
 });

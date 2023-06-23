@@ -21,6 +21,7 @@ const CompactAlias = [
 ] as const;
 
 export enum NumberSeparator {
+    DEFAULT = 'default', // Default separator
     COMMA_PERIOD = 'commaPeriod', // 100,000.00
     SPACE_PERIOD = 'spacePeriod', // 100 000.00
     PERIOD_COMMA = 'periodComma', // 100.000,00
@@ -81,11 +82,14 @@ export type Item = Field | TableCalculation;
 export enum TableCalculationFormatType {
     DEFAULT = 'default',
     PERCENT = 'percent',
+    CURRENCY = 'currency',
 }
 export type TableCalculationFormat = {
     type: TableCalculationFormatType;
     round?: number;
     separator?: NumberSeparator;
+    currency?: string;
+    compact?: Compact;
 };
 export type TableCalculation = {
     index?: number;

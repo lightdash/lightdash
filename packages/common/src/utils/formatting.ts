@@ -1,5 +1,6 @@
 import moment, { MomentInput } from 'moment';
 import {
+    CompactConfigMap,
     CompactOrAlias,
     DimensionType,
     Field,
@@ -10,6 +11,7 @@ import {
     MetricType,
     NumberSeparator,
     TableCalculation,
+    TableCalculationFormat,
     TableCalculationFormatType,
 } from '../types/field';
 import { AdditionalMetric, isAdditionalMetric } from '../types/metricQuery';
@@ -275,41 +277,99 @@ export function formatFieldValue(
     }
 }
 
-export function formatNumberWithSeparator(
+export const currencies = [
+    'USD',
+    'EUR',
+    'GBP',
+    'JPY',
+    'CHF',
+    'CAD',
+    'AUD',
+    'CNY',
+    'ARS',
+    'BRL',
+    'CLP',
+    'COP',
+    'CZK',
+    'DKK',
+    'HKD',
+    'HUF',
+    'INR',
+    'ILS',
+    'KRW',
+    'MYR',
+    'MXN',
+    'MAD',
+    'NZD',
+    'NOK',
+    'PHP',
+    'PLN',
+    'RUB',
+    'SAR',
+    'SGD',
+    'ZAR',
+    'SEK',
+    'TWD',
+    'THB',
+    'TRY',
+    'VND',
+];
+
+export function formatTableCalculationNumber(
     value: number,
-    separator: NumberSeparator = NumberSeparator.COMMA_PERIOD,
-    round: number = 0,
+    format: TableCalculationFormat,
 ): string {
-    const options =
-        round <= 0
+    const getFormatOptions = () => {
+        const currencyOptions =
+            format.type === TableCalculationFormatType.CURRENCY &&
+            format.currency !== undefined
+                ? { style: 'currency', currency: format.currency }
+                : {};
+
+        if (format.round === undefined && format.currency !== undefined) {
+            // We apply the default round and separator from the currency
+            return currencyOptions;
+        }
+        const round = format.round || 0;
+        return round <= 0
             ? {
                   maximumSignificantDigits: Math.max(
                       Math.floor(value).toString().length + round,
                       1,
                   ),
                   maximumFractionDigits: 0,
+                  ...currencyOptions,
               }
             : {
                   maximumFractionDigits: Math.min(round, 20),
                   minimumFractionDigits: Math.min(round, 20),
+                  ...currencyOptions,
               };
+    };
 
+    const options = getFormatOptions();
+    const separator = format.separator || NumberSeparator.DEFAULT;
     switch (separator) {
         case NumberSeparator.COMMA_PERIOD:
             return value.toLocaleString('en-US', options);
         case NumberSeparator.SPACE_PERIOD:
             return value.toLocaleString('en-US', options).replace(/,/g, ' ');
         case NumberSeparator.PERIOD_COMMA:
+            // If currency is provided, having a PERIOD_COMMA separator will also change the position of the currency symbol
             return value.toLocaleString('de-DE', options);
         case NumberSeparator.NO_SEPARATOR_PERIOD:
             return value.toLocaleString('en-US', {
                 ...options,
                 useGrouping: false,
             });
+        case NumberSeparator.DEFAULT:
+            // This will apply the default style for each currency
+            return value.toLocaleString(undefined, options);
         default:
             return assertUnreachable(separator, 'Unknown separator');
     }
 }
+
 export function formatTableCalculationValue(
     field: TableCalculation,
     value: unknown,
@@ -323,12 +383,31 @@ export function formatTableCalculationValue(
             if (valueIsNaN(value)) {
                 return `${value}`;
             }
-            const formatted = formatNumberWithSeparator(
+            const formatted = formatTableCalculationNumber(
                 Number(value) * 100,
-                field.format.separator,
-                field.format.round,
+                field.format,
             );
             return `${formatted}%`;
+        case TableCalculationFormatType.CURRENCY:
+            if (valueIsNaN(value)) {
+                return `${value}`;
+            }
+
+            const compactValue = field.format.compact
+                ? CompactConfigMap[field.format.compact].convertFn(
+                      Number(value),
+                  )
+                : Number(value);
+            const compactSuffix = field.format.compact
+                ? CompactConfigMap[field.format.compact].suffix
+                : '';
+
+            const currencyFormatted = formatTableCalculationNumber(
+                compactValue,
+                field.format,
+            ).replace(/\u00A0/, ' ');
+
+            return `${currencyFormatted}${compactSuffix}`;
 
         default:
             return assertUnreachable(
