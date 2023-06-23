@@ -379,10 +379,11 @@ const Settings: FC = () => {
                                 <div>
                                     <Title order={4}>Default Project</Title>
                                     <Description>
-                                        If a user has access to this project,
-                                        this is the project they will see when
-                                        they first log in to Lightdash for the
-                                        first time.
+                                        This is the project users will see when
+                                        they log in for the first time or from a
+                                        new device. If a user does not have
+                                        access, they will see their next
+                                        accessible project.
                                     </Description>
                                 </div>
                                 <DefaultProjectPanel />
