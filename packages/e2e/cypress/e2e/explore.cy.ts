@@ -304,4 +304,26 @@ describe('Explore', () => {
             });
         });
     });
+
+    it('Should clear query using hotkeys', () => {
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
+
+        cy.findByText('Orders').click();
+        cy.findByText('Is completed').click();
+
+        // run query
+        cy.get('button').contains('Run query').click();
+
+        // wait for query to finish
+        cy.findByText('Loading results').should('not.exist');
+
+        // clear query hotkeys
+        cy.get('body').type('{ctrl}{alt}{k}');
+
+        // verify empty query keeping selected table
+        cy.findByText('Tables', { selector: 'a' })
+            .parent()
+            .should('have.text', 'Tables/Orders');
+        cy.findByText('Pick a metric & select its dimensions').should('exist');
+    });
 });
