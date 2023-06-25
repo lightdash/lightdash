@@ -116,6 +116,41 @@ const VisualizationProvider: FC<Props> = ({
         [onChartTypeChange],
     );
 
+    const dimensions = useMemo(() => {
+        if (!explore) return [];
+        return getDimensions(explore).filter((field) =>
+            resultsData?.metricQuery.dimensions.includes(fieldId(field)),
+        );
+    }, [explore, resultsData?.metricQuery.dimensions]);
+
+    const metrics = useMemo(() => {
+        if (!explore) return [];
+        return getMetrics(explore).filter((field) =>
+            resultsData?.metricQuery.metrics.includes(fieldId(field)),
+        );
+    }, [explore, resultsData?.metricQuery.metrics]);
+
+    const customMetrics = useMemo(() => {
+        if (!explore) return [];
+
+        return (resultsData?.metricQuery.additionalMetrics || []).reduce<
+            Metric[]
+        >((acc, additionalMetric) => {
+            const table = explore.tables[additionalMetric.table];
+            if (!table) return acc;
+
+            const metric = convertAdditionalMetric({
+                additionalMetric,
+                table,
+            });
+            return [...acc, metric];
+        }, []);
+    }, [explore, resultsData?.metricQuery.additionalMetrics]);
+
+    const tableCalculations = useMemo(() => {
+        return resultsData?.metricQuery.tableCalculations ?? [];
+    }, [resultsData?.metricQuery.tableCalculations]);
+
     const bigNumberConfig = useBigNumberConfig(
         initialChartConfig?.type === ChartType.BIG_NUMBER
             ? initialChartConfig.config
@@ -181,6 +216,12 @@ const VisualizationProvider: FC<Props> = ({
         initialChartConfig?.type === ChartType.PIE
             ? initialChartConfig.config
             : undefined,
+        {
+            dimensions,
+            metrics,
+            customMetrics,
+            tableCalculations,
+        },
     );
 
     const { validPieChartConfig } = pieChartConfig;
@@ -219,41 +260,6 @@ const VisualizationProvider: FC<Props> = ({
     useEffect(() => {
         onPivotDimensionsChange?.(validPivotDimensions);
     }, [validPivotDimensions, onPivotDimensionsChange]);
-
-    const dimensions = useMemo(() => {
-        if (!explore) return [];
-        return getDimensions(explore).filter((field) =>
-            resultsData?.metricQuery.dimensions.includes(fieldId(field)),
-        );
-    }, [explore, resultsData?.metricQuery.dimensions]);
-
-    const metrics = useMemo(() => {
-        if (!explore) return [];
-        return getMetrics(explore).filter((field) =>
-            resultsData?.metricQuery.metrics.includes(fieldId(field)),
-        );
-    }, [explore, resultsData?.metricQuery.metrics]);
-
-    const customMetrics = useMemo(() => {
-        if (!explore) return [];
-
-        return (resultsData?.metricQuery.additionalMetrics || []).reduce<
-            Metric[]
-        >((acc, additionalMetric) => {
-            const table = explore.tables[additionalMetric.table];
-            if (!table) return acc;
-
-            const metric = convertAdditionalMetric({
-                additionalMetric,
-                table,
-            });
-            return [...acc, metric];
-        }, []);
-    }, [explore, resultsData?.metricQuery.additionalMetrics]);
-
-    const tableCalculations = useMemo(() => {
-        return resultsData?.metricQuery.tableCalculations ?? [];
-    }, [resultsData?.metricQuery.tableCalculations]);
 
     const value: VisualizationContext = useMemo(
         () => ({

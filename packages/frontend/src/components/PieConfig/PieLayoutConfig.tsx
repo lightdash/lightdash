@@ -107,7 +107,6 @@ const PieLayoutConfig: React.FC = () => {
             </Stack>
 
             <Select
-                clearable
                 label="Metric"
                 placeholder="Select metric"
                 value={metricId}
