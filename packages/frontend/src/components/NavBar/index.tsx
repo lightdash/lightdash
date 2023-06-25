@@ -72,7 +72,7 @@ const NavBar = memo(() => {
                 display="flex"
                 px="md"
                 // FIXME: adjust after removing Blueprint
-                zIndex={10}
+                zIndex={999}
                 sx={{
                     alignItems: 'center',
                     boxShadow: 'lg',
