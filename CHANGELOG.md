@@ -1,3 +1,10 @@
+# [0.635.0](https://github.com/lightdash/lightdash/compare/0.634.1...0.635.0) (2023-06-26)
+
+
+### Features
+
+* organization default project ([#6030](https://github.com/lightdash/lightdash/issues/6030)) ([ebaa8fd](https://github.com/lightdash/lightdash/commit/ebaa8fdefb13aedb5f7abb98ce055ad50470b10f))
+
 ## [0.634.1](https://github.com/lightdash/lightdash/compare/0.634.0...0.634.1) (2023-06-26)
 
 
