@@ -12,6 +12,7 @@ import {
     Select,
     SelectItemProps,
     Stack,
+    Switch,
     Text,
     Tooltip,
 } from '@mantine/core';
@@ -54,6 +55,9 @@ const PieLayoutConfig: React.FC = () => {
             groupAdd,
             groupChange,
             groupRemove,
+
+            isDonut,
+            toggleDonut,
         },
     } = useVisualizationContext();
 
@@ -150,6 +154,8 @@ const PieLayoutConfig: React.FC = () => {
                     />
                 </Box>
             </Tooltip>
+
+            <Switch label="Donut" checked={isDonut} onChange={toggleDonut} />
         </Stack>
     );
 };
