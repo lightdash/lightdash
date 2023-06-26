@@ -101,10 +101,10 @@ export type DashboardFilters = {
 
 export type DashboardFiltersFromSearchParams = {
     dimensions: (Omit<DashboardFilterRule, 'tileTargets'> & {
-        tileTargets?: string[];
+        tileTargets?: (string | Record<string, DashboardFieldTarget>)[];
     })[];
     metrics: (Omit<DashboardFilterRule, 'tileTargets'> & {
-        tileTargets?: string[];
+        tileTargets?: (string | Record<string, DashboardFieldTarget>)[];
     })[];
 };
 
@@ -180,6 +180,10 @@ export const convertDashboardFiltersToFilters = (
     return filters;
 };
 
+const isDashboardTileTargetFilterOverride = (
+    filter: string | Record<string, DashboardFieldTarget>,
+): filter is Record<string, DashboardFieldTarget> => typeof filter === 'object';
+
 export const convertDashboardFiltersParamToDashboardFilters = (
     dashboardFilters: DashboardFiltersFromSearchParams,
 ): DashboardFilters =>
@@ -189,13 +193,30 @@ export const convertDashboardFiltersParamToDashboardFilters = (
             [key]: value.map((f) => ({
                 ...f,
                 ...(f.tileTargets && {
-                    tileTargets: f.tileTargets.reduce(
-                        (acc, tileTarget) => ({
-                            ...acc,
-                            [tileTarget]: {
-                                fieldId: f.target.fieldId,
-                                tableName: f.target.tableName,
-                            },
+                    tileTargets: f.tileTargets.reduce<
+                        Record<string, DashboardFieldTarget>
+                    >(
+                        (tileTargetsResult, tileTarget) => ({
+                            ...tileTargetsResult,
+                            ...(isDashboardTileTargetFilterOverride(tileTarget)
+                                ? {
+                                      [Object.keys(tileTarget)[0]]: {
+                                          fieldId:
+                                              tileTarget[
+                                                  Object.keys(tileTarget)[0]
+                                              ].fieldId,
+                                          tableName:
+                                              tileTarget[
+                                                  Object.keys(tileTarget)[0]
+                                              ].tableName,
+                                      },
+                                  }
+                                : {
+                                      [tileTarget]: {
+                                          fieldId: f.target.fieldId,
+                                          tableName: f.target.tableName,
+                                      },
+                                  }),
                         }),
                         {},
                     ),
@@ -214,7 +235,12 @@ export const convertDashboardFiltersToParam = (
             [key]: value.map((f) => ({
                 ...f,
                 ...(f.tileTargets && {
-                    tileTargets: Object.keys(f.tileTargets),
+                    tileTargets: Object.entries(f.tileTargets).map(
+                        ([tileTargetKey, tileTargetValue]) =>
+                            tileTargetValue.fieldId === f.target.fieldId
+                                ? tileTargetKey
+                                : { [tileTargetKey]: tileTargetValue },
+                    ),
                 }),
             })),
         }),
