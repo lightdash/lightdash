@@ -56,7 +56,7 @@ const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
         },
         legend: {
             orient: 'horizontal',
-            left: 'left',
+            left: 'center',
         },
 
         series: [
