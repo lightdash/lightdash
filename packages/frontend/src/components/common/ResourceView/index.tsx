@@ -11,7 +11,6 @@ import {
     useMantineTheme,
 } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
-import identity from 'lodash-es/identity';
 import React, { useCallback, useMemo, useState } from 'react';
 import { useTableTabStyles } from '../../../hooks/styles/useTableTabStyles';
 import ResourceActionHandlers, {
@@ -94,8 +93,8 @@ const ResourceView: React.FC<ResourceViewProps> = ({
             tabs?.map((tab) => [
                 tab.id,
                 allItems
-                    .filter(tab.filter ?? identity)
-                    .sort(tab.sort ?? identity)
+                    .filter(tab.filter ?? (() => true))
+                    .sort(tab.sort ?? (() => 0))
                     .slice(0, maxItems),
             ]),
         );
