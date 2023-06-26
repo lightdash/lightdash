@@ -99,7 +99,7 @@ export type DashboardFilters = {
     metrics: DashboardFilterRule[];
 };
 
-export type DashboardFiltersFromSearchParams = {
+export type DashboardFiltersFromSearchParam = {
     dimensions: (Omit<DashboardFilterRule, 'tileTargets'> & {
         tileTargets?: (string | Record<string, DashboardFieldTarget>)[];
     })[];
@@ -185,7 +185,7 @@ const isDashboardTileTargetFilterOverride = (
 ): filter is Record<string, DashboardFieldTarget> => typeof filter === 'object';
 
 export const convertDashboardFiltersParamToDashboardFilters = (
-    dashboardFilters: DashboardFiltersFromSearchParams,
+    dashboardFilters: DashboardFiltersFromSearchParam,
 ): DashboardFilters =>
     Object.entries(dashboardFilters).reduce(
         (result, [key, value]) => ({
@@ -228,7 +228,7 @@ export const convertDashboardFiltersParamToDashboardFilters = (
 
 export const convertDashboardFiltersToParam = (
     dashboardFilters: DashboardFilters,
-): DashboardFiltersFromSearchParams =>
+): DashboardFiltersFromSearchParam =>
     Object.entries(dashboardFilters).reduce(
         (result, [key, value]) => ({
             ...result,
