@@ -1,7 +1,10 @@
-import { Button } from '@blueprintjs/core';
-import { Popover2 } from '@blueprintjs/popover2';
+import { Button, Popover } from '@mantine/core';
 import React from 'react';
 import useEcharts from '../../hooks/echarts/useEcharts';
+import {
+    COLLAPSABLE_CARD_BUTTON_PROPS,
+    COLLAPSABLE_CARD_POPOVER_PROPS,
+} from '../common/CollapsableCard';
 import ChartConfigTabs from './ChartConfigTabs';
 
 const ChartConfigPanel: React.FC = () => {
@@ -9,19 +12,17 @@ const ChartConfigPanel: React.FC = () => {
     const disabled = !eChartsOptions;
 
     return (
-        <Popover2
-            content={<ChartConfigTabs />}
-            interactionKind="click"
-            position="bottom"
-            disabled={disabled}
-        >
-            <Button
-                minimal
-                rightIcon="caret-down"
-                text="Configure"
-                disabled={disabled}
-            />
-        </Popover2>
+        <Popover {...COLLAPSABLE_CARD_POPOVER_PROPS} disabled={disabled}>
+            <Popover.Target>
+                <Button {...COLLAPSABLE_CARD_BUTTON_PROPS} disabled={disabled}>
+                    Configure
+                </Button>
+            </Popover.Target>
+
+            <Popover.Dropdown>
+                <ChartConfigTabs />
+            </Popover.Dropdown>
+        </Popover>
     );
 };
 
