@@ -278,6 +278,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                defaultProjectUuid: { dataType: 'string' },
                 needsProject: { dataType: 'boolean' },
                 chartColors: {
                     dataType: 'array',
@@ -326,6 +327,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'array',
                     array: { dataType: 'string' },
                 },
+                defaultProjectUuid: { dataType: 'string' },
             },
             validators: {},
         },

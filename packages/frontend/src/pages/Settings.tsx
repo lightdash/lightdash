@@ -30,6 +30,7 @@ import PageSpinner from '../components/PageSpinner';
 import AccessTokensPanel from '../components/UserSettings/AccessTokensPanel';
 import AllowedDomainsPanel from '../components/UserSettings/AllowedDomainsPanel';
 import AppearancePanel from '../components/UserSettings/AppearancePanel';
+import DefaultProjectPanel from '../components/UserSettings/DefaultProjectPanel';
 import { DeleteOrganizationPanel } from '../components/UserSettings/DeleteOrganizationPanel';
 import { Description } from '../components/UserSettings/DeleteOrganizationPanel/DeleteOrganizationPanel.styles';
 import OrganizationPanel from '../components/UserSettings/OrganizationPanel';
@@ -372,6 +373,20 @@ const Settings: FC = () => {
                                     </Description>
                                 </div>
                                 <AllowedDomainsPanel />
+                            </SettingsGridCard>
+
+                            <SettingsGridCard>
+                                <div>
+                                    <Title order={4}>Default Project</Title>
+                                    <Description>
+                                        This is the project users will see when
+                                        they log in for the first time or from a
+                                        new device. If a user does not have
+                                        access, they will see their next
+                                        accessible project.
+                                    </Description>
+                                </div>
+                                <DefaultProjectPanel />
                             </SettingsGridCard>
 
                             {user.ability?.can('delete', 'Organization') && (

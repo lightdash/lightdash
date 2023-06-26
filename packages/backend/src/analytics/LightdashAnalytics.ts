@@ -144,16 +144,33 @@ type QueryExecutionEvent = BaseTrack & {
     };
 };
 
-type TrackOrganizationEvent = BaseTrack & {
-    event:
-        | 'organization.created'
-        | 'organization.updated'
-        | 'organization.deleted';
+type CreateOrganizationEvent = BaseTrack & {
+    event: 'organization.created';
     properties: {
         type: string;
         organizationId: string;
         organizationName: string;
-        defaultColourPaletteUpdated?: boolean;
+    };
+};
+
+type UpdateOrganizationEvent = BaseTrack & {
+    event: 'organization.updated';
+    properties: {
+        type: string;
+        organizationId: string;
+        organizationName: string;
+        defaultProjectUuid: string | undefined;
+        defaultColourPaletteUpdated: boolean;
+        defaultProjectUuidUpdated: boolean;
+    };
+};
+
+type DeleteOrganizationEvent = BaseTrack & {
+    event: 'organization.deleted';
+    properties: {
+        type: string;
+        organizationId: string;
+        organizationName: string;
     };
 };
 
@@ -682,7 +699,9 @@ type Track =
     | DeletedDashboardEvent
     | CreateDashboardOrVersionEvent
     | ProjectTablesConfigurationEvent
-    | TrackOrganizationEvent
+    | CreateOrganizationEvent
+    | UpdateOrganizationEvent
+    | DeleteOrganizationEvent
     | OrganizationAllowedEmailDomainUpdatedEvent
     | LoginEvent
     | IdentityLinkedEvent

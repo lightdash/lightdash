@@ -275,6 +275,10 @@
             },
             "Organization": {
                 "properties": {
+                    "defaultProjectUuid": {
+                        "type": "string",
+                        "description": "The project a user sees when they first log in to the organization"
+                    },
                     "needsProject": {
                         "type": "boolean",
                         "description": "The organization needs a project if it doesn't have at least one project."
@@ -340,6 +344,10 @@
                         },
                         "type": "array",
                         "description": "The default color palette for all projects in the organization"
+                    },
+                    "defaultProjectUuid": {
+                        "type": "string",
+                        "description": "The project a user sees when they first log in to the organization"
                     }
                 },
                 "type": "object",
@@ -3624,7 +3632,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.630.0",
+        "version": "0.632.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"

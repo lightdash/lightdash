@@ -3,7 +3,6 @@ import {
     AllowedEmailDomains,
     CreateGroup,
     CreateOrganization,
-    CreateProject,
     ForbiddenError,
     Group,
     isUserWithOrg,
@@ -125,7 +124,10 @@ export class OrganizationService {
                         : 'self-hosted',
                 organizationId: organizationUuid,
                 organizationName: org.name,
+                defaultProjectUuid: org.defaultProjectUuid,
                 defaultColourPaletteUpdated: data.chartColors !== undefined,
+                defaultProjectUuidUpdated:
+                    data.defaultProjectUuid !== undefined,
             },
         });
     }
