@@ -107,7 +107,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                     group: spaceName,
                     disabled: alreadyAddedChart !== undefined,
                     description: alreadyAddedChart
-                        ? 'This chart has been already added to this dashboard'
+                        ? 'This chart has already been added to this dashboard'
                         : undefined,
                     ...(chartConfig &&
                         chartType && {
