@@ -105,7 +105,8 @@ const ResourceView: React.FC<ResourceViewProps> = ({
         defaultActiveTab ??
             [...itemsByTabs.entries()].find(
                 ([_tabId, items]) => items.length > 0,
-            )?.[0],
+            )?.[0] ??
+            tabs?.[0]?.id,
     );
 
     const sortProps =
