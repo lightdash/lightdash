@@ -11,6 +11,7 @@ import {
     useMantineTheme,
 } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
+import identity from 'lodash-es/identity';
 import React, { useCallback, useMemo, useState } from 'react';
 import { useTableTabStyles } from '../../../hooks/styles/useTableTabStyles';
 import ResourceActionHandlers, {
@@ -64,7 +65,7 @@ interface ResourceViewProps extends ResourceViewCommonProps {
 
 const ResourceView: React.FC<ResourceViewProps> = ({
     view = ResourceViewType.LIST,
-    items,
+    items: allItems,
     maxItems,
     tabs,
     gridProps = {},
@@ -81,10 +82,6 @@ const ResourceView: React.FC<ResourceViewProps> = ({
         type: ResourceViewItemAction.CLOSE,
     });
 
-    const [activeTabId, setActiveTabId] = useState(
-        defaultActiveTab || tabs?.[0]?.id,
-    );
-
     const handleAction = useCallback(
         (newAction: ResourceViewItemActionState) => {
             setAction(newAction);
@@ -92,23 +89,27 @@ const ResourceView: React.FC<ResourceViewProps> = ({
         [],
     );
 
-    const slicedSortedItems = useMemo(() => {
-        let sortedItems = items;
+    const itemsByTabs = useMemo(() => {
+        return new Map(
+            tabs?.map((tab) => [
+                tab.id,
+                allItems
+                    .filter(tab.filter ?? identity)
+                    .sort(tab.sort ?? identity)
+                    .slice(0, maxItems),
+            ]),
+        );
+    }, [tabs, allItems, maxItems]);
 
-        const activeTab = tabs?.find((tab) => tab.id === activeTabId);
-        if (activeTab && activeTab.sort) {
-            sortedItems = items.sort(activeTab.sort);
-        }
-
-        if (activeTab && activeTab.filter) {
-            sortedItems = sortedItems.filter(activeTab.filter);
-        }
-
-        return maxItems ? sortedItems.slice(0, maxItems) : sortedItems;
-    }, [items, activeTabId, maxItems, tabs]);
+    const [activeTabId, setActiveTabId] = useState(
+        defaultActiveTab ??
+            [...itemsByTabs.entries()].find(
+                ([_tabId, items]) => items.length > 0,
+            )?.[0],
+    );
 
     const sortProps =
-        tabs && tabs?.length > 0 && items.length > 1
+        tabs && tabs?.length > 0 && allItems.length > 1
             ? {
                   enableSorting: false,
                   enableMultiSort: false,
@@ -120,7 +121,7 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                   defaultSort: listProps.defaultSort,
               };
 
-    const hasTabs = tabs && tabs.length > 0 && items.length > 0;
+    const hasTabs = tabs && tabs.length > 0 && allItems.length > 0;
     const hasHeader = headerProps && (headerProps.title || headerProps.action);
 
     if (hasTabs && headerProps.title) {
@@ -128,6 +129,9 @@ const ResourceView: React.FC<ResourceViewProps> = ({
             'Cannot have both tabs and a header title. Please use one or the other.',
         );
     }
+
+    const items =
+        hasTabs && activeTabId ? itemsByTabs.get(activeTabId) ?? [] : allItems;
 
     return (
         <>
@@ -205,11 +209,11 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                     </>
                 ) : null}
 
-                {slicedSortedItems.length === 0 ? (
+                {items.length === 0 ? (
                     <ResourceEmptyState {...emptyStateProps} />
                 ) : view === ResourceViewType.LIST ? (
                     <ResourceViewList
-                        items={slicedSortedItems}
+                        items={items}
                         {...sortProps}
                         defaultColumnVisibility={
                             listProps.defaultColumnVisibility
@@ -218,7 +222,7 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                     />
                 ) : view === ResourceViewType.GRID ? (
                     <ResourceViewGrid
-                        items={slicedSortedItems}
+                        items={items}
                         groups={gridProps.groups}
                         onAction={handleAction}
                         hasReorder={hasReorder}
