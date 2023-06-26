@@ -1,7 +1,9 @@
 import { Button, Popover } from '@mantine/core';
-import { IconCaretDown } from '@tabler/icons-react';
 import React from 'react';
-import MantineIcon from '../common/MantineIcon';
+import {
+    COLLAPSABLE_CARD_BUTTON_PROPS,
+    COLLAPSABLE_CARD_POPOVER_PROPS,
+} from '../common/CollapsableCard';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import BigNumberConfigTabs from './BigNumberConfigTabs';
 
@@ -12,21 +14,9 @@ const BigNumberConfigPanel: React.FC = () => {
     const disabled = !selectedField;
 
     return (
-        <Popover
-            disabled={disabled}
-            position="bottom"
-            shadow="md"
-            withArrow
-            closeOnClickOutside
-            closeOnEscape
-        >
+        <Popover {...COLLAPSABLE_CARD_POPOVER_PROPS} disabled={disabled}>
             <Popover.Target>
-                <Button
-                    disabled={disabled}
-                    variant="subtle"
-                    size="xs"
-                    rightIcon={<MantineIcon icon={IconCaretDown} />}
-                >
+                <Button {...COLLAPSABLE_CARD_BUTTON_PROPS} disabled={disabled}>
                     Configure
                 </Button>
             </Popover.Target>
