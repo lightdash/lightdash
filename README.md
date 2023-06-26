@@ -326,6 +326,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/CVamsi27"><img src="https://avatars.githubusercontent.com/u/55316723?v=4?s=100" width="100px;" alt="Chandaluri Vamsi Krishna"/><br /><sub><b>Chandaluri Vamsi Krishna</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=CVamsi27" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/elton-okawa"><img src="https://avatars.githubusercontent.com/u/24387035?v=4?s=100" width="100px;" alt="Elton Okawa"/><br /><sub><b>Elton Okawa</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=elton-okawa" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/jayanand05"><img src="https://avatars.githubusercontent.com/u/113882904?v=4?s=100" width="100px;" alt="JAY ANAND"/><br /><sub><b>JAY ANAND</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=jayanand05" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>

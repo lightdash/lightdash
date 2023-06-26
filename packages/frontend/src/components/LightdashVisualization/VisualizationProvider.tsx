@@ -22,6 +22,7 @@ import useCartesianChartConfig from '../../hooks/cartesianChartConfig/useCartesi
 import { EChartSeries } from '../../hooks/echarts/useEcharts';
 import useTableConfig from '../../hooks/tableVisualization/useTableConfig';
 import useBigNumberConfig from '../../hooks/useBigNumberConfig';
+import usePieChartConfig from '../../hooks/usePieChartConfig';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
 import { EchartSeriesClickEvent } from '../SimpleChart';
 
@@ -164,6 +165,14 @@ const VisualizationProvider: FC<Props> = ({
 
     const { validCartesianConfig } = cartesianConfig;
 
+    const pieChartConfig = usePieChartConfig(
+        initialChartConfig?.type === ChartType.PIE
+            ? initialChartConfig.config
+            : undefined,
+    );
+
+    const { validPieChartConfig } = pieChartConfig;
+
     useEffect(() => {
         let validConfig: ChartConfig['config'];
         switch (chartType) {
@@ -176,6 +185,9 @@ const VisualizationProvider: FC<Props> = ({
             case ChartType.TABLE:
                 validConfig = validTableConfig;
                 break;
+            case ChartType.PIE:
+                validConfig = validPieChartConfig;
+                break;
             default:
                 assertUnreachable(
                     chartType,
@@ -184,9 +196,10 @@ const VisualizationProvider: FC<Props> = ({
         }
         onChartConfigChange?.(validConfig);
     }, [
-        validCartesianConfig,
         onChartConfigChange,
         chartType,
+        validCartesianConfig,
+        validPieChartConfig,
         validBigNumberConfig,
         validTableConfig,
     ]);

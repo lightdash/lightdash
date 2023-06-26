@@ -278,6 +278,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                defaultProjectUuid: { dataType: 'string' },
                 needsProject: { dataType: 'boolean' },
                 chartColors: {
                     dataType: 'array',
@@ -326,6 +327,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'array',
                     array: { dataType: 'string' },
                 },
+                defaultProjectUuid: { dataType: 'string' },
             },
             validators: {},
         },
@@ -445,6 +447,40 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'OrganizationMemberRole.EDITOR': {
+        dataType: 'refEnum',
+        enums: ['editor'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'OrganizationMemberRole.INTERACTIVE_VIEWER': {
+        dataType: 'refEnum',
+        enums: ['interactive_viewer'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'OrganizationMemberRole.VIEWER': {
+        dataType: 'refEnum',
+        enums: ['viewer'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'OrganizationMemberRole.MEMBER': {
+        dataType: 'refEnum',
+        enums: ['member'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AllowedEmailDomainsRole: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'OrganizationMemberRole.EDITOR' },
+                { ref: 'OrganizationMemberRole.INTERACTIVE_VIEWER' },
+                { ref: 'OrganizationMemberRole.VIEWER' },
+                { ref: 'OrganizationMemberRole.MEMBER' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AllowedEmailDomains: {
         dataType: 'refAlias',
         type: {
@@ -455,7 +491,7 @@ const models: TsoaRoute.Models = {
                     array: { dataType: 'string' },
                     required: true,
                 },
-                role: { ref: 'OrganizationMemberRole', required: true },
+                role: { ref: 'AllowedEmailDomainsRole', required: true },
                 emailDomains: {
                     dataType: 'array',
                     array: { dataType: 'string' },
@@ -490,7 +526,7 @@ const models: TsoaRoute.Models = {
                         array: { dataType: 'string' },
                         required: true,
                     },
-                    role: { ref: 'OrganizationMemberRole', required: true },
+                    role: { ref: 'AllowedEmailDomainsRole', required: true },
                     projectUuids: {
                         dataType: 'array',
                         array: { dataType: 'string' },
@@ -657,6 +693,7 @@ const models: TsoaRoute.Models = {
             'scatter',
             'area',
             'mixed',
+            'pie',
             'table',
             'big_number',
         ],
@@ -1511,7 +1548,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ChartType: {
         dataType: 'refEnum',
-        enums: ['cartesian', 'table', 'big_number'],
+        enums: ['cartesian', 'table', 'big_number', 'pie'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ChartSummary: {
@@ -1737,12 +1774,13 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     TableCalculationFormatType: {
         dataType: 'refEnum',
-        enums: ['default', 'percent'],
+        enums: ['default', 'percent', 'currency', 'number'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     NumberSeparator: {
         dataType: 'refEnum',
         enums: [
+            'default',
             'commaPeriod',
             'spacePeriod',
             'periodComma',
@@ -1750,11 +1788,20 @@ const models: TsoaRoute.Models = {
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    Compact: {
+        dataType: 'refEnum',
+        enums: ['thousands', 'millions', 'billions', 'trillions'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     TableCalculationFormat: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                suffix: { dataType: 'string' },
+                prefix: { dataType: 'string' },
+                compact: { ref: 'Compact' },
+                currency: { dataType: 'string' },
                 separator: { ref: 'NumberSeparator' },
                 round: { dataType: 'double' },
                 type: { ref: 'TableCalculationFormatType', required: true },
@@ -1794,11 +1841,6 @@ const models: TsoaRoute.Models = {
             'date',
             'boolean',
         ],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    Compact: {
-        dataType: 'refEnum',
-        enums: ['thousands', 'millions', 'billions', 'trillions'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CompactOrAlias: {

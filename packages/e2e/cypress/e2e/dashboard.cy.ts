@@ -66,6 +66,7 @@ describe('Dashboard', () => {
         cy.findByText('Saved chart').click();
         cy.findByRole('dialog').findByPlaceholderText('Search...').click();
         cy.contains('How much revenue').click();
+        cy.findByRole('dialog').get('.mantine-MultiSelect-input').click(); // Close dropdown
         cy.findByText('Add').click();
 
         cy.findAllByText('Add tile').click({ multiple: true });

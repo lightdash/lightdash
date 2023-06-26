@@ -1,4 +1,5 @@
 import {
+    AllowedEmailDomains,
     OrganizationMemberRole,
     ProjectType,
     validateOrganizationEmailDomains,
@@ -13,7 +14,21 @@ import {
 import { useProjects } from '../../../hooks/useProjects';
 import { isValidEmailDomain } from '../../../utils/fieldValidators';
 
-const roleOptions = [
+const roleOptions: Array<{
+    value: AllowedEmailDomains['role'];
+    label: string;
+    subLabel: string;
+}> = [
+    {
+        value: OrganizationMemberRole.EDITOR,
+        label: 'Organization Editor',
+        subLabel: 'Has edit access across all projects in the org',
+    },
+    {
+        value: OrganizationMemberRole.INTERACTIVE_VIEWER,
+        label: 'Organization Interactive Viewer',
+        subLabel: 'Has interactive access across all projects in the org',
+    },
     {
         value: OrganizationMemberRole.VIEWER,
         label: 'Organization Viewer',
@@ -30,7 +45,7 @@ const AllowedDomainsPanel: FC = () => {
     const form = useForm({
         initialValues: {
             emailDomains: [] as string[],
-            role: OrganizationMemberRole.VIEWER,
+            role: OrganizationMemberRole.VIEWER as AllowedEmailDomains['role'],
             projects: [] as string[],
         },
     });
@@ -154,7 +169,7 @@ const AllowedDomainsPanel: FC = () => {
                                     </Stack>
                                 ),
                             )}
-                            defaultValue="viewer"
+                            defaultValue={OrganizationMemberRole.VIEWER}
                             {...form.getInputProps('role')}
                         />
 

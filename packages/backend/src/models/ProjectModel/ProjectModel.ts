@@ -41,7 +41,6 @@ import {
     ProjectTableName,
 } from '../../database/entities/projects';
 import { DbSavedChart } from '../../database/entities/savedCharts';
-import { CreateDbSpace, DbSpace } from '../../database/entities/spaces';
 import { DbUser } from '../../database/entities/users';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
 import Logger from '../../logger';
@@ -463,6 +462,32 @@ export class ProjectModel {
         return undefined;
     }
 
+    static convertMetricFiltersFieldIdsToFieldRef = (explore: Explore) => {
+        const convertedExplore = { ...explore };
+        if (convertedExplore.tables) {
+            Object.values(convertedExplore.tables).forEach((table) => {
+                if (table.metrics) {
+                    Object.values(table.metrics).forEach((metric) => {
+                        if (metric.filters) {
+                            metric.filters.forEach((filter) => {
+                                // @ts-expect-error cached explore types might not be up to date
+                                const { fieldId, fieldRef, ...rest } =
+                                    filter.target;
+                                // eslint-disable-next-line no-param-reassign
+                                filter.target = {
+                                    ...rest,
+                                    fieldRef: fieldRef ?? fieldId,
+                                };
+                            });
+                        }
+                    });
+                }
+            });
+        }
+
+        return convertedExplore;
+    };
+
     async getExploreFromCache(
         projectUuid: string,
         exploreName: string,
@@ -481,7 +506,11 @@ export class ProjectModel {
                 `Explore "${exploreName}" does not exist.`,
             );
         }
-        return row.explore;
+
+        const exploreFromCache: Explore =
+            ProjectModel.convertMetricFiltersFieldIdsToFieldRef(row.explore);
+
+        return exploreFromCache;
     }
 
     async saveExploresToCache(

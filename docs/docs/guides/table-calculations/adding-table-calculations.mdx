@@ -3,6 +3,7 @@ import CreateNewCalc from './assets/create-new-table-calc.jpg';
 import WriteNewCalc from './assets/add-table-calc-sql.jpg';
 import EditDeleteCalc from './assets/edit-delete-table-calc.jpg';
 import FormatCalc from './assets/format-table-calc.jpg';
+import CurrencyFormat from './assets/currency-format.png';
 
 # Using table calculations
 
@@ -49,6 +50,18 @@ To reference the metrics and dimensions in your results table, you can either us
 If needed, you can update the format of your table calculation to things like percent formatting using the `format` tab. 
 
 <img src={FormatCalc} width="793" height="454" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+Or currency: 
+
+<img src={CurrencyFormat} width="793" height="454" style={{display: "block", margin: "0 auto 20px auto"}}/>
+
+| Format types     | Description                                        | Raw value | How it might look like in Lightdash         |
+|------------------|----------------------------------------------------|-----------|-----------------------------------------|
+| Default          | Default format for the table calculation result    | 0.75      | 0.75                                    |
+| Percent          | Converts numbers into a percentage                 | 0.75      | 75%                                     |
+| Currency         | Adds currency symbol and default locale format     | 1234.1234 | $ 1234.12                               |
+| Number           | Formats number with prefix and suffix              | 123.1234  | Speed: 123.12 km/h                      |
+
 
 #### 5. To delete or edit your table calculation, just click on the gear icon by the field name
 

@@ -275,6 +275,10 @@
             },
             "Organization": {
                 "properties": {
+                    "defaultProjectUuid": {
+                        "type": "string",
+                        "description": "The project a user sees when they first log in to the organization"
+                    },
                     "needsProject": {
                         "type": "boolean",
                         "description": "The organization needs a project if it doesn't have at least one project."
@@ -340,6 +344,10 @@
                         },
                         "type": "array",
                         "description": "The default color palette for all projects in the organization"
+                    },
+                    "defaultProjectUuid": {
+                        "type": "string",
+                        "description": "The project a user sees when they first log in to the organization"
                     }
                 },
                 "type": "object",
@@ -484,6 +492,38 @@
                 "required": ["role"],
                 "type": "object"
             },
+            "OrganizationMemberRole.EDITOR": {
+                "enum": ["editor"],
+                "type": "string"
+            },
+            "OrganizationMemberRole.INTERACTIVE_VIEWER": {
+                "enum": ["interactive_viewer"],
+                "type": "string"
+            },
+            "OrganizationMemberRole.VIEWER": {
+                "enum": ["viewer"],
+                "type": "string"
+            },
+            "OrganizationMemberRole.MEMBER": {
+                "enum": ["member"],
+                "type": "string"
+            },
+            "AllowedEmailDomainsRole": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/OrganizationMemberRole.EDITOR"
+                    },
+                    {
+                        "$ref": "#/components/schemas/OrganizationMemberRole.INTERACTIVE_VIEWER"
+                    },
+                    {
+                        "$ref": "#/components/schemas/OrganizationMemberRole.VIEWER"
+                    },
+                    {
+                        "$ref": "#/components/schemas/OrganizationMemberRole.MEMBER"
+                    }
+                ]
+            },
             "AllowedEmailDomains": {
                 "properties": {
                     "projectUuids": {
@@ -493,7 +533,7 @@
                         "type": "array"
                     },
                     "role": {
-                        "$ref": "#/components/schemas/OrganizationMemberRole"
+                        "$ref": "#/components/schemas/AllowedEmailDomainsRole"
                     },
                     "emailDomains": {
                         "items": {
@@ -536,7 +576,7 @@
                         "type": "array"
                     },
                     "role": {
-                        "$ref": "#/components/schemas/OrganizationMemberRole"
+                        "$ref": "#/components/schemas/AllowedEmailDomainsRole"
                     },
                     "projectUuids": {
                         "items": {
@@ -715,6 +755,7 @@
                     "scatter",
                     "area",
                     "mixed",
+                    "pie",
                     "table",
                     "big_number"
                 ],
@@ -1773,7 +1814,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "ChartType": {
-                "enum": ["cartesian", "table", "big_number"],
+                "enum": ["cartesian", "table", "big_number", "pie"],
                 "type": "string"
             },
             "ChartSummary": {
@@ -2011,11 +2052,12 @@
                 "type": "object"
             },
             "TableCalculationFormatType": {
-                "enum": ["default", "percent"],
+                "enum": ["default", "percent", "currency", "number"],
                 "type": "string"
             },
             "NumberSeparator": {
                 "enum": [
+                    "default",
                     "commaPeriod",
                     "spacePeriod",
                     "periodComma",
@@ -2023,8 +2065,24 @@
                 ],
                 "type": "string"
             },
+            "Compact": {
+                "enum": ["thousands", "millions", "billions", "trillions"],
+                "type": "string"
+            },
             "TableCalculationFormat": {
                 "properties": {
+                    "suffix": {
+                        "type": "string"
+                    },
+                    "prefix": {
+                        "type": "string"
+                    },
+                    "compact": {
+                        "$ref": "#/components/schemas/Compact"
+                    },
+                    "currency": {
+                        "type": "string"
+                    },
                     "separator": {
                         "$ref": "#/components/schemas/NumberSeparator"
                     },
@@ -2076,10 +2134,6 @@
                     "date",
                     "boolean"
                 ],
-                "type": "string"
-            },
-            "Compact": {
-                "enum": ["thousands", "millions", "billions", "trillions"],
                 "type": "string"
             },
             "CompactOrAlias": {
@@ -3578,7 +3632,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.623.1",
+        "version": "0.632.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -4420,16 +4474,18 @@
                         }
                     }
                 },
-                "description": "Gets the allowed email domains for the current user's organization",
+                "description": "Updates the allowed email domains for the current user's organization",
                 "tags": ["Organizations"],
                 "security": [],
                 "parameters": [],
                 "requestBody": {
+                    "description": "the new allowed email domains",
                     "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/UpdateAllowedEmailDomains"
+                                "$ref": "#/components/schemas/UpdateAllowedEmailDomains",
+                                "description": "the new allowed email domains"
                             }
                         }
                     }
@@ -4466,11 +4522,13 @@
                 "security": [],
                 "parameters": [],
                 "requestBody": {
+                    "description": "the new group details",
                     "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Pick_CreateGroup.name_"
+                                "$ref": "#/components/schemas/Pick_CreateGroup.name_",
+                                "description": "the new group details"
                             }
                         }
                     }

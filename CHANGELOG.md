@@ -1,3 +1,102 @@
+## [0.635.1](https://github.com/lightdash/lightdash/compare/0.635.0...0.635.1) (2023-06-26)
+
+
+### Bug Fixes
+
+* land on charts if dashboards are empty ([#5931](https://github.com/lightdash/lightdash/issues/5931)) ([bcaf4b7](https://github.com/lightdash/lightdash/commit/bcaf4b7fcc26ec374cb454382998c466e668d4bd))
+
+# [0.635.0](https://github.com/lightdash/lightdash/compare/0.634.1...0.635.0) (2023-06-26)
+
+
+### Features
+
+* organization default project ([#6030](https://github.com/lightdash/lightdash/issues/6030)) ([ebaa8fd](https://github.com/lightdash/lightdash/commit/ebaa8fdefb13aedb5f7abb98ce055ad50470b10f))
+
+## [0.634.1](https://github.com/lightdash/lightdash/compare/0.634.0...0.634.1) (2023-06-26)
+
+
+### Bug Fixes
+
+* z-index on user management page ([#6049](https://github.com/lightdash/lightdash/issues/6049)) ([8813714](https://github.com/lightdash/lightdash/commit/881371433c04fa0b992d91fff3cf05ba65cca3f4))
+
+# [0.634.0](https://github.com/lightdash/lightdash/compare/0.633.0...0.634.0) (2023-06-26)
+
+
+### Features
+
+* add chart type icon when adding to dashboard ([#6037](https://github.com/lightdash/lightdash/issues/6037)) ([61f7d93](https://github.com/lightdash/lightdash/commit/61f7d93efdd1e5f2a54f8315779dd46010c82b57))
+
+# [0.633.0](https://github.com/lightdash/lightdash/compare/0.632.1...0.633.0) (2023-06-26)
+
+
+### Features
+
+* can edit filters in table results ([#5973](https://github.com/lightdash/lightdash/issues/5973)) ([033ebd6](https://github.com/lightdash/lightdash/commit/033ebd65de815bb927596a5e2cde80e61fd02dfc))
+
+## [0.632.1](https://github.com/lightdash/lightdash/compare/0.632.0...0.632.1) (2023-06-23)
+
+
+### Bug Fixes
+
+* get correct fieldId when viewing underlying data ([#6023](https://github.com/lightdash/lightdash/issues/6023)) ([bbb0143](https://github.com/lightdash/lightdash/commit/bbb0143341f8f3ed7b725acfa8374b676961b24c))
+* only set url params with pristine state ([#6034](https://github.com/lightdash/lightdash/issues/6034)) ([2b8689f](https://github.com/lightdash/lightdash/commit/2b8689f984d1575eb1c5f395252d34d338eb21fe))
+
+# [0.632.0](https://github.com/lightdash/lightdash/compare/0.631.0...0.632.0) (2023-06-23)
+
+
+### Features
+
+* table calculation number format ([#6029](https://github.com/lightdash/lightdash/issues/6029)) ([5805f57](https://github.com/lightdash/lightdash/commit/5805f5769df29d4b9488d204c6c485489fceaaf4))
+
+# [0.631.0](https://github.com/lightdash/lightdash/compare/0.630.0...0.631.0) (2023-06-23)
+
+
+### Features
+
+* table calculation currency format ([#6019](https://github.com/lightdash/lightdash/issues/6019)) ([612fa1b](https://github.com/lightdash/lightdash/commit/612fa1b6a966b4a523253fc5cacd664f5de74aad))
+
+# [0.630.0](https://github.com/lightdash/lightdash/compare/0.629.0...0.630.0) (2023-06-23)
+
+
+### Features
+
+* add editor and interactive viewer to default role options ([#6018](https://github.com/lightdash/lightdash/issues/6018)) ([6f8b790](https://github.com/lightdash/lightdash/commit/6f8b79001613cb8bb111fda4e3ae00fc3e25669a))
+
+# [0.629.0](https://github.com/lightdash/lightdash/compare/0.628.1...0.629.0) (2023-06-22)
+
+
+### Features
+
+* add clear query shortcut ([#5904](https://github.com/lightdash/lightdash/issues/5904)) ([92d3f16](https://github.com/lightdash/lightdash/commit/92d3f1654a1cb07899d43d62ab0b191c5c473c8a))
+
+## [0.628.1](https://github.com/lightdash/lightdash/compare/0.628.0...0.628.1) (2023-06-22)
+
+
+### Bug Fixes
+
+* dashboard URL should update with filter values ([#6025](https://github.com/lightdash/lightdash/issues/6025)) ([f43db2a](https://github.com/lightdash/lightdash/commit/f43db2a5e1814ba41c0f40cd766ff5727a2faaf9))
+
+# [0.628.0](https://github.com/lightdash/lightdash/compare/0.627.0...0.628.0) (2023-06-22)
+
+
+### Features
+
+* pie charts - add chart type and dropdown item ([#5991](https://github.com/lightdash/lightdash/issues/5991)) ([f3d4fd4](https://github.com/lightdash/lightdash/commit/f3d4fd40ce800f7d2ed5456affeacdd6f2989791))
+
+# [0.627.0](https://github.com/lightdash/lightdash/compare/0.626.0...0.627.0) (2023-06-22)
+
+
+### Features
+
+* migrate `Add charts to dashboard` modal and multiselect ([#6001](https://github.com/lightdash/lightdash/issues/6001)) ([d6d4c34](https://github.com/lightdash/lightdash/commit/d6d4c34b89caff7d92f747c0d9b3afcc031cc7fb))
+
+# [0.626.0](https://github.com/lightdash/lightdash/compare/0.625.0...0.626.0) (2023-06-22)
+
+
+### Features
+
+* migrate `Move chart to dashboard` modal ([#5996](https://github.com/lightdash/lightdash/issues/5996)) ([670862a](https://github.com/lightdash/lightdash/commit/670862aa8c44f3ba254eac3ac2527c48f9176a7c))
+
 # [0.625.0](https://github.com/lightdash/lightdash/compare/0.624.1...0.625.0) (2023-06-22)
 
 

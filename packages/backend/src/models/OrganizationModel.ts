@@ -25,6 +25,9 @@ export class OrganizationModel {
             organizationUuid: data.organization_uuid,
             name: data.organization_name,
             chartColors: data.chart_colors,
+            defaultProjectUuid: data.default_project_uuid
+                ? data.default_project_uuid
+                : undefined,
         };
     }
 
@@ -64,6 +67,7 @@ export class OrganizationModel {
             .update({
                 organization_name: data.name,
                 chart_colors: data.chartColors,
+                default_project_uuid: data.defaultProjectUuid,
             })
             .returning('*');
         return OrganizationModel.mapDBObjectToOrganization(org);

@@ -10,6 +10,7 @@ import {
     fieldId as getFieldId,
     isBigNumberConfig,
     isCartesianChartConfig,
+    isPieChartConfig,
     isTableChartConfig,
     MetricQuery,
     MetricType,
@@ -23,6 +24,7 @@ import produce from 'immer';
 import cloneDeep from 'lodash-es/cloneDeep';
 import isEqual from 'lodash-es/isEqual';
 import { FC, useCallback, useEffect, useMemo, useReducer } from 'react';
+import { useHistory } from 'react-router-dom';
 import { createContext, useContextSelector } from 'use-context-selector';
 import useDefaultSortField from '../hooks/useDefaultSortField';
 import { useQueryResults } from '../hooks/useQueryResults';
@@ -188,7 +190,8 @@ export interface ExplorerContext {
     queryResults: ReturnType<typeof useQueryResults>;
     hasUnfetchedChanges: boolean;
     actions: {
-        clear: () => void;
+        clearExplore: () => void;
+        clearQuery: () => void;
         reset: () => void;
         setTableName: (tableName: string) => void;
         removeActiveField: (fieldId: FieldId) => void;
@@ -293,6 +296,14 @@ export const getValidChartConfig = (
                 config: isTableChartConfig(config) ? config : {},
             };
         }
+        case ChartType.PIE: {
+            return {
+                type,
+                config: isPieChartConfig(config) ? config : {},
+            };
+        }
+        default:
+            return assertUnreachable(type, 'Invalid chart type');
     }
 };
 
@@ -1218,13 +1229,31 @@ export const ExplorerProvider: FC<{
         });
     }, [mutateAsync, state.shouldFetchResults]);
 
-    const clear = useCallback(async () => {
+    const clearExplore = useCallback(async () => {
         dispatch({
             type: ActionType.RESET,
             payload: defaultState,
         });
         resetQueryResults();
     }, [resetQueryResults]);
+    const history = useHistory();
+    const clearQuery = useCallback(async () => {
+        dispatch({
+            type: ActionType.RESET,
+            payload: {
+                ...defaultState,
+                unsavedChartVersion: {
+                    ...defaultState.unsavedChartVersion,
+                    tableName: unsavedChartVersion.tableName,
+                },
+            },
+        });
+        resetQueryResults();
+        // clear state in url params
+        history.replace({
+            search: '',
+        });
+    }, [history, resetQueryResults, unsavedChartVersion.tableName]);
 
     const defaultSort = useDefaultSortField(unsavedChartVersion);
 
@@ -1238,7 +1267,8 @@ export const ExplorerProvider: FC<{
 
     const actions = useMemo(
         () => ({
-            clear,
+            clearExplore,
+            clearQuery,
             reset,
             setTableName,
             removeActiveField,
@@ -1265,7 +1295,8 @@ export const ExplorerProvider: FC<{
             toggleExpandedSection,
         }),
         [
-            clear,
+            clearExplore,
+            clearQuery,
             reset,
             setTableName,
             removeActiveField,

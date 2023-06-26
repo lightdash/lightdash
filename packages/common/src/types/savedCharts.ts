@@ -13,6 +13,7 @@ export enum ChartKind {
     SCATTER = 'scatter',
     AREA = 'area',
     MIXED = 'mixed',
+    PIE = 'pie',
     TABLE = 'table',
     BIG_NUMBER = 'big_number',
 }
@@ -21,6 +22,7 @@ export enum ChartType {
     CARTESIAN = 'cartesian',
     TABLE = 'table',
     BIG_NUMBER = 'big_number',
+    PIE = 'pie',
 }
 
 export enum ComparisonFormatTypes {
@@ -50,6 +52,15 @@ export type BigNumber = {
 export type BigNumberConfig = {
     type: ChartType.BIG_NUMBER;
     config?: BigNumber;
+};
+
+export type PieChart = {
+    isDonut?: boolean;
+};
+
+export type PieChartConfig = {
+    type: ChartType.PIE;
+    config?: PieChart;
 };
 
 export type ColumnProperties = {
@@ -210,6 +221,7 @@ export type CartesianChartConfig = {
 };
 
 export type ChartConfig =
+    | PieChartConfig
     | BigNumberConfig
     | TableChartConfig
     | CartesianChartConfig;
@@ -316,6 +328,10 @@ export const isTableChartConfig = (
     value: ChartConfig['config'],
 ): value is TableChart => !!value && !isCartesianChartConfig(value);
 
+export const isPieChartConfig = (
+    value: ChartConfig['config'],
+): value is PieChart => !!value && 'donut' in value;
+
 export const getCustomLabelsFromColumnProperties = (
     columns: Record<string, ColumnProperties> | undefined,
 ): Record<string, string> | undefined =>
@@ -385,6 +401,8 @@ export const getChartType = (
     if (value === undefined) return undefined;
 
     switch (chartType) {
+        case ChartType.PIE:
+            return ChartKind.PIE;
         case ChartType.BIG_NUMBER:
             return ChartKind.BIG_NUMBER;
         case ChartType.TABLE:
@@ -423,7 +441,10 @@ export const getChartType = (
 
             return undefined;
         default:
-            return undefined;
+            return assertUnreachable(
+                chartType,
+                `Unknown chart type: ${chartType}`,
+            );
     }
 };
 
@@ -437,7 +458,10 @@ export type ChartSummary = Pick<
     | 'projectUuid'
     | 'organizationUuid'
     | 'pinnedListUuid'
-> & { chartType?: ChartType | undefined };
+> & {
+    chartType?: ChartType | undefined;
+    chartConfig?: ChartConfig['config'] | undefined;
+};
 
 export type ApiChartSummaryListResponse = {
     status: 'ok';

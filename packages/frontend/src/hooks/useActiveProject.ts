@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import {
     QueryClient,
     useMutation,
@@ -39,9 +40,10 @@ export const useUpdateActiveProjectMutation = () => {
             Promise.resolve(
                 localStorage.setItem(LAST_PROJECT_KEY, projectUuid),
             ),
-        onSuccess: () => {
+        onSuccess: async () => {
             clearProjectCache(queryClient);
-            queryClient.invalidateQueries(['validations']);
+            await queryClient.invalidateQueries(['validations']);
+            await queryClient.invalidateQueries(['activeProject']);
         },
     });
 };
@@ -63,22 +65,44 @@ export const useActiveProjectUuid = () => {
         useDefaultProject();
     const { data: lastProjectUuid, isLoading: isLoadingLastProject } =
         useActiveProject();
+    const { mutate } = useUpdateActiveProjectMutation();
 
-    if (isLoadingProjects || isLoadingDefaultProject || isLoadingLastProject) {
+    const isLoading =
+        isLoadingProjects || isLoadingDefaultProject || isLoadingLastProject;
+
+    const paramProject = projects?.find(
+        (project) => project.projectUuid === params.projectUuid,
+    );
+
+    const lastProject = projects?.find(
+        (project) => project.projectUuid === lastProjectUuid,
+    );
+
+    useEffect(() => {
+        const newValue =
+            paramProject?.projectUuid || defaultProject?.projectUuid;
+        if (!isLoading && !lastProject && newValue) {
+            mutate(newValue);
+        }
+    }, [
+        isLoading,
+        defaultProject?.projectUuid,
+        lastProject,
+        mutate,
+        paramProject?.projectUuid,
+    ]);
+
+    if (isLoading) {
         return {
             isLoading: true,
             activeProjectUuid: undefined,
         };
     }
 
-    const lastProject = projects?.find(
-        (project) => project.projectUuid === lastProjectUuid,
-    );
-
     return {
         isLoading: false,
         activeProjectUuid:
-            params.projectUuid ||
+            paramProject?.projectUuid ||
             lastProject?.projectUuid ||
             defaultProject?.projectUuid,
     };

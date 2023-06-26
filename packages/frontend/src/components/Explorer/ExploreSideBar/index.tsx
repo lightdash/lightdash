@@ -156,7 +156,9 @@ const ExploreSideBar = memo(() => {
         (context) => context.state.unsavedChartVersion.tableName,
     );
 
-    const clearExplore = useExplorerContext((context) => context.actions.clear);
+    const clearExplore = useExplorerContext(
+        (context) => context.actions.clearExplore,
+    );
     const history = useHistory();
 
     const handleBack = useCallback(() => {

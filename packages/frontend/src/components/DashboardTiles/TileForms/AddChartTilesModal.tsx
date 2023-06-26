@@ -1,71 +1,129 @@
-import { Button, Classes, Dialog, Icon, Intent } from '@blueprintjs/core';
 import {
+    ChartKind,
     Dashboard,
     DashboardTileTypes,
     defaultTileSize,
+    getChartType,
 } from '@lightdash/common';
-import React, { FC, useMemo } from 'react';
-import { useForm } from 'react-hook-form';
+import {
+    Box,
+    Button,
+    Flex,
+    Group,
+    Modal,
+    MultiSelect,
+    SelectItem,
+    Stack,
+    Text,
+    Title,
+    Tooltip,
+} from '@mantine/core';
+import { useForm } from '@mantine/form';
+import { IconChartAreaLine } from '@tabler/icons-react';
+import { FC, forwardRef, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuid4 } from 'uuid';
 import { useChartSummaries } from '../../../hooks/useChartSummaries';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
-import { SpaceLabel } from '../../Explorer/SpaceBrowser/AddResourceToSpaceModal.style';
-import Form from '../../ReactHookForm/Form';
-import MultiSelect from '../../ReactHookForm/MultiSelect';
+import MantineIcon from '../../common/MantineIcon';
+import { getChartIcon } from '../../common/ResourceIcon';
 
 type Props = {
     onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
     onClose: () => void;
 };
 
-type AddSavedChartsForm = {
-    savedCharts: { value: string; label: string }[];
-};
+interface ItemProps extends SelectItem {
+    label: string;
+    description?: string;
+    chartType?: ChartKind | undefined;
+}
+
+const MultiSelectItem = forwardRef<HTMLDivElement, ItemProps>(
+    (
+        {
+            label,
+            description,
+            chartType,
+            selected,
+            disabled,
+            ...others
+        }: ItemProps,
+        ref,
+    ) => {
+        return (
+            <div ref={ref} {...others}>
+                <Stack spacing="two">
+                    <Tooltip
+                        label={description}
+                        disabled={!description}
+                        position="top-start"
+                    >
+                        <Flex align="center" gap="sm">
+                            {chartType && (
+                                <Box opacity={disabled ? 0.5 : 1}>
+                                    {getChartIcon(chartType)}
+                                </Box>
+                            )}
+
+                            <Text>{label}</Text>
+                        </Flex>
+                    </Tooltip>
+                </Stack>
+            </div>
+        );
+    },
+);
 
 const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: savedCharts, isLoading } = useChartSummaries(projectUuid);
     const { dashboardTiles, dashboard } = useDashboardContext();
-    const methods = useForm<AddSavedChartsForm>({
-        mode: 'onSubmit',
+    const form = useForm({
+        initialValues: {
+            savedChartsUuids: [],
+        },
     });
-
     const allSavedCharts = useMemo(() => {
-        return (savedCharts || []).map(({ uuid, name, spaceName }) => {
-            const alreadyAddedChart = dashboardTiles.find((tile) => {
-                return (
-                    tile.type === DashboardTileTypes.SAVED_CHART &&
-                    tile.properties.savedChartUuid === uuid
-                );
-            });
+        const reorderedCharts = savedCharts?.sort((chartA, chartB) =>
+            chartA.spaceUuid === dashboard?.spaceUuid
+                ? -1
+                : chartB.spaceUuid === dashboard?.spaceUuid
+                ? 1
+                : 0,
+        );
+        return (reorderedCharts || []).map(
+            ({ uuid, name, spaceName, chartType, chartConfig }) => {
+                const alreadyAddedChart = dashboardTiles.find((tile) => {
+                    return (
+                        tile.type === DashboardTileTypes.SAVED_CHART &&
+                        tile.properties.savedChartUuid === uuid
+                    );
+                });
 
-            const subLabel = (
-                <SpaceLabel>
-                    <Icon size={12} icon="folder-close" />
-                    {spaceName}
-                </SpaceLabel>
-            );
+                return {
+                    value: uuid,
+                    label: name,
+                    group: spaceName,
+                    disabled: alreadyAddedChart !== undefined,
+                    description: alreadyAddedChart
+                        ? 'This chart has already been added to this dashboard'
+                        : undefined,
+                    ...(chartConfig &&
+                        chartType && {
+                            chartType: getChartType(chartType, chartConfig),
+                        }),
+                };
+            },
+        );
+    }, [dashboardTiles, savedCharts, dashboard?.spaceUuid]);
 
-            return {
-                value: uuid,
-                label: name,
-                subLabel: subLabel,
-                disabled: alreadyAddedChart !== undefined,
-                title:
-                    alreadyAddedChart &&
-                    'This chart has been already added to this dashboard',
-            };
-        });
-    }, [dashboardTiles, savedCharts]);
-
-    const handleSubmit = (formData: AddSavedChartsForm) => {
+    const handleSubmit = form.onSubmit(({ savedChartsUuids }) => {
         onAddTiles(
-            formData.savedCharts.map(({ value: uuid }) => {
-                const savedChart = savedCharts?.find(
-                    (chart) => chart.uuid === uuid,
-                );
-
+            savedChartsUuids.map((uuid) => {
+                const savedChart = savedCharts?.find((chart) => {
+                    return chart.uuid === uuid;
+                });
                 return {
                     uuid: uuid4(),
                     properties: {
@@ -78,49 +136,67 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
             }),
         );
         onClose();
-    };
+    });
 
     const dashboardTitleName = dashboard?.name
         ? `"${dashboard.name}"`
         : 'dashboard';
 
+    if (!savedCharts || !dashboardTiles || isLoading) return null;
+
     return (
-        <Dialog
-            isOpen={true}
+        <Modal
+            opened={true}
+            size="lg"
             onClose={onClose}
-            lazy
-            title={`Add charts to ${dashboardTitleName}`}
+            title={
+                <Group spacing="xs">
+                    <MantineIcon
+                        icon={IconChartAreaLine}
+                        size="lg"
+                        color="blue.8"
+                    />
+                    <Title order={4}>
+                        Add saved charts to {dashboardTitleName}
+                    </Title>
+                </Group>
+            }
+            centered
+            withCloseButton
         >
-            <Form
-                name="add_saved_charts_to_dashboard"
-                methods={methods}
-                onSubmit={handleSubmit}
-            >
-                <div className={Classes.DIALOG_BODY}>
+            <Stack spacing="md">
+                <form
+                    id="add-saved-charts-to-dashboard"
+                    onSubmit={handleSubmit}
+                >
                     <MultiSelect
-                        name="savedCharts"
-                        label={`Select the charts that you want to add to ${dashboardTitleName}`}
-                        rules={{
-                            required: 'Required field',
-                        }}
-                        items={allSavedCharts}
+                        id="saved-charts"
+                        label={`Select the charts you want to add to this dashboard`}
+                        data={allSavedCharts}
                         disabled={isLoading}
                         defaultValue={[]}
+                        placeholder="Search..."
+                        required
+                        withinPortal
+                        itemComponent={MultiSelectItem}
+                        {...form.getInputProps('savedChartsUuids')}
                     />
-                </div>
-                <div className={Classes.DIALOG_FOOTER}>
-                    <div className={Classes.DIALOG_FOOTER_ACTIONS}>
-                        <Button onClick={onClose}>Cancel</Button>
+                    <Group spacing="xs" position="right" mt="md">
                         <Button
-                            intent={Intent.PRIMARY}
-                            text="Add"
-                            type="submit"
-                            disabled={isLoading}
-                        />
-                    </div>
-                </div>
-            </Form>
-        </Dialog>
+                            onClick={() => {
+                                if (onClose) onClose();
+                            }}
+                            variant="outline"
+                        >
+                            Cancel
+                        </Button>
+                        <Button type="submit" disabled={isLoading}>
+                            Add
+                        </Button>
+                    </Group>
+                </form>
+            </Stack>
+        </Modal>
     );
 };
 

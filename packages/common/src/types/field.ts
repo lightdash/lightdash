@@ -21,6 +21,7 @@ const CompactAlias = [
 ] as const;
 
 export enum NumberSeparator {
+    DEFAULT = 'default', // Default separator
     COMMA_PERIOD = 'commaPeriod', // 100,000.00
     SPACE_PERIOD = 'spacePeriod', // 100 000.00
     PERIOD_COMMA = 'periodComma', // 100.000,00
@@ -81,11 +82,17 @@ export type Item = Field | TableCalculation;
 export enum TableCalculationFormatType {
     DEFAULT = 'default',
     PERCENT = 'percent',
+    CURRENCY = 'currency',
+    NUMBER = 'number',
 }
 export type TableCalculationFormat = {
     type: TableCalculationFormatType;
     round?: number;
     separator?: NumberSeparator;
+    currency?: string;
+    compact?: Compact;
+    prefix?: string;
+    suffix?: string;
 };
 export type TableCalculation = {
     index?: number;
@@ -140,9 +147,15 @@ export type FieldId = string;
 export const fieldId = (field: Pick<Field, 'table' | 'name'>): FieldId =>
     `${field.table}_${field.name}`;
 
-export const convertFieldRefToFieldId = (fieldRef: string) => {
+export const convertFieldRefToFieldId = (
+    fieldRef: string,
+    fallbackTableName?: string,
+) => {
     const parts = fieldRef.split('.');
     if (parts.length !== 2) {
+        if (fallbackTableName) {
+            return `${fallbackTableName}_${fieldRef}`;
+        }
         throw new CompileError(
             `Table calculation contains an invalid reference: ${fieldRef}. References must be of the format "table.field"`,
             {},
