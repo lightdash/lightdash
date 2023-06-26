@@ -56,12 +56,14 @@ const usePieChartConfig: PieChartConfigFn = (
                 ],
             ),
         );
+
         const [metricId, setMetricId] = useState<string | null>(
-            pieChartConfig?.metricId ?? firstMetric
-                ? isField(firstMetric) && isMetric(firstMetric)
-                    ? fieldId(firstMetric)
-                    : firstMetric.name
-                : null,
+            pieChartConfig?.metricId ??
+                (firstMetric
+                    ? isField(firstMetric) && isMetric(firstMetric)
+                        ? fieldId(firstMetric)
+                        : firstMetric.name
+                    : null),
         );
 
         const handleGroupChange = useCallback((prevValue, newValue) => {
