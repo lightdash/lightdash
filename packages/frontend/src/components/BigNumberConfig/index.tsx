@@ -1,6 +1,7 @@
-import { Button } from '@blueprintjs/core';
-import { Popover2 } from '@blueprintjs/popover2';
-import React, { useState } from 'react';
+import { Button, Popover } from '@mantine/core';
+import { IconCaretDown } from '@tabler/icons-react';
+import React from 'react';
+import MantineIcon from '../common/MantineIcon';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import BigNumberConfigTabs from './BigNumberConfigTabs';
 
@@ -8,25 +9,32 @@ const BigNumberConfigPanel: React.FC = () => {
     const {
         bigNumberConfig: { selectedField },
     } = useVisualizationContext();
-    const [isOpen, setIsOpen] = useState(false);
     const disabled = !selectedField;
 
     return (
-        <Popover2
+        <Popover
             disabled={disabled}
-            content={<BigNumberConfigTabs />}
-            interactionKind="click"
-            isOpen={isOpen}
-            onInteraction={setIsOpen}
             position="bottom"
+            shadow="md"
+            withArrow
+            closeOnClickOutside
+            closeOnEscape
         >
-            <Button
-                minimal
-                rightIcon="caret-down"
-                text="Configure"
-                disabled={disabled}
-            />
-        </Popover2>
+            <Popover.Target>
+                <Button
+                    disabled={disabled}
+                    variant="subtle"
+                    size="xs"
+                    rightIcon={<MantineIcon icon={IconCaretDown} />}
+                >
+                    Configure
+                </Button>
+            </Popover.Target>
+
+            <Popover.Dropdown>
+                <BigNumberConfigTabs />
+            </Popover.Dropdown>
+        </Popover>
     );
 };
 
