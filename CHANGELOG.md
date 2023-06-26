@@ -1,3 +1,10 @@
+## [0.634.1](https://github.com/lightdash/lightdash/compare/0.634.0...0.634.1) (2023-06-26)
+
+
+### Bug Fixes
+
+* z-index on user management page ([#6049](https://github.com/lightdash/lightdash/issues/6049)) ([8813714](https://github.com/lightdash/lightdash/commit/881371433c04fa0b992d91fff3cf05ba65cca3f4))
+
 # [0.634.0](https://github.com/lightdash/lightdash/compare/0.633.0...0.634.0) (2023-06-26)
 
 
