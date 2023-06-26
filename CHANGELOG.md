@@ -1,3 +1,10 @@
+# [0.633.0](https://github.com/lightdash/lightdash/compare/0.632.1...0.633.0) (2023-06-26)
+
+
+### Features
+
+* can edit filters in table results ([#5973](https://github.com/lightdash/lightdash/issues/5973)) ([033ebd6](https://github.com/lightdash/lightdash/commit/033ebd65de815bb927596a5e2cde80e61fd02dfc))
+
 ## [0.632.1](https://github.com/lightdash/lightdash/compare/0.632.0...0.632.1) (2023-06-23)
 
 
