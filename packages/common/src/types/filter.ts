@@ -99,6 +99,15 @@ export type DashboardFilters = {
     metrics: DashboardFilterRule[];
 };
 
+export type DashboardFiltersFromSearchParams = {
+    dimensions: (Omit<DashboardFilterRule, 'tileTargets'> & {
+        tileTargets?: string[];
+    })[];
+    metrics: (Omit<DashboardFilterRule, 'tileTargets'> & {
+        tileTargets?: string[];
+    })[];
+};
+
 /* Utils */
 
 export const isOrFilterGroup = (
@@ -170,5 +179,46 @@ export const convertDashboardFiltersToFilters = (
     }
     return filters;
 };
+
+export const convertDashboardFiltersParamToDashboardFilters = (
+    dashboardFilters: DashboardFiltersFromSearchParams,
+): DashboardFilters =>
+    Object.entries(dashboardFilters).reduce(
+        (result, [key, value]) => ({
+            ...result,
+            [key]: value.map((f) => ({
+                ...f,
+                ...(f.tileTargets && {
+                    tileTargets: f.tileTargets.reduce(
+                        (acc, tileTarget) => ({
+                            ...acc,
+                            [tileTarget]: {
+                                fieldId: f.target.fieldId,
+                                tableName: f.target.tableName,
+                            },
+                        }),
+                        {},
+                    ),
+                }),
+            })),
+        }),
+        { dimensions: [], metrics: [] },
+    );
+
+export const convertDashboardFiltersToParam = (
+    dashboardFilters: DashboardFilters,
+): DashboardFiltersFromSearchParams =>
+    Object.entries(dashboardFilters).reduce(
+        (result, [key, value]) => ({
+            ...result,
+            [key]: value.map((f) => ({
+                ...f,
+                ...(f.tileTargets && {
+                    tileTargets: Object.keys(f.tileTargets),
+                }),
+            })),
+        }),
+        { dimensions: [], metrics: [] },
+    );
 
 export { ConditionalOperator as FilterOperator };
