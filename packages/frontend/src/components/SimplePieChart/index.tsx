@@ -58,28 +58,16 @@ const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
             orient: 'horizontal',
             left: 'left',
         },
-        padding: [10],
 
         series: [
             {
-                name: 'Access From',
                 type: 'pie',
-                radius: '80%',
-                minAngle: 20,
-                endAngle: 50,
                 label: {
                     show: false,
                     position: 'outside',
                     formatter: '{b}\n {d}%',
                 },
                 data,
-                emphasis: {
-                    itemStyle: {
-                        shadowBlur: 10,
-                        shadowOffsetX: 0,
-                        shadowColor: 'rgba(0, 0, 0, 0.5)',
-                    },
-                },
             },
         ],
     };
