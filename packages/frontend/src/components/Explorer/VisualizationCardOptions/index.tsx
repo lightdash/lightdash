@@ -6,7 +6,6 @@ import {
 } from '@lightdash/common';
 import { Button, Menu } from '@mantine/core';
 import {
-    IconCaretDown,
     IconChartArea,
     IconChartAreaLine,
     IconChartBar,
@@ -17,6 +16,10 @@ import {
     IconTable,
 } from '@tabler/icons-react';
 import { FC, memo, useMemo } from 'react';
+import {
+    COLLAPSABLE_CARD_BUTTON_PROPS,
+    COLLAPSABLE_CARD_POPOVER_PROPS,
+} from '../../common/CollapsableCard';
 import MantineIcon from '../../common/MantineIcon';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
@@ -126,23 +129,15 @@ const VisualizationCardOptions: FC = memo(() => {
 
     return (
         <Menu
-            shadow="md"
-            withArrow
+            {...COLLAPSABLE_CARD_POPOVER_PROPS}
             closeOnItemClick
-            closeOnClickOutside
-            closeOnEscape
-            position="bottom"
             disabled={disabled}
-            keepMounted
         >
             <Menu.Target>
                 <Button
+                    {...COLLAPSABLE_CARD_BUTTON_PROPS}
                     disabled={disabled}
-                    variant="subtle"
-                    color="black"
-                    size="xs"
                     leftIcon={selectedChartType.icon}
-                    rightIcon={<MantineIcon icon={IconCaretDown} />}
                 >
                     {selectedChartType.text}
                 </Button>
@@ -150,6 +145,7 @@ const VisualizationCardOptions: FC = memo(() => {
 
             <Menu.Dropdown>
                 <Menu.Item
+                    disabled={disabled}
                     color={
                         isChartTypeTheSameForAllSeries &&
                         chartType === ChartType.CARTESIAN &&
@@ -167,12 +163,12 @@ const VisualizationCardOptions: FC = memo(() => {
                             false,
                         );
                     }}
-                    disabled={disabled}
                 >
                     Bar chart
                 </Menu.Item>
 
                 <Menu.Item
+                    disabled={disabled}
                     color={
                         isChartTypeTheSameForAllSeries &&
                         chartType === ChartType.CARTESIAN &&
@@ -195,12 +191,12 @@ const VisualizationCardOptions: FC = memo(() => {
                             false,
                         );
                     }}
-                    disabled={disabled}
                 >
                     Horizontal bar chart
                 </Menu.Item>
 
                 <Menu.Item
+                    disabled={disabled}
                     color={
                         isChartTypeTheSameForAllSeries &&
                         chartType === ChartType.CARTESIAN &&
@@ -217,12 +213,12 @@ const VisualizationCardOptions: FC = memo(() => {
                             false,
                         );
                     }}
-                    disabled={disabled}
                 >
                     Line chart
                 </Menu.Item>
 
                 <Menu.Item
+                    disabled={disabled}
                     color={
                         isChartTypeTheSameForAllSeries &&
                         chartType === ChartType.CARTESIAN &&
@@ -239,12 +235,12 @@ const VisualizationCardOptions: FC = memo(() => {
                             true,
                         );
                     }}
-                    disabled={disabled}
                 >
                     Area chart
                 </Menu.Item>
 
                 <Menu.Item
+                    disabled={disabled}
                     color={
                         isChartTypeTheSameForAllSeries &&
                         chartType === ChartType.CARTESIAN &&
@@ -261,38 +257,38 @@ const VisualizationCardOptions: FC = memo(() => {
                             false,
                         );
                     }}
-                    disabled={disabled}
                 >
                     Scatter chart
                 </Menu.Item>
 
                 {localStorage.getItem('enablePieCharts') === 'true' && (
                     <Menu.Item
+                        disabled={disabled}
                         color={chartType === ChartType.PIE ? 'blue' : undefined}
                         icon={<MantineIcon icon={IconChartPie} />}
                         onClick={() => {
                             setChartType(ChartType.PIE);
                             setPivotDimensions(undefined);
                         }}
-                        disabled={disabled}
                     >
                         Pie chart
                     </Menu.Item>
                 )}
 
                 <Menu.Item
+                    disabled={disabled}
                     color={chartType === ChartType.TABLE ? 'blue' : undefined}
                     icon={<MantineIcon icon={IconTable} />}
                     onClick={() => {
                         setChartType(ChartType.TABLE);
                         setPivotDimensions(undefined);
                     }}
-                    disabled={disabled}
                 >
                     Table
                 </Menu.Item>
 
                 <Menu.Item
+                    disabled={disabled}
                     color={
                         chartType === ChartType.BIG_NUMBER ? 'blue' : undefined
                     }
@@ -301,7 +297,6 @@ const VisualizationCardOptions: FC = memo(() => {
                         setChartType(ChartType.BIG_NUMBER);
                         setPivotDimensions(undefined);
                     }}
-                    disabled={disabled}
                 >
                     Big value
                 </Menu.Item>
