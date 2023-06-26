@@ -2,11 +2,11 @@ import { Button, Popover } from '@mantine/core';
 import { IconCaretDown } from '@tabler/icons-react';
 import React from 'react';
 import MantineIcon from '../common/MantineIcon';
-import PieLayoutConfig from './PieLayoutConfig';
+import PieLayoutConfig from './PieChartLayoutConfig';
 
-const PieConfig: React.FC = () => {
+const PieChartConfig: React.FC = () => {
     return (
-        <Popover position="bottom" shadow="xl" withArrow>
+        <Popover position="bottom" shadow="xl" withArrow keepMounted={false}>
             <Popover.Target>
                 <Button
                     variant="subtle"
@@ -25,4 +25,4 @@ const PieConfig: React.FC = () => {
     );
 };
 
-export default PieConfig;
+export default PieChartConfig;

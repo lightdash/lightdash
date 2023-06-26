@@ -2,7 +2,7 @@ import { assertUnreachable, ChartType } from '@lightdash/common';
 import { FC, memo } from 'react';
 import BigNumberConfigPanel from '../../BigNumberConfig';
 import ChartConfigPanel from '../../ChartConfigPanel';
-import PieConfigPanel from '../../PieConfig';
+import PieConfigPanel from '../../PieChartConfig';
 import TableConfigPanel from '../../TableConfigPanel';
 
 const VisualizationConfigPanel: FC<{ chartType: ChartType }> = memo(

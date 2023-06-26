@@ -1,6 +1,8 @@
 import {
     Dimension,
     fieldId,
+    isField,
+    isMetric,
     Metric,
     PieChart,
     TableCalculation,
@@ -39,13 +41,27 @@ const usePieChartConfig: PieChartConfigFn = (
         const [isDonut, setIsDonut] = useState<boolean>(
             pieChartConfig?.isDonut ?? false,
         );
+
+        const firstDimension = dimensions[0];
+        const firstMetric = [
+            ...metrics,
+            ...customMetrics,
+            ...tableCalculations,
+        ][0];
+
         const [groupFieldIds, setGroupFieldIds] = useState<Set<string | null>>(
-            new Set(pieChartConfig?.groupFieldIds ?? [fieldId(dimensions[0])]),
+            new Set(
+                pieChartConfig?.groupFieldIds ?? [
+                    firstDimension ? fieldId(firstDimension) : null,
+                ],
+            ),
         );
         const [metricId, setMetricId] = useState<string | null>(
-            pieChartConfig?.metricId ??
-                fieldId([...metrics, ...customMetrics][0]) ??
-                tableCalculations[0].name,
+            pieChartConfig?.metricId ?? firstMetric
+                ? isField(firstMetric) && isMetric(firstMetric)
+                    ? fieldId(firstMetric)
+                    : firstMetric.name
+                : null,
         );
 
         const handleGroupChange = useCallback((prevValue, newValue) => {
