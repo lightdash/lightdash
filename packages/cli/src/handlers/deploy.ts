@@ -86,7 +86,7 @@ export const deploy = async (
     });
 };
 
-const getOrCreateNewProject = async (
+const createNewProject = async (
     options: DeployHandlerOptions,
 ): Promise<Project | undefined> => {
     console.error('');
@@ -111,11 +111,10 @@ const getOrCreateNewProject = async (
             projectName = answers.name ? answers.name : dbtName;
         }
     }
-    // Return existing project if it exists
+    // Throw error if project with same name exists
     const existingProject = await getDefaultProject(projectName);
     if (existingProject) {
-        console.warn(`The project ${projectName} already exists`);
-        return existingProject;
+        throw new Error(`Project ${projectName} already exists`);
     }
 
     // Create the project
@@ -173,7 +172,7 @@ export const deployHandler = async (options: DeployHandlerOptions) => {
     let projectUuid: string;
 
     if (options.create) {
-        const project = await getOrCreateNewProject(options);
+        const project = await createNewProject(options);
         if (!project) {
             console.error(
                 "To preview your project, you'll need to manually enter your warehouse connection details.",
