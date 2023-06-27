@@ -59,12 +59,11 @@ export enum ResourceViewType {
 interface ResourceViewProps extends ResourceViewCommonProps {
     listProps?: ResourceViewListCommonProps;
     gridProps?: ResourceViewGridCommonProps;
-    defaultActiveTab?: string;
 }
 
 const ResourceView: React.FC<ResourceViewProps> = ({
     view = ResourceViewType.LIST,
-    items: allItems,
+    items,
     maxItems,
     tabs,
     gridProps = {},
@@ -72,7 +71,6 @@ const ResourceView: React.FC<ResourceViewProps> = ({
     headerProps = {},
     emptyStateProps = {},
     hasReorder = false,
-    defaultActiveTab,
 }) => {
     const theme = useMantineTheme();
     const tableTabStyles = useTableTabStyles();
@@ -81,6 +79,8 @@ const ResourceView: React.FC<ResourceViewProps> = ({
         type: ResourceViewItemAction.CLOSE,
     });
 
+    const [activeTabId, setActiveTabId] = useState(tabs?.[0]?.id);
+
     const handleAction = useCallback(
         (newAction: ResourceViewItemActionState) => {
             setAction(newAction);
@@ -88,28 +88,23 @@ const ResourceView: React.FC<ResourceViewProps> = ({
         [],
     );
 
-    const itemsByTabs = useMemo(() => {
-        return new Map(
-            tabs?.map((tab) => [
-                tab.id,
-                allItems
-                    .filter(tab.filter ?? (() => true))
-                    .sort(tab.sort ?? (() => 0))
-                    .slice(0, maxItems),
-            ]),
-        );
-    }, [tabs, allItems, maxItems]);
+    const slicedSortedItems = useMemo(() => {
+        let sortedItems = items;
 
-    const [activeTabId, setActiveTabId] = useState(
-        defaultActiveTab ??
-            [...itemsByTabs.entries()].find(
-                ([_tabId, items]) => items.length > 0,
-            )?.[0] ??
-            tabs?.[0]?.id,
-    );
+        const activeTab = tabs?.find((tab) => tab.id === activeTabId);
+        if (activeTab && activeTab.sort) {
+            sortedItems = items.sort(activeTab.sort);
+        }
+
+        if (activeTab && activeTab.filter) {
+            sortedItems = sortedItems.filter(activeTab.filter);
+        }
+
+        return maxItems ? sortedItems.slice(0, maxItems) : sortedItems;
+    }, [items, activeTabId, maxItems, tabs]);
 
     const sortProps =
-        tabs && tabs?.length > 0 && allItems.length > 1
+        tabs && tabs?.length > 0 && items.length > 1
             ? {
                   enableSorting: false,
                   enableMultiSort: false,
@@ -121,7 +116,7 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                   defaultSort: listProps.defaultSort,
               };
 
-    const hasTabs = tabs && tabs.length > 0 && allItems.length > 0;
+    const hasTabs = tabs && tabs.length > 0 && items.length > 0;
     const hasHeader = headerProps && (headerProps.title || headerProps.action);
 
     if (hasTabs && headerProps.title) {
@@ -129,9 +124,6 @@ const ResourceView: React.FC<ResourceViewProps> = ({
             'Cannot have both tabs and a header title. Please use one or the other.',
         );
     }
-
-    const items =
-        hasTabs && activeTabId ? itemsByTabs.get(activeTabId) ?? [] : allItems;
 
     return (
         <>
@@ -209,11 +201,11 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                     </>
                 ) : null}
 
-                {items.length === 0 ? (
+                {slicedSortedItems.length === 0 ? (
                     <ResourceEmptyState {...emptyStateProps} />
                 ) : view === ResourceViewType.LIST ? (
                     <ResourceViewList
-                        items={items}
+                        items={slicedSortedItems}
                         {...sortProps}
                         defaultColumnVisibility={
                             listProps.defaultColumnVisibility
@@ -222,7 +214,7 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                     />
                 ) : view === ResourceViewType.GRID ? (
                     <ResourceViewGrid
-                        items={items}
+                        items={slicedSortedItems}
                         groups={gridProps.groups}
                         onAction={handleAction}
                         hasReorder={hasReorder}
