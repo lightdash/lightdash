@@ -19,6 +19,14 @@ export const InputWrapper = styled(FormGroup)`
     }
 `;
 
+export const Wrapper = styled.div`
+    max-width: 28.571em;
+    max-height: 35em;
+    overflow: auto;
+    width: 25em;
+    padding: 1.429em 1.429em 2.143em;
+`;
+
 export const GridLabel = styled.span`
     font-size: 14px;
     line-height: 1.286em;
