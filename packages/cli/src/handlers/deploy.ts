@@ -21,7 +21,7 @@ import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
 
 type DeployHandlerOptions = DbtCompileOptions & {
-    name?: string | undefined;
+    name?: string;
     projectDir: string;
     profilesDir: string;
     target: string | undefined;
