@@ -1,3 +1,10 @@
+## [0.637.1](https://github.com/lightdash/lightdash/compare/0.637.0...0.637.1) (2023-06-27)
+
+
+### Bug Fixes
+
+* reduce retry and get org id from param when validating  ([#6059](https://github.com/lightdash/lightdash/issues/6059)) ([3f545eb](https://github.com/lightdash/lightdash/commit/3f545ebb2d4713d0f2f43e4b44de8d6ffa019560))
+
 # [0.637.0](https://github.com/lightdash/lightdash/compare/0.636.0...0.637.0) (2023-06-27)
 
 
