@@ -1,21 +1,16 @@
 import { Button, Popover } from '@mantine/core';
-import { IconCaretDown } from '@tabler/icons-react';
 import React from 'react';
-import MantineIcon from '../common/MantineIcon';
+import {
+    COLLAPSABLE_CARD_BUTTON_PROPS,
+    COLLAPSABLE_CARD_POPOVER_PROPS,
+} from '../common/CollapsableCard';
 import PieLayoutConfig from './PieChartLayoutConfig';
 
 const PieChartConfig: React.FC = () => {
     return (
-        <Popover position="bottom" shadow="xl" withArrow keepMounted={false}>
+        <Popover {...COLLAPSABLE_CARD_POPOVER_PROPS}>
             <Popover.Target>
-                <Button
-                    variant="subtle"
-                    color="gray"
-                    size="xs"
-                    rightIcon={<MantineIcon icon={IconCaretDown} />}
-                >
-                    Configure
-                </Button>
+                <Button {...COLLAPSABLE_CARD_BUTTON_PROPS}>Configure</Button>
             </Popover.Target>
 
             <Popover.Dropdown>
