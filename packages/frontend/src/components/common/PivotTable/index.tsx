@@ -435,6 +435,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                                   key={`index-total-${rowIndex}-${colIndex}`}
                                                   value={value}
                                                   withValue={!!value.formatted}
+                                                  withAlignRight
                                                   withBolderFont
                                                   withGrayBackground
                                               >
@@ -513,6 +514,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                         value={value}
                                         component="th"
                                         withValue={!!value.formatted}
+                                        withAlignRight
                                         withBolderFont
                                         withGrayBackground
                                     >
