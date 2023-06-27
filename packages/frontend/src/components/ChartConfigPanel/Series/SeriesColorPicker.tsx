@@ -45,8 +45,16 @@ const SeriesColorPicker: FC<Props> = ({ color, onChange }) => {
             </Popover.Target>
             <Popover.Dropdown>
                 <BlockPicker
+                    triangle="hide"
                     color={color}
                     colors={colors}
+                    styles={{
+                        default: {
+                            card: {
+                                boxShadow: 'none',
+                            },
+                        },
+                    }}
                     onChange={(result: ColorResult) => {
                         onChange(result.hex);
                     }}
