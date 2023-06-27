@@ -18,10 +18,10 @@ const SeriesColorPicker: FC<Props> = ({ color, onChange }) => {
     return (
         <Popover
             closeOnClickOutside
-            width={200}
+            width="auto"
             position="bottom"
             withArrow
-            shadow="md"
+            shadow="sm"
         >
             <Popover.Target>
                 <ActionIcon
