@@ -1,3 +1,10 @@
+## [0.637.3](https://github.com/lightdash/lightdash/compare/0.637.2...0.637.3) (2023-06-27)
+
+
+### Bug Fixes
+
+* revert "feat: add chart type icon when adding to dashboard ([#6037](https://github.com/lightdash/lightdash/issues/6037))" ([#6061](https://github.com/lightdash/lightdash/issues/6061)) ([3099cee](https://github.com/lightdash/lightdash/commit/3099cee88adb4e383cff353cda2d0dd992d523ba))
+
 ## [0.637.2](https://github.com/lightdash/lightdash/compare/0.637.1...0.637.2) (2023-06-27)
 
 
