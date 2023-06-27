@@ -35,6 +35,22 @@ type DeployHandlerOptions = DbtCompileOptions & {
 type DeployArgs = DeployHandlerOptions & {
     projectUuid: string;
 };
+
+// Get the default project whose name is the given name
+const getDefaultProject = async (
+    name: string,
+): Promise<Project | undefined> => {
+    const projects = await lightdashApi<Project[]>({
+        method: 'GET',
+        url: `/api/v1/org/projects/`,
+        body: undefined,
+    });
+    return projects.find(
+        (project) =>
+            project.type === ProjectType.DEFAULT && project.name === name,
+    );
+};
+
 export const deploy = async (
     explores: (Explore | ExploreError)[],
     options: DeployArgs,
@@ -70,12 +86,11 @@ export const deploy = async (
     });
 };
 
-const createNewProject = async (
+const getOrCreateNewProject = async (
     options: DeployHandlerOptions,
 ): Promise<Project | undefined> => {
     console.error('');
     const absoluteProjectPath = path.resolve(options.projectDir);
-
     const context = await getDbtContext({
         projectDir: absoluteProjectPath,
     });
@@ -96,6 +111,14 @@ const createNewProject = async (
             projectName = answers.name ? answers.name : dbtName;
         }
     }
+    // Return existing project if it exists
+    const existingProject = await getDefaultProject(projectName);
+    if (existingProject) {
+        console.warn(`The project ${projectName} already exists`);
+        return existingProject;
+    }
+
+    // Create the project
     console.error('');
     const spinner = GlobalState.startSpinner(
         `  Creating new project ${styles.bold(projectName)}`,
@@ -150,7 +173,7 @@ export const deployHandler = async (options: DeployHandlerOptions) => {
     let projectUuid: string;
 
     if (options.create) {
-        const project = await createNewProject(options);
+        const project = await getOrCreateNewProject(options);
         if (!project) {
             console.error(
                 "To preview your project, you'll need to manually enter your warehouse connection details.",
