@@ -99,6 +99,15 @@ export type DashboardFilters = {
     metrics: DashboardFilterRule[];
 };
 
+export type DashboardFiltersFromSearchParam = {
+    dimensions: (Omit<DashboardFilterRule, 'tileTargets'> & {
+        tileTargets?: (string | Record<string, DashboardFieldTarget>)[];
+    })[];
+    metrics: (Omit<DashboardFilterRule, 'tileTargets'> & {
+        tileTargets?: (string | Record<string, DashboardFieldTarget>)[];
+    })[];
+};
+
 /* Utils */
 
 export const isOrFilterGroup = (
@@ -170,5 +179,73 @@ export const convertDashboardFiltersToFilters = (
     }
     return filters;
 };
+
+const isDashboardTileTargetFilterOverride = (
+    filter: string | Record<string, DashboardFieldTarget>,
+): filter is Record<string, DashboardFieldTarget> => typeof filter === 'object';
+
+export const convertDashboardFiltersParamToDashboardFilters = (
+    dashboardFilters: DashboardFiltersFromSearchParam,
+): DashboardFilters =>
+    Object.entries(dashboardFilters).reduce(
+        (result, [key, value]) => ({
+            ...result,
+            [key]: value.map((f) => ({
+                ...f,
+                ...(f.tileTargets && {
+                    tileTargets: f.tileTargets.reduce<
+                        Record<string, DashboardFieldTarget>
+                    >(
+                        (tileTargetsResult, tileTarget) => ({
+                            ...tileTargetsResult,
+                            ...(isDashboardTileTargetFilterOverride(tileTarget)
+                                ? {
+                                      [Object.keys(tileTarget)[0]]: {
+                                          fieldId:
+                                              tileTarget[
+                                                  Object.keys(tileTarget)[0]
+                                              ].fieldId,
+                                          tableName:
+                                              tileTarget[
+                                                  Object.keys(tileTarget)[0]
+                                              ].tableName,
+                                      },
+                                  }
+                                : {
+                                      [tileTarget]: {
+                                          fieldId: f.target.fieldId,
+                                          tableName: f.target.tableName,
+                                      },
+                                  }),
+                        }),
+                        {},
+                    ),
+                }),
+            })),
+        }),
+        { dimensions: [], metrics: [] },
+    );
+
+export const compressDashboardFiltersToParam = (
+    dashboardFilters: DashboardFilters,
+): DashboardFiltersFromSearchParam =>
+    Object.entries(dashboardFilters).reduce(
+        (result, [key, value]) => ({
+            ...result,
+            [key]: value.map((f) => ({
+                ...f,
+                ...(f.tileTargets && {
+                    tileTargets: Object.entries(f.tileTargets).map(
+                        ([tileTargetKey, tileTargetValue]) =>
+                            tileTargetValue.fieldId === f.target.fieldId &&
+                            tileTargetValue.tableName === f.target.tableName
+                                ? tileTargetKey
+                                : { [tileTargetKey]: tileTargetValue },
+                    ),
+                }),
+            })),
+        }),
+        { dimensions: [], metrics: [] },
+    );
 
 export { ConditionalOperator as FilterOperator };
