@@ -1,8 +1,10 @@
 import { Colors, Tab, Tabs } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
 import { Box, Button } from '@mantine/core';
+import { IconChevronDown } from '@tabler/icons-react';
 import React from 'react';
 import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../common/CollapsableCard';
+import MantineIcon from '../common/MantineIcon';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import ConditionalFormattingList from './ConditionalFormattingList';
 import GeneralSettings from './GeneralSettings';
@@ -44,7 +46,11 @@ const TableConfigPanel: React.FC = () => {
                 </Box>
             }
         >
-            <Button {...COLLAPSABLE_CARD_BUTTON_PROPS} disabled={disabled}>
+            <Button
+                {...COLLAPSABLE_CARD_BUTTON_PROPS}
+                disabled={disabled}
+                rightIcon={<MantineIcon icon={IconChevronDown} color="gray" />}
+            >
                 Configure
             </Button>
         </Popover2>
