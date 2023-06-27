@@ -1,3 +1,10 @@
+## [0.635.2](https://github.com/lightdash/lightdash/compare/0.635.1...0.635.2) (2023-06-27)
+
+
+### Bug Fixes
+
+* address length of tile targets data on dashboard filter params ([#6047](https://github.com/lightdash/lightdash/issues/6047)) ([edd6b35](https://github.com/lightdash/lightdash/commit/edd6b3593b832b1f7a0788919619877447bde588))
+
 ## [0.635.1](https://github.com/lightdash/lightdash/compare/0.635.0...0.635.1) (2023-06-26)
 
 

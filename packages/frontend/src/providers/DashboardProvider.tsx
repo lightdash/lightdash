@@ -1,5 +1,7 @@
 import {
     ApiError,
+    compressDashboardFiltersToParam,
+    convertDashboardFiltersParamToDashboardFilters,
     Dashboard,
     DashboardAvailableFilters,
     DashboardFilterRule,
@@ -245,10 +247,18 @@ export const DashboardProvider: React.FC = ({ children }) => {
         const tempFilterSearchParam = searchParams.get('tempFilters');
         const filtersSearchParam = searchParams.get('filters');
         if (tempFilterSearchParam) {
-            setDashboardTemporaryFilters(JSON.parse(tempFilterSearchParam));
+            setDashboardTemporaryFilters(
+                convertDashboardFiltersParamToDashboardFilters(
+                    JSON.parse(tempFilterSearchParam),
+                ),
+            );
         }
         if (filtersSearchParam) {
-            setDashboardFilters(JSON.parse(filtersSearchParam));
+            setDashboardFilters(
+                convertDashboardFiltersParamToDashboardFilters(
+                    JSON.parse(filtersSearchParam),
+                ),
+            );
         }
     });
 
@@ -262,7 +272,9 @@ export const DashboardProvider: React.FC = ({ children }) => {
         } else {
             newParams.set(
                 'tempFilters',
-                JSON.stringify(dashboardTemporaryFilters),
+                JSON.stringify(
+                    compressDashboardFiltersToParam(dashboardTemporaryFilters),
+                ),
             );
         }
 
@@ -272,7 +284,12 @@ export const DashboardProvider: React.FC = ({ children }) => {
         ) {
             newParams.delete('filters');
         } else {
-            newParams.set('filters', JSON.stringify(dashboardFilters));
+            newParams.set(
+                'filters',
+                JSON.stringify(
+                    compressDashboardFiltersToParam(dashboardFilters),
+                ),
+            );
         }
 
         history.replace({

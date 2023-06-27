@@ -311,7 +311,7 @@ When ready, access the development container and run these commands:
 docker exec -it lightdash-app-lightdash-dev-1 bash
 
 # Skip puppeteer download
-PUPPETEER_SKIP_DOWNLOAD=true
+export PUPPETEER_SKIP_DOWNLOAD=true
 
 # Install dependencies & build common package
 ./scripts/build.sh
