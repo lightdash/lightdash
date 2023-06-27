@@ -12,7 +12,12 @@ const ChartConfigPanel: React.FC = () => {
     const disabled = !eChartsOptions;
 
     return (
-        <Popover {...COLLAPSABLE_CARD_POPOVER_PROPS} disabled={disabled}>
+        <Popover
+            {...COLLAPSABLE_CARD_POPOVER_PROPS}
+            disabled={disabled}
+            // TODO: remove once blueprint migration is complete
+            zIndex={15}
+        >
             <Popover.Target>
                 <Button {...COLLAPSABLE_CARD_BUTTON_PROPS} disabled={disabled}>
                     Configure
