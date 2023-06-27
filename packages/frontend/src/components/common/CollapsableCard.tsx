@@ -1,6 +1,4 @@
 import { Tooltip2 } from '@blueprintjs/popover2';
-import { ButtonProps, PopoverProps } from '@mantine/core';
-import { IconCaretDown } from '@tabler/icons-react';
 import { FC, useCallback } from 'react';
 import {
     StyledButton,
@@ -11,24 +9,6 @@ import {
     StyledCardTitleWrapper,
     StyledCollapse,
 } from './CollapsableCard.style';
-import MantineIcon from './MantineIcon';
-
-export const COLLAPSABLE_CARD_BUTTON_PROPS: Omit<ButtonProps, 'children'> = {
-    variant: 'subtle',
-    size: 'xs',
-    rightIcon: <MantineIcon icon={IconCaretDown} />,
-};
-
-export const COLLAPSABLE_CARD_POPOVER_PROPS: Omit<PopoverProps, 'children'> = {
-    shadow: 'md',
-    position: 'bottom',
-    withArrow: true,
-    closeOnClickOutside: true,
-    closeOnEscape: true,
-    keepMounted: false,
-    arrowSize: 10,
-    offset: -2,
-};
 
 interface CollapsableCardProps {
     onToggle?: (isOpen: boolean) => void;

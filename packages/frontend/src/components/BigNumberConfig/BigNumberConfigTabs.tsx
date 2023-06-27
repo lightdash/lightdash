@@ -15,10 +15,12 @@ import {
     ComparisonFormatTypes,
     getItemId,
 } from '@lightdash/common';
-import { Box } from '@mantine/core';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
-import { useState } from 'react';
-import { InputWrapper } from '../ChartConfigPanel/ChartConfigPanel.styles';
+import React, { useState } from 'react';
+import {
+    InputWrapper,
+    Wrapper,
+} from '../ChartConfigPanel/ChartConfigPanel.styles';
 import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 
@@ -57,7 +59,7 @@ const BigNumberConfigTabs = () => {
     } = useVisualizationContext();
     const [tab, setTab] = useState<string | number>('layout');
     return (
-        <Box w={320}>
+        <Wrapper>
             <Tabs
                 onChange={setTab}
                 selectedTabId={tab}
@@ -231,7 +233,7 @@ const BigNumberConfigTabs = () => {
                     }
                 />
             </Tabs>
-        </Box>
+        </Wrapper>
     );
 };
 
