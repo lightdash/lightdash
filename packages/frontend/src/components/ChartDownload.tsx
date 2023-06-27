@@ -17,6 +17,7 @@ import JsPDF from 'jspdf';
 import React, { memo, RefObject, useCallback, useState } from 'react';
 
 import { Button, Popover } from '@mantine/core';
+import { IconShare2 } from '@tabler/icons-react';
 import useEcharts from '../hooks/echarts/useEcharts';
 import { useApp } from '../providers/AppProvider';
 import { Can } from './common/Authorization';
@@ -24,6 +25,7 @@ import {
     COLLAPSABLE_CARD_BUTTON_PROPS,
     COLLAPSABLE_CARD_POPOVER_PROPS,
 } from './common/CollapsableCard';
+import MantineIcon from './common/MantineIcon';
 import ExportCSV from './ExportCSV';
 import { useVisualizationContext } from './LightdashVisualization/VisualizationProvider';
 
@@ -243,15 +245,15 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                 <Popover
                     {...COLLAPSABLE_CARD_POPOVER_PROPS}
                     disabled={disabled}
-                    position="bottom-end"
                     arrowOffset={12}
                 >
                     <Popover.Target>
                         <Button
                             {...COLLAPSABLE_CARD_BUTTON_PROPS}
                             disabled={disabled}
+                            px="xs"
                         >
-                            Export CSV
+                            <MantineIcon icon={IconShare2} color="gray" />
                         </Button>
                     </Popover.Target>
 
@@ -286,8 +288,9 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                     <Button
                         {...COLLAPSABLE_CARD_BUTTON_PROPS}
                         disabled={disabled}
+                        px="xs"
                     >
-                        Export as
+                        <MantineIcon icon={IconShare2} color="gray" />
                     </Button>
                 </Popover.Target>
 
