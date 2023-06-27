@@ -1,7 +1,7 @@
 import {
     ApiError,
+    compressDashboardFiltersToParam,
     convertDashboardFiltersParamToDashboardFilters,
-    convertDashboardFiltersToParam,
     Dashboard,
     DashboardAvailableFilters,
     DashboardFilterRule,
@@ -273,7 +273,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
             newParams.set(
                 'tempFilters',
                 JSON.stringify(
-                    convertDashboardFiltersToParam(dashboardTemporaryFilters),
+                    compressDashboardFiltersToParam(dashboardTemporaryFilters),
                 ),
             );
         }
@@ -287,7 +287,7 @@ export const DashboardProvider: React.FC = ({ children }) => {
             newParams.set(
                 'filters',
                 JSON.stringify(
-                    convertDashboardFiltersToParam(dashboardFilters),
+                    compressDashboardFiltersToParam(dashboardFilters),
                 ),
             );
         }

@@ -226,7 +226,7 @@ export const convertDashboardFiltersParamToDashboardFilters = (
         { dimensions: [], metrics: [] },
     );
 
-export const convertDashboardFiltersToParam = (
+export const compressDashboardFiltersToParam = (
     dashboardFilters: DashboardFilters,
 ): DashboardFiltersFromSearchParam =>
     Object.entries(dashboardFilters).reduce(
