@@ -237,7 +237,8 @@ export const compressDashboardFiltersToParam = (
                 ...(f.tileTargets && {
                     tileTargets: Object.entries(f.tileTargets).map(
                         ([tileTargetKey, tileTargetValue]) =>
-                            tileTargetValue.fieldId === f.target.fieldId
+                            tileTargetValue.fieldId === f.target.fieldId &&
+                            tileTargetValue.tableName === f.target.tableName
                                 ? tileTargetKey
                                 : { [tileTargetKey]: tileTargetValue },
                     ),
