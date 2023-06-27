@@ -1,3 +1,15 @@
+# [0.636.0](https://github.com/lightdash/lightdash/compare/0.635.2...0.636.0) (2023-06-27)
+
+
+### Bug Fixes
+
+* add searchable prop ([#6057](https://github.com/lightdash/lightdash/issues/6057)) ([e4e811a](https://github.com/lightdash/lightdash/commit/e4e811af315d42360b295128229a25fde1f70f4c))
+
+
+### Features
+
+* migrate visualization card actions to Mantine ([#6045](https://github.com/lightdash/lightdash/issues/6045)) ([48479fb](https://github.com/lightdash/lightdash/commit/48479fb59c7760c452564ad567e6c193a5f9ca3d))
+
 ## [0.635.2](https://github.com/lightdash/lightdash/compare/0.635.1...0.635.2) (2023-06-27)
 
 
