@@ -5,7 +5,14 @@ import {
     Metric,
     TableCalculation,
 } from '@lightdash/common';
-import { Button, Group, Select, Stack, Text } from '@mantine/core';
+import {
+    Button,
+    Group,
+    Select,
+    SelectItemProps,
+    Stack,
+    Text,
+} from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import React, { forwardRef, useMemo } from 'react';
 import FieldIcon from '../common/Filters/FieldIcon';
@@ -13,7 +20,7 @@ import FieldLabel, { fieldLabelText } from '../common/Filters/FieldLabel';
 import MantineIcon from '../common/MantineIcon';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 
-interface ItemProps extends React.ComponentPropsWithoutRef<'div'> {
+interface ItemProps extends SelectItemProps {
     icon: React.ReactNode;
     item: Field | Metric | TableCalculation;
     disabled: boolean;
