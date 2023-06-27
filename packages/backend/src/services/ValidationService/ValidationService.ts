@@ -590,7 +590,7 @@ export class ValidationService {
         fromSettings = false,
         jobId?: string,
     ): Promise<ValidationResponse[]> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = user;
 
         if (
             user.ability.cannot(
