@@ -19,6 +19,7 @@ import {
     Metric,
     TableCalculation,
 } from '@lightdash/common';
+import { Box } from '@mantine/core';
 import { FC, useCallback, useState } from 'react';
 import { useToggle } from 'react-use';
 import { useTracking } from '../../providers/TrackingProvider';
@@ -31,7 +32,6 @@ import {
     MinMaxContainer,
     MinMaxInput,
     MinMaxWrapper,
-    Wrapper,
 } from './ChartConfigPanel.styles';
 import FieldLayoutOptions from './FieldLayoutOptions';
 import GridPanel from './Grid';
@@ -181,7 +181,7 @@ const ChartConfigTabs: FC = () => {
     );
 
     return (
-        <Wrapper>
+        <Box w={320}>
             <Tabs
                 onChange={setTab}
                 selectedTabId={tab}
@@ -375,7 +375,7 @@ const ChartConfigTabs: FC = () => {
                 />
                 <Tab id="grid" title="Margins" panel={<GridPanel />} />
             </Tabs>
-        </Wrapper>
+        </Box>
     );
 };
 
