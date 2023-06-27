@@ -1,3 +1,15 @@
+# [0.637.0](https://github.com/lightdash/lightdash/compare/0.636.0...0.637.0) (2023-06-27)
+
+
+### Bug Fixes
+
+* pivot table align totals to right ([#6058](https://github.com/lightdash/lightdash/issues/6058)) ([0bcc11a](https://github.com/lightdash/lightdash/commit/0bcc11aaa93fe11df98f480120aaa149352acb91))
+
+
+### Features
+
+* pie charts configuration with groups (dimensions) and metrics ([#6026](https://github.com/lightdash/lightdash/issues/6026)) ([82ec71b](https://github.com/lightdash/lightdash/commit/82ec71bf4845751f7bb031b27cdb8f9d2dede252))
+
 # [0.636.0](https://github.com/lightdash/lightdash/compare/0.635.2...0.636.0) (2023-06-27)
 
 
