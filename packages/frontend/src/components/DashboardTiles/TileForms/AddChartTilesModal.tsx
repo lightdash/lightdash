@@ -177,6 +177,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                         defaultValue={[]}
                         placeholder="Search..."
                         required
+                        searchable
                         withinPortal
                         itemComponent={MultiSelectItem}
                         {...form.getInputProps('savedChartsUuids')}
