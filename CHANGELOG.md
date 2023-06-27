@@ -1,3 +1,10 @@
+## [0.637.4](https://github.com/lightdash/lightdash/compare/0.637.3...0.637.4) (2023-06-27)
+
+
+### Bug Fixes
+
+* revert changes to chart config mantine refactor ([#6066](https://github.com/lightdash/lightdash/issues/6066)) ([9769564](https://github.com/lightdash/lightdash/commit/9769564f2cfd16384d6a3f233639ba50d940f4e0))
+
 ## [0.637.3](https://github.com/lightdash/lightdash/compare/0.637.2...0.637.3) (2023-06-27)
 
 
