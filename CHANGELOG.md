@@ -1,3 +1,10 @@
+## [0.637.2](https://github.com/lightdash/lightdash/compare/0.637.1...0.637.2) (2023-06-27)
+
+
+### Bug Fixes
+
+* revert "fix: land on charts if dashboards are empty ([#5931](https://github.com/lightdash/lightdash/issues/5931))" ([#6062](https://github.com/lightdash/lightdash/issues/6062)) ([708ddd7](https://github.com/lightdash/lightdash/commit/708ddd7560617c0301b0fddbedb729a90d28df31))
+
 ## [0.637.1](https://github.com/lightdash/lightdash/compare/0.637.0...0.637.1) (2023-06-27)
 
 
