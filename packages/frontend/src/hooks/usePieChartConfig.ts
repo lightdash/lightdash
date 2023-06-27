@@ -1,4 +1,5 @@
 import {
+    AdditionalMetric,
     Dimension,
     fieldId,
     isField,
@@ -26,7 +27,7 @@ type PieChartConfigFn = (
     fields: {
         dimensions: Dimension[];
         metrics: Metric[];
-        customMetrics: Metric[];
+        customMetrics: AdditionalMetric[];
         tableCalculations: TableCalculation[];
     },
 ) => PieChartConfig;
