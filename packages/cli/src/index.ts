@@ -370,6 +370,11 @@ program
     .command('deploy')
     .description('Compile and deploy Lightdash project')
     .option(
+        '--name [project name]',
+        'Name for the created project. If a project with this name already exists, the deployment is failed',
+        defaultProject.name,
+    )
+    .option(
         '--project-dir <path>',
         'The directory of the dbt project',
         defaultProjectDir,

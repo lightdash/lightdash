@@ -21,6 +21,7 @@ import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
 
 type DeployHandlerOptions = DbtCompileOptions & {
+    name?: string | undefined;
     projectDir: string;
     profilesDir: string;
     target: string | undefined;
@@ -74,6 +75,7 @@ const createNewProject = async (
 ): Promise<Project | undefined> => {
     console.error('');
     const absoluteProjectPath = path.resolve(options.projectDir);
+
     const context = await getDbtContext({
         projectDir: absoluteProjectPath,
     });
@@ -81,14 +83,18 @@ const createNewProject = async (
 
     let projectName = dbtName;
     if (process.env.CI !== 'true') {
-        const answers = await inquirer.prompt([
-            {
-                type: 'input',
-                name: 'name',
-                message: `Add a project name or press enter to use the default: [${dbtName}] `,
-            },
-        ]);
-        projectName = answers.name ? answers.name : dbtName;
+        if (options.name) {
+            projectName = options.name;
+        } else {
+            const answers = await inquirer.prompt([
+                {
+                    type: 'input',
+                    name: 'name',
+                    message: `Add a project name or press enter to use the default: [${dbtName}] `,
+                },
+            ]);
+            projectName = answers.name ? answers.name : dbtName;
+        }
     }
     console.error('');
     const spinner = GlobalState.startSpinner(
