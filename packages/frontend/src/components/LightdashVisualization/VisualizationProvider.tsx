@@ -1,4 +1,5 @@
 import {
+    AdditionalMetric,
     ApiQueryResults,
     assertUnreachable,
     ChartConfig,
@@ -50,7 +51,7 @@ type VisualizationContext = {
     isSqlRunner: boolean;
     dimensions: Dimension[];
     metrics: Metric[];
-    customMetrics: Metric[];
+    customMetrics: AdditionalMetric[];
     tableCalculations: TableCalculation[];
     onSeriesContextMenu?: (
         e: EchartSeriesClickEvent,
