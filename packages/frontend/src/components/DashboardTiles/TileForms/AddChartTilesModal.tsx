@@ -136,6 +136,14 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                     onSubmit={handleSubmit}
                 >
                     <MultiSelect
+                        styles={{
+                            separator: {
+                                position: 'sticky',
+                                top: 0,
+                                backgroundColor: 'white',
+                                zIndex: 1,
+                            },
+                        }}
                         id="saved-charts"
                         label={`Select the charts you want to add to this dashboard`}
                         data={allSavedCharts}
