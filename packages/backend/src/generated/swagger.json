@@ -524,11 +524,30 @@
                     }
                 ]
             },
+            "ProjectMemberRole": {
+                "enum": [
+                    "viewer",
+                    "interactive_viewer",
+                    "editor",
+                    "developer",
+                    "admin"
+                ],
+                "type": "string"
+            },
             "AllowedEmailDomains": {
                 "properties": {
-                    "projectUuids": {
+                    "projects": {
                         "items": {
-                            "type": "string"
+                            "properties": {
+                                "role": {
+                                    "$ref": "#/components/schemas/ProjectMemberRole"
+                                },
+                                "projectUuid": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["role", "projectUuid"],
+                            "type": "object"
                         },
                         "type": "array"
                     },
@@ -546,7 +565,7 @@
                     }
                 },
                 "required": [
-                    "projectUuids",
+                    "projects",
                     "role",
                     "emailDomains",
                     "organizationUuid"
@@ -578,14 +597,23 @@
                     "role": {
                         "$ref": "#/components/schemas/AllowedEmailDomainsRole"
                     },
-                    "projectUuids": {
+                    "projects": {
                         "items": {
-                            "type": "string"
+                            "properties": {
+                                "role": {
+                                    "$ref": "#/components/schemas/ProjectMemberRole"
+                                },
+                                "projectUuid": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["role", "projectUuid"],
+                            "type": "object"
                         },
                         "type": "array"
                     }
                 },
-                "required": ["emailDomains", "role", "projectUuids"],
+                "required": ["emailDomains", "role", "projects"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -1912,16 +1940,6 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
-            },
-            "ProjectMemberRole": {
-                "enum": [
-                    "viewer",
-                    "interactive_viewer",
-                    "editor",
-                    "developer",
-                    "admin"
-                ],
-                "type": "string"
             },
             "ProjectMemberProfile": {
                 "properties": {
@@ -3632,7 +3650,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.632.0",
+        "version": "0.637.5",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"

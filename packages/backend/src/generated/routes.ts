@@ -481,14 +481,25 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ProjectMemberRole: {
+        dataType: 'refEnum',
+        enums: ['viewer', 'interactive_viewer', 'editor', 'developer', 'admin'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AllowedEmailDomains: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                projectUuids: {
+                projects: {
                     dataType: 'array',
-                    array: { dataType: 'string' },
+                    array: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            role: { ref: 'ProjectMemberRole', required: true },
+                            projectUuid: { dataType: 'string', required: true },
+                        },
+                    },
                     required: true,
                 },
                 role: { ref: 'AllowedEmailDomainsRole', required: true },
@@ -527,9 +538,21 @@ const models: TsoaRoute.Models = {
                         required: true,
                     },
                     role: { ref: 'AllowedEmailDomainsRole', required: true },
-                    projectUuids: {
+                    projects: {
                         dataType: 'array',
-                        array: { dataType: 'string' },
+                        array: {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                role: {
+                                    ref: 'ProjectMemberRole',
+                                    required: true,
+                                },
+                                projectUuid: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                            },
+                        },
                         required: true,
                     },
                 },
@@ -1645,11 +1668,6 @@ const models: TsoaRoute.Models = {
             },
             validators: {},
         },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ProjectMemberRole: {
-        dataType: 'refEnum',
-        enums: ['viewer', 'interactive_viewer', 'editor', 'developer', 'admin'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ProjectMemberProfile: {

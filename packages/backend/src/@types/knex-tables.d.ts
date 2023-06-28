@@ -128,6 +128,8 @@ import {
     GroupMembershipTableName,
 } from '../database/entities/group_memberships';
 import {
+    OrganizationAllowedEmailDomainProjectsTable,
+    OrganizationAllowedEmailDomainProjectsTableName,
     OrganizationAllowedEmailDomainsTable,
     OrganizationAllowedEmailDomainsTableName,
 } from '../database/entities/organizationsAllowedEmailDomains';
@@ -201,6 +203,7 @@ declare module 'knex/types/tables' {
         [EmailOneTimePasscodesTableName]: EmailOneTimePasscodeTable;
         [SchedulerLogTableName]: SchedulerLogTable;
         [OrganizationAllowedEmailDomainsTableName]: OrganizationAllowedEmailDomainsTable;
+        [OrganizationAllowedEmailDomainProjectsTableName]: OrganizationAllowedEmailDomainProjectsTable;
         [ValidationTableName]: DbValidationTable;
         [GroupTableName]: GroupTable;
         [GroupMembershipTableName]: GroupMembershipTable;
