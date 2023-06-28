@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import {
     Button,
+    Flex,
     Group,
     Modal,
     MultiSelect,
@@ -105,27 +106,23 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
         onClose();
     });
 
-    const dashboardTitleName = dashboard?.name
-        ? `"${dashboard.name}"`
-        : 'dashboard';
-
     if (!savedCharts || !dashboardTiles || isLoading) return null;
 
     return (
         <Modal
+            size="lg"
             opened={true}
             onClose={onClose}
             title={
-                <Group spacing="xs">
+                <Flex align="center" gap="xs">
                     <MantineIcon
                         icon={IconChartAreaLine}
                         size="lg"
                         color="blue.8"
                     />
-                    <Title order={4}>
-                        Add saved charts to {dashboardTitleName}
-                    </Title>
-                </Group>
+
+                    <Title order={4}>Add saved charts</Title>
+                </Flex>
             }
             centered
             withCloseButton
