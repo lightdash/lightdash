@@ -1,3 +1,10 @@
+## [0.637.6](https://github.com/lightdash/lightdash/compare/0.637.5...0.637.6) (2023-06-28)
+
+
+### Bug Fixes
+
+* revert of mantine config panels ([#6067](https://github.com/lightdash/lightdash/issues/6067)) ([8fc9c2d](https://github.com/lightdash/lightdash/commit/8fc9c2df2c1d99ad9fbc440938dbe8cd0b43997f))
+
 ## [0.637.5](https://github.com/lightdash/lightdash/compare/0.637.4...0.637.5) (2023-06-28)
 
 
