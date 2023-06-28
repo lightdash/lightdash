@@ -249,6 +249,7 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                 >
                     <Popover.Target>
                         <Button
+                            data-testid="export-csv-button"
                             {...COLLAPSABLE_CARD_BUTTON_PROPS}
                             disabled={disabled}
                             px="xs"
@@ -286,6 +287,7 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
             >
                 <Popover.Target>
                     <Button
+                        data-testid="export-csv-button"
                         {...COLLAPSABLE_CARD_BUTTON_PROPS}
                         disabled={disabled}
                         px="xs"

@@ -70,6 +70,7 @@ const CollapsableCard: FC<CollapsableCardProps> = ({
                     label={toggleTooltip}
                 >
                     <Button
+                        data-testid={`${title}-card-expand`}
                         variant="subtle"
                         color="gray"
                         w="xxl"

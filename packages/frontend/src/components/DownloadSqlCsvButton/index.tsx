@@ -15,6 +15,7 @@ const DownloadCsvButton: FC<Props> = memo(({ disabled, getCsvLink }) => {
 
     return (
         <Button
+            data-testid="export-csv-button"
             {...COLLAPSABLE_CARD_BUTTON_PROPS}
             disabled={disabled}
             px="xs"

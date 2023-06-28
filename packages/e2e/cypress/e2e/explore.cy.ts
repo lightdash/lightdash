@@ -46,7 +46,7 @@ describe('Explore', () => {
         cy.findByText('First name').click();
         cy.findByText('Unique order count').click();
 
-        cy.findByText('Charts').parent().findByRole('button').click();
+        cy.findByTestId('Charts-card-expand').click();
 
         cy.findByText('Save chart').click();
         cy.get('input#chart-name').type('My chart');
@@ -85,7 +85,7 @@ describe('Explore', () => {
         cy.get('button').contains('Run query').click();
 
         // open chart
-        cy.findByText('Charts').parent().findByRole('button').click();
+        cy.findByTestId('Charts-card-expand').click();
 
         // wait for the chart to finish loading
         cy.findByText('Loading chart').should('not.exist');
@@ -125,7 +125,7 @@ describe('Explore', () => {
         // run query
         cy.get('button').contains('Run query').click();
 
-        cy.findByText('Charts').parent().findByRole('button').click();
+        cy.findByTestId('Charts-card-expand').click();
 
         cy.get('g').children('text').should('have.length.lessThan', 30); // without labels
 
@@ -192,10 +192,7 @@ describe('Explore', () => {
                     cy.get('button').contains('Run query').click();
 
                     // open chart
-                    cy.findByText('Charts')
-                        .parent()
-                        .findByRole('button')
-                        .click();
+                    cy.findByTestId('Charts-card-expand').click();
 
                     // wait for the chart to finish loading
                     cy.findByText('Loading chart').should('not.exist');
@@ -239,10 +236,7 @@ describe('Explore', () => {
                     cy.get('button').contains('Run query').click();
 
                     // open chart
-                    cy.findByText('Charts')
-                        .parent()
-                        .findByRole('button')
-                        .click();
+                    cy.findByTestId('Charts-card-expand').click();
 
                     // wait for the chart to finish loading
                     cy.findByText('Loading chart').should('not.exist');
@@ -283,7 +277,7 @@ describe('Explore', () => {
         cy.findByText('Is completed').click();
 
         // open SQL
-        cy.findByText('SQL').parent().findByRole('button').click();
+        cy.findByTestId('SQL-card-expand').click();
 
         // wait to compile query
         cy.findByText('Open in SQL Runner').parent().should('not.be.disabled');
