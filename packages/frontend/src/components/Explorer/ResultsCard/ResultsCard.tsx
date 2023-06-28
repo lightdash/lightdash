@@ -1,6 +1,6 @@
-import { Button, PopoverPosition } from '@blueprintjs/core';
-import { Classes, Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
+import { Button, Popover } from '@mantine/core';
+import { IconShare2 } from '@tabler/icons-react';
 import { FC, memo, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { downloadCsv } from '../../../hooks/useDownloadCsv';
@@ -11,7 +11,11 @@ import {
 } from '../../../providers/ExplorerProvider';
 import AddColumnButton from '../../AddColumnButton';
 import { Can } from '../../common/Authorization';
-import CollapsableCard from '../../common/CollapsableCard';
+import CollapsableCard, {
+    COLLAPSABLE_CARD_BUTTON_PROPS,
+    COLLAPSABLE_CARD_POPOVER_PROPS,
+} from '../../common/CollapsableCard';
+import MantineIcon from '../../common/MantineIcon';
 import ExportCSV from '../../ExportCSV';
 import LimitButton from '../../LimitButton';
 import SortButton from '../../SortButton';
@@ -105,6 +109,7 @@ const ResultsCard: FC = memo(() => {
                 tableName && (
                     <>
                         {isEditMode && <AddColumnButton />}
+
                         <Can
                             I="manage"
                             this={subject('ExportCsv', {
@@ -112,27 +117,31 @@ const ResultsCard: FC = memo(() => {
                                 projectUuid: projectUuid,
                             })}
                         >
-                            <Popover2
+                            <Popover
+                                {...COLLAPSABLE_CARD_POPOVER_PROPS}
                                 disabled={disabled}
-                                lazy
-                                position={PopoverPosition.BOTTOM_LEFT}
-                                popoverClassName={
-                                    Classes.POPOVER2_CONTENT_SIZING
-                                }
-                                content={
+                                position="bottom-end"
+                            >
+                                <Popover.Target>
+                                    <Button
+                                        {...COLLAPSABLE_CARD_BUTTON_PROPS}
+                                        disabled={disabled}
+                                        px="xs"
+                                    >
+                                        <MantineIcon
+                                            icon={IconShare2}
+                                            color="gray"
+                                        />
+                                    </Button>
+                                </Popover.Target>
+
+                                <Popover.Dropdown>
                                     <ExportCSV
                                         rows={rows}
                                         getCsvLink={getCsvLink}
                                     />
-                                }
-                            >
-                                <Button
-                                    text="Export CSV"
-                                    rightIcon="caret-down"
-                                    minimal
-                                    disabled={disabled}
-                                />
-                            </Popover2>
+                                </Popover.Dropdown>
+                            </Popover>
                         </Can>
                     </>
                 )

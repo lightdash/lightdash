@@ -245,7 +245,7 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                 <Popover
                     {...COLLAPSABLE_CARD_POPOVER_PROPS}
                     disabled={disabled}
-                    arrowOffset={12}
+                    position="bottom-end"
                 >
                     <Popover.Target>
                         <Button
