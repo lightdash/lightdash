@@ -17,6 +17,7 @@ const ChartConfigPanel: React.FC = () => {
             disabled={disabled}
             // TODO: remove once blueprint migration is complete
             zIndex={15}
+            closeOnClickOutside={false}
         >
             <Popover.Target>
                 <Button {...COLLAPSABLE_CARD_BUTTON_PROPS} disabled={disabled}>

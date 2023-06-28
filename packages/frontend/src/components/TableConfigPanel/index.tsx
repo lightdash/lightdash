@@ -15,7 +15,13 @@ const TableConfigPanel: React.FC = () => {
     const disabled = !resultsData;
 
     return (
-        <Popover {...COLLAPSABLE_CARD_POPOVER_PROPS} disabled={disabled}>
+        <Popover
+            {...COLLAPSABLE_CARD_POPOVER_PROPS}
+            disabled={disabled}
+            // TODO: remove once blueprint migration is complete
+            zIndex={15}
+            closeOnClickOutside={false}
+        >
             <Popover.Target>
                 <Button {...COLLAPSABLE_CARD_BUTTON_PROPS} disabled={disabled}>
                     Configure

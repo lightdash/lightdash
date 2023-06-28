@@ -14,7 +14,12 @@ const BigNumberConfigPanel: React.FC = () => {
     const disabled = !selectedField;
 
     return (
-        <Popover {...COLLAPSABLE_CARD_POPOVER_PROPS} disabled={disabled}>
+        <Popover
+            {...COLLAPSABLE_CARD_POPOVER_PROPS}
+            disabled={disabled}
+            zIndex={15}
+            closeOnClickOutside={false}
+        >
             <Popover.Target>
                 <Button {...COLLAPSABLE_CARD_BUTTON_PROPS} disabled={disabled}>
                     Configure
