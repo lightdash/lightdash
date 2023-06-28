@@ -70,8 +70,8 @@ export class SchedulerClient {
                 .migrate()
                 .then(() => utils)
                 .catch((e: any) => {
-                    Logger.warn('Error migrating graphile worker', e);
-                    return utils;
+                    Logger.error('Error migrating graphile worker', e);
+                    process.exit(1);
                 }),
         );
     }
