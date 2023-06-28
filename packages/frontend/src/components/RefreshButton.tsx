@@ -42,7 +42,7 @@ export const RefreshButton = memo(() => {
                     : ''
             }
             position="bottom"
-            disabled={!hasUnfetchedChanges}
+            disabled={hasUnfetchedChanges}
         >
             <BigButton
                 style={{ width: 150 }}
