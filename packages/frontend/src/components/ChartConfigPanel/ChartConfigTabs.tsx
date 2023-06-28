@@ -181,7 +181,7 @@ const ChartConfigTabs: FC = () => {
     );
 
     return (
-        <Box w={320}>
+        <Box w={320} p="sm">
             <Tabs
                 onChange={setTab}
                 selectedTabId={tab}
