@@ -65,7 +65,7 @@ const CollapsableCard: FC<CollapsableCardProps> = ({
         <StyledCard elevation={1} $shouldExpand={isOpen && shouldExpand}>
             <Flex gap="xxs" align="center" mr="xs" h="xxl">
                 <Tooltip
-                    position="bottom-start"
+                    position="top-start"
                     disabled={!toggleTooltip}
                     label={toggleTooltip}
                 >
@@ -75,8 +75,23 @@ const CollapsableCard: FC<CollapsableCardProps> = ({
                         w="xxl"
                         h="xxl"
                         p={0}
-                        disabled={disabled}
-                        onClick={() => handleToggle(!isOpen)}
+                        onClick={
+                            disabled ? undefined : () => handleToggle(!isOpen)
+                        }
+                        sx={
+                            disabled
+                                ? {
+                                      cursor: disabled
+                                          ? 'not-allowed'
+                                          : 'pointer',
+                                      opacity: 0.5,
+                                      backgroundColor: 'transparent',
+                                      '&:hover': {
+                                          backgroundColor: 'transparent',
+                                      },
+                                  }
+                                : undefined
+                        }
                     >
                         <MantineIcon
                             icon={isOpen ? IconChevronDown : IconChevronRight}
