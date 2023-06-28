@@ -42,7 +42,7 @@ export const RefreshButton = memo(() => {
                     : ''
             }
             position="bottom"
-            disabled={canRunQuery}
+            disabled={!hasUnfetchedChanges}
         >
             <BigButton
                 style={{ width: 150 }}
