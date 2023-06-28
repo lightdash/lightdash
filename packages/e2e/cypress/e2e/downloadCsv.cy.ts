@@ -193,8 +193,9 @@ describe('Download CSV on Explore', () => {
             cy.get('button').contains('Bar chart').click();
             cy.get('[role="menuitem"]').contains('Table').click();
 
-            cy.findByText('Export CSV').click();
-            cy.get('.bp4-popover2').contains('button', 'Export CSV').click();
+            // find by role and text
+            cy.contains('button', 'Export CSV').click();
+            cy.findByRole('dialog').contains('button', 'Export CSV').click();
 
             cy.wait('@apiDownloadCsv').then((interception) => {
                 expect(interception?.response?.statusCode).to.eq(200);

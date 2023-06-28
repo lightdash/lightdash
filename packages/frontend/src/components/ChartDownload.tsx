@@ -1,12 +1,10 @@
 import {
-    Button,
+    Button as BlueprintButton,
     Divider,
     FormGroup,
     HTMLSelect,
     Intent,
-    PopoverPosition,
 } from '@blueprintjs/core';
-import { Classes, Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import {
     ApiScheduledDownloadCsv,
@@ -18,9 +16,14 @@ import EChartsReact from 'echarts-for-react';
 import JsPDF from 'jspdf';
 import React, { memo, RefObject, useCallback, useState } from 'react';
 
+import { Button, Popover } from '@mantine/core';
 import useEcharts from '../hooks/echarts/useEcharts';
 import { useApp } from '../providers/AppProvider';
 import { Can } from './common/Authorization';
+import {
+    COLLAPSABLE_CARD_BUTTON_PROPS,
+    COLLAPSABLE_CARD_POPOVER_PROPS,
+} from './common/CollapsableCard';
 import ExportCSV from './ExportCSV';
 import { useVisualizationContext } from './LightdashVisualization/VisualizationProvider';
 
@@ -187,7 +190,7 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
             </FormGroup>
             <Divider />
             {!isTable && (
-                <Button
+                <BlueprintButton
                     style={{ alignSelf: 'flex-end' }}
                     intent={Intent.PRIMARY}
                     icon="cloud-download"
@@ -219,7 +222,6 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
             resultsData,
         } = useVisualizationContext();
         const eChartsOptions = useEcharts();
-        const [isOpen, setIsOpen] = useState(false);
         const disabled =
             (chartType === ChartType.TABLE &&
                 resultsData?.rows &&
@@ -229,6 +231,7 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
             (chartType === ChartType.CARTESIAN && !eChartsOptions);
 
         const { user } = useApp();
+
         return chartType === ChartType.TABLE && getCsvLink ? (
             <Can
                 I="manage"
@@ -237,11 +240,22 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                     projectUuid,
                 })}
             >
-                <Popover2
-                    lazy
-                    position={PopoverPosition.BOTTOM_LEFT}
-                    popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
-                    content={
+                <Popover
+                    {...COLLAPSABLE_CARD_POPOVER_PROPS}
+                    disabled={disabled}
+                    position="bottom-end"
+                    arrowOffset={12}
+                >
+                    <Popover.Target>
+                        <Button
+                            {...COLLAPSABLE_CARD_BUTTON_PROPS}
+                            disabled={disabled}
+                        >
+                            Export CSV
+                        </Button>
+                    </Popover.Target>
+
+                    <Popover.Dropdown>
                         <ExportCSV
                             getCsvLink={async (
                                 limit: number | null,
@@ -259,33 +273,31 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                             }
                             rows={resultsData?.rows}
                         />
-                    }
-                >
-                    <Button text="Export CSV" rightIcon="caret-down" minimal />
-                </Popover2>
+                    </Popover.Dropdown>
+                </Popover>
             </Can>
         ) : chartType === ChartType.TABLE && !getCsvLink ? null : (
-            <Popover2
-                lazy
-                content={
+            <Popover
+                {...COLLAPSABLE_CARD_POPOVER_PROPS}
+                disabled={disabled}
+                position="bottom-end"
+            >
+                <Popover.Target>
+                    <Button
+                        {...COLLAPSABLE_CARD_BUTTON_PROPS}
+                        disabled={disabled}
+                    >
+                        Export as
+                    </Button>
+                </Popover.Target>
+
+                <Popover.Dropdown>
                     <ChartDownloadOptions
                         chartRef={chartRef}
                         chartType={chartType}
                     />
-                }
-                popoverClassName={Classes.POPOVER2_CONTENT_SIZING}
-                isOpen={isOpen}
-                onInteraction={setIsOpen}
-                position={PopoverPosition.BOTTOM_LEFT}
-                disabled={disabled}
-            >
-                <Button
-                    minimal
-                    rightIcon="caret-down"
-                    text="Export as"
-                    disabled={disabled}
-                />
-            </Popover2>
+                </Popover.Dropdown>
+            </Popover>
         );
     },
 );

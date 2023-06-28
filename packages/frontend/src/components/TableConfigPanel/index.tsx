@@ -1,23 +1,34 @@
-import { Button, Tab, Tabs } from '@blueprintjs/core';
+import { Colors, Tab, Tabs } from '@blueprintjs/core';
 import { Popover2 } from '@blueprintjs/popover2';
-import React, { useState } from 'react';
-
+import { Box, Button } from '@mantine/core';
+import React from 'react';
+import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../common/CollapsableCard';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import ConditionalFormattingList from './ConditionalFormattingList';
 import GeneralSettings from './GeneralSettings';
-import { ConfigWrapper } from './TableConfig.styles';
 
 const TableConfigPanel: React.FC = () => {
-    const [isOpen, setIsOpen] = useState(false);
-
     const { resultsData } = useVisualizationContext();
     const disabled = !resultsData;
 
     return (
         <Popover2
             disabled={disabled}
+            position="bottom"
             content={
-                <ConfigWrapper>
+                <Box
+                    w={320}
+                    p="sm"
+                    sx={{
+                        // FIXME: remove after Blueprint migration is complete
+                        'label.bp4-label': {
+                            display: 'inline-flex',
+                            gap: '0.214em',
+                            color: Colors.DARK_GRAY1,
+                            fontWeight: 600,
+                        },
+                    }}
+                >
                     <Tabs>
                         <Tab
                             id="general"
@@ -30,19 +41,12 @@ const TableConfigPanel: React.FC = () => {
                             panel={<ConditionalFormattingList />}
                         />
                     </Tabs>
-                </ConfigWrapper>
+                </Box>
             }
-            interactionKind="click"
-            isOpen={isOpen}
-            onInteraction={setIsOpen}
-            position="bottom"
         >
-            <Button
-                minimal
-                rightIcon="caret-down"
-                text="Configure"
-                disabled={disabled}
-            />
+            <Button {...COLLAPSABLE_CARD_BUTTON_PROPS} disabled={disabled}>
+                Configure
+            </Button>
         </Popover2>
     );
 };
