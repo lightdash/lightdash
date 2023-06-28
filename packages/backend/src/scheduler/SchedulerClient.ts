@@ -65,15 +65,12 @@ export class SchedulerClient {
         this.schedulerModel = schedulerModel;
         this.graphileUtils = makeWorkerUtils({
             connectionString: lightdashConfig.database.connectionUri,
-        }).then((utils) =>
-            utils
-                .migrate()
-                .then(() => utils)
-                .catch((e: any) => {
-                    Logger.error('Error migrating graphile worker', e);
-                    process.exit(1);
-                }),
-        );
+        })
+            .then((utils) => utils)
+            .catch((e: any) => {
+                Logger.error('Error migrating graphile worker', e);
+                process.exit(1);
+            });
     }
 
     async getScheduledJobs(schedulerUuid: string): Promise<ScheduledJobs[]> {
