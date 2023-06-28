@@ -15,6 +15,7 @@ const AddColumnButton: FC = memo(() => {
             <Button
                 {...COLLAPSABLE_CARD_BUTTON_PROPS}
                 leftIcon={<MantineIcon icon={IconPlus} />}
+                component="button"
                 onClick={(e) => {
                     e.stopPropagation();
                     setIsOpen(true);
