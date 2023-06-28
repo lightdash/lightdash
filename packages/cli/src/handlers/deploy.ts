@@ -86,7 +86,7 @@ export const deploy = async (
     });
 };
 
-const createNewProject = async (
+const getOrCreateNewProject = async (
     options: DeployHandlerOptions,
 ): Promise<Project | undefined> => {
     console.error('');
@@ -96,11 +96,14 @@ const createNewProject = async (
     });
     const dbtName = friendlyName(context.projectName);
 
+    // Get the project name
     let projectName = dbtName;
     if (process.env.CI !== 'true') {
         if (options.name) {
+            // If the name option is provided, use that.
             projectName = options.name;
         } else {
+            // Otherwise, prompt the user for a name.
             const answers = await inquirer.prompt([
                 {
                     type: 'input',
@@ -111,10 +114,11 @@ const createNewProject = async (
             projectName = answers.name ? answers.name : dbtName;
         }
     }
-    // Throw error if project with same name exists
+    // Return the existing project if it exists
     const existingProject = await getDefaultProject(projectName);
     if (existingProject) {
-        throw new Error(`Project ${projectName} already exists`);
+        console.info(`Project ${projectName} already exists.`);
+        return existingProject;
     }
 
     // Create the project
@@ -172,7 +176,7 @@ export const deployHandler = async (options: DeployHandlerOptions) => {
     let projectUuid: string;
 
     if (options.create) {
-        const project = await createNewProject(options);
+        const project = await getOrCreateNewProject(options);
         if (!project) {
             console.error(
                 "To preview your project, you'll need to manually enter your warehouse connection details.",
