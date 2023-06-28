@@ -1,6 +1,9 @@
-import { Button } from '@blueprintjs/core';
-import { Popover2 } from '@blueprintjs/popover2';
-import React, { useState } from 'react';
+import { Button, Popover } from '@mantine/core';
+import React from 'react';
+import {
+    COLLAPSABLE_CARD_BUTTON_PROPS,
+    COLLAPSABLE_CARD_POPOVER_PROPS,
+} from '../common/CollapsableCard';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import BigNumberConfigTabs from './BigNumberConfigTabs';
 
@@ -8,25 +11,20 @@ const BigNumberConfigPanel: React.FC = () => {
     const {
         bigNumberConfig: { selectedField },
     } = useVisualizationContext();
-    const [isOpen, setIsOpen] = useState(false);
     const disabled = !selectedField;
 
     return (
-        <Popover2
-            disabled={disabled}
-            content={<BigNumberConfigTabs />}
-            interactionKind="click"
-            isOpen={isOpen}
-            onInteraction={setIsOpen}
-            position="bottom"
-        >
-            <Button
-                minimal
-                rightIcon="caret-down"
-                text="Configure"
-                disabled={disabled}
-            />
-        </Popover2>
+        <Popover {...COLLAPSABLE_CARD_POPOVER_PROPS} disabled={disabled}>
+            <Popover.Target>
+                <Button {...COLLAPSABLE_CARD_BUTTON_PROPS} disabled={disabled}>
+                    Configure
+                </Button>
+            </Popover.Target>
+
+            <Popover.Dropdown>
+                <BigNumberConfigTabs />
+            </Popover.Dropdown>
+        </Popover>
     );
 };
 

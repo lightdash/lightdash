@@ -1,22 +1,28 @@
-import { Button, Tab, Tabs } from '@blueprintjs/core';
-import { Popover2 } from '@blueprintjs/popover2';
-import React, { useState } from 'react';
-
+import { Tab, Tabs } from '@blueprintjs/core';
+import { Button, Popover } from '@mantine/core';
+import React from 'react';
+import {
+    COLLAPSABLE_CARD_BUTTON_PROPS,
+    COLLAPSABLE_CARD_POPOVER_PROPS,
+} from '../common/CollapsableCard';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import ConditionalFormattingList from './ConditionalFormattingList';
 import GeneralSettings from './GeneralSettings';
 import { ConfigWrapper } from './TableConfig.styles';
 
 const TableConfigPanel: React.FC = () => {
-    const [isOpen, setIsOpen] = useState(false);
-
     const { resultsData } = useVisualizationContext();
     const disabled = !resultsData;
 
     return (
-        <Popover2
-            disabled={disabled}
-            content={
+        <Popover {...COLLAPSABLE_CARD_POPOVER_PROPS} disabled={disabled}>
+            <Popover.Target>
+                <Button {...COLLAPSABLE_CARD_BUTTON_PROPS} disabled={disabled}>
+                    Configure
+                </Button>
+            </Popover.Target>
+
+            <Popover.Dropdown>
                 <ConfigWrapper>
                     <Tabs>
                         <Tab
@@ -31,19 +37,8 @@ const TableConfigPanel: React.FC = () => {
                         />
                     </Tabs>
                 </ConfigWrapper>
-            }
-            interactionKind="click"
-            isOpen={isOpen}
-            onInteraction={setIsOpen}
-            position="bottom"
-        >
-            <Button
-                minimal
-                rightIcon="caret-down"
-                text="Configure"
-                disabled={disabled}
-            />
-        </Popover2>
+            </Popover.Dropdown>
+        </Popover>
     );
 };
 
