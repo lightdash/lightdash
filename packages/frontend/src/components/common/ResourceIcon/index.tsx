@@ -176,7 +176,6 @@ export const ResourceIndicator: FC<
             color="transparent"
             label={
                 <Tooltip
-                    {...tooltipProps}
                     sx={sx}
                     label={
                         <div
@@ -187,11 +186,12 @@ export const ResourceIndicator: FC<
                         </div>
                     }
                     opened={isOpen}
+                    {...tooltipProps}
                 >
                     <MantineIcon
-                        {...iconProps}
                         onMouseEnter={handleMouseEnter}
                         onMouseLeave={handleMouseLeave}
+                        {...iconProps}
                     />
                 </Tooltip>
             }
