@@ -1,5 +1,5 @@
 import { Explore, PieChart } from '@lightdash/common';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 type PieChartConfig = {
     validPieChartConfig: PieChart;
@@ -32,21 +32,46 @@ const usePieChartConfig: PieChartConfigFn = (
     );
 
     const [groupFieldIds, setGroupFieldIds] = useState<Set<string | null>>(
-        new Set(
-            pieChartConfig?.groupFieldIds?.filter((id) =>
-                dimensionIds.includes(id),
-            ) ??
-                dimensionIds[0] ??
-                null,
-        ),
+        new Set(),
     );
 
-    const [metricId, setMetricId] = useState<string | null>(
-        pieChartConfig?.metricId &&
+    useEffect(() => {
+        const prevGroupFieldIds = [...groupFieldIds.values()].filter(
+            (id): id is string => (id ? dimensionIds.includes(id) : false),
+        );
+
+        if (prevGroupFieldIds.length !== 0 || dimensionIds.length === 0) return;
+
+        const persistedGroupFieldIds = pieChartConfig?.groupFieldIds?.filter(
+            (id) => dimensionIds.includes(id),
+        );
+
+        const newGroupFieldIds =
+            persistedGroupFieldIds && persistedGroupFieldIds.length > 0
+                ? new Set(persistedGroupFieldIds)
+                : new Set([dimensionIds[0] ?? null]);
+
+        setGroupFieldIds(newGroupFieldIds);
+    }, [dimensionIds, groupFieldIds, pieChartConfig?.groupFieldIds]);
+
+    const [metricId, setMetricId] = useState<string | null>(null);
+
+    useEffect(() => {
+        const prevMetricId =
+            metricId && allMetricIds.includes(metricId) ? metricId : null;
+
+        if (prevMetricId !== null || allMetricIds.length === 0) return;
+
+        const persistedMetricId =
+            pieChartConfig?.metricId &&
             allMetricIds.includes(pieChartConfig.metricId)
-            ? pieChartConfig.metricId
-            : allMetricIds[0] ?? null,
-    );
+                ? pieChartConfig.metricId
+                : null;
+
+        const firstMetricid = allMetricIds[0];
+
+        setMetricId(persistedMetricId ?? firstMetricid ?? null);
+    }, [allMetricIds, metricId, pieChartConfig?.metricId]);
 
     const handleGroupChange = useCallback((prevValue, newValue) => {
         setGroupFieldIds((prev) => {
