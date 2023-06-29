@@ -14,6 +14,7 @@ import { FC, useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
 import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
+import { useDashboardsContainingChart } from '../../../hooks/dashboard/useDashboards';
 import {
     useDuplicateChartMutation,
     useMoveChartMutation,
@@ -91,6 +92,13 @@ const SavedChartsHeader: FC = () => {
 
     const { mutate: duplicateChart } = useDuplicateChartMutation();
     const chartId = savedChart?.uuid || '';
+
+    const { data: relatedDashboards } = useDashboardsContainingChart(
+        projectUuid,
+        savedChart?.uuid ?? '',
+    );
+
+    console.log({ relatedDashboards });
 
     useEffect(() => {
         const schedulerUuidFromUrlParams =
