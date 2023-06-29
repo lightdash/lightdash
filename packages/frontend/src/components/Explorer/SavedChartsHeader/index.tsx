@@ -8,13 +8,11 @@ import {
 } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
-import { Tooltip } from '@mantine/core';
-import { IconDots, IconInfoCircle, IconPencil } from '@tabler/icons-react';
+import { IconDots, IconPencil } from '@tabler/icons-react';
 import { FC, useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
 import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
-import { useDashboardsContainingChart } from '../../../hooks/dashboard/useDashboards';
 import {
     useDuplicateChartMutation,
     useMoveChartMutation,
@@ -26,7 +24,6 @@ import { useApp } from '../../../providers/AppProvider';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
-import MantineIcon from '../../common/MantineIcon';
 import ChartCreateModal from '../../common/modal/ChartCreateModal';
 import ChartDeleteModal from '../../common/modal/ChartDeleteModal';
 import ChartUpdateModal from '../../common/modal/ChartUpdateModal';
@@ -46,6 +43,7 @@ import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardM
 import ChartSchedulersModal from '../../SchedulerModals/ChartSchedulersModal';
 import { getSchedulerUuidFromUrlParams } from '../../SchedulerModals/SchedulerModalBase/SchedulerModalContent';
 import SaveChartButton from '../SaveChartButton';
+import { SavedChartInfoTooltip } from './SavedChartInfoTooltip';
 
 const SavedChartsHeader: FC = () => {
     const { search } = useLocation();
@@ -92,13 +90,6 @@ const SavedChartsHeader: FC = () => {
 
     const { mutate: duplicateChart } = useDuplicateChartMutation();
     const chartId = savedChart?.uuid || '';
-
-    const { data: relatedDashboards } = useDashboardsContainingChart(
-        projectUuid,
-        savedChart?.uuid ?? '',
-    );
-
-    console.log({ relatedDashboards });
 
     useEffect(() => {
         const schedulerUuidFromUrlParams =
@@ -190,14 +181,12 @@ const SavedChartsHeader: FC = () => {
                                 className={Classes.TEXT_OVERFLOW_ELLIPSIS}
                             >
                                 <PageTitle>{savedChart.name}</PageTitle>
-                                {savedChart.description && (
-                                    <Tooltip label={savedChart.description}>
-                                        <MantineIcon
-                                            icon={IconInfoCircle}
-                                            color="gray.6"
-                                        />
-                                    </Tooltip>
-                                )}
+
+                                <SavedChartInfoTooltip
+                                    projectUuid={projectUuid}
+                                    savedChart={savedChart}
+                                />
+
                                 {isEditMode &&
                                     user.data?.ability?.can(
                                         'manage',
