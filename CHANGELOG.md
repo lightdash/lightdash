@@ -1,3 +1,10 @@
+# [0.639.0](https://github.com/lightdash/lightdash/compare/0.638.1...0.639.0) (2023-06-29)
+
+
+### Features
+
+* display item description popover on renderFilterItem ([#6077](https://github.com/lightdash/lightdash/issues/6077)) ([61dfbee](https://github.com/lightdash/lightdash/commit/61dfbee24ba8cffa97055702184e5d8fc04992e1))
+
 ## [0.638.1](https://github.com/lightdash/lightdash/compare/0.638.0...0.638.1) (2023-06-29)
 
 
