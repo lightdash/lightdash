@@ -43,9 +43,7 @@ const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
 const PieLayoutConfig: React.FC = () => {
     const {
         dimensions,
-        metrics,
-        customMetrics,
-        tableCalculations,
+        allMetrics,
         pieChartConfig: {
             metricId,
             metricChange,
@@ -61,10 +59,10 @@ const PieLayoutConfig: React.FC = () => {
     } = useVisualizationContext();
 
     const selectedMetric = useMemo(() => {
-        return [...metrics, ...customMetrics, ...tableCalculations].find((m) =>
+        return allMetrics.find((m) =>
             isField(m) ? fieldId(m) === metricId : m.name === metricId,
         );
-    }, [metrics, customMetrics, tableCalculations, metricId]);
+    }, [allMetrics, metricId]);
 
     return (
         <Stack w={320}>
@@ -114,23 +112,22 @@ const PieLayoutConfig: React.FC = () => {
             </Stack>
 
             <Select
+                disabled={allMetrics.length === 0}
                 label="Metric"
                 placeholder="Select metric"
                 value={metricId}
                 icon={selectedMetric && <FieldIcon item={selectedMetric} />}
                 itemComponent={SelectItem}
-                data={[...metrics, ...customMetrics, ...tableCalculations].map(
-                    (m) => {
-                        const id = isField(m) ? fieldId(m) : m.name;
+                data={allMetrics.map((m) => {
+                    const id = isField(m) ? fieldId(m) : m.name;
 
-                        return {
-                            item: m,
-                            value: id,
-                            label: fieldLabelText(m),
-                            disabled: metricId === id,
-                        };
-                    },
-                )}
+                    return {
+                        item: m,
+                        value: id,
+                        label: fieldLabelText(m),
+                        disabled: metricId === id,
+                    };
+                })}
                 onChange={(newValue) => {
                     metricChange(newValue);
                 }}

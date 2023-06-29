@@ -51,6 +51,7 @@ type VisualizationContext = {
     isSqlRunner: boolean;
     dimensions: Dimension[];
     metrics: Metric[];
+    allMetrics: (Metric | TableCalculation)[];
     customMetrics: AdditionalMetric[];
     tableCalculations: TableCalculation[];
     onSeriesContextMenu?: (
@@ -164,6 +165,11 @@ const VisualizationProvider: FC<Props> = ({
     const tableCalculationIds = useMemo(
         () => tableCalculations.map(({ name }) => name),
         [tableCalculations],
+    );
+
+    const allMetrics = useMemo(
+        () => [...metrics, ...customMetrics, ...tableCalculations],
+        [metrics, customMetrics, tableCalculations],
     );
 
     const allMetricIds = useMemo(
@@ -298,6 +304,7 @@ const VisualizationProvider: FC<Props> = ({
             metrics,
             customMetrics,
             tableCalculations,
+            allMetrics,
             onSeriesContextMenu,
             setChartType,
             setPivotDimensions,
@@ -319,6 +326,7 @@ const VisualizationProvider: FC<Props> = ({
             metrics,
             customMetrics,
             tableCalculations,
+            allMetrics,
             onSeriesContextMenu,
             setChartType,
             setPivotDimensions,

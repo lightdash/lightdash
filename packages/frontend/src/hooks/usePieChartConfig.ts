@@ -36,6 +36,11 @@ const usePieChartConfig: PieChartConfigFn = (
     );
 
     useEffect(() => {
+        if (dimensionIds.length === 0 && groupFieldIds.size > 0) {
+            setGroupFieldIds(new Set());
+            return;
+        }
+
         const prevGroupFieldIds = [...groupFieldIds.values()].filter(
             (id): id is string => (id ? dimensionIds.includes(id) : false),
         );
@@ -57,6 +62,11 @@ const usePieChartConfig: PieChartConfigFn = (
     const [metricId, setMetricId] = useState<string | null>(null);
 
     useEffect(() => {
+        if (allMetricIds.length === 0 && metricId !== null) {
+            setMetricId(null);
+            return;
+        }
+
         const prevMetricId =
             metricId && allMetricIds.includes(metricId) ? metricId : null;
 
