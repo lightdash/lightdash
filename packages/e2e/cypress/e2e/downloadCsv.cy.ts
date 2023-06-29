@@ -48,11 +48,11 @@ describe('Download CSV on SQL Runner', () => {
             find.forEach((text) => cy.findAllByText(text));
             cy.contains('Page 1 of 3');
 
-            cy.findByText('Charts').parent().findByRole('button').click();
+            cy.findByTestId('Charts-card-expand').click();
             cy.findByText('Bar chart').click(); // Change chart type
             cy.findByText('Table').click();
 
-            cy.findByText('Export CSV').click();
+            cy.findByTestId('export-csv-button').click();
 
             cy.wait('@apiDownloadCsv').then((interception) => {
                 expect(interception?.response?.statusCode).to.eq(200);
@@ -152,7 +152,7 @@ describe('Download CSV on Explore', () => {
             // wait for the chart to finish loading
             cy.findByText('Loading results').should('not.exist');
 
-            cy.findByText('Export CSV').click();
+            cy.findByTestId('export-csv-button').click();
             cy.get('[icon="export"]').click();
 
             cy.wait('@apiDownloadCsv', { timeout: 3000 }).then(
@@ -183,9 +183,9 @@ describe('Download CSV on Explore', () => {
             cy.get('button').contains('Run query').click();
 
             // open chart
-            cy.findByText('Charts').parent().findByRole('button').click();
+            cy.findByTestId('Charts-card-expand').click();
             // Close results
-            cy.findByText('Results').parent().findByRole('button').click();
+            cy.findByTestId('Results-card-expand').click();
             // wait for the chart to finish loading
             cy.findByText('Loading chart').should('not.exist');
 
@@ -194,7 +194,7 @@ describe('Download CSV on Explore', () => {
             cy.get('[role="menuitem"]').contains('Table').click();
 
             // find by role and text
-            cy.contains('button', 'Export CSV').click();
+            cy.findByTestId('export-csv-button').click();
             cy.findByRole('dialog').contains('button', 'Export CSV').click();
 
             cy.wait('@apiDownloadCsv').then((interception) => {

@@ -12,6 +12,7 @@ import {
     IconChartDots,
     IconChartLine,
     IconChartPie,
+    IconChevronDown,
     IconSquareNumber1,
     IconTable,
 } from '@tabler/icons-react';
@@ -50,7 +51,12 @@ const VisualizationCardOptions: FC = memo(() => {
                 if (!isChartTypeTheSameForAllSeries) {
                     return {
                         text: 'Mixed',
-                        icon: <MantineIcon icon={IconChartAreaLine} />,
+                        icon: (
+                            <MantineIcon
+                                icon={IconChartAreaLine}
+                                color="gray"
+                            />
+                        ),
                     };
                 }
                 switch (cartesianType) {
@@ -59,13 +65,23 @@ const VisualizationCardOptions: FC = memo(() => {
 
                         return {
                             text: 'Area chart',
-                            icon: <MantineIcon icon={IconChartArea} />,
+                            icon: (
+                                <MantineIcon
+                                    icon={IconChartArea}
+                                    color="gray"
+                                />
+                            ),
                         };
                     case CartesianSeriesType.LINE:
                         setStacking(false);
                         return {
                             text: 'Line chart',
-                            icon: <MantineIcon icon={IconChartLine} />,
+                            icon: (
+                                <MantineIcon
+                                    icon={IconChartLine}
+                                    color="gray"
+                                />
+                            ),
                         };
 
                     case CartesianSeriesType.BAR:
@@ -76,19 +92,30 @@ const VisualizationCardOptions: FC = memo(() => {
                                       <MantineIcon
                                           icon={IconChartBar}
                                           style={{ rotate: '90deg' }}
+                                          color="gray"
                                       />
                                   ),
                               }
                             : {
                                   text: 'Bar chart',
-                                  icon: <MantineIcon icon={IconChartBar} />,
+                                  icon: (
+                                      <MantineIcon
+                                          icon={IconChartBar}
+                                          color="gray"
+                                      />
+                                  ),
                               };
                     case CartesianSeriesType.SCATTER:
                         setStacking(false);
 
                         return {
                             text: 'Scatter chart',
-                            icon: <MantineIcon icon={IconChartDots} />,
+                            icon: (
+                                <MantineIcon
+                                    icon={IconChartDots}
+                                    color="gray"
+                                />
+                            ),
                         };
                     default:
                         return assertUnreachable(
@@ -100,17 +127,17 @@ const VisualizationCardOptions: FC = memo(() => {
             case ChartType.TABLE:
                 return {
                     text: 'Table',
-                    icon: <MantineIcon icon={IconTable} />,
+                    icon: <MantineIcon icon={IconTable} color="gray" />,
                 };
             case ChartType.BIG_NUMBER:
                 return {
                     text: 'Big value',
-                    icon: <MantineIcon icon={IconSquareNumber1} />,
+                    icon: <MantineIcon icon={IconSquareNumber1} color="gray" />,
                 };
             case ChartType.PIE:
                 return {
                     text: 'Pie chart',
-                    icon: <MantineIcon icon={IconChartPie} />,
+                    icon: <MantineIcon icon={IconChartPie} color="gray" />,
                 };
             default: {
                 return assertUnreachable(
@@ -138,6 +165,9 @@ const VisualizationCardOptions: FC = memo(() => {
                     {...COLLAPSABLE_CARD_BUTTON_PROPS}
                     disabled={disabled}
                     leftIcon={selectedChartType.icon}
+                    rightIcon={
+                        <MantineIcon icon={IconChevronDown} color="gray" />
+                    }
                 >
                     {selectedChartType.text}
                 </Button>

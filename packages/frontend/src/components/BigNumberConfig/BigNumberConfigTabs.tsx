@@ -57,7 +57,7 @@ const BigNumberConfigTabs = () => {
     } = useVisualizationContext();
     const [tab, setTab] = useState<string | number>('layout');
     return (
-        <Box w={320}>
+        <Box w={320} p="md">
             <Tabs
                 onChange={setTab}
                 selectedTabId={tab}

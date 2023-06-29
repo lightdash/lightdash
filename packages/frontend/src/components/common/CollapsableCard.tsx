@@ -1,22 +1,24 @@
-import { Tooltip2 } from '@blueprintjs/popover2';
-import { ButtonProps, PopoverProps } from '@mantine/core';
-import { IconCaretDown } from '@tabler/icons-react';
+import {
+    Box,
+    Button,
+    ButtonProps,
+    Flex,
+    Group,
+    PopoverProps,
+    Tooltip,
+} from '@mantine/core';
+import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { FC, useCallback } from 'react';
 import {
-    StyledButton,
     StyledCard,
-    StyledCardActionsWrpper,
-    StyledCardHeader,
     StyledCardTitle,
-    StyledCardTitleWrapper,
     StyledCollapse,
 } from './CollapsableCard.style';
 import MantineIcon from './MantineIcon';
 
 export const COLLAPSABLE_CARD_BUTTON_PROPS: Omit<ButtonProps, 'children'> = {
-    variant: 'subtle',
+    variant: 'default',
     size: 'xs',
-    rightIcon: <MantineIcon icon={IconCaretDown} />,
 };
 
 export const COLLAPSABLE_CARD_POPOVER_PROPS: Omit<PopoverProps, 'children'> = {
@@ -27,7 +29,7 @@ export const COLLAPSABLE_CARD_POPOVER_PROPS: Omit<PopoverProps, 'children'> = {
     closeOnEscape: true,
     keepMounted: false,
     arrowSize: 10,
-    offset: -2,
+    offset: 2,
 };
 
 interface CollapsableCardProps {
@@ -61,37 +63,57 @@ const CollapsableCard: FC<CollapsableCardProps> = ({
 
     return (
         <StyledCard elevation={1} $shouldExpand={isOpen && shouldExpand}>
-            <StyledCardHeader>
-                <StyledCardTitleWrapper>
-                    <Tooltip2
-                        interactionKind="hover"
-                        placement="bottom-start"
-                        disabled={!!toggleTooltip}
-                        content={toggleTooltip}
+            <Flex gap="xxs" align="center" mr="xs" h="xxl">
+                <Tooltip
+                    position="top-start"
+                    disabled={!toggleTooltip}
+                    label={toggleTooltip}
+                >
+                    <Button
+                        data-testid={`${title}-card-expand`}
+                        variant="subtle"
+                        color="gray"
+                        w="xxl"
+                        h="xxl"
+                        p={0}
+                        onClick={
+                            disabled ? undefined : () => handleToggle(!isOpen)
+                        }
+                        sx={
+                            disabled
+                                ? {
+                                      cursor: disabled
+                                          ? 'not-allowed'
+                                          : 'pointer',
+                                      opacity: 0.5,
+                                      backgroundColor: 'transparent',
+                                      '&:hover': {
+                                          backgroundColor: 'transparent',
+                                      },
+                                  }
+                                : undefined
+                        }
                     >
-                        <StyledButton
-                            minimal
-                            disabled={disabled}
-                            icon={isOpen ? 'chevron-down' : 'chevron-right'}
-                            onClick={() => handleToggle(!isOpen)}
+                        <MantineIcon
+                            icon={isOpen ? IconChevronDown : IconChevronRight}
                         />
-                    </Tooltip2>
+                    </Button>
+                </Tooltip>
 
+                <Group>
                     <StyledCardTitle>{title}</StyledCardTitle>
-
-                    {headerElement && (
-                        <StyledCardActionsWrpper>
-                            {headerElement}
-                        </StyledCardActionsWrpper>
-                    )}
-                </StyledCardTitleWrapper>
+                    <Group spacing="xs">{headerElement}</Group>
+                </Group>
 
                 {rightHeaderElement && (
-                    <StyledCardActionsWrpper>
-                        {rightHeaderElement}
-                    </StyledCardActionsWrpper>
+                    <>
+                        <Box sx={{ flexGrow: 1 }} />
+                        <Group spacing="xs" pos="relative" top={2} right={2}>
+                            {rightHeaderElement}
+                        </Group>
+                    </>
                 )}
-            </StyledCardHeader>
+            </Flex>
 
             {isOpen && (
                 <StyledCollapse
