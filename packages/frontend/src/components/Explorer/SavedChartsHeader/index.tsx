@@ -6,13 +6,13 @@ import {
     Intent,
     Menu,
 } from '@blueprintjs/core';
-import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
+import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
-import { IconDots, IconPencil } from '@tabler/icons-react';
+import { Tooltip } from '@mantine/core';
+import { IconDots, IconInfoCircle, IconPencil } from '@tabler/icons-react';
 import { FC, useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
-
 import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
 import {
     useDuplicateChartMutation,
@@ -25,6 +25,7 @@ import { useApp } from '../../../providers/AppProvider';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
+import MantineIcon from '../../common/MantineIcon';
 import ChartCreateModal from '../../common/modal/ChartCreateModal';
 import ChartDeleteModal from '../../common/modal/ChartDeleteModal';
 import ChartUpdateModal from '../../common/modal/ChartUpdateModal';
@@ -182,12 +183,12 @@ const SavedChartsHeader: FC = () => {
                             >
                                 <PageTitle>{savedChart.name}</PageTitle>
                                 {savedChart.description && (
-                                    <Tooltip2
-                                        content={savedChart.description}
-                                        position="bottom"
-                                    >
-                                        <Button icon="info-sign" minimal />
-                                    </Tooltip2>
+                                    <Tooltip label={savedChart.description}>
+                                        <MantineIcon
+                                            icon={IconInfoCircle}
+                                            color="gray.6"
+                                        />
+                                    </Tooltip>
                                 )}
                                 {isEditMode &&
                                     user.data?.ability?.can(
