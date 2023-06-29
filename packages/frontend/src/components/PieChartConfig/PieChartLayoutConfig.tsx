@@ -43,7 +43,7 @@ const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
     ),
 );
 
-const PieLayoutConfig: React.FC = () => {
+const PieChartLayoutConfig: React.FC = () => {
     const {
         dimensions,
         allNumericMetrics,
@@ -68,7 +68,7 @@ const PieLayoutConfig: React.FC = () => {
     }, [allNumericMetrics, metricId]);
 
     return (
-        <Stack w={320}>
+        <Stack>
             <Stack spacing="xs">
                 {groupFieldIds.map((dimensionId, index) => {
                     const dimension = dimensions.find(
@@ -160,4 +160,4 @@ const PieLayoutConfig: React.FC = () => {
     );
 };
 
-export default PieLayoutConfig;
+export default PieChartLayoutConfig;
