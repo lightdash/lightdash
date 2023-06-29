@@ -1,6 +1,7 @@
-import { Classes, HotkeyConfig, KeyCombo, useHotkeys } from '@blueprintjs/core';
+import { Classes, KeyCombo } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
-import { memo, useCallback, useMemo } from 'react';
+import { useHotkeys } from '@mantine/hooks';
+import { memo, useCallback } from 'react';
 import { useExplorerContext } from '../providers/ExplorerProvider';
 import { useTracking } from '../providers/TrackingProvider';
 import { EventName } from '../types/Events';
@@ -20,33 +21,18 @@ export const RefreshButton = memo(() => {
         (context) => context.hasUnfetchedChanges,
     );
 
+    const canRunQuery = !isLoading && isValidQuery && hasUnfetchedChanges;
+
     const { track } = useTracking();
 
     const onClick = useCallback(() => {
-        fetchResults();
-        track({ name: EventName.RUN_QUERY_BUTTON_CLICKED });
-    }, [fetchResults, track]);
+        if (canRunQuery) {
+            fetchResults();
+            track({ name: EventName.RUN_QUERY_BUTTON_CLICKED });
+        }
+    }, [fetchResults, track, canRunQuery]);
 
-    const isButtonDisabled = isLoading || !isValidQuery || !hasUnfetchedChanges;
-
-    const hotkeys = useMemo<HotkeyConfig[]>(
-        () => [
-            {
-                combo: 'mod+enter',
-                group: 'Explorer',
-                label: 'Run query',
-                allowInInput: true,
-                onKeyDown: onClick,
-                global: true,
-                preventDefault: true,
-                stopPropagation: true,
-                disabled: isButtonDisabled,
-            },
-        ],
-        [onClick, isButtonDisabled],
-    );
-
-    useHotkeys(hotkeys);
+    useHotkeys([['mod + enter', onClick, { preventDefault: true }]]);
 
     return (
         <Tooltip2
@@ -66,8 +52,8 @@ export const RefreshButton = memo(() => {
                 intent="primary"
                 loading={isLoading}
                 // disabled button captures hover events
-                onClick={isButtonDisabled ? undefined : onClick}
-                className={isButtonDisabled ? Classes.DISABLED : undefined}
+                onClick={onClick}
+                className={!canRunQuery ? Classes.DISABLED : undefined}
             >
                 Run query
             </BigButton>

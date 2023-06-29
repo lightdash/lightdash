@@ -8,12 +8,7 @@ import '@blueprintjs/select/lib/css/blueprint-select.css';
 // below is a cleaner version of the above
 import './../styles/blueprint-core.css';
 
-import {
-    Colors,
-    Dialog,
-    FocusStyleManager,
-    HotkeysProvider,
-} from '@blueprintjs/core';
+import { Colors, Dialog, FocusStyleManager } from '@blueprintjs/core';
 import { FC } from 'react';
 import { createGlobalStyle } from 'styled-components';
 
@@ -81,9 +76,7 @@ export const BlueprintProvider: FC = ({ children }) => {
     return (
         <>
             <GlobalBlueprintStyles />
-            <HotkeysProvider>
-                <>{children}</>
-            </HotkeysProvider>
+            {children}
         </>
     );
 };
