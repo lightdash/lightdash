@@ -124,12 +124,16 @@ const VisualizationProvider: FC<Props> = ({
         );
     }, [explore, resultsData?.metricQuery.dimensions]);
 
+    const dimensionIds = useMemo(() => dimensions.map(fieldId), [dimensions]);
+
     const metrics = useMemo(() => {
         if (!explore) return [];
         return getMetrics(explore).filter((field) =>
             resultsData?.metricQuery.metrics.includes(fieldId(field)),
         );
     }, [explore, resultsData?.metricQuery.metrics]);
+
+    const metricIds = useMemo(() => metrics.map(fieldId), [metrics]);
 
     const customMetrics = useMemo(() => {
         if (!explore) return [];
@@ -148,9 +152,24 @@ const VisualizationProvider: FC<Props> = ({
         }, []);
     }, [explore, resultsData?.metricQuery.additionalMetrics]);
 
+    const customMetricIds = useMemo(
+        () => customMetrics.map(fieldId),
+        [customMetrics],
+    );
+
     const tableCalculations = useMemo(() => {
         return resultsData?.metricQuery.tableCalculations ?? [];
     }, [resultsData?.metricQuery.tableCalculations]);
+
+    const tableCalculationIds = useMemo(
+        () => tableCalculations.map(({ name }) => name),
+        [tableCalculations],
+    );
+
+    const allMetricIds = useMemo(
+        () => [...metricIds, ...customMetricIds, ...tableCalculationIds],
+        [metricIds, customMetricIds, tableCalculationIds],
+    );
 
     const bigNumberConfig = useBigNumberConfig(
         initialChartConfig?.type === ChartType.BIG_NUMBER
@@ -217,12 +236,9 @@ const VisualizationProvider: FC<Props> = ({
         initialChartConfig?.type === ChartType.PIE
             ? initialChartConfig.config
             : undefined,
-        {
-            dimensions,
-            metrics,
-            customMetrics,
-            tableCalculations,
-        },
+        explore,
+        dimensionIds,
+        allMetricIds,
     );
 
     const { validPieChartConfig } = pieChartConfig;

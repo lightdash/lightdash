@@ -44,9 +44,9 @@ const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
 
         return resultsData?.rows.map((row) => ({
             name: groupFieldIds
-                .map((fieldId) => row[fieldId].value.formatted)
+                .map((fieldId) => row[fieldId]?.value?.formatted)
                 .join(' - '),
-            value: row[metricId].value.raw,
+            value: row[metricId]?.value?.raw,
         }));
     }, [groupFieldIds, metricId, resultsData]);
 
