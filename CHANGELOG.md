@@ -1,3 +1,10 @@
+## [0.639.1](https://github.com/lightdash/lightdash/compare/0.639.0...0.639.1) (2023-06-29)
+
+
+### Bug Fixes
+
+* prevent dashboard request when uuid is empty ([#6089](https://github.com/lightdash/lightdash/issues/6089)) ([b8c79ff](https://github.com/lightdash/lightdash/commit/b8c79ffc4e4bca225565c2aa2d52a651eba2694b))
+
 # [0.639.0](https://github.com/lightdash/lightdash/compare/0.638.1...0.639.0) (2023-06-29)
 
 
