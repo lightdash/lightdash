@@ -7,7 +7,7 @@ import { Upload } from '@aws-sdk/lib-storage';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import * as Sentry from '@sentry/node';
 import { LightdashConfig } from '../../config/parseConfig';
-import Logger from '../../logger';
+import Logger from '../../logging/logger';
 
 type S3ServiceDependencies = {
     lightdashConfig: LightdashConfig;

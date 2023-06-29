@@ -20,7 +20,7 @@ import moment from 'moment';
 import { analytics } from '../analytics/client';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../config/parseConfig';
-import Logger from '../logger';
+import Logger from '../logging/logger';
 import { SchedulerModel } from '../models/SchedulerModel';
 
 type SchedulerClientDependencies = {

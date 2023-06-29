@@ -3,7 +3,7 @@ import * as Sentry from '@sentry/node';
 import express from 'express';
 import * as http from 'http';
 import { lightdashConfig } from './config/lightdashConfig';
-import Logger from './logger';
+import Logger from './logging/logger';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import { VERSION } from './version';
 

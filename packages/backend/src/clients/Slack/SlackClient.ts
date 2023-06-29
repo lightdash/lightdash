@@ -3,7 +3,7 @@ import * as Sentry from '@sentry/node';
 import { App, Block, LogLevel } from '@slack/bolt';
 import { ConversationsListResponse, UsersListResponse } from '@slack/web-api';
 import { LightdashConfig } from '../../config/parseConfig';
-import Logger from '../../logger';
+import Logger from '../../logging/logger';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 import { slackOptions } from './SlackOptions';
 

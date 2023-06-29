@@ -1,5 +1,5 @@
 import winston from 'winston';
-import { lightdashConfig } from './config/lightdashConfig';
+import { lightdashConfig } from '../config/lightdashConfig';
 
 const levels = {
     error: 0,

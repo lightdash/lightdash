@@ -10,7 +10,7 @@ import {
 import moment from 'moment';
 import { schedulerClient } from '../clients/clients';
 import { LightdashConfig } from '../config/parseConfig';
-import Logger from '../logger';
+import Logger from '../logging/logger';
 import { schedulerService } from '../services/services';
 import { tryJobOrTimeout } from './SchedulerJobTimeout';
 import {

@@ -23,7 +23,7 @@ import {
 import path from 'path';
 import { URL } from 'url';
 import { lightdashConfig } from '../config/lightdashConfig';
-import Logger from '../logger';
+import Logger from '../logging/logger';
 import { userService } from '../services/services';
 
 // How a user makes authenticated requests
