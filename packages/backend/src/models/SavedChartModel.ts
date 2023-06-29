@@ -615,24 +615,19 @@ export class SavedChartModel {
     }
 
     private getChartSummaryQuery() {
-        return this.database(SavedChartsTableName)
+        return this.database('saved_queries')
             .select({
-                uuid: `${SavedChartsTableName}.saved_query_uuid`,
-                name: `${SavedChartsTableName}.name`,
-                description: `${SavedChartsTableName}.description`,
+                uuid: 'saved_queries.saved_query_uuid',
+                name: 'saved_queries.name',
+                description: 'saved_queries.description',
                 spaceUuid: 'spaces.space_uuid',
                 spaceName: 'spaces.name',
                 projectUuid: 'projects.project_uuid',
                 organizationUuid: 'organizations.organization_uuid',
                 pinnedListUuid: `${PinnedListTableName}.pinned_list_uuid`,
                 chartType: 'last_saved_query_version.chart_type',
-                chartConfig: 'last_saved_query_version.chart_config',
             })
-            .leftJoin(
-                'spaces',
-                `${SavedChartsTableName}.space_id`,
-                'spaces.space_id',
-            )
+            .leftJoin('spaces', 'saved_queries.space_id', 'spaces.space_id')
             .leftJoin('projects', 'spaces.project_id', 'projects.project_id')
             .leftJoin(
                 OrganizationTableName,
@@ -644,7 +639,7 @@ export class SavedChartModel {
                     .distinctOn('saved_query_id')
                     .orderBy('saved_query_id')
                     .orderBy('created_at', 'desc')
-                    .select('chart_type', 'chart_config', 'saved_query_id')
+                    .select('chart_type', 'saved_query_id')
                     .as('last_saved_query_version'),
                 `saved_queries.saved_query_id`,
                 'last_saved_query_version.saved_query_id',

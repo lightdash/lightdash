@@ -81,7 +81,7 @@ export const useDashboardQuery = (
     return useQuery<Dashboard, ApiError>({
         queryKey: ['saved_dashboard_query', id],
         queryFn: () => getDashboard(id || ''),
-        enabled: id !== undefined,
+        enabled: !!id,
         retry: false,
         onError: (result) => setErrorResponse(result),
         ...useQueryOptions,
