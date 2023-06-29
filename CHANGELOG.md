@@ -1,3 +1,11 @@
+## [0.639.2](https://github.com/lightdash/lightdash/compare/0.639.1...0.639.2) (2023-06-29)
+
+
+### Bug Fixes
+
+* dont override custom metric when creating a chart from another chart ([#6090](https://github.com/lightdash/lightdash/issues/6090)) ([abe244e](https://github.com/lightdash/lightdash/commit/abe244ef2de766fc623772a68cd342d200aa2316))
+* preview content where charts have custom metrics ([#6092](https://github.com/lightdash/lightdash/issues/6092)) ([cddf356](https://github.com/lightdash/lightdash/commit/cddf3562e58e47e2a2b6dc94f370bc4fbe0b9414))
+
 ## [0.639.1](https://github.com/lightdash/lightdash/compare/0.639.0...0.639.1) (2023-06-29)
 
 
