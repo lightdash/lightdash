@@ -25,7 +25,6 @@ import {
     CreateDbSavedChartVersionField,
     CreateDbSavedChartVersionSort,
     DBFilteredAdditionalMetrics,
-    DbSavedChartAdditionalMetric,
     DbSavedChartAdditionalMetricInsert,
     DbSavedChartTableCalculationInsert,
     SavedChartAdditionalMetricTableName,
@@ -95,8 +94,6 @@ const createSavedChartVersionAdditionalMetrics = async (
 ) => {
     const results = await trx(SavedChartAdditionalMetricTableName)
         .insert(data)
-        .onConflict('uuid')
-        .merge()
         .returning('*');
     return results[0];
 };
@@ -204,7 +201,6 @@ const createSavedChartVersion = async (
                             : null,
                     base_dimension_name:
                         additionalMetric.baseDimensionName ?? null,
-                    uuid: additionalMetric.uuid ?? null,
                 }),
             );
         });
@@ -441,27 +437,28 @@ export class SavedChartModel {
                     savedQuery.saved_queries_version_id,
                 );
 
-            const additionalMetricsRows: DbSavedChartAdditionalMetric[] =
-                await this.database(SavedChartAdditionalMetricTableName)
-                    .select([
-                        'table',
-                        'name',
-                        'type',
-                        'label',
-                        'description',
-                        'sql',
-                        'hidden',
-                        'round',
-                        'format',
-                        'filters',
-                        'base_dimension_name',
-                        'uuid',
-                        'compact',
-                    ])
-                    .where(
-                        'saved_queries_version_id',
-                        savedQuery.saved_queries_version_id,
-                    );
+            const additionalMetricsRows = await this.database(
+                SavedChartAdditionalMetricTableName,
+            )
+                .select([
+                    'table',
+                    'name',
+                    'type',
+                    'label',
+                    'description',
+                    'sql',
+                    'hidden',
+                    'round',
+                    'format',
+                    'filters',
+                    'base_dimension_name',
+                    'uuid',
+                    'compact',
+                ])
+                .where(
+                    'saved_queries_version_id',
+                    savedQuery.saved_queries_version_id,
+                );
 
             // Filters out "null" fields
             const additionalMetricsFiltered: DBFilteredAdditionalMetrics[] =
