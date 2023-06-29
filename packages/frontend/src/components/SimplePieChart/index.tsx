@@ -40,7 +40,9 @@ const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
     } = useVisualizationContext();
 
     const data = useMemo(() => {
-        if (!groupFieldIds || !metricId) return [];
+        if (!groupFieldIds || groupFieldIds.length === 0 || !metricId) {
+            return [];
+        }
 
         return resultsData?.rows.map((row) => ({
             name: groupFieldIds
