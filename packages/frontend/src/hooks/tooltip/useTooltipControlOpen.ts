@@ -1,8 +1,9 @@
+import { Sx } from '@mantine/core';
 import { useRef, useState } from 'react';
 
 /**
  * Control the Tooltip visibility manually to allow hovering on Label
- * @returns isOpen, handleMouseEnter, handleMouseLeave, handleLabelMouseEnter, handleLabelMouseLeave - functions to control the Tooltip visibility along with isOpen state
+ * @returns tooltipProps, tooltipLabelProps - props to pass to Tooltip and Label components respectively to control their visibility
  */
 export const useTooltipControlOpen = () => {
     // NOTE: Control the Tooltip visibility manually to allow hovering on Label.
@@ -35,11 +36,25 @@ export const useTooltipControlOpen = () => {
         }, 100);
     };
 
-    return {
+    const tooltipProps: {
+        sx: Sx;
+        isOpen: boolean;
+        handleMouseEnter: () => void;
+        handleMouseLeave: () => void;
+    } = {
+        sx: { pointerEvents: 'auto' },
         isOpen: opened || isHovering,
         handleMouseEnter,
         handleMouseLeave,
+    };
+
+    const tooltipLabelProps = {
         handleLabelMouseEnter,
         handleLabelMouseLeave,
+    };
+
+    return {
+        tooltipProps,
+        tooltipLabelProps,
     };
 };
