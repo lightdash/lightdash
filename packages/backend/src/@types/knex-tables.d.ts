@@ -81,6 +81,8 @@ import {
     ProjectTableName,
 } from '../database/entities/projects';
 import {
+    SavedChartAdditionalMetricTable,
+    SavedChartAdditionalMetricTableName,
     SavedChartsTableName,
     SavedChartVersionFieldsTable,
     SavedChartVersionFieldsTableName,
@@ -162,6 +164,7 @@ declare module 'knex/types/tables' {
         [SavedChartVersionFieldsTableName]: SavedChartVersionFieldsTable;
         [SavedChartVersionSortsTableName]: SavedChartVersionSortsTable;
         [SavedQueryTableCalculationTableName]: SavedQueryTableCalculationTable;
+        [SavedChartAdditionalMetricTableName]: SavedChartAdditionalMetricTable;
         [SpaceTableName]: SpaceTable;
         [DashboardsTableName]: DashboardTable;
         [DashboardVersionsTableName]: DashboardVersionTable;
