@@ -1,3 +1,10 @@
+# [0.640.0](https://github.com/lightdash/lightdash/compare/0.639.2...0.640.0) (2023-06-29)
+
+
+### Features
+
+* explore card sort and limit pill styles ([#6068](https://github.com/lightdash/lightdash/issues/6068)) ([194d107](https://github.com/lightdash/lightdash/commit/194d107a6dadba90156320cbd845d88a6d4a85da))
+
 ## [0.639.2](https://github.com/lightdash/lightdash/compare/0.639.1...0.639.2) (2023-06-29)
 
 
