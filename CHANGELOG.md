@@ -1,3 +1,10 @@
+# [0.638.0](https://github.com/lightdash/lightdash/compare/0.637.6...0.638.0) (2023-06-29)
+
+
+### Features
+
+* explore card action item styles ([#6069](https://github.com/lightdash/lightdash/issues/6069)) ([ee725aa](https://github.com/lightdash/lightdash/commit/ee725aad591ea21bbb348dab4652b3f2cdeb1955))
+
 ## [0.637.6](https://github.com/lightdash/lightdash/compare/0.637.5...0.637.6) (2023-06-28)
 
 
