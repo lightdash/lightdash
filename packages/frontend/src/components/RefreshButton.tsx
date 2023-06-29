@@ -1,4 +1,4 @@
-import { Classes } from '@blueprintjs/core';
+import { Classes, KeyCombo } from '@blueprintjs/core';
 import { Tooltip2 } from '@blueprintjs/popover2';
 import { useHotkeys } from '@mantine/hooks';
 import { memo, useCallback } from 'react';
@@ -37,12 +37,14 @@ export const RefreshButton = memo(() => {
     return (
         <Tooltip2
             content={
-                !hasUnfetchedChanges
-                    ? 'You need to make some changes before running a query'
-                    : ''
+                !hasUnfetchedChanges ? (
+                    'You need to make some changes before running a query'
+                ) : (
+                    <KeyCombo combo="mod+enter" />
+                )
             }
             position="bottom"
-            disabled={hasUnfetchedChanges}
+            disabled={isLoading || !isValidQuery}
         >
             <BigButton
                 style={{ width: 150 }}
