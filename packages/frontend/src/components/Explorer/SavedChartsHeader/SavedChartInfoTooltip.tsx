@@ -28,6 +28,7 @@ export const SavedChartInfoTooltip: FC<Props> = ({
             p="sm"
             maw={250}
             position="bottom"
+            offset={-1}
             multiline
             withinPortal
             label={
