@@ -3,7 +3,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 
 /**
  * Control the Tooltip visibility manually to allow hovering on Label
- * @returns tooltipProps, tooltipLabelProps - props to pass to Tooltip and Label components respectively to control their visibility
+ * @returns tooltipProps, tooltipLabelProps - props to pass to Tooltip component and 'label' prop component, respectively, to control their visibility
  */
 export const useTooltipControlOpen = () => {
     // NOTE: Control the Tooltip visibility manually to allow hovering on Label.
