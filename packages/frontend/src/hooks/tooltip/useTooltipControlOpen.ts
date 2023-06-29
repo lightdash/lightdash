@@ -7,7 +7,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
  */
 export const useTooltipControlOpen = () => {
     // NOTE: Control the Tooltip visibility manually to allow hovering on Label.
-    const [opened, setOpened] = useState(false);
+    const [isOpen, setIsOpen] = useState(false);
     const [isHovering, setIsHovering] = useState(false);
     const closeTimeoutId = useRef<ReturnType<typeof setTimeout> | undefined>(
         undefined,
@@ -15,14 +15,14 @@ export const useTooltipControlOpen = () => {
 
     const handleMouseEnter = useCallback(() => {
         clearTimeout(closeTimeoutId.current);
-        setOpened(true);
+        setIsOpen(true);
     }, []);
 
     const handleMouseLeave = useCallback(() => {
         // NOTE: Provide similar delay as Tooltip component
         closeTimeoutId.current = setTimeout(() => {
-            setOpened(false);
-        }, 100);
+            setIsOpen(false);
+        }, 200);
     }, []);
 
     const handleLabelMouseEnter = useCallback(() => {
@@ -34,8 +34,8 @@ export const useTooltipControlOpen = () => {
         setIsHovering(false);
         // NOTE: Provide similar delay as Tooltip component
         closeTimeoutId.current = setTimeout(() => {
-            setOpened(false);
-        }, 100);
+            setIsOpen(false);
+        }, 200);
     }, []);
 
     const tooltipProps = useMemo<{
@@ -46,11 +46,11 @@ export const useTooltipControlOpen = () => {
     }>(
         () => ({
             sx: { pointerEvents: 'auto' },
-            isOpen: opened || isHovering,
+            isOpen: isOpen || isHovering,
             handleMouseEnter,
             handleMouseLeave,
         }),
-        [handleMouseEnter, handleMouseLeave, isHovering, opened],
+        [handleMouseEnter, handleMouseLeave, isHovering, isOpen],
     );
 
     const tooltipLabelProps = useMemo(
