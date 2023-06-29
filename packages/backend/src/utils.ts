@@ -8,7 +8,7 @@ import {
     DbPinnedItem,
     DBPinnedSpace,
 } from './database/entities/pinnedList';
-import Logger from './logger';
+import Logger from './logging/logger';
 
 export const sanitizeStringParam = (value: any) => {
     if (!value || typeof value !== 'string') {

@@ -14,7 +14,7 @@ import fetch from 'node-fetch';
 import puppeteer from 'puppeteer';
 import { S3Service } from '../../clients/Aws/s3';
 import { LightdashConfig } from '../../config/parseConfig';
-import Logger from '../../logger';
+import Logger from '../../logging/logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';

@@ -43,7 +43,7 @@ import {
 import { DbSavedChart } from '../../database/entities/savedCharts';
 import { DbUser } from '../../database/entities/users';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
-import Logger from '../../logger';
+import Logger from '../../logging/logger';
 import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
 import Transaction = Knex.Transaction;
 
