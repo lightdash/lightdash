@@ -1,3 +1,10 @@
+## [0.638.1](https://github.com/lightdash/lightdash/compare/0.638.0...0.638.1) (2023-06-29)
+
+
+### Bug Fixes
+
+* exit process when makeWorkerUtils fails ([#6084](https://github.com/lightdash/lightdash/issues/6084)) ([3545659](https://github.com/lightdash/lightdash/commit/35456590f66a06d12c1f71ce90cc317d20f5c690))
+
 # [0.638.0](https://github.com/lightdash/lightdash/compare/0.637.6...0.638.0) (2023-06-29)
 
 
