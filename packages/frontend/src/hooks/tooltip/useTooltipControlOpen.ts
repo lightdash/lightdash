@@ -38,12 +38,12 @@ export const useTooltipControlOpen = () => {
         }, 100);
     }, []);
 
-    const tooltipProps: {
+    const tooltipProps = useMemo<{
         sx: Sx;
         isOpen: boolean;
         handleMouseEnter: () => void;
         handleMouseLeave: () => void;
-    } = useMemo(
+    }>(
         () => ({
             sx: { pointerEvents: 'auto' },
             isOpen: opened || isHovering,
