@@ -1,5 +1,5 @@
 import { Sx } from '@mantine/core';
-import { useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 
 /**
  * Control the Tooltip visibility manually to allow hovering on Label
@@ -9,49 +9,57 @@ export const useTooltipControlOpen = () => {
     // NOTE: Control the Tooltip visibility manually to allow hovering on Label.
     const [opened, setOpened] = useState(false);
     const [isHovering, setIsHovering] = useState(false);
-    const closeTimeoutId = useRef<number | undefined>(undefined);
+    const closeTimeoutId = useRef<ReturnType<typeof setTimeout> | undefined>(
+        undefined,
+    );
 
-    const handleMouseEnter = () => {
+    const handleMouseEnter = useCallback(() => {
         clearTimeout(closeTimeoutId.current);
         setOpened(true);
-    };
+    }, []);
 
-    const handleMouseLeave = () => {
+    const handleMouseLeave = useCallback(() => {
         // NOTE: Provide similar delay as Tooltip component
-        closeTimeoutId.current = window.setTimeout(() => {
+        closeTimeoutId.current = setTimeout(() => {
             setOpened(false);
         }, 100);
-    };
+    }, []);
 
-    const handleLabelMouseEnter = () => {
+    const handleLabelMouseEnter = useCallback(() => {
         setIsHovering(true);
         clearTimeout(closeTimeoutId.current);
-    };
+    }, []);
 
-    const handleLabelMouseLeave = () => {
+    const handleLabelMouseLeave = useCallback(() => {
         setIsHovering(false);
         // NOTE: Provide similar delay as Tooltip component
-        closeTimeoutId.current = window.setTimeout(() => {
+        closeTimeoutId.current = setTimeout(() => {
             setOpened(false);
         }, 100);
-    };
+    }, []);
 
     const tooltipProps: {
         sx: Sx;
         isOpen: boolean;
         handleMouseEnter: () => void;
         handleMouseLeave: () => void;
-    } = {
-        sx: { pointerEvents: 'auto' },
-        isOpen: opened || isHovering,
-        handleMouseEnter,
-        handleMouseLeave,
-    };
+    } = useMemo(
+        () => ({
+            sx: { pointerEvents: 'auto' },
+            isOpen: opened || isHovering,
+            handleMouseEnter,
+            handleMouseLeave,
+        }),
+        [handleMouseEnter, handleMouseLeave, isHovering, opened],
+    );
 
-    const tooltipLabelProps = {
-        handleLabelMouseEnter,
-        handleLabelMouseLeave,
-    };
+    const tooltipLabelProps = useMemo(
+        () => ({
+            handleLabelMouseEnter,
+            handleLabelMouseLeave,
+        }),
+        [handleLabelMouseEnter, handleLabelMouseLeave],
+    );
 
     return {
         tooltipProps,
