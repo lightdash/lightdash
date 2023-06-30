@@ -48,6 +48,9 @@ export const getItemLabel = (item: Field | TableCalculation) =>
     isField(item) ? `${item.tableLabel} ${item.label}` : item.displayName;
 
 export const getItemTableName = (item: Field | TableCalculation) =>
+    isField(item) ? `${item.table}` : item.displayName;
+
+export const getItemTableLabel = (item: Field | TableCalculation) =>
     isField(item) ? `${item.tableLabel}` : item.displayName;
 
 export const getItemLabelWithoutTableName = (item: Field | TableCalculation) =>
