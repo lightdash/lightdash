@@ -54,6 +54,7 @@ jobs:
       matrix:
         # Run the tests in parallel, each with one of the prepared test specs
         spec: ${{ fromJson(needs.prepare.outputs.integration-tests) }}
+    name: e2e tests (${{ matrix.spec }})
     steps:
       - name: Get PR number
         id: regex
