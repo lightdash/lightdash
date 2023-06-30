@@ -359,6 +359,7 @@ export class OrganizationService {
                 projectIds: allowedEmailDomains.projects.map(
                     (p) => p.projectUuid,
                 ),
+                projectRoles: allowedEmailDomains.projects.map((p) => p.role),
             },
         });
 
