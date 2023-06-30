@@ -25,8 +25,7 @@ import {
     IconSquareNumber1,
     IconTable,
 } from '@tabler/icons-react';
-import { FC, ReactNode } from 'react';
-import { useTooltipControlOpen } from '../../../hooks/tooltip/useTooltipControlOpen';
+import { FC, ReactNode, useRef, useState } from 'react';
 import MantineIcon, { MantineIconProps } from '../MantineIcon';
 
 interface ResourceIconProps {
@@ -164,10 +163,35 @@ export const ResourceIndicator: FC<
         tooltipProps: Partial<TooltipProps>;
     } & Pick<IndicatorProps, 'disabled'>
 > = ({ disabled, tooltipLabel, iconProps, tooltipProps, children }) => {
-    const {
-        tooltipProps: { sx, isOpen, handleMouseEnter, handleMouseLeave },
-        tooltipLabelProps: { handleLabelMouseEnter, handleLabelMouseLeave },
-    } = useTooltipControlOpen();
+    // NOTE: Control the Tooltip visibility manually to allow hovering on Label.
+    const [opened, setOpened] = useState(false);
+    const [isHovering, setIsHovering] = useState(false);
+    const closeTimeoutId = useRef<number | undefined>(undefined);
+
+    const handleMouseEnter = () => {
+        clearTimeout(closeTimeoutId.current);
+        setOpened(true);
+    };
+
+    const handleMouseLeave = () => {
+        // NOTE: Provide similar delay as Tooltip component
+        closeTimeoutId.current = window.setTimeout(() => {
+            setOpened(false);
+        }, 100);
+    };
+
+    const handleLabelMouseEnter = () => {
+        setIsHovering(true);
+        clearTimeout(closeTimeoutId.current);
+    };
+
+    const handleLabelMouseLeave = () => {
+        setIsHovering(false);
+        // NOTE: Provide similar delay as Tooltip component
+        closeTimeoutId.current = window.setTimeout(() => {
+            setOpened(false);
+        }, 100);
+    };
 
     return (
         <Indicator
@@ -176,7 +200,8 @@ export const ResourceIndicator: FC<
             color="transparent"
             label={
                 <Tooltip
-                    sx={sx}
+                    {...tooltipProps}
+                    sx={{ pointerEvents: 'auto' }}
                     label={
                         <div
                             onMouseEnter={handleLabelMouseEnter}
@@ -185,13 +210,12 @@ export const ResourceIndicator: FC<
                             {tooltipLabel}
                         </div>
                     }
-                    opened={isOpen}
-                    {...tooltipProps}
+                    opened={opened || isHovering}
                 >
                     <MantineIcon
+                        {...iconProps}
                         onMouseEnter={handleMouseEnter}
                         onMouseLeave={handleMouseLeave}
-                        {...iconProps}
                     />
                 </Tooltip>
             }
