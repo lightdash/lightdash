@@ -1,6 +1,7 @@
 import { defineConfig } from 'cypress';
 
 export default defineConfig({
+    projectId: 'lightdash-webapp',
     viewportWidth: 1080,
     defaultCommandTimeout: 5000,
     retries: {
