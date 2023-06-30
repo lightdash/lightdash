@@ -823,10 +823,14 @@ export class UserService {
             orgUuid,
             allowedEmailDomains.role,
             allowedEmailDomains.role === OrganizationMemberRole.MEMBER
-                ? allowedEmailDomains.projects.map(
-                      (project) => project.projectUuid,
+                ? allowedEmailDomains.projects.reduce(
+                      (acc, project) => ({
+                          ...acc,
+                          [project.projectUuid]: project.role,
+                      }),
+                      {},
                   )
-                : [],
+                : undefined,
         );
 
         await analytics.track({

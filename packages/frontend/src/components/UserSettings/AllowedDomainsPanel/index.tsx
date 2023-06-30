@@ -81,10 +81,7 @@ const AllowedDomainsPanel: FC = () => {
         initialValues: {
             emailDomains: [] as string[],
             role: OrganizationMemberRole.VIEWER as AllowedEmailDomains['role'],
-            projects: [] as Array<{
-                projectUuid: string;
-                role: ProjectMemberRole;
-            }>,
+            projects: [] as AllowedEmailDomains['projects'],
         },
     });
     const { setFieldValue } = form;

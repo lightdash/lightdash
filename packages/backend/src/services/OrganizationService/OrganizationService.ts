@@ -398,7 +398,7 @@ export class OrganizationService {
             user.userUuid,
             org.organizationUuid,
             OrganizationMemberRole.ADMIN,
-            [],
+            undefined,
         );
         await analytics.track({
             userId: user.userUuid,

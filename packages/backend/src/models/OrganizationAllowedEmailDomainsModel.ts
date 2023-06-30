@@ -87,7 +87,7 @@ export class OrganizationAllowedEmailDomainsModel {
         data: AllowedEmailDomains,
     ): Promise<AllowedEmailDomains> {
         await this.database.transaction(async (trx) => {
-            const allowedEmailDomain = await trx(
+            const [allowedEmailDomain] = await trx(
                 OrganizationAllowedEmailDomainsTableName,
             )
                 .insert({
@@ -97,8 +97,7 @@ export class OrganizationAllowedEmailDomainsModel {
                 })
                 .onConflict('organization_uuid')
                 .merge()
-                .returning('*')
-                .first();
+                .returning('*');
 
             if (!allowedEmailDomain) {
                 throw new Error('Failed to upsert allowed email domains');

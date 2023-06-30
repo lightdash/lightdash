@@ -52,19 +52,22 @@ export async function up(knex: Knex): Promise<void> {
         // @ts-ignore
         allowedEmailDomain.project_uuids.forEach((projectUuid) => {
             insertPromises.push(
-                knex(OrganizationAllowedEmailDomainProjectsTableName)
-                    .insert({
+                // insert only if project exists
+                knex.raw(
+                    `
+                        insert into "${OrganizationAllowedEmailDomainProjectsTableName}" ("allowed_email_domains_uuid", "project_uuid", "role")
+                        SELECT :allowed_email_domains_uuid, :projectUuid, :role
+                        where exists (SELECT *
+                                      FROM projects
+                                      WHERE projects.project_uuid = :projectUuid)
+                    `,
+                    {
                         allowed_email_domains_uuid:
                             allowedEmailDomain.allowed_email_domains_uuid,
-                        project_uuid: projectUuid,
                         role: ProjectMemberRole.VIEWER,
-                    })
-                    .whereExists(() =>
-                        knex
-                            .select('*')
-                            .from(ProjectTableName)
-                            .where('project_uuid', projectUuid),
-                    ),
+                        projectUuid,
+                    },
+                ),
             );
         });
     });
@@ -87,7 +90,7 @@ export async function down(knex: Knex): Promise<void> {
             tableBuilder
                 .specificType('project_uuids', 'TEXT[]')
                 .notNullable()
-                .defaultTo([]);
+                .defaultTo(JSON.stringify({}));
         },
     );
 
@@ -95,7 +98,7 @@ export async function down(knex: Knex): Promise<void> {
     await knex(OrganizationAllowedEmailDomainsTableName).update({
         // @ts-ignore
         project_uuids: knex(OrganizationAllowedEmailDomainProjectsTableName)
-            .select('project_uuid')
+            .select(knex.raw('ARRAY_AGG(project_uuid) as project_uuids'))
             .where(
                 'allowed_email_domains_uuid',
                 knex.raw('??', [
