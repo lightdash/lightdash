@@ -29,6 +29,7 @@ export type CompileHandlerOptions = DbtCompileOptions & {
     profilesDir: string;
     target: string | undefined;
     profile: string | undefined;
+    vars: string | undefined;
     verbose: boolean;
     startOfWeek?: number;
 };

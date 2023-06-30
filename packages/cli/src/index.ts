@@ -528,6 +528,7 @@ ${styles.bold('Examples:')}
         undefined,
     )
     .option('--target <name>', 'target to use in profiles.yml file', undefined)
+    .option('--vars <vars>')
     .option('-y, --assume-yes', 'assume yes to prompts', false)
     .option(
         '--exclude-meta',
