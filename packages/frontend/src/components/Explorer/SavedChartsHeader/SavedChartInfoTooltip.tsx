@@ -19,7 +19,6 @@ export const SavedChartInfoTooltip: FC<Props> = ({
     return (
         <Popover
             offset={-2}
-            width={200}
             position="bottom"
             withArrow
             shadow="md"
@@ -30,7 +29,7 @@ export const SavedChartInfoTooltip: FC<Props> = ({
                     <MantineIcon icon={IconInfoCircle} color="gray.6" />
                 </ActionIcon>
             </Popover.Target>
-            <Popover.Dropdown>
+            <Popover.Dropdown maw={300}>
                 <div>
                     {savedChart.description && (
                         <>
