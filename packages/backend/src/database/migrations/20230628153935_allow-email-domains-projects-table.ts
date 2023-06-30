@@ -1,6 +1,4 @@
-import { ProjectMemberRole } from '@lightdash/common';
 import { Knex } from 'knex';
-import { ProjectTableName } from '../entities/projects';
 
 const OrganizationAllowedEmailDomainProjectsTableName =
     'organization_allowed_email_domain_projects';
@@ -64,7 +62,7 @@ export async function up(knex: Knex): Promise<void> {
                     {
                         allowed_email_domains_uuid:
                             allowedEmailDomain.allowed_email_domains_uuid,
-                        role: ProjectMemberRole.VIEWER,
+                        role: 'viewer',
                         projectUuid,
                     },
                 ),
