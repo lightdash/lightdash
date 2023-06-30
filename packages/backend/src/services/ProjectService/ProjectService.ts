@@ -73,7 +73,7 @@ import { schedulerClient } from '../../clients/clients';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { errorHandler } from '../../errors';
-import Logger from '../../logger';
+import Logger from '../../logging/logger';
 import { DbtCloudMetricsModel } from '../../models/DbtCloudMetricsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';

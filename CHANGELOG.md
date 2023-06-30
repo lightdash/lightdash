@@ -1,3 +1,112 @@
+# [0.640.0](https://github.com/lightdash/lightdash/compare/0.639.2...0.640.0) (2023-06-29)
+
+
+### Features
+
+* explore card sort and limit pill styles ([#6068](https://github.com/lightdash/lightdash/issues/6068)) ([194d107](https://github.com/lightdash/lightdash/commit/194d107a6dadba90156320cbd845d88a6d4a85da))
+
+## [0.639.2](https://github.com/lightdash/lightdash/compare/0.639.1...0.639.2) (2023-06-29)
+
+
+### Bug Fixes
+
+* dont override custom metric when creating a chart from another chart ([#6090](https://github.com/lightdash/lightdash/issues/6090)) ([abe244e](https://github.com/lightdash/lightdash/commit/abe244ef2de766fc623772a68cd342d200aa2316))
+* preview content where charts have custom metrics ([#6092](https://github.com/lightdash/lightdash/issues/6092)) ([cddf356](https://github.com/lightdash/lightdash/commit/cddf3562e58e47e2a2b6dc94f370bc4fbe0b9414))
+
+## [0.639.1](https://github.com/lightdash/lightdash/compare/0.639.0...0.639.1) (2023-06-29)
+
+
+### Bug Fixes
+
+* prevent dashboard request when uuid is empty ([#6089](https://github.com/lightdash/lightdash/issues/6089)) ([b8c79ff](https://github.com/lightdash/lightdash/commit/b8c79ffc4e4bca225565c2aa2d52a651eba2694b))
+
+# [0.639.0](https://github.com/lightdash/lightdash/compare/0.638.1...0.639.0) (2023-06-29)
+
+
+### Features
+
+* display item description popover on renderFilterItem ([#6077](https://github.com/lightdash/lightdash/issues/6077)) ([61dfbee](https://github.com/lightdash/lightdash/commit/61dfbee24ba8cffa97055702184e5d8fc04992e1))
+
+## [0.638.1](https://github.com/lightdash/lightdash/compare/0.638.0...0.638.1) (2023-06-29)
+
+
+### Bug Fixes
+
+* exit process when makeWorkerUtils fails ([#6084](https://github.com/lightdash/lightdash/issues/6084)) ([3545659](https://github.com/lightdash/lightdash/commit/35456590f66a06d12c1f71ce90cc317d20f5c690))
+
+# [0.638.0](https://github.com/lightdash/lightdash/compare/0.637.6...0.638.0) (2023-06-29)
+
+
+### Features
+
+* explore card action item styles ([#6069](https://github.com/lightdash/lightdash/issues/6069)) ([ee725aa](https://github.com/lightdash/lightdash/commit/ee725aad591ea21bbb348dab4652b3f2cdeb1955))
+
+## [0.637.6](https://github.com/lightdash/lightdash/compare/0.637.5...0.637.6) (2023-06-28)
+
+
+### Bug Fixes
+
+* revert of mantine config panels ([#6067](https://github.com/lightdash/lightdash/issues/6067)) ([8fc9c2d](https://github.com/lightdash/lightdash/commit/8fc9c2df2c1d99ad9fbc440938dbe8cd0b43997f))
+
+## [0.637.5](https://github.com/lightdash/lightdash/compare/0.637.4...0.637.5) (2023-06-28)
+
+
+### Bug Fixes
+
+* land on charts if dashboards are empty ([#5931](https://github.com/lightdash/lightdash/issues/5931)) ([#6071](https://github.com/lightdash/lightdash/issues/6071)) ([629fe24](https://github.com/lightdash/lightdash/commit/629fe240800469ce2346a373a5d305ea6c6d50db))
+
+## [0.637.4](https://github.com/lightdash/lightdash/compare/0.637.3...0.637.4) (2023-06-27)
+
+
+### Bug Fixes
+
+* revert changes to chart config mantine refactor ([#6066](https://github.com/lightdash/lightdash/issues/6066)) ([9769564](https://github.com/lightdash/lightdash/commit/9769564f2cfd16384d6a3f233639ba50d940f4e0))
+
+## [0.637.3](https://github.com/lightdash/lightdash/compare/0.637.2...0.637.3) (2023-06-27)
+
+
+### Bug Fixes
+
+* revert "feat: add chart type icon when adding to dashboard ([#6037](https://github.com/lightdash/lightdash/issues/6037))" ([#6061](https://github.com/lightdash/lightdash/issues/6061)) ([3099cee](https://github.com/lightdash/lightdash/commit/3099cee88adb4e383cff353cda2d0dd992d523ba))
+
+## [0.637.2](https://github.com/lightdash/lightdash/compare/0.637.1...0.637.2) (2023-06-27)
+
+
+### Bug Fixes
+
+* revert "fix: land on charts if dashboards are empty ([#5931](https://github.com/lightdash/lightdash/issues/5931))" ([#6062](https://github.com/lightdash/lightdash/issues/6062)) ([708ddd7](https://github.com/lightdash/lightdash/commit/708ddd7560617c0301b0fddbedb729a90d28df31))
+
+## [0.637.1](https://github.com/lightdash/lightdash/compare/0.637.0...0.637.1) (2023-06-27)
+
+
+### Bug Fixes
+
+* reduce retry and get org id from param when validating  ([#6059](https://github.com/lightdash/lightdash/issues/6059)) ([3f545eb](https://github.com/lightdash/lightdash/commit/3f545ebb2d4713d0f2f43e4b44de8d6ffa019560))
+
+# [0.637.0](https://github.com/lightdash/lightdash/compare/0.636.0...0.637.0) (2023-06-27)
+
+
+### Bug Fixes
+
+* pivot table align totals to right ([#6058](https://github.com/lightdash/lightdash/issues/6058)) ([0bcc11a](https://github.com/lightdash/lightdash/commit/0bcc11aaa93fe11df98f480120aaa149352acb91))
+
+
+### Features
+
+* pie charts configuration with groups (dimensions) and metrics ([#6026](https://github.com/lightdash/lightdash/issues/6026)) ([82ec71b](https://github.com/lightdash/lightdash/commit/82ec71bf4845751f7bb031b27cdb8f9d2dede252))
+
+# [0.636.0](https://github.com/lightdash/lightdash/compare/0.635.2...0.636.0) (2023-06-27)
+
+
+### Bug Fixes
+
+* add searchable prop ([#6057](https://github.com/lightdash/lightdash/issues/6057)) ([e4e811a](https://github.com/lightdash/lightdash/commit/e4e811af315d42360b295128229a25fde1f70f4c))
+
+
+### Features
+
+* migrate visualization card actions to Mantine ([#6045](https://github.com/lightdash/lightdash/issues/6045)) ([48479fb](https://github.com/lightdash/lightdash/commit/48479fb59c7760c452564ad567e6c193a5f9ca3d))
+
 ## [0.635.2](https://github.com/lightdash/lightdash/compare/0.635.1...0.635.2) (2023-06-27)
 
 

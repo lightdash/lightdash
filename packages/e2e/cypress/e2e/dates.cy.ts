@@ -48,14 +48,14 @@ describe('Date tests', () => {
 
         cy.contains('a', 'How many orders did we get on February?').click();
 
-        cy.findByText('Filters').parent().findByRole('button').click();
+        cy.findByTestId('Filters-card-expand').click();
         cy.findAllByText('Loading chart').should('have.length', 0);
         cy.get('tbody td').contains('2018-02');
         cy.get('tbody td').contains('$415.00');
         cy.get('tbody td').contains('26');
 
-        cy.findByText('Charts').parent().findByRole('button').click(); // Collapse charts
-        cy.findByText('SQL').parent().findByRole('button').click();
+        cy.findByTestId('Charts-card-expand').click(); // Collapse charts
+        cy.findByTestId('SQL-card-expand').click();
         cy.get('code')
             .invoke('text')
             .should(
@@ -106,12 +106,12 @@ describe('Date tests', () => {
             `/projects/${SEED_PROJECT.project_uuid}/tables/orders${exploreStateUrlParams}`,
         );
 
-        cy.findByText('Filters').parent().findByRole('button').click();
+        cy.findByTestId('Filters-card-expand').click();
         cy.findAllByText('Loading chart').should('have.length', 0);
         cy.findByDisplayValue('2022-07-11, 14:23:11:000');
         cy.get('svg g text').contains('2017-02-11, 03:00:00:000 (+00:00)');
         cy.get('tbody td').contains('2017-02-11, 03:00:00:000 (+00:00)');
-        cy.findByText('SQL').parent().findByRole('button').click();
+        cy.findByTestId('SQL-card-expand').click();
         cy.get('code')
             .invoke('text')
             .should(
@@ -126,8 +126,8 @@ describe('Date tests', () => {
             `/projects/${SEED_PROJECT.project_uuid}/tables/orders${exploreStateUrlParams}`,
         );
 
-        cy.findByText('Filters').parent().findByRole('button').click();
-        cy.findByText('SQL').parent().findByRole('button').click();
+        cy.findByTestId('Filters-card-expand').click();
+        cy.findByTestId('SQL-card-expand').click();
 
         cy.findAllByText('Loading chart').should('have.length', 0);
         // Filter by year
@@ -176,9 +176,9 @@ describe('Date tests', () => {
             `/projects/${SEED_PROJECT.project_uuid}/tables/events${exploreStateUrlParams}`,
         );
 
-        cy.findByText('Filters').parent().findByRole('button').click();
-        cy.findByText('SQL').parent().findByRole('button').click();
-        cy.findByText('Charts').parent().findByRole('button').click(); // Close chart
+        cy.findByTestId('Filters-card-expand').click();
+        cy.findByTestId('SQL-card-expand').click();
+        cy.findByTestId('Charts-card-expand').click(); // Close chart
 
         cy.findAllByText('Loading chart').should('have.length', 0);
         // Filter by raw
@@ -246,9 +246,9 @@ describe('Date tests', () => {
     it('Should change dates on filters', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables/orders`);
 
-        cy.findByText('Filters').parent().findByRole('button').click();
-        cy.findByText('SQL').parent().findByRole('button').click();
-        cy.findByText('Charts').parent().findByRole('button').click(); // Close chart
+        cy.findByTestId('Filters-card-expand').click();
+        cy.findByTestId('SQL-card-expand').click();
+        cy.findByTestId('Charts-card-expand').click(); // Close chart
 
         cy.findAllByText('Loading chart').should('have.length', 0);
         // Filter by year
@@ -292,8 +292,8 @@ describe('Date tests', () => {
 
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables/customers`);
 
-        cy.findByText('Filters').parent().findByRole('button').click();
-        cy.findByText('SQL').parent().findByRole('button').click();
+        cy.findByTestId('Filters-card-expand').click();
+        cy.findByTestId('SQL-card-expand').click();
 
         cy.findAllByText('Loading chart').should('have.length', 0);
         // Filter by day
@@ -330,8 +330,8 @@ describe('Date tests', () => {
             `/projects/${SEED_PROJECT.project_uuid}/tables/orders${exploreStateUrlParams}`,
         );
 
-        cy.findByText('Filters').parent().findByRole('button').click();
-        cy.findByText('SQL').parent().findByRole('button').click();
+        cy.findByTestId('Filters-card-expand').click();
+        cy.findByTestId('SQL-card-expand').click();
 
         cy.findAllByText('Loading chart').should('have.length', 0);
 
@@ -406,8 +406,8 @@ describe('Date tests', () => {
             `/projects/${SEED_PROJECT.project_uuid}/tables/events${exploreStateUrlParams}`,
         );
 
-        cy.findByText('Filters').parent().findByRole('button').click();
-        cy.findByText('SQL').parent().findByRole('button').click();
+        cy.findByTestId('Filters-card-expand').click();
+        cy.findByTestId('SQL-card-expand').click();
 
         cy.findAllByText('Loading chart').should('have.length', 0);
 

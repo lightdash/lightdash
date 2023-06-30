@@ -4,7 +4,7 @@ import { App, ExpressReceiver, LogLevel } from '@slack/bolt';
 import { nanoid } from 'nanoid';
 import { analytics } from '../../analytics/client';
 import { LightdashConfig } from '../../config/parseConfig';
-import Logger from '../../logger';
+import Logger from '../../logging/logger';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 import { apiV1Router } from '../../routers/apiV1Router';
 import { unfurlService } from '../../services/services';

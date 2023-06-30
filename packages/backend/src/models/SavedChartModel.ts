@@ -25,7 +25,6 @@ import {
     CreateDbSavedChartVersionField,
     CreateDbSavedChartVersionSort,
     DBFilteredAdditionalMetrics,
-    DbSavedChartAdditionalMetric,
     DbSavedChartAdditionalMetricInsert,
     DbSavedChartTableCalculationInsert,
     SavedChartAdditionalMetricTableName,
@@ -95,8 +94,6 @@ const createSavedChartVersionAdditionalMetrics = async (
 ) => {
     const results = await trx(SavedChartAdditionalMetricTableName)
         .insert(data)
-        .onConflict('uuid')
-        .merge()
         .returning('*');
     return results[0];
 };
@@ -204,7 +201,6 @@ const createSavedChartVersion = async (
                             : null,
                     base_dimension_name:
                         additionalMetric.baseDimensionName ?? null,
-                    uuid: additionalMetric.uuid ?? null,
                 }),
             );
         });
@@ -441,27 +437,28 @@ export class SavedChartModel {
                     savedQuery.saved_queries_version_id,
                 );
 
-            const additionalMetricsRows: DbSavedChartAdditionalMetric[] =
-                await this.database(SavedChartAdditionalMetricTableName)
-                    .select([
-                        'table',
-                        'name',
-                        'type',
-                        'label',
-                        'description',
-                        'sql',
-                        'hidden',
-                        'round',
-                        'format',
-                        'filters',
-                        'base_dimension_name',
-                        'uuid',
-                        'compact',
-                    ])
-                    .where(
-                        'saved_queries_version_id',
-                        savedQuery.saved_queries_version_id,
-                    );
+            const additionalMetricsRows = await this.database(
+                SavedChartAdditionalMetricTableName,
+            )
+                .select([
+                    'table',
+                    'name',
+                    'type',
+                    'label',
+                    'description',
+                    'sql',
+                    'hidden',
+                    'round',
+                    'format',
+                    'filters',
+                    'base_dimension_name',
+                    'uuid',
+                    'compact',
+                ])
+                .where(
+                    'saved_queries_version_id',
+                    savedQuery.saved_queries_version_id,
+                );
 
             // Filters out "null" fields
             const additionalMetricsFiltered: DBFilteredAdditionalMetrics[] =
@@ -615,24 +612,19 @@ export class SavedChartModel {
     }
 
     private getChartSummaryQuery() {
-        return this.database(SavedChartsTableName)
+        return this.database('saved_queries')
             .select({
-                uuid: `${SavedChartsTableName}.saved_query_uuid`,
-                name: `${SavedChartsTableName}.name`,
-                description: `${SavedChartsTableName}.description`,
+                uuid: 'saved_queries.saved_query_uuid',
+                name: 'saved_queries.name',
+                description: 'saved_queries.description',
                 spaceUuid: 'spaces.space_uuid',
                 spaceName: 'spaces.name',
                 projectUuid: 'projects.project_uuid',
                 organizationUuid: 'organizations.organization_uuid',
                 pinnedListUuid: `${PinnedListTableName}.pinned_list_uuid`,
                 chartType: 'last_saved_query_version.chart_type',
-                chartConfig: 'last_saved_query_version.chart_config',
             })
-            .leftJoin(
-                'spaces',
-                `${SavedChartsTableName}.space_id`,
-                'spaces.space_id',
-            )
+            .leftJoin('spaces', 'saved_queries.space_id', 'spaces.space_id')
             .leftJoin('projects', 'spaces.project_id', 'projects.project_id')
             .leftJoin(
                 OrganizationTableName,
@@ -644,7 +636,7 @@ export class SavedChartModel {
                     .distinctOn('saved_query_id')
                     .orderBy('saved_query_id')
                     .orderBy('created_at', 'desc')
-                    .select('chart_type', 'chart_config', 'saved_query_id')
+                    .select('chart_type', 'saved_query_id')
                     .as('last_saved_query_version'),
                 `saved_queries.saved_query_id`,
                 'last_saved_query_version.saved_query_id',

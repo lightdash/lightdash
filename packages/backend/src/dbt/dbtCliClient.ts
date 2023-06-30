@@ -17,7 +17,7 @@ import execa from 'execa';
 import * as fs from 'fs/promises';
 import yaml, { dump as dumpYaml, load as loadYaml } from 'js-yaml';
 import path from 'path';
-import Logger from '../logger';
+import Logger from '../logging/logger';
 import { DbtClient } from '../types';
 
 type DbtProjectConfig = {
