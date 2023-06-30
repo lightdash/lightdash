@@ -524,15 +524,30 @@
                     }
                 ]
             },
-            "ProjectMemberRole": {
-                "enum": [
-                    "viewer",
-                    "interactive_viewer",
-                    "editor",
-                    "developer",
-                    "admin"
-                ],
+            "ProjectMemberRole.EDITOR": {
+                "enum": ["editor"],
                 "type": "string"
+            },
+            "ProjectMemberRole.INTERACTIVE_VIEWER": {
+                "enum": ["interactive_viewer"],
+                "type": "string"
+            },
+            "ProjectMemberRole.VIEWER": {
+                "enum": ["viewer"],
+                "type": "string"
+            },
+            "AllowedEmailDomainProjectsRole": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/ProjectMemberRole.EDITOR"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ProjectMemberRole.INTERACTIVE_VIEWER"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ProjectMemberRole.VIEWER"
+                    }
+                ]
             },
             "AllowedEmailDomains": {
                 "properties": {
@@ -540,7 +555,7 @@
                         "items": {
                             "properties": {
                                 "role": {
-                                    "$ref": "#/components/schemas/ProjectMemberRole"
+                                    "$ref": "#/components/schemas/AllowedEmailDomainProjectsRole"
                                 },
                                 "projectUuid": {
                                     "type": "string"
@@ -601,7 +616,7 @@
                         "items": {
                             "properties": {
                                 "role": {
-                                    "$ref": "#/components/schemas/ProjectMemberRole"
+                                    "$ref": "#/components/schemas/AllowedEmailDomainProjectsRole"
                                 },
                                 "projectUuid": {
                                     "type": "string"
@@ -1940,6 +1955,16 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
+            },
+            "ProjectMemberRole": {
+                "enum": [
+                    "viewer",
+                    "interactive_viewer",
+                    "editor",
+                    "developer",
+                    "admin"
+                ],
+                "type": "string"
             },
             "ProjectMemberProfile": {
                 "properties": {
@@ -3650,7 +3675,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.637.5",
+        "version": "0.640.1",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
