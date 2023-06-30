@@ -44,6 +44,9 @@ export const SavedChartInfoTooltip: FC<Props> = ({
                         <Text fw={600} fz="xs" color="gray.6">
                             Used in {relatedDashboards?.length ?? 0} dashboard
                             {relatedDashboards?.length === 1 ? '' : 's'}
+                            {relatedDashboards && relatedDashboards.length > 0
+                                ? ':'
+                                : ''}
                         </Text>
                         {!!relatedDashboards?.length && (
                             <List size="xs">
