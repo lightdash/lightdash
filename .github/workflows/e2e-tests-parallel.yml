@@ -15,9 +15,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      # Install and build Common package
-      - name: Install modules
-        run: yarn workspace @lightdash/common install & yarn workspace e2e install
+      - name: Install common modules
+        run: yarn workspace @lightdash/common install
+
+      - name: Install e2e modules
+        run: yarn workspace e2e install
 
       - name: Build
         uses: cypress-io/github-action@v5
@@ -38,6 +40,8 @@ jobs:
       - name: Parse test files for parallelization
         id: parse
         uses: tgamauf/cypress-parallel@2.0.0
+        with:
+          working-directory: ./packages/e2e
 
   test-integration:
     runs-on: ubuntu-latest
