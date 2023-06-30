@@ -1,3 +1,17 @@
+## [0.640.2](https://github.com/lightdash/lightdash/compare/0.640.1...0.640.2) (2023-06-30)
+
+
+### Bug Fixes
+
+* remove .at() reference and revert polyfill ([#6106](https://github.com/lightdash/lightdash/issues/6106)) ([37aa7bc](https://github.com/lightdash/lightdash/commit/37aa7bc495795020395ec56f1a2d04f731fd8ebf)), closes [#6097](https://github.com/lightdash/lightdash/issues/6097)
+
+## [0.640.1](https://github.com/lightdash/lightdash/compare/0.640.0...0.640.1) (2023-06-30)
+
+
+### Bug Fixes
+
+* add array.at polyfill ([#6097](https://github.com/lightdash/lightdash/issues/6097)) ([f431002](https://github.com/lightdash/lightdash/commit/f43100216bebea64d4e123940200d9132bdaa5c8))
+
 # [0.640.0](https://github.com/lightdash/lightdash/compare/0.639.2...0.640.0) (2023-06-29)
 
 

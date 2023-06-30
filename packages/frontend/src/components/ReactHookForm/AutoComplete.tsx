@@ -81,7 +81,7 @@ const getGroupedItems = (
         if (groupBy === undefined) return acc;
         const group = groupBy(item);
 
-        const lastGroup = acc.at(-1);
+        const lastGroup = acc[acc.length - 1];
         if (lastGroup && lastGroup.group === group) {
             lastGroup.items.push(item);
         } else {
