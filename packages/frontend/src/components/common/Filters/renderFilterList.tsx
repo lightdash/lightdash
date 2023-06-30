@@ -75,7 +75,7 @@ const renderFilterList = <T extends Field | TableCalculation>(
 
             const group = {
                 name: getItemTableLabel(item),
-                description: table?.description ?? '',
+                description: table?.description,
             };
 
             const lastGroup = acc[acc.length - 1];
