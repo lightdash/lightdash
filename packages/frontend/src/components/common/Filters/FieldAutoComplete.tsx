@@ -108,18 +108,12 @@ const FieldAutoComplete = <T extends Field | TableCalculation>({
                 }
                 {...(hasGrouping && {
                     itemListRenderer: (itemListRendererProps) => {
-                        if (hasGrouping) {
-                            const tables =
-                                exploresData?.map((explore) => ({
-                                    description: explore.description,
-                                    name: explore.name,
-                                })) ?? [];
-                            return renderFilterList(
-                                itemListRendererProps,
-                                tables,
-                            );
-                        }
-                        return null;
+                        const tables =
+                            exploresData?.map((explore) => ({
+                                description: explore.description,
+                                name: explore.name,
+                            })) ?? [];
+                        return renderFilterList(itemListRendererProps, tables);
                     },
                 })}
                 activeItem={activeField}
