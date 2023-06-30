@@ -8,6 +8,8 @@ import {
 } from '@lightdash/common';
 import { useMemo } from 'react';
 import { createGlobalStyle } from 'styled-components';
+import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
+import { useExplores } from '../../../hooks/useExplores';
 import FieldIcon from './FieldIcon';
 import {
     renderFilterItem,
@@ -52,13 +54,16 @@ const FieldAutoComplete = <T extends Field | TableCalculation>({
     inputProps,
     hasGrouping = false,
 }: FieldAutoCompleteProps<T>) => {
+    const { activeProjectUuid } = useActiveProjectUuid();
+    const { data: exploresData } = useExplores(activeProjectUuid ?? '');
+
     const sortedFields = useMemo(() => {
         return fields.sort((a, b) =>
             getItemLabel(a).localeCompare(getItemLabel(b)),
         );
     }, [fields]);
 
-    return (
+    return (hasGrouping && exploresData) || !hasGrouping ? (
         <>
             <AutocompleteMaxHeight />
             <Suggest2<T>
@@ -101,7 +106,22 @@ const FieldAutoComplete = <T extends Field | TableCalculation>({
                         ? renderFilterItemWithoutTableName
                         : renderFilterItem
                 }
-                itemListRenderer={hasGrouping ? renderFilterList : undefined}
+                {...(hasGrouping && {
+                    itemListRenderer: (itemListRendererProps) => {
+                        if (hasGrouping) {
+                            const tables =
+                                exploresData?.map((explore) => ({
+                                    description: explore.description,
+                                    name: explore.name,
+                                })) ?? [];
+                            return renderFilterList(
+                                itemListRendererProps,
+                                tables,
+                            );
+                        }
+                        return null;
+                    },
+                })}
                 activeItem={activeField}
                 selectedItem={activeField}
                 noResults={<MenuItem2 disabled text="No results." />}
@@ -115,7 +135,7 @@ const FieldAutoComplete = <T extends Field | TableCalculation>({
                 }}
             />
         </>
-    );
+    ) : null;
 };
 
 export default FieldAutoComplete;
