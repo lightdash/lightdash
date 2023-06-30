@@ -21,12 +21,11 @@ import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
 
 type DeployHandlerOptions = DbtCompileOptions & {
-    name?: string;
     projectDir: string;
     profilesDir: string;
     target: string | undefined;
     profile: string | undefined;
-    create?: boolean;
+    create?: boolean | string | undefined;
     verbose: boolean;
     ignoreErrors: boolean;
     startOfWeek?: number;
@@ -34,21 +33,6 @@ type DeployHandlerOptions = DbtCompileOptions & {
 
 type DeployArgs = DeployHandlerOptions & {
     projectUuid: string;
-};
-
-// Get the default project whose name is the given name
-const getDefaultProject = async (
-    name: string,
-): Promise<Project | undefined> => {
-    const projects = await lightdashApi<Project[]>({
-        method: 'GET',
-        url: `/api/v1/org/projects/`,
-        body: undefined,
-    });
-    return projects.find(
-        (project) =>
-            project.type === ProjectType.DEFAULT && project.name === name,
-    );
 };
 
 export const deploy = async (
@@ -86,7 +70,7 @@ export const deploy = async (
     });
 };
 
-const getOrCreateNewProject = async (
+const createNewProject = async (
     options: DeployHandlerOptions,
 ): Promise<Project | undefined> => {
     console.error('');
@@ -99,9 +83,9 @@ const getOrCreateNewProject = async (
     // Get the project name
     let projectName = dbtName;
     if (process.env.CI !== 'true') {
-        if (options.name) {
-            // If the name option is provided, use that.
-            projectName = options.name;
+        // if the create flag is string, use it as the project name
+        if (typeof options.create === 'string') {
+            projectName = options.create;
         } else {
             // Otherwise, prompt the user for a name.
             const answers = await inquirer.prompt([
@@ -113,12 +97,6 @@ const getOrCreateNewProject = async (
             ]);
             projectName = answers.name ? answers.name : dbtName;
         }
-    }
-    // Return the existing project if it exists
-    const existingProject = await getDefaultProject(projectName);
-    if (existingProject) {
-        console.info(`Project ${projectName} already exists.`);
-        return existingProject;
     }
 
     // Create the project
@@ -175,8 +153,8 @@ export const deployHandler = async (options: DeployHandlerOptions) => {
     const config = await getConfig();
     let projectUuid: string;
 
-    if (options.create) {
-        const project = await getOrCreateNewProject(options);
+    if (options.create !== undefined) {
+        const project = await createNewProject(options);
         if (!project) {
             console.error(
                 "To preview your project, you'll need to manually enter your warehouse connection details.",

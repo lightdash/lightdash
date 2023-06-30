@@ -370,11 +370,6 @@ program
     .command('deploy')
     .description('Compile and deploy Lightdash project')
     .option(
-        '--name [project name]',
-        'Name for the created project. If a project with this name already exists, the deployment is failed',
-        defaultProject.name,
-    )
-    .option(
         '--project-dir <path>',
         'The directory of the dbt project',
         defaultProjectDir,
@@ -407,7 +402,11 @@ program
     .option('--full-refresh')
     .option('--verbose', undefined, false)
 
-    .option('--create', 'Create a new project on your organization', false)
+    .option(
+        '--create [project_name]',
+        'Create a new project on your organization. If the value is set, a project with this name will be created. If not, interactivelly set the project name.',
+        undefined,
+    )
     .option('--ignore-errors', 'Allows deploy with errors on compile', false)
     .option(
         '--start-of-week <number>',
