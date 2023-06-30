@@ -1,4 +1,4 @@
-name: End-to-end tests
+name: End-to-end tests without recording
 on: [ deployment_status ]
 jobs:
   cypress-run:

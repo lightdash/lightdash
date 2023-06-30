@@ -1,4 +1,4 @@
-name: End-to-end tests
+name: End-to-end tests parallel
 on: [ deployment_status ]
 jobs:
   prepare:
@@ -38,7 +38,7 @@ jobs:
 
       - name: Parse test files for parallelization
         id: parse
-        uses: tgamauf/cypress-parallel@v2
+        uses: tgamauf/cypress-parallel@2.0.0
 
   test-integration:
     runs-on: ubuntu-latest
