@@ -1,0 +1,74 @@
+name: End-to-end tests
+on: [ deployment_status ]
+jobs:
+  cypress-run:
+    # Only trigger for correct environment and status
+    if: ${{ github.event.deployment_status.state == 'success' && (contains(github.event.deployment.environment, '- lightdash PR ') || contains(github.event.deployment.environment, '- lightdash-')) }}
+    runs-on: ubuntu-latest
+    container:
+      image: cypress/browsers:node18.12.0-chrome107
+      options: --user 1001
+    steps:
+      - name: Get PR number
+        id: regex
+        uses: AsasInnab/regex-action@v1
+        with:
+          regex_pattern: '[0-9]+$'
+          regex_flags: 'gm'
+          search_string: ${{github.event.deployment.environment}}
+      - name: Get deployment url
+        id: deployment_url
+        env:
+          DEPLOYMENT_URL: 'https://lightdash-pr-${{steps.regex.outputs.first_match}}.onrender.com'
+        run:
+          echo "::set-output name=url::$DEPLOYMENT_URL"
+      - name: Checkout
+        uses: actions/checkout@v3
+      # Install and build Common package
+      - name: Install packages/common modules
+        run: yarn workspace @lightdash/common install
+      - name: Build packages/common module
+        run: yarn common-build
+      # Install NPM dependencies, cache them correctly
+      # and run all Cypress tests
+      - name: create-json
+        id: create-json
+        uses: jsdaniell/create-json@1.1.2
+        with:
+          name: "credentials.json"
+          json: ${{ secrets.GCP_CREDENTIALS }}
+          dir: "./packages/e2e/cypress/fixtures/"
+      - name: Cypress run
+        uses: cypress-io/github-action@v5
+        with:
+          browser: chrome
+          project: ./packages/e2e
+          spec: packages/e2e/cypress/e2e/**/*
+          # Set the PR deployment url
+          config: 'baseUrl=${{steps.deployment_url.outputs.url}},video=false'
+        env:
+          CYPRESS_PGHOST: ${{secrets.PGHOST}}
+          CYPRESS_PGPASSWORD: ${{secrets.PGPASSWORD}}
+          CYPRESS_DATABRICKS_HOST: ${{secrets.DATABRICKS_HOST}}
+          CYPRESS_DATABRICKS_PATH: ${{secrets.DATABRICKS_PATH}}
+          CYPRESS_DATABRICKS_TOKEN: ${{secrets.DATABRICKS_TOKEN}}
+          CYPRESS_SNOWFLAKE_ACCOUNT: ${{secrets.SNOWFLAKE_ACCOUNT}}
+          CYPRESS_SNOWFLAKE_USER: ${{secrets.SNOWFLAKE_USER}}
+          CYPRESS_SNOWFLAKE_PASSWORD: ${{secrets.SNOWFLAKE_PASSWORD}}
+          CYPRESS_TRINO_HOST: ${{secrets.TRINO_HOST}}
+          CYPRESS_TRINO_PORT: ${{secrets.TRINO_PORT}}
+          CYPRESS_TRINO_USER: ${{secrets.TRINO_USER}}
+          CYPRESS_TRINO_PASSWORD: ${{secrets.TRINO_PASSWORD}}
+          TZ: 'UTC'
+          CYPRESS_TZ: 'UTC'
+
+      # After the test run completes
+      # store videos and any screenshots
+      - uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: cypress-screenshots-and-videos
+          path: |
+            packages/e2e/cypress/screenshots
+            packages/e2e/cypress/videos
+          if-no-files-found: ignore

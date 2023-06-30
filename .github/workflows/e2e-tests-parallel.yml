@@ -1,0 +1,113 @@
+name: End-to-end tests
+on: [ deployment_status ]
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    container:
+      image: cypress/browsers:node18.12.0-chrome107
+      options: --user 1001
+    outputs:
+      integration-tests: ${{ steps.parse.outputs.integration-tests }}
+      component-tests: ${{ steps.parse.outputs.component-tests }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      # Install and build Common package
+      - name: Install packages/common modules
+        run: yarn workspace @lightdash/common install
+
+      - name: Build packages/common module
+        run: yarn common-build
+
+      - name: Build
+        uses: cypress-io/github-action@v5
+        with:
+          runTests: false
+          build: yarn build
+          project: ./packages/e2e
+          spec: packages/e2e/cypress/e2e/**/*
+
+      - name: Save build folder
+        uses: actions/upload-artifact@v3
+        with:
+          name: build
+          if-no-files-found: error
+          path: build
+          retention-days: 1
+
+      - name: Parse test files for parallelization
+        id: parse
+        uses: tgamauf/cypress-parallel@v2
+
+  test-integration:
+    runs-on: ubuntu-latest
+    container:
+      image: cypress/browsers:node18.12.0-chrome107
+      options: --user 1001
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        # Run the tests in parallel, each with one of the prepared test specs
+        spec: ${{ fromJson(needs.prepare.outputs.integration-tests) }}
+    steps:
+      - name: Get PR number
+        id: regex
+        uses: AsasInnab/regex-action@v1
+        with:
+          regex_pattern: '[0-9]+$'
+          regex_flags: 'gm'
+          search_string: ${{github.event.deployment.environment}}
+
+      - name: Get deployment url
+        id: deployment_url
+        env:
+          DEPLOYMENT_URL: 'https://lightdash-pr-${{steps.regex.outputs.first_match}}.onrender.com'
+        run:
+          echo "::set-output name=url::$DEPLOYMENT_URL"
+
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Download the build folders
+        uses: actions/download-artifact@v3
+        with:
+          name: build
+          path: build
+
+      - name: Execute tests
+        uses: cypress-io/github-action@v5
+        with:
+          # We have already installed all dependencies above
+          install: false
+          # Use the spec provided to this worker to execute the test
+          spec: ${{ matrix.spec }}
+          project: ./packages/e2e
+          config: 'baseUrl=${{steps.deployment_url.outputs.url}}'
+        env:
+          CYPRESS_PGHOST: ${{secrets.PGHOST}}
+          CYPRESS_PGPASSWORD: ${{secrets.PGPASSWORD}}
+          CYPRESS_DATABRICKS_HOST: ${{secrets.DATABRICKS_HOST}}
+          CYPRESS_DATABRICKS_PATH: ${{secrets.DATABRICKS_PATH}}
+          CYPRESS_DATABRICKS_TOKEN: ${{secrets.DATABRICKS_TOKEN}}
+          CYPRESS_SNOWFLAKE_ACCOUNT: ${{secrets.SNOWFLAKE_ACCOUNT}}
+          CYPRESS_SNOWFLAKE_USER: ${{secrets.SNOWFLAKE_USER}}
+          CYPRESS_SNOWFLAKE_PASSWORD: ${{secrets.SNOWFLAKE_PASSWORD}}
+          CYPRESS_TRINO_HOST: ${{secrets.TRINO_HOST}}
+          CYPRESS_TRINO_PORT: ${{secrets.TRINO_PORT}}
+          CYPRESS_TRINO_USER: ${{secrets.TRINO_USER}}
+          CYPRESS_TRINO_PASSWORD: ${{secrets.TRINO_PASSWORD}}
+          TZ: 'UTC'
+          CYPRESS_TZ: 'UTC'
+
+      # After the test run completes
+      # store videos and any screenshots
+      - uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: cypress-screenshots-and-videos
+          path: |
+            packages/e2e/cypress/screenshots
+            packages/e2e/cypress/videos
+          if-no-files-found: ignore
