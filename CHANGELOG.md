@@ -1,3 +1,10 @@
+# [0.641.0](https://github.com/lightdash/lightdash/compare/0.640.2...0.641.0) (2023-06-30)
+
+
+### Features
+
+* add info on which dashboards a chart is in  ([#6094](https://github.com/lightdash/lightdash/issues/6094)) ([83cb90a](https://github.com/lightdash/lightdash/commit/83cb90a9c0794f4a3507c028987c17be385688b3))
+
 ## [0.640.2](https://github.com/lightdash/lightdash/compare/0.640.1...0.640.2) (2023-06-30)
 
 
