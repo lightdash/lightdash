@@ -1,3 +1,4 @@
+import legacy from '@vitejs/plugin-legacy';
 import reactPlugin from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import eslintPlugin from 'vite-plugin-eslint';
@@ -14,6 +15,9 @@ const mapManualChunks = (mapping: Record<string, string>) => (id: string) => {
 
 export default defineConfig({
     plugins: [
+        legacy({
+            modernPolyfills: ['es.array.at'],
+        }),
         reactPlugin(),
         svgrPlugin(),
         tsconfigPathsPlugin(),
@@ -34,7 +38,7 @@ export default defineConfig({
         outDir: 'build',
         target: 'es2015',
         minify: true,
-        sourcemap: true, 
+        sourcemap: true,
         rollupOptions: {
             output: {
                 manualChunks: mapManualChunks({
