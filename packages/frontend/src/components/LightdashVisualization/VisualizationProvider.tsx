@@ -239,10 +239,11 @@ const VisualizationProvider: FC<Props> = ({
     const { validCartesianConfig } = cartesianConfig;
 
     const pieChartConfig = usePieChartConfig(
+        explore,
+        resultsData,
         initialChartConfig?.type === ChartType.PIE
             ? initialChartConfig.config
             : undefined,
-        explore,
         dimensionIds,
         allMetricIds,
     );

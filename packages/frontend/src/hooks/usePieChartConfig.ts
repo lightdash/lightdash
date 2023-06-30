@@ -1,4 +1,4 @@
-import { Explore, PieChart } from '@lightdash/common';
+import { ApiQueryResults, Explore, PieChart } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 type PieChartConfig = {
@@ -14,16 +14,17 @@ type PieChartConfig = {
 };
 
 type PieChartConfigFn = (
-    pieChartConfig: PieChart | undefined,
     explore: Explore | undefined,
+    resultsData: ApiQueryResults | undefined,
+    pieChartConfig: PieChart | undefined,
     dimensionIds: string[],
     allMetricIds: string[],
-    // resultsData: ApiQueryResults | undefined,
 ) => PieChartConfig;
 
 const usePieChartConfig: PieChartConfigFn = (
+    explore,
+    resultsData,
     pieChartConfig,
-    _explore,
     dimensionIds,
     allMetricIds,
 ) => {
@@ -32,56 +33,48 @@ const usePieChartConfig: PieChartConfigFn = (
     );
 
     const [groupFieldIds, setGroupFieldIds] = useState<Set<string | null>>(
-        new Set(),
+        new Set(pieChartConfig?.groupFieldIds),
     );
 
+    const [metricId, setMetricId] = useState<string | null>(
+        pieChartConfig?.metricId ?? null,
+    );
+
+    const isLoading = !explore || !resultsData;
+
     useEffect(() => {
-        if (dimensionIds.length === 0 && groupFieldIds.size > 0) {
-            setGroupFieldIds(new Set());
+        if (isLoading) return;
+
+        const newSet = new Set<string | null>();
+
+        [...groupFieldIds.values()].forEach((id) => {
+            if (id === null || dimensionIds.includes(id)) {
+                newSet.add(id);
+            }
+        });
+
+        if (newSet.size === 0) {
+            const firstId = dimensionIds[0];
+            newSet.add(firstId ?? null);
+            setGroupFieldIds(newSet);
             return;
         }
 
-        const prevGroupFieldIds = [...groupFieldIds.values()].filter(
-            (id): id is string => (id ? dimensionIds.includes(id) : false),
-        );
+        let areSetsEqual = (a: Set<unknown>, b: Set<unknown>) =>
+            a.size === b.size && [...a].every((value) => b.has(value));
 
-        if (prevGroupFieldIds.length !== 0 || dimensionIds.length === 0) return;
+        if (areSetsEqual(newSet, groupFieldIds)) return;
 
-        const persistedGroupFieldIds = pieChartConfig?.groupFieldIds?.filter(
-            (id) => dimensionIds.includes(id),
-        );
-
-        const newGroupFieldIds =
-            persistedGroupFieldIds && persistedGroupFieldIds.length > 0
-                ? new Set(persistedGroupFieldIds)
-                : new Set([dimensionIds[0] ?? null]);
-
-        setGroupFieldIds(newGroupFieldIds);
-    }, [dimensionIds, groupFieldIds, pieChartConfig?.groupFieldIds]);
-
-    const [metricId, setMetricId] = useState<string | null>(null);
+        setGroupFieldIds(newSet);
+    }, [isLoading, dimensionIds, groupFieldIds, pieChartConfig?.groupFieldIds]);
 
     useEffect(() => {
-        if (allMetricIds.length === 0 && metricId !== null) {
-            setMetricId(null);
-            return;
-        }
+        if (isLoading) return;
 
-        const prevMetricId =
-            metricId && allMetricIds.includes(metricId) ? metricId : null;
+        if (metricId === null || allMetricIds.includes(metricId)) return;
 
-        if (prevMetricId !== null || allMetricIds.length === 0) return;
-
-        const persistedMetricId =
-            pieChartConfig?.metricId &&
-            allMetricIds.includes(pieChartConfig.metricId)
-                ? pieChartConfig.metricId
-                : null;
-
-        const firstMetricid = allMetricIds[0];
-
-        setMetricId(persistedMetricId ?? firstMetricid ?? null);
-    }, [allMetricIds, metricId, pieChartConfig?.metricId]);
+        setMetricId(allMetricIds[0] ?? null);
+    }, [isLoading, allMetricIds, metricId, pieChartConfig?.metricId]);
 
     const handleGroupChange = useCallback((prevValue, newValue) => {
         setGroupFieldIds((prev) => {
