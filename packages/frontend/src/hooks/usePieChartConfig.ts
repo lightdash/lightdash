@@ -1,4 +1,5 @@
 import { ApiQueryResults, Explore, PieChart } from '@lightdash/common';
+import { isEqual } from 'lodash-es';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 type PieChartConfig = {
@@ -32,8 +33,8 @@ const usePieChartConfig: PieChartConfigFn = (
         pieChartConfig?.isDonut ?? false,
     );
 
-    const [groupFieldIds, setGroupFieldIds] = useState<Set<string | null>>(
-        new Set(pieChartConfig?.groupFieldIds),
+    const [groupFieldIds, setGroupFieldIds] = useState<(string | null)[]>(
+        pieChartConfig?.groupFieldIds ?? [],
     );
 
     const [metricId, setMetricId] = useState<string | null>(
@@ -45,27 +46,19 @@ const usePieChartConfig: PieChartConfigFn = (
     useEffect(() => {
         if (isLoading) return;
 
-        const newSet = new Set<string | null>();
+        const newGroupFieldIds = groupFieldIds.filter(
+            (id) => id === null || dimensionIds.includes(id),
+        );
 
-        [...groupFieldIds.values()].forEach((id) => {
-            if (id === null || dimensionIds.includes(id)) {
-                newSet.add(id);
-            }
-        });
-
-        if (newSet.size === 0) {
-            const firstId = dimensionIds[0];
-            newSet.add(firstId ?? null);
-            setGroupFieldIds(newSet);
+        const firstDimensionId = dimensionIds[0];
+        if (newGroupFieldIds.length === 0 && firstDimensionId) {
+            setGroupFieldIds([firstDimensionId]);
             return;
         }
 
-        let areSetsEqual = (a: Set<unknown>, b: Set<unknown>) =>
-            a.size === b.size && [...a].every((value) => b.has(value));
+        if (isEqual(newGroupFieldIds, groupFieldIds)) return;
 
-        if (areSetsEqual(newSet, groupFieldIds)) return;
-
-        setGroupFieldIds(newSet);
+        setGroupFieldIds(newGroupFieldIds);
     }, [isLoading, dimensionIds, groupFieldIds, pieChartConfig?.groupFieldIds]);
 
     useEffect(() => {
@@ -80,17 +73,17 @@ const usePieChartConfig: PieChartConfigFn = (
             const newSet = new Set(prev);
             newSet.delete(prevValue);
             newSet.add(newValue);
-            return newSet;
+            return [...newSet.values()];
         });
     }, []);
 
     const handleGroupAdd = useCallback(() => {
         setGroupFieldIds((prev) => {
-            const nextId = dimensionIds.find((id) => !prev.has(id));
+            const nextId = dimensionIds.find((id) => !prev.includes(id));
 
             const newSet = new Set(prev);
             newSet.add(nextId ?? null);
-            return newSet;
+            return [...newSet.values()];
         });
     }, [dimensionIds]);
 
@@ -98,7 +91,7 @@ const usePieChartConfig: PieChartConfigFn = (
         setGroupFieldIds((prev) => {
             const newSet = new Set(prev);
             newSet.delete(dimensionId);
-            return newSet;
+            return [...newSet.values()];
         });
     }, []);
 

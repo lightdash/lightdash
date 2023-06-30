@@ -52,9 +52,6 @@ const PieLayoutConfig: React.FC = () => {
             groupAdd,
             groupChange,
             groupRemove,
-
-            // isDonut,
-            // isDonutChange,
         },
     } = useVisualizationContext();
 
@@ -74,6 +71,7 @@ const PieLayoutConfig: React.FC = () => {
 
                     return (
                         <Select
+                            disabled={dimensions.length === 0}
                             key={index}
                             clearable={index !== 0}
                             label={index === 0 ? 'Group' : undefined}

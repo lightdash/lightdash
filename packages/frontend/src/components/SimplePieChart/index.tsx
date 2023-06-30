@@ -1,10 +1,10 @@
 import { NonIdealState, Spinner } from '@blueprintjs/core';
 import EChartsReact from 'echarts-for-react';
 import { EChartsReactProps, Opts } from 'echarts-for-react/lib/types';
-import { FC, memo, useEffect, useMemo } from 'react';
+import { FC, memo, useEffect } from 'react';
+import useEchartsPieConfig from '../../hooks/echarts/useEchartsPieChart';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 
-// FIXME: duplicate from charts
 const EmptyChart = () => (
     <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
         <NonIdealState
@@ -30,49 +30,8 @@ type SimplePieChartProps = Omit<EChartsReactProps, 'option'> & {
 const EchartOptions: Opts = { renderer: 'svg' };
 
 const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
-    const {
-        resultsData,
-        chartRef,
-        isLoading,
-        pieChartConfig: {
-            validPieChartConfig: { groupFieldIds, metricId },
-        },
-    } = useVisualizationContext();
-
-    const data = useMemo(() => {
-        if (!groupFieldIds || groupFieldIds.length === 0 || !metricId) {
-            return [];
-        }
-
-        return resultsData?.rows.map((row) => ({
-            name: groupFieldIds
-                .map((fieldId) => row[fieldId]?.value?.formatted)
-                .join(' - '),
-            value: row[metricId]?.value?.raw,
-        }));
-    }, [groupFieldIds, metricId, resultsData]);
-
-    const pieChartOptions = {
-        tooltip: {
-            trigger: 'item',
-        },
-        legend: {
-            orient: 'horizontal',
-            left: 'center',
-        },
-
-        series: [
-            {
-                type: 'pie',
-                label: {
-                    show: false,
-                    position: 'outside',
-                    formatter: '{b}\n {d}%',
-                },
-                data,
-            },
-        ],
-    };
+    const { chartRef, isLoading } = useVisualizationContext();
+    const pieChartOptions = useEchartsPieConfig();
 
     useEffect(() => {
         const listener = () => chartRef.current?.getEchartsInstance().resize();
