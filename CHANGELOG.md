@@ -1,3 +1,10 @@
+## [0.640.1](https://github.com/lightdash/lightdash/compare/0.640.0...0.640.1) (2023-06-30)
+
+
+### Bug Fixes
+
+* add array.at polyfill ([#6097](https://github.com/lightdash/lightdash/issues/6097)) ([f431002](https://github.com/lightdash/lightdash/commit/f43100216bebea64d4e123940200d9132bdaa5c8))
+
 # [0.640.0](https://github.com/lightdash/lightdash/compare/0.639.2...0.640.0) (2023-06-29)
 
 
