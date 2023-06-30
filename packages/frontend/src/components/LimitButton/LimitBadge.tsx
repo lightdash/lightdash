@@ -1,5 +1,5 @@
-import { Badge } from '@mantine/core';
-import { IconCaretDown } from '@tabler/icons-react';
+import { Badge, Text } from '@mantine/core';
+import { IconChevronDown } from '@tabler/icons-react';
 import { forwardRef } from 'react';
 import MantineIcon from '../common/MantineIcon';
 
@@ -14,20 +14,24 @@ const LimitBadge = forwardRef<HTMLDivElement, Props>(
         <Badge
             ref={ref}
             onClick={onClick}
-            variant={disabled ? 'light' : 'filled'}
+            variant="light"
             color="gray"
             rightSection={
                 !disabled ? (
-                    <MantineIcon icon={IconCaretDown} fill="white" />
+                    <MantineIcon icon={IconChevronDown} size="sm" />
                 ) : undefined
             }
             sx={{
+                textTransform: 'unset',
                 cursor: !disabled ? 'pointer' : 'not-allowed',
                 '&:hover': !disabled ? { opacity: 0.8 } : undefined,
                 '&:active': !disabled ? { opacity: 0.9 } : undefined,
             }}
         >
-            Limit: {limit}
+            <Text span fw={500}>
+                Limit:
+            </Text>{' '}
+            {limit}
         </Badge>
     ),
 );

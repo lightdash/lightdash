@@ -134,14 +134,19 @@ export type DbSavedChartAdditionalMetric = {
     saved_queries_version_id: number;
     filters: MetricFilterRule[] | null; // JSONB
     base_dimension_name: string | null;
-    uuid: string | null;
+    uuid: string;
 };
 export type DbSavedChartAdditionalMetricInsert = Omit<
     DbSavedChartAdditionalMetric,
-    'saved_queries_version_additional_metric_id' | 'filters'
+    'saved_queries_version_additional_metric_id' | 'filters' | 'uuid'
 > & {
     filters: string | null;
 };
+
+export type SavedChartAdditionalMetricTable = Knex.CompositeTableType<
+    DbSavedChartAdditionalMetric,
+    DbSavedChartAdditionalMetricInsert
+>;
 
 export type DBFilteredAdditionalMetrics = Pick<
     DbSavedChartAdditionalMetric,

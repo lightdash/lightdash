@@ -14,7 +14,7 @@ import simpleGit, {
     SimpleGitProgressEvent,
 } from 'simple-git';
 import tempy from 'tempy';
-import Logger from '../logger';
+import Logger from '../logging/logger';
 import { CachedWarehouse } from '../types';
 import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
 

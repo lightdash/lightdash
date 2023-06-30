@@ -43,7 +43,7 @@ import {
 import { DbSavedChart } from '../../database/entities/savedCharts';
 import { DbUser } from '../../database/entities/users';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
-import Logger from '../../logger';
+import Logger from '../../logging/logger';
 import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
 import Transaction = Knex.Transaction;
 
@@ -940,7 +940,7 @@ export class ProjectModel {
 
             const copyChartVersionContent = async (
                 table: string,
-                fieldId: string,
+                excludedFields: string[],
             ) => {
                 const content = await trx(table)
                     .whereIn('saved_queries_version_id', chartVersionIds)
@@ -959,7 +959,9 @@ export class ProjectModel {
                                             m.id === d.saved_queries_version_id,
                                     )?.newId,
                             };
-                            delete createContent[fieldId];
+                            excludedFields.forEach((fieldId) => {
+                                delete createContent[fieldId];
+                            });
                             return createContent;
                         }),
                     )
@@ -970,19 +972,17 @@ export class ProjectModel {
 
             await copyChartVersionContent(
                 'saved_queries_version_table_calculations',
-                'saved_queries_version_table_calculation_id',
+                ['saved_queries_version_table_calculation_id'],
             );
-            await copyChartVersionContent(
-                'saved_queries_version_sorts',
+            await copyChartVersionContent('saved_queries_version_sorts', [
                 'saved_queries_version_sort_id',
-            );
-            await copyChartVersionContent(
-                'saved_queries_version_fields',
+            ]);
+            await copyChartVersionContent('saved_queries_version_fields', [
                 'saved_queries_version_field_id',
-            );
+            ]);
             await copyChartVersionContent(
                 'saved_queries_version_additional_metrics',
-                'saved_queries_version_additional_metric_id',
+                ['saved_queries_version_additional_metric_id', 'uuid'],
             );
 
             const dashboards = await trx('dashboards')

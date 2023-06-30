@@ -1,18 +1,14 @@
 import {
-    ChartKind,
     Dashboard,
     DashboardTileTypes,
     defaultTileSize,
-    getChartType,
 } from '@lightdash/common';
 import {
-    Box,
     Button,
     Flex,
     Group,
     Modal,
     MultiSelect,
-    SelectItem,
     Stack,
     Text,
     Title,
@@ -20,59 +16,37 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconChartAreaLine } from '@tabler/icons-react';
-import { FC, forwardRef, useMemo } from 'react';
+import React, { FC, forwardRef, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuid4 } from 'uuid';
 import { useChartSummaries } from '../../../hooks/useChartSummaries';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import MantineIcon from '../../common/MantineIcon';
-import { getChartIcon } from '../../common/ResourceIcon';
 
 type Props = {
     onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
     onClose: () => void;
 };
 
-interface ItemProps extends SelectItem {
+interface ItemProps extends React.ComponentPropsWithoutRef<'div'> {
     label: string;
     description?: string;
-    chartType?: ChartKind | undefined;
 }
 
-const MultiSelectItem = forwardRef<HTMLDivElement, ItemProps>(
-    (
-        {
-            label,
-            description,
-            chartType,
-            selected,
-            disabled,
-            ...others
-        }: ItemProps,
-        ref,
-    ) => {
-        return (
-            <div ref={ref} {...others}>
-                <Stack spacing="two">
-                    <Tooltip
-                        label={description}
-                        disabled={!description}
-                        position="top-start"
-                    >
-                        <Flex align="center" gap="sm">
-                            {chartType && (
-                                <Box opacity={disabled ? 0.5 : 1}>
-                                    {getChartIcon(chartType)}
-                                </Box>
-                            )}
-
-                            <Text>{label}</Text>
-                        </Flex>
-                    </Tooltip>
-                </Stack>
-            </div>
-        );
-    },
+const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
+    ({ label, description, ...others }: ItemProps, ref) => (
+        <div ref={ref} {...others}>
+            <Stack spacing="two">
+                <Tooltip
+                    label={description}
+                    disabled={!description}
+                    position="top-start"
+                >
+                    <Text>{label}</Text>
+                </Tooltip>
+            </Stack>
+        </div>
+    ),
 );
 
 const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
@@ -92,30 +66,24 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                 ? 1
                 : 0,
         );
-        return (reorderedCharts || []).map(
-            ({ uuid, name, spaceName, chartType, chartConfig }) => {
-                const alreadyAddedChart = dashboardTiles.find((tile) => {
-                    return (
-                        tile.type === DashboardTileTypes.SAVED_CHART &&
-                        tile.properties.savedChartUuid === uuid
-                    );
-                });
+        return (reorderedCharts || []).map(({ uuid, name, spaceName }) => {
+            const alreadyAddedChart = dashboardTiles.find((tile) => {
+                return (
+                    tile.type === DashboardTileTypes.SAVED_CHART &&
+                    tile.properties.savedChartUuid === uuid
+                );
+            });
 
-                return {
-                    value: uuid,
-                    label: name,
-                    group: spaceName,
-                    disabled: alreadyAddedChart !== undefined,
-                    description: alreadyAddedChart
-                        ? 'This chart has already been added to this dashboard'
-                        : undefined,
-                    ...(chartConfig &&
-                        chartType && {
-                            chartType: getChartType(chartType, chartConfig),
-                        }),
-                };
-            },
-        );
+            return {
+                value: uuid,
+                label: name,
+                group: spaceName,
+                disabled: alreadyAddedChart !== undefined,
+                description: alreadyAddedChart
+                    ? 'This chart has been already added to this dashboard'
+                    : undefined,
+            };
+        });
     }, [dashboardTiles, savedCharts, dashboard?.spaceUuid]);
 
     const handleSubmit = form.onSubmit(({ savedChartsUuids }) => {
@@ -138,28 +106,23 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
         onClose();
     });
 
-    const dashboardTitleName = dashboard?.name
-        ? `"${dashboard.name}"`
-        : 'dashboard';
-
     if (!savedCharts || !dashboardTiles || isLoading) return null;
 
     return (
         <Modal
-            opened={true}
             size="lg"
+            opened={true}
             onClose={onClose}
             title={
-                <Group spacing="xs">
+                <Flex align="center" gap="xs">
                     <MantineIcon
                         icon={IconChartAreaLine}
                         size="lg"
                         color="blue.8"
                     />
-                    <Title order={4}>
-                        Add saved charts to {dashboardTitleName}
-                    </Title>
-                </Group>
+
+                    <Title order={4}>Add saved charts</Title>
+                </Flex>
             }
             centered
             withCloseButton
@@ -170,6 +133,17 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                     onSubmit={handleSubmit}
                 >
                     <MultiSelect
+                        styles={(theme) => ({
+                            separator: {
+                                position: 'sticky',
+                                top: 0,
+                                backgroundColor: 'white',
+                            },
+                            separatorLabel: {
+                                color: theme.colors.gray[6],
+                                fontWeight: 500,
+                            },
+                        })}
                         id="saved-charts"
                         label={`Select the charts you want to add to this dashboard`}
                         data={allSavedCharts}
@@ -177,8 +151,9 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                         defaultValue={[]}
                         placeholder="Search..."
                         required
+                        searchable
                         withinPortal
-                        itemComponent={MultiSelectItem}
+                        itemComponent={SelectItem}
                         {...form.getInputProps('savedChartsUuids')}
                     />
                     <Group spacing="xs" position="right" mt="md">

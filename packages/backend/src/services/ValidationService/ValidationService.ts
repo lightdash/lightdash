@@ -28,7 +28,7 @@ import {
 import { analytics } from '../../analytics/client';
 import { schedulerClient } from '../../clients/clients';
 import { LightdashConfig } from '../../config/parseConfig';
-import Logger from '../../logger';
+import Logger from '../../logging/logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -590,7 +590,7 @@ export class ValidationService {
         fromSettings = false,
         jobId?: string,
     ): Promise<ValidationResponse[]> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid } = user;
 
         if (
             user.ability.cannot(

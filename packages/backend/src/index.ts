@@ -29,9 +29,9 @@ import {
 import database from './database/database';
 import { errorHandler } from './errors';
 import { RegisterRoutes } from './generated/routes';
-import Logger from './logger';
+import Logger from './logging/logger';
 import { slackAuthenticationModel, userModel } from './models/models';
-import morganMiddleware from './morganMiddleware';
+import morganMiddleware from './logging/morganMiddleware';
 import { apiV1Router } from './routers/apiV1Router';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import { VERSION } from './version';

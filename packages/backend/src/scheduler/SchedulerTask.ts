@@ -34,7 +34,7 @@ import {
     getDashboardCsvResultsBlocks,
 } from '../clients/Slack/SlackMessageBlocks';
 import { lightdashConfig } from '../config/lightdashConfig';
-import Logger from '../logger';
+import Logger from '../logging/logger';
 import {
     csvService,
     projectService,

@@ -5,27 +5,33 @@ import {
     isField,
     TableCalculation,
 } from '@lightdash/common';
+import { Text } from '@mantine/core';
 import { FC } from 'react';
-import styled from 'styled-components';
 
 interface FieldLabelProps {
     item: Field | TableCalculation | AdditionalMetric;
 }
 
-const BolderText = styled.span`
-    font-weight: 600;
-`;
-
 const FieldLabel: FC<FieldLabelProps> = ({ item }) => {
     return (
-        <span>
+        <Text span>
             {isField(item) ? `${item.tableLabel} ` : ''}
-            <BolderText>
+
+            <Text span fw={500}>
                 {isField(item) || isAdditionalMetric(item)
                     ? item.label
                     : item.displayName}
-            </BolderText>
-        </span>
+            </Text>
+        </Text>
+    );
+};
+
+export const fieldLabelText = (item: FieldLabelProps['item']) => {
+    return (
+        (isField(item) ? `${item.tableLabel} ` : '') +
+        (isField(item) || isAdditionalMetric(item)
+            ? item.label
+            : item.displayName)
     );
 };
 

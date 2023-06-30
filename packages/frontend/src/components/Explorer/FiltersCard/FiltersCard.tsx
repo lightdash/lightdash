@@ -1,5 +1,3 @@
-import { Tag } from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
 import {
     countTotalFilterRules,
     Field,
@@ -9,6 +7,7 @@ import {
     getVisibleFields,
     isFilterableField,
 } from '@lightdash/common';
+import { Badge, Text, Tooltip } from '@mantine/core';
 import { FC, memo, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useExplore } from '../../../hooks/useExplore';
@@ -107,8 +106,9 @@ const FiltersCard: FC = memo(() => {
             headerElement={
                 <>
                     {totalActiveFilters > 0 && !filterIsOpen ? (
-                        <Tooltip2
-                            content={
+                        <Tooltip
+                            arrowOffset={12}
+                            label={
                                 <div
                                     style={{
                                         display: 'flex',
@@ -119,14 +119,21 @@ const FiltersCard: FC = memo(() => {
                                     {allFilterRules.map(renderFilterRule)}
                                 </div>
                             }
-                            interactionKind="hover"
-                            placement={'bottom-start'}
+                            position="bottom-start"
                         >
-                            <Tag round minimal>
-                                {totalActiveFilters} active filter
-                                {totalActiveFilters === 1 ? '' : 's'}
-                            </Tag>
-                        </Tooltip2>
+                            <Badge
+                                color="gray"
+                                sx={{
+                                    textTransform: 'unset',
+                                }}
+                            >
+                                {totalActiveFilters}{' '}
+                                <Text span fw={500}>
+                                    active filter
+                                    {totalActiveFilters === 1 ? '' : 's'}
+                                </Text>
+                            </Badge>
+                        </Tooltip>
                     ) : null}
                     {totalActiveFilters > 0 && filterIsOpen && !isEditMode ? (
                         <DisabledFilterHeader>

@@ -24,7 +24,7 @@ import { WarehouseClient } from '@lightdash/warehouses';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import { AnyValidateFunction } from 'ajv/dist/types';
-import Logger from '../logger';
+import Logger from '../logging/logger';
 import dbtManifestSchemaV7 from '../manifestv7.json';
 import dbtManifestSchemaV9 from '../manifestv9.json';
 import lightdashDbtSchemaV7 from '../schema.json';

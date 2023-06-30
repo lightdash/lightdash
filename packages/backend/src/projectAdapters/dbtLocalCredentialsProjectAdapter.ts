@@ -12,7 +12,7 @@ import {
     LIGHTDASH_TARGET_NAME,
     profileFromCredentials,
 } from '../dbt/profiles';
-import Logger from '../logger';
+import Logger from '../logging/logger';
 import { CachedWarehouse } from '../types';
 import { DbtLocalProjectAdapter } from './dbtLocalProjectAdapter';
 

@@ -56,6 +56,8 @@ export type BigNumberConfig = {
 
 export type PieChart = {
     isDonut?: boolean;
+    groupFieldIds?: string[];
+    metricId?: string;
 };
 
 export type PieChartConfig = {
@@ -330,7 +332,7 @@ export const isTableChartConfig = (
 
 export const isPieChartConfig = (
     value: ChartConfig['config'],
-): value is PieChart => !!value && 'donut' in value;
+): value is PieChart => !!value && 'isDonut' in value;
 
 export const getCustomLabelsFromColumnProperties = (
     columns: Record<string, ColumnProperties> | undefined,
@@ -458,10 +460,7 @@ export type ChartSummary = Pick<
     | 'projectUuid'
     | 'organizationUuid'
     | 'pinnedListUuid'
-> & {
-    chartType?: ChartType | undefined;
-    chartConfig?: ChartConfig['config'] | undefined;
-};
+> & { chartType?: ChartType | undefined };
 
 export type ApiChartSummaryListResponse = {
     status: 'ok';

@@ -1,6 +1,9 @@
-import { Button } from '@blueprintjs/core';
+import { Button } from '@mantine/core';
+import { IconShare2 } from '@tabler/icons-react';
 import { FC, memo } from 'react';
 import useToaster from '../../hooks/toaster/useToaster';
+import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../common/CollapsableCard';
+import MantineIcon from '../common/MantineIcon';
 
 type Props = {
     disabled: boolean;
@@ -12,9 +15,10 @@ const DownloadCsvButton: FC<Props> = memo(({ disabled, getCsvLink }) => {
 
     return (
         <Button
-            intent="primary"
-            icon="export"
+            data-testid="export-csv-button"
+            {...COLLAPSABLE_CARD_BUTTON_PROPS}
             disabled={disabled}
+            px="xs"
             onClick={() => {
                 getCsvLink()
                     .then((url) => {
@@ -28,7 +32,7 @@ const DownloadCsvButton: FC<Props> = memo(({ disabled, getCsvLink }) => {
                     });
             }}
         >
-            Export CSV
+            <MantineIcon icon={IconShare2} color="gray" />
         </Button>
     );
 });

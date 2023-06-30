@@ -36,6 +36,7 @@ export const useValidation = (
     return useQuery<ValidationResponse[], ApiError>({
         queryKey: ['validation', fromSettings],
         queryFn: () => getValidation(projectUuid, fromSettings),
+        retry: (_, error) => error.error.statusCode !== 403,
         onSuccess: (data) => {
             if (data.length === 0) return;
             const latestValidationTimestamp = data[0].createdAt.toString();
