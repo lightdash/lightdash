@@ -70,7 +70,7 @@
         "zod": "^3.21.4"
     },
     "scripts": {
-        "start": "vite preview",
+        "start": "vite",
         "build": "tsc --project tsconfig.build.json && NODE_OPTIONS=--max-old-space-size=8192 vite build",
         "serve": "vite preview",
         "test": "jest",

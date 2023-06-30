@@ -36,7 +36,7 @@ export default defineConfig({
     // },
     build: {
         outDir: 'build',
-        target: ['es2015', 'safari14'],
+        target: 'es2015',
         minify: true,
         sourcemap: true,
         rollupOptions: {
