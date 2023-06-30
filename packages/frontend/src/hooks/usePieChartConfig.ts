@@ -70,8 +70,7 @@ const usePieChartConfig: PieChartConfigFn = (
 
     useEffect(() => {
         if (isLoading) return;
-
-        if (metricId === null || allMetricIds.includes(metricId)) return;
+        if (metricId && allMetricIds.includes(metricId)) return;
 
         setMetricId(allMetricIds[0] ?? null);
     }, [isLoading, allMetricIds, metricId, pieChartConfig?.metricId]);
