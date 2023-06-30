@@ -25,7 +25,7 @@ type DeployHandlerOptions = DbtCompileOptions & {
     profilesDir: string;
     target: string | undefined;
     profile: string | undefined;
-    create?: boolean | string | undefined;
+    create?: boolean | string;
     verbose: boolean;
     ignoreErrors: boolean;
     startOfWeek?: number;
