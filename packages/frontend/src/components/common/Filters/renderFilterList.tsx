@@ -63,7 +63,7 @@ const renderFilterList = <T extends Field | TableCalculation>({
             (acc, item) => {
                 const group = getItemTableName(item);
 
-                const lastGroup = acc.at(-1);
+                const lastGroup = acc[acc.length - 1];
                 if (lastGroup && lastGroup.group === group) {
                     lastGroup.items.push(item);
                 } else {
