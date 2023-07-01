@@ -6,13 +6,12 @@ import {
     Intent,
     Menu,
 } from '@blueprintjs/core';
-import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
+import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import { IconDots, IconPencil } from '@tabler/icons-react';
 import { FC, useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
-
 import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
 import {
     useDuplicateChartMutation,
@@ -44,6 +43,7 @@ import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardM
 import ChartSchedulersModal from '../../SchedulerModals/ChartSchedulersModal';
 import { getSchedulerUuidFromUrlParams } from '../../SchedulerModals/SchedulerModalBase/SchedulerModalContent';
 import SaveChartButton from '../SaveChartButton';
+import { SavedChartInfoTooltip } from './SavedChartInfoTooltip';
 
 const SavedChartsHeader: FC = () => {
     const { search } = useLocation();
@@ -181,14 +181,12 @@ const SavedChartsHeader: FC = () => {
                                 className={Classes.TEXT_OVERFLOW_ELLIPSIS}
                             >
                                 <PageTitle>{savedChart.name}</PageTitle>
-                                {savedChart.description && (
-                                    <Tooltip2
-                                        content={savedChart.description}
-                                        position="bottom"
-                                    >
-                                        <Button icon="info-sign" minimal />
-                                    </Tooltip2>
-                                )}
+
+                                <SavedChartInfoTooltip
+                                    projectUuid={projectUuid}
+                                    savedChart={savedChart}
+                                />
+
                                 {isEditMode &&
                                     user.data?.ability?.can(
                                         'manage',
