@@ -13,10 +13,12 @@ const LimitForm = forwardRef<HTMLFormElement, LimitFormProps>(
 
         const schema = z.object({
             limit: z
-                .number()
+                .number({
+                    invalid_type_error: 'Invalid value',
+                })
                 .int()
-                .min(1)
-                .max(health.data?.query.maxLimit || 5000),
+                .min(1, 'Minimum value: 1')
+                .max(health.data?.query.maxLimit || 5000, 'Maximum value: 500'),
         });
 
         const form = useForm({
