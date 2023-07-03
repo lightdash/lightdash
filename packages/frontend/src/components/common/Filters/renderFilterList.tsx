@@ -59,7 +59,7 @@ const StickyMenuDivider = forwardRef<HTMLLIElement, StickyMenuDividerProps>(
 );
 
 const getItemGroupLabel = (item: Field | TableCalculation) =>
-    isField(item) ? item.tableLabel : item.displayName;
+    isField(item) ? item.tableLabel : 'Table Calculations';
 
 const renderFilterList = <T extends Field | TableCalculation>(
     itemListRendererProps: ItemListRendererProps<T>,
