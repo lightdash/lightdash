@@ -1,3 +1,10 @@
+# [0.642.0](https://github.com/lightdash/lightdash/compare/0.641.2...0.642.0) (2023-07-03)
+
+
+### Features
+
+* allow email domain projects roles ([#6086](https://github.com/lightdash/lightdash/issues/6086)) ([df2d9eb](https://github.com/lightdash/lightdash/commit/df2d9ebba57a8364f0b9a27d1008a0da11a6b668))
+
 ## [0.641.2](https://github.com/lightdash/lightdash/compare/0.641.1...0.641.2) (2023-07-03)
 
 
