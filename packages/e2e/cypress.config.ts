@@ -1,5 +1,5 @@
 import { defineConfig } from 'cypress';
-import { cypressSplit } from 'cypress-split';
+import * as cypressSplit from 'cypress-split';
 
 export default defineConfig({
     viewportWidth: 1080,
