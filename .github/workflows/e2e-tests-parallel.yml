@@ -18,9 +18,6 @@ jobs:
       - name: Install common modules
         run: yarn workspace @lightdash/common install
 
-      - name: Install e2e modules
-        run: yarn workspace e2e install
-
       - name: Build
         uses: cypress-io/github-action@v5
         with:
@@ -28,14 +25,6 @@ jobs:
           build: yarn common-build
           project: ./packages/e2e
           spec: packages/e2e/cypress/e2e/**/*
-
-      - name: Save build folder
-        uses: actions/upload-artifact@v3
-        with:
-          name: node_modules
-          if-no-files-found: error
-          path: node_modules
-          retention-days: 1
 
       - name: Parse test files for parallelization
         id: parse
@@ -74,17 +63,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Download the build folders
-        uses: actions/download-artifact@v3
-        with:
-          name: node_modules
-          path: node_modules
+      - name: Install common modules
+        run: yarn workspace @lightdash/common install
+
+      - name: Build packages/common module
+        run: yarn common-build
 
       - name: Execute tests
         uses: cypress-io/github-action@v5
         with:
-          # We have already installed all dependencies above
-          install: false
           # Use the spec provided to this worker to execute the test
           spec: ${{ matrix.spec }}
           project: ./packages/e2e
