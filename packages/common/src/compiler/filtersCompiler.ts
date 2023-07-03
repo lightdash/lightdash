@@ -154,10 +154,13 @@ export const renderDateFilterSql = (
             return `(${dimensionSql}) <= ('${dateFormatter(
                 filter.values?.[0],
             )}')`;
+        case FilterOperator.NOT_IN_THE_PAST:
         case FilterOperator.IN_THE_PAST: {
             const unitOfTime: UnitOfTime =
                 filter.settings?.unitOfTime || UnitOfTime.days;
             const completed: boolean = !!filter.settings?.completed;
+            const isNot =
+                filter.operator === FilterOperator.NOT_IN_THE_PAST ? 'NOT' : '';
 
             if (completed) {
                 const completedDate = moment(
@@ -170,7 +173,7 @@ export const renderDateFilterSql = (
                         .startOf(unitOfTime)
                         .toDate(),
                 );
-                return `((${dimensionSql}) >= ('${dateFormatter(
+                return `${isNot} ((${dimensionSql}) >= ('${dateFormatter(
                     getMomentDateWithCustomStartOfWeek(
                         startOfWeek,
                         completedDate,
@@ -182,7 +185,7 @@ export const renderDateFilterSql = (
             const untilDate = dateFormatter(
                 getMomentDateWithCustomStartOfWeek(startOfWeek).toDate(),
             );
-            return `((${dimensionSql}) >= ('${dateFormatter(
+            return `${isNot} ((${dimensionSql}) >= ('${dateFormatter(
                 getMomentDateWithCustomStartOfWeek(startOfWeek)
                     .subtract(filter.values?.[0], unitOfTime)
                     .toDate(),

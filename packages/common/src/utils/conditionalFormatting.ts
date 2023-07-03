@@ -64,6 +64,7 @@ export const hasMatchingConditionalRules = (
             case ConditionalOperator.LESS_THAN_OR_EQUAL:
             case ConditionalOperator.GREATER_THAN_OR_EQUAL:
             case ConditionalOperator.IN_THE_PAST:
+            case ConditionalOperator.NOT_IN_THE_PAST:
             case ConditionalOperator.IN_THE_NEXT:
             case ConditionalOperator.IN_THE_CURRENT:
             case ConditionalOperator.IN_BETWEEN:
