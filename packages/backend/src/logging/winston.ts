@@ -91,7 +91,7 @@ export const expressWinstonMiddleware: express.RequestHandler =
         msg: '{{req.method}} {{req.url}} {{res.statusCode}} - {{res.responseTime}} ms',
         colorize: false,
         meta: true,
-        metaField: 'http',
+        metaField: null, // on root of log
         dynamicMeta: (req, res) => ({
             userUuid: req.user?.userUuid,
             organizationUuid: req.user?.organizationUuid,
