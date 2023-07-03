@@ -30,7 +30,7 @@ const useEchartsPieConfig = () => {
 
                 const value = Number(row[metricId].value.raw);
 
-                if (key && value) {
+                if (key && value !== undefined) {
                     acc[key] = (acc[key] ?? 0) + (isNaN(value) ? 0 : value);
                 }
 
