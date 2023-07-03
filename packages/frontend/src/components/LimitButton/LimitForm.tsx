@@ -10,7 +10,8 @@ type LimitFormProps = Pick<Props, 'limit' | 'onLimitChange'>;
 const LimitForm = forwardRef<HTMLFormElement, LimitFormProps>(
     ({ limit, onLimitChange }, ref) => {
         const health = useHealth();
-
+        const max = health.data?.query.maxLimit || 5000;
+        
         const schema = z.object({
             limit: z
                 .number({
@@ -18,7 +19,7 @@ const LimitForm = forwardRef<HTMLFormElement, LimitFormProps>(
                 })
                 .int()
                 .min(1, 'Minimum value: 1')
-                .max(health.data?.query.maxLimit || 5000, 'Maximum value: 500'),
+                .max(max, `Maximum value: ${max}`),
         });
 
         const form = useForm({
