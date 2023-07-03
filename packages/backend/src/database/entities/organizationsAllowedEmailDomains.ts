@@ -1,4 +1,4 @@
-import { OrganizationMemberRole } from '@lightdash/common';
+import { OrganizationMemberRole, ProjectMemberRole } from '@lightdash/common';
 import { Knex } from 'knex';
 
 export const OrganizationAllowedEmailDomainsTableName =
@@ -9,7 +9,6 @@ export type DbOrganizationAllowedEmailDomains = {
     organization_uuid: string;
     email_domains: string[];
     role: OrganizationMemberRole;
-    project_uuids: string[];
 };
 
 export type OrganizationAllowedEmailDomainsTable = Knex.CompositeTableType<
@@ -20,3 +19,15 @@ export type OrganizationAllowedEmailDomainsTable = Knex.CompositeTableType<
         'allowed_email_domains_uuid' | 'organization_uuid'
     >
 >;
+
+export const OrganizationAllowedEmailDomainProjectsTableName =
+    'organization_allowed_email_domain_projects';
+
+export type DbOrganizationAllowedEmailDomainProjects = {
+    allowed_email_domains_uuid: string;
+    project_uuid: string;
+    role: ProjectMemberRole;
+};
+
+export type OrganizationAllowedEmailDomainProjectsTable =
+    Knex.CompositeTableType<DbOrganizationAllowedEmailDomainProjects>;

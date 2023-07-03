@@ -431,7 +431,7 @@ export class UserService {
                         organizationUuid: user.organizationUuid,
                         emailDomains: [emailDomain],
                         role: OrganizationMemberRole.VIEWER,
-                        projectUuids: [],
+                        projects: [],
                     },
                 );
             }
@@ -822,7 +822,15 @@ export class UserService {
             user.userUuid,
             orgUuid,
             allowedEmailDomains.role,
-            allowedEmailDomains.projectUuids,
+            allowedEmailDomains.role === OrganizationMemberRole.MEMBER
+                ? allowedEmailDomains.projects.reduce(
+                      (acc, project) => ({
+                          ...acc,
+                          [project.projectUuid]: project.role,
+                      }),
+                      {},
+                  )
+                : undefined,
         );
 
         await analytics.track({
@@ -831,7 +839,9 @@ export class UserService {
             properties: {
                 organizationId: orgUuid,
                 role: allowedEmailDomains.role,
-                projectIds: allowedEmailDomains.projectUuids,
+                projectIds: allowedEmailDomains.projects.map(
+                    (project) => project.projectUuid,
+                ),
             },
         });
     }
