@@ -72,7 +72,7 @@ const useEchartsPieConfig = () => {
                 },
             ],
         }),
-        [data, isDonut],
+        [data, isDonut, valueLabel],
     );
 
     if (!explore || !data || data.length === 0) {
