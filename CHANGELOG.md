@@ -1,3 +1,73 @@
+# [0.645.0](https://github.com/lightdash/lightdash/compare/0.644.1...0.645.0) (2023-07-03)
+
+
+### Features
+
+* pie charts echarts visualization ([#6041](https://github.com/lightdash/lightdash/issues/6041)) ([d4a24a8](https://github.com/lightdash/lightdash/commit/d4a24a83094f6bbcc1e78c6f4be6a0fe349d3913))
+
+## [0.644.1](https://github.com/lightdash/lightdash/compare/0.644.0...0.644.1) (2023-07-03)
+
+
+### Bug Fixes
+
+* adjust chart totals based on legends selected ([#6115](https://github.com/lightdash/lightdash/issues/6115)) ([cd4c027](https://github.com/lightdash/lightdash/commit/cd4c027f40b569037fb3d12aadec1d34dee600a0))
+
+# [0.644.0](https://github.com/lightdash/lightdash/compare/0.643.0...0.644.0) (2023-07-03)
+
+
+### Features
+
+* add description tooltip to table names when adding filters ([#6109](https://github.com/lightdash/lightdash/issues/6109)) ([95e579d](https://github.com/lightdash/lightdash/commit/95e579da0dead77ae7701de885a2d6417b8885e0)), closes [#6077](https://github.com/lightdash/lightdash/issues/6077)
+
+# [0.643.0](https://github.com/lightdash/lightdash/compare/0.642.0...0.643.0) (2023-07-03)
+
+
+### Features
+
+* improve json logging metadata for http requests ([#6111](https://github.com/lightdash/lightdash/issues/6111)) ([037ec19](https://github.com/lightdash/lightdash/commit/037ec19b97638d32c480ef39cf5059a4fee99175))
+
+# [0.642.0](https://github.com/lightdash/lightdash/compare/0.641.2...0.642.0) (2023-07-03)
+
+
+### Features
+
+* allow email domain projects roles ([#6086](https://github.com/lightdash/lightdash/issues/6086)) ([df2d9eb](https://github.com/lightdash/lightdash/commit/df2d9ebba57a8364f0b9a27d1008a0da11a6b668))
+
+## [0.641.2](https://github.com/lightdash/lightdash/compare/0.641.1...0.641.2) (2023-07-03)
+
+
+### Bug Fixes
+
+* tooltip appear to the right of table name ([#6100](https://github.com/lightdash/lightdash/issues/6100)) ([7e7e7f9](https://github.com/lightdash/lightdash/commit/7e7e7f9a9a17c51edee7778d0ed428ebdfbf1981))
+
+## [0.641.1](https://github.com/lightdash/lightdash/compare/0.641.0...0.641.1) (2023-07-03)
+
+
+### Bug Fixes
+
+* add hasGrouping to filters in explore ([#6110](https://github.com/lightdash/lightdash/issues/6110)) ([3e22544](https://github.com/lightdash/lightdash/commit/3e22544a8aa913ced71557e765b6b1ae32f008dc))
+
+# [0.641.0](https://github.com/lightdash/lightdash/compare/0.640.2...0.641.0) (2023-06-30)
+
+
+### Features
+
+* add info on which dashboards a chart is in  ([#6094](https://github.com/lightdash/lightdash/issues/6094)) ([83cb90a](https://github.com/lightdash/lightdash/commit/83cb90a9c0794f4a3507c028987c17be385688b3))
+
+## [0.640.2](https://github.com/lightdash/lightdash/compare/0.640.1...0.640.2) (2023-06-30)
+
+
+### Bug Fixes
+
+* remove .at() reference and revert polyfill ([#6106](https://github.com/lightdash/lightdash/issues/6106)) ([37aa7bc](https://github.com/lightdash/lightdash/commit/37aa7bc495795020395ec56f1a2d04f731fd8ebf)), closes [#6097](https://github.com/lightdash/lightdash/issues/6097)
+
+## [0.640.1](https://github.com/lightdash/lightdash/compare/0.640.0...0.640.1) (2023-06-30)
+
+
+### Bug Fixes
+
+* add array.at polyfill ([#6097](https://github.com/lightdash/lightdash/issues/6097)) ([f431002](https://github.com/lightdash/lightdash/commit/f43100216bebea64d4e123940200d9132bdaa5c8))
+
 # [0.640.0](https://github.com/lightdash/lightdash/compare/0.639.2...0.640.0) (2023-06-29)
 
 

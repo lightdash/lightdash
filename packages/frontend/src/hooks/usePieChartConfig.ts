@@ -1,14 +1,18 @@
 import {
     AdditionalMetric,
-    Dimension,
+    ApiQueryResults,
+    Explore,
+    Field,
     fieldId,
+    isAdditionalMetric,
     isField,
     isMetric,
     Metric,
     PieChart,
     TableCalculation,
 } from '@lightdash/common';
-import { useCallback, useMemo, useState } from 'react';
+import { isEqual } from 'lodash-es';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 type PieChartConfig = {
     validPieChartConfig: PieChart;
@@ -23,121 +27,140 @@ type PieChartConfig = {
 };
 
 type PieChartConfigFn = (
+    explore: Explore | undefined,
+    resultsData: ApiQueryResults | undefined,
     pieChartConfig: PieChart | undefined,
-    fields: {
-        dimensions: Dimension[];
-        metrics: Metric[];
-        customMetrics: AdditionalMetric[];
-        tableCalculations: TableCalculation[];
-    },
+    dimensions: Field[],
+    allNumericMetrics: (Metric | AdditionalMetric | TableCalculation)[],
 ) => PieChartConfig;
 
 const usePieChartConfig: PieChartConfigFn = (
+    explore,
+    resultsData,
     pieChartConfig,
-    { customMetrics, dimensions, metrics, tableCalculations },
-) =>
-    // resultsData: ApiQueryResults | undefined,
-    // explore: Explore | undefined,
-    {
-        const [isDonut, setIsDonut] = useState<boolean>(
-            pieChartConfig?.isDonut ?? false,
-        );
+    dimensions,
+    allNumericMetrics,
+) => {
+    const dimensionIds = useMemo(() => dimensions.map(fieldId), [dimensions]);
 
-        const firstDimension = dimensions[0];
-        const firstMetric = [
-            ...metrics,
-            ...customMetrics,
-            ...tableCalculations,
-        ][0];
-
-        const [groupFieldIds, setGroupFieldIds] = useState<Set<string | null>>(
-            new Set(
-                pieChartConfig?.groupFieldIds ?? [
-                    firstDimension ? fieldId(firstDimension) : null,
-                ],
+    const allNumericMetricIds = useMemo(
+        () =>
+            allNumericMetrics.map((m) =>
+                (isField(m) && isMetric(m)) || isAdditionalMetric(m)
+                    ? fieldId(m)
+                    : m.name,
             ),
+        [allNumericMetrics],
+    );
+
+    const [isDonut, setIsDonut] = useState<boolean>(
+        pieChartConfig?.isDonut ?? false,
+    );
+
+    const [groupFieldIds, setGroupFieldIds] = useState<(string | null)[]>(
+        pieChartConfig?.groupFieldIds ?? [],
+    );
+
+    const [metricId, setMetricId] = useState<string | null>(
+        pieChartConfig?.metricId ?? null,
+    );
+
+    const isLoading = !explore || !resultsData;
+
+    useEffect(() => {
+        if (isLoading) return;
+
+        const newGroupFieldIds = groupFieldIds.filter(
+            (id) => id === null || dimensionIds.includes(id),
         );
 
-        const [metricId, setMetricId] = useState<string | null>(
-            pieChartConfig?.metricId ??
-                (firstMetric
-                    ? isField(firstMetric) && isMetric(firstMetric)
-                        ? fieldId(firstMetric)
-                        : firstMetric.name
-                    : null),
-        );
+        const firstDimensionId = dimensionIds[0];
+        if (newGroupFieldIds.length === 0 && firstDimensionId) {
+            setGroupFieldIds([firstDimensionId]);
+            return;
+        }
 
-        const handleGroupChange = useCallback((prevValue, newValue) => {
-            setGroupFieldIds((prev) => {
-                const newSet = new Set(prev);
-                newSet.delete(prevValue);
-                newSet.add(newValue);
-                return newSet;
-            });
-        }, []);
+        if (isEqual(newGroupFieldIds, groupFieldIds)) return;
 
-        const handleGroupAdd = useCallback(() => {
-            setGroupFieldIds((prev) => {
-                const nextDimension = dimensions.find(
-                    (d) => !prev.has(fieldId(d)),
-                );
+        setGroupFieldIds(newGroupFieldIds);
+    }, [isLoading, dimensionIds, groupFieldIds, pieChartConfig?.groupFieldIds]);
 
-                const newSet = new Set(prev);
-                newSet.add(nextDimension ? fieldId(nextDimension) : null);
-                return newSet;
-            });
-        }, [dimensions]);
+    useEffect(() => {
+        if (isLoading) return;
+        if (metricId && allNumericMetricIds.includes(metricId)) return;
 
-        const handleRemoveGroup = useCallback((dimensionId) => {
-            setGroupFieldIds((prev) => {
-                const newSet = new Set(prev);
-                newSet.delete(dimensionId);
-                return newSet;
-            });
-        }, []);
+        setMetricId(allNumericMetricIds[0] ?? null);
+    }, [isLoading, allNumericMetricIds, metricId, pieChartConfig?.metricId]);
 
-        const validPieChartConfig: PieChart = useMemo(
-            () => ({
-                isDonut,
-                groupFieldIds: Array.from(groupFieldIds).filter(
-                    (id): id is string => id !== null,
-                ),
-                metricId: metricId ?? undefined,
-            }),
-            [isDonut, groupFieldIds, metricId],
-        );
+    const handleGroupChange = useCallback((prevValue, newValue) => {
+        setGroupFieldIds((prev) => {
+            const newSet = new Set(prev);
+            newSet.delete(prevValue);
+            newSet.add(newValue);
+            return [...newSet.values()];
+        });
+    }, []);
 
-        const values: PieChartConfig = useMemo(
-            () => ({
-                validPieChartConfig,
+    const handleGroupAdd = useCallback(() => {
+        setGroupFieldIds((prev) => {
+            const nextId = dimensionIds.find((id) => !prev.includes(id));
 
-                isDonut,
-                toggleDonut: () => setIsDonut((prev) => !prev),
+            const newSet = new Set(prev);
+            newSet.add(nextId ?? null);
+            return [...newSet.values()];
+        });
+    }, [dimensionIds]);
 
-                groupAdd: handleGroupAdd,
-                groupChange: handleGroupChange,
-                groupRemove: handleRemoveGroup,
-                groupFieldIds: Array.from(groupFieldIds),
+    const handleRemoveGroup = useCallback((dimensionId) => {
+        setGroupFieldIds((prev) => {
+            const newSet = new Set(prev);
+            newSet.delete(dimensionId);
+            return [...newSet.values()];
+        });
+    }, []);
 
-                metricId,
-                metricChange: setMetricId,
-            }),
-            [
-                validPieChartConfig,
+    const validPieChartConfig: PieChart = useMemo(
+        () => ({
+            isDonut,
+            groupFieldIds: Array.from(groupFieldIds).filter(
+                (id): id is string => id !== null,
+            ),
+            metricId: metricId ?? undefined,
+        }),
+        [isDonut, groupFieldIds, metricId],
+    );
 
-                isDonut,
+    const values: PieChartConfig = useMemo(
+        () => ({
+            validPieChartConfig,
 
-                handleGroupAdd,
-                handleGroupChange,
-                handleRemoveGroup,
+            isDonut,
+            toggleDonut: () => setIsDonut((prev) => !prev),
 
-                groupFieldIds,
+            groupAdd: handleGroupAdd,
+            groupChange: handleGroupChange,
+            groupRemove: handleRemoveGroup,
+            groupFieldIds: Array.from(groupFieldIds),
 
-                metricId,
-            ],
-        );
+            metricId,
+            metricChange: setMetricId,
+        }),
+        [
+            validPieChartConfig,
 
-        return values;
-    };
+            isDonut,
+
+            handleGroupAdd,
+            handleGroupChange,
+            handleRemoveGroup,
+
+            groupFieldIds,
+
+            metricId,
+        ],
+    );
+
+    return values;
+};
 
 export default usePieChartConfig;
