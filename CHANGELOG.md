@@ -1,3 +1,10 @@
+# [0.643.0](https://github.com/lightdash/lightdash/compare/0.642.0...0.643.0) (2023-07-03)
+
+
+### Features
+
+* improve json logging metadata for http requests ([#6111](https://github.com/lightdash/lightdash/issues/6111)) ([037ec19](https://github.com/lightdash/lightdash/commit/037ec19b97638d32c480ef39cf5059a4fee99175))
+
 # [0.642.0](https://github.com/lightdash/lightdash/compare/0.641.2...0.642.0) (2023-07-03)
 
 
