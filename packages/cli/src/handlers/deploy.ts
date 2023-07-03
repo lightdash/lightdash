@@ -154,6 +154,9 @@ export const deployHandler = async (options: DeployHandlerOptions) => {
     let projectUuid: string;
 
     if (options.create !== undefined) {
+        // If the create flag is set, create a new project.
+        // The value of the create flag is either a string or a boolean.
+        // SEE https://github.com/tj/commander.js/blob/HEAD/examples/options-boolean-or-value.js
         const project = await createNewProject(options);
         if (!project) {
             console.error(
