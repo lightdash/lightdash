@@ -1171,7 +1171,7 @@ const getStackTotalSeries = (
     );
 };
 
-const useEcharts = (validCartesianConfigLegend: LegendValues) => {
+const useEcharts = (validCartesianConfigLegend?: LegendValues) => {
     const context = useVisualizationContext();
 
     const {
