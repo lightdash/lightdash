@@ -2,8 +2,7 @@ import { Colors, Divider, Menu } from '@blueprintjs/core';
 import { ItemListRendererProps } from '@blueprintjs/select';
 import {
     Field,
-    getItemTableLabel,
-    getItemTableName,
+    isField,
     SummaryExplore,
     TableCalculation,
 } from '@lightdash/common';
@@ -59,6 +58,9 @@ const StickyMenuDivider = forwardRef<HTMLLIElement, StickyMenuDividerProps>(
     ),
 );
 
+const getItemGroupLabel = (item: Field | TableCalculation) =>
+    isField(item) ? item.tableLabel : item.displayName;
+
 const renderFilterList = <T extends Field | TableCalculation>(
     itemListRendererProps: ItemListRendererProps<T>,
     tables: Pick<SummaryExplore, 'name' | 'description'>[],
@@ -71,10 +73,12 @@ const renderFilterList = <T extends Field | TableCalculation>(
                 items: typeof items;
             }[]
         >((acc, item) => {
-            const table = tables.find((t) => t.name === getItemTableName(item));
+            const table = isField(item)
+                ? tables.find((t) => t.name === item.table)
+                : undefined;
 
             const group = {
-                name: getItemTableLabel(item),
+                name: getItemGroupLabel(item),
                 description: table?.description,
             };
 
