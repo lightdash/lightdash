@@ -205,6 +205,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                             fields={fields}
                             onChange={addFieldRule}
                             onClosed={toggleFieldInput}
+                            hasGrouping
                         />
                         <Button
                             minimal
