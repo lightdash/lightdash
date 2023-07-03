@@ -1413,17 +1413,6 @@ const useEcharts = (validCartesianConfigLegend: LegendValues) => {
                 ),
             },
             color: colors,
-            // animationThreshold: 2000 ,
-            // animationDuration: 1000 ,
-            // animationEasing: 'cubicOut' ,
-            // animationDelay: 1000 ,
-            // animationDurationUpdate: 1000 ,
-            // animationEasingUpdate: 'cubicOut' ,
-            // animationDelayUpdate: 1000 ,
-            stateAnimation: {
-                duration: 300,
-                easing: 'cubicOut',
-            },
         }),
         [
             axis,
