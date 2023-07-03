@@ -18,11 +18,13 @@ jobs:
       - name: Install common modules
         run: yarn workspace @lightdash/common install
 
+      - name: Build packages/common module
+        run: yarn common-build
+
       - name: Build
         uses: cypress-io/github-action@v5
         with:
           runTests: false
-          build: yarn common-build
           project: ./packages/e2e
           spec: packages/e2e/cypress/e2e/**/*
 
