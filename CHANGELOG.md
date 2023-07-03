@@ -1,3 +1,10 @@
+## [0.641.1](https://github.com/lightdash/lightdash/compare/0.641.0...0.641.1) (2023-07-03)
+
+
+### Bug Fixes
+
+* add hasGrouping to filters in explore ([#6110](https://github.com/lightdash/lightdash/issues/6110)) ([3e22544](https://github.com/lightdash/lightdash/commit/3e22544a8aa913ced71557e765b6b1ae32f008dc))
+
 # [0.641.0](https://github.com/lightdash/lightdash/compare/0.640.2...0.641.0) (2023-06-30)
 
 

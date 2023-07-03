@@ -253,7 +253,7 @@ describe('Date tests', () => {
         cy.findAllByText('Loading chart').should('have.length', 0);
         // Filter by year
         cy.contains('Add filter').click();
-        cy.contains('Customers Created year').click();
+        cy.contains('Created year').click();
 
         cy.get('.bp4-numeric-input input').clear().type('2017');
         cy.get('.bp4-numeric-input input').should('have.value', '2017');
@@ -270,7 +270,7 @@ describe('Date tests', () => {
 
         // Filter by month
         cy.contains('Add filter').click();
-        cy.contains('Customers Created month').click();
+        cy.contains('Created month').click();
 
         cy.get('.bp4-numeric-input input').clear().type('2017');
         cy.get('.bp4-numeric-input input').should('have.value', '2017');
@@ -298,7 +298,8 @@ describe('Date tests', () => {
         cy.findAllByText('Loading chart').should('have.length', 0);
         // Filter by day
         cy.contains('Add filter').click();
-        cy.contains('Customers Created day').click();
+        cy.findByPlaceholderText('Search field...').type('created day');
+        cy.contains('Created day').click();
 
         cy.get('.bp4-date-input input').should('have.value', todayDate);
         cy.get('.bp4-code').contains(
