@@ -1,3 +1,10 @@
+## [0.644.1](https://github.com/lightdash/lightdash/compare/0.644.0...0.644.1) (2023-07-03)
+
+
+### Bug Fixes
+
+* adjust chart totals based on legends selected ([#6115](https://github.com/lightdash/lightdash/issues/6115)) ([cd4c027](https://github.com/lightdash/lightdash/commit/cd4c027f40b569037fb3d12aadec1d34dee600a0))
+
 # [0.644.0](https://github.com/lightdash/lightdash/compare/0.643.0...0.644.0) (2023-07-03)
 
 
