@@ -8,6 +8,10 @@ jobs:
     container:
       image: cypress/browsers:node18.12.0-chrome107
       options: --user 1001
+    strategy:
+      fail-fast: false
+      matrix:
+        containers: [ 1, 2, 3, 4, 5 ]
     steps:
       - name: Get PR number
         id: regex
@@ -47,6 +51,8 @@ jobs:
           # Set the PR deployment url
           config: 'baseUrl=${{steps.deployment_url.outputs.url}}'
         env:
+          SPLIT: ${{ strategy.job-total }}
+          SPLIT_INDEX: ${{ strategy.job-index }}
           CYPRESS_PGHOST: ${{secrets.PGHOST}}
           CYPRESS_PGPASSWORD: ${{secrets.PGPASSWORD}}
           CYPRESS_DATABRICKS_HOST: ${{secrets.DATABRICKS_HOST}}
