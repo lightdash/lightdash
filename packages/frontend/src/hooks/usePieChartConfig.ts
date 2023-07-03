@@ -27,7 +27,7 @@ const usePieChartConfig: PieChartConfigFn = (
     resultsData,
     pieChartConfig,
     dimensionIds,
-    allMetricIds,
+    allNumericMetricIds,
 ) => {
     const [isDonut, setIsDonut] = useState<boolean>(
         pieChartConfig?.isDonut ?? false,
@@ -63,10 +63,10 @@ const usePieChartConfig: PieChartConfigFn = (
 
     useEffect(() => {
         if (isLoading) return;
-        if (metricId && allMetricIds.includes(metricId)) return;
+        if (metricId && allNumericMetricIds.includes(metricId)) return;
 
-        setMetricId(allMetricIds[0] ?? null);
-    }, [isLoading, allMetricIds, metricId, pieChartConfig?.metricId]);
+        setMetricId(allNumericMetricIds[0] ?? null);
+    }, [isLoading, allNumericMetricIds, metricId, pieChartConfig?.metricId]);
 
     const handleGroupChange = useCallback((prevValue, newValue) => {
         setGroupFieldIds((prev) => {

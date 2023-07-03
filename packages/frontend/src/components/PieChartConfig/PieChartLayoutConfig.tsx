@@ -45,7 +45,7 @@ const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
 const PieLayoutConfig: React.FC = () => {
     const {
         dimensions,
-        allMetrics,
+        allNumericMetrics,
         pieChartConfig: {
             metricId,
             metricChange,
@@ -58,10 +58,10 @@ const PieLayoutConfig: React.FC = () => {
     } = useVisualizationContext();
 
     const selectedMetric = useMemo(() => {
-        return allMetrics.find((m) =>
+        return allNumericMetrics.find((m) =>
             isField(m) ? fieldId(m) === metricId : m.name === metricId,
         );
-    }, [allMetrics, metricId]);
+    }, [allNumericMetrics, metricId]);
 
     return (
         <Stack w={320}>
@@ -119,12 +119,12 @@ const PieLayoutConfig: React.FC = () => {
             </Stack>
 
             <Tooltip
-                disabled={allMetrics.length > 0}
-                label="You must select at least one metric to create a pie chart"
+                disabled={allNumericMetrics.length > 0}
+                label="You must select at least one numeric metric to create a pie chart"
             >
                 <Box>
                     <Select
-                        disabled={allMetrics.length === 0}
+                        disabled={allNumericMetrics.length === 0}
                         label="Metric"
                         placeholder="Select metric"
                         value={metricId}
@@ -134,7 +134,7 @@ const PieLayoutConfig: React.FC = () => {
                             )
                         }
                         itemComponent={SelectItem}
-                        data={allMetrics.map((m) => {
+                        data={allNumericMetrics.map((m) => {
                             const id = isField(m) ? fieldId(m) : m.name;
 
                             return {

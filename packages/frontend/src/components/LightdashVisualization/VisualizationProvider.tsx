@@ -10,6 +10,8 @@ import {
     fieldId,
     getDimensions,
     getMetrics,
+    isNumericItem,
+    isTableCalculation,
     Metric,
     TableCalculation,
 } from '@lightdash/common';
@@ -51,7 +53,8 @@ type VisualizationContext = {
     isSqlRunner: boolean;
     dimensions: Dimension[];
     metrics: Metric[];
-    allMetrics: (Metric | TableCalculation)[];
+    allMetrics: (Metric | AdditionalMetric | TableCalculation)[];
+    allNumericMetrics: (Metric | AdditionalMetric | TableCalculation)[];
     customMetrics: AdditionalMetric[];
     tableCalculations: TableCalculation[];
     onSeriesContextMenu?: (
@@ -134,8 +137,6 @@ const VisualizationProvider: FC<Props> = ({
         );
     }, [explore, resultsData?.metricQuery.metrics]);
 
-    const metricIds = useMemo(() => metrics.map(fieldId), [metrics]);
-
     const customMetrics = useMemo(() => {
         if (!explore) return [];
 
@@ -153,29 +154,25 @@ const VisualizationProvider: FC<Props> = ({
         }, []);
     }, [explore, resultsData?.metricQuery.additionalMetrics]);
 
-    const customMetricIds = useMemo(
-        () => customMetrics.map(fieldId),
-        [customMetrics],
-    );
-
     const tableCalculations = useMemo(() => {
         return resultsData?.metricQuery.tableCalculations ?? [];
     }, [resultsData?.metricQuery.tableCalculations]);
-
-    const tableCalculationIds = useMemo(
-        () => tableCalculations.map(({ name }) => name),
-        [tableCalculations],
-    );
 
     const allMetrics = useMemo(
         () => [...metrics, ...customMetrics, ...tableCalculations],
         [metrics, customMetrics, tableCalculations],
     );
 
-    const allMetricIds = useMemo(
-        () => [...metricIds, ...customMetricIds, ...tableCalculationIds],
-        [metricIds, customMetricIds, tableCalculationIds],
+    const allNumericMetrics = useMemo(
+        () => allMetrics.filter((m) => isNumericItem(m)),
+        [allMetrics],
     );
+
+    const allNumericMetricIds = useMemo(() => {
+        return allNumericMetrics.map((m) =>
+            isTableCalculation(m) ? m.name : fieldId(m),
+        );
+    }, [allNumericMetrics]);
 
     const bigNumberConfig = useBigNumberConfig(
         initialChartConfig?.type === ChartType.BIG_NUMBER
@@ -245,7 +242,7 @@ const VisualizationProvider: FC<Props> = ({
             ? initialChartConfig.config
             : undefined,
         dimensionIds,
-        allMetricIds,
+        allNumericMetricIds,
     );
 
     const { validPieChartConfig } = pieChartConfig;
@@ -306,6 +303,7 @@ const VisualizationProvider: FC<Props> = ({
             customMetrics,
             tableCalculations,
             allMetrics,
+            allNumericMetrics,
             onSeriesContextMenu,
             setChartType,
             setPivotDimensions,
@@ -328,6 +326,7 @@ const VisualizationProvider: FC<Props> = ({
             customMetrics,
             tableCalculations,
             allMetrics,
+            allNumericMetrics,
             onSeriesContextMenu,
             setChartType,
             setPivotDimensions,
