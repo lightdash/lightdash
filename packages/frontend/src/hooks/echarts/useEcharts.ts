@@ -1073,7 +1073,7 @@ const calculateStackTotal = (
 ) => {
     return series.reduce<number>((acc, s) => {
         const hash = flipAxis ? s.encode?.x : s.encode?.y;
-        const legendName = s?.dimensions[1].displayName;
+        const legendName = s.encode?.seriesName.split('.')[2];
         let selected = true;
         for (const key in selectedLegendNames) {
             if (legendName === key) {
@@ -1413,6 +1413,17 @@ const useEcharts = (validCartesianConfigLegend: LegendValues) => {
                 ),
             },
             color: colors,
+            // animationThreshold: 2000 ,
+            // animationDuration: 1000 ,
+            // animationEasing: 'cubicOut' ,
+            // animationDelay: 1000 ,
+            // animationDurationUpdate: 1000 ,
+            // animationEasingUpdate: 'cubicOut' ,
+            // animationDelayUpdate: 1000 ,
+            stateAnimation: {
+                duration: 300,
+                easing: 'cubicOut',
+            },
         }),
         [
             axis,
