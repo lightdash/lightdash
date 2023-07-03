@@ -11,7 +11,6 @@ import {
     getDimensions,
     getMetrics,
     isNumericItem,
-    isTableCalculation,
     Metric,
     TableCalculation,
 } from '@lightdash/common';
@@ -128,8 +127,6 @@ const VisualizationProvider: FC<Props> = ({
         );
     }, [explore, resultsData?.metricQuery.dimensions]);
 
-    const dimensionIds = useMemo(() => dimensions.map(fieldId), [dimensions]);
-
     const metrics = useMemo(() => {
         if (!explore) return [];
         return getMetrics(explore).filter((field) =>
@@ -167,12 +164,6 @@ const VisualizationProvider: FC<Props> = ({
         () => allMetrics.filter((m) => isNumericItem(m)),
         [allMetrics],
     );
-
-    const allNumericMetricIds = useMemo(() => {
-        return allNumericMetrics.map((m) =>
-            isTableCalculation(m) ? m.name : fieldId(m),
-        );
-    }, [allNumericMetrics]);
 
     const bigNumberConfig = useBigNumberConfig(
         initialChartConfig?.type === ChartType.BIG_NUMBER
@@ -241,8 +232,8 @@ const VisualizationProvider: FC<Props> = ({
         initialChartConfig?.type === ChartType.PIE
             ? initialChartConfig.config
             : undefined,
-        dimensionIds,
-        allNumericMetricIds,
+        dimensions,
+        allNumericMetrics,
     );
 
     const { validPieChartConfig } = pieChartConfig;

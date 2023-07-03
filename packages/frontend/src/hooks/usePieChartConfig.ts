@@ -1,4 +1,16 @@
-import { ApiQueryResults, Explore, PieChart } from '@lightdash/common';
+import {
+    AdditionalMetric,
+    ApiQueryResults,
+    Explore,
+    Field,
+    fieldId,
+    isAdditionalMetric,
+    isField,
+    isMetric,
+    Metric,
+    PieChart,
+    TableCalculation,
+} from '@lightdash/common';
 import { isEqual } from 'lodash-es';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -18,17 +30,29 @@ type PieChartConfigFn = (
     explore: Explore | undefined,
     resultsData: ApiQueryResults | undefined,
     pieChartConfig: PieChart | undefined,
-    dimensionIds: string[],
-    allMetricIds: string[],
+    dimensions: Field[],
+    allNumericMetrics: (Metric | AdditionalMetric | TableCalculation)[],
 ) => PieChartConfig;
 
 const usePieChartConfig: PieChartConfigFn = (
     explore,
     resultsData,
     pieChartConfig,
-    dimensionIds,
-    allNumericMetricIds,
+    dimensions,
+    allNumericMetrics,
 ) => {
+    const dimensionIds = useMemo(() => dimensions.map(fieldId), [dimensions]);
+
+    const allNumericMetricIds = useMemo(
+        () =>
+            allNumericMetrics.map((m) =>
+                (isField(m) && isMetric(m)) || isAdditionalMetric(m)
+                    ? fieldId(m)
+                    : m.name,
+            ),
+        [allNumericMetrics],
+    );
+
     const [isDonut, setIsDonut] = useState<boolean>(
         pieChartConfig?.isDonut ?? false,
     );
