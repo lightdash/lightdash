@@ -402,7 +402,11 @@ program
     .option('--full-refresh')
     .option('--verbose', undefined, false)
 
-    .option('--create', 'Create a new project on your organization', false)
+    .option(
+        '--create [project_name]',
+        "Create a new project. If a project name is not provided, you'll be prompted for one on creation.",
+        undefined,
+    )
     .option('--ignore-errors', 'Allows deploy with errors on compile', false)
     .option(
         '--start-of-week <number>',
