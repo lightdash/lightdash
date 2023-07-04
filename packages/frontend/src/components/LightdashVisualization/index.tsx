@@ -1,6 +1,7 @@
 import { assertUnreachable, ChartType } from '@lightdash/common';
 import { FC, memo } from 'react';
 import SimpleChart from '../SimpleChart';
+import SimplePieChart from '../SimplePieChart';
 import SimpleStatistic from '../SimpleStatistic';
 import SimpleTable from '../SimpleTable';
 import { useVisualizationContext } from './VisualizationProvider';
@@ -59,7 +60,14 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
                     />
                 );
             case ChartType.PIE:
-                return <div>PIE VIZ GOES HERE</div>;
+                return (
+                    <SimplePieChart
+                        className={className}
+                        $shouldExpand
+                        data-testid={props['data-testid']}
+                        {...props}
+                    />
+                );
             default:
                 return assertUnreachable(
                     chartType,

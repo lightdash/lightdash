@@ -6,12 +6,15 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import {
+    Box,
     Button,
     Group,
     Select,
     SelectItemProps,
     Stack,
+    Switch,
     Text,
+    Tooltip,
 } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import React, { forwardRef, useMemo } from 'react';
@@ -40,12 +43,10 @@ const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
     ),
 );
 
-const PieLayoutConfig: React.FC = () => {
+const PieChartLayoutConfig: React.FC = () => {
     const {
         dimensions,
-        metrics,
-        customMetrics,
-        tableCalculations,
+        allNumericMetrics,
         pieChartConfig: {
             metricId,
             metricChange,
@@ -55,19 +56,19 @@ const PieLayoutConfig: React.FC = () => {
             groupChange,
             groupRemove,
 
-            // isDonut,
-            // isDonutChange,
+            isDonut,
+            toggleDonut,
         },
     } = useVisualizationContext();
 
     const selectedMetric = useMemo(() => {
-        return [...metrics, ...customMetrics, ...tableCalculations].find((m) =>
+        return allNumericMetrics.find((m) =>
             isField(m) ? fieldId(m) === metricId : m.name === metricId,
         );
-    }, [metrics, customMetrics, tableCalculations, metricId]);
+    }, [allNumericMetrics, metricId]);
 
     return (
-        <Stack w={320}>
+        <Stack>
             <Stack spacing="xs">
                 {groupFieldIds.map((dimensionId, index) => {
                     const dimension = dimensions.find(
@@ -76,6 +77,7 @@ const PieLayoutConfig: React.FC = () => {
 
                     return (
                         <Select
+                            disabled={dimensions.length === 0}
                             key={index}
                             clearable={index !== 0}
                             label={index === 0 ? 'Group' : undefined}
@@ -98,45 +100,64 @@ const PieLayoutConfig: React.FC = () => {
                     );
                 })}
 
-                <Button
-                    w="fit-content"
-                    size="xs"
-                    leftIcon={<MantineIcon icon={IconPlus} />}
-                    variant="outline"
-                    onClick={groupAdd}
-                    disabled={
-                        groupFieldIds.includes(null) ||
-                        groupFieldIds.length === dimensions.length
-                    }
+                <Tooltip
+                    disabled={dimensions.length > 0}
+                    label="You must select at least one dimension to create a pie chart"
                 >
-                    Add Group
-                </Button>
+                    <Box w="fit-content">
+                        <Button
+                            w="fit-content"
+                            size="xs"
+                            leftIcon={<MantineIcon icon={IconPlus} />}
+                            variant="outline"
+                            onClick={groupAdd}
+                            disabled={
+                                groupFieldIds.includes(null) ||
+                                groupFieldIds.length === dimensions.length
+                            }
+                        >
+                            Add Group
+                        </Button>
+                    </Box>
+                </Tooltip>
             </Stack>
 
-            <Select
-                label="Metric"
-                placeholder="Select metric"
-                value={metricId}
-                icon={selectedMetric && <FieldIcon item={selectedMetric} />}
-                itemComponent={SelectItem}
-                data={[...metrics, ...customMetrics, ...tableCalculations].map(
-                    (m) => {
-                        const id = isField(m) ? fieldId(m) : m.name;
+            <Tooltip
+                disabled={allNumericMetrics.length > 0}
+                label="You must select at least one numeric metric to create a pie chart"
+            >
+                <Box>
+                    <Select
+                        disabled={allNumericMetrics.length === 0}
+                        label="Metric"
+                        placeholder="Select metric"
+                        value={metricId}
+                        icon={
+                            selectedMetric && (
+                                <FieldIcon item={selectedMetric} />
+                            )
+                        }
+                        itemComponent={SelectItem}
+                        data={allNumericMetrics.map((m) => {
+                            const id = isField(m) ? fieldId(m) : m.name;
 
-                        return {
-                            item: m,
-                            value: id,
-                            label: fieldLabelText(m),
-                            disabled: metricId === id,
-                        };
-                    },
-                )}
-                onChange={(newValue) => {
-                    metricChange(newValue);
-                }}
-            />
+                            return {
+                                item: m,
+                                value: id,
+                                label: fieldLabelText(m),
+                                disabled: metricId === id,
+                            };
+                        })}
+                        onChange={(newValue) => {
+                            metricChange(newValue);
+                        }}
+                    />
+                </Box>
+            </Tooltip>
+
+            <Switch label="Donut" checked={isDonut} onChange={toggleDonut} />
         </Stack>
     );
 };
 
-export default PieLayoutConfig;
+export default PieChartLayoutConfig;

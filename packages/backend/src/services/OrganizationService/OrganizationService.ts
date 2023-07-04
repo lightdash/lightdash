@@ -315,7 +315,7 @@ export class OrganizationService {
                 organizationUuid,
                 emailDomains: [],
                 role: OrganizationMemberRole.VIEWER,
-                projectUuids: [],
+                projects: [],
             };
         }
         return allowedEmailDomains;
@@ -356,7 +356,10 @@ export class OrganizationService {
                 organizationId: allowedEmailDomains.organizationUuid,
                 emailDomainsCount: allowedEmailDomains.emailDomains.length,
                 role: allowedEmailDomains.role,
-                projectIds: allowedEmailDomains.projectUuids,
+                projectIds: allowedEmailDomains.projects.map(
+                    (p) => p.projectUuid,
+                ),
+                projectRoles: allowedEmailDomains.projects.map((p) => p.role),
             },
         });
 
@@ -396,7 +399,7 @@ export class OrganizationService {
             user.userUuid,
             org.organizationUuid,
             OrganizationMemberRole.ADMIN,
-            [],
+            undefined,
         );
         await analytics.track({
             userId: user.userUuid,

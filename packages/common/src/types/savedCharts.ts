@@ -54,10 +54,19 @@ export type BigNumberConfig = {
     config?: BigNumber;
 };
 
+export const PieChartValueLabels = {
+    hidden: 'Hidden',
+    inside: 'Inside',
+    outside: 'Outside',
+} as const;
+
+export type PieChartValueLabel = keyof typeof PieChartValueLabels;
+
 export type PieChart = {
-    isDonut?: boolean;
     groupFieldIds?: string[];
     metricId?: string;
+    isDonut?: boolean;
+    valueLabel?: PieChartValueLabel;
 };
 
 export type PieChartConfig = {

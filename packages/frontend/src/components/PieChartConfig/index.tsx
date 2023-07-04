@@ -1,4 +1,4 @@
-import { Button, Popover } from '@mantine/core';
+import { Button, Popover, Tabs } from '@mantine/core';
 import { IconChevronDown } from '@tabler/icons-react';
 import React from 'react';
 import {
@@ -8,6 +8,7 @@ import {
 import MantineIcon from '../common/MantineIcon';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 import PieLayoutConfig from './PieChartLayoutConfig';
+import PieChartSeriesConfig from './PieChartSeriesConfig';
 
 const PieChartConfig: React.FC = () => {
     const { resultsData } = useVisualizationContext();
@@ -28,7 +29,20 @@ const PieChartConfig: React.FC = () => {
             </Popover.Target>
 
             <Popover.Dropdown>
-                <PieLayoutConfig />
+                <Tabs w={320} defaultValue="layout">
+                    <Tabs.List mb="sm">
+                        <Tabs.Tab value="layout">Layout</Tabs.Tab>
+                        <Tabs.Tab value="series">Series</Tabs.Tab>
+                    </Tabs.List>
+
+                    <Tabs.Panel value="layout">
+                        <PieLayoutConfig />
+                    </Tabs.Panel>
+
+                    <Tabs.Panel value="series">
+                        <PieChartSeriesConfig />
+                    </Tabs.Panel>
+                </Tabs>
             </Popover.Dropdown>
         </Popover>
     );

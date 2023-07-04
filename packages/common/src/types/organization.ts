@@ -1,4 +1,5 @@
 import { OrganizationMemberRole } from './organizationMemberProfile';
+import { ProjectMemberRole } from './projectMemberProfile';
 import { ProjectType } from './projects';
 
 /**
@@ -94,11 +95,32 @@ export function isAllowedEmailDomainsRole(
     return AllowedEmailDomainsRoles.includes(role as any);
 }
 
+export type AllowedEmailDomainProjectsRole =
+    | ProjectMemberRole.EDITOR
+    | ProjectMemberRole.INTERACTIVE_VIEWER
+    | ProjectMemberRole.VIEWER;
+
+export const AllowedEmailDomainProjectRoles: Array<AllowedEmailDomainProjectsRole> =
+    [
+        ProjectMemberRole.EDITOR,
+        ProjectMemberRole.INTERACTIVE_VIEWER,
+        ProjectMemberRole.VIEWER,
+    ];
+
+export function isAllowedEmailDomainProjectRole(
+    role: ProjectMemberRole,
+): role is AllowedEmailDomainProjectsRole {
+    return AllowedEmailDomainProjectRoles.includes(role as any);
+}
+
 export type AllowedEmailDomains = {
     organizationUuid: string;
     emailDomains: string[];
     role: AllowedEmailDomainsRole;
-    projectUuids: string[];
+    projects: Array<{
+        projectUuid: string;
+        role: AllowedEmailDomainProjectsRole;
+    }>;
 };
 
 export type UpdateAllowedEmailDomains = Omit<
