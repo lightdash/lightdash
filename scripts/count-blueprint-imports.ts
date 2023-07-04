@@ -1,9 +1,13 @@
 import * as glob from 'glob';
 import * as ts from 'typescript';
 
-const importCounter: Record<string, Record<string, number>> = {};
+const INITIAL_BLUEPRINT_IMPORTS_BEFORE_REFACTOR = 993;
 
-const countImports = (file: string, targetLibrary: string) => {
+const countImportsInAFile = (
+    file: string,
+    targetLibrary: string,
+    importCounter: Record<string, Record<string, number>>,
+) => {
     const content = ts.sys.readFile(file, 'utf8');
     if (!content) throw new Error(`Could not read file ${file}`);
 
@@ -38,7 +42,19 @@ const countImports = (file: string, targetLibrary: string) => {
     });
 };
 
-const targetLibraries = [
+const countImports = (files: string[], libraries: string[]) => {
+    const importCounter: Record<string, Record<string, number>> = {};
+
+    files.forEach((file) => {
+        libraries.forEach((targetLibrary) => {
+            countImportsInAFile(file, targetLibrary, importCounter);
+        });
+    });
+
+    return importCounter;
+};
+
+const blueprintLibraries = [
     '@blueprintjs/core',
     '@blueprintjs/datetime',
     '@blueprintjs/datetime2',
@@ -46,16 +62,20 @@ const targetLibraries = [
     '@blueprintjs/select',
 ];
 
+const mantineLibraries = [
+    '@mantine/core',
+    '@mantine/form',
+    '@mantine/hooks',
+    '@mantine/spotlight',
+];
+
 glob('./packages/frontend/src/**/*.{ts,tsx}', (err, files) => {
     if (err) throw err;
 
-    files.forEach((file) =>
-        targetLibraries.forEach((targetLibrary) =>
-            countImports(file, targetLibrary),
-        ),
-    );
+    const blueprintCounter = countImports(files, blueprintLibraries);
+    const mantineCounter = countImports(files, mantineLibraries);
 
-    for (const [library, counts] of Object.entries(importCounter)) {
+    for (const [library, counts] of Object.entries(blueprintCounter)) {
         const total = Object.values(counts).reduce((a, b) => a + b, 0);
         console.log(`${library} - Total: ${total}`);
 
@@ -67,17 +87,22 @@ glob('./packages/frontend/src/**/*.{ts,tsx}', (err, files) => {
         console.log();
     }
 
-    const grandTotal = Object.values(importCounter).reduce(
+    const blueprintTotal = Object.values(blueprintCounter).reduce(
+        (a, b) => a + Object.values(b).reduce((c, d) => c + d, 0),
+        0,
+    );
+    const mantineTotal = Object.values(mantineCounter).reduce(
         (a, b) => a + Object.values(b).reduce((c, d) => c + d, 0),
         0,
     );
 
-    console.log(`---------------------------------------------`);
+    console.log(`-------------------------------------------------------`);
     console.log(
-        `Total imports from all libraries: ${grandTotal} (${(
-            (grandTotal / 993) *
+        `Total imports from blueprint libraries: ${blueprintTotal}/${INITIAL_BLUEPRINT_IMPORTS_BEFORE_REFACTOR} (${(
+            (blueprintTotal / INITIAL_BLUEPRINT_IMPORTS_BEFORE_REFACTOR) *
             100
         ).toFixed(1)}%)`,
     );
-    console.log(`---------------------------------------------`);
+    console.log(`Total imports from mantine libraries: ${mantineTotal}`);
+    console.log(`-------------------------------------------------------`);
 });
