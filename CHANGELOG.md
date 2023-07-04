@@ -1,3 +1,29 @@
+# [0.650.0](https://github.com/lightdash/lightdash/compare/0.649.0...0.650.0) (2023-07-04)
+
+
+### Features
+
+* allow user to pass project name on cli deploy ([#6053](https://github.com/lightdash/lightdash/issues/6053)) ([7bff833](https://github.com/lightdash/lightdash/commit/7bff83389f16c629e3e2a324dd68d209702440e0))
+
+# [0.649.0](https://github.com/lightdash/lightdash/compare/0.648.0...0.649.0) (2023-07-04)
+
+
+### Bug Fixes
+
+* I should not be able to see the empty placeholder text in the field when it has already been populated  ([#6121](https://github.com/lightdash/lightdash/issues/6121)) ([70cd76d](https://github.com/lightdash/lightdash/commit/70cd76de71854965a7e9fb09ada495c8cf6916ef)), closes [#5966](https://github.com/lightdash/lightdash/issues/5966)
+
+
+### Features
+
+* pie charts hide legend option ([#6118](https://github.com/lightdash/lightdash/issues/6118)) ([f0876cb](https://github.com/lightdash/lightdash/commit/f0876cb9019dbef278fe12df65f3a19861d46a4d))
+
+# [0.648.0](https://github.com/lightdash/lightdash/compare/0.647.0...0.648.0) (2023-07-04)
+
+
+### Features
+
+* support `--vars` option in the CLI ([#6099](https://github.com/lightdash/lightdash/issues/6099)) ([fd55dea](https://github.com/lightdash/lightdash/commit/fd55dea91801929e0c4765b7c593979c39f57713))
+
 # [0.647.0](https://github.com/lightdash/lightdash/compare/0.646.1...0.647.0) (2023-07-04)
 
 
