@@ -94,6 +94,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
         case FilterOperator.LESS_THAN:
         case FilterOperator.LESS_THAN_OR_EQUAL:
         case FilterOperator.IN_THE_PAST:
+        case FilterOperator.NOT_IN_THE_PAST:
         case FilterOperator.IN_THE_NEXT:
         case FilterOperator.IN_THE_CURRENT:
         case FilterOperator.IN_BETWEEN:

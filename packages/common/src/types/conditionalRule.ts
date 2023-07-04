@@ -12,6 +12,7 @@ export enum ConditionalOperator {
     GREATER_THAN = 'greaterThan',
     GREATER_THAN_OR_EQUAL = 'greaterThanOrEqual',
     IN_THE_PAST = 'inThePast',
+    NOT_IN_THE_PAST = 'notInThePast',
     IN_THE_NEXT = 'inTheNext',
     IN_THE_CURRENT = 'inTheCurrent',
     IN_BETWEEN = 'inBetween',

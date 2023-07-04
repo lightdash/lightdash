@@ -43,6 +43,7 @@ const filterOperatorLabel: Record<FilterOperator, string> = {
     [FilterOperator.GREATER_THAN]: 'is greater than',
     [FilterOperator.GREATER_THAN_OR_EQUAL]: 'is greater than or equal',
     [FilterOperator.IN_THE_PAST]: 'in the last',
+    [FilterOperator.NOT_IN_THE_PAST]: 'not in the last',
     [FilterOperator.IN_THE_NEXT]: 'in the next',
     [FilterOperator.IN_THE_CURRENT]: 'in the current',
     [FilterOperator.IN_BETWEEN]: 'is between',
@@ -66,6 +67,7 @@ const timeFilterOptions: Array<{
         FilterOperator.EQUALS,
         FilterOperator.NOT_EQUALS,
         FilterOperator.IN_THE_PAST,
+        FilterOperator.NOT_IN_THE_PAST,
         FilterOperator.IN_THE_NEXT,
         FilterOperator.IN_THE_CURRENT,
     ]),
@@ -143,6 +145,7 @@ const getValueAsString = (
         case FilterType.DATE:
             switch (operator) {
                 case FilterOperator.IN_THE_PAST:
+                case FilterOperator.NOT_IN_THE_PAST:
                 case FilterOperator.IN_THE_NEXT:
                     if (!isFilterRule(rule)) throw new Error('Invalid rule');
 
