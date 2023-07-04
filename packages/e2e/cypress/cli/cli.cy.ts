@@ -6,6 +6,14 @@ const cliCommand = `lightdash`;
 describe('CLI', () => {
     const previewName = `e2e preview ${new Date().getTime()}`;
     let projectToDelete: string;
+    const databaseEnvVars = {
+        PGHOST: Cypress.env('PGHOST') || 'localhost',
+        PGPORT: 5432,
+        PGUSER: 'postgres',
+        PGPASSWORD: Cypress.env('PGPASSWORD') || 'password',
+        PGDATABASE: 'postgres',
+        SEED_SCHEMA: Cypress.env('SEED_SCHEMA') || 'jaffle',
+    };
 
     after(() => {
         if (projectToDelete) {
@@ -33,13 +41,7 @@ describe('CLI', () => {
             ` dbt run --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
             {
                 failOnNonZeroExit: false,
-                env: {
-                    PGHOST: Cypress.env('PGHOST') || 'localhost',
-                    PGPORT: 5432,
-                    PGUSER: 'postgres',
-                    PGPASSWORD: Cypress.env('PGPASSWORD') || 'password',
-                    PGDATABASE: 'postgres',
-                },
+                env: databaseEnvVars,
             },
         )
             .its('stdout')
@@ -54,11 +56,7 @@ describe('CLI', () => {
                 env: {
                     CI: true,
                     NODE_ENV: 'development',
-                    PGHOST: Cypress.env('PGHOST') || 'localhost',
-                    PGPORT: 5432,
-                    PGUSER: 'postgres',
-                    PGPASSWORD: Cypress.env('PGPASSWORD') || 'password',
-                    PGDATABASE: 'postgres',
+                    ...databaseEnvVars,
                 },
             },
         )
@@ -74,11 +72,7 @@ describe('CLI', () => {
                 env: {
                     CI: true,
                     NODE_ENV: 'development',
-                    PGHOST: Cypress.env('PGHOST') || 'localhost',
-                    PGPORT: 5432,
-                    PGUSER: 'postgres',
-                    PGPASSWORD: Cypress.env('PGPASSWORD') || 'password',
-                    PGDATABASE: 'postgres',
+                    ...databaseEnvVars,
                 },
             },
         )
@@ -94,11 +88,7 @@ describe('CLI', () => {
                 env: {
                     CI: true,
                     NODE_ENV: 'development',
-                    PGHOST: Cypress.env('PGHOST') || 'localhost',
-                    PGPORT: 5432,
-                    PGUSER: 'postgres',
-                    PGPASSWORD: Cypress.env('PGPASSWORD') || 'password',
-                    PGDATABASE: 'postgres',
+                    ...databaseEnvVars,
                 },
             },
         ).then((result) => {
@@ -136,11 +126,7 @@ describe('CLI', () => {
                         NODE_ENV: 'development',
                         LIGHTDASH_API_KEY: apiToken,
                         LIGHTDASH_URL: lightdashUrl,
-                        PGHOST: Cypress.env('PGHOST') || 'localhost',
-                        PGPORT: 5432,
-                        PGUSER: 'postgres',
-                        PGPASSWORD: Cypress.env('PGPASSWORD') || 'password',
-                        PGDATABASE: 'postgres',
+                        ...databaseEnvVars,
                     },
                 },
             ).then((result) => {
@@ -172,11 +158,7 @@ describe('CLI', () => {
                         NODE_ENV: 'development',
                         LIGHTDASH_API_KEY: apiToken,
                         LIGHTDASH_URL: lightdashUrl,
-                        PGHOST: Cypress.env('PGHOST') || 'localhost',
-                        PGPORT: 5432,
-                        PGUSER: 'postgres',
-                        PGPASSWORD: Cypress.env('PGPASSWORD') || 'password',
-                        PGDATABASE: 'postgres',
+                        ...databaseEnvVars,
                     },
                 },
             )
