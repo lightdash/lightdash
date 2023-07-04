@@ -44,7 +44,12 @@ const PieChartSeriesConfig: React.FC = () => {
             />
 
             {groupLabels.length === 0 ? null : (
-                <Stack spacing="xs" bg="gray.1" p="sm">
+                <Stack
+                    spacing="xs"
+                    bg="gray.1"
+                    p="sm"
+                    sx={(theme) => ({ borderRadius: theme.radius.sm })}
+                >
                     {groupLabels.map((groupLabel) => {
                         const color =
                             groupColorOverrides[groupLabel] ??
