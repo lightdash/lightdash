@@ -48,7 +48,6 @@ describe('DbtCliClient', () => {
     });
     it('should get manifest with success', async () => {
         execaMock.mockImplementationOnce(cliMockImplementation.success);
-
         jest.spyOn(fs, 'readFile').mockImplementationOnce(
             async () => dbtProjectYml,
         );
