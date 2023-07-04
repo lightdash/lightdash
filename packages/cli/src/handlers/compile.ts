@@ -45,7 +45,7 @@ export const compile = async (options: CompileHandlerOptions) => {
     if (!isSupportedDbtVersion(dbtVersion)) {
         if (process.env.CI === 'true') {
             console.error(
-                `Your dbt version ${dbtVersion} does not match our supported versions (1.3.0 - 1.4.*), this could cause problems on compile or validation.`,
+                `Your dbt version ${dbtVersion} does not match our supported versions (1.3.0 - 1.5.*), this could cause problems on compile or validation.`,
             );
         } else {
             const answers = await inquirer.prompt([
@@ -53,7 +53,7 @@ export const compile = async (options: CompileHandlerOptions) => {
                     type: 'confirm',
                     name: 'isConfirm',
                     message: `${styles.warning(
-                        `Your dbt version ${dbtVersion} does not match our supported version (1.3.0 - 1.4.*), this could cause problems on compile or validation.`,
+                        `Your dbt version ${dbtVersion} does not match our supported version (1.3.0 - 1.5.*), this could cause problems on compile or validation.`,
                     )}\nDo you still want to continue?`,
                 },
             ]);
