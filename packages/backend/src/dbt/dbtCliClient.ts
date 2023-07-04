@@ -1,5 +1,4 @@
 import {
-    assertUnreachable,
     DbtError,
     DbtLog,
     DbtManifestVersion,
@@ -14,7 +13,6 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import execa from 'execa';
-import { existsSync } from 'fs';
 import * as fs from 'fs/promises';
 import yaml, { dump as dumpYaml, load as loadYaml } from 'js-yaml';
 import path from 'path';
@@ -259,14 +257,8 @@ export class DbtCliClient implements DbtClient {
         version: DbtManifestVersion,
         filename: string,
     ): Promise<any> {
-        // There was a bug between dbt>=1.5.0 and <1.5.2 where the manifest was not being generated in the dir when using project-dir
-        // https://github.com/dbt-labs/dbt-core/releases/tag/v1.5.2
-        // https://github.com/dbt-labs/dbt-core/issues/7819
         const targetDir = await this._getTargetDirectory();
 
-        const pathVersion150 = path.join('.', targetDir, filename);
-        if (version === DbtManifestVersion.V9 && existsSync(pathVersion150))
-            return DbtCliClient.loadDbtFile(pathVersion150);
         const fullPath = path.join(
             this.dbtProjectDirectory,
             targetDir,
