@@ -1,5 +1,5 @@
 import { DbtManifest, DbtManifestVersion } from '@lightdash/common';
-import { promises as fs } from 'fs';
+import { existsSync, promises as fs } from 'fs';
 import * as path from 'path';
 import globalState from '../globalState';
 import { getDbtVersion } from '../handlers/dbt/getDbtVersion';
@@ -16,8 +16,13 @@ export const getDbtManifest = async (): Promise<DbtManifestVersion> => {
 
 export const getManifestPath = async (targetDir: string): Promise<string> => {
     const version = await getDbtVersion();
-    if (version.startsWith('1.5.'))
-        return path.join('./target', 'manifest.json');
+    // There was a bug between dbt>=1.5.0 and <1.5.2 where the manifest was not being generated in the dir when using project-dir
+    // https://github.com/dbt-labs/dbt-core/releases/tag/v1.5.2
+    // https://github.com/dbt-labs/dbt-core/issues/7819
+    const pathVersion150 = path.join('./target', 'manifest.json');
+    if (version.startsWith('1.5.') && existsSync(pathVersion150))
+        return pathVersion150;
+
     return path.join(targetDir, 'manifest.json');
 };
 
