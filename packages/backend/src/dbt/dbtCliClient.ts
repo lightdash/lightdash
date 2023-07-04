@@ -1,5 +1,4 @@
 import {
-    assertUnreachable,
     DbtError,
     DbtLog,
     DbtManifestVersion,
@@ -259,8 +258,9 @@ export class DbtCliClient implements DbtClient {
         filename: string,
     ): Promise<any> {
         const targetDir = await this._getTargetDirectory();
+
         const fullPath = path.join(
-            version === DbtManifestVersion.V9 ? '.' : this.dbtProjectDirectory,
+            this.dbtProjectDirectory,
             targetDir,
             filename,
         );
