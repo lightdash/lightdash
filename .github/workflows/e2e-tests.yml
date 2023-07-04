@@ -18,7 +18,7 @@ jobs:
       - name: Get deployment url
         id: deployment-url
         run: echo "url=https://lightdash-pr-${{steps.regex.outputs.first_match}}.onrender.com" >> "$GITHUB_OUTPUT"
-  prepare-dependencies:
+  prepare-build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -26,16 +26,18 @@ jobs:
 
       - name: Install packages/common modules
         run: yarn workspace @lightdash/common install
+      - name: Build packages/common module
+        run: yarn common-build
 
       - name: Save node_modules folder
         uses: actions/upload-artifact@v3
         with:
-          name: node_modules
+          name: common-build
           if-no-files-found: error
-          path: node_modules
+          path: packages/common/dist
   app-tests:
     runs-on: ubuntu-latest
-    needs: [prepare-preview,prepare-dependencies]
+    needs: [prepare-preview,prepare-build]
     container:
       image: cypress/browsers:node18.12.0-chrome107
       options: --user 1001
@@ -47,16 +49,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-      # Install and build Common package
-      - name: Download the node_modules folder
+      - name: Download the build folder
         uses: actions/download-artifact@v3
         with:
-          name: node_modules
-          path: node_modules
-      - name: Build packages/common module
-        run: yarn common-build
-      # Install NPM dependencies, cache them correctly
-      # and run all Cypress tests
+          name: common-build
+          path: packages/common/dist
       - name: create-json
         id: create-json
         uses: jsdaniell/create-json@1.1.2
@@ -103,7 +100,7 @@ jobs:
 
   timezone-tests:
     runs-on: ubuntu-latest
-    needs: [prepare-preview,prepare-dependencies]
+    needs: [prepare-preview,prepare-build]
     container:
       image: cypress/browsers:node18.12.0-chrome107
       options: --user 1001
@@ -115,16 +112,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-      # Install and build Common package
-      - name: Download the node_modules folder
+      - name: Download the build folder
         uses: actions/download-artifact@v3
         with:
-          name: node_modules
-          path: node_modules
-      - name: Build packages/common module
-        run: yarn common-build
-      # Install NPM dependencies, cache them correctly
-      # and run all Cypress tests
+          name: common-build
+          path: packages/common/dist
       - name: create-json
         id: create-json
         uses: jsdaniell/create-json@1.1.2
