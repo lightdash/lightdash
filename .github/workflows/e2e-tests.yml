@@ -6,7 +6,7 @@ jobs:
     if: ${{ github.event.deployment_status.state == 'success' && (contains(github.event.deployment.environment, '- lightdash PR ') || contains(github.event.deployment.environment, '- lightdash-')) }}
     runs-on: ubuntu-latest
     outputs:
-      deploymentUrl: ${{ steps.deployment-url.outputs.url }}
+      url: ${{ steps.deployment-url.outputs.url }}
     steps:
       - name: Get PR number
         id: regex
@@ -29,7 +29,7 @@ jobs:
       fail-fast: false
       matrix:
         containers: [ 1, 2, 3, 4, 5 ]
-    name: App e2e tests (${{ strategy.job-index }}/${{ strategy.job-total }})
+    name: App (${{ strategy.job-index + 1 }}/${{ strategy.job-total }})
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -94,7 +94,7 @@ jobs:
       fail-fast: false
       matrix:
         timezone: ['UTC', 'America/New_York', 'Europe/Madrid', 'Asia/Tokyo' ]
-    name: Timezone e2e tests (${{ matrix.timezone }})
+    name: Timezone (${{ matrix.timezone }})
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -128,7 +128,7 @@ jobs:
       - uses: actions/upload-artifact@v3
         if: failure()
         with:
-          name: cypress-screenshots-and-videos-${{ matrix.timezone }}
+          name: cypress-screenshots-and-videos-${{ matrix.timezone//\//- }}
           path: |
             packages/e2e/cypress/screenshots
             packages/e2e/cypress/videos
