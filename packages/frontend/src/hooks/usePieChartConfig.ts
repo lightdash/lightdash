@@ -9,6 +9,7 @@ import {
     isMetric,
     Metric,
     PieChart,
+    PieChartValueLabel,
     TableCalculation,
 } from '@lightdash/common';
 import { isEqual } from 'lodash-es';
@@ -16,14 +17,20 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 type PieChartConfig = {
     validPieChartConfig: PieChart;
-    isDonut: boolean;
-    toggleDonut: () => void;
+
+    groupFieldIds: (string | null)[];
     groupAdd: () => void;
     groupChange: (prevValue: any, newValue: any) => void;
     groupRemove: (dimensionId: any) => void;
-    groupFieldIds: (string | null)[];
+
     metricId: string | null;
     metricChange: (metricId: string | null) => void;
+
+    isDonut: boolean;
+    toggleDonut: () => void;
+
+    valueLabel: PieChartValueLabel;
+    valueLabelChange: (valueLabel: PieChartValueLabel) => void;
 };
 
 type PieChartConfigFn = (
@@ -51,10 +58,6 @@ const usePieChartConfig: PieChartConfigFn = (
                     : m.name,
             ),
         [allNumericMetrics],
-    );
-
-    const [isDonut, setIsDonut] = useState<boolean>(
-        pieChartConfig?.isDonut ?? false,
     );
 
     const [groupFieldIds, setGroupFieldIds] = useState<(string | null)[]>(
@@ -119,6 +122,14 @@ const usePieChartConfig: PieChartConfigFn = (
         });
     }, []);
 
+    const [isDonut, setIsDonut] = useState<boolean>(
+        pieChartConfig?.isDonut ?? false,
+    );
+
+    const [valueLabel, setValueLabel] = useState<PieChartValueLabel>(
+        pieChartConfig?.valueLabel ?? 'hidden',
+    );
+
     const validPieChartConfig: PieChart = useMemo(
         () => ({
             isDonut,
@@ -126,16 +137,14 @@ const usePieChartConfig: PieChartConfigFn = (
                 (id): id is string => id !== null,
             ),
             metricId: metricId ?? undefined,
+            valueLabel,
         }),
-        [isDonut, groupFieldIds, metricId],
+        [isDonut, groupFieldIds, metricId, valueLabel],
     );
 
     const values: PieChartConfig = useMemo(
         () => ({
             validPieChartConfig,
-
-            isDonut,
-            toggleDonut: () => setIsDonut((prev) => !prev),
 
             groupAdd: handleGroupAdd,
             groupChange: handleGroupChange,
@@ -144,11 +153,15 @@ const usePieChartConfig: PieChartConfigFn = (
 
             metricId,
             metricChange: setMetricId,
+
+            isDonut,
+            toggleDonut: () => setIsDonut((prev) => !prev),
+
+            valueLabel,
+            valueLabelChange: setValueLabel,
         }),
         [
             validPieChartConfig,
-
-            isDonut,
 
             handleGroupAdd,
             handleGroupChange,
@@ -157,6 +170,10 @@ const usePieChartConfig: PieChartConfigFn = (
             groupFieldIds,
 
             metricId,
+
+            isDonut,
+
+            valueLabel,
         ],
     );
 

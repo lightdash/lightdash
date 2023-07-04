@@ -5,7 +5,12 @@ const useEchartsPieConfig = () => {
     const context = useVisualizationContext();
     const {
         pieChartConfig: {
-            validPieChartConfig: { groupFieldIds, metricId, isDonut },
+            validPieChartConfig: {
+                groupFieldIds,
+                metricId,
+                isDonut,
+                valueLabel,
+            },
         },
         explore,
         resultsData,
@@ -59,15 +64,15 @@ const useEchartsPieConfig = () => {
                     type: 'pie',
                     radius: isDonut ? ['30%', '70%'] : '70%',
                     label: {
-                        show: false,
-                        position: 'outside',
+                        show: valueLabel !== 'hidden',
+                        position: valueLabel,
                         formatter: '{b}\n {d}%',
                     },
                     data,
                 },
             ],
         }),
-        [data, isDonut],
+        [data, isDonut, valueLabel],
     );
 
     if (!explore || !data || data.length === 0) {
