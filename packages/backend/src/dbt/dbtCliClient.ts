@@ -14,7 +14,8 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import execa from 'execa';
-import { existsSync, promises as fs } from 'fs';
+import { existsSync } from 'fs';
+import * as fs from 'fs/promises';
 import yaml, { dump as dumpYaml, load as loadYaml } from 'js-yaml';
 import path from 'path';
 import Logger from '../logging/logger';
@@ -266,7 +267,6 @@ export class DbtCliClient implements DbtClient {
         const pathVersion150 = path.join('.', targetDir, filename);
         if (version === DbtManifestVersion.V9 && existsSync(pathVersion150))
             return DbtCliClient.loadDbtFile(pathVersion150);
-
         const fullPath = path.join(
             this.dbtProjectDirectory,
             targetDir,
