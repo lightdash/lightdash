@@ -1,3 +1,15 @@
+# [0.649.0](https://github.com/lightdash/lightdash/compare/0.648.0...0.649.0) (2023-07-04)
+
+
+### Bug Fixes
+
+* I should not be able to see the empty placeholder text in the field when it has already been populated  ([#6121](https://github.com/lightdash/lightdash/issues/6121)) ([70cd76d](https://github.com/lightdash/lightdash/commit/70cd76de71854965a7e9fb09ada495c8cf6916ef)), closes [#5966](https://github.com/lightdash/lightdash/issues/5966)
+
+
+### Features
+
+* pie charts hide legend option ([#6118](https://github.com/lightdash/lightdash/issues/6118)) ([f0876cb](https://github.com/lightdash/lightdash/commit/f0876cb9019dbef278fe12df65f3a19861d46a4d))
+
 # [0.648.0](https://github.com/lightdash/lightdash/compare/0.647.0...0.648.0) (2023-07-04)
 
 
