@@ -1,3 +1,10 @@
+## [0.651.1](https://github.com/lightdash/lightdash/compare/0.651.0...0.651.1) (2023-07-04)
+
+
+### Bug Fixes
+
+* target dbt 1.5.2 ([#6132](https://github.com/lightdash/lightdash/issues/6132)) ([60a9c06](https://github.com/lightdash/lightdash/commit/60a9c065672ed9ee6fa70786d99b323c8e50c7b7))
+
 # [0.651.0](https://github.com/lightdash/lightdash/compare/0.650.0...0.651.0) (2023-07-04)
 
 
