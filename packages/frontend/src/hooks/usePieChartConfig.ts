@@ -15,6 +15,7 @@ import {
 } from '@lightdash/common';
 import isEqual from 'lodash-es/isEqual';
 import pick from 'lodash-es/pick';
+import uniq from 'lodash-es/uniq';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useOrganization } from './organization/useOrganization';
 
@@ -181,8 +182,10 @@ const usePieChartConfig: PieChartConfigFn = (
             return [];
         }
 
-        return resultsData.rows.map((row) =>
-            fieldIds.map((id) => row[id].value.formatted).join(' - '),
+        return uniq(
+            resultsData.rows.map((row) =>
+                fieldIds.map((id) => row[id]?.value?.formatted).join(' - '),
+            ),
         );
     }, [resultsData, explore, groupFieldIds]);
 
