@@ -185,6 +185,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                 />
             );
         case FilterOperator.IN_THE_PAST:
+        case FilterOperator.NOT_IN_THE_PAST:
         case FilterOperator.IN_THE_NEXT:
             const parsedValue = parseInt(rule.values?.[0], 10);
             return (

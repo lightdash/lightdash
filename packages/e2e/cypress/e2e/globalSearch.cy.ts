@@ -4,6 +4,7 @@ function search(query: string) {
     cy.findByRole('search').click();
     cy.findByRole('dialog')
         .findByPlaceholderText(/Search/)
+        .clear()
         .type(query);
 }
 
