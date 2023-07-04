@@ -404,7 +404,7 @@ program
 
     .option(
         '--create [project_name]',
-        'Create a new project on your organization. If the value is set, a project with this name will be created. If not, interactivelly set the project name.',
+        "Create a new project. If a project name is not provided, you'll be prompted for one on creation.",
         undefined,
     )
     .option('--ignore-errors', 'Allows deploy with errors on compile', false)

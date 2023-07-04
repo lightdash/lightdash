@@ -80,23 +80,24 @@ const createNewProject = async (
     });
     const dbtName = friendlyName(context.projectName);
 
-    // Get the project name
-    let projectName = dbtName;
-    if (process.env.CI !== 'true') {
-        // if the create flag is string, use it as the project name
-        if (typeof options.create === 'string') {
-            projectName = options.create;
-        } else {
-            // Otherwise, prompt the user for a name.
-            const answers = await inquirer.prompt([
-                {
-                    type: 'input',
-                    name: 'name',
-                    message: `Add a project name or press enter to use the default: [${dbtName}] `,
-                },
-            ]);
-            projectName = answers.name ? answers.name : dbtName;
-        }
+    // default project name
+    const defaultProjectName = dbtName;
+    let projectName = defaultProjectName;
+
+    // If interactive and no name provided, prompt for project name
+    if (options.create === true && process.env.CI !== 'true') {
+        const answers = await inquirer.prompt([
+            {
+                type: 'input',
+                name: 'name',
+                message: `Add a project name or press enter to use the default: [${defaultProjectName}] `,
+            },
+        ]);
+        projectName = answers.name ? answers.name : defaultProjectName;
+    } else if (typeof options.create === 'string') {
+        projectName = options.create;
+    } else {
+        throw new Error('Cannot create project without the project flag');
     }
 
     // Create the project
@@ -154,9 +155,6 @@ export const deployHandler = async (options: DeployHandlerOptions) => {
     let projectUuid: string;
 
     if (options.create !== undefined) {
-        // If the create flag is set, create a new project.
-        // The value of the create flag is either a string or a boolean.
-        // SEE https://github.com/tj/commander.js/blob/HEAD/examples/options-boolean-or-value.js
         const project = await createNewProject(options);
         if (!project) {
             console.error(
