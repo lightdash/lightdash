@@ -128,7 +128,7 @@ jobs:
       - uses: actions/upload-artifact@v3
         if: failure()
         with:
-          name: cypress-screenshots-and-videos-${{ matrix.timezone//\//- }}
+          name: cypress-screenshots-and-videos-${{ strategy.job-index }}
           path: |
             packages/e2e/cypress/screenshots
             packages/e2e/cypress/videos
