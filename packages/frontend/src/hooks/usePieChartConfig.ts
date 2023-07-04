@@ -134,7 +134,7 @@ const usePieChartConfig: PieChartConfigFn = (
     );
 
     const [showLegend, setShowLegend] = useState<boolean>(
-        pieChartConfig?.showLegend ?? false,
+        pieChartConfig?.showLegend ?? true,
     );
 
     const validPieChartConfig: PieChart = useMemo(
