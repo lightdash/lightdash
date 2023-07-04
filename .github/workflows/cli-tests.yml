@@ -29,7 +29,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Install packages/common modules
-        run: yarn workspace @lightdash/common install
+        run: yarn workspace @lightdash/common install --frozen-lockfile
       - name: Build packages/common module
         run: yarn common-build
       - name: Build packages/warehouses module
@@ -80,7 +80,7 @@ jobs:
           name: cli-build
           path: packages/cli/dist
       ## Install lightdash cli from source
-      - name: Build and install packages/cli module
+      - name: Install packages/cli module
         run: cd packages/cli && npm i -g
       - name: Test lightdash version
         run: |
