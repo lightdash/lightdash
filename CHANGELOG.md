@@ -1,3 +1,10 @@
+# [0.646.0](https://github.com/lightdash/lightdash/compare/0.645.0...0.646.0) (2023-07-04)
+
+
+### Features
+
+* pie charts donut option ([#6042](https://github.com/lightdash/lightdash/issues/6042)) ([7878b51](https://github.com/lightdash/lightdash/commit/7878b51f8626744a9727fbd29573afc845e0c10c))
+
 # [0.645.0](https://github.com/lightdash/lightdash/compare/0.644.1...0.645.0) (2023-07-03)
 
 
