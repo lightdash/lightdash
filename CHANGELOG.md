@@ -1,3 +1,66 @@
+# [0.647.0](https://github.com/lightdash/lightdash/compare/0.646.1...0.647.0) (2023-07-04)
+
+
+### Features
+
+* pie charts value label options ([#6091](https://github.com/lightdash/lightdash/issues/6091)) ([2bd0061](https://github.com/lightdash/lightdash/commit/2bd006194e36b7bf41065ab5c6e516dfbc11a67a))
+
+## [0.646.1](https://github.com/lightdash/lightdash/compare/0.646.0...0.646.1) (2023-07-04)
+
+
+### Bug Fixes
+
+* working chart on legend checkbox toggle ([#6130](https://github.com/lightdash/lightdash/issues/6130)) ([25c2018](https://github.com/lightdash/lightdash/commit/25c20186c08c1938c932846bafd41e05aba3f937))
+
+# [0.646.0](https://github.com/lightdash/lightdash/compare/0.645.0...0.646.0) (2023-07-04)
+
+
+### Features
+
+* pie charts donut option ([#6042](https://github.com/lightdash/lightdash/issues/6042)) ([7878b51](https://github.com/lightdash/lightdash/commit/7878b51f8626744a9727fbd29573afc845e0c10c))
+
+# [0.645.0](https://github.com/lightdash/lightdash/compare/0.644.1...0.645.0) (2023-07-03)
+
+
+### Features
+
+* pie charts echarts visualization ([#6041](https://github.com/lightdash/lightdash/issues/6041)) ([d4a24a8](https://github.com/lightdash/lightdash/commit/d4a24a83094f6bbcc1e78c6f4be6a0fe349d3913))
+
+## [0.644.1](https://github.com/lightdash/lightdash/compare/0.644.0...0.644.1) (2023-07-03)
+
+
+### Bug Fixes
+
+* adjust chart totals based on legends selected ([#6115](https://github.com/lightdash/lightdash/issues/6115)) ([cd4c027](https://github.com/lightdash/lightdash/commit/cd4c027f40b569037fb3d12aadec1d34dee600a0))
+
+# [0.644.0](https://github.com/lightdash/lightdash/compare/0.643.0...0.644.0) (2023-07-03)
+
+
+### Features
+
+* add description tooltip to table names when adding filters ([#6109](https://github.com/lightdash/lightdash/issues/6109)) ([95e579d](https://github.com/lightdash/lightdash/commit/95e579da0dead77ae7701de885a2d6417b8885e0)), closes [#6077](https://github.com/lightdash/lightdash/issues/6077)
+
+# [0.643.0](https://github.com/lightdash/lightdash/compare/0.642.0...0.643.0) (2023-07-03)
+
+
+### Features
+
+* improve json logging metadata for http requests ([#6111](https://github.com/lightdash/lightdash/issues/6111)) ([037ec19](https://github.com/lightdash/lightdash/commit/037ec19b97638d32c480ef39cf5059a4fee99175))
+
+# [0.642.0](https://github.com/lightdash/lightdash/compare/0.641.2...0.642.0) (2023-07-03)
+
+
+### Features
+
+* allow email domain projects roles ([#6086](https://github.com/lightdash/lightdash/issues/6086)) ([df2d9eb](https://github.com/lightdash/lightdash/commit/df2d9ebba57a8364f0b9a27d1008a0da11a6b668))
+
+## [0.641.2](https://github.com/lightdash/lightdash/compare/0.641.1...0.641.2) (2023-07-03)
+
+
+### Bug Fixes
+
+* tooltip appear to the right of table name ([#6100](https://github.com/lightdash/lightdash/issues/6100)) ([7e7e7f9](https://github.com/lightdash/lightdash/commit/7e7e7f9a9a17c51edee7778d0ed428ebdfbf1981))
+
 ## [0.641.1](https://github.com/lightdash/lightdash/compare/0.641.0...0.641.1) (2023-07-03)
 
 

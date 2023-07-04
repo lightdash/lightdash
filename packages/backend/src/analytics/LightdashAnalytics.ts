@@ -8,6 +8,7 @@ import {
     LightdashUser,
     OrganizationMemberRole,
     PinnedItem,
+    ProjectMemberRole,
     RequestMethod,
     SchedulerFormat,
     TableSelectionType,
@@ -181,6 +182,7 @@ type OrganizationAllowedEmailDomainUpdatedEvent = BaseTrack & {
         emailDomainsCount: number;
         role: OrganizationMemberRole;
         projectIds: string[];
+        projectRoles: ProjectMemberRole[];
     };
 };
 
