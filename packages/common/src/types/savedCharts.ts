@@ -67,6 +67,7 @@ export type PieChart = {
     metricId?: string;
     isDonut?: boolean;
     valueLabel?: PieChartValueLabel;
+    showLegend?: boolean;
 };
 
 export type PieChartConfig = {

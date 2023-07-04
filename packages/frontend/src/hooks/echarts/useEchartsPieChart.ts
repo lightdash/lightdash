@@ -10,6 +10,7 @@ const useEchartsPieConfig = () => {
                 metricId,
                 isDonut,
                 valueLabel,
+                showLegend,
             },
         },
         explore,
@@ -55,6 +56,7 @@ const useEchartsPieConfig = () => {
                 trigger: 'item',
             },
             legend: {
+                show: showLegend,
                 orient: 'horizontal',
                 left: 'center',
             },
@@ -72,7 +74,7 @@ const useEchartsPieConfig = () => {
                 },
             ],
         }),
-        [data, isDonut, valueLabel],
+        [data, isDonut, valueLabel, showLegend],
     );
 
     if (!explore || !data || data.length === 0) {

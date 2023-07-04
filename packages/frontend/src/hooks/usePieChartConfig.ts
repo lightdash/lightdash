@@ -31,6 +31,9 @@ type PieChartConfig = {
 
     valueLabel: PieChartValueLabel;
     valueLabelChange: (valueLabel: PieChartValueLabel) => void;
+
+    showLegend: boolean;
+    toggleShowLegend: () => void;
 };
 
 type PieChartConfigFn = (
@@ -130,6 +133,10 @@ const usePieChartConfig: PieChartConfigFn = (
         pieChartConfig?.valueLabel ?? 'hidden',
     );
 
+    const [showLegend, setShowLegend] = useState<boolean>(
+        pieChartConfig?.showLegend ?? false,
+    );
+
     const validPieChartConfig: PieChart = useMemo(
         () => ({
             isDonut,
@@ -138,8 +145,9 @@ const usePieChartConfig: PieChartConfigFn = (
             ),
             metricId: metricId ?? undefined,
             valueLabel,
+            showLegend,
         }),
-        [isDonut, groupFieldIds, metricId, valueLabel],
+        [isDonut, groupFieldIds, metricId, valueLabel, showLegend],
     );
 
     const values: PieChartConfig = useMemo(
@@ -159,6 +167,9 @@ const usePieChartConfig: PieChartConfigFn = (
 
             valueLabel,
             valueLabelChange: setValueLabel,
+
+            showLegend,
+            toggleShowLegend: () => setShowLegend((prev) => !prev),
         }),
         [
             validPieChartConfig,
@@ -174,6 +185,8 @@ const usePieChartConfig: PieChartConfigFn = (
             isDonut,
 
             valueLabel,
+
+            showLegend,
         ],
     );
 
