@@ -1,3 +1,10 @@
+# [0.648.0](https://github.com/lightdash/lightdash/compare/0.647.0...0.648.0) (2023-07-04)
+
+
+### Features
+
+* support `--vars` option in the CLI ([#6099](https://github.com/lightdash/lightdash/issues/6099)) ([fd55dea](https://github.com/lightdash/lightdash/commit/fd55dea91801929e0c4765b7c593979c39f57713))
+
 # [0.647.0](https://github.com/lightdash/lightdash/compare/0.646.1...0.647.0) (2023-07-04)
 
 
