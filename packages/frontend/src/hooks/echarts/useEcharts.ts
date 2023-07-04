@@ -1197,8 +1197,6 @@ const useEcharts = (validCartesianConfigLegend?: LegendValues) => {
 
     const { data: organizationData } = useOrganization();
 
-    console.log(validCartesianConfig);
-
     const [pivotedKeys, nonPivotedKeys] = useMemo(() => {
         if (
             resultsData &&
