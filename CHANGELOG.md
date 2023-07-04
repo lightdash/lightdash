@@ -1,3 +1,11 @@
+# [0.651.0](https://github.com/lightdash/lightdash/compare/0.650.0...0.651.0) (2023-07-04)
+
+
+### Features
+
+* improve error messages inside a new limit popover for results table  ([#6114](https://github.com/lightdash/lightdash/issues/6114)) ([9867ac3](https://github.com/lightdash/lightdash/commit/9867ac3157e39603c815bd59abbde659886edcb8)), closes [#5966](https://github.com/lightdash/lightdash/issues/5966)
+* not in the last filter ([#6126](https://github.com/lightdash/lightdash/issues/6126)) ([53f88f2](https://github.com/lightdash/lightdash/commit/53f88f21c094c8db89bcb40317c3490adb580a62))
+
 # [0.650.0](https://github.com/lightdash/lightdash/compare/0.649.0...0.650.0) (2023-07-04)
 
 
