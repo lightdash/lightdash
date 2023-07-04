@@ -29,7 +29,7 @@ jobs:
       fail-fast: false
       matrix:
         containers: [ 1, 2, 3, 4, 5 ]
-    name: App (${{ strategy.job-index + 1 }}/${{ strategy.job-total }})
+    name: App (${{ strategy.job-index }}/${{ strategy.job-total }})
     steps:
       - name: Checkout
         uses: actions/checkout@v3
