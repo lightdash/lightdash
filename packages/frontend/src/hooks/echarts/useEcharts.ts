@@ -4,6 +4,7 @@ import {
     CartesianSeriesType,
     convertAdditionalMetric,
     DimensionType,
+    EchartsLegend,
     ECHARTS_DEFAULT_COLORS,
     Field,
     findItem,
@@ -263,6 +264,18 @@ const removeEmptyProperties = <T = Record<any, any>>(obj: T | undefined) => {
                 : sum,
         {},
     );
+};
+
+const removeEmptyLegends = <T = Record<any, any>>(
+    obj: T | undefined,
+    legendsSelected: LegendValues,
+) => {
+    if (!obj) return undefined;
+    if ((obj as EchartsLegend).show) return undefined;
+    return {
+        show: false,
+        selected: legendsSelected,
+    };
 };
 
 const minDate = (a: number | string, b: string) => {
@@ -1184,6 +1197,8 @@ const useEcharts = (validCartesianConfigLegend?: LegendValues) => {
 
     const { data: organizationData } = useOrganization();
 
+    console.log(validCartesianConfig);
+
     const [pivotedKeys, nonPivotedKeys] = useMemo(() => {
         if (
             resultsData &&
@@ -1386,8 +1401,9 @@ const useEcharts = (validCartesianConfigLegend?: LegendValues) => {
             yAxis: axis.yAxis,
             useUTC: true,
             series: stackedSeries,
-            legend: removeEmptyProperties(
+            legend: removeEmptyLegends(
                 validCartesianConfig?.eChartsConfig.legend,
+                validCartesianConfigLegend,
             ) || {
                 show: series.length > 1,
                 type: 'scroll',
