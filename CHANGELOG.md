@@ -1,3 +1,10 @@
+# [0.650.0](https://github.com/lightdash/lightdash/compare/0.649.0...0.650.0) (2023-07-04)
+
+
+### Features
+
+* allow user to pass project name on cli deploy ([#6053](https://github.com/lightdash/lightdash/issues/6053)) ([7bff833](https://github.com/lightdash/lightdash/commit/7bff83389f16c629e3e2a324dd68d209702440e0))
+
 # [0.649.0](https://github.com/lightdash/lightdash/compare/0.648.0...0.649.0) (2023-07-04)
 
 
