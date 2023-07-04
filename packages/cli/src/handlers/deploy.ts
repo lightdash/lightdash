@@ -94,10 +94,10 @@ const createNewProject = async (
             },
         ]);
         projectName = answers.name ? answers.name : defaultProjectName;
-    } else if (typeof options.create === 'string') {
+    }
+    // If explicit name provided, use it
+    if (typeof options.create === 'string') {
         projectName = options.create;
-    } else {
-        throw new Error('Cannot create project without the project flag');
     }
 
     // Create the project
