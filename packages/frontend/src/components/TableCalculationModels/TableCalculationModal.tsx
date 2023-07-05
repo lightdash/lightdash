@@ -203,35 +203,19 @@ const TableCalculationFormatForm: FC<{
                             },
                             {
                                 value: NumberSeparator.COMMA_PERIOD,
-                                label:
-                                    formatType ===
-                                    TableCalculationFormatType.NUMBER
-                                        ? '100,000.00'
-                                        : '100,000.00%',
+                                label: '100,000.00',
                             },
                             {
                                 value: NumberSeparator.SPACE_PERIOD,
-                                label:
-                                    formatType ===
-                                    TableCalculationFormatType.NUMBER
-                                        ? '100 000.00'
-                                        : '100 000.00%',
+                                label: '100 000.00',
                             },
                             {
                                 value: NumberSeparator.PERIOD_COMMA,
-                                label:
-                                    formatType ===
-                                    TableCalculationFormatType.NUMBER
-                                        ? '100.000,00'
-                                        : '100.000,00%',
+                                label: '100.000,00',
                             },
                             {
                                 value: NumberSeparator.NO_SEPARATOR_PERIOD,
-                                label:
-                                    formatType ===
-                                    TableCalculationFormatType.NUMBER
-                                        ? '100.000,00'
-                                        : '100.000,00%',
+                                label: '100000.00',
                             },
                         ]}
                     />
