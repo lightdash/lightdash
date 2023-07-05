@@ -291,19 +291,17 @@ const VisualizationCardOptions: FC = memo(() => {
                     Scatter chart
                 </Menu.Item>
 
-                {localStorage.getItem('enablePieCharts') === 'true' && (
-                    <Menu.Item
-                        disabled={disabled}
-                        color={chartType === ChartType.PIE ? 'blue' : undefined}
-                        icon={<MantineIcon icon={IconChartPie} />}
-                        onClick={() => {
-                            setChartType(ChartType.PIE);
-                            setPivotDimensions(undefined);
-                        }}
-                    >
-                        Pie chart
-                    </Menu.Item>
-                )}
+                <Menu.Item
+                    disabled={disabled}
+                    color={chartType === ChartType.PIE ? 'blue' : undefined}
+                    icon={<MantineIcon icon={IconChartPie} />}
+                    onClick={() => {
+                        setChartType(ChartType.PIE);
+                        setPivotDimensions(undefined);
+                    }}
+                >
+                    Pie chart
+                </Menu.Item>
 
                 <Menu.Item
                     disabled={disabled}
