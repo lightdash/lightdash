@@ -49,6 +49,7 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
 
     const { data: spaces, isLoading: isLoadingSpaces } = useSpaceSummaries(
         projectUuid,
+        false,
         {
             onSuccess: (data) => {
                 if (data.length > 0) {
