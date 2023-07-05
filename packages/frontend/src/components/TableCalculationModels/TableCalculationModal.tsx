@@ -196,7 +196,7 @@ const TableCalculationFormatForm: FC<{
                         label="Separator style"
                         value={separator}
                         name="format.separator"
-                        data={[
+                       data={[
                             {
                                 value: NumberSeparator.DEFAULT,
                                 label: 'Default separator',
