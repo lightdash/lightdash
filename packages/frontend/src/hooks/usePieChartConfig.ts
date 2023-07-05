@@ -13,6 +13,7 @@ import {
     PieChartValueLabel,
     TableCalculation,
 } from '@lightdash/common';
+import { useDebouncedValue } from '@mantine/hooks';
 import isEqual from 'lodash-es/isEqual';
 import pick from 'lodash-es/pick';
 import uniq from 'lodash-es/uniq';
@@ -78,6 +79,11 @@ const usePieChartConfig: PieChartConfigFn = (
 
     const [groupLabelOverrides, setGroupLabelOverrides] = useState(
         pieChartConfig?.groupLabelOverrides ?? {},
+    );
+
+    const [debouncedGroupLabelOverrides] = useDebouncedValue(
+        groupLabelOverrides,
+        500,
     );
 
     const [groupColorOverrides, setGroupColorOverrides] = useState(
@@ -208,7 +214,10 @@ const usePieChartConfig: PieChartConfigFn = (
             metricId: metricId ?? undefined,
             valueLabel,
             showLegend,
-            groupLabelOverrides: pick(groupLabelOverrides, groupLabels),
+            groupLabelOverrides: pick(
+                debouncedGroupLabelOverrides,
+                groupLabels,
+            ),
             groupColorOverrides: pick(groupColorOverrides, groupLabels),
         }),
         [
@@ -218,7 +227,7 @@ const usePieChartConfig: PieChartConfigFn = (
             valueLabel,
             showLegend,
             groupLabels,
-            groupLabelOverrides,
+            debouncedGroupLabelOverrides,
             groupColorOverrides,
         ],
     );
