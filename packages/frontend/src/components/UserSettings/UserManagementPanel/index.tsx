@@ -37,6 +37,7 @@ import { EventName } from '../../../types/Events';
 import LoadingState from '../../common/LoadingState';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
+import ForbiddenPanel from '../../ForbiddenPanel';
 import InvitesModal from '../InvitesModal';
 import InviteSuccess from './InviteSuccess';
 
@@ -242,6 +243,10 @@ const UserManagementPanel: FC = () => {
     const [showInviteModal, setShowInviteModal] = useState(false);
     const { data: organizationUsers, isLoading } = useOrganizationUsers();
 
+    if (user.data?.ability.cannot('view', 'OrganizationMemberProfile')) {
+        return <ForbiddenPanel />;
+    }
+
     return (
         <Stack>
             <Group position="apart">
@@ -279,8 +284,15 @@ const UserManagementPanel: FC = () => {
                         <thead>
                             <tr>
                                 <th>User</th>
-                                <th>Role</th>
-                                <th></th>
+                                {user.data?.ability?.can(
+                                    'manage',
+                                    'OrganizationMemberProfile',
+                                ) && (
+                                    <>
+                                        <th>Role</th>
+                                        <th></th>
+                                    </>
+                                )}
                             </tr>
                         </thead>
                         <tbody>

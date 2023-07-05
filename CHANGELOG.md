@@ -1,3 +1,24 @@
+# [0.653.0](https://github.com/lightdash/lightdash/compare/0.652.0...0.653.0) (2023-07-05)
+
+
+### Features
+
+* allow admins to update/delete private spaces ([#6159](https://github.com/lightdash/lightdash/issues/6159)) ([73cecf6](https://github.com/lightdash/lightdash/commit/73cecf6fcff5fd6a6deb970d087f58212bc4e9cc))
+
+# [0.652.0](https://github.com/lightdash/lightdash/compare/0.651.2...0.652.0) (2023-07-05)
+
+
+### Features
+
+* pie charts colour and value labels ([#6139](https://github.com/lightdash/lightdash/issues/6139)) ([f6ecdf5](https://github.com/lightdash/lightdash/commit/f6ecdf5e693abcf2ba10555c030fdd08e92fb14f))
+
+## [0.651.2](https://github.com/lightdash/lightdash/compare/0.651.1...0.651.2) (2023-07-05)
+
+
+### Bug Fixes
+
+* fix user management permission table ([#6147](https://github.com/lightdash/lightdash/issues/6147)) ([ef75458](https://github.com/lightdash/lightdash/commit/ef754583e3f34814db051311cf6ba3e04969e7b7))
+
 ## [0.651.1](https://github.com/lightdash/lightdash/compare/0.651.0...0.651.1) (2023-07-04)
 
 
