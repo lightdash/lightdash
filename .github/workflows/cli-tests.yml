@@ -43,6 +43,19 @@ jobs:
           python-version: '3.7.x'
       - run: pip install dbt-postgres~=${{ matrix.dbt }}.0
 
+      ## DBT seed
+      - name: Seed DBT
+        run: dbt seed --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR --full-refresh
+        env:
+          PROJECT_DIR: "./examples/full-jaffle-shop-demo/dbt"
+          PROFILES_DIR: "./examples/full-jaffle-shop-demo/profiles"
+          PGHOST: ${{secrets.PGHOST}}
+          PGPASSWORD: ${{secrets.PGPASSWORD}}
+          PGPORT: 5432
+          PGUSER: postgres
+          PGDATABASE: postgres
+          SEED_SCHEMA: jaffle-${{strategy.job-index}}
+
       ## DBT run
       - name: Run DBT
         run: dbt run --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR
@@ -54,6 +67,7 @@ jobs:
           PGPORT: 5432
           PGUSER: postgres
           PGDATABASE: postgres
+          SEED_SCHEMA: jaffle-${{strategy.job-index}}
       ## Install packages and lightdash cli from source
       - name: Install packages/common modules
         run: yarn workspace @lightdash/common install
