@@ -1,3 +1,10 @@
+# [0.653.0](https://github.com/lightdash/lightdash/compare/0.652.0...0.653.0) (2023-07-05)
+
+
+### Features
+
+* allow admins to update/delete private spaces ([#6159](https://github.com/lightdash/lightdash/issues/6159)) ([73cecf6](https://github.com/lightdash/lightdash/commit/73cecf6fcff5fd6a6deb970d087f58212bc4e9cc))
+
 # [0.652.0](https://github.com/lightdash/lightdash/compare/0.651.2...0.652.0) (2023-07-05)
 
 
