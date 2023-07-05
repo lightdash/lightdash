@@ -9,7 +9,10 @@ import {
     Stack,
     TextInput,
 } from '@mantine/core';
+import { IconHash } from '@tabler/icons-react';
 import React from 'react';
+import { isHexCodeColor } from '../../utils/colorUtils';
+import MantineIcon from '../common/MantineIcon';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 
 const PieChartSeriesConfig: React.FC = () => {
@@ -55,6 +58,8 @@ const PieChartSeriesConfig: React.FC = () => {
                             groupColorOverrides[groupLabel] ??
                             groupColorDefaults[groupLabel];
 
+                        const isInvalidHexColor = !isHexCodeColor(color);
+
                         return (
                             <Group key={groupLabel} spacing="xs">
                                 <Input.Wrapper>
@@ -66,21 +71,54 @@ const PieChartSeriesConfig: React.FC = () => {
                                             />
                                         </Popover.Target>
                                         <Popover.Dropdown p="xs">
-                                            <ColorPicker
-                                                w="9xl"
-                                                format="hex"
-                                                swatches={defaultColors}
-                                                swatchesPerRow={
-                                                    defaultColors.length
-                                                }
-                                                value={color}
-                                                onChangeEnd={(newColor) => {
-                                                    groupColorChange(
-                                                        groupLabel,
-                                                        newColor,
-                                                    );
-                                                }}
-                                            />
+                                            <Stack spacing="xs">
+                                                <ColorPicker
+                                                    size="md"
+                                                    format="hex"
+                                                    swatches={defaultColors}
+                                                    swatchesPerRow={
+                                                        defaultColors.length
+                                                    }
+                                                    value={color}
+                                                    onChange={(newColor) => {
+                                                        groupColorChange(
+                                                            groupLabel,
+                                                            newColor,
+                                                        );
+                                                    }}
+                                                />
+
+                                                <TextInput
+                                                    icon={
+                                                        <MantineIcon
+                                                            icon={IconHash}
+                                                        />
+                                                    }
+                                                    placeholder="Type in a custom HEX color"
+                                                    error={
+                                                        isInvalidHexColor
+                                                            ? 'Invalid HEX color'
+                                                            : null
+                                                    }
+                                                    value={(
+                                                        groupColorOverrides[
+                                                            groupLabel
+                                                        ] ?? ''
+                                                    ).replace('#', '')}
+                                                    onChange={(event) => {
+                                                        const newColor =
+                                                            event.currentTarget
+                                                                .value;
+
+                                                        groupColorChange(
+                                                            groupLabel,
+                                                            newColor === ''
+                                                                ? newColor
+                                                                : `#${newColor}`,
+                                                        );
+                                                    }}
+                                                />
+                                            </Stack>
                                         </Popover.Dropdown>
                                     </Popover>
                                 </Input.Wrapper>

@@ -14,10 +14,12 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import { useDebouncedValue } from '@mantine/hooks';
+import { mapValues } from 'lodash-es';
 import isEqual from 'lodash-es/isEqual';
 import pick from 'lodash-es/pick';
 import uniq from 'lodash-es/uniq';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { isHexCodeColor } from '../utils/colorUtils';
 import { useOrganization } from './organization/useOrganization';
 
 type PieChartConfig = {
@@ -88,6 +90,11 @@ const usePieChartConfig: PieChartConfigFn = (
 
     const [groupColorOverrides, setGroupColorOverrides] = useState(
         pieChartConfig?.groupColorOverrides ?? {},
+    );
+
+    const [debouncedGroupColorOverrides] = useDebouncedValue(
+        groupColorOverrides,
+        500,
     );
 
     const [showLegend, setShowLegend] = useState<boolean>(
@@ -221,7 +228,11 @@ const usePieChartConfig: PieChartConfigFn = (
                 debouncedGroupLabelOverrides,
                 groupLabels,
             ),
-            groupColorOverrides: pick(groupColorOverrides, groupLabels),
+            groupColorOverrides: mapValues(
+                pick(debouncedGroupColorOverrides, groupLabels),
+                (color, label) =>
+                    isHexCodeColor(color) ? color : groupColorDefaults[label],
+            ),
         }),
         [
             isDonut,
@@ -231,7 +242,8 @@ const usePieChartConfig: PieChartConfigFn = (
             showLegend,
             groupLabels,
             debouncedGroupLabelOverrides,
-            groupColorOverrides,
+            groupColorDefaults,
+            debouncedGroupColorOverrides,
         ],
     );
 
