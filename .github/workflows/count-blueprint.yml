@@ -11,12 +11,13 @@ on:
 jobs:
   report:
     runs-on: ubuntu-latest
+    if: ${{ !github.event.pull_request.head.repo.fork }}
     permissions:
       pull-requests: write
     steps:
       - uses: actions/checkout@v2
       - name: Install deps
-        run: yarn 
+        run: yarn
       - name: Count blueprint imports
         run: |
           EOF="$(openssl rand -hex 8)"
