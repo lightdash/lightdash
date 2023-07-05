@@ -65,6 +65,29 @@ const usePieChartConfig: PieChartConfigFn = (
     allNumericMetrics,
 ) => {
     const { data } = useOrganization();
+
+    const [metricId, setMetricId] = useState(pieChartConfig?.metricId ?? null);
+
+    const [isDonut, setIsDonut] = useState<boolean>(
+        pieChartConfig?.isDonut ?? true,
+    );
+
+    const [valueLabel, setValueLabel] = useState<PieChartValueLabel>(
+        pieChartConfig?.valueLabel ?? 'hidden',
+    );
+
+    const [groupLabelOverrides, setGroupLabelOverrides] = useState(
+        pieChartConfig?.groupLabelOverrides ?? {},
+    );
+
+    const [groupColorOverrides, setGroupColorOverrides] = useState(
+        pieChartConfig?.groupColorOverrides ?? {},
+    );
+
+    const [showLegend, setShowLegend] = useState<boolean>(
+        pieChartConfig?.showLegend ?? true,
+    );
+
     const defaultColors = useMemo(
         () => data?.chartColors ?? ECHARTS_DEFAULT_COLORS,
         [data],
@@ -84,16 +107,6 @@ const usePieChartConfig: PieChartConfigFn = (
 
     const [groupFieldIds, setGroupFieldIds] = useState<Array<string | null>>(
         pieChartConfig?.groupFieldIds ?? [],
-    );
-
-    const [metricId, setMetricId] = useState(pieChartConfig?.metricId ?? null);
-
-    const [groupLabelOverrides, setGroupLabelOverrides] = useState(
-        pieChartConfig?.groupLabelOverrides ?? {},
-    );
-
-    const [groupColorOverrides, setGroupColorOverrides] = useState(
-        pieChartConfig?.groupColorOverrides ?? {},
     );
 
     const isLoading = !explore || !resultsData;
@@ -161,18 +174,6 @@ const usePieChartConfig: PieChartConfigFn = (
             return { ...prev, [key]: value === '' ? undefined : value };
         });
     }, []);
-
-    const [isDonut, setIsDonut] = useState<boolean>(
-        pieChartConfig?.isDonut ?? false,
-    );
-
-    const [valueLabel, setValueLabel] = useState<PieChartValueLabel>(
-        pieChartConfig?.valueLabel ?? 'hidden',
-    );
-
-    const [showLegend, setShowLegend] = useState<boolean>(
-        pieChartConfig?.showLegend ?? false,
-    );
 
     const groupLabels = useMemo(() => {
         const fieldIds = groupFieldIds.filter(
