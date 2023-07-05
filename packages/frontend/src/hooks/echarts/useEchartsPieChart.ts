@@ -76,6 +76,7 @@ const useEchartsPieConfig = () => {
                 show: showLegend,
                 orient: 'horizontal',
                 left: 'center',
+                type: 'scroll',
             },
 
             series: [
