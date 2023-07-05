@@ -80,6 +80,6 @@ jobs:
         env:
           CYPRESS_PGHOST: ${{secrets.PGHOST}}
           CYPRESS_PGPASSWORD: ${{secrets.PGPASSWORD}}
-          SEED_SCHEMA: jaffle-${{strategy.job-index}}
+          CYPRESS_SEED_SCHEMA: jaffle-${{strategy.job-index}}
 
 
