@@ -1,3 +1,10 @@
+# [0.652.0](https://github.com/lightdash/lightdash/compare/0.651.2...0.652.0) (2023-07-05)
+
+
+### Features
+
+* pie charts colour and value labels ([#6139](https://github.com/lightdash/lightdash/issues/6139)) ([f6ecdf5](https://github.com/lightdash/lightdash/commit/f6ecdf5e693abcf2ba10555c030fdd08e92fb14f))
+
 ## [0.651.2](https://github.com/lightdash/lightdash/compare/0.651.1...0.651.2) (2023-07-05)
 
 
