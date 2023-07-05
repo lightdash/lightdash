@@ -196,26 +196,42 @@ const TableCalculationFormatForm: FC<{
                         label="Separator style"
                         value={separator}
                         name="format.separator"
-                        data={[
+                       data={[
                             {
                                 value: NumberSeparator.DEFAULT,
                                 label: 'Default separator',
                             },
                             {
                                 value: NumberSeparator.COMMA_PERIOD,
-                                label: '100,000.00',
+                                label:
+                                    formatType ===
+                                    TableCalculationFormatType.NUMBER
+                                        ? '100,000.00'
+                                        : '100,000.00%',
                             },
                             {
                                 value: NumberSeparator.SPACE_PERIOD,
-                                label: '100 000.00',
+                                label:
+                                    formatType ===
+                                    TableCalculationFormatType.NUMBER
+                                        ? '100 000.00'
+                                        : '100 000.00%',
                             },
                             {
                                 value: NumberSeparator.PERIOD_COMMA,
-                                label: '100.000,00',
+                                label:
+                                    formatType ===
+                                    TableCalculationFormatType.NUMBER
+                                        ? '100.000,00'
+                                        : '100.000,00%',
                             },
                             {
                                 value: NumberSeparator.NO_SEPARATOR_PERIOD,
-                                label: '100000.00',
+                                label:
+                                    formatType ===
+                                    TableCalculationFormatType.NUMBER
+                                        ? '100.000,00'
+                                        : '100.000,00%',
                             },
                         ]}
                     />
