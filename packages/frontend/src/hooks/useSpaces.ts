@@ -21,7 +21,7 @@ const getSpaces = async (projectUuid: string) =>
         body: undefined,
     });
 
-export const useSpaces = (
+const useSpaces = (
     projectUuid: string,
     queryOptions?: UseQueryOptions<Space[], ApiError>,
 ) => {
@@ -32,9 +32,12 @@ export const useSpaces = (
     );
 };
 
-const getSpaceSummaries = async (projectUuid: string) => {
+const getSpaceSummaries = async (
+    projectUuid: string,
+    includePrivateSpaces: boolean,
+) => {
     return lightdashApi<SpaceSummary[]>({
-        url: `/projects/${projectUuid}/spaces`,
+        url: `/projects/${projectUuid}/spaces?includePrivateSpaces=${includePrivateSpaces}`,
         method: 'GET',
         body: undefined,
     });
@@ -42,11 +45,12 @@ const getSpaceSummaries = async (projectUuid: string) => {
 
 export const useSpaceSummaries = (
     projectUuid: string,
+    includePrivateSpaces: boolean = false,
     queryOptions?: UseQueryOptions<SpaceSummary[], ApiError>,
 ) => {
     return useQuery<SpaceSummary[], ApiError>(
-        ['projects', projectUuid, 'spaces'],
-        () => getSpaceSummaries(projectUuid),
+        ['projects', projectUuid, 'spaces', includePrivateSpaces],
+        () => getSpaceSummaries(projectUuid, includePrivateSpaces),
         { ...queryOptions },
     );
 };

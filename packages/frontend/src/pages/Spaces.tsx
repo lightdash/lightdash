@@ -5,10 +5,12 @@ import {
     spaceToResourceViewItem,
     wrapResourceView,
 } from '@lightdash/common';
-import { Button, Group, Stack } from '@mantine/core';
+import { Button, Group, Stack, Switch } from '@mantine/core';
+import { useToggle } from '@mantine/hooks';
 import { IconFolders, IconPlus } from '@tabler/icons-react';
 import { FC, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { Can } from '../components/common/Authorization';
 import LoadingState from '../components/common/LoadingState';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
@@ -20,15 +22,18 @@ import SpaceActionModal, {
 } from '../components/common/SpaceActionModal';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useProject } from '../hooks/useProject';
-import { useSpaces } from '../hooks/useSpaces';
+import { useSpaceSummaries } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
 import { PinnedItemsProvider } from '../providers/PinnedItemsProvider';
 
 const Spaces: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
-    const { data: spaces = [], isLoading: spaceIsLoading } =
-        useSpaces(projectUuid);
+    const [includePrivateSpaces, setIncludePrivateSpaces] = useToggle();
+    const { data: spaces = [], isLoading: spaceIsLoading } = useSpaceSummaries(
+        projectUuid,
+        includePrivateSpaces,
+    );
     const project = useProject(projectUuid);
     const isLoading = spaceIsLoading || project.isLoading;
 
@@ -97,6 +102,24 @@ const Spaces: FC = () => {
                         )}
                         headerProps={{
                             title: 'Spaces',
+                            action: (
+                                <Can
+                                    I="manage"
+                                    this={subject('Project', {
+                                        organizationUuid:
+                                            user.data?.organizationUuid,
+                                        projectUuid: projectUuid,
+                                    })}
+                                >
+                                    <Switch
+                                        label="Include all private spaces"
+                                        checked={includePrivateSpaces}
+                                        onChange={() =>
+                                            setIncludePrivateSpaces()
+                                        }
+                                    />
+                                </Can>
+                            ),
                         }}
                         emptyStateProps={{
                             icon: <IconFolders size={30} />,

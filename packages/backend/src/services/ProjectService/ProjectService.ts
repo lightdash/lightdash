@@ -1986,6 +1986,7 @@ export class ProjectService {
     async getSpaces(
         user: SessionUser,
         projectUuid: string,
+        includePrivateSpaces = false,
     ): Promise<SpaceSummary[]> {
         const { organizationUuid } = await this.projectModel.get(projectUuid);
         if (
@@ -1998,12 +1999,9 @@ export class ProjectService {
         }
 
         const spaces = await this.spaceModel.find({ projectUuid });
-        const allowedSpaces = spaces.filter(
-            (space) =>
-                space.projectUuid === projectUuid &&
-                (!space.isPrivate || space.access.includes(user.userUuid)),
+        const allowedSpaces = spaces.filter((space) =>
+            hasSpaceAccess(user, space, includePrivateSpaces),
         );
-
         return allowedSpaces;
     }
 
