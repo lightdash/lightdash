@@ -111,7 +111,7 @@ const usePieChartConfig: PieChartConfigFn = (
         [allNumericMetrics],
     );
 
-    const [groupFieldIds, setGroupFieldIds] = useState<Array<string | null>>(
+    const [groupFieldIds, setGroupFieldIds] = useState<string[]>(
         pieChartConfig?.groupFieldIds ?? [],
     );
 
@@ -120,8 +120,8 @@ const usePieChartConfig: PieChartConfigFn = (
     useEffect(() => {
         if (isLoading) return;
 
-        const newGroupFieldIds = groupFieldIds.filter(
-            (id) => id === null || dimensionIds.includes(id),
+        const newGroupFieldIds = groupFieldIds.filter((id) =>
+            dimensionIds.includes(id),
         );
 
         const firstDimensionId = dimensionIds[0];
@@ -154,9 +154,10 @@ const usePieChartConfig: PieChartConfigFn = (
     const handleGroupAdd = useCallback(() => {
         setGroupFieldIds((prev) => {
             const nextId = dimensionIds.find((id) => !prev.includes(id));
+            if (!nextId) return prev;
 
             const newSet = new Set(prev);
-            newSet.add(nextId ?? null);
+            newSet.add(nextId);
             return [...newSet.values()];
         });
     }, [dimensionIds]);
@@ -182,17 +183,21 @@ const usePieChartConfig: PieChartConfigFn = (
     }, []);
 
     const groupLabels = useMemo(() => {
-        const fieldIds = groupFieldIds.filter(
-            (id): id is string => id !== null,
-        );
-        if (!resultsData || !explore || !fieldIds || fieldIds.length === 0) {
+        if (
+            !resultsData ||
+            !explore ||
+            !groupFieldIds ||
+            groupFieldIds.length === 0
+        ) {
             return [];
         }
 
         return uniq(
-            resultsData.rows.map((row) =>
-                fieldIds.map((id) => row[id]?.value?.formatted).join(' - '),
-            ),
+            resultsData.rows.map((row) => {
+                return groupFieldIds
+                    .map((id) => row[id]?.value?.formatted)
+                    .join(' - ');
+            }),
         );
     }, [resultsData, explore, groupFieldIds]);
 
@@ -208,9 +213,7 @@ const usePieChartConfig: PieChartConfigFn = (
     const validPieChartConfig: PieChart = useMemo(
         () => ({
             isDonut,
-            groupFieldIds: Array.from(groupFieldIds).filter(
-                (id): id is string => id !== null,
-            ),
+            groupFieldIds,
             metricId: metricId ?? undefined,
             valueLabel,
             showLegend,
