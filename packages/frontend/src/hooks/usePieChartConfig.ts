@@ -14,8 +14,8 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import { useDebouncedValue } from '@mantine/hooks';
-import { mapValues } from 'lodash-es';
 import isEqual from 'lodash-es/isEqual';
+import mapValues from 'lodash-es/mapValues';
 import pick from 'lodash-es/pick';
 import uniq from 'lodash-es/uniq';
 import { useCallback, useEffect, useMemo, useState } from 'react';
