@@ -13,6 +13,7 @@ import {
 import { IconInfoCircle } from '@tabler/icons-react';
 import React, { useCallback, useMemo, useState } from 'react';
 import { useTableTabStyles } from '../../../hooks/styles/useTableTabStyles';
+import MantineIcon from '../MantineIcon';
 import ResourceActionHandlers, {
     ResourceViewItemAction,
     ResourceViewItemActionState,
@@ -31,6 +32,7 @@ type TabType = {
     id: string;
     name?: string;
     icon?: JSX.Element;
+    infoTooltipText?: string;
     sort?: (a: ResourceViewItem, b: ResourceViewItem) => number;
     filter?: (item: ResourceViewItem) => boolean;
 };
@@ -153,6 +155,25 @@ const ResourceView: React.FC<ResourceViewProps> = ({
                                                 key={tab.id}
                                                 icon={tab.icon}
                                                 value={tab.id}
+                                                rightSection={
+                                                    !!tab.infoTooltipText ? (
+                                                        <Tooltip
+                                                            label={
+                                                                tab.infoTooltipText
+                                                            }
+                                                            disabled={
+                                                                !tab.infoTooltipText
+                                                            }
+                                                        >
+                                                            <MantineIcon
+                                                                icon={
+                                                                    IconInfoCircle
+                                                                }
+                                                                color="gray.6"
+                                                            />
+                                                        </Tooltip>
+                                                    ) : null
+                                                }
                                             >
                                                 {tab.name ? (
                                                     <Text

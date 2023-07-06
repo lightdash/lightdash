@@ -1,3 +1,29 @@
+# [0.657.0](https://github.com/lightdash/lightdash/compare/0.656.0...0.657.0) (2023-07-06)
+
+
+### Features
+
+* rename admin spaces tab. Add tooltip. ([#6177](https://github.com/lightdash/lightdash/issues/6177)) ([3b2fe87](https://github.com/lightdash/lightdash/commit/3b2fe8771e9839972888600e4d61b54da8daebea))
+
+# [0.656.0](https://github.com/lightdash/lightdash/compare/0.655.0...0.656.0) (2023-07-06)
+
+
+### Bug Fixes
+
+* postgres query error ([#6173](https://github.com/lightdash/lightdash/issues/6173)) ([ed9a43f](https://github.com/lightdash/lightdash/commit/ed9a43f549db7750eef52ded7df79260dd7fdead))
+
+
+### Features
+
+* remove duplicated job scheduler ([#6167](https://github.com/lightdash/lightdash/issues/6167)) ([739b394](https://github.com/lightdash/lightdash/commit/739b394565568debfe2a819d0682b24e1318fdd9))
+
+# [0.655.0](https://github.com/lightdash/lightdash/compare/0.654.0...0.655.0) (2023-07-06)
+
+
+### Features
+
+* add usage tooltips to resource list ([#6163](https://github.com/lightdash/lightdash/issues/6163)) ([d2b4eac](https://github.com/lightdash/lightdash/commit/d2b4eacbb842cb456059f6877c39f3b3269c2c15))
+
 # [0.654.0](https://github.com/lightdash/lightdash/compare/0.653.0...0.654.0) (2023-07-06)
 
 

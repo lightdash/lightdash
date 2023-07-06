@@ -447,6 +447,17 @@ export class SchedulerModel {
             SchedulerModel.parseSchedulerLog,
         );
 
+        const sortedLogs = schedulerLogs.sort(SchedulerModel.sortLogs);
+        const uniqueLogs = sortedLogs.reduce<SchedulerLog[]>((acc, log) => {
+            if (
+                acc.some(
+                    (l) => l.jobGroup === log.jobGroup && l.task === log.task,
+                )
+            ) {
+                return acc;
+            }
+            return [...acc, log];
+        }, []);
         const users = await this.database(UserTableName)
             .select('first_name', 'last_name', 'user_uuid')
             .whereIn('user_uuid', userUuids);
@@ -472,7 +483,7 @@ export class SchedulerModel {
                 name: d.name,
                 dashboardUuid: d.dashboard_uuid,
             })),
-            logs: schedulerLogs.sort(SchedulerModel.sortLogs),
+            logs: uniqueLogs,
         };
     }
 

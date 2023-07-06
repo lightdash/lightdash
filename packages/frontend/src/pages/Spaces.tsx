@@ -122,7 +122,9 @@ const Spaces: FC = () => {
                                       },
                                       {
                                           id: 'all',
-                                          name: 'All spaces',
+                                          name: 'Admin Content View',
+                                          infoTooltipText:
+                                              'View all public and private spaces in your organization',
                                       },
                                   ]
                                 : []
