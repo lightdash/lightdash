@@ -40,4 +40,15 @@ Here's an overview of the fields used in the dashboard:
 
 ## Query tags
 
-Query tags are metadata which is added to your data warehouse queries and gives you information about who is querying data and what they are querying.
+Query tags are metadata which is added to your data warehouse queries and gives you information about the `user_id`, `project_id` and `organization_id` for each query executed.
+
+Query tags are stored differently in each data warehouse:
+
+| Data Warehouse | Query Tag                                                                                                                          | 
+|:---------------|:----------------------------------------------------------------------------------------------------------------------------------:|
+| BigQuery       | Persists in the `labels` parameter in your [job history](https://cloud.google.com/bigquery/docs/managing-jobs#view_job_details_2). |    
+| Snowflake      | Persists in the `labels` parameter in your query history.|
+| Trino          | Appends to the SQL in your query history. |    
+| Redshift       | Appends to the SQL in your query history. |  
+| Databricks     | Appends to the SQL in your query history. |  
+| Postgres       | Appends to the SQL in your query history. |  
