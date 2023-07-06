@@ -1,3 +1,10 @@
+# [0.655.0](https://github.com/lightdash/lightdash/compare/0.654.0...0.655.0) (2023-07-06)
+
+
+### Features
+
+* add usage tooltips to resource list ([#6163](https://github.com/lightdash/lightdash/issues/6163)) ([d2b4eac](https://github.com/lightdash/lightdash/commit/d2b4eacbb842cb456059f6877c39f3b3269c2c15))
+
 # [0.654.0](https://github.com/lightdash/lightdash/compare/0.653.0...0.654.0) (2023-07-06)
 
 
