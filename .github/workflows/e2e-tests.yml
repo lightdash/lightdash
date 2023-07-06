@@ -3,16 +3,15 @@ on: [ deployment_status ]
 jobs:
   prepare-preview:
     # Only trigger for correct environment and status
-    #if: ${{ github.event.deployment_status.state == 'success' && (contains(github.event.deployment.environment, '- lightdash PR ') || contains(github.event.deployment.environment, '- lightdash-')) }}
+    if: ${{ (contains(github.event.deployment.environment, '- lightdash PR ') || contains(github.event.deployment.environment, '- lightdash-')) }}
     runs-on: ubuntu-latest
     outputs:
       url: ${{ steps.deployment-url.outputs.url }}
     steps:
-      - name: is render available
-        if: false == ${{ github.event.deployment_status.state == 'success' && (contains(github.event.deployment.environment, '- lightdash PR ') || contains(github.event.deployment.environment, '- lightdash-')) }}
+      - name: is render ready
+        if: ${{ github.event.deployment_status.state != 'success' }}
         run: |
-          echo ${{ github.event.deployment_status.state }}
-          echo ${{ github.event.deployment.environment }}
+          echo "Render is not ready: ${{ github.event.deployment_status.state }}"
           exit 1
       - name: Get PR number
         id: regex
