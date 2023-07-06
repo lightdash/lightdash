@@ -1,4 +1,4 @@
-import { SchedulerLog, SchedulerWithLogs } from '@lightdash/common';
+import { SchedulerWithLogs } from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
@@ -70,21 +70,11 @@ const Logs: FC<LogsProps> = ({
         [openedUuids],
     );
 
-    const groupedLogs = useMemo(() => {
-        // Get only last log per job
-        // Logs should already by sorted by status and time
-        const uniqueLogs = logs.reduce<SchedulerLog[]>((acc, log) => {
-            if (
-                acc.some(
-                    (l) => l.jobGroup === log.jobGroup && l.task === log.task,
-                )
-            ) {
-                return acc;
-            }
-            return [...acc, log];
-        }, []);
-        return Object.entries(groupBy(uniqueLogs, 'jobGroup'));
-    }, [logs]);
+    const groupedLogs = useMemo(
+        () => Object.entries(groupBy(logs, 'jobGroup')),
+        [logs],
+    );
+
     const columns = useMemo<Column[]>(() => {
         return [
             {
@@ -205,7 +195,6 @@ const Logs: FC<LogsProps> = ({
                     );
                 },
             },
-
             {
                 id: 'deliveryScheduled',
                 label: 'Delivery scheduled',
