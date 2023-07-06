@@ -5,6 +5,7 @@ on:
 
 jobs:
   is-render-available: 
+    runs-on: ubuntu-latest
     steps: 
       - name: Is render available 
         run: |
