@@ -10,6 +10,7 @@ export const useTableStyles = createStyles((theme) => ({
             fontSize: theme.fontSizes.xs,
             color: theme.colors.gray[6],
             fontWeight: 600,
+            borderRadius: theme.radius.sm,
         },
 
         '& thead tr th, & tbody tr td': {
