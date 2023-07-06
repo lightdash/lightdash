@@ -99,7 +99,7 @@ const DashboardHeader = ({
     const userCanManageDashboard = user.data?.ability.can(
         'manage',
         subject('Dashboard', {
-            organizationUuid: user.data?.organizationUuid,
+            organizationUuid: dashboardUuid,
             projectUuid,
         }),
     );

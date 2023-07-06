@@ -239,7 +239,7 @@ const SavedChartsHeader: FC = () => {
                 {user.data?.ability?.can(
                     'manage',
                     subject('SavedChart', {
-                        organizationUuid: user.data?.organizationUuid,
+                        organizationUuid: savedChart?.organizationUuid,
                         projectUuid,
                     }),
                 ) && (

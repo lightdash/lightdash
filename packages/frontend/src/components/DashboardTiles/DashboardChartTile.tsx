@@ -436,7 +436,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                     user.data?.ability?.can(
                         'manage',
                         subject('Explore', {
-                            organizationUuid: user.data?.organizationUuid,
+                            organizationUuid: savedChartUuid,
                             projectUuid,
                         }),
                     ) && (

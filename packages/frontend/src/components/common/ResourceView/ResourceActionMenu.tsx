@@ -61,7 +61,6 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                 user.data?.ability?.cannot(
                     'manage',
                     subject('SavedChart', {
-                        organizationUuid: organizationUuid,
                         projectUuid,
                     }),
                 )
@@ -74,7 +73,6 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                 user.data?.ability?.cannot(
                     'manage',
                     subject('Dashboard', {
-                        organizationUuid: organizationUuid,
                         projectUuid,
                     }),
                 )
@@ -87,7 +85,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                 user.data?.ability?.cannot(
                     'manage',
                     subject('Space', {
-                        organizationUuid: organizationUuid,
+                        organizationUuid: item.data.organizationUuid,
                         projectUuid,
                     }),
                 )
