@@ -28,8 +28,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        containers: [ 1, 2, 3, 4, 5 ]
-    name: App (${{ strategy.job-index }}/${{ strategy.job-total }})
+        containers: [ 1, 2, 3 ]
+    name: App (${{ matrix.containers }}/${{ strategy.job-total }})
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -78,7 +78,7 @@ jobs:
       - uses: actions/upload-artifact@v3
         if: failure()
         with:
-          name: cypress-screenshots-and-videos-{{ strategy.job-index }}
+          name: cypress-screenshots-and-videos-${{ strategy.job-index }}
           path: |
             packages/e2e/cypress/screenshots
             packages/e2e/cypress/videos
@@ -93,7 +93,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        timezone: ['UTC', 'America/New_York', 'Europe/Madrid', 'Asia/Tokyo' ]
+        timezone: ['America/New_York', 'Europe/Madrid', 'Asia/Tokyo' ]
     name: Timezone (${{ matrix.timezone }})
     steps:
       - name: Checkout
