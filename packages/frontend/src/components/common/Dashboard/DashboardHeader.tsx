@@ -1,5 +1,6 @@
 import { Button, Classes, Divider, Intent, Menu } from '@blueprintjs/core';
 import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
+import { subject } from '@casl/ability';
 import { Dashboard, SpaceSummary, UpdatedByUser } from '@lightdash/common';
 import { IconDots, IconPencil } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
@@ -97,7 +98,10 @@ const DashboardHeader = ({
     const { user } = useApp();
     const userCanManageDashboard = user.data?.ability.can(
         'manage',
-        'Dashboard',
+        subject('Dashboard', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
     );
 
     return (

@@ -433,7 +433,13 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 isLoading={isLoading || isLoadingExplore}
                 extraMenuItems={
                     savedChartUuid !== null &&
-                    user.data?.ability?.can('manage', 'Explore') && (
+                    user.data?.ability?.can(
+                        'manage',
+                        subject('Explore', {
+                            organizationUuid: user.data?.organizationUuid,
+                            projectUuid,
+                        }),
+                    ) && (
                         <>
                             {user.data?.ability?.can(
                                 'manage',
