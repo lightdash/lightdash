@@ -1,3 +1,15 @@
+# [0.656.0](https://github.com/lightdash/lightdash/compare/0.655.0...0.656.0) (2023-07-06)
+
+
+### Bug Fixes
+
+* postgres query error ([#6173](https://github.com/lightdash/lightdash/issues/6173)) ([ed9a43f](https://github.com/lightdash/lightdash/commit/ed9a43f549db7750eef52ded7df79260dd7fdead))
+
+
+### Features
+
+* remove duplicated job scheduler ([#6167](https://github.com/lightdash/lightdash/issues/6167)) ([739b394](https://github.com/lightdash/lightdash/commit/739b394565568debfe2a819d0682b24e1318fdd9))
+
 # [0.655.0](https://github.com/lightdash/lightdash/compare/0.654.0...0.655.0) (2023-07-06)
 
 
