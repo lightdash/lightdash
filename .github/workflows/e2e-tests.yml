@@ -1,14 +1,6 @@
 name: End-to-end tests
 on: [ deployment_status ]
 jobs:
-  is-render-available: 
-    steps: 
-      - name: Is render available 
-        run: |
-          if [ ${{ github.event.deployment_status.state == 'success' && (contains(github.event.deployment.environment, '- lightdash PR ') || contains(github.event.deployment.environment, '- lightdash-')) }} ]; 
-          then exit 0
-          else exit 1
-          fi
   prepare-preview:
     # Only trigger for correct environment and status
     if: ${{ github.event.deployment_status.state == 'success' && (contains(github.event.deployment.environment, '- lightdash PR ') || contains(github.event.deployment.environment, '- lightdash-')) }}

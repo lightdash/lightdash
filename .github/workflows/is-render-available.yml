@@ -1,0 +1,14 @@
+name: Is render available
+
+on:
+  pull_request:
+
+jobs:
+  is-render-available: 
+    steps: 
+      - name: Is render available 
+        run: |
+          if [ ${{ github.event.deployment_status.state == 'success' && (contains(github.event.deployment.environment, '- lightdash PR ') || contains(github.event.deployment.environment, '- lightdash-')) }} ]; 
+          then exit 0
+          else exit 1
+          fi
