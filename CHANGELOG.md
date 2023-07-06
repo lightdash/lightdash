@@ -1,3 +1,10 @@
+# [0.657.0](https://github.com/lightdash/lightdash/compare/0.656.0...0.657.0) (2023-07-06)
+
+
+### Features
+
+* rename admin spaces tab. Add tooltip. ([#6177](https://github.com/lightdash/lightdash/issues/6177)) ([3b2fe87](https://github.com/lightdash/lightdash/commit/3b2fe8771e9839972888600e4d61b54da8daebea))
+
 # [0.656.0](https://github.com/lightdash/lightdash/compare/0.655.0...0.656.0) (2023-07-06)
 
 
