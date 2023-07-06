@@ -28,7 +28,7 @@ export const ResourceInfoPopup: FC<Props> = ({
             <HoverCard.Target>
                 <MantineIcon icon={IconInfoCircle} color="gray.6" />
             </HoverCard.Target>
-            <HoverCard.Dropdown maw={300}>
+            <HoverCard.Dropdown maw={300} onClick={(e) => e.preventDefault()}>
                 <div>
                     {description && (
                         <>
@@ -39,12 +39,14 @@ export const ResourceInfoPopup: FC<Props> = ({
                         </>
                     )}
                     <>
-                        {description && <Space h={8} />}
                         {withChartData && (
-                            <DashboardList
-                                resourceItemId={resourceUuid}
-                                projectUuid={projectUuid}
-                            />
+                            <>
+                                {description && <Space h={8} />}
+                                <DashboardList
+                                    resourceItemId={resourceUuid}
+                                    projectUuid={projectUuid}
+                                />
+                            </>
                         )}
                     </>
                 </div>
