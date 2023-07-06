@@ -10,7 +10,7 @@ import {
     isMetric,
     Metric,
     PieChart,
-    PieChartValueLabel,
+    PieChartLabelOptions,
     TableCalculation,
 } from '@lightdash/common';
 import { useDebouncedValue } from '@mantine/hooks';
@@ -36,12 +36,12 @@ type PieChartConfig = {
     isDonut: boolean;
     toggleDonut: () => void;
 
-    valueLabel: PieChartValueLabel;
-    valueLabelChange: (valueLabel: PieChartValueLabel) => void;
+    valueLabel: PieChartLabelOptions['valueLabel'];
+    valueLabelChange: (valueLabel: PieChartLabelOptions['valueLabel']) => void;
 
-    showValue: boolean;
+    showValue: PieChartLabelOptions['showValue'];
     toggleShowValue: () => void;
-    showPercentage: boolean;
+    showPercentage: PieChartLabelOptions['showPercentage'];
     toggleShowPercentage: () => void;
 
     defaultColors: string[];
@@ -52,6 +52,7 @@ type PieChartConfig = {
     groupColorOverrides: Record<string, string>;
     groupColorDefaults: Record<string, string>;
     groupColorChange: (prevValue: any, newValue: any) => void;
+    groupLabelOptionOverrides: Record<string, PieChartLabelOptions>;
 
     showLegend: boolean;
     toggleShowLegend: () => void;
@@ -76,19 +77,17 @@ const usePieChartConfig: PieChartConfigFn = (
 
     const [metricId, setMetricId] = useState(pieChartConfig?.metricId ?? null);
 
-    const [isDonut, setIsDonut] = useState<boolean>(
-        pieChartConfig?.isDonut ?? true,
-    );
+    const [isDonut, setIsDonut] = useState(pieChartConfig?.isDonut ?? true);
 
-    const [valueLabel, setValueLabel] = useState<PieChartValueLabel>(
+    const [valueLabel, setValueLabel] = useState(
         pieChartConfig?.valueLabel ?? 'hidden',
     );
 
-    const [showValue, setShowValue] = useState<boolean>(
+    const [showValue, setShowValue] = useState(
         pieChartConfig?.showValue ?? false,
     );
 
-    const [showPercentage, setShowPercentage] = useState<boolean>(
+    const [showPercentage, setShowPercentage] = useState(
         pieChartConfig?.showPercentage ?? false,
     );
 
@@ -110,7 +109,11 @@ const usePieChartConfig: PieChartConfigFn = (
         500,
     );
 
-    const [showLegend, setShowLegend] = useState<boolean>(
+    const [groupLabelOptionOverrides, setGroupLabelOptionOverrides] = useState(
+        pieChartConfig?.groupLabelOptionOverrides ?? {},
+    );
+
+    const [showLegend, setShowLegend] = useState(
         pieChartConfig?.showLegend ?? true,
     );
 
@@ -210,6 +213,15 @@ const usePieChartConfig: PieChartConfigFn = (
         });
     }, []);
 
+    const handleGroupLabelOptionChange = useCallback(
+        (label: string, value: Partial<PieChartLabelOptions>) => {
+            setGroupLabelOptionOverrides((prev) => {
+                return { ...prev, [label]: { ...prev[label], ...value } };
+            });
+        },
+        [],
+    );
+
     const groupLabels = useMemo(() => {
         if (
             !resultsData ||
@@ -289,7 +301,6 @@ const usePieChartConfig: PieChartConfigFn = (
 
             valueLabel,
             valueLabelChange: handleValueLabelChange,
-
             showValue,
             toggleShowValue: () => setShowValue((prev) => !prev),
             showPercentage,
@@ -303,6 +314,8 @@ const usePieChartConfig: PieChartConfigFn = (
             groupColorOverrides,
             groupColorDefaults,
             groupColorChange: handleGroupColorChange,
+            groupLabelOptionOverrides,
+            groupLabelOptionChange: handleGroupLabelOptionChange,
 
             showLegend,
             toggleShowLegend: () => setShowLegend((prev) => !prev),
@@ -321,7 +334,6 @@ const usePieChartConfig: PieChartConfigFn = (
 
             valueLabel,
             handleValueLabelChange,
-
             showValue,
             showPercentage,
 
@@ -333,6 +345,8 @@ const usePieChartConfig: PieChartConfigFn = (
             groupColorOverrides,
             groupColorDefaults,
             handleGroupColorChange,
+            groupLabelOptionOverrides,
+            handleGroupLabelOptionChange,
 
             showLegend,
         ],

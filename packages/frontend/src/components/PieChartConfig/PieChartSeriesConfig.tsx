@@ -1,5 +1,7 @@
 import { PieChartValueLabel, PieChartValueLabels } from '@lightdash/common';
 import {
+    ActionIcon,
+    Collapse,
     ColorPicker,
     ColorSwatch,
     Group,
@@ -11,13 +13,182 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine/core';
-import { IconHash } from '@tabler/icons-react';
-import React from 'react';
+import { useDisclosure } from '@mantine/hooks';
+import { IconChevronDown, IconChevronUp, IconHash } from '@tabler/icons-react';
+import { FC } from 'react';
 import { isHexCodeColor } from '../../utils/colorUtils';
 import MantineIcon from '../common/MantineIcon';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 
-const PieChartSeriesConfig: React.FC = () => {
+type LabelOptionsProps = {
+    inputLabel: string;
+    valueLabel: PieChartValueLabel;
+    onValueLabelChange: (newValueLabel: PieChartValueLabel) => void;
+    showValue: boolean;
+    onToggleShowValue: () => void;
+    showPercentage: boolean;
+    onToggleShowPercentage: () => void;
+};
+
+const LabelOptions: FC<LabelOptionsProps> = ({
+    inputLabel,
+    valueLabel,
+    showValue,
+    showPercentage,
+    onValueLabelChange,
+    onToggleShowValue,
+    onToggleShowPercentage,
+}) => {
+    return (
+        <>
+            <Select
+                label={inputLabel}
+                value={valueLabel}
+                data={Object.entries(PieChartValueLabels).map(
+                    ([value, label]) => ({
+                        value,
+                        label,
+                    }),
+                )}
+                onChange={(newValueLabel: PieChartValueLabel) => {
+                    onValueLabelChange(newValueLabel);
+                }}
+            />
+
+            <Tooltip
+                position="top-start"
+                disabled={valueLabel !== 'hidden'}
+                label="Enable value labels to configure this option"
+            >
+                <div>
+                    <Switch
+                        disabled={valueLabel === 'hidden'}
+                        checked={showValue}
+                        onChange={onToggleShowValue}
+                        label="Show value"
+                    />
+                </div>
+            </Tooltip>
+
+            <Tooltip
+                position="top-start"
+                disabled={valueLabel !== 'hidden'}
+                label="Enable value labels to configure this option"
+            >
+                <div>
+                    <Switch
+                        disabled={valueLabel === 'hidden'}
+                        checked={showPercentage}
+                        onChange={onToggleShowPercentage}
+                        label="Show percentage"
+                    />
+                </div>
+            </Tooltip>
+        </>
+    );
+};
+
+type GroupItemProps = {
+    defaultLabel: string;
+    label: string;
+    defaultColor: string;
+    color: string;
+    swatches: string[];
+    onColorChange: (newColor: string) => void;
+    onLabelChange: (newLabel: string) => void;
+};
+
+const GroupItem: FC<GroupItemProps> = ({
+    swatches,
+    defaultLabel,
+    label,
+    // defaultColor,
+    color,
+    onColorChange,
+    onLabelChange,
+}) => {
+    const isInvalidHexColor = !isHexCodeColor(color);
+    const [opened, { toggle }] = useDisclosure();
+
+    return (
+        <Stack spacing="xs">
+            <Group spacing="xs">
+                <Input.Wrapper>
+                    <Popover shadow="md" withArrow>
+                        <Popover.Target>
+                            <ColorSwatch color={color} />
+                        </Popover.Target>
+
+                        <Popover.Dropdown p="xs">
+                            <Stack spacing="xs">
+                                <ColorPicker
+                                    size="md"
+                                    format="hex"
+                                    swatches={swatches}
+                                    swatchesPerRow={swatches.length}
+                                    value={color}
+                                    onChange={onColorChange}
+                                />
+
+                                <TextInput
+                                    icon={<MantineIcon icon={IconHash} />}
+                                    placeholder="Type in a custom HEX color"
+                                    error={
+                                        isInvalidHexColor
+                                            ? 'Invalid HEX color'
+                                            : null
+                                    }
+                                    value={(color ?? '').replace('#', '')}
+                                    onChange={(event) => {
+                                        const newColor =
+                                            event.currentTarget.value;
+                                        onColorChange(
+                                            newColor === ''
+                                                ? newColor
+                                                : `#${newColor}`,
+                                        );
+                                    }}
+                                />
+                            </Stack>
+                        </Popover.Dropdown>
+                    </Popover>
+                </Input.Wrapper>
+
+                <TextInput
+                    sx={{ flexGrow: 1 }}
+                    placeholder={defaultLabel}
+                    value={label}
+                    onChange={(event) => {
+                        onLabelChange(event.currentTarget.value);
+                    }}
+                />
+
+                <ActionIcon>
+                    <MantineIcon
+                        icon={opened ? IconChevronUp : IconChevronDown}
+                        onClick={toggle}
+                    />
+                </ActionIcon>
+            </Group>
+
+            <Collapse in={opened}>
+                <Stack pb="md" px="xxl">
+                    <LabelOptions
+                        inputLabel="Value label"
+                        valueLabel="hidden"
+                        onValueLabelChange={() => {}}
+                        showValue={false}
+                        onToggleShowValue={() => {}}
+                        showPercentage={false}
+                        onToggleShowPercentage={() => {}}
+                    />
+                </Stack>
+            </Collapse>
+        </Stack>
+    );
+};
+
+const PieChartSeriesConfig: FC = () => {
     const {
         pieChartConfig: {
             defaultColors,
@@ -38,49 +209,15 @@ const PieChartSeriesConfig: React.FC = () => {
 
     return (
         <Stack>
-            <Select
-                label="Value labels"
-                value={valueLabel}
-                data={Object.entries(PieChartValueLabels).map(
-                    ([value, label]) => ({
-                        value,
-                        label,
-                    }),
-                )}
-                onChange={(newValueLabel: PieChartValueLabel) => {
-                    valueLabelChange(newValueLabel);
-                }}
+            <LabelOptions
+                inputLabel="Value label"
+                valueLabel={valueLabel}
+                onValueLabelChange={valueLabelChange}
+                showValue={showValue}
+                onToggleShowValue={toggleShowValue}
+                showPercentage={showPercentage}
+                onToggleShowPercentage={toggleShowPercentage}
             />
-
-            <Tooltip
-                position="top-start"
-                disabled={valueLabel !== 'hidden'}
-                label="Enable value labels to configure this option"
-            >
-                <div>
-                    <Switch
-                        disabled={valueLabel === 'hidden'}
-                        checked={showValue}
-                        onChange={toggleShowValue}
-                        label="Show value"
-                    />
-                </div>
-            </Tooltip>
-
-            <Tooltip
-                position="top-start"
-                disabled={valueLabel !== 'hidden'}
-                label="Enable value labels to configure this option"
-            >
-                <div>
-                    <Switch
-                        disabled={valueLabel === 'hidden'}
-                        checked={showPercentage}
-                        onChange={toggleShowPercentage}
-                        label="Show percentage"
-                    />
-                </div>
-            </Tooltip>
 
             {groupLabels.length === 0 ? null : (
                 <Stack
@@ -94,85 +231,21 @@ const PieChartSeriesConfig: React.FC = () => {
                             groupColorOverrides[groupLabel] ??
                             groupColorDefaults[groupLabel];
 
-                        const isInvalidHexColor = !isHexCodeColor(color);
-
                         return (
-                            <Group key={groupLabel} spacing="xs">
-                                <Input.Wrapper>
-                                    <Popover shadow="md" withArrow>
-                                        <Popover.Target>
-                                            <ColorSwatch
-                                                key={groupLabel}
-                                                color={color}
-                                            />
-                                        </Popover.Target>
-                                        <Popover.Dropdown p="xs">
-                                            <Stack spacing="xs">
-                                                <ColorPicker
-                                                    size="md"
-                                                    format="hex"
-                                                    swatches={defaultColors}
-                                                    swatchesPerRow={
-                                                        defaultColors.length
-                                                    }
-                                                    value={color}
-                                                    onChange={(newColor) => {
-                                                        groupColorChange(
-                                                            groupLabel,
-                                                            newColor,
-                                                        );
-                                                    }}
-                                                />
-
-                                                <TextInput
-                                                    icon={
-                                                        <MantineIcon
-                                                            icon={IconHash}
-                                                        />
-                                                    }
-                                                    placeholder="Type in a custom HEX color"
-                                                    error={
-                                                        isInvalidHexColor
-                                                            ? 'Invalid HEX color'
-                                                            : null
-                                                    }
-                                                    value={(
-                                                        groupColorOverrides[
-                                                            groupLabel
-                                                        ] ?? ''
-                                                    ).replace('#', '')}
-                                                    onChange={(event) => {
-                                                        const newColor =
-                                                            event.currentTarget
-                                                                .value;
-
-                                                        groupColorChange(
-                                                            groupLabel,
-                                                            newColor === ''
-                                                                ? newColor
-                                                                : `#${newColor}`,
-                                                        );
-                                                    }}
-                                                />
-                                            </Stack>
-                                        </Popover.Dropdown>
-                                    </Popover>
-                                </Input.Wrapper>
-
-                                <TextInput
-                                    sx={{ flexGrow: 1 }}
-                                    placeholder={groupLabel}
-                                    value={
-                                        groupLabelOverrides[groupLabel] ?? ''
-                                    }
-                                    onChange={(event) => {
-                                        groupLabelChange(
-                                            groupLabel,
-                                            event.currentTarget.value,
-                                        );
-                                    }}
-                                />
-                            </Group>
+                            <GroupItem
+                                key={groupLabel}
+                                defaultColor={groupColorDefaults[groupLabel]}
+                                defaultLabel={groupLabel}
+                                label={groupLabelOverrides[groupLabel] ?? ''}
+                                color={color}
+                                swatches={defaultColors}
+                                onLabelChange={(newLabel) => {
+                                    groupLabelChange(groupLabel, newLabel);
+                                }}
+                                onColorChange={(newColor) => {
+                                    groupColorChange(groupLabel, newColor);
+                                }}
+                            />
                         );
                     })}
                 </Stack>
