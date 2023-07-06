@@ -9,11 +9,8 @@ jobs:
       url: ${{ steps.deployment-url.outputs.url }}
     steps:
       - name: is render available
-        run: |
-          if [ ${{ github.event.deployment_status.state == 'success' && (contains(github.event.deployment.environment, '- lightdash PR ') || contains(github.event.deployment.environment, '- lightdash-')) }} ]
-          then exit 0
-          else exit 1
-          fi
+        if: false == ${{ github.event.deployment_status.state == 'success' && (contains(github.event.deployment.environment, '- lightdash PR ') || contains(github.event.deployment.environment, '- lightdash-')) }}
+        run: exit 1
       - name: Get PR number
         id: regex
         uses: AsasInnab/regex-action@v1
