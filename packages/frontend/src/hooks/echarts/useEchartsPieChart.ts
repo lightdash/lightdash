@@ -76,12 +76,19 @@ const useEchartsPieConfig = () => {
                 show: showLegend,
                 orient: 'horizontal',
                 left: 'center',
+                type: 'scroll',
             },
 
             series: [
                 {
                     type: 'pie',
                     radius: isDonut ? ['30%', '70%'] : '70%',
+                    center:
+                        showLegend && valueLabel === 'outside'
+                            ? ['50%', '55%']
+                            : showLegend
+                            ? ['50%', '52%']
+                            : ['50%', '50%'],
                     label: {
                         show: valueLabel !== 'hidden',
                         position: valueLabel,
