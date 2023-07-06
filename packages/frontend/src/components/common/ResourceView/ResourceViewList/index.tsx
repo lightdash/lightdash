@@ -17,6 +17,7 @@ import { useTableStyles } from '../../../../hooks/styles/useTableStyles';
 import { useSpaceSummaries } from '../../../../hooks/useSpaces';
 import { useValidationUserAbility } from '../../../../hooks/validation/useValidation';
 import { ResourceIcon, ResourceIndicator } from '../../ResourceIcon';
+import { ResourceInfoPopup } from '../../ResourceInfoPopup/ResourceInfoPopup';
 import {
     getResourceTypeName,
     getResourceUrl,
@@ -92,6 +93,8 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
             ? new Map(Object.entries(defaultColumnVisibility))
             : new Map(),
     );
+
+    const [hoveredItem, setHoveredItem] = useState<string>();
 
     const handleSort = (
         columnId: ColumnName,
@@ -183,19 +186,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                 )}
 
                                 <Stack spacing={2}>
-                                    <Tooltip
-                                        disabled={
-                                            canBelongToSpace
-                                                ? !item.data.description
-                                                : true
-                                        }
-                                        label={
-                                            canBelongToSpace
-                                                ? item.data.description
-                                                : undefined
-                                        }
-                                        position="top-start"
-                                    >
+                                    <Group spacing="xs">
                                         <Text
                                             fw={600}
                                             lineClamp={1}
@@ -203,8 +194,34 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                         >
                                             {item.data.name}
                                         </Text>
-                                    </Tooltip>
-
+                                        {!isResourceViewSpaceItem(item) &&
+                                            // If there is no description, don't show the info icon on dashboards.
+                                            // For charts we still show it for the dashboard list
+                                            (item.data.description ||
+                                                isResourceViewItemChart(
+                                                    item,
+                                                )) &&
+                                            canBelongToSpace &&
+                                            hoveredItem === item.data.uuid && (
+                                                <Box>
+                                                    <ResourceInfoPopup
+                                                        resourceUuid={
+                                                            item.data.uuid
+                                                        }
+                                                        projectUuid={
+                                                            projectUuid
+                                                        }
+                                                        description={
+                                                            item.data
+                                                                .description
+                                                        }
+                                                        withChartData={isResourceViewItemChart(
+                                                            item,
+                                                        )}
+                                                    />
+                                                </Box>
+                                            )}
+                                    </Group>
                                     {canBelongToSpace && (
                                         <Text fz={12} color="gray.6">
                                             {getResourceTypeName(item)} •{' '}
@@ -345,6 +362,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
             canUserManageValidation,
             spaces,
             onAction,
+            hoveredItem,
         ],
     );
 
@@ -447,6 +465,8 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                         onClick={() =>
                             history.push(getResourceUrl(projectUuid, item))
                         }
+                        onMouseEnter={() => setHoveredItem(item.data.uuid)}
+                        onMouseLeave={() => setHoveredItem(undefined)}
                     >
                         {visibleColumns.map((column) => (
                             <td key={column.id}>{column.cell(item)}</td>

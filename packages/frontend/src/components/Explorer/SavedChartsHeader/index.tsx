@@ -39,11 +39,11 @@ import {
 import SpaceInfo from '../../common/PageHeader/SpaceInfo';
 import { UpdatedInfo } from '../../common/PageHeader/UpdatedInfo';
 import ViewInfo from '../../common/PageHeader/ViewInfo';
+import { ResourceInfoPopup } from '../../common/ResourceInfoPopup/ResourceInfoPopup';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import ChartSchedulersModal from '../../SchedulerModals/ChartSchedulersModal';
 import { getSchedulerUuidFromUrlParams } from '../../SchedulerModals/SchedulerModalBase/SchedulerModalContent';
 import SaveChartButton from '../SaveChartButton';
-import { SavedChartInfoTooltip } from './SavedChartInfoTooltip';
 
 const SavedChartsHeader: FC = () => {
     const { search } = useLocation();
@@ -182,9 +182,11 @@ const SavedChartsHeader: FC = () => {
                             >
                                 <PageTitle>{savedChart.name}</PageTitle>
 
-                                <SavedChartInfoTooltip
+                                <ResourceInfoPopup
+                                    resourceUuid={savedChart.uuid}
                                     projectUuid={projectUuid}
-                                    savedChart={savedChart}
+                                    description={savedChart.description}
+                                    withChartData={true}
                                 />
 
                                 {isEditMode &&
