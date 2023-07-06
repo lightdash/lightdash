@@ -67,9 +67,11 @@ export type PieChart = {
     metricId?: string;
     isDonut?: boolean;
     valueLabel?: PieChartValueLabel;
-    showLegend?: boolean;
+    showValue?: boolean;
+    showPercentage?: boolean;
     groupLabelOverrides?: Record<string, string>;
     groupColorOverrides?: Record<string, string>;
+    showLegend?: boolean;
 };
 
 export type PieChartConfig = {

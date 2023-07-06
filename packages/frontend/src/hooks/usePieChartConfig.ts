@@ -39,6 +39,11 @@ type PieChartConfig = {
     valueLabel: PieChartValueLabel;
     valueLabelChange: (valueLabel: PieChartValueLabel) => void;
 
+    showValue: boolean;
+    toggleShowValue: () => void;
+    showPercentage: boolean;
+    toggleShowPercentage: () => void;
+
     defaultColors: string[];
 
     groupLabels: string[];
@@ -77,6 +82,14 @@ const usePieChartConfig: PieChartConfigFn = (
 
     const [valueLabel, setValueLabel] = useState<PieChartValueLabel>(
         pieChartConfig?.valueLabel ?? 'hidden',
+    );
+
+    const [showValue, setShowValue] = useState<boolean>(
+        pieChartConfig?.showValue ?? false,
+    );
+
+    const [showPercentage, setShowPercentage] = useState<boolean>(
+        pieChartConfig?.showPercentage ?? false,
     );
 
     const [groupLabelOverrides, setGroupLabelOverrides] = useState(
@@ -148,6 +161,14 @@ const usePieChartConfig: PieChartConfigFn = (
 
         setMetricId(allNumericMetricIds[0] ?? null);
     }, [isLoading, allNumericMetricIds, metricId, pieChartConfig?.metricId]);
+
+    const handleValueLabelChange = useCallback((value) => {
+        if (value === 'hidden') {
+            setShowValue(false);
+            setShowPercentage(false);
+        }
+        setValueLabel(value);
+    }, []);
 
     const handleGroupChange = useCallback((prevValue, newValue) => {
         setGroupFieldIds((prev) => {
@@ -223,7 +244,8 @@ const usePieChartConfig: PieChartConfigFn = (
             groupFieldIds,
             metricId: metricId ?? undefined,
             valueLabel,
-            showLegend,
+            showValue,
+            showPercentage,
             groupLabelOverrides: pick(
                 debouncedGroupLabelOverrides,
                 groupLabels,
@@ -233,17 +255,20 @@ const usePieChartConfig: PieChartConfigFn = (
                 (color, label) =>
                     isHexCodeColor(color) ? color : groupColorDefaults[label],
             ),
+            showLegend,
         }),
         [
             isDonut,
             groupFieldIds,
             metricId,
             valueLabel,
-            showLegend,
+            showValue,
+            showPercentage,
             groupLabels,
             debouncedGroupLabelOverrides,
             groupColorDefaults,
             debouncedGroupColorOverrides,
+            showLegend,
         ],
     );
 
@@ -263,7 +288,12 @@ const usePieChartConfig: PieChartConfigFn = (
             toggleDonut: () => setIsDonut((prev) => !prev),
 
             valueLabel,
-            valueLabelChange: setValueLabel,
+            valueLabelChange: handleValueLabelChange,
+
+            showValue,
+            toggleShowValue: () => setShowValue((prev) => !prev),
+            showPercentage,
+            toggleShowPercentage: () => setShowPercentage((prev) => !prev),
 
             defaultColors,
 
@@ -290,6 +320,10 @@ const usePieChartConfig: PieChartConfigFn = (
             isDonut,
 
             valueLabel,
+            handleValueLabelChange,
+
+            showValue,
+            showPercentage,
 
             defaultColors,
 

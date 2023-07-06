@@ -11,9 +11,11 @@ const useEchartsPieConfig = () => {
                 metricId,
                 isDonut,
                 valueLabel,
-                showLegend,
+                showValue,
+                showPercentage,
                 groupLabelOverrides,
                 groupColorOverrides,
+                showLegend,
             },
         },
         explore,
@@ -92,13 +94,20 @@ const useEchartsPieConfig = () => {
                     label: {
                         show: valueLabel !== 'hidden',
                         position: valueLabel,
-                        formatter: '{b}\n {d}%',
+                        formatter:
+                            showValue && showPercentage
+                                ? '{d}% - {c}'
+                                : showValue
+                                ? '{c}'
+                                : showPercentage
+                                ? '{d}%'
+                                : undefined,
                     },
                     data,
                 },
             ],
         }),
-        [data, isDonut, valueLabel, showLegend],
+        [data, isDonut, valueLabel, showLegend, showValue, showPercentage],
     );
 
     if (!explore || !data || data.length === 0) {

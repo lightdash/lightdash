@@ -7,7 +7,9 @@ import {
     Popover,
     Select,
     Stack,
+    Switch,
     TextInput,
+    Tooltip,
 } from '@mantine/core';
 import { IconHash } from '@tabler/icons-react';
 import React from 'react';
@@ -21,6 +23,10 @@ const PieChartSeriesConfig: React.FC = () => {
             defaultColors,
             valueLabel,
             valueLabelChange,
+            showValue,
+            toggleShowValue,
+            showPercentage,
+            toggleShowPercentage,
             groupLabels,
             groupLabelOverrides,
             groupLabelChange,
@@ -45,6 +51,36 @@ const PieChartSeriesConfig: React.FC = () => {
                     valueLabelChange(newValueLabel);
                 }}
             />
+
+            <Tooltip
+                position="top-start"
+                disabled={valueLabel !== 'hidden'}
+                label="Enable value labels to configure this option"
+            >
+                <div>
+                    <Switch
+                        disabled={valueLabel === 'hidden'}
+                        checked={showValue}
+                        onChange={toggleShowValue}
+                        label="Show value"
+                    />
+                </div>
+            </Tooltip>
+
+            <Tooltip
+                position="top-start"
+                disabled={valueLabel !== 'hidden'}
+                label="Enable value labels to configure this option"
+            >
+                <div>
+                    <Switch
+                        disabled={valueLabel === 'hidden'}
+                        checked={showPercentage}
+                        onChange={toggleShowPercentage}
+                        label="Show percentage"
+                    />
+                </div>
+            </Tooltip>
 
             {groupLabels.length === 0 ? null : (
                 <Stack
