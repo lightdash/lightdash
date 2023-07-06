@@ -156,7 +156,7 @@ export class SpaceService {
                     projectUuid: space.projectUuid,
                 }),
             ) ||
-            !hasSpaceAccess(user, space, false)
+            !hasSpaceAccess(user, space, true)
         ) {
             throw new ForbiddenError();
         }
@@ -196,7 +196,7 @@ export class SpaceService {
                     projectUuid: space.projectUuid,
                 }),
             ) ||
-            !hasSpaceAccess(user, space, false)
+            !hasSpaceAccess(user, space, true)
         ) {
             throw new ForbiddenError();
         }
@@ -227,7 +227,7 @@ export class SpaceService {
                     projectUuid: space.projectUuid,
                 }),
             ) ||
-            !hasSpaceAccess(user, space, false)
+            !hasSpaceAccess(user, space, true)
         ) {
             throw new ForbiddenError();
         }
@@ -249,7 +249,7 @@ export class SpaceService {
                     projectUuid: space.projectUuid,
                 }),
             ) ||
-            !hasSpaceAccess(user, space, false)
+            !hasSpaceAccess(user, space, true)
         ) {
             throw new ForbiddenError();
         }

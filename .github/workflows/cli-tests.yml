@@ -1,13 +1,16 @@
-name: CLI tests for DBT 1.3
+name: CLI tests
 on: [ deployment_status ]
 
 env:
   NODE_ENV: 'development'
+
 jobs:
-  cli-run:
+  prepare-preview:
     # Only trigger for correct environment and status
     if: ${{ github.event.deployment_status.state == 'success' && (contains(github.event.deployment.environment, '- lightdash PR ') || contains(github.event.deployment.environment, '- lightdash-')) }}
     runs-on: ubuntu-latest
+    outputs:
+      url: ${{ steps.deployment-url.outputs.url }}
     steps:
       - name: Get PR number
         id: regex
@@ -17,23 +20,41 @@ jobs:
           regex_flags: 'gm'
           search_string: ${{github.event.deployment.environment}}
       - name: Get deployment url
-        id: deployment_url
-        env:
-          DEPLOYMENT_URL: 'https://lightdash-pr-${{steps.regex.outputs.first_match}}.onrender.com'
-        run:
-          echo "::set-output name=url::$DEPLOYMENT_URL"
+        id: deployment-url
+        run: echo "url=https://lightdash-pr-${{steps.regex.outputs.first_match}}.onrender.com" >> "$GITHUB_OUTPUT"
+
+  cli-tests:
+    runs-on: ubuntu-latest
+    needs: prepare-preview
+    strategy:
+      fail-fast: false
+      matrix:
+        dbt: ['1.3', '1.4', '1.5' ]
+    name: dbt ${{ matrix.dbt }}
+    steps:
       - name: Checkout
         uses: actions/checkout@v3
         with:
           submodules: recursive  # Download DBT submodule
-      - name: Get lightdash version
-        uses: sergeysova/jq-action@v2
 
       ## Install pip
       - uses: actions/setup-python@v4
         with:
           python-version: '3.7.x'
-      - run: pip install dbt-postgres==1.3
+      - run: pip install dbt-postgres~=${{ matrix.dbt }}.0
+
+      ## DBT seed
+      - name: Seed DBT
+        run: dbt seed --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR --full-refresh
+        env:
+          PROJECT_DIR: "./examples/full-jaffle-shop-demo/dbt"
+          PROFILES_DIR: "./examples/full-jaffle-shop-demo/profiles"
+          PGHOST: ${{secrets.PGHOST}}
+          PGPASSWORD: ${{secrets.PGPASSWORD}}
+          PGPORT: 5432
+          PGUSER: postgres
+          PGDATABASE: postgres
+          SEED_SCHEMA: jaffle-${{strategy.job-index}}
 
       ## DBT run
       - name: Run DBT
@@ -46,6 +67,7 @@ jobs:
           PGPORT: 5432
           PGUSER: postgres
           PGDATABASE: postgres
+          SEED_SCHEMA: jaffle-${{strategy.job-index}}
       ## Install packages and lightdash cli from source
       - name: Install packages/common modules
         run: yarn workspace @lightdash/common install
@@ -56,7 +78,7 @@ jobs:
       - name: Build and install packages/cli module
         run: cd packages/cli && yarn build && npm i -g
       - name: Test lightdash version
-        run: | 
+        run: |
           lightdash_version=$(lightdash --version)
           package_version=$(yarn workspace @lightdash/cli versions | grep '@lightdash/cli' | cut -d"'" -f 4)
           if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi 
@@ -68,7 +90,10 @@ jobs:
           browser: chrome
           project: ./packages/e2e
           spec: packages/e2e/cypress/cli/**/*
-          config: 'baseUrl=${{steps.deployment_url.outputs.url}}'
+          config: 'baseUrl=${{needs.prepare-preview.outputs.url}}'
         env:
           CYPRESS_PGHOST: ${{secrets.PGHOST}}
           CYPRESS_PGPASSWORD: ${{secrets.PGPASSWORD}}
+          CYPRESS_SEED_SCHEMA: jaffle-${{strategy.job-index}}
+
+

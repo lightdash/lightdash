@@ -5,12 +5,15 @@ const useEchartsPieConfig = () => {
     const context = useVisualizationContext();
     const {
         pieChartConfig: {
+            groupColorDefaults,
             validPieChartConfig: {
                 groupFieldIds,
                 metricId,
                 isDonut,
                 valueLabel,
                 showLegend,
+                groupLabelOverrides,
+                groupColorOverrides,
             },
         },
         explore,
@@ -44,11 +47,25 @@ const useEchartsPieConfig = () => {
             }, {}),
         )
             .sort((a, b) => b[1] - a[1])
-            .map(([name, value]) => ({
-                name,
-                value,
-            }));
-    }, [groupFieldIds, metricId, resultsData]);
+            .map(([name, value]) => {
+                return {
+                    name: groupLabelOverrides?.[name] ?? name,
+                    value,
+                    itemStyle: {
+                        color:
+                            groupColorOverrides?.[name] ??
+                            groupColorDefaults?.[name],
+                    },
+                };
+            });
+    }, [
+        groupFieldIds,
+        metricId,
+        resultsData,
+        groupLabelOverrides,
+        groupColorOverrides,
+        groupColorDefaults,
+    ]);
 
     const eChartsOptions = useMemo(
         () => ({
@@ -59,12 +76,19 @@ const useEchartsPieConfig = () => {
                 show: showLegend,
                 orient: 'horizontal',
                 left: 'center',
+                type: 'scroll',
             },
 
             series: [
                 {
                     type: 'pie',
                     radius: isDonut ? ['30%', '70%'] : '70%',
+                    center:
+                        showLegend && valueLabel === 'outside'
+                            ? ['50%', '55%']
+                            : showLegend
+                            ? ['50%', '52%']
+                            : ['50%', '50%'],
                     label: {
                         show: valueLabel !== 'hidden',
                         position: valueLabel,

@@ -1,3 +1,38 @@
+# [0.654.0](https://github.com/lightdash/lightdash/compare/0.653.0...0.654.0) (2023-07-06)
+
+
+### Bug Fixes
+
+* show tooltip bellow the dashboard save button   ([#6160](https://github.com/lightdash/lightdash/issues/6160)) ([4e3ba64](https://github.com/lightdash/lightdash/commit/4e3ba64bd3d109ac10c883da29be9347dba09603)), closes [#5966](https://github.com/lightdash/lightdash/issues/5966)
+* the separator style options in number type for table calculation formatting shouldn't have % values ([#6146](https://github.com/lightdash/lightdash/issues/6146)) ([22b2aed](https://github.com/lightdash/lightdash/commit/22b2aed3161167e7cb60e798ba25405a1748d489)), closes [#5966](https://github.com/lightdash/lightdash/issues/5966)
+
+
+### Features
+
+* allow admins to list all private spaces ([#6161](https://github.com/lightdash/lightdash/issues/6161)) ([eaebe13](https://github.com/lightdash/lightdash/commit/eaebe13c014083bb1857d2057d064a03c9cc1624))
+* pie charts tweaks ([#6158](https://github.com/lightdash/lightdash/issues/6158)) ([6d34644](https://github.com/lightdash/lightdash/commit/6d34644bf3199e1a16046f53881d87ecfff04832))
+
+# [0.653.0](https://github.com/lightdash/lightdash/compare/0.652.0...0.653.0) (2023-07-05)
+
+
+### Features
+
+* allow admins to update/delete private spaces ([#6159](https://github.com/lightdash/lightdash/issues/6159)) ([73cecf6](https://github.com/lightdash/lightdash/commit/73cecf6fcff5fd6a6deb970d087f58212bc4e9cc))
+
+# [0.652.0](https://github.com/lightdash/lightdash/compare/0.651.2...0.652.0) (2023-07-05)
+
+
+### Features
+
+* pie charts colour and value labels ([#6139](https://github.com/lightdash/lightdash/issues/6139)) ([f6ecdf5](https://github.com/lightdash/lightdash/commit/f6ecdf5e693abcf2ba10555c030fdd08e92fb14f))
+
+## [0.651.2](https://github.com/lightdash/lightdash/compare/0.651.1...0.651.2) (2023-07-05)
+
+
+### Bug Fixes
+
+* fix user management permission table ([#6147](https://github.com/lightdash/lightdash/issues/6147)) ([ef75458](https://github.com/lightdash/lightdash/commit/ef754583e3f34814db051311cf6ba3e04969e7b7))
+
 ## [0.651.1](https://github.com/lightdash/lightdash/compare/0.651.0...0.651.1) (2023-07-04)
 
 

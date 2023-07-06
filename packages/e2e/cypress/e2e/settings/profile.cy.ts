@@ -18,13 +18,12 @@ describe('Settings - Profile', () => {
         });
     });
 
-    it('Should change name and email', () => {
+    it('should update user names', () => {
         cy.visit('/');
         cy.findByTestId('user-avatar').click();
         cy.findByRole('menuitem', { name: 'User settings' }).click();
         cy.get('[data-cy="first-name-input"]').clear().type('Kevin');
         cy.get('[data-cy="last-name-input"]').clear().type('Space');
-        cy.get('[data-cy="email-input"]').clear().type('kspace@lightdash.com');
         cy.get('[data-cy="update-profile-settings"]').click();
         cy.findByText('Success! User details were updated.').should(
             'be.visible',

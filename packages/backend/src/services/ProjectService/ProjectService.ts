@@ -1998,12 +1998,9 @@ export class ProjectService {
         }
 
         const spaces = await this.spaceModel.find({ projectUuid });
-        const allowedSpaces = spaces.filter(
-            (space) =>
-                space.projectUuid === projectUuid &&
-                (!space.isPrivate || space.access.includes(user.userUuid)),
+        const allowedSpaces = spaces.filter((space) =>
+            hasSpaceAccess(user, space, true),
         );
-
         return allowedSpaces;
     }
 

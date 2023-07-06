@@ -83,6 +83,16 @@ export class SpaceModel {
                     'projects.organization_id',
                 )
                 .leftJoin(
+                    PinnedSpaceTableName,
+                    `${PinnedSpaceTableName}.space_uuid`,
+                    `${SpaceTableName}.space_uuid`,
+                )
+                .leftJoin(
+                    PinnedListTableName,
+                    `${PinnedListTableName}.pinned_list_uuid`,
+                    `${PinnedSpaceTableName}.pinned_list_uuid`,
+                )
+                .leftJoin(
                     'space_share',
                     'space_share.space_id',
                     'spaces.space_id',
@@ -93,9 +103,12 @@ export class SpaceModel {
                     'shared_with.user_id',
                 )
                 .groupBy(
+                    `${PinnedListTableName}.pinned_list_uuid`,
+                    `${PinnedSpaceTableName}.order`,
                     'organizations.organization_uuid',
                     'projects.project_uuid',
                     'spaces.space_uuid',
+                    'spaces.space_id',
                 )
                 .select({
                     organizationUuid: 'organizations.organization_uuid',
@@ -106,6 +119,20 @@ export class SpaceModel {
                     access: this.database.raw(
                         "COALESCE(json_agg(shared_with.user_uuid) FILTER (WHERE shared_with.user_uuid IS NOT NULL), '[]')",
                     ),
+                    pinnedListUuid: `${PinnedListTableName}.pinned_list_uuid`,
+                    pinnedListOrder: `${PinnedSpaceTableName}.order`,
+                    chartCount: this.database
+                        .countDistinct(`${SavedChartsTableName}.saved_query_id`)
+                        .from(SavedChartsTableName)
+                        .whereRaw(
+                            `${SavedChartsTableName}.space_id = ${SpaceTableName}.space_id`,
+                        ),
+                    dashboardCount: this.database
+                        .countDistinct(`${DashboardsTableName}.dashboard_id`)
+                        .from(DashboardsTableName)
+                        .whereRaw(
+                            `${DashboardsTableName}.space_id = ${SpaceTableName}.space_id`,
+                        ),
                 });
             if (filters.projectUuid) {
                 query.where('projects.project_uuid', filters.projectUuid);
