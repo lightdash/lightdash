@@ -1932,6 +1932,7 @@ const models: TsoaRoute.Models = {
             'greaterThan',
             'greaterThanOrEqual',
             'inThePast',
+            'notInThePast',
             'inTheNext',
             'inTheCurrent',
             'inBetween',

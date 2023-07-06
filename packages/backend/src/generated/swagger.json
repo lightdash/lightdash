@@ -2214,6 +2214,7 @@
                     "greaterThan",
                     "greaterThanOrEqual",
                     "inThePast",
+                    "notInThePast",
                     "inTheNext",
                     "inTheCurrent",
                     "inBetween"
@@ -3675,7 +3676,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.640.1",
+        "version": "0.651.2",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"

@@ -101,8 +101,19 @@ const PieChartLayoutConfig: React.FC = () => {
                 })}
 
                 <Tooltip
-                    disabled={dimensions.length > 0}
-                    label="You must select at least one dimension to create a pie chart"
+                    disabled={
+                        !(
+                            dimensions.length === 0 ||
+                            groupFieldIds.length === dimensions.length
+                        )
+                    }
+                    label={
+                        dimensions.length === 0
+                            ? 'You must select at least one dimension to create a pie chart'
+                            : dimensions.length === groupFieldIds.length
+                            ? 'To add more groups you need to add more dimensions to your query'
+                            : undefined
+                    }
                 >
                     <Box w="fit-content">
                         <Button
@@ -112,7 +123,7 @@ const PieChartLayoutConfig: React.FC = () => {
                             variant="outline"
                             onClick={groupAdd}
                             disabled={
-                                groupFieldIds.includes(null) ||
+                                dimensions.length === 0 ||
                                 groupFieldIds.length === dimensions.length
                             }
                         >

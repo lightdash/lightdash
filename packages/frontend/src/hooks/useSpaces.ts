@@ -13,6 +13,7 @@ import {
 } from 'react-query';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
+import useUser from './user/useUser';
 
 const getSpaces = async (projectUuid: string) =>
     lightdashApi<Space[]>({
@@ -21,7 +22,7 @@ const getSpaces = async (projectUuid: string) =>
         body: undefined,
     });
 
-export const useSpaces = (
+const useSpaces = (
     projectUuid: string,
     queryOptions?: UseQueryOptions<Space[], ApiError>,
 ) => {
@@ -42,12 +43,25 @@ const getSpaceSummaries = async (projectUuid: string) => {
 
 export const useSpaceSummaries = (
     projectUuid: string,
+    includePrivateSpaces: boolean = false,
     queryOptions?: UseQueryOptions<SpaceSummary[], ApiError>,
 ) => {
+    const { data: user } = useUser(true);
     return useQuery<SpaceSummary[], ApiError>(
         ['projects', projectUuid, 'spaces'],
         () => getSpaceSummaries(projectUuid),
-        { ...queryOptions },
+        {
+            select: (data) =>
+                // only get spaces that the user has direct access to
+                !includePrivateSpaces
+                    ? data.filter(
+                          (space) =>
+                              !space.isPrivate ||
+                              (!!user && space.access.includes(user.userUuid)),
+                      )
+                    : data,
+            ...queryOptions,
+        },
     );
 };
 

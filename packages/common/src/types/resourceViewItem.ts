@@ -1,7 +1,7 @@
 import assertUnreachable from '../utils/assertUnreachable';
 import { DashboardBasicDetails } from './dashboard';
 import { SpaceQuery } from './savedCharts';
-import { Space } from './space';
+import { Space, SpaceSummary } from './space';
 
 export enum ResourceViewItemType {
     CHART = 'chart',
@@ -111,7 +111,7 @@ export const wrapResourceView = (
     resources.map((resource) => wrapResource(resource, type));
 
 export const spaceToResourceViewItem = (
-    space: Space,
+    space: SpaceSummary,
 ): ResourceViewSpaceItem['data'] => ({
     organizationUuid: space.organizationUuid,
     projectUuid: space.projectUuid,
@@ -121,7 +121,7 @@ export const spaceToResourceViewItem = (
     pinnedListUuid: space.pinnedListUuid,
     pinnedListOrder: space.pinnedListOrder,
     accessListLength: space.access.length,
-    dashboardCount: space.dashboards.length,
-    chartCount: space.queries.length,
-    access: space.access.map((access) => access.userUuid),
+    dashboardCount: space.dashboardCount,
+    chartCount: space.chartCount,
+    access: space.access,
 });
