@@ -1892,7 +1892,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder_": {
+            "Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -1906,15 +1906,6 @@
                     "projectUuid": {
                         "type": "string"
                     },
-                    "pinnedListUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "pinnedListOrder": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
-                    },
                     "isPrivate": {
                         "type": "boolean"
                     }
@@ -1924,8 +1915,6 @@
                     "organizationUuid",
                     "uuid",
                     "projectUuid",
-                    "pinnedListUuid",
-                    "pinnedListOrder",
                     "isPrivate"
                 ],
                 "type": "object",
@@ -1934,18 +1923,10 @@
             "SpaceSummary": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder_"
+                        "$ref": "#/components/schemas/Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate_"
                     },
                     {
                         "properties": {
-                            "dashboardCount": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "chartCount": {
-                                "type": "number",
-                                "format": "double"
-                            },
                             "access": {
                                 "items": {
                                     "type": "string"
@@ -1953,7 +1934,7 @@
                                 "type": "array"
                             }
                         },
-                        "required": ["dashboardCount", "chartCount", "access"],
+                        "required": ["access"],
                         "type": "object"
                     }
                 ]
@@ -4859,15 +4840,6 @@
                         "required": true,
                         "schema": {
                             "type": "string"
-                        }
-                    },
-                    {
-                        "description": "Whether to include all organization private spaces",
-                        "in": "query",
-                        "name": "includePrivateSpaces",
-                        "required": false,
-                        "schema": {
-                            "type": "boolean"
                         }
                     }
                 ]

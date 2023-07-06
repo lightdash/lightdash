@@ -5,12 +5,10 @@ import {
     spaceToResourceViewItem,
     wrapResourceView,
 } from '@lightdash/common';
-import { Button, Group, Stack, Switch } from '@mantine/core';
-import { useToggle } from '@mantine/hooks';
+import { Button, Group, Stack } from '@mantine/core';
 import { IconFolders, IconPlus } from '@tabler/icons-react';
 import { FC, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Can } from '../components/common/Authorization';
 import LoadingState from '../components/common/LoadingState';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
@@ -29,15 +27,22 @@ import { PinnedItemsProvider } from '../providers/PinnedItemsProvider';
 const Spaces: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
-    const [includePrivateSpaces, setIncludePrivateSpaces] = useToggle();
     const { data: spaces = [], isLoading: spaceIsLoading } = useSpaceSummaries(
         projectUuid,
-        includePrivateSpaces,
+        true,
     );
     const project = useProject(projectUuid);
     const isLoading = spaceIsLoading || project.isLoading;
 
     const { user, health } = useApp();
+
+    const userCanManageProject = user.data?.ability?.can(
+        'manage',
+        subject('Project', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid: projectUuid,
+        }),
+    );
 
     const hasSpaces = spaces.length > 0;
     const isDemo = health.data?.mode === LightdashMode.DEMO;
@@ -100,27 +105,35 @@ const Spaces: FC = () => {
                             spaces.map(spaceToResourceViewItem),
                             ResourceViewItemType.SPACE,
                         )}
-                        headerProps={{
-                            title: 'Spaces',
-                            action: (
-                                <Can
-                                    I="manage"
-                                    this={subject('Project', {
-                                        organizationUuid:
-                                            user.data?.organizationUuid,
-                                        projectUuid: projectUuid,
-                                    })}
-                                >
-                                    <Switch
-                                        label="Include all private spaces"
-                                        checked={includePrivateSpaces}
-                                        onChange={() =>
-                                            setIncludePrivateSpaces()
-                                        }
-                                    />
-                                </Can>
-                            ),
-                        }}
+                        tabs={
+                            userCanManageProject
+                                ? [
+                                      {
+                                          id: 'shared',
+                                          name: 'Shared with me',
+                                          filter: (item) =>
+                                              item.type ===
+                                                  ResourceViewItemType.SPACE &&
+                                              (!item.data.isPrivate ||
+                                                  (!!user.data &&
+                                                      item.data.access.includes(
+                                                          user.data.userUuid,
+                                                      ))),
+                                      },
+                                      {
+                                          id: 'all',
+                                          name: 'All spaces',
+                                      },
+                                  ]
+                                : []
+                        }
+                        headerProps={
+                            !userCanManageProject
+                                ? {
+                                      title: 'Spaces',
+                                  }
+                                : undefined
+                        }
                         emptyStateProps={{
                             icon: <IconFolders size={30} />,
                             title: 'No spaces added yet',

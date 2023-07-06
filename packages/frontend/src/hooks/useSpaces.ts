@@ -13,6 +13,7 @@ import {
 } from 'react-query';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
+import useUser from './user/useUser';
 
 const getSpaces = async (projectUuid: string) =>
     lightdashApi<Space[]>({
@@ -32,12 +33,9 @@ const useSpaces = (
     );
 };
 
-const getSpaceSummaries = async (
-    projectUuid: string,
-    includePrivateSpaces: boolean,
-) => {
+const getSpaceSummaries = async (projectUuid: string) => {
     return lightdashApi<SpaceSummary[]>({
-        url: `/projects/${projectUuid}/spaces?includePrivateSpaces=${includePrivateSpaces}`,
+        url: `/projects/${projectUuid}/spaces`,
         method: 'GET',
         body: undefined,
     });
@@ -48,10 +46,22 @@ export const useSpaceSummaries = (
     includePrivateSpaces: boolean = false,
     queryOptions?: UseQueryOptions<SpaceSummary[], ApiError>,
 ) => {
+    const { data: user } = useUser(true);
     return useQuery<SpaceSummary[], ApiError>(
-        ['projects', projectUuid, 'spaces', includePrivateSpaces],
-        () => getSpaceSummaries(projectUuid, includePrivateSpaces),
-        { ...queryOptions },
+        ['projects', projectUuid, 'spaces'],
+        () => getSpaceSummaries(projectUuid),
+        {
+            select: (data) =>
+                // only get spaces that the user has direct access to
+                !includePrivateSpaces
+                    ? data.filter(
+                          (space) =>
+                              !space.isPrivate ||
+                              (!!user && space.access.includes(user.userUuid)),
+                      )
+                    : data,
+            ...queryOptions,
+        },
     );
 };
 
