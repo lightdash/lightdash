@@ -17,9 +17,17 @@ export type Space = {
 
 export type SpaceSummary = Pick<
     Space,
-    'organizationUuid' | 'projectUuid' | 'uuid' | 'name' | 'isPrivate'
+    | 'organizationUuid'
+    | 'projectUuid'
+    | 'uuid'
+    | 'name'
+    | 'isPrivate'
+    | 'pinnedListUuid'
+    | 'pinnedListOrder'
 > & {
     access: string[];
+    chartCount: number;
+    dashboardCount: number;
 };
 
 export type CreateSpace = {
