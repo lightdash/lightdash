@@ -14,8 +14,9 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import { useDebouncedValue } from '@mantine/hooks';
+import isEmpty from 'lodash-es/isEmpty';
 import isEqual from 'lodash-es/isEqual';
-import mapValues from 'lodash-es/mapValues';
+import omitBy from 'lodash-es/omitBy';
 import pick from 'lodash-es/pick';
 import uniq from 'lodash-es/uniq';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -261,10 +262,13 @@ const usePieChartConfig: PieChartConfigFn = (
                 debouncedGroupLabelOverrides,
                 groupLabels,
             ),
-            groupColorOverrides: mapValues(
+            groupColorOverrides: omitBy(
                 pick(debouncedGroupColorOverrides, groupLabels),
-                (color, label) =>
-                    isHexCodeColor(color) ? color : groupColorDefaults[label],
+                isHexCodeColor,
+            ),
+            groupValueOptionOverrides: omitBy(
+                pick(groupValueOptionOverrides, groupLabels),
+                isEmpty,
             ),
             showLegend,
         }),
@@ -277,8 +281,8 @@ const usePieChartConfig: PieChartConfigFn = (
             showPercentage,
             groupLabels,
             debouncedGroupLabelOverrides,
-            groupColorDefaults,
             debouncedGroupColorOverrides,
+            groupValueOptionOverrides,
             showLegend,
         ],
     );

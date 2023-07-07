@@ -26,19 +26,31 @@ import { useVisualizationContext } from '../LightdashVisualization/Visualization
 
 type ValueOptionsProps = {
     inputLabel: string;
+
+    defaultValueLabel?: PieChartValueLabel;
+    defaultShowValue?: boolean;
+    defaultShowPercentage?: boolean;
+
     valueLabel: PieChartValueLabel;
-    onValueLabelChange: (newValueLabel: PieChartValueLabel) => void;
     showValue: boolean;
-    onToggleShowValue: (newValue: boolean) => void;
     showPercentage: boolean;
+
+    onValueLabelChange: (newValueLabel: PieChartValueLabel) => void;
+    onToggleShowValue: (newValue: boolean) => void;
     onToggleShowPercentage: (newValue: boolean) => void;
 };
 
 const ValueOptions: FC<ValueOptionsProps> = ({
     inputLabel,
-    valueLabel,
-    showValue,
-    showPercentage,
+
+    defaultShowPercentage,
+    defaultShowValue,
+    defaultValueLabel,
+
+    valueLabel = defaultValueLabel,
+    showValue = defaultShowValue,
+    showPercentage = defaultShowPercentage,
+
     onValueLabelChange,
     onToggleShowValue,
     onToggleShowPercentage,
@@ -93,10 +105,16 @@ const ValueOptions: FC<ValueOptionsProps> = ({
 );
 
 type GroupItemProps = {
-    swatches: string[];
     defaultColor: string;
-    color: string;
     defaultLabel: string;
+
+    defaultValueLabel: PieChartValueLabel;
+    defaultShowValue: boolean;
+    defaultShowPercentage: boolean;
+
+    swatches: string[];
+
+    color: string;
     label: string;
 
     valueLabel: PieChartValueLabel;
@@ -109,10 +127,16 @@ type GroupItemProps = {
 };
 
 const GroupItem: FC<GroupItemProps> = ({
-    swatches,
     defaultLabel,
-    label,
     defaultColor: _defaultColor,
+
+    defaultValueLabel,
+    defaultShowValue,
+    defaultShowPercentage,
+
+    swatches,
+
+    label,
     color,
 
     valueLabel,
@@ -197,6 +221,9 @@ const GroupItem: FC<GroupItemProps> = ({
             <Collapse in={opened}>
                 <Stack pb="md" px="xxl">
                     <ValueOptions
+                        defaultValueLabel={defaultValueLabel}
+                        defaultShowValue={defaultShowValue}
+                        defaultShowPercentage={defaultShowPercentage}
                         inputLabel="Value label"
                         valueLabel={valueLabel}
                         onValueLabelChange={(newValue) =>
@@ -270,8 +297,11 @@ const PieChartSeriesConfig: FC = () => {
                                 key={groupLabel}
                                 swatches={defaultColors}
                                 defaultColor={groupColorDefaults[groupLabel]}
-                                color={color}
                                 defaultLabel={groupLabel}
+                                defaultValueLabel={valueLabel}
+                                defaultShowValue={showValue}
+                                defaultShowPercentage={showPercentage}
+                                color={color}
                                 label={groupLabelOverrides[groupLabel] ?? ''}
                                 {...valueOptions}
                                 onLabelChange={(newLabel) => {
