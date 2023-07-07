@@ -12,7 +12,7 @@ const getLabelOptions = ({
         position: valueLabel,
         formatter:
             valueLabel !== 'hidden' && showValue && showPercentage
-                ? '{c} - {d}%'
+                ? '{d}% - {c}'
                 : showValue
                 ? '{c}'
                 : showPercentage
@@ -71,6 +71,18 @@ const useEchartsPieConfig = () => {
         )
             .sort((a, b) => b[1] - a[1])
             .map(([name, value]) => {
+                const labelOptions = getLabelOptions({
+                    valueLabel:
+                        groupValueOptionOverrides?.[name]?.valueLabel ??
+                        valueLabel,
+                    showValue:
+                        groupValueOptionOverrides?.[name]?.showValue ??
+                        showValue,
+                    showPercentage:
+                        groupValueOptionOverrides?.[name]?.showPercentage ??
+                        showPercentage,
+                });
+
                 return {
                     name: groupLabelOverrides?.[name] ?? name,
                     value,
@@ -79,17 +91,8 @@ const useEchartsPieConfig = () => {
                             groupColorOverrides?.[name] ??
                             groupColorDefaults?.[name],
                     },
-                    label: getLabelOptions({
-                        valueLabel:
-                            groupValueOptionOverrides?.[name]?.valueLabel ??
-                            valueLabel,
-                        showValue:
-                            groupValueOptionOverrides?.[name]?.showValue ??
-                            showValue,
-                        showPercentage:
-                            groupValueOptionOverrides?.[name]?.showPercentage ??
-                            showPercentage,
-                    }),
+                    label: labelOptions,
+                    tooltip: { ...labelOptions, position: undefined },
                 };
             });
     }, [
@@ -116,13 +119,14 @@ const useEchartsPieConfig = () => {
                 left: 'center',
                 type: 'scroll',
             },
-
             series: [
                 {
                     type: 'pie',
                     radius: isDonut ? ['30%', '70%'] : '70%',
                     center:
-                        showLegend && valueLabel === 'outside'
+                        showLegend &&
+                        valueLabel === 'outside' &&
+                        (showValue || showPercentage)
                             ? ['50%', '55%']
                             : showLegend
                             ? ['50%', '52%']
@@ -131,7 +135,7 @@ const useEchartsPieConfig = () => {
                 },
             ],
         }),
-        [data, isDonut, valueLabel, showLegend],
+        [data, isDonut, valueLabel, showValue, showPercentage, showLegend],
     );
 
     if (!explore || !data || data.length === 0) {
