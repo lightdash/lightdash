@@ -4,6 +4,7 @@ jobs:
   prepare-preview:
     # Only trigger for correct environment and status
     runs-on: ubuntu-latest
+    if: github.ref != 'refs/heads/main'
     outputs:
       url: ${{ steps.deployment-url.outputs.url }}
     steps:
