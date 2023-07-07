@@ -57,26 +57,12 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
 
     switch (item.type) {
         case ResourceViewItemType.CHART:
-            if (
-                user.data?.ability?.cannot(
-                    'manage',
-                    subject('SavedChart', {
-                        projectUuid,
-                    }),
-                )
-            ) {
+            if (user.data?.ability?.cannot('manage', 'SavedChart')) {
                 return null;
             }
             break;
         case ResourceViewItemType.DASHBOARD:
-            if (
-                user.data?.ability?.cannot(
-                    'manage',
-                    subject('Dashboard', {
-                        projectUuid,
-                    }),
-                )
-            ) {
+            if (user.data?.ability?.cannot('manage', 'Dashboard')) {
                 return null;
             }
             break;
