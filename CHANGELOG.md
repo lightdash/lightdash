@@ -1,3 +1,16 @@
+# [0.659.0](https://github.com/lightdash/lightdash/compare/0.658.0...0.659.0) (2023-07-07)
+
+
+### Bug Fixes
+
+* hide edit buttons from users without edit ([#6174](https://github.com/lightdash/lightdash/issues/6174)) ([bc7c7fc](https://github.com/lightdash/lightdash/commit/bc7c7fc468002b5e0e52fe4d70cbb7fb09cf61d1))
+* stop info icon from wrapping on resource list ([#6204](https://github.com/lightdash/lightdash/issues/6204)) ([a8594f2](https://github.com/lightdash/lightdash/commit/a8594f255ab4ad668f3e8c8f8421ed800645d2be))
+
+
+### Features
+
+* add space above charts in editor ([#6207](https://github.com/lightdash/lightdash/issues/6207)) ([11e9719](https://github.com/lightdash/lightdash/commit/11e97192b3003cd56a8d1e9a895d77a5e0558d94))
+
 # [0.658.0](https://github.com/lightdash/lightdash/compare/0.657.0...0.658.0) (2023-07-07)
 
 
