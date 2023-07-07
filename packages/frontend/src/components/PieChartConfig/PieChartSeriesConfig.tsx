@@ -114,21 +114,24 @@ type GroupItemProps = {
 
     swatches: string[];
 
-    color: string;
-    label: string;
+    color: string | undefined;
+    label: string | undefined;
 
     valueLabel: PieChartValueLabel;
     showValue: boolean;
     showPercentage: boolean;
 
-    onColorChange: (newColor: string) => void;
-    onLabelChange: (newLabel: string) => void;
-    onValueOptionsChange: (newOptions: Partial<PieChartValueOptions>) => void;
+    onColorChange: (label: string, newColor: string) => void;
+    onLabelChange: (label: string, newLabel: string) => void;
+    onValueOptionsChange: (
+        label: string,
+        newOptions: Partial<PieChartValueOptions>,
+    ) => void;
 };
 
 const GroupItem: FC<GroupItemProps> = ({
     defaultLabel,
-    defaultColor: _defaultColor,
+    defaultColor,
 
     defaultValueLabel,
     defaultShowValue,
@@ -147,7 +150,7 @@ const GroupItem: FC<GroupItemProps> = ({
     onLabelChange,
     onValueOptionsChange,
 }) => {
-    const isInvalidHexColor = !isHexCodeColor(color);
+    const isValidHexColor = color && isHexCodeColor(color);
     const [opened, { toggle }] = useDisclosure();
 
     return (
@@ -158,7 +161,7 @@ const GroupItem: FC<GroupItemProps> = ({
                         <Popover.Target>
                             <ColorSwatch
                                 size={24}
-                                color={color}
+                                color={isValidHexColor ? color : defaultColor}
                                 sx={{
                                     cursor: 'pointer',
                                     transition: 'opacity 100ms ease',
@@ -174,23 +177,26 @@ const GroupItem: FC<GroupItemProps> = ({
                                     format="hex"
                                     swatches={swatches}
                                     swatchesPerRow={swatches.length}
-                                    value={color}
-                                    onChange={onColorChange}
+                                    value={color ?? defaultColor}
+                                    onChange={(newColor) =>
+                                        onColorChange(defaultLabel, newColor)
+                                    }
                                 />
 
                                 <TextInput
                                     icon={<MantineIcon icon={IconHash} />}
                                     placeholder="Type in a custom HEX color"
                                     error={
-                                        isInvalidHexColor
+                                        color && !isValidHexColor
                                             ? 'Invalid HEX color'
-                                            : null
+                                            : undefined
                                     }
                                     value={(color ?? '').replace('#', '')}
                                     onChange={(event) => {
                                         const newColor =
                                             event.currentTarget.value;
                                         onColorChange(
+                                            defaultLabel,
                                             newColor === ''
                                                 ? newColor
                                                 : `#${newColor}`,
@@ -207,7 +213,7 @@ const GroupItem: FC<GroupItemProps> = ({
                     placeholder={defaultLabel}
                     value={label}
                     onChange={(event) => {
-                        onLabelChange(event.currentTarget.value);
+                        onLabelChange(defaultLabel, event.currentTarget.value);
                     }}
                 />
 
@@ -227,15 +233,21 @@ const GroupItem: FC<GroupItemProps> = ({
                         inputLabel="Value label"
                         valueLabel={valueLabel}
                         onValueLabelChange={(newValue) =>
-                            onValueOptionsChange({ valueLabel: newValue })
+                            onValueOptionsChange(defaultLabel, {
+                                valueLabel: newValue,
+                            })
                         }
                         showValue={showValue}
                         onToggleShowValue={(newValue) =>
-                            onValueOptionsChange({ showValue: newValue })
+                            onValueOptionsChange(defaultLabel, {
+                                showValue: newValue,
+                            })
                         }
                         showPercentage={showPercentage}
                         onToggleShowPercentage={(newValue) =>
-                            onValueOptionsChange({ showPercentage: newValue })
+                            onValueOptionsChange(defaultLabel, {
+                                showPercentage: newValue,
+                            })
                         }
                     />
                 </Stack>
@@ -284,41 +296,23 @@ const PieChartSeriesConfig: FC = () => {
                     p="sm"
                     sx={(theme) => ({ borderRadius: theme.radius.sm })}
                 >
-                    {groupLabels.map((groupLabel) => {
-                        const color =
-                            groupColorOverrides[groupLabel] ??
-                            groupColorDefaults[groupLabel];
-
-                        const valueOptions =
-                            groupValueOptionOverrides[groupLabel];
-
-                        return (
-                            <GroupItem
-                                key={groupLabel}
-                                swatches={defaultColors}
-                                defaultColor={groupColorDefaults[groupLabel]}
-                                defaultLabel={groupLabel}
-                                defaultValueLabel={valueLabel}
-                                defaultShowValue={showValue}
-                                defaultShowPercentage={showPercentage}
-                                color={color}
-                                label={groupLabelOverrides[groupLabel] ?? ''}
-                                {...valueOptions}
-                                onLabelChange={(newLabel) => {
-                                    groupLabelChange(groupLabel, newLabel);
-                                }}
-                                onColorChange={(newColor) => {
-                                    groupColorChange(groupLabel, newColor);
-                                }}
-                                onValueOptionsChange={(newValueLabel) => {
-                                    groupValueOptionChange(
-                                        groupLabel,
-                                        newValueLabel,
-                                    );
-                                }}
-                            />
-                        );
-                    })}
+                    {groupLabels.map((groupLabel) => (
+                        <GroupItem
+                            key={groupLabel}
+                            swatches={defaultColors}
+                            defaultColor={groupColorDefaults[groupLabel]}
+                            defaultLabel={groupLabel}
+                            defaultValueLabel={valueLabel}
+                            defaultShowValue={showValue}
+                            defaultShowPercentage={showPercentage}
+                            color={groupColorOverrides[groupLabel]}
+                            label={groupLabelOverrides[groupLabel]}
+                            {...groupValueOptionOverrides[groupLabel]}
+                            onLabelChange={groupLabelChange}
+                            onColorChange={groupColorChange}
+                            onValueOptionsChange={groupValueOptionChange}
+                        />
+                    ))}
                 </Stack>
             )}
         </Stack>

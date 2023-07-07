@@ -8,11 +8,11 @@ const getLabelOptions = ({
     showPercentage,
 }: Partial<PieChartValueOptions>) => {
     return {
-        show: valueLabel !== 'hidden',
+        show: valueLabel !== 'hidden' && (showValue || showPercentage),
         position: valueLabel,
         formatter:
             valueLabel !== 'hidden' && showValue && showPercentage
-                ? '{d}% - {c}'
+                ? '{c} - {d}%'
                 : showValue
                 ? '{c}'
                 : showPercentage
@@ -79,15 +79,26 @@ const useEchartsPieConfig = () => {
                             groupColorOverrides?.[name] ??
                             groupColorDefaults?.[name],
                     },
-                    label: groupValueOptionOverrides?.[name]
-                        ? getLabelOptions(groupValueOptionOverrides[name])
-                        : undefined,
+                    label: getLabelOptions({
+                        valueLabel:
+                            groupValueOptionOverrides?.[name]?.valueLabel ??
+                            valueLabel,
+                        showValue:
+                            groupValueOptionOverrides?.[name]?.showValue ??
+                            showValue,
+                        showPercentage:
+                            groupValueOptionOverrides?.[name]?.showPercentage ??
+                            showPercentage,
+                    }),
                 };
             });
     }, [
+        resultsData,
         groupFieldIds,
         metricId,
-        resultsData,
+        showPercentage,
+        showValue,
+        valueLabel,
         groupLabelOverrides,
         groupColorOverrides,
         groupValueOptionOverrides,
@@ -116,16 +127,11 @@ const useEchartsPieConfig = () => {
                             : showLegend
                             ? ['50%', '52%']
                             : ['50%', '50%'],
-                    label: getLabelOptions({
-                        valueLabel,
-                        showValue,
-                        showPercentage,
-                    }),
                     data,
                 },
             ],
         }),
-        [data, isDonut, valueLabel, showLegend, showValue, showPercentage],
+        [data, isDonut, valueLabel, showLegend],
     );
 
     if (!explore || !data || data.length === 0) {

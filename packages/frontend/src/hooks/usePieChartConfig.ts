@@ -18,6 +18,7 @@ import isEmpty from 'lodash-es/isEmpty';
 import isEqual from 'lodash-es/isEqual';
 import omitBy from 'lodash-es/omitBy';
 import pick from 'lodash-es/pick';
+import pickBy from 'lodash-es/pickBy';
 import uniq from 'lodash-es/uniq';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { isHexCodeColor } from '../utils/colorUtils';
@@ -97,7 +98,7 @@ const usePieChartConfig: PieChartConfigFn = (
     );
 
     const [showPercentage, setShowPercentage] = useState(
-        pieChartConfig?.showPercentage ?? false,
+        pieChartConfig?.showPercentage ?? true,
     );
 
     const [groupLabelOverrides, setGroupLabelOverrides] = useState(
@@ -262,7 +263,7 @@ const usePieChartConfig: PieChartConfigFn = (
                 debouncedGroupLabelOverrides,
                 groupLabels,
             ),
-            groupColorOverrides: omitBy(
+            groupColorOverrides: pickBy(
                 pick(debouncedGroupColorOverrides, groupLabels),
                 isHexCodeColor,
             ),
