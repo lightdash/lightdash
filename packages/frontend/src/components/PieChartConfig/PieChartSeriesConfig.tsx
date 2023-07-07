@@ -42,61 +42,55 @@ const ValueOptions: FC<ValueOptionsProps> = ({
     onValueLabelChange,
     onToggleShowValue,
     onToggleShowPercentage,
-}) => {
-    return (
-        <>
-            <Select
-                label={inputLabel}
-                value={valueLabel}
-                data={Object.entries(PieChartValueLabels).map(
-                    ([value, label]) => ({
-                        value,
-                        label,
-                    }),
-                )}
-                onChange={(newValueLabel: PieChartValueLabel) => {
-                    onValueLabelChange(newValueLabel);
-                }}
-            />
+}) => (
+    <>
+        <Select
+            label={inputLabel}
+            value={valueLabel}
+            data={Object.entries(PieChartValueLabels).map(([value, label]) => ({
+                value,
+                label,
+            }))}
+            onChange={(newValueLabel: PieChartValueLabel) => {
+                onValueLabelChange(newValueLabel);
+            }}
+        />
 
-            <Tooltip
-                position="top-start"
-                disabled={valueLabel !== 'hidden'}
-                label="Enable value labels to configure this option"
-            >
-                <div>
-                    <Switch
-                        disabled={valueLabel === 'hidden'}
-                        checked={showValue}
-                        onChange={(newValue) =>
-                            onToggleShowValue(newValue.currentTarget.checked)
-                        }
-                        label="Show value"
-                    />
-                </div>
-            </Tooltip>
+        <Tooltip
+            position="top-start"
+            disabled={valueLabel !== 'hidden'}
+            label={`Enable ${inputLabel} to configure this option`}
+        >
+            <div>
+                <Switch
+                    disabled={valueLabel === 'hidden'}
+                    checked={showValue}
+                    onChange={(newValue) =>
+                        onToggleShowValue(newValue.currentTarget.checked)
+                    }
+                    label="Show value"
+                />
+            </div>
+        </Tooltip>
 
-            <Tooltip
-                position="top-start"
-                disabled={valueLabel !== 'hidden'}
-                label="Enable value labels to configure this option"
-            >
-                <div>
-                    <Switch
-                        disabled={valueLabel === 'hidden'}
-                        checked={showPercentage}
-                        onChange={(newValue) =>
-                            onToggleShowPercentage(
-                                newValue.currentTarget.checked,
-                            )
-                        }
-                        label="Show percentage"
-                    />
-                </div>
-            </Tooltip>
-        </>
-    );
-};
+        <Tooltip
+            position="top-start"
+            disabled={valueLabel !== 'hidden'}
+            label={`Enable ${inputLabel} to configure this option`}
+        >
+            <div>
+                <Switch
+                    disabled={valueLabel === 'hidden'}
+                    checked={showPercentage}
+                    onChange={(newValue) =>
+                        onToggleShowPercentage(newValue.currentTarget.checked)
+                    }
+                    label="Show percentage"
+                />
+            </div>
+        </Tooltip>
+    </>
+);
 
 type GroupItemProps = {
     swatches: string[];

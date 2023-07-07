@@ -79,6 +79,10 @@ const usePieChartConfig: PieChartConfigFn = (
 ) => {
     const { data } = useOrganization();
 
+    const [groupFieldIds, setGroupFieldIds] = useState(
+        pieChartConfig?.groupFieldIds ?? [],
+    );
+
     const [metricId, setMetricId] = useState(pieChartConfig?.metricId ?? null);
 
     const [isDonut, setIsDonut] = useState(pieChartConfig?.isDonut ?? true);
@@ -138,10 +142,6 @@ const usePieChartConfig: PieChartConfigFn = (
         [allNumericMetrics],
     );
 
-    const [groupFieldIds, setGroupFieldIds] = useState<string[]>(
-        pieChartConfig?.groupFieldIds ?? [],
-    );
-
     const isLoading = !explore || !resultsData;
 
     useEffect(() => {
@@ -169,22 +169,17 @@ const usePieChartConfig: PieChartConfigFn = (
         setMetricId(allNumericMetricIds[0] ?? null);
     }, [isLoading, allNumericMetricIds, metricId, pieChartConfig?.metricId]);
 
-    const handleValueLabelChange = useCallback((value) => {
-        if (value === 'hidden') {
-            setShowValue(false);
-            setShowPercentage(false);
-        }
-        setValueLabel(value);
-    }, []);
-
-    const handleGroupChange = useCallback((prevValue, newValue) => {
-        setGroupFieldIds((prev) => {
-            const newSet = new Set(prev);
-            newSet.delete(prevValue);
-            newSet.add(newValue);
-            return [...newSet.values()];
-        });
-    }, []);
+    const handleGroupChange = useCallback(
+        (prevValue: string, newValue: string) => {
+            setGroupFieldIds((prev) => {
+                const newSet = new Set(prev);
+                newSet.delete(prevValue);
+                newSet.add(newValue);
+                return [...newSet.values()];
+            });
+        },
+        [],
+    );
 
     const handleGroupAdd = useCallback(() => {
         setGroupFieldIds((prev) => {
@@ -197,7 +192,7 @@ const usePieChartConfig: PieChartConfigFn = (
         });
     }, [dimensionIds]);
 
-    const handleRemoveGroup = useCallback((dimensionId) => {
+    const handleRemoveGroup = useCallback((dimensionId: string) => {
         setGroupFieldIds((prev) => {
             const newSet = new Set(prev);
             newSet.delete(dimensionId);
@@ -205,15 +200,15 @@ const usePieChartConfig: PieChartConfigFn = (
         });
     }, []);
 
-    const handleGroupLabelChange = useCallback((key, value) => {
-        setGroupLabelOverrides((prev) => {
-            return { ...prev, [key]: value === '' ? undefined : value };
+    const handleGroupLabelChange = useCallback((key: string, value: string) => {
+        setGroupLabelOverrides(({ [key]: _, ...rest }) => {
+            return value === '' ? rest : { ...rest, [key]: value };
         });
     }, []);
 
-    const handleGroupColorChange = useCallback((key, value) => {
-        setGroupColorOverrides((prev) => {
-            return { ...prev, [key]: value === '' ? undefined : value };
+    const handleGroupColorChange = useCallback((key: string, value: string) => {
+        setGroupColorOverrides(({ [key]: _, ...rest }) => {
+            return value === '' ? rest : { ...rest, [key]: value };
         });
     }, []);
 
@@ -304,7 +299,7 @@ const usePieChartConfig: PieChartConfigFn = (
             toggleDonut: () => setIsDonut((prev) => !prev),
 
             valueLabel,
-            valueLabelChange: handleValueLabelChange,
+            valueLabelChange: setValueLabel,
             showValue,
             toggleShowValue: () => setShowValue((prev) => !prev),
             showPercentage,
@@ -337,7 +332,7 @@ const usePieChartConfig: PieChartConfigFn = (
             isDonut,
 
             valueLabel,
-            handleValueLabelChange,
+            setValueLabel,
             showValue,
             showPercentage,
 

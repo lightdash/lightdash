@@ -95,7 +95,9 @@ const useEchartsPieConfig = () => {
                         show: valueLabel !== 'hidden',
                         position: valueLabel,
                         formatter:
-                            showValue && showPercentage
+                            valueLabel !== 'hidden' &&
+                            showValue &&
+                            showPercentage
                                 ? '{d}% - {c}'
                                 : showValue
                                 ? '{c}'
