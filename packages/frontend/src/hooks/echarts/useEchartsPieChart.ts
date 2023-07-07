@@ -1,5 +1,25 @@
+import { PieChartValueOptions } from '@lightdash/common';
 import { useMemo } from 'react';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
+
+const getLabelOptions = ({
+    valueLabel,
+    showValue,
+    showPercentage,
+}: Partial<PieChartValueOptions>) => {
+    return {
+        show: valueLabel !== 'hidden',
+        position: valueLabel,
+        formatter:
+            valueLabel !== 'hidden' && showValue && showPercentage
+                ? '{d}% - {c}'
+                : showValue
+                ? '{c}'
+                : showPercentage
+                ? '{d}%'
+                : undefined,
+    };
+};
 
 const useEchartsPieConfig = () => {
     const context = useVisualizationContext();
@@ -15,6 +35,7 @@ const useEchartsPieConfig = () => {
                 showPercentage,
                 groupLabelOverrides,
                 groupColorOverrides,
+                groupValueOptionOverrides,
                 showLegend,
             },
         },
@@ -58,6 +79,9 @@ const useEchartsPieConfig = () => {
                             groupColorOverrides?.[name] ??
                             groupColorDefaults?.[name],
                     },
+                    label: groupValueOptionOverrides?.[name]
+                        ? getLabelOptions(groupValueOptionOverrides[name])
+                        : undefined,
                 };
             });
     }, [
@@ -66,6 +90,7 @@ const useEchartsPieConfig = () => {
         resultsData,
         groupLabelOverrides,
         groupColorOverrides,
+        groupValueOptionOverrides,
         groupColorDefaults,
     ]);
 
@@ -91,20 +116,11 @@ const useEchartsPieConfig = () => {
                             : showLegend
                             ? ['50%', '52%']
                             : ['50%', '50%'],
-                    label: {
-                        show: valueLabel !== 'hidden',
-                        position: valueLabel,
-                        formatter:
-                            valueLabel !== 'hidden' &&
-                            showValue &&
-                            showPercentage
-                                ? '{d}% - {c}'
-                                : showValue
-                                ? '{c}'
-                                : showPercentage
-                                ? '{d}%'
-                                : undefined,
-                    },
+                    label: getLabelOptions({
+                        valueLabel,
+                        showValue,
+                        showPercentage,
+                    }),
                     data,
                 },
             ],
