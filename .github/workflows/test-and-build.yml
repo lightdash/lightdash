@@ -13,16 +13,28 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Install modules
-      run: yarn
-      
+    - uses: actions/checkout@v3
+    # Install packages
+    - name: Get yarn cache directory path
+      id: yarn-cache-dir-path
+      run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
+    - uses: actions/cache@v3
+      id: yarn-cache
+      with:
+        path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+        key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-yarn-
+    - name: Install packages
+      if: steps.yarn-cache.outputs.cache-hit != 'true'
+      run: yarn install --frozen-lockfile
+
     - name: Lint all packages
       run: yarn lint
     - name: Check formatting all packages
       run: yarn format
     - name: Check for unused exports
-      run: yarn workspace frontend unused-exports 
+      run: yarn workspace frontend unused-exports
 
     - name: Build common
       run: yarn common-build

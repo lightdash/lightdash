@@ -68,9 +68,21 @@ jobs:
           PGUSER: postgres
           PGDATABASE: postgres
           SEED_SCHEMA: jaffle-${{strategy.job-index}}
-      ## Install packages and lightdash cli from source
-      - name: Install packages/common modules
-        run: yarn workspace @lightdash/common install
+      # Install packages
+      - name: Get yarn cache directory path
+        id: yarn-cache-dir-path
+        run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
+      - uses: actions/cache@v3
+        id: yarn-cache
+        with:
+          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
+      - name: Install packages
+        if: steps.yarn-cache.outputs.cache-hit != 'true'
+        run: yarn install --frozen-lockfile
+      # Build packages
       - name: Build packages/common module
         run: yarn common-build
       - name: Build packages/warehouses module

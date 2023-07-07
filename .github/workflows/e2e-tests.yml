@@ -33,13 +33,24 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-      # Install and build Common package
-      - name: Install packages/common modules
-        run: yarn workspace @lightdash/common install
+      # Install packages
+      - name: Get yarn cache directory path
+        id: yarn-cache-dir-path
+        run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
+      - uses: actions/cache@v3
+        id: yarn-cache
+        with:
+          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
+      - name: Install packages
+        if: steps.yarn-cache.outputs.cache-hit != 'true'
+        run: yarn install --frozen-lockfile
+      # Build packages
       - name: Build packages/common module
         run: yarn common-build
-      # Install NPM dependencies, cache them correctly
-      # and run all Cypress tests
+      # Prepare bigquery credentials for Cypress
       - name: create-json
         id: create-json
         uses: jsdaniell/create-json@1.1.2
@@ -47,6 +58,7 @@ jobs:
           name: "credentials.json"
           json: ${{ secrets.GCP_CREDENTIALS }}
           dir: "./packages/e2e/cypress/fixtures/"
+      # Run E2E tests
       - name: Cypress run
         uses: cypress-io/github-action@v5
         with:
@@ -98,13 +110,21 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-      # Install and build Common package
-      - name: Install packages/common modules
-        run: yarn workspace @lightdash/common install
+      # Install packages
+      - uses: actions/cache@v3
+        id: yarn-cache
+        with:
+          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
+      # Build packages
+      - name: Install packages
+        if: steps.yarn-cache.outputs.cache-hit != 'true'
+        run: yarn install --frozen-lockfile
       - name: Build packages/common module
         run: yarn common-build
-      # Install NPM dependencies, cache them correctly
-      # and run all Cypress tests
+      # Prepare bigquery credentials for Cypress
       - name: create-json
         id: create-json
         uses: jsdaniell/create-json@1.1.2
@@ -112,6 +132,7 @@ jobs:
           name: "credentials.json"
           json: ${{ secrets.GCP_CREDENTIALS }}
           dir: "./packages/e2e/cypress/fixtures/"
+      # Run E2E tests
       - name: Cypress run
         uses: cypress-io/github-action@v5
         with:
