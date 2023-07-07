@@ -7,9 +7,6 @@ jobs:
     outputs:
       url: ${{ steps.deployment-url.outputs.url }}
     steps:
-      - name: Debug deployment 
-        run: |
-          echo "Render environment ${{ github.event.deployment.environment }} with status: ${{ github.event.deployment_status.state }} , eval  ${{ github.event.deployment_status.state == 'success' && (contains(github.event.deployment.environment, '- lightdash PR ') || contains(github.event.deployment.environment, '- lightdash-')) }}"
       - name: is render ready
         # This works assuming "Lightdash PR" is always the last deployment_status to be "success"
         if: ${{ !( github.event.deployment_status.state == 'success' && (contains(github.event.deployment.environment, '- lightdash PR ') || contains(github.event.deployment.environment, '- lightdash-')) ) }}
