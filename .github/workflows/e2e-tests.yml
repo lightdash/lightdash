@@ -8,10 +8,10 @@ jobs:
       url: ${{ steps.deployment-url.outputs.url }}
     steps:
       - name: Debug deployment 
-        run: "Render environment ${{ github.event.deployment.environment }} with status: ${{ github.event.deployment_status.state }} , eval  ${{ github.event.deployment_status.state == 'success' && (contains(github.event.deployment.environment, '- lightdash PR ') || contains(github.event.deployment.environment, '- lightdash-'))) }}"
+        run: "Render environment ${{ github.event.deployment.environment }} with status: ${{ github.event.deployment_status.state }} , eval  ${{ github.event.deployment_status.state == 'success' && (contains(github.event.deployment.environment, '- lightdash PR ') || contains(github.event.deployment.environment, '- lightdash-')) }}"
       - name: is render ready
         # This works assuming "Lightdash PR" is always the last deployment_status to be "success"
-        if: false == ${{ github.event.deployment_status.state == 'success' && (contains(github.event.deployment.environment, '- lightdash PR ') || contains(github.event.deployment.environment, '- lightdash-'))) }}
+        if: false == ${{ github.event.deployment_status.state == 'success' && (contains(github.event.deployment.environment, '- lightdash PR ') || contains(github.event.deployment.environment, '- lightdash-')) }}
         run: |
           echo "Render environment ${{ github.event.deployment.environment }} is not ready: ${{ github.event.deployment_status.state }}"
           exit 1
