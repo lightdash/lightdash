@@ -62,7 +62,7 @@ export const PieChartValueLabels = {
 
 export type PieChartValueLabel = keyof typeof PieChartValueLabels;
 
-export type PieChartLabelOptions = {
+export type PieChartValueOptions = {
     valueLabel: PieChartValueLabel;
     showValue: boolean;
     showPercentage: boolean;
@@ -72,12 +72,12 @@ export type PieChart = {
     groupFieldIds?: string[];
     metricId?: string;
     isDonut?: boolean;
-    valueLabel?: PieChartLabelOptions['valueLabel'];
-    showValue?: PieChartLabelOptions['showValue'];
-    showPercentage?: PieChartLabelOptions['showPercentage'];
+    valueLabel?: PieChartValueOptions['valueLabel'];
+    showValue?: PieChartValueOptions['showValue'];
+    showPercentage?: PieChartValueOptions['showPercentage'];
     groupLabelOverrides?: Record<string, string>;
     groupColorOverrides?: Record<string, string>;
-    groupLabelOptionOverrides?: Record<string, PieChartLabelOptions>;
+    groupValueOptionOverrides?: Record<string, PieChartValueOptions>;
     showLegend?: boolean;
 };
 

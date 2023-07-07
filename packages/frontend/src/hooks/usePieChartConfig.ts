@@ -10,7 +10,7 @@ import {
     isMetric,
     Metric,
     PieChart,
-    PieChartLabelOptions,
+    PieChartValueOptions,
     TableCalculation,
 } from '@lightdash/common';
 import { useDebouncedValue } from '@mantine/hooks';
@@ -36,12 +36,12 @@ type PieChartConfig = {
     isDonut: boolean;
     toggleDonut: () => void;
 
-    valueLabel: PieChartLabelOptions['valueLabel'];
-    valueLabelChange: (valueLabel: PieChartLabelOptions['valueLabel']) => void;
+    valueLabel: PieChartValueOptions['valueLabel'];
+    valueLabelChange: (valueLabel: PieChartValueOptions['valueLabel']) => void;
 
-    showValue: PieChartLabelOptions['showValue'];
+    showValue: PieChartValueOptions['showValue'];
     toggleShowValue: () => void;
-    showPercentage: PieChartLabelOptions['showPercentage'];
+    showPercentage: PieChartValueOptions['showPercentage'];
     toggleShowPercentage: () => void;
 
     defaultColors: string[];
@@ -52,7 +52,11 @@ type PieChartConfig = {
     groupColorOverrides: Record<string, string>;
     groupColorDefaults: Record<string, string>;
     groupColorChange: (prevValue: any, newValue: any) => void;
-    groupLabelOptionOverrides: Record<string, PieChartLabelOptions>;
+    groupValueOptionOverrides: Record<string, PieChartValueOptions>;
+    groupValueOptionChange: (
+        label: string,
+        value: Partial<PieChartValueOptions>,
+    ) => void;
 
     showLegend: boolean;
     toggleShowLegend: () => void;
@@ -109,8 +113,8 @@ const usePieChartConfig: PieChartConfigFn = (
         500,
     );
 
-    const [groupLabelOptionOverrides, setGroupLabelOptionOverrides] = useState(
-        pieChartConfig?.groupLabelOptionOverrides ?? {},
+    const [groupValueOptionOverrides, setGroupValueOptionOverrides] = useState(
+        pieChartConfig?.groupValueOptionOverrides ?? {},
     );
 
     const [showLegend, setShowLegend] = useState(
@@ -213,9 +217,9 @@ const usePieChartConfig: PieChartConfigFn = (
         });
     }, []);
 
-    const handleGroupLabelOptionChange = useCallback(
-        (label: string, value: Partial<PieChartLabelOptions>) => {
-            setGroupLabelOptionOverrides((prev) => {
+    const handleGroupValueOptionChange = useCallback(
+        (label: string, value: Partial<PieChartValueOptions>) => {
+            setGroupValueOptionOverrides((prev) => {
                 return { ...prev, [label]: { ...prev[label], ...value } };
             });
         },
@@ -314,8 +318,8 @@ const usePieChartConfig: PieChartConfigFn = (
             groupColorOverrides,
             groupColorDefaults,
             groupColorChange: handleGroupColorChange,
-            groupLabelOptionOverrides,
-            groupLabelOptionChange: handleGroupLabelOptionChange,
+            groupValueOptionOverrides,
+            groupValueOptionChange: handleGroupValueOptionChange,
 
             showLegend,
             toggleShowLegend: () => setShowLegend((prev) => !prev),
@@ -345,8 +349,8 @@ const usePieChartConfig: PieChartConfigFn = (
             groupColorOverrides,
             groupColorDefaults,
             handleGroupColorChange,
-            groupLabelOptionOverrides,
-            handleGroupLabelOptionChange,
+            groupValueOptionOverrides,
+            handleGroupValueOptionChange,
 
             showLegend,
         ],

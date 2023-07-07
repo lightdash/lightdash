@@ -1,4 +1,8 @@
-import { PieChartValueLabel, PieChartValueLabels } from '@lightdash/common';
+import {
+    PieChartValueLabel,
+    PieChartValueLabels,
+    PieChartValueOptions,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Collapse,
@@ -20,17 +24,17 @@ import { isHexCodeColor } from '../../utils/colorUtils';
 import MantineIcon from '../common/MantineIcon';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 
-type LabelOptionsProps = {
+type ValueOptionsProps = {
     inputLabel: string;
     valueLabel: PieChartValueLabel;
     onValueLabelChange: (newValueLabel: PieChartValueLabel) => void;
     showValue: boolean;
-    onToggleShowValue: () => void;
+    onToggleShowValue: (newValue: boolean) => void;
     showPercentage: boolean;
-    onToggleShowPercentage: () => void;
+    onToggleShowPercentage: (newValue: boolean) => void;
 };
 
-const LabelOptions: FC<LabelOptionsProps> = ({
+const ValueOptions: FC<ValueOptionsProps> = ({
     inputLabel,
     valueLabel,
     showValue,
@@ -64,7 +68,9 @@ const LabelOptions: FC<LabelOptionsProps> = ({
                     <Switch
                         disabled={valueLabel === 'hidden'}
                         checked={showValue}
-                        onChange={onToggleShowValue}
+                        onChange={(newValue) =>
+                            onToggleShowValue(newValue.currentTarget.checked)
+                        }
                         label="Show value"
                     />
                 </div>
@@ -79,7 +85,11 @@ const LabelOptions: FC<LabelOptionsProps> = ({
                     <Switch
                         disabled={valueLabel === 'hidden'}
                         checked={showPercentage}
-                        onChange={onToggleShowPercentage}
+                        onChange={(newValue) =>
+                            onToggleShowPercentage(
+                                newValue.currentTarget.checked,
+                            )
+                        }
                         label="Show percentage"
                     />
                 </div>
@@ -89,23 +99,35 @@ const LabelOptions: FC<LabelOptionsProps> = ({
 };
 
 type GroupItemProps = {
-    defaultLabel: string;
-    label: string;
+    swatches: string[];
     defaultColor: string;
     color: string;
-    swatches: string[];
+    defaultLabel: string;
+    label: string;
+
+    valueLabel: PieChartValueLabel;
+    showValue: boolean;
+    showPercentage: boolean;
+
     onColorChange: (newColor: string) => void;
     onLabelChange: (newLabel: string) => void;
+    onValueOptionsChange: (newOptions: Partial<PieChartValueOptions>) => void;
 };
 
 const GroupItem: FC<GroupItemProps> = ({
     swatches,
     defaultLabel,
     label,
-    // defaultColor,
+    defaultColor: _defaultColor,
     color,
+
+    valueLabel,
+    showValue,
+    showPercentage,
+
     onColorChange,
     onLabelChange,
+    onValueOptionsChange,
 }) => {
     const isInvalidHexColor = !isHexCodeColor(color);
     const [opened, { toggle }] = useDisclosure();
@@ -180,14 +202,20 @@ const GroupItem: FC<GroupItemProps> = ({
 
             <Collapse in={opened}>
                 <Stack pb="md" px="xxl">
-                    <LabelOptions
+                    <ValueOptions
                         inputLabel="Value label"
-                        valueLabel="hidden"
-                        onValueLabelChange={() => {}}
-                        showValue={false}
-                        onToggleShowValue={() => {}}
-                        showPercentage={false}
-                        onToggleShowPercentage={() => {}}
+                        valueLabel={valueLabel}
+                        onValueLabelChange={(newValue) =>
+                            onValueOptionsChange({ valueLabel: newValue })
+                        }
+                        showValue={showValue}
+                        onToggleShowValue={(newValue) =>
+                            onValueOptionsChange({ showValue: newValue })
+                        }
+                        showPercentage={showPercentage}
+                        onToggleShowPercentage={(newValue) =>
+                            onValueOptionsChange({ showPercentage: newValue })
+                        }
                     />
                 </Stack>
             </Collapse>
@@ -211,12 +239,14 @@ const PieChartSeriesConfig: FC = () => {
             groupColorOverrides,
             groupColorDefaults,
             groupColorChange,
+            groupValueOptionOverrides,
+            groupValueOptionChange,
         },
     } = useVisualizationContext();
 
     return (
         <Stack>
-            <LabelOptions
+            <ValueOptions
                 inputLabel="Value label"
                 valueLabel={valueLabel}
                 onValueLabelChange={valueLabelChange}
@@ -238,19 +268,29 @@ const PieChartSeriesConfig: FC = () => {
                             groupColorOverrides[groupLabel] ??
                             groupColorDefaults[groupLabel];
 
+                        const valueOptions =
+                            groupValueOptionOverrides[groupLabel];
+
                         return (
                             <GroupItem
                                 key={groupLabel}
+                                swatches={defaultColors}
                                 defaultColor={groupColorDefaults[groupLabel]}
+                                color={color}
                                 defaultLabel={groupLabel}
                                 label={groupLabelOverrides[groupLabel] ?? ''}
-                                color={color}
-                                swatches={defaultColors}
+                                {...valueOptions}
                                 onLabelChange={(newLabel) => {
                                     groupLabelChange(groupLabel, newLabel);
                                 }}
                                 onColorChange={(newColor) => {
                                     groupColorChange(groupLabel, newColor);
+                                }}
+                                onValueOptionsChange={(newValueLabel) => {
+                                    groupValueOptionChange(
+                                        groupLabel,
+                                        newValueLabel,
+                                    );
                                 }}
                             />
                         );
