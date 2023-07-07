@@ -116,7 +116,15 @@ const GroupItem: FC<GroupItemProps> = ({
                 <Input.Wrapper>
                     <Popover shadow="md" withArrow>
                         <Popover.Target>
-                            <ColorSwatch color={color} />
+                            <ColorSwatch
+                                size={24}
+                                color={color}
+                                sx={{
+                                    cursor: 'pointer',
+                                    transition: 'opacity 100ms ease',
+                                    '&:hover': { opacity: 0.8 },
+                                }}
+                            />
                         </Popover.Target>
 
                         <Popover.Dropdown p="xs">
@@ -163,10 +171,9 @@ const GroupItem: FC<GroupItemProps> = ({
                     }}
                 />
 
-                <ActionIcon>
+                <ActionIcon onClick={toggle} size="sm">
                     <MantineIcon
                         icon={opened ? IconChevronUp : IconChevronDown}
-                        onClick={toggle}
                     />
                 </ActionIcon>
             </Group>
@@ -222,7 +229,7 @@ const PieChartSeriesConfig: FC = () => {
             {groupLabels.length === 0 ? null : (
                 <Stack
                     spacing="xs"
-                    bg="gray.1"
+                    bg="gray.0"
                     p="sm"
                     sx={(theme) => ({ borderRadius: theme.radius.sm })}
                 >
