@@ -111,6 +111,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       # Install packages
+      - name: Get yarn cache directory path
+        id: yarn-cache-dir-path
+        run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
       - uses: actions/cache@v3
         id: yarn-cache
         with:
@@ -118,6 +121,9 @@ jobs:
           key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
             ${{ runner.os }}-yarn-
+      - name: Install packages
+        if: steps.yarn-cache.outputs.cache-hit != 'true'
+        run: yarn install --frozen-lockfile
       # Build packages
       - name: Install packages
         if: steps.yarn-cache.outputs.cache-hit != 'true'
