@@ -9,7 +9,7 @@ jobs:
     steps:
       - name: is render ready
         # This works assuming "Lightdash PR" is always the last deployment_status to be "success"
-        if: ${{ github.event.deployment_status.state != 'success' || (!contains(github.event.deployment.environment, '- lightdash PR ') || !contains(github.event.deployment.environment, '- lightdash-'))}}
+        if: ${{ github.event.deployment_status.state != 'success' || ((!contains(github.event.deployment.environment, '- lightdash PR ') && !contains(github.event.deployment.environment, '- lightdash-')))}}
         run: |
           echo "Render environment ${{ github.event.deployment.environment }} is not ready: ${{ github.event.deployment_status.state }}"
           exit 1
