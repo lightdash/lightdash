@@ -1,3 +1,10 @@
+## [0.659.1](https://github.com/lightdash/lightdash/compare/0.659.0...0.659.1) (2023-07-07)
+
+
+### Bug Fixes
+
+* pie charts with custom metric unselected ([#6201](https://github.com/lightdash/lightdash/issues/6201)) ([5e35c7a](https://github.com/lightdash/lightdash/commit/5e35c7a02cb2a71fedec5802d71786077fe33168))
+
 # [0.659.0](https://github.com/lightdash/lightdash/compare/0.658.0...0.659.0) (2023-07-07)
 
 
