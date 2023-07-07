@@ -226,8 +226,8 @@ docs: add page about metrics
 style: add more space 
 ```
 
-Note that **feat** and **fix** are typically used for changes that will provide value to the end-user
-and, so they trigger a release (version update). If you are making a change to docs, styles, or some 
+Note that **feat** and **fix** are typically used for changes that will provide value to the end-user 
+so they trigger a release (version update). If you are making a change to docs, styles, or some 
 other part of the system, please use the appropriate tag to avoid the extra overhead.
 
 You can see all
