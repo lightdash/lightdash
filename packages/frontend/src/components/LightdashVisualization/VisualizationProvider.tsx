@@ -147,9 +147,18 @@ const VisualizationProvider: FC<Props> = ({
                 additionalMetric,
                 table,
             });
+
+            if (!resultsData?.metricQuery.metrics.includes(fieldId(metric))) {
+                return acc;
+            }
+
             return [...acc, metric];
         }, []);
-    }, [explore, resultsData?.metricQuery.additionalMetrics]);
+    }, [
+        explore,
+        resultsData?.metricQuery.additionalMetrics,
+        resultsData?.metricQuery.metrics,
+    ]);
 
     const tableCalculations = useMemo(() => {
         return resultsData?.metricQuery.tableCalculations ?? [];
