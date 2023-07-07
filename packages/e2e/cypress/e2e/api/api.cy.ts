@@ -275,7 +275,6 @@ describe('Lightdash API forbidden tests', () => {
         endpoints.forEach((endpoint) => {
             cy.request({
                 url: `${apiUrl}${endpoint}`,
-                timeout: 500,
                 failOnStatusCode: false,
             }).then((resp) => {
                 expect(resp.status).to.eq(403);
@@ -382,7 +381,6 @@ describe('Lightdash API forbidden tests', () => {
                 endpoints.forEach((endpoint) => {
                     cy.request({
                         url: `${apiUrl}${endpoint}`,
-                        timeout: 500,
                         failOnStatusCode: false,
                     }).then((resp) => {
                         expect(resp.status).to.eq(403);
