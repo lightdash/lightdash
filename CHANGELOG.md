@@ -1,3 +1,16 @@
+# [0.658.0](https://github.com/lightdash/lightdash/compare/0.657.0...0.658.0) (2023-07-07)
+
+
+### Bug Fixes
+
+* Ui bug - Tables in the 'User Management' page ([#6171](https://github.com/lightdash/lightdash/issues/6171)) ([8bbcc66](https://github.com/lightdash/lightdash/commit/8bbcc66227a11501cbca501abc18e414aa03a969)), closes [#5966](https://github.com/lightdash/lightdash/issues/5966)
+
+
+### Features
+
+* echarts show tooltip only on hovered lines/bars ([#6195](https://github.com/lightdash/lightdash/issues/6195)) ([6cf9580](https://github.com/lightdash/lightdash/commit/6cf9580d47a8ce8b8d41d764b88d9957fa7db920))
+* Update dbt supported version in project setting page ([#6191](https://github.com/lightdash/lightdash/issues/6191)) ([05d6429](https://github.com/lightdash/lightdash/commit/05d64298e2054492682f8aada82ff99763332940)), closes [#5966](https://github.com/lightdash/lightdash/issues/5966)
+
 # [0.657.0](https://github.com/lightdash/lightdash/compare/0.656.0...0.657.0) (2023-07-06)
 
 
