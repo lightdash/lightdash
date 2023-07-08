@@ -186,7 +186,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                 )}
 
                                 <Stack spacing={2}>
-                                    <Group spacing="xs">
+                                    <Group spacing="xs" noWrap>
                                         <Text
                                             fw={600}
                                             lineClamp={1}

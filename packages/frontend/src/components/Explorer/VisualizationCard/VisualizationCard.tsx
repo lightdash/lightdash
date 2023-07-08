@@ -1,6 +1,7 @@
 import { NotFoundError } from '@lightdash/common';
 import { FC, memo, useCallback, useMemo, useState } from 'react';
 
+import { Space } from '@mantine/core';
 import { EChartSeries } from '../../../hooks/echarts/useEcharts';
 import { downloadCsv } from '../../../hooks/useDownloadCsv';
 import { useExplore } from '../../../hooks/useExplore';
@@ -158,11 +159,11 @@ const VisualizationCard: FC<{ projectUuid?: string }> = memo(
                         )
                     }
                 >
+                    <Space h="sm" />
                     <LightdashVisualization
                         className="sentry-block fs-block cohere-block"
                         data-testid="visualization"
                     />
-
                     <SeriesContextMenu
                         echartSeriesClickEvent={echartsClickEvent?.event}
                         dimensions={echartsClickEvent?.dimensions}

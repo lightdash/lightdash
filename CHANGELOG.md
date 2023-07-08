@@ -1,3 +1,36 @@
+## [0.659.1](https://github.com/lightdash/lightdash/compare/0.659.0...0.659.1) (2023-07-07)
+
+
+### Bug Fixes
+
+* pie charts with custom metric unselected ([#6201](https://github.com/lightdash/lightdash/issues/6201)) ([5e35c7a](https://github.com/lightdash/lightdash/commit/5e35c7a02cb2a71fedec5802d71786077fe33168))
+
+# [0.659.0](https://github.com/lightdash/lightdash/compare/0.658.0...0.659.0) (2023-07-07)
+
+
+### Bug Fixes
+
+* hide edit buttons from users without edit ([#6174](https://github.com/lightdash/lightdash/issues/6174)) ([bc7c7fc](https://github.com/lightdash/lightdash/commit/bc7c7fc468002b5e0e52fe4d70cbb7fb09cf61d1))
+* stop info icon from wrapping on resource list ([#6204](https://github.com/lightdash/lightdash/issues/6204)) ([a8594f2](https://github.com/lightdash/lightdash/commit/a8594f255ab4ad668f3e8c8f8421ed800645d2be))
+
+
+### Features
+
+* add space above charts in editor ([#6207](https://github.com/lightdash/lightdash/issues/6207)) ([11e9719](https://github.com/lightdash/lightdash/commit/11e97192b3003cd56a8d1e9a895d77a5e0558d94))
+
+# [0.658.0](https://github.com/lightdash/lightdash/compare/0.657.0...0.658.0) (2023-07-07)
+
+
+### Bug Fixes
+
+* Ui bug - Tables in the 'User Management' page ([#6171](https://github.com/lightdash/lightdash/issues/6171)) ([8bbcc66](https://github.com/lightdash/lightdash/commit/8bbcc66227a11501cbca501abc18e414aa03a969)), closes [#5966](https://github.com/lightdash/lightdash/issues/5966)
+
+
+### Features
+
+* echarts show tooltip only on hovered lines/bars ([#6195](https://github.com/lightdash/lightdash/issues/6195)) ([6cf9580](https://github.com/lightdash/lightdash/commit/6cf9580d47a8ce8b8d41d764b88d9957fa7db920))
+* Update dbt supported version in project setting page ([#6191](https://github.com/lightdash/lightdash/issues/6191)) ([05d6429](https://github.com/lightdash/lightdash/commit/05d64298e2054492682f8aada82ff99763332940)), closes [#5966](https://github.com/lightdash/lightdash/issues/5966)
+
 # [0.657.0](https://github.com/lightdash/lightdash/compare/0.656.0...0.657.0) (2023-07-06)
 
 

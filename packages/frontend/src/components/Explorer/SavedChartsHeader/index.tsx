@@ -238,7 +238,13 @@ const SavedChartsHeader: FC = () => {
                         </>
                     )}
                 </PageTitleAndDetailsContainer>
-                {user.data?.ability?.can('manage', 'SavedChart') && (
+                {user.data?.ability?.can(
+                    'manage',
+                    subject('SavedChart', {
+                        organizationUuid: savedChart?.organizationUuid,
+                        projectUuid,
+                    }),
+                ) && (
                     <PageActionsContainer>
                         {!isEditMode ? (
                             <>

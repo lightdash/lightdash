@@ -809,7 +809,6 @@ describe('Lightdash API tests for member user with interactive_viewer project pe
     it('Should get forbidden error (403) from GET Scheduler logs', () => {
         cy.request({
             url: `${apiUrl}/schedulers/${SEED_PROJECT.project_uuid}/logs`,
-            timeout: 500,
             failOnStatusCode: false,
         }).then((resp) => {
             expect(resp.status).to.eq(403);
@@ -1010,7 +1009,6 @@ describe('Lightdash API tests for member user with viewer project permissions', 
     it('Should get forbidden error (403) from GET Scheduler logs', () => {
         cy.request({
             url: `${apiUrl}/schedulers/${SEED_PROJECT.project_uuid}/logs`,
-            timeout: 500,
             failOnStatusCode: false,
         }).then((resp) => {
             expect(resp.status).to.eq(403);
@@ -1313,7 +1311,6 @@ describe('Lightdash API tests for member user with NO project permissions', () =
         endpoints.forEach((endpoint) => {
             cy.request({
                 url: `${apiUrl}${endpoint}`,
-                timeout: 500,
                 failOnStatusCode: false,
             }).then((resp) => {
                 expect(resp.status).to.eq(403);
