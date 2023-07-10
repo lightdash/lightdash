@@ -17,7 +17,7 @@ import { HeaderProps, TableColumn } from '../../common/Table/types';
 import {
     DeleteTableCalculationModal,
     UpdateTableCalculationModal,
-} from '../../TableCalculationModels';
+} from '../../TableCalculationModals';
 import { BolderLabel, FlatButton } from './ColumnHeaderContextMenu.styles';
 import ColumnHeaderSortMenuOptions from './ColumnHeaderSortMenuOptions';
 
