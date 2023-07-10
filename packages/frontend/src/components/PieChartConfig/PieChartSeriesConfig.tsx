@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Checkbox,
     Collapse,
     ColorPicker,
     ColorSwatch,
@@ -13,7 +14,6 @@ import {
     Popover,
     Select,
     Stack,
-    Switch,
     TextInput,
     Tooltip,
 } from '@mantine/core';
@@ -27,9 +27,9 @@ import { useVisualizationContext } from '../LightdashVisualization/Visualization
 type ValueOptionsProps = {
     inputLabel: string;
 
-    defaultValueLabel?: PieChartValueLabel;
-    defaultShowValue?: boolean;
-    defaultShowPercentage?: boolean;
+    isValueLabelOverriden?: boolean;
+    isShowValueOverriden?: boolean;
+    isShowPercentageOverriden?: boolean;
 
     valueLabel: PieChartValueLabel;
     showValue: boolean;
@@ -43,13 +43,13 @@ type ValueOptionsProps = {
 const ValueOptions: FC<ValueOptionsProps> = ({
     inputLabel,
 
-    defaultShowPercentage,
-    defaultShowValue,
-    defaultValueLabel,
+    isValueLabelOverriden = false,
+    isShowValueOverriden = false,
+    isShowPercentageOverriden = false,
 
-    valueLabel = defaultValueLabel,
-    showValue = defaultShowValue,
-    showPercentage = defaultShowPercentage,
+    valueLabel,
+    showValue,
+    showPercentage,
 
     onValueLabelChange,
     onToggleShowValue,
@@ -58,10 +58,14 @@ const ValueOptions: FC<ValueOptionsProps> = ({
     <>
         <Select
             label={inputLabel}
-            value={valueLabel}
-            data={Object.entries(PieChartValueLabels).map(([value, label]) => ({
+            value={isValueLabelOverriden ? 'mixed' : valueLabel}
+            data={[
+                ...(isValueLabelOverriden ? [['mixed', 'Mixed']] : []),
+                ...Object.entries(PieChartValueLabels),
+            ].map(([value, label]) => ({
                 value,
                 label,
+                disabled: value === 'mixed',
             }))}
             onChange={(newValueLabel: PieChartValueLabel) => {
                 onValueLabelChange(newValueLabel);
@@ -74,8 +78,9 @@ const ValueOptions: FC<ValueOptionsProps> = ({
             label={`Enable ${inputLabel} to configure this option`}
         >
             <div>
-                <Switch
+                <Checkbox
                     disabled={valueLabel === 'hidden'}
+                    indeterminate={isShowValueOverriden}
                     checked={showValue}
                     onChange={(newValue) =>
                         onToggleShowValue(newValue.currentTarget.checked)
@@ -91,8 +96,9 @@ const ValueOptions: FC<ValueOptionsProps> = ({
             label={`Enable ${inputLabel} to configure this option`}
         >
             <div>
-                <Switch
+                <Checkbox
                     disabled={valueLabel === 'hidden'}
+                    indeterminate={isShowPercentageOverriden}
                     checked={showPercentage}
                     onChange={(newValue) =>
                         onToggleShowPercentage(newValue.currentTarget.checked)
@@ -107,10 +113,6 @@ const ValueOptions: FC<ValueOptionsProps> = ({
 type GroupItemProps = {
     defaultColor: string;
     defaultLabel: string;
-
-    defaultValueLabel: PieChartValueLabel;
-    defaultShowValue: boolean;
-    defaultShowPercentage: boolean;
 
     swatches: string[];
 
@@ -132,10 +134,6 @@ type GroupItemProps = {
 const GroupItem: FC<GroupItemProps> = ({
     defaultLabel,
     defaultColor,
-
-    defaultValueLabel,
-    defaultShowValue,
-    defaultShowPercentage,
 
     swatches,
 
@@ -227,9 +225,6 @@ const GroupItem: FC<GroupItemProps> = ({
             <Collapse in={opened}>
                 <Stack pb="md" px="xxl">
                     <ValueOptions
-                        defaultValueLabel={defaultValueLabel}
-                        defaultShowValue={defaultShowValue}
-                        defaultShowPercentage={defaultShowPercentage}
                         inputLabel="Value label"
                         valueLabel={valueLabel}
                         onValueLabelChange={(newValue) =>
@@ -266,6 +261,9 @@ const PieChartSeriesConfig: FC = () => {
             toggleShowValue,
             showPercentage,
             toggleShowPercentage,
+            isValueLabelOverriden,
+            isShowValueOverriden,
+            isShowPercentageOverriden,
             groupLabels,
             groupLabelOverrides,
             groupLabelChange,
@@ -281,6 +279,9 @@ const PieChartSeriesConfig: FC = () => {
         <Stack>
             <ValueOptions
                 inputLabel="Value label"
+                isValueLabelOverriden={isValueLabelOverriden}
+                isShowValueOverriden={isShowValueOverriden}
+                isShowPercentageOverriden={isShowPercentageOverriden}
                 valueLabel={valueLabel}
                 onValueLabelChange={valueLabelChange}
                 showValue={showValue}
@@ -302,12 +303,20 @@ const PieChartSeriesConfig: FC = () => {
                             swatches={defaultColors}
                             defaultColor={groupColorDefaults[groupLabel]}
                             defaultLabel={groupLabel}
-                            defaultValueLabel={valueLabel}
-                            defaultShowValue={showValue}
-                            defaultShowPercentage={showPercentage}
                             color={groupColorOverrides[groupLabel]}
                             label={groupLabelOverrides[groupLabel]}
-                            {...groupValueOptionOverrides[groupLabel]}
+                            valueLabel={
+                                groupValueOptionOverrides[groupLabel]
+                                    ?.valueLabel ?? valueLabel
+                            }
+                            showValue={
+                                groupValueOptionOverrides[groupLabel]
+                                    ?.showValue ?? showValue
+                            }
+                            showPercentage={
+                                groupValueOptionOverrides[groupLabel]
+                                    ?.showPercentage ?? showPercentage
+                            }
                             onLabelChange={groupLabelChange}
                             onColorChange={groupColorChange}
                             onValueOptionsChange={groupValueOptionChange}

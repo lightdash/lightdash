@@ -77,7 +77,7 @@ export type PieChart = {
     showPercentage?: PieChartValueOptions['showPercentage'];
     groupLabelOverrides?: Record<string, string>;
     groupColorOverrides?: Record<string, string>;
-    groupValueOptionOverrides?: Record<string, PieChartValueOptions>;
+    groupValueOptionOverrides?: Record<string, Partial<PieChartValueOptions>>;
     showLegend?: boolean;
 };
 

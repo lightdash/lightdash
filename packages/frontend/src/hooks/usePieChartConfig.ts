@@ -16,6 +16,7 @@ import {
 import { useDebouncedValue } from '@mantine/hooks';
 import isEmpty from 'lodash-es/isEmpty';
 import isEqual from 'lodash-es/isEqual';
+import mapValues from 'lodash-es/mapValues';
 import omitBy from 'lodash-es/omitBy';
 import pick from 'lodash-es/pick';
 import pickBy from 'lodash-es/pickBy';
@@ -41,11 +42,14 @@ type PieChartConfig = {
 
     valueLabel: PieChartValueOptions['valueLabel'];
     valueLabelChange: (valueLabel: PieChartValueOptions['valueLabel']) => void;
-
     showValue: PieChartValueOptions['showValue'];
     toggleShowValue: () => void;
     showPercentage: PieChartValueOptions['showPercentage'];
     toggleShowPercentage: () => void;
+
+    isValueLabelOverriden: boolean;
+    isShowValueOverriden: boolean;
+    isShowPercentageOverriden: boolean;
 
     defaultColors: string[];
 
@@ -55,7 +59,7 @@ type PieChartConfig = {
     groupColorOverrides: Record<string, string>;
     groupColorDefaults: Record<string, string>;
     groupColorChange: (prevValue: any, newValue: any) => void;
-    groupValueOptionOverrides: Record<string, PieChartValueOptions>;
+    groupValueOptionOverrides: Record<string, Partial<PieChartValueOptions>>;
     groupValueOptionChange: (
         label: string,
         value: Partial<PieChartValueOptions>,
@@ -209,6 +213,33 @@ const usePieChartConfig: PieChartConfigFn = (
         });
     }, []);
 
+    const handleValueLabelChange = useCallback(
+        (newValueLabel: PieChartValueOptions['valueLabel']) => {
+            setValueLabel(newValueLabel);
+
+            setGroupValueOptionOverrides((prev) =>
+                mapValues(prev, ({ valueLabel: _, ...rest }) => ({ ...rest })),
+            );
+        },
+        [],
+    );
+
+    const handleToggleShowValue = useCallback(() => {
+        setShowValue((prev) => !prev);
+
+        setGroupValueOptionOverrides((prev) =>
+            mapValues(prev, ({ showValue: _, ...rest }) => ({ ...rest })),
+        );
+    }, []);
+
+    const handleToggleShowPercentage = useCallback(() => {
+        setShowPercentage((prev) => !prev);
+
+        setGroupValueOptionOverrides((prev) =>
+            mapValues(prev, ({ showPercentage: _, ...rest }) => ({ ...rest })),
+        );
+    }, []);
+
     const handleGroupLabelChange = useCallback((key: string, value: string) => {
         setGroupLabelOverrides(({ [key]: _, ...rest }) => {
             return value === '' ? rest : { ...rest, [key]: value };
@@ -257,6 +288,24 @@ const usePieChartConfig: PieChartConfigFn = (
             ]),
         );
     }, [groupLabels, defaultColors]);
+
+    const isValueLabelOverriden = useMemo(() => {
+        return Object.values(groupValueOptionOverrides).some(
+            (value) => value.valueLabel !== undefined,
+        );
+    }, [groupValueOptionOverrides]);
+
+    const isShowValueOverriden = useMemo(() => {
+        return Object.values(groupValueOptionOverrides).some(
+            (value) => value.showValue !== undefined,
+        );
+    }, [groupValueOptionOverrides]);
+
+    const isShowPercentageOverriden = useMemo(() => {
+        return Object.values(groupValueOptionOverrides).some(
+            (value) => value.showPercentage !== undefined,
+        );
+    }, [groupValueOptionOverrides]);
 
     const validPieChartConfig: PieChart = useMemo(
         () => ({
@@ -312,11 +361,15 @@ const usePieChartConfig: PieChartConfigFn = (
             toggleDonut: () => setIsDonut((prev) => !prev),
 
             valueLabel,
-            valueLabelChange: setValueLabel,
+            valueLabelChange: handleValueLabelChange,
             showValue,
-            toggleShowValue: () => setShowValue((prev) => !prev),
+            toggleShowValue: handleToggleShowValue,
             showPercentage,
-            toggleShowPercentage: () => setShowPercentage((prev) => !prev),
+            toggleShowPercentage: handleToggleShowPercentage,
+
+            isValueLabelOverriden,
+            isShowValueOverriden,
+            isShowPercentageOverriden,
 
             defaultColors,
 
@@ -346,9 +399,15 @@ const usePieChartConfig: PieChartConfigFn = (
             isDonut,
 
             valueLabel,
-            setValueLabel,
+            handleValueLabelChange,
             showValue,
+            handleToggleShowValue,
             showPercentage,
+            handleToggleShowPercentage,
+
+            isValueLabelOverriden,
+            isShowValueOverriden,
+            isShowPercentageOverriden,
 
             defaultColors,
 
