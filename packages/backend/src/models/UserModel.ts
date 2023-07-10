@@ -600,7 +600,7 @@ export class UserModel {
         userUuid: string,
         organizationUuid: string,
         role: OrganizationMemberRole,
-        projectUuids: string[],
+        projects: { [projectUuid: string]: ProjectMemberRole } | undefined,
     ): Promise<LightdashUser> {
         const [org] = await this.database(OrganizationTableName)
             .where('organization_uuid', organizationUuid)
@@ -632,8 +632,8 @@ export class UserModel {
                 role,
             });
 
-            const projectMemberships = Array.from(new Set(projectUuids)).map(
-                async (projectUuid) => {
+            const projectMemberships = Object.entries(projects || {}).map(
+                async ([projectUuid, projectRole]) => {
                     const [project] = await this.database('projects')
                         .select('project_id')
                         .where('project_uuid', projectUuid);
@@ -641,7 +641,7 @@ export class UserModel {
                     if (project) {
                         await this.database('project_memberships').insert({
                             project_id: project.project_id,
-                            role: ProjectMemberRole.VIEWER,
+                            role: projectRole,
                             user_id: user.user_id,
                         });
                     }

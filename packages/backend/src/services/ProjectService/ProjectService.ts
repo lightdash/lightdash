@@ -73,7 +73,7 @@ import { schedulerClient } from '../../clients/clients';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { errorHandler } from '../../errors';
-import Logger from '../../logger';
+import Logger from '../../logging/logger';
 import { DbtCloudMetricsModel } from '../../models/DbtCloudMetricsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
@@ -1998,12 +1998,9 @@ export class ProjectService {
         }
 
         const spaces = await this.spaceModel.find({ projectUuid });
-        const allowedSpaces = spaces.filter(
-            (space) =>
-                space.projectUuid === projectUuid &&
-                (!space.isPrivate || space.access.includes(user.userUuid)),
+        const allowedSpaces = spaces.filter((space) =>
+            hasSpaceAccess(user, space, true),
         );
-
         return allowedSpaces;
     }
 

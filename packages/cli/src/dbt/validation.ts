@@ -1,69 +1,16 @@
 import {
-    assertUnreachable,
-    DbtManifestVersion,
     DbtModelNode,
     DbtRawModelNode,
     ExploreError,
     friendlyName,
     InlineError,
     InlineErrorType,
+    ManifestValidator,
     normaliseModelDatabase,
-    ParseError,
     SupportedDbtAdapter,
-    UnexpectedServerError,
 } from '@lightdash/common';
-import Ajv from 'ajv';
-import addFormats from 'ajv-formats';
-import { AnyValidateFunction } from 'ajv/dist/types';
 import GlobalState from '../globalState';
-import dbtManifestSchemaV7 from '../manifestv7.json';
-import dbtManifestSchemaV9 from '../manifestv9.json';
-import lightdashDbtSchemaV7 from '../schema.json';
-import lightdashDbtSchemaV9 from '../schemav9.json';
 import { getDbtManifest } from './manifest';
-
-const getModelValidator = async () => {
-    const manifestVersion = await getDbtManifest();
-
-    GlobalState.debug(
-        `> Validating models using dbt manifest version ${manifestVersion}`,
-    );
-    let ajv: Ajv;
-
-    switch (manifestVersion) {
-        case DbtManifestVersion.V7:
-            ajv = new Ajv({
-                schemas: [lightdashDbtSchemaV7, dbtManifestSchemaV7],
-            });
-            break;
-        case DbtManifestVersion.V9:
-            ajv = new Ajv({
-                schemas: [lightdashDbtSchemaV9, dbtManifestSchemaV9],
-            });
-            break;
-        default:
-            return assertUnreachable(
-                manifestVersion,
-                new UnexpectedServerError(
-                    `Missing dbt manifest version "${manifestVersion}" in validation.`,
-                ),
-            );
-    }
-    addFormats(ajv);
-
-    const modelValidator = ajv.getSchema<DbtRawModelNode>(
-        `https://schemas.lightdash.com/dbt/manifest/${manifestVersion}.json#/definitions/LightdashCompiledModelNode`,
-    );
-    if (modelValidator === undefined) {
-        throw new ParseError('Could not parse Lightdash schema.');
-    }
-    return modelValidator;
-};
-
-const formatAjvErrors = (validator: AnyValidateFunction): string =>
-    (validator.errors || [])
-        .map((err) => `Field at "${err.instancePath}" ${err.message}`)
-        .join('\n');
 
 type DbtModelsGroupedByState = {
     valid: DbtModelNode[];
@@ -75,7 +22,13 @@ export const validateDbtModel = async (
     models: DbtRawModelNode[],
 ): Promise<DbtModelsGroupedByState> => {
     GlobalState.debug(`> Validating ${models.length} models from dbt manifest`);
-    const validator = await getModelValidator();
+    const manifestVersion = await getDbtManifest();
+
+    GlobalState.debug(
+        `> Validating models using dbt manifest version ${manifestVersion}`,
+    );
+
+    const validator = new ManifestValidator(manifestVersion);
     const results = models.reduce<DbtModelsGroupedByState>(
         (acc, model) => {
             if (model.compiled === undefined) {
@@ -84,11 +37,11 @@ export const validateDbtModel = async (
 
             let error: InlineError | undefined;
             // Match against json schema
-            const isValid = validator(model);
+            const [isValid, errorMessage] = validator.isModelValid(model);
             if (!isValid) {
                 error = {
                     type: InlineErrorType.METADATA_PARSE_ERROR,
-                    message: formatAjvErrors(validator),
+                    message: errorMessage,
                 };
             } else if (isValid && Object.values(model.columns).length <= 0) {
                 error = {

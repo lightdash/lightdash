@@ -1,5 +1,4 @@
 import {
-    assertUnreachable,
     DbtError,
     DbtLog,
     DbtManifestVersion,
@@ -17,7 +16,7 @@ import execa from 'execa';
 import * as fs from 'fs/promises';
 import yaml, { dump as dumpYaml, load as loadYaml } from 'js-yaml';
 import path from 'path';
-import Logger from '../logger';
+import Logger from '../logging/logger';
 import { DbtClient } from '../types';
 
 type DbtProjectConfig = {
@@ -138,7 +137,7 @@ export class DbtCliClient implements DbtClient {
                     version:
                         dbtExec === 'dbt1.5'
                             ? DbtManifestVersion.V9
-                            : DbtManifestVersion.V7,
+                            : DbtManifestVersion.V8,
                     logs: await this._runDbtCommand(dbtExec, ...command),
                 };
             } catch (e) {
@@ -153,7 +152,7 @@ export class DbtCliClient implements DbtClient {
                 }
             }
         }
-        return { version: DbtManifestVersion.V7, logs: [] };
+        return { version: DbtManifestVersion.V8, logs: [] };
     }
 
     private async _runDbtCommand(
@@ -259,8 +258,9 @@ export class DbtCliClient implements DbtClient {
         filename: string,
     ): Promise<any> {
         const targetDir = await this._getTargetDirectory();
+
         const fullPath = path.join(
-            version === DbtManifestVersion.V9 ? '.' : this.dbtProjectDirectory,
+            this.dbtProjectDirectory,
             targetDir,
             filename,
         );

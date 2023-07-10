@@ -6,13 +6,12 @@ import {
     Intent,
     Menu,
 } from '@blueprintjs/core';
-import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
+import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
 import { IconDots, IconPencil } from '@tabler/icons-react';
 import { FC, useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
-
 import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
 import {
     useDuplicateChartMutation,
@@ -40,6 +39,7 @@ import {
 import SpaceInfo from '../../common/PageHeader/SpaceInfo';
 import { UpdatedInfo } from '../../common/PageHeader/UpdatedInfo';
 import ViewInfo from '../../common/PageHeader/ViewInfo';
+import { ResourceInfoPopup } from '../../common/ResourceInfoPopup/ResourceInfoPopup';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import ChartSchedulersModal from '../../SchedulerModals/ChartSchedulersModal';
 import { getSchedulerUuidFromUrlParams } from '../../SchedulerModals/SchedulerModalBase/SchedulerModalContent';
@@ -181,14 +181,14 @@ const SavedChartsHeader: FC = () => {
                                 className={Classes.TEXT_OVERFLOW_ELLIPSIS}
                             >
                                 <PageTitle>{savedChart.name}</PageTitle>
-                                {savedChart.description && (
-                                    <Tooltip2
-                                        content={savedChart.description}
-                                        position="bottom"
-                                    >
-                                        <Button icon="info-sign" minimal />
-                                    </Tooltip2>
-                                )}
+
+                                <ResourceInfoPopup
+                                    resourceUuid={savedChart.uuid}
+                                    projectUuid={projectUuid}
+                                    description={savedChart.description}
+                                    withChartData={true}
+                                />
+
                                 {isEditMode &&
                                     user.data?.ability?.can(
                                         'manage',
@@ -238,7 +238,13 @@ const SavedChartsHeader: FC = () => {
                         </>
                     )}
                 </PageTitleAndDetailsContainer>
-                {user.data?.ability?.can('manage', 'SavedChart') && (
+                {user.data?.ability?.can(
+                    'manage',
+                    subject('SavedChart', {
+                        organizationUuid: savedChart?.organizationUuid,
+                        projectUuid,
+                    }),
+                ) && (
                     <PageActionsContainer>
                         {!isEditMode ? (
                             <>

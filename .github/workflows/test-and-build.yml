@@ -13,16 +13,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Install modules
-      run: yarn
-      
+    - uses: actions/checkout@v3
+    # Install packages
+    - uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'yarn'
+    - name: Install packages
+      run: yarn install --frozen-lockfile
+
     - name: Lint all packages
       run: yarn lint
     - name: Check formatting all packages
       run: yarn format
     - name: Check for unused exports
-      run: yarn workspace frontend unused-exports 
+      run: yarn workspace frontend unused-exports
 
     - name: Build common
       run: yarn common-build

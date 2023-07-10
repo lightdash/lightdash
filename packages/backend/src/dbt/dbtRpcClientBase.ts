@@ -297,7 +297,7 @@ export class DbtRpcClientBase implements DbtClient {
         const requestToken = await this._submitJob('get-manifest', {});
         const jobResults = await this._waitForJobComplete(requestToken);
         if (isDbtRpcManifestResults(jobResults)) {
-            return { version: DbtManifestVersion.V7, results: jobResults };
+            return { version: DbtManifestVersion.V8, results: jobResults };
         }
         throw new NetworkError(
             'Unknown response received from dbt when compiling',

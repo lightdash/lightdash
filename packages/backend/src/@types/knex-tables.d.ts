@@ -81,6 +81,8 @@ import {
     ProjectTableName,
 } from '../database/entities/projects';
 import {
+    SavedChartAdditionalMetricTable,
+    SavedChartAdditionalMetricTableName,
     SavedChartsTableName,
     SavedChartVersionFieldsTable,
     SavedChartVersionFieldsTableName,
@@ -126,6 +128,8 @@ import {
     GroupMembershipTableName,
 } from '../database/entities/group_memberships';
 import {
+    OrganizationAllowedEmailDomainProjectsTable,
+    OrganizationAllowedEmailDomainProjectsTableName,
     OrganizationAllowedEmailDomainsTable,
     OrganizationAllowedEmailDomainsTableName,
 } from '../database/entities/organizationsAllowedEmailDomains';
@@ -162,6 +166,7 @@ declare module 'knex/types/tables' {
         [SavedChartVersionFieldsTableName]: SavedChartVersionFieldsTable;
         [SavedChartVersionSortsTableName]: SavedChartVersionSortsTable;
         [SavedQueryTableCalculationTableName]: SavedQueryTableCalculationTable;
+        [SavedChartAdditionalMetricTableName]: SavedChartAdditionalMetricTable;
         [SpaceTableName]: SpaceTable;
         [DashboardsTableName]: DashboardTable;
         [DashboardVersionsTableName]: DashboardVersionTable;
@@ -198,6 +203,7 @@ declare module 'knex/types/tables' {
         [EmailOneTimePasscodesTableName]: EmailOneTimePasscodeTable;
         [SchedulerLogTableName]: SchedulerLogTable;
         [OrganizationAllowedEmailDomainsTableName]: OrganizationAllowedEmailDomainsTable;
+        [OrganizationAllowedEmailDomainProjectsTableName]: OrganizationAllowedEmailDomainProjectsTable;
         [ValidationTableName]: DbValidationTable;
         [GroupTableName]: GroupTable;
         [GroupMembershipTableName]: GroupMembershipTable;

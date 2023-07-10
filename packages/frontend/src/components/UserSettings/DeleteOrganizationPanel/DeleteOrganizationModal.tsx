@@ -38,7 +38,6 @@ export const OrganizationDeleteModal: FC<
     return (
         <Modal
             size="md"
-            centered
             opened={opened}
             title={
                 <Group spacing="xs">

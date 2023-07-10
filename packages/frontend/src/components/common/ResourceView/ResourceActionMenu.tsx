@@ -67,7 +67,15 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
             }
             break;
         case ResourceViewItemType.SPACE:
-            if (user.data?.ability?.cannot('manage', 'Space')) {
+            if (
+                user.data?.ability?.cannot(
+                    'manage',
+                    subject('Space', {
+                        organizationUuid: item.data.organizationUuid,
+                        projectUuid,
+                    }),
+                )
+            ) {
                 return null;
             }
             break;

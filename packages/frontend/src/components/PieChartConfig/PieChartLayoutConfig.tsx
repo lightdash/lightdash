@@ -6,15 +6,18 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import {
+    Box,
     Button,
     Group,
     Select,
     SelectItemProps,
     Stack,
+    Switch,
     Text,
+    Tooltip,
 } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
-import React, { forwardRef, useMemo } from 'react';
+import React, { forwardRef } from 'react';
 import FieldIcon from '../common/Filters/FieldIcon';
 import FieldLabel, { fieldLabelText } from '../common/Filters/FieldLabel';
 import MantineIcon from '../common/MantineIcon';
@@ -40,12 +43,10 @@ const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
     ),
 );
 
-const PieLayoutConfig: React.FC = () => {
+const PieChartLayoutConfig: React.FC = () => {
     const {
         dimensions,
-        metrics,
-        customMetrics,
-        tableCalculations,
+        allNumericMetrics,
         pieChartConfig: {
             metricId,
             metricChange,
@@ -55,19 +56,15 @@ const PieLayoutConfig: React.FC = () => {
             groupChange,
             groupRemove,
 
-            // isDonut,
-            // isDonutChange,
+            selectedMetric,
+
+            isDonut,
+            toggleDonut,
         },
     } = useVisualizationContext();
 
-    const selectedMetric = useMemo(() => {
-        return [...metrics, ...customMetrics, ...tableCalculations].find((m) =>
-            isField(m) ? fieldId(m) === metricId : m.name === metricId,
-        );
-    }, [metrics, customMetrics, tableCalculations, metricId]);
-
     return (
-        <Stack w={320}>
+        <Stack>
             <Stack spacing="xs">
                 {groupFieldIds.map((dimensionId, index) => {
                     const dimension = dimensions.find(
@@ -76,6 +73,7 @@ const PieLayoutConfig: React.FC = () => {
 
                     return (
                         <Select
+                            disabled={dimensions.length === 0}
                             key={index}
                             clearable={index !== 0}
                             label={index === 0 ? 'Group' : undefined}
@@ -98,45 +96,75 @@ const PieLayoutConfig: React.FC = () => {
                     );
                 })}
 
-                <Button
-                    w="fit-content"
-                    size="xs"
-                    leftIcon={<MantineIcon icon={IconPlus} />}
-                    variant="outline"
-                    onClick={groupAdd}
+                <Tooltip
                     disabled={
-                        groupFieldIds.includes(null) ||
-                        groupFieldIds.length === dimensions.length
+                        !(
+                            dimensions.length === 0 ||
+                            groupFieldIds.length === dimensions.length
+                        )
+                    }
+                    label={
+                        dimensions.length === 0
+                            ? 'You must select at least one dimension to create a pie chart'
+                            : dimensions.length === groupFieldIds.length
+                            ? 'To add more groups you need to add more dimensions to your query'
+                            : undefined
                     }
                 >
-                    Add Group
-                </Button>
+                    <Box w="fit-content">
+                        <Button
+                            w="fit-content"
+                            size="xs"
+                            leftIcon={<MantineIcon icon={IconPlus} />}
+                            variant="outline"
+                            onClick={groupAdd}
+                            disabled={
+                                dimensions.length === 0 ||
+                                groupFieldIds.length === dimensions.length
+                            }
+                        >
+                            Add Group
+                        </Button>
+                    </Box>
+                </Tooltip>
             </Stack>
 
-            <Select
-                label="Metric"
-                placeholder="Select metric"
-                value={metricId}
-                icon={selectedMetric && <FieldIcon item={selectedMetric} />}
-                itemComponent={SelectItem}
-                data={[...metrics, ...customMetrics, ...tableCalculations].map(
-                    (m) => {
-                        const id = isField(m) ? fieldId(m) : m.name;
+            <Tooltip
+                disabled={allNumericMetrics.length > 0}
+                label="You must select at least one numeric metric to create a pie chart"
+            >
+                <Box>
+                    <Select
+                        disabled={allNumericMetrics.length === 0}
+                        label="Metric"
+                        placeholder="Select metric"
+                        value={metricId}
+                        icon={
+                            selectedMetric && (
+                                <FieldIcon item={selectedMetric} />
+                            )
+                        }
+                        itemComponent={SelectItem}
+                        data={allNumericMetrics.map((m) => {
+                            const id = isField(m) ? fieldId(m) : m.name;
 
-                        return {
-                            item: m,
-                            value: id,
-                            label: fieldLabelText(m),
-                            disabled: metricId === id,
-                        };
-                    },
-                )}
-                onChange={(newValue) => {
-                    metricChange(newValue);
-                }}
-            />
+                            return {
+                                item: m,
+                                value: id,
+                                label: fieldLabelText(m),
+                                disabled: metricId === id,
+                            };
+                        })}
+                        onChange={(newValue) => {
+                            metricChange(newValue);
+                        }}
+                    />
+                </Box>
+            </Tooltip>
+
+            <Switch label="Donut" checked={isDonut} onChange={toggleDonut} />
         </Stack>
     );
 };
 
-export default PieLayoutConfig;
+export default PieChartLayoutConfig;

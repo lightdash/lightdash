@@ -54,6 +54,7 @@ To learn more about using filters, check out our docs on limiting data using fil
 | is equal to     | Only pulls in rows where the values are equal to the values listed.                                                                                                                        |
 | is not equal to | Only pulls in rows where the values are not equal to the values listed.                                                                                                                    |
 | in the last     | Only pulls in rows where the dates for the field selected are within the dynamic date range you selected.                                                                                  |
+| not in the last | Only pulls in rows where the dates for the field selected are not within the dynamic date range you selected.                                                                              |
 | is before       | Only pulls in rows where the dates for the field selected are strictly before the date you entered.                                                                                        |
 | is on or before | Only pulls in rows where the dates for the field selected are on or before the date you entered.                                                                                           |
 | is after        | Only pulls in rows where the dates for the field selected are strictly after the date you entered.                                                                                         |

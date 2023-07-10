@@ -1,5 +1,8 @@
+import { SessionUser } from '@lightdash/common';
+import * as express from 'express';
+import * as expressWinston from 'express-winston';
 import winston from 'winston';
-import { lightdashConfig } from './config/lightdashConfig';
+import { lightdashConfig } from '../config/lightdashConfig';
 
 const levels = {
     error: 0,
@@ -70,9 +73,35 @@ if (lightdashConfig.logging.outputs.includes('file')) {
     );
 }
 
-const Logger = winston.createLogger({
+export const winstonLogger = winston.createLogger({
     levels,
     transports,
 });
 
-export default Logger;
+declare global {
+    namespace Express {
+        interface User extends SessionUser {}
+    }
+}
+
+export const expressWinstonMiddleware: express.RequestHandler =
+    expressWinston.logger({
+        winstonInstance: winstonLogger,
+        level: 'http',
+        msg: '{{req.method}} {{req.url}} {{res.statusCode}} - {{res.responseTime}} ms',
+        colorize: false,
+        meta: true,
+        metaField: null, // on root of log
+        dynamicMeta: (req, res) => ({
+            userUuid: req.user?.userUuid,
+            organizationUuid: req.user?.organizationUuid,
+        }),
+        requestWhitelist: ['url', 'headers', 'method'],
+        responseWhitelist: ['statusCode'],
+        headerBlacklist: [
+            'cookie',
+            'authorization',
+            'connection',
+            'accept-encoding',
+        ],
+    });

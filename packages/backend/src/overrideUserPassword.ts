@@ -1,4 +1,4 @@
-import Logger from './logger';
+import Logger from './logging/logger';
 import { userModel } from './models/models';
 
 (async function init() {

@@ -11,15 +11,11 @@ type LoadManifestArgs = {
 export const getDbtManifest = async (): Promise<DbtManifestVersion> => {
     const version = await getDbtVersion();
     if (version.startsWith('1.5.')) return DbtManifestVersion.V9;
-    return DbtManifestVersion.V7;
+    return DbtManifestVersion.V8;
 };
 
-export const getManifestPath = async (targetDir: string): Promise<string> => {
-    const version = await getDbtVersion();
-    if (version.startsWith('1.5.'))
-        return path.join('./target', 'manifest.json');
-    return path.join(targetDir, 'manifest.json');
-};
+export const getManifestPath = async (targetDir: string): Promise<string> =>
+    path.join(targetDir, 'manifest.json');
 
 export const loadManifest = async ({
     targetDir,

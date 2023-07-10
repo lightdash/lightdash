@@ -80,7 +80,6 @@ export const CreateTokenModal: FC<{
     return (
         <Modal
             size="lg"
-            centered
             opened
             onClose={() => {
                 onBackClick();

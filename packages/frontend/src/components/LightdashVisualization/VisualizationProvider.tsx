@@ -10,6 +10,7 @@ import {
     fieldId,
     getDimensions,
     getMetrics,
+    isNumericItem,
     Metric,
     TableCalculation,
 } from '@lightdash/common';
@@ -51,6 +52,8 @@ type VisualizationContext = {
     isSqlRunner: boolean;
     dimensions: Dimension[];
     metrics: Metric[];
+    allMetrics: (Metric | AdditionalMetric | TableCalculation)[];
+    allNumericMetrics: (Metric | AdditionalMetric | TableCalculation)[];
     customMetrics: AdditionalMetric[];
     tableCalculations: TableCalculation[];
     onSeriesContextMenu?: (
@@ -144,13 +147,32 @@ const VisualizationProvider: FC<Props> = ({
                 additionalMetric,
                 table,
             });
+
+            if (!resultsData?.metricQuery.metrics.includes(fieldId(metric))) {
+                return acc;
+            }
+
             return [...acc, metric];
         }, []);
-    }, [explore, resultsData?.metricQuery.additionalMetrics]);
+    }, [
+        explore,
+        resultsData?.metricQuery.additionalMetrics,
+        resultsData?.metricQuery.metrics,
+    ]);
 
     const tableCalculations = useMemo(() => {
         return resultsData?.metricQuery.tableCalculations ?? [];
     }, [resultsData?.metricQuery.tableCalculations]);
+
+    const allMetrics = useMemo(
+        () => [...metrics, ...customMetrics, ...tableCalculations],
+        [metrics, customMetrics, tableCalculations],
+    );
+
+    const allNumericMetrics = useMemo(
+        () => allMetrics.filter((m) => isNumericItem(m)),
+        [allMetrics],
+    );
 
     const bigNumberConfig = useBigNumberConfig(
         initialChartConfig?.type === ChartType.BIG_NUMBER
@@ -214,15 +236,13 @@ const VisualizationProvider: FC<Props> = ({
     const { validCartesianConfig } = cartesianConfig;
 
     const pieChartConfig = usePieChartConfig(
+        explore,
+        resultsData,
         initialChartConfig?.type === ChartType.PIE
             ? initialChartConfig.config
             : undefined,
-        {
-            dimensions,
-            metrics,
-            customMetrics,
-            tableCalculations,
-        },
+        dimensions,
+        allNumericMetrics,
     );
 
     const { validPieChartConfig } = pieChartConfig;
@@ -282,6 +302,8 @@ const VisualizationProvider: FC<Props> = ({
             metrics,
             customMetrics,
             tableCalculations,
+            allMetrics,
+            allNumericMetrics,
             onSeriesContextMenu,
             setChartType,
             setPivotDimensions,
@@ -303,6 +325,8 @@ const VisualizationProvider: FC<Props> = ({
             metrics,
             customMetrics,
             tableCalculations,
+            allMetrics,
+            allNumericMetrics,
             onSeriesContextMenu,
             setChartType,
             setPivotDimensions,

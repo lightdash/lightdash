@@ -173,6 +173,8 @@ export class PostgresClient<
             pool.connect((err, client, done) => {
                 if (err) {
                     reject(err);
+                    done();
+                    return;
                 }
                 // CodeQL: This will raise a security warning because user defined raw SQL is being passed into the database module.
                 //         In this case this is exactly what we want to do. We're hitting the user's warehouse not the application's database.
@@ -191,6 +193,7 @@ export class PostgresClient<
                 });
                 stream.on('error', (err2) => {
                     reject(err2);
+                    done();
                 });
                 stream.pipe(
                     new Writable({

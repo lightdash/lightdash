@@ -481,14 +481,51 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ProjectMemberRole.EDITOR': {
+        dataType: 'refEnum',
+        enums: ['editor'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ProjectMemberRole.INTERACTIVE_VIEWER': {
+        dataType: 'refEnum',
+        enums: ['interactive_viewer'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ProjectMemberRole.VIEWER': {
+        dataType: 'refEnum',
+        enums: ['viewer'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AllowedEmailDomainProjectsRole: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'ProjectMemberRole.EDITOR' },
+                { ref: 'ProjectMemberRole.INTERACTIVE_VIEWER' },
+                { ref: 'ProjectMemberRole.VIEWER' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AllowedEmailDomains: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                projectUuids: {
+                projects: {
                     dataType: 'array',
-                    array: { dataType: 'string' },
+                    array: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            role: {
+                                ref: 'AllowedEmailDomainProjectsRole',
+                                required: true,
+                            },
+                            projectUuid: { dataType: 'string', required: true },
+                        },
+                    },
                     required: true,
                 },
                 role: { ref: 'AllowedEmailDomainsRole', required: true },
@@ -527,9 +564,21 @@ const models: TsoaRoute.Models = {
                         required: true,
                     },
                     role: { ref: 'AllowedEmailDomainsRole', required: true },
-                    projectUuids: {
+                    projects: {
                         dataType: 'array',
-                        array: { dataType: 'string' },
+                        array: {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                role: {
+                                    ref: 'AllowedEmailDomainProjectsRole',
+                                    required: true,
+                                },
+                                projectUuid: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                            },
+                        },
                         required: true,
                     },
                 },
@@ -1883,6 +1932,7 @@ const models: TsoaRoute.Models = {
             'greaterThan',
             'greaterThanOrEqual',
             'inThePast',
+            'notInThePast',
             'inTheNext',
             'inTheCurrent',
             'inBetween',

@@ -29,9 +29,9 @@ import {
 import database from './database/database';
 import { errorHandler } from './errors';
 import { RegisterRoutes } from './generated/routes';
-import Logger from './logger';
+import Logger from './logging/logger';
 import { slackAuthenticationModel, userModel } from './models/models';
-import morganMiddleware from './morganMiddleware';
+import { expressWinstonMiddleware } from './logging/winston';
 import { apiV1Router } from './routers/apiV1Router';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import { VERSION } from './version';
@@ -109,8 +109,6 @@ app.use(
 app.use(Sentry.Handlers.tracingHandler());
 app.use(express.json({ limit: lightdashConfig.maxPayloadSize }));
 
-// Logging
-app.use(morganMiddleware);
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
@@ -134,6 +132,8 @@ app.use(
 app.use(flash());
 app.use(passport.initialize());
 app.use(passport.session());
+
+app.use(expressWinstonMiddleware);
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../../frontend/build', 'index.html'), {

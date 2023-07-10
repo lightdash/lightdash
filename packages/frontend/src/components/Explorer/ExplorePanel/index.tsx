@@ -72,6 +72,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                             withinPortal: true,
                             disabled: !data.tables[data.baseTable].description,
                             label: data.tables[data.baseTable].description,
+                            position: 'right',
                         },
                     },
                 ]}

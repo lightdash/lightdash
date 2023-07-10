@@ -54,10 +54,31 @@ export type BigNumberConfig = {
     config?: BigNumber;
 };
 
+export const PieChartValueLabels = {
+    hidden: 'Hidden',
+    inside: 'Inside',
+    outside: 'Outside',
+} as const;
+
+export type PieChartValueLabel = keyof typeof PieChartValueLabels;
+
+export type PieChartValueOptions = {
+    valueLabel: PieChartValueLabel;
+    showValue: boolean;
+    showPercentage: boolean;
+};
+
 export type PieChart = {
-    isDonut?: boolean;
     groupFieldIds?: string[];
     metricId?: string;
+    isDonut?: boolean;
+    valueLabel?: PieChartValueOptions['valueLabel'];
+    showValue?: PieChartValueOptions['showValue'];
+    showPercentage?: PieChartValueOptions['showPercentage'];
+    groupLabelOverrides?: Record<string, string>;
+    groupColorOverrides?: Record<string, string>;
+    groupValueOptionOverrides?: Record<string, Partial<PieChartValueOptions>>;
+    showLegend?: boolean;
 };
 
 export type PieChartConfig = {

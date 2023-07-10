@@ -114,9 +114,10 @@ const MultiAutoComplete: FC<Props> = ({
                     minimal: true,
                 },
                 inputProps: {
-                    placeholder: disabled
-                        ? undefined
-                        : 'Start typing to filter results',
+                    placeholder:
+                        values.length > 0 || disabled
+                            ? undefined
+                            : 'Start typing to filter results',
                 },
                 onRemove: handleRemove,
                 rightElement: isLoading ? (

@@ -133,6 +133,14 @@ export const getMantineThemeOverride = (overrides?: {
             }),
         },
 
+        Modal: {
+            defaultProps: {
+                // FIXME: This makes the mantine modals line up exactly with the Blueprint ones.
+                // It could be made a less-magic number once we migrate
+                yOffset: 140,
+            },
+        },
+
         ...overrides?.components,
     },
 

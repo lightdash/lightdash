@@ -4,6 +4,7 @@ import {
     CartesianSeriesType,
     convertAdditionalMetric,
     DimensionType,
+    EchartsLegend,
     ECHARTS_DEFAULT_COLORS,
     Field,
     findItem,
@@ -263,6 +264,18 @@ const removeEmptyProperties = <T = Record<any, any>>(obj: T | undefined) => {
                 : sum,
         {},
     );
+};
+
+const removeEmptyLegends = <T = Record<any, any>>(
+    obj: T | undefined,
+    legendsSelected: LegendValues,
+) => {
+    if (!obj) return undefined;
+    if ((obj as EchartsLegend).show) return undefined;
+    return {
+        show: false,
+        selected: legendsSelected,
+    };
 };
 
 const minDate = (a: number | string, b: string) => {
@@ -1063,14 +1076,25 @@ const getValidStack = (series: EChartSeries | undefined) => {
         : undefined;
 };
 
+type LegendValues = { [name: string]: boolean } | undefined;
+
 const calculateStackTotal = (
     row: ResultRow,
     series: EChartSeries[],
     flipAxis: boolean | undefined,
+    selectedLegendNames: LegendValues,
 ) => {
     return series.reduce<number>((acc, s) => {
         const hash = flipAxis ? s.encode?.x : s.encode?.y;
-        const numberValue = hash ? toNumber(row[hash]?.value.raw) : 0;
+        const legendName = s.encode?.seriesName.split('.')[2];
+        let selected = true;
+        for (const key in selectedLegendNames) {
+            if (legendName === key) {
+                selected = selectedLegendNames[key];
+            }
+        }
+        const numberValue =
+            hash && selected ? toNumber(row[hash]?.value.raw) : 0;
         if (!Number.isNaN(numberValue)) {
             acc += numberValue;
         }
@@ -1087,9 +1111,15 @@ const getStackTotalRows = (
     rows: ResultRow[],
     series: EChartSeries[],
     flipAxis: boolean | undefined,
+    selectedLegendNames: LegendValues,
 ): [unknown, unknown, number][] => {
     return rows.map((row) => {
-        const total = calculateStackTotal(row, series, flipAxis);
+        const total = calculateStackTotal(
+            row,
+            series,
+            flipAxis,
+            selectedLegendNames,
+        );
         const hash = flipAxis ? series[0].encode?.y : series[0].encode?.x;
         if (!hash) {
             return [null, null, 0];
@@ -1106,6 +1136,7 @@ const getStackTotalSeries = (
     seriesWithStack: EChartSeries[],
     items: Array<Field | TableCalculation>,
     flipAxis: boolean | undefined,
+    selectedLegendNames: LegendValues,
 ) => {
     const seriesGroupedByStack = groupBy(seriesWithStack, 'stack');
     return Object.entries(seriesGroupedByStack).reduce<EChartSeries[]>(
@@ -1140,7 +1171,12 @@ const getStackTotalSeries = (
                 tooltip: {
                     show: false,
                 },
-                data: getStackTotalRows(rows, series, flipAxis),
+                data: getStackTotalRows(
+                    rows,
+                    series,
+                    flipAxis,
+                    selectedLegendNames,
+                ),
             };
             return [...acc, stackSeries];
         },
@@ -1148,8 +1184,9 @@ const getStackTotalSeries = (
     );
 };
 
-const useEcharts = () => {
+const useEcharts = (validCartesianConfigLegend?: LegendValues) => {
     const context = useVisualizationContext();
+
     const {
         cartesianConfig: { validCartesianConfig },
         explore,
@@ -1157,6 +1194,7 @@ const useEcharts = () => {
         pivotDimensions,
         resultsData,
     } = context;
+
     const { data: organizationData } = useOrganization();
 
     const [pivotedKeys, nonPivotedKeys] = useMemo(() => {
@@ -1271,9 +1309,16 @@ const useEcharts = () => {
                 seriesWithValidStack,
                 items,
                 validCartesianConfig?.layout.flipAxes,
+                validCartesianConfigLegend,
             ),
         ];
-    }, [series, rows, items, validCartesianConfig?.layout.flipAxes]);
+    }, [
+        series,
+        rows,
+        items,
+        validCartesianConfig?.layout.flipAxes,
+        validCartesianConfigLegend,
+    ]);
 
     const colors = useMemo<string[]>(() => {
         const allColors =
@@ -1354,11 +1399,13 @@ const useEcharts = () => {
             yAxis: axis.yAxis,
             useUTC: true,
             series: stackedSeries,
-            legend: removeEmptyProperties(
+            legend: removeEmptyLegends(
                 validCartesianConfig?.eChartsConfig.legend,
+                validCartesianConfigLegend,
             ) || {
                 show: series.length > 1,
                 type: 'scroll',
+                selected: validCartesianConfigLegend,
             },
             dataset: {
                 id: 'lightdashResults',
@@ -1367,7 +1414,7 @@ const useEcharts = () => {
             tooltip: {
                 show: true,
                 confine: true,
-                trigger: 'axis',
+                trigger: 'item',
                 axisPointer: {
                     type: 'shadow',
                     label: { show: true },
@@ -1388,6 +1435,7 @@ const useEcharts = () => {
             stackedSeries,
             validCartesianConfig,
             sortedResults,
+            validCartesianConfigLegend,
         ],
     );
     if (

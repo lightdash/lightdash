@@ -33,6 +33,7 @@ export const ExpectedNumberFilterSQL: Record<FilterOperator, string | null> = {
     [FilterOperator.GREATER_THAN]: '(customers.age) > (1)',
     [FilterOperator.GREATER_THAN_OR_EQUAL]: '(customers.age) >= (1)',
     [FilterOperator.IN_THE_PAST]: null,
+    [FilterOperator.NOT_IN_THE_PAST]: null,
     [FilterOperator.IN_THE_CURRENT]: null,
     [FilterOperator.IN_THE_NEXT]: null,
     [FilterOperator.IN_BETWEEN]: null,
