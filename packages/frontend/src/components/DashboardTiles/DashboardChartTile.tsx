@@ -673,7 +673,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
     );
     return (
         <TileBase
-            title={data?.name || ''}
+            title={title || data?.name || ''}
             titleHref={`/projects/${projectUuid}/saved/${savedChartUuid}/`}
             description={data?.description}
             isLoading={isLoading}
@@ -684,7 +684,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                     tileUuid={tileUuid}
                     isTitleHidden={hideTitle}
                     data={data}
-                    title={title}
+                    title={title || data.name}
                 />
             ) : (
                 <InvalidDashboardChartTile />

@@ -30,7 +30,7 @@ type Props<T> = {
     isLoading?: boolean;
     extraMenuItems?: React.ReactNode;
     onDelete: (tile: T) => void;
-    onReplaceChart: (tile: T) => void;
+    onEdit: (tile: T) => void;
     children?: ReactNode;
     extraHeaderElement?: React.ReactNode;
 };
@@ -43,7 +43,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     isLoading,
     extraMenuItems,
     onDelete,
-    onReplaceChart,
+    onEdit,
     children,
     extraHeaderElement,
     titleHref,
@@ -148,17 +148,15 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                                                         : 'Hide'
                                                                 } title`}
                                                                 onClick={() =>
-                                                                    onReplaceChart(
-                                                                        {
-                                                                            ...tile,
-                                                                            properties:
-                                                                                {
-                                                                                    ...tile.properties,
-                                                                                    hideTitle:
-                                                                                        !hideTitle,
-                                                                                },
-                                                                        },
-                                                                    )
+                                                                    onEdit({
+                                                                        ...tile,
+                                                                        properties:
+                                                                            {
+                                                                                ...tile.properties,
+                                                                                hideTitle:
+                                                                                    !hideTitle,
+                                                                            },
+                                                                    })
                                                                 }
                                                             />
                                                         )}
@@ -199,7 +197,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                         tile={tile}
                         onClose={() => setIsReplacingChart(false)}
                         onConfirm={(data) => {
-                            onReplaceChart(data);
+                            onEdit(data);
                             setIsReplacingChart(false);
                         }}
                     />
@@ -209,7 +207,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                         title={title}
                         onClose={() => setIsEditingTitle(false)}
                         onConfirm={(newTitle) => {
-                            onReplaceChart({
+                            onEdit({
                                 ...tile,
                                 properties: {
                                     ...tile.properties,

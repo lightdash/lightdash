@@ -463,7 +463,7 @@ const Dashboard: FC = () => {
                                         isEditMode={isEditMode}
                                         tile={tile}
                                         onDelete={handleDeleteTile}
-                                        onReplaceChart={handleEditTiles}
+                                        onEdit={handleEditTiles}
                                     />
                                 </TrackSection>
                             </div>

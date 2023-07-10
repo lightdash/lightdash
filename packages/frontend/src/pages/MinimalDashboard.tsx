@@ -58,7 +58,7 @@ const MinimalDashboard: FC = () => {
                                 tile={tile}
                                 isEditMode={false}
                                 onDelete={() => {}}
-                                onReplaceChart={() => {}}
+                                onEdit={() => {}}
                             />
                         ) : tile.type === DashboardTileTypes.MARKDOWN ? (
                             <MarkdownTile
@@ -66,7 +66,7 @@ const MinimalDashboard: FC = () => {
                                 tile={tile}
                                 isEditMode={false}
                                 onDelete={() => {}}
-                                onReplaceChart={() => {}}
+                                onEdit={() => {}}
                             />
                         ) : tile.type === DashboardTileTypes.LOOM ? (
                             <LoomTile
@@ -74,7 +74,7 @@ const MinimalDashboard: FC = () => {
                                 tile={tile}
                                 isEditMode={false}
                                 onDelete={() => {}}
-                                onReplaceChart={() => {}}
+                                onEdit={() => {}}
                             />
                         ) : (
                             assertUnreachable(
