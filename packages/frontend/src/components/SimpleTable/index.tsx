@@ -93,36 +93,38 @@ const SimpleTable: FC<SimpleTableProps> = ({
     }
 
     return (
-        <Table
-            minimal={minimal}
-            $shouldExpand={$shouldExpand}
-            $padding={$padding}
-            className={className}
-            status="success"
-            data={rows}
-            columns={columns}
-            columnOrder={columnOrder}
-            hideRowNumbers={hideRowNumbers}
-            showColumnCalculation={showColumnCalculation}
-            conditionalFormattings={conditionalFormattings}
-            footer={{
-                show: showColumnCalculation,
-            }}
-            cellContextMenu={(props) => {
-                if (isSqlRunner) return <>{props.children}</>;
-                if (isDashboard && tileUuid)
-                    return (
-                        <DashboardCellContextMenu
-                            {...props}
-                            tileUuid={tileUuid}
-                            explore={explore}
-                        />
-                    );
-                return <CellContextMenu {...props} />;
-            }}
-            pagination={{ showResultsTotal }}
-            {...rest}
-        />
+        <Box p="xs" miw="100%" h="100%">
+            <Table
+                minimal={minimal}
+                $shouldExpand={$shouldExpand}
+                $padding={$padding}
+                className={className}
+                status="success"
+                data={rows}
+                columns={columns}
+                columnOrder={columnOrder}
+                hideRowNumbers={hideRowNumbers}
+                showColumnCalculation={showColumnCalculation}
+                conditionalFormattings={conditionalFormattings}
+                footer={{
+                    show: showColumnCalculation,
+                }}
+                cellContextMenu={(props) => {
+                    if (isSqlRunner) return <>{props.children}</>;
+                    if (isDashboard && tileUuid)
+                        return (
+                            <DashboardCellContextMenu
+                                {...props}
+                                tileUuid={tileUuid}
+                                explore={explore}
+                            />
+                        );
+                    return <CellContextMenu {...props} />;
+                }}
+                pagination={{ showResultsTotal }}
+                {...rest}
+            />
+        </Box>
     );
 };
 

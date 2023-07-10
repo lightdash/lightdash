@@ -2,7 +2,8 @@ import { Colors, HTMLTable } from '@blueprintjs/core';
 import { transparentize } from 'polished';
 import styled, { css } from 'styled-components';
 
-export const TABLE_HEADER_BG = Colors.LIGHT_GRAY4;
+// This color is is the default Mantine gray[0]
+export const TABLE_HEADER_BG = '#f8f9fa';
 
 export const TableScrollableWrapper = styled.div`
     display: flex;
@@ -106,8 +107,15 @@ export const TableFooter = styled.div`
     margin-top: 10px;
 `;
 
+const CommonCellProps = `
+    font-size: 13px;
+    font-family: Inter, sans-serif;
+`;
+
 const CellStyles = css<{ $isNaN: boolean }>`
     text-align: ${({ $isNaN }) => ($isNaN ? 'left' : 'right')} !important;
+    padding: 0.5rem !important;
+    ${CommonCellProps}
 `;
 
 export const Tr = styled.tr<{
@@ -252,7 +260,9 @@ export const ThActionsContainer = styled.div`
     }
 `;
 
-export const TableHeaderLabelContainer = styled.div``;
+export const TableHeaderLabelContainer = styled.div`
+    ${CommonCellProps}
+`;
 
 export const TableHeaderRegularLabel = styled.span`
     font-weight: 400;
