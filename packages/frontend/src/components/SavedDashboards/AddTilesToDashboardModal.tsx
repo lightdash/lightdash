@@ -196,7 +196,6 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                     <Title order={4}> Add chart to dashboard</Title>
                 </Group>
             }
-            centered
             withCloseButton
         >
             <Stack spacing="md" mih="100%">

@@ -39,13 +39,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-      # Install and build Common package
-      - name: Install packages/common modules
-        run: yarn workspace @lightdash/common install
+      # Install packages
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'yarn'
+      - name: Install packages
+        run: yarn install --frozen-lockfile
+      # Build packages
       - name: Build packages/common module
         run: yarn common-build
-      # Install NPM dependencies, cache them correctly
-      # and run all Cypress tests
+      # Prepare bigquery credentials for Cypress
       - name: create-json
         id: create-json
         uses: jsdaniell/create-json@1.1.2
@@ -53,6 +57,7 @@ jobs:
           name: "credentials.json"
           json: ${{ secrets.GCP_CREDENTIALS }}
           dir: "./packages/e2e/cypress/fixtures/"
+      # Run E2E tests
       - name: Cypress run
         uses: cypress-io/github-action@v5
         with:
@@ -104,13 +109,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-      # Install and build Common package
-      - name: Install packages/common modules
-        run: yarn workspace @lightdash/common install
+      # Install packages
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'yarn'
+      - name: Install packages
+        run: yarn install --frozen-lockfile
+      # Build packages
       - name: Build packages/common module
         run: yarn common-build
-      # Install NPM dependencies, cache them correctly
-      # and run all Cypress tests
+      # Prepare bigquery credentials for Cypress
       - name: create-json
         id: create-json
         uses: jsdaniell/create-json@1.1.2
@@ -118,6 +127,7 @@ jobs:
           name: "credentials.json"
           json: ${{ secrets.GCP_CREDENTIALS }}
           dir: "./packages/e2e/cypress/fixtures/"
+      # Run E2E tests
       - name: Cypress run
         uses: cypress-io/github-action@v5
         with:

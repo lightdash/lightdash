@@ -1,3 +1,5 @@
+import { ResultRow } from '@lightdash/common';
+
 const warehouseConfig = {
     postgresSQL: {
         name: 'Jaffle PostgreSQL test',
@@ -55,85 +57,99 @@ const warehouseConfig = {
 const configurePostgresWarehouse = (
     config: typeof warehouseConfig['postgresSQL'],
 ) => {
-    cy.get('[name="warehouse.host"]').type(config.host, { log: false });
-    cy.get('[name="warehouse.user"]').type(config.user, { log: false });
-    cy.get('[name="warehouse.password"]').type(config.password, { log: false });
-    cy.get('[name="warehouse.dbname"]').type(config.database);
+    cy.get('input[name="warehouse.host"]').type(config.host, { log: false });
+    cy.get('input[name="warehouse.user"]').type(config.user, { log: false });
+    cy.get('input[name="warehouse.password"]').type(config.password, {
+        log: false,
+    });
+    cy.get('input[name="warehouse.dbname"]').type(config.database);
 
-    cy.contains('Advanced configuration options').click();
+    cy.contains('a', 'Advanced configuration options').click();
 
-    cy.get('[name="warehouse.port"]').clear().type(config.port);
-    cy.get('[name="warehouse.sslmode"]').select('disable'); // SSL mode
+    cy.get('input[name="warehouse.port"]').clear().type(config.port);
+    cy.get('select[name="warehouse.sslmode"]').select('disable'); // SSL mode
 
     // DBT
-    cy.get('[name="dbt.type"]').select('dbt local server');
-    cy.get('[name="dbt.target"]').type('test');
-    cy.get('[name="warehouse.schema"]').type(config.schema);
+    cy.get('select[name="dbt.type"]').select('dbt local server');
+    cy.get('input[name="dbt.target"]').type('test');
+    cy.get('input[name="warehouse.schema"]').type(config.schema);
 };
 
 const configureBigqueryWarehouse = (
     config: typeof warehouseConfig['bigQuery'],
 ) => {
-    cy.get('[name="warehouse.project"]').type(config.project, { log: false });
-    cy.get('[name="warehouse.location"]').type(config.location, { log: false });
+    cy.get('input[name="warehouse.project"]').type(config.project, {
+        log: false,
+    });
+    cy.get('input[name="warehouse.location"]').type(config.location, {
+        log: false,
+    });
     cy.get('[type="file"]').attachFile(warehouseConfig.bigQuery.keyFile);
 
     // DBT
-    cy.get('[name="dbt.type"]').select('dbt local server');
-    cy.get('[name="dbt.target"]').type('test');
-    cy.get('[name="warehouse.dataset"]').type(config.dataset);
+    cy.get('select[name="dbt.type"]').select('dbt local server');
+    cy.get('input[name="dbt.target"]').type('test');
+    cy.get('input[name="warehouse.dataset"]').type(config.dataset);
 };
 const configureTrinoWarehouse = (config: typeof warehouseConfig['trino']) => {
-    cy.get('[name="warehouse.host"]').type(config.host, { log: false });
-    cy.get('[name="warehouse.user"]').type(config.user, { log: false });
-    cy.get('[name="warehouse.password"]').type(config.password, { log: false });
-    cy.get('[name="warehouse.dbname"]').type(config.database);
+    cy.get('input[name="warehouse.host"]').type(config.host, { log: false });
+    cy.get('input[name="warehouse.user"]').type(config.user, { log: false });
+    cy.get('input[name="warehouse.password"]').type(config.password, {
+        log: false,
+    });
+    cy.get('input[name="warehouse.dbname"]').type(config.database);
 
-    cy.contains('Advanced configuration options').click();
+    cy.contains('a', 'Advanced configuration options').click();
 
-    cy.get('[name="warehouse.port"]').clear().type(config.port);
-    cy.get('[name="warehouse.http_scheme"]').select('https');
+    cy.get('input[name="warehouse.port"]').clear().type(config.port);
+    cy.get('select[name="warehouse.http_scheme"]').select('https');
 
     // DBT
-    cy.get('[name="dbt.type"]').select('dbt local server');
-    cy.get('[name="dbt.target"]').type('test');
-    cy.get('[name="warehouse.schema"]').type(config.schema);
+    cy.get('select[name="dbt.type"]').select('dbt local server');
+    cy.get('input[name="dbt.target"]').type('test');
+    cy.get('input[name="warehouse.schema"]').type(config.schema);
 };
 
 const configureDatabricksWarehouse = (
     config: typeof warehouseConfig['databricks'],
 ) => {
-    cy.get('[name="warehouse.serverHostName"]').type(config.host, {
+    cy.get('input[name="warehouse.serverHostName"]').type(config.host, {
         log: false,
     });
-    cy.get('[name="warehouse.httpPath"]').type(config.httpPath, { log: false });
-    cy.get('[name="warehouse.personalAccessToken"]').type(config.token, {
+    cy.get('input[name="warehouse.httpPath"]').type(config.httpPath, {
+        log: false,
+    });
+    cy.get('input[name="warehouse.personalAccessToken"]').type(config.token, {
         log: false,
     });
 
     // DBT
-    cy.get('[name="dbt.type"]').select('dbt local server');
-    cy.get('[name="dbt.target"]').type('test');
-    cy.get('[name="warehouse.database"]').type(config.schema);
+    cy.get('select[name="dbt.type"]').select('dbt local server');
+    cy.get('input[name="dbt.target"]').type('test');
+    cy.get('input[name="warehouse.database"]').type(config.schema);
 };
 
 const configureSnowflakeWarehouse = (
     config: typeof warehouseConfig['snowflake'],
 ) => {
-    cy.get('[name="warehouse.account"]').type(config.account, { log: false });
-    cy.get('[name="warehouse.user"]').type(config.user, { log: false });
-    cy.get('[name="warehouse.password"]').type(config.password, { log: false });
-    cy.get('[name="warehouse.role"]').type(config.role);
-    cy.get('[name="warehouse.database"]').type(config.database);
-    cy.get('[name="warehouse.warehouse"]').type(config.warehouse);
+    cy.get('input[name="warehouse.account"]').type(config.account, {
+        log: false,
+    });
+    cy.get('input[name="warehouse.user"]').type(config.user, { log: false });
+    cy.get('input[name="warehouse.password"]').type(config.password, {
+        log: false,
+    });
+    cy.get('input[name="warehouse.role"]').type(config.role);
+    cy.get('input[name="warehouse.database"]').type(config.database);
+    cy.get('input[name="warehouse.warehouse"]').type(config.warehouse);
 
     // DBT
-    cy.get('[name="dbt.type"]').select('dbt local server');
-    cy.get('[name="dbt.target"]').type('test');
-    cy.get('[name="warehouse.schema"]').type(config.schema);
+    cy.get('select[name="dbt.type"]').select('dbt local server');
+    cy.get('input[name="dbt.target"]').type('test');
+    cy.get('input[name="warehouse.schema"]').type(config.schema);
 };
 
-const testCompile = () => {
+const testCompile = (): Cypress.Chainable<string> => {
     // Compile
     cy.findByText('Test & compile project').click();
     cy.contains('Step 1/3', { timeout: 60000 });
@@ -151,48 +167,45 @@ const testCompile = () => {
     cy.findByText('Charts and Dashboards');
     cy.findByText('get started by creating some charts');
     cy.wait(1000);
-};
-
-const testRunQuery = () => {
-    // Open SQL runner
-    cy.contains('New').click();
-    cy.findByText('Query using SQL runner').click();
-    cy.url().should('include', '/sqlRunner', { timeout: 30000 });
-
-    cy.contains('payments').click();
-};
-
-const testQuery = () => {
-    cy.contains('New').click();
-    cy.findByText('Query from tables').click();
-    cy.url().should('include', '/tables', { timeout: 30000 });
-
-    cy.contains('Orders').click();
-    cy.findByText('First name').click();
-    cy.findByText('Unique order count').click();
-};
-
-const testFilterStringEscaping = () => {
-    cy.contains('New').click();
-    cy.findByText('Query from tables').click();
-    cy.url().should('include', '/tables', { timeout: 30000 });
-    cy.contains('Customers').click();
-
-    // Load query via url params
-    cy.url().then((urlValue) =>
-        cy.visit(
-            `${urlValue}?create_saved_chart_version=%7B"tableName"%3A"customers"%2C"metricQuery"%3A%7B"dimensions"%3A%5B"customers_first_name"%5D%2C"metrics"%3A%5B%5D%2C"filters"%3A%7B"dimensions"%3A%7B"id"%3A"e0772fb1-9c35-4d58-81c7-8cdb015c2699"%2C"and"%3A%5B%7B"id"%3A"cdae9905-c299-4926-8ccd-d1f6dabeb733"%2C"target"%3A%7B"fieldId"%3A"customers_first_name"%7D%2C"operator"%3A"equals"%2C"values"%3A%5B"Quo%27te"%5D%7D%5D%7D%7D%2C"sorts"%3A%5B%7B"fieldId"%3A"customers_first_name"%2C"descending"%3Afalse%7D%5D%2C"limit"%3A500%2C"tableCalculations"%3A%5B%5D%2C"additionalMetrics"%3A%5B%5D%7D%2C"tableConfig"%3A%7B"columnOrder"%3A%5B"customers_first_name"%5D%7D%2C"chartConfig"%3A%7B"type"%3A"cartesian"%2C"config"%3A%7B"layout"%3A%7B%7D%2C"eChartsConfig"%3A%7B%7D%7D%7D%7D`,
-        ),
+    return cy.url().then(
+        (url) =>
+            // get new project uuid
+            url.split('/')[4],
     );
+};
 
-    // wait for query to finish
-    cy.findByText('Loading results', { timeout: 30000 }).should('not.exist');
-
-    // check that first row
-    cy.get('table')
-        .find('td', { timeout: 10000 })
-        .eq(1)
-        .should('contain.text', "Quo'te");
+const testFilterStringEscaping = (projectUuid: string) => {
+    cy.request({
+        url: `api/v1/projects/${projectUuid}/explores/customers/runQuery`,
+        headers: { 'Content-type': 'application/json' },
+        method: 'POST',
+        body: {
+            dimensions: ['customers_first_name'],
+            metrics: [],
+            filters: {
+                dimensions: {
+                    id: '7c015e80-7407-431f-b4bf-d3f5bd74ffc7',
+                    and: [
+                        {
+                            id: 'e0c85f24-69c0-4a34-bc2a-f598eb7e26c9',
+                            target: { fieldId: 'customers_first_name' },
+                            operator: 'equals',
+                            values: ["Quo'te"],
+                        },
+                    ],
+                },
+            },
+            sorts: [{ fieldId: 'customers_first_name', descending: false }],
+            limit: 500,
+            tableCalculations: [],
+            additionalMetrics: [],
+        },
+    }).then((resp) => {
+        expect(resp.status).to.eq(200);
+        expect(resp.body.results.rows[0].customers_first_name.value.raw).to.eq(
+            "Quo'te",
+        );
+    });
 };
 
 const defaultRowValues = [
@@ -219,89 +232,87 @@ const defaultRowValues = [
 
 const percentileRowValues = ['2020-08-11', '1,298', '828', '1,298', '1,717'];
 
-const testPercentile = (rowValues = percentileRowValues) => {
-    cy.contains('New').click();
-    cy.findByText('Query from tables').click();
-    cy.url().should('include', '/tables', { timeout: 30000 });
-
-    cy.contains('Events').click();
-    cy.findByText('Timestamp tz').click();
-    cy.findByRole('button', { name: 'Day' }).click();
-
-    cy.findByText('Median').click();
-    cy.findByText('Percentile 25').click();
-    cy.findByText('Percentile 50').click();
-    cy.findByText('Percentile 75').click();
-
-    cy.get('th')
-        .contains('Timestamp tz day')
-        .closest('th')
-        .find('button')
-        .click();
-
-    // sort `Customers First-Name` by ascending
-    cy.findByRole('option', { name: 'Sort New-Old' }).click();
-
-    // wait for query to finish
-    cy.findByText('Loading chart', { timeout: 30000 }).should('not.exist');
-    cy.findByText('Loading results', { timeout: 30000 }).should('not.exist');
-
-    // check first row values
-    rowValues.forEach((value, index) => {
-        cy.get('table')
-            .find('td', { timeout: 10000 })
-            .eq(index + 1)
-            .should('contain.text', value);
+const testPercentile = (
+    projectUuid: string,
+    rowValues = percentileRowValues,
+) => {
+    cy.request({
+        url: `api/v1/projects/${projectUuid}/explores/events/runQuery`,
+        headers: { 'Content-type': 'application/json' },
+        method: 'POST',
+        body: {
+            dimensions: ['events_timestamp_tz_day'],
+            metrics: [
+                'events_median',
+                'events_percentile_25',
+                'events_percentile_50',
+                'events_percentile_75',
+            ],
+            filters: {},
+            sorts: [{ fieldId: 'events_timestamp_tz_day', descending: true }],
+            limit: 500,
+            tableCalculations: [],
+            additionalMetrics: [],
+        },
+    }).then((resp) => {
+        expect(resp.status).to.eq(200);
+        // check first row values
+        rowValues.forEach((value, index) => {
+            expect(
+                Object.values(resp.body.results.rows[0] as ResultRow)[index]
+                    .value.formatted,
+            ).to.eq(value);
+        });
     });
 };
-const testTimeIntervalsResults = (rowValues = defaultRowValues) => {
-    cy.contains('New').click();
-    cy.findByText('Query from tables').click();
-    cy.url().should('include', '/tables', { timeout: 30000 });
 
-    cy.contains('Events').click();
-    cy.findByRole('button', { name: 'Timestamp tz' }).click();
-
-    cy.findByRole('button', { name: 'Raw' }).click();
-    cy.findByRole('button', { name: 'Millisecond' }).click();
-    cy.findByRole('button', { name: 'Second' }).click();
-    cy.findByRole('button', { name: 'Minute' }).click();
-    cy.findByRole('button', { name: 'Hour' }).click();
-    cy.findByRole('button', { name: 'Day' }).click();
-    cy.findByRole('button', { name: 'Day of the week (index)' }).click();
-    cy.findByRole('button', { name: 'Day of the week (name)' }).click();
-    cy.findByRole('button', { name: 'Day of the month (number)' }).click();
-    cy.findByRole('button', { name: 'Day of the year (number)' }).click();
-    cy.findByRole('button', { name: 'Week' }).click();
-    cy.findByRole('button', { name: 'Month' }).click();
-    cy.findByRole('button', { name: 'Month (number)' }).click();
-    cy.findByRole('button', { name: 'Month (name)' }).click();
-    cy.findByRole('button', { name: 'Quarter' }).click();
-    cy.findByRole('button', { name: 'Quarter (number)' }).click();
-    cy.findByRole('button', { name: 'Quarter (name)' }).click();
-    cy.findByRole('button', { name: 'Year' }).click();
-    cy.findByRole('button', { name: 'Year (number)' }).click();
-
-    // open column menu
-    cy.get('th')
-        .contains('Timestamp tz raw')
-        .closest('th')
-        .find('button')
-        .click();
-
-    // sort `Customers First-Name` by ascending
-    cy.findByRole('option', { name: 'Sort New-Old' }).click();
-
-    // wait for query to finish
-    cy.findByText('Loading chart', { timeout: 30000 }).should('not.exist');
-    cy.findByText('Loading results', { timeout: 30000 }).should('not.exist');
-
-    // check first row values
-    rowValues.forEach((value, index) => {
-        cy.get('table')
-            .find('td', { timeout: 10000 })
-            .eq(index + 1)
-            .should('contain.text', value);
+const testTimeIntervalsResults = (
+    projectUuid: string,
+    rowValues = defaultRowValues,
+) => {
+    cy.request({
+        url: `api/v1/projects/${projectUuid}/explores/events/runQuery`,
+        headers: { 'Content-type': 'application/json' },
+        method: 'POST',
+        body: {
+            dimensions: [
+                'events_timestamp_tz_raw',
+                'events_timestamp_tz_millisecond',
+                'events_timestamp_tz_second',
+                'events_timestamp_tz_minute',
+                'events_timestamp_tz_hour',
+                'events_timestamp_tz_day',
+                'events_timestamp_tz_day_of_week_index',
+                'events_timestamp_tz_day_of_week_name',
+                'events_timestamp_tz_day_of_month_num',
+                'events_timestamp_tz_day_of_year_num',
+                'events_timestamp_tz_week',
+                'events_timestamp_tz_month',
+                'events_timestamp_tz_month_num',
+                'events_timestamp_tz_month_name',
+                'events_timestamp_tz_quarter',
+                'events_timestamp_tz_quarter_num',
+                'events_timestamp_tz_quarter_name',
+                'events_timestamp_tz_year',
+                'events_timestamp_tz_year_num',
+            ],
+            metrics: [],
+            filters: {},
+            sorts: [{ fieldId: 'events_timestamp_tz_raw', descending: true }],
+            limit: 500,
+            tableCalculations: [],
+            additionalMetrics: [],
+        },
+    }).then((resp) => {
+        expect(resp.status).to.eq(200);
+        // check first row values
+        rowValues.forEach((value, index) => {
+            expect(
+                Object.values(resp.body.results.rows[0] as ResultRow)[
+                    index
+                ].value.formatted.trim(),
+            ).to.eq(value);
+        });
     });
 };
 
@@ -344,12 +355,11 @@ describe('Create projects', () => {
         cy.get('[name="name"]').clear().type(warehouseConfig.postgresSQL.name);
         configurePostgresWarehouse(warehouseConfig.postgresSQL);
 
-        testCompile();
-        testQuery();
-        testFilterStringEscaping();
-        testRunQuery();
-        testTimeIntervalsResults();
-        testPercentile();
+        testCompile().then((projectUuid) => {
+            testFilterStringEscaping(projectUuid);
+            testTimeIntervalsResults(projectUuid);
+            testPercentile(projectUuid);
+        });
     });
     it('Should create a Redshift project', () => {
         // https://docs.aws.amazon.com/redshift/latest/dg/c_redshift-and-postgres-sql.html
@@ -365,12 +375,11 @@ describe('Create projects', () => {
         cy.get('[name="name"]').clear().type(warehouseConfig.redshift.name);
         configurePostgresWarehouse(warehouseConfig.redshift);
 
-        testCompile();
-        testQuery();
-        testFilterStringEscaping();
-        testRunQuery();
-        testTimeIntervalsResults();
-        testPercentile();
+        testCompile().then((projectUuid) => {
+            testFilterStringEscaping(projectUuid);
+            testTimeIntervalsResults(projectUuid);
+            testPercentile(projectUuid);
+        });
     });
     it('Should create a Bigquery project', () => {
         cy.visit(`/createProject`);
@@ -382,36 +391,41 @@ describe('Create projects', () => {
         cy.get('[name="name"]').clear().type(warehouseConfig.bigQuery.name);
         configureBigqueryWarehouse(warehouseConfig.bigQuery);
 
-        testCompile();
-        testQuery();
-        testFilterStringEscaping();
-        testRunQuery();
+        testCompile().then((projectUuid) => {
+            testFilterStringEscaping(projectUuid);
 
-        const bigqueryRowValues = [
-            '2020-08-12, 07:58:00:000 (+00:00)',
-            '2020-08-12, 07:58:00:000 (+00:00)',
-            '2020-08-12, 07:58:00 (+00:00)',
-            '2020-08-12, 07:58 (+00:00)',
-            '2020-08-12, 07 (+00:00)',
-            '2020-08-12',
-            '4', // Returns values in the range [1,7] with Sunday as the first day of the week.
-            'Wednesday',
-            '12',
-            '225',
-            '2020-08-09',
-            '2020-08',
-            '8',
-            'August',
-            '2020-Q3',
-            '3',
-            'Q3',
-            '2020',
-            '2,020',
-        ];
+            const bigqueryRowValues = [
+                '2020-08-12, 07:58:00:000 (+00:00)',
+                '2020-08-12, 07:58:00:000 (+00:00)',
+                '2020-08-12, 07:58:00 (+00:00)',
+                '2020-08-12, 07:58 (+00:00)',
+                '2020-08-12, 07 (+00:00)',
+                '2020-08-12',
+                '4', // Returns values in the range [1,7] with Sunday as the first day of the week.
+                'Wednesday',
+                '12',
+                '225',
+                '2020-08-09',
+                '2020-08',
+                '8',
+                'August',
+                '2020-Q3',
+                '3',
+                'Q3',
+                '2020',
+                '2,020',
+            ];
 
-        testTimeIntervalsResults(bigqueryRowValues);
+            testTimeIntervalsResults(projectUuid, bigqueryRowValues);
 
-        testPercentile(['2020-08-12', '1,999', '1,559', '1,999', '19,999,999']);
+            testPercentile(projectUuid, [
+                '2020-08-12',
+                '1,999',
+                '1,559',
+                '1,999',
+                '19,999,999',
+            ]);
+        });
     });
     // note: we don't have a staging environment for Trino atm
     it.skip('Should create a Trino project', () => {
@@ -424,35 +438,34 @@ describe('Create projects', () => {
         cy.get('[name="name"]').clear().type(warehouseConfig.trino.name);
         configureTrinoWarehouse(warehouseConfig.trino);
 
-        testCompile();
-        testQuery();
-        testFilterStringEscaping();
-        testRunQuery();
+        testCompile().then((projectUuid) => {
+            testFilterStringEscaping(projectUuid);
 
-        const trinoRowValues = [
-            '2020-08-12, 07:58:00:000 (+00:00)',
-            '2020-08-12, 07:58:00:000 (+00:00)',
-            '2020-08-12, 07:58:00 (+00:00)',
-            '2020-08-12, 07:58 (+00:00)',
-            '2020-08-12, 07 (+00:00)',
-            '2020-08-12',
-            '3',
-            'Wednesday',
-            '12',
-            '225',
-            '2020-08-10',
-            '2020-08',
-            '8',
-            'August',
-            '2020-Q3',
-            '3',
-            'Q3',
-            '2020',
-            '2,020',
-        ];
+            const trinoRowValues = [
+                '2020-08-12, 07:58:00:000 (+00:00)',
+                '2020-08-12, 07:58:00:000 (+00:00)',
+                '2020-08-12, 07:58:00 (+00:00)',
+                '2020-08-12, 07:58 (+00:00)',
+                '2020-08-12, 07 (+00:00)',
+                '2020-08-12',
+                '3',
+                'Wednesday',
+                '12',
+                '225',
+                '2020-08-10',
+                '2020-08',
+                '8',
+                'August',
+                '2020-Q3',
+                '3',
+                'Q3',
+                '2020',
+                '2,020',
+            ];
 
-        testTimeIntervalsResults(trinoRowValues);
-        testPercentile();
+            testTimeIntervalsResults(projectUuid, trinoRowValues);
+            testPercentile(projectUuid);
+        });
     });
     it.skip('Should create a Databricks project', () => {
         cy.visit(`/createProject`);
@@ -464,34 +477,34 @@ describe('Create projects', () => {
         cy.get('[name="name"]').clear().type(warehouseConfig.databricks.name);
         configureDatabricksWarehouse(warehouseConfig.databricks);
 
-        testCompile();
-        testQuery();
-        testFilterStringEscaping();
-        testRunQuery();
-        const databricksRowValues = [
-            '2020-07-02, 09:33:00:000 (+00:00)',
-            '2020-07-02, 09:33:00:000 (+00:00)',
-            '2020-07-02, 09:33:00 (+00:00)',
-            '2020-07-02, 09:33 (+00:00)',
-            '2020-07-02, 09 (+00:00)',
-            '2020-07-02',
-            '5',
-            'Thursday',
-            '2',
-            '184',
-            '2020-06-29',
-            '2020-07',
-            '7',
-            'July',
-            '2020-Q3',
-            '3',
-            'Q3',
-            '2020',
-            '2,020',
-        ];
+        testCompile().then((projectUuid) => {
+            testFilterStringEscaping(projectUuid);
 
-        testTimeIntervalsResults(databricksRowValues);
-        testPercentile();
+            const databricksRowValues = [
+                '2020-07-02, 09:33:00:000 (+00:00)',
+                '2020-07-02, 09:33:00:000 (+00:00)',
+                '2020-07-02, 09:33:00 (+00:00)',
+                '2020-07-02, 09:33 (+00:00)',
+                '2020-07-02, 09 (+00:00)',
+                '2020-07-02',
+                '5',
+                'Thursday',
+                '2',
+                '184',
+                '2020-06-29',
+                '2020-07',
+                '7',
+                'July',
+                '2020-Q3',
+                '3',
+                'Q3',
+                '2020',
+                '2,020',
+            ];
+
+            testTimeIntervalsResults(projectUuid, databricksRowValues);
+            testPercentile(projectUuid);
+        });
     });
 
     it('Should create a Snowflake project', () => {
@@ -504,40 +517,39 @@ describe('Create projects', () => {
         cy.get('[name="name"]').clear().type(warehouseConfig.snowflake.name);
         configureSnowflakeWarehouse(warehouseConfig.snowflake);
 
-        testCompile();
-        testQuery();
-        testFilterStringEscaping();
-        testRunQuery();
+        testCompile().then((projectUuid) => {
+            testFilterStringEscaping(projectUuid);
 
-        const snowflakeRowValues = [
-            '2020-08-12, 07:58:00:000 (+00:00)',
-            '2020-08-12, 07:58:00:000 (+00:00)',
-            '2020-08-12, 07:58:00 (+00:00)',
-            '2020-08-12, 07:58 (+00:00)',
-            '2020-08-12, 07 (+00:00)',
-            '2020-08-12',
-            '3', // The behavior of week-related functions in Snowflake is controlled by the WEEK_START session parameters.
-            'Wednesday',
-            '12',
-            '225',
-            '2020-08-10',
-            '2020-08',
-            '8',
-            'August',
-            '2020-Q3',
-            '3',
-            'Q3',
-            '2020',
-            '2,020',
-        ];
+            const snowflakeRowValues = [
+                '2020-08-12, 07:58:00:000 (+00:00)',
+                '2020-08-12, 07:58:00:000 (+00:00)',
+                '2020-08-12, 07:58:00 (+00:00)',
+                '2020-08-12, 07:58 (+00:00)',
+                '2020-08-12, 07 (+00:00)',
+                '2020-08-12',
+                '3', // The behavior of week-related functions in Snowflake is controlled by the WEEK_START session parameters.
+                'Wednesday',
+                '12',
+                '225',
+                '2020-08-10',
+                '2020-08',
+                '8',
+                'August',
+                '2020-Q3',
+                '3',
+                'Q3',
+                '2020',
+                '2,020',
+            ];
 
-        testTimeIntervalsResults(snowflakeRowValues);
-        testPercentile([
-            '2020-08-12',
-            '1,999',
-            '1,719.5',
-            '1,999',
-            '10,999,999',
-        ]);
+            testTimeIntervalsResults(projectUuid, snowflakeRowValues);
+            testPercentile(projectUuid, [
+                '2020-08-12',
+                '1,999',
+                '1,719.5',
+                '1,999',
+                '10,999,999',
+            ]);
+        });
     });
 });

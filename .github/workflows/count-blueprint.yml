@@ -16,8 +16,14 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v2
-      - name: Install deps
-        run: yarn
+      # Install packages
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'yarn'
+      - name: Install packages
+        run: yarn install --frozen-lockfile
+      # Count Blueprint & Mantine imports
       - name: Count blueprint imports
         run: |
           EOF="$(openssl rand -hex 8)"

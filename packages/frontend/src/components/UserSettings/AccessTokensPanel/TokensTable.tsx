@@ -89,7 +89,6 @@ export const TokensTable = () => {
             </Paper>
 
             <Modal
-                centered
                 opened={!!tokenToDelete}
                 onClose={() => !isDeleting && setTokenToDelete(undefined)}
                 title={

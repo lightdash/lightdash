@@ -19,7 +19,7 @@ export const getDbtVersion = async () => {
 };
 
 export const isSupportedDbtVersion = (version: string) => {
-    const supportedVersions = ['1.3.', '1.4.', '1.5.'];
+    const supportedVersions = ['1.4.', '1.5.'];
     return supportedVersions.some((supportedVersion) =>
         version.startsWith(supportedVersion),
     );

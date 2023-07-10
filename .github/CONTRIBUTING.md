@@ -223,7 +223,12 @@ E.g:
 feat: add table calculations
 fix: remove infinite loop during login
 docs: add page about metrics
+style: add more space 
 ```
+
+Note that **feat** and **fix** are typically used for changes that will provide value to the end-user 
+so they trigger a release (version update). If you are making a change to docs, styles, or some 
+other part of the system, please use the appropriate tag to avoid the extra overhead.
 
 You can see all
 the [supported types here](https://github.com/commitizen/conventional-commit-types/blob/v3.0.0/index.json).
