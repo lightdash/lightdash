@@ -129,7 +129,6 @@ export const renderDateFilterSql = (
     const filterType = filter.operator;
     switch (adapterType) {
         case SupportedDbtAdapter.TRINO: {
-            // CAST('2020-05-01' AS timestamp)
             switch (filter.operator) {
                 case 'equals':
                     return `(${dimensionSql}) = CAST('${dateFormatter(
