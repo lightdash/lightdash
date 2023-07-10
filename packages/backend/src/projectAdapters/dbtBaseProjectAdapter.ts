@@ -25,9 +25,9 @@ import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import { AnyValidateFunction } from 'ajv/dist/types';
 import Logger from '../logging/logger';
-import dbtManifestSchemaV7 from '../manifestv7.json';
+import dbtManifestSchemaV8 from '../manifestv8.json';
 import dbtManifestSchemaV9 from '../manifestv9.json';
-import lightdashDbtSchemaV7 from '../schema.json';
+import lightdashDbtSchemaV8 from '../schema.json';
 import lightdashDbtSchemaV9 from '../schemav9.json';
 import { CachedWarehouse, DbtClient, ProjectAdapter } from '../types';
 
@@ -35,9 +35,9 @@ let ajv: Ajv;
 
 const getModelValidator = (manifestVersion: DbtManifestVersion) => {
     switch (manifestVersion) {
-        case DbtManifestVersion.V7:
+        case DbtManifestVersion.V8:
             ajv = new Ajv({
-                schemas: [lightdashDbtSchemaV7, dbtManifestSchemaV7],
+                schemas: [lightdashDbtSchemaV8, dbtManifestSchemaV8],
             });
             break;
         case DbtManifestVersion.V9:
@@ -65,10 +65,8 @@ const getModelValidator = (manifestVersion: DbtManifestVersion) => {
 };
 
 const getMetricValidator = (manifestVersion: DbtManifestVersion) => {
-    const schema =
-        manifestVersion === DbtManifestVersion.V9
-            ? `https://schemas.getdbt.com/dbt/manifest/v9.json#/definitions/Metric`
-            : `https://schemas.getdbt.com/dbt/manifest/v7.json#/definitions/ParsedMetric`;
+    const schema = `https://schemas.getdbt.com/dbt/manifest/${manifestVersion}.json#/definitions/Metric`;
+
     const metricValidator = ajv.getSchema<DbtMetric>(schema);
     if (metricValidator === undefined) {
         throw new ParseError('Could not parse dbt schema.');

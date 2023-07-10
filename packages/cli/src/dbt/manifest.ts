@@ -11,7 +11,7 @@ type LoadManifestArgs = {
 export const getDbtManifest = async (): Promise<DbtManifestVersion> => {
     const version = await getDbtVersion();
     if (version.startsWith('1.5.')) return DbtManifestVersion.V9;
-    return DbtManifestVersion.V7;
+    return DbtManifestVersion.V8;
 };
 
 export const getManifestPath = async (targetDir: string): Promise<string> =>

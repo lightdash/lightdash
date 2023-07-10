@@ -432,6 +432,6 @@ export const convertAdditionalMetric = ({
 };
 
 export enum DbtManifestVersion {
-    V7 = 'v7',
+    V8 = 'v8',
     V9 = 'v9',
 }

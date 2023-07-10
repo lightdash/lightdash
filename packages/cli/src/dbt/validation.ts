@@ -16,9 +16,9 @@ import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import { AnyValidateFunction } from 'ajv/dist/types';
 import GlobalState from '../globalState';
-import dbtManifestSchemaV7 from '../manifestv7.json';
+import dbtManifestSchemaV8 from '../manifestv8.json';
 import dbtManifestSchemaV9 from '../manifestv9.json';
-import lightdashDbtSchemaV7 from '../schema.json';
+import lightdashDbtSchemaV8 from '../schema.json';
 import lightdashDbtSchemaV9 from '../schemav9.json';
 import { getDbtManifest } from './manifest';
 
@@ -31,9 +31,9 @@ const getModelValidator = async () => {
     let ajv: Ajv;
 
     switch (manifestVersion) {
-        case DbtManifestVersion.V7:
+        case DbtManifestVersion.V8:
             ajv = new Ajv({
-                schemas: [lightdashDbtSchemaV7, dbtManifestSchemaV7],
+                schemas: [lightdashDbtSchemaV8, dbtManifestSchemaV8],
             });
             break;
         case DbtManifestVersion.V9:
