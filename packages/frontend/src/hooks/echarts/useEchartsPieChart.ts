@@ -7,8 +7,10 @@ const getLabelOptions = ({
     showValue,
     showPercentage,
 }: Partial<PieChartValueOptions>) => {
-    return {
-        show: valueLabel !== 'hidden' && (showValue || showPercentage),
+    const show = valueLabel !== 'hidden' && (showValue || showPercentage);
+
+    const labelConfig = {
+        show,
         position: valueLabel,
         formatter:
             valueLabel !== 'hidden' && showValue && showPercentage
@@ -18,6 +20,12 @@ const getLabelOptions = ({
                 : showPercentage
                 ? '{d}%'
                 : undefined,
+    };
+
+    return {
+        label: labelConfig,
+        labelLine: { show: show && valueLabel === 'outside' },
+        tooltip: { ...labelConfig, position: undefined },
     };
 };
 
@@ -91,8 +99,7 @@ const useEchartsPieConfig = () => {
                             groupColorOverrides?.[name] ??
                             groupColorDefaults?.[name],
                     },
-                    label: labelOptions,
-                    tooltip: { ...labelOptions, position: undefined },
+                    ...labelOptions,
                 };
             });
     }, [
