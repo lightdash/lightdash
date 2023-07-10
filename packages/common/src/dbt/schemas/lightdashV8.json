@@ -1,0 +1,54 @@
+{
+    "definitions": {
+        "LightdashNodeConfig": {
+            "allOf": [
+                {
+                    "$ref": "https://schemas.getdbt.com/dbt/manifest/v8.json#/definitions/NodeConfig"
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "meta": {
+                            "$ref": "https://schemas.lightdash.com/lightdash/metadata.json#/definitions/LightdashModelMetadata"
+                        }
+                    }
+                }
+            ]
+        },
+        "LightdashColumnInfo": {
+            "allOf": [
+                {
+                    "$ref": "https://schemas.getdbt.com/dbt/manifest/v8.json#/definitions/ColumnInfo"
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "meta": {
+                            "$ref": "https://schemas.lightdash.com/lightdash/metadata.json#/definitions/LightdashColumnMetadata"
+                        }
+                    }
+                }
+            ]
+        },
+        "LightdashCompiledModelNode": {
+            "allOf": [
+                {
+                    "$ref": "https://schemas.getdbt.com/dbt/manifest/v8.json#/definitions/ModelNode`"
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "meta": {
+                            "$ref": "https://schemas.lightdash.com/lightdash/metadata.json#/definitions/LightdashModelMetadata"
+                        },
+                        "config": {
+                            "$ref": "https://schemas.lightdash.com/lightdash/metadata.json#/definitions/LightdashNodeConfig"
+                        }
+                    }
+                }
+            ]
+        }
+    },
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://schemas.lightdash.com/lightdash/v8.json"
+}

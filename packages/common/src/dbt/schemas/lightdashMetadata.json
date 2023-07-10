@@ -117,5 +117,5 @@
         }
     },
     "$schema": "http://json-schema.org/draft-07/schema#",
-    "$id": "https://schemas.lightdash.com/dbt/metadata.json"
+    "$id": "https://schemas.lightdash.com/lightdash/metadata.json"
 }
