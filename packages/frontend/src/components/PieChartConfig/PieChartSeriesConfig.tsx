@@ -25,8 +25,6 @@ import MantineIcon from '../common/MantineIcon';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 
 type ValueOptionsProps = {
-    inputLabel: string;
-
     isValueLabelOverriden?: boolean;
     isShowValueOverriden?: boolean;
     isShowPercentageOverriden?: boolean;
@@ -41,8 +39,6 @@ type ValueOptionsProps = {
 };
 
 const ValueOptions: FC<ValueOptionsProps> = ({
-    inputLabel,
-
     isValueLabelOverriden = false,
     isShowValueOverriden = false,
     isShowPercentageOverriden = false,
@@ -57,7 +53,7 @@ const ValueOptions: FC<ValueOptionsProps> = ({
 }) => (
     <>
         <Select
-            label={inputLabel}
+            label="Value label"
             value={isValueLabelOverriden ? 'mixed' : valueLabel}
             data={[
                 ...(isValueLabelOverriden ? [['mixed', 'Mixed']] : []),
@@ -75,7 +71,7 @@ const ValueOptions: FC<ValueOptionsProps> = ({
         <Tooltip
             position="top-start"
             disabled={valueLabel !== 'hidden'}
-            label={`Enable ${inputLabel} to configure this option`}
+            label="Enable Value label to configure this option"
         >
             <div>
                 <Checkbox
@@ -93,7 +89,7 @@ const ValueOptions: FC<ValueOptionsProps> = ({
         <Tooltip
             position="top-start"
             disabled={valueLabel !== 'hidden'}
-            label={`Enable ${inputLabel} to configure this option`}
+            label="Enable Value label to configure this option"
         >
             <div>
                 <Checkbox
@@ -215,17 +211,18 @@ const GroupItem: FC<GroupItemProps> = ({
                     }}
                 />
 
-                <ActionIcon onClick={toggle} size="sm">
-                    <MantineIcon
-                        icon={opened ? IconChevronUp : IconChevronDown}
-                    />
-                </ActionIcon>
+                <Tooltip label="Override value label options">
+                    <ActionIcon onClick={toggle} size="sm">
+                        <MantineIcon
+                            icon={opened ? IconChevronUp : IconChevronDown}
+                        />
+                    </ActionIcon>
+                </Tooltip>
             </Group>
 
             <Collapse in={opened}>
-                <Stack pb="md" px="xxl">
+                <Stack pb="md" px="xxl" spacing="sm">
                     <ValueOptions
-                        inputLabel="Value label"
                         valueLabel={valueLabel}
                         onValueLabelChange={(newValue) =>
                             onValueOptionsChange(defaultLabel, {
@@ -278,7 +275,6 @@ const PieChartSeriesConfig: FC = () => {
     return (
         <Stack>
             <ValueOptions
-                inputLabel="Value label"
                 isValueLabelOverriden={isValueLabelOverriden}
                 isShowValueOverriden={isShowValueOverriden}
                 isShowPercentageOverriden={isShowPercentageOverriden}
