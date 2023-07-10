@@ -41,7 +41,7 @@ export type DashboardLoomTileProperties = {
 export type DashboardChartTileProperties = {
     type: DashboardTileTypes.SAVED_CHART;
     properties: {
-        title: string | null;
+        title: string;
         hideTitle?: boolean;
         savedChartUuid: string | null;
     };

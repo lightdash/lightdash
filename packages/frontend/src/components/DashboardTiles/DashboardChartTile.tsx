@@ -172,6 +172,7 @@ const ValidDashboardChartTile: FC<{
 const ValidDashboardChartTileMinimal: FC<{
     tileUuid: string;
     isTitleHidden?: boolean;
+    title: string;
     data: SavedChart;
 }> = ({ tileUuid, data, isTitleHidden = false }) => {
     const { data: resultData, isLoading } = useChartResults(
@@ -223,7 +224,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     const {
         tile: {
             uuid: tileUuid,
-            properties: { savedChartUuid, hideTitle },
+            properties: { savedChartUuid, hideTitle, title },
         },
         isEditMode,
     } = props;
@@ -427,7 +428,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                         </Tooltip2>
                     )
                 }
-                title={savedQueryWithDashboardFilters?.name || ''}
+                title={title || savedQueryWithDashboardFilters?.name || ''}
                 titleHref={`/projects/${projectUuid}/saved/${savedChartUuid}/`}
                 description={savedQueryWithDashboardFilters?.description}
                 isLoading={isLoading || isLoadingExplore}
@@ -661,7 +662,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
     const {
         tile: {
             uuid: tileUuid,
-            properties: { savedChartUuid, hideTitle },
+            properties: { savedChartUuid, hideTitle, title },
         },
     } = props;
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -683,6 +684,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                     tileUuid={tileUuid}
                     isTitleHidden={hideTitle}
                     data={data}
+                    title={title}
                 />
             ) : (
                 <InvalidDashboardChartTile />

@@ -152,6 +152,7 @@ export class DashboardModel {
                                 insertedTile.dashboard_tile_uuid,
                             saved_chart_id: savedChart.saved_query_id,
                             hide_title: tile.properties.hideTitle,
+                            title: tile.properties.title,
                         });
                     }
                     break;
@@ -482,6 +483,7 @@ export class DashboardModel {
                 `${SavedChartsTableName}.saved_query_uuid`,
                 this.database.raw(
                     `COALESCE(
+                        ${DashboardTileChartTableName}.title,
                         ${SavedChartsTableName}.name,
                         ${DashboardTileLoomsTableName}.title,
                         ${DashboardTileMarkdownsTableName}.title
