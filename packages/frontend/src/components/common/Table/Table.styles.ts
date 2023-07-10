@@ -107,7 +107,7 @@ export const TableFooter = styled.div`
     margin-top: 10px;
 `;
 
-const CommonCellProps = `
+const FontSyles = `
     font-size: 13px;
     font-family: Inter, sans-serif;
 `;
@@ -115,7 +115,7 @@ const CommonCellProps = `
 const CellStyles = css<{ $isNaN: boolean }>`
     text-align: ${({ $isNaN }) => ($isNaN ? 'left' : 'right')} !important;
     padding: 0.5rem !important;
-    ${CommonCellProps}
+    ${FontSyles}
 `;
 
 export const Tr = styled.tr<{
@@ -261,7 +261,7 @@ export const ThActionsContainer = styled.div`
 `;
 
 export const TableHeaderLabelContainer = styled.div`
-    ${CommonCellProps}
+    ${FontSyles}
 `;
 
 export const TableHeaderRegularLabel = styled.span`
