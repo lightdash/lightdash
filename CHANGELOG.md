@@ -1,3 +1,10 @@
+# [0.661.0](https://github.com/lightdash/lightdash/compare/0.660.1...0.661.0) (2023-07-10)
+
+
+### Features
+
+* pie charts value formatting options ([#6187](https://github.com/lightdash/lightdash/issues/6187)) ([c56e94a](https://github.com/lightdash/lightdash/commit/c56e94a5a856d12699798d94cad8222244723bd3))
+
 ## [0.660.1](https://github.com/lightdash/lightdash/compare/0.660.0...0.660.1) (2023-07-10)
 
 
