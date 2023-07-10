@@ -50,3 +50,25 @@ export type ApiOrganizationMemberProfile = {
     status: 'ok';
     results: OrganizationMemberProfile;
 };
+
+export const getTitleForRole = (role: OrganizationMemberRole) => {
+    if (role === OrganizationMemberRole.MEMBER) {
+        return 'No access to projects by default. Project level permissions to be set separately';
+    }
+    if (role === OrganizationMemberRole.VIEWER) {
+        return ' Has view only access to all projects';
+    }
+    if (role === OrganizationMemberRole.INTERACTIVE_VIEWER) {
+        return 'Has view access to all projects and can create new projects but cannot edit existing projects';
+    }
+    if (role === OrganizationMemberRole.EDITOR) {
+        return 'Can create, edit and delete projects';
+    }
+    if (role === OrganizationMemberRole.DEVELOPER) {
+        return 'Can create, edit and delete projects';
+    }
+    if (role === OrganizationMemberRole.ADMIN) {
+        return 'Full access to entire project, manage all projects and user access';
+    }
+    return null;
+};
