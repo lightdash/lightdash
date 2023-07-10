@@ -30,7 +30,7 @@ export const GroupSeriesBlock = styled.div`
 `;
 
 export const GroupSeriesWrapper = styled.div`
-    padding: 1em;
+    padding: 5px;
     background: ${Colors.LIGHT_GRAY5};
     border-radius: 0.286em;
 `;
@@ -54,7 +54,6 @@ export const SeriesBlock = styled.div`
 
 export const SeriesWrapper = styled.div<{ $isSingle?: boolean }>`
     ${FlexTemplate}
-
     &:last-child {
         margin-bottom: 0;
     }
@@ -105,7 +104,6 @@ export const SeriesOptionsWrapper = styled(Collapse)<{
     $isSingle?: boolean;
 }>`
     ${GridTemplate}
-
     .bp4-collapse-body {
         grid-column: 2 !important;
     }
@@ -125,6 +123,7 @@ export const SeriesOptionsWrapper = styled(Collapse)<{
 `;
 export const SeriesExtraInputWrapper = styled(FormGroup)`
     margin: 0;
+
     & label.bp4-label {
         font-weight: 600;
         display: inline-flex;
