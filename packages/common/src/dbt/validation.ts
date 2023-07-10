@@ -27,10 +27,13 @@ const ajv = new Ajv({
 addFormats(ajv);
 
 export class ManifestValidator {
-    private readonly schemaId: string;
+    private readonly manifestSchemaId: string;
+
+    private readonly metadataSchemaId: string =
+        'https://schemas.lightdash.com/lightdash/metadata.json';
 
     constructor(manifestVersion: DbtManifestVersion) {
-        this.schemaId = `https://schemas.lightdash.com/lightdash/${manifestVersion}.json`;
+        this.manifestSchemaId = `https://schemas.lightdash.com/lightdash/${manifestVersion}.json`;
     }
 
     static isValid = (
@@ -63,7 +66,7 @@ export class ManifestValidator {
         model: DbtRawModelNode,
     ): [true, undefined] | [false, string] => {
         const validator = ManifestValidator.getValidator<DbtModelNode>(
-            `${this.schemaId}#/definitions/LightdashCompiledModelNode`,
+            `${this.manifestSchemaId}#/definitions/LightdashCompiledModelNode`,
         );
         return ManifestValidator.isValid(validator, model);
     };
@@ -72,7 +75,7 @@ export class ManifestValidator {
         metric: DbtMetric,
     ): [true, undefined] | [false, string] => {
         const validator = ManifestValidator.getValidator<DbtMetric>(
-            `${this.schemaId}#/definitions/LightdashMetric`,
+            `${this.metadataSchemaId}#/definitions/LightdashMetric`,
         );
         return ManifestValidator.isValid(validator, metric);
     };
