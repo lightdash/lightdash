@@ -33,7 +33,7 @@
         "LightdashCompiledModelNode": {
             "allOf": [
                 {
-                    "$ref": "https://schemas.getdbt.com/dbt/manifest/v8.json#/definitions/ModelNode`"
+                    "$ref": "https://schemas.getdbt.com/dbt/manifest/v8.json#/definitions/ModelNode"
                 },
                 {
                     "type": "object",
