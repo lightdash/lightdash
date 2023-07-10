@@ -1,3 +1,17 @@
+## [0.660.1](https://github.com/lightdash/lightdash/compare/0.660.0...0.660.1) (2023-07-10)
+
+
+### Bug Fixes
+
+* grouped series padding ([#6222](https://github.com/lightdash/lightdash/issues/6222)) ([cdc64b4](https://github.com/lightdash/lightdash/commit/cdc64b4281f57e2f9d508e070e2ae46f963f92bd))
+
+# [0.660.0](https://github.com/lightdash/lightdash/compare/0.659.1...0.660.0) (2023-07-10)
+
+
+### Features
+
+* upgrade dbt 1.4 manifest to v8, drop support dbt 1.3 ([#6210](https://github.com/lightdash/lightdash/issues/6210)) ([e49614f](https://github.com/lightdash/lightdash/commit/e49614f9e67087c26abee26737cea70d4e324bb9))
+
 ## [0.659.1](https://github.com/lightdash/lightdash/compare/0.659.0...0.659.1) (2023-07-07)
 
 

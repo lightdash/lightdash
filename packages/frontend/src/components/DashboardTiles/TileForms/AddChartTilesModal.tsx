@@ -124,7 +124,6 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                     <Title order={4}>Add saved charts</Title>
                 </Flex>
             }
-            centered
             withCloseButton
         >
             <Stack spacing="md">
