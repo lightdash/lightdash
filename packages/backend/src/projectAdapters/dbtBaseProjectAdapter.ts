@@ -1,5 +1,4 @@
 import {
-    assertUnreachable,
     attachTypesToModels,
     convertExplores,
     DbtManifestVersion,
@@ -14,70 +13,15 @@ import {
     InlineError,
     InlineErrorType,
     isSupportedDbtAdapter,
+    ManifestValidator,
     MissingCatalogEntryError,
     normaliseModelDatabase,
     ParseError,
     SupportedDbtAdapter,
-    UnexpectedServerError,
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
-import Ajv from 'ajv';
-import addFormats from 'ajv-formats';
-import { AnyValidateFunction } from 'ajv/dist/types';
 import Logger from '../logging/logger';
-import dbtManifestSchemaV8 from '../manifestv8.json';
-import dbtManifestSchemaV9 from '../manifestv9.json';
-import lightdashDbtSchemaV8 from '../schema.json';
-import lightdashDbtSchemaV9 from '../schemav9.json';
 import { CachedWarehouse, DbtClient, ProjectAdapter } from '../types';
-
-let ajv: Ajv;
-
-const getModelValidator = (manifestVersion: DbtManifestVersion) => {
-    switch (manifestVersion) {
-        case DbtManifestVersion.V8:
-            ajv = new Ajv({
-                schemas: [lightdashDbtSchemaV8, dbtManifestSchemaV8],
-            });
-            break;
-        case DbtManifestVersion.V9:
-            ajv = new Ajv({
-                schemas: [lightdashDbtSchemaV9, dbtManifestSchemaV9],
-            });
-            break;
-        default:
-            return assertUnreachable(
-                manifestVersion,
-                new UnexpectedServerError(
-                    `Missing dbt manifest version "${manifestVersion}" in validation.`,
-                ),
-            );
-    }
-    addFormats(ajv);
-
-    const modelValidator = ajv.getSchema<DbtRawModelNode>(
-        `https://schemas.lightdash.com/dbt/manifest/${manifestVersion}.json#/definitions/LightdashCompiledModelNode`,
-    );
-    if (modelValidator === undefined) {
-        throw new ParseError('Could not parse Lightdash schema.');
-    }
-    return modelValidator;
-};
-
-const getMetricValidator = (manifestVersion: DbtManifestVersion) => {
-    const schema = `https://schemas.getdbt.com/dbt/manifest/${manifestVersion}.json#/definitions/Metric`;
-
-    const metricValidator = ajv.getSchema<DbtMetric>(schema);
-    if (metricValidator === undefined) {
-        throw new ParseError('Could not parse dbt schema.');
-    }
-    return metricValidator;
-};
-
-const formatAjvErrors = (validator: AnyValidateFunction): string =>
-    (validator.errors || [])
-        .map((err) => `Field at "${err.instancePath}" ${err.message}`)
-        .join('\n');
 
 export class DbtBaseProjectAdapter implements ProjectAdapter {
     dbtClient: DbtClient;
@@ -231,14 +175,12 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         version: DbtManifestVersion,
         metrics: DbtMetric[],
     ): DbtMetric[] {
-        const validator = getMetricValidator(version);
+        const validator = new ManifestValidator(version);
         metrics.forEach((metric) => {
-            const isValid = validator(metric);
-            if (isValid !== true) {
+            const [isValid, errorMessage] = validator.isDbtMetricValid(metric);
+            if (!isValid) {
                 throw new ParseError(
-                    `Could not parse dbt metric with id ${
-                        metric.unique_id
-                    }: ${formatAjvErrors(validator)}`,
+                    `Could not parse dbt metric with id ${metric.unique_id}: ${errorMessage}`,
                     {},
                 );
             }
@@ -251,16 +193,16 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         models: DbtRawModelNode[],
         manifestVersion: DbtManifestVersion,
     ): [DbtModelNode[], ExploreError[]] {
-        const validator = getModelValidator(manifestVersion);
+        const validator = new ManifestValidator(manifestVersion);
         return models.reduce(
             ([validModels, invalidModels], model) => {
                 let error: InlineError | undefined;
                 // Match against json schema
-                const isValid = validator(model);
+                const [isValid, errorMessage] = validator.isModelValid(model);
                 if (!isValid) {
                     error = {
                         type: InlineErrorType.METADATA_PARSE_ERROR,
-                        message: formatAjvErrors(validator),
+                        message: errorMessage,
                     };
                 } else if (
                     isValid &&

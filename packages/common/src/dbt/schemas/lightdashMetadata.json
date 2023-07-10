@@ -114,56 +114,8 @@
                 }
             },
             "default": {}
-        },
-        "LightdashNodeConfig": {
-            "allOf": [
-                {
-                    "$ref": "https://schemas.getdbt.com/dbt/manifest/v8.json#/definitions/NodeConfig"
-                },
-                {
-                    "type": "object",
-                    "properties": {
-                        "meta": {
-                            "$ref": "#/definitions/LightdashModelMetadata"
-                        }
-                    }
-                }
-            ]
-        },
-        "LightdashColumnInfo": {
-            "allOf": [
-                {
-                    "$ref": "https://schemas.getdbt.com/dbt/manifest/v8.json#/definitions/ColumnInfo"
-                },
-                {
-                    "type": "object",
-                    "properties": {
-                        "meta": {
-                            "$ref": "#/definitions/LightdashColumnMetadata"
-                        }
-                    }
-                }
-            ]
-        },
-        "LightdashCompiledModelNode": {
-            "allOf": [
-                {
-                    "$ref": "https://schemas.getdbt.com/dbt/manifest/v8.json#/definitions/ModelNode"
-                },
-                {
-                    "type": "object",
-                    "properties": {
-                        "meta": {
-                            "$ref": "#/definitions/LightdashModelMetadata"
-                        },
-                        "config": {
-                            "$ref": "#/definitions/LightdashNodeConfig"
-                        }
-                    }
-                }
-            ]
         }
     },
     "$schema": "http://json-schema.org/draft-07/schema#",
-    "$id": "https://schemas.lightdash.com/dbt/manifest/v8.json"
+    "$id": "https://schemas.lightdash.com/lightdash/metadata.json"
 }
