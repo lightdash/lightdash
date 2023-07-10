@@ -1,3 +1,10 @@
+## [0.660.1](https://github.com/lightdash/lightdash/compare/0.660.0...0.660.1) (2023-07-10)
+
+
+### Bug Fixes
+
+* grouped series padding ([#6222](https://github.com/lightdash/lightdash/issues/6222)) ([cdc64b4](https://github.com/lightdash/lightdash/commit/cdc64b4281f57e2f9d508e070e2ae46f963f92bd))
+
 # [0.660.0](https://github.com/lightdash/lightdash/compare/0.659.1...0.660.0) (2023-07-10)
 
 
