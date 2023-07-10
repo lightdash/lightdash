@@ -42,7 +42,7 @@
                             "$ref": "https://schemas.lightdash.com/lightdash/metadata.json#/definitions/LightdashModelMetadata"
                         },
                         "config": {
-                            "$ref": "https://schemas.lightdash.com/lightdash/metadata.json#/definitions/LightdashNodeConfig"
+                            "$ref": "#/definitions/LightdashNodeConfig"
                         }
                     }
                 }
