@@ -33,6 +33,7 @@ type PieChartConfig = {
     groupRemove: (dimensionId: any) => void;
 
     metricId: string | null;
+    selectedMetric: Metric | AdditionalMetric | TableCalculation | undefined;
     metricChange: (metricId: string | null) => void;
 
     isDonut: boolean;
@@ -143,6 +144,12 @@ const usePieChartConfig: PieChartConfigFn = (
             ),
         [allNumericMetrics],
     );
+
+    const selectedMetric = useMemo(() => {
+        return allNumericMetrics.find((m) =>
+            isField(m) ? fieldId(m) === metricId : m.name === metricId,
+        );
+    }, [allNumericMetrics, metricId]);
 
     const isLoading = !explore || !resultsData;
 
@@ -297,6 +304,7 @@ const usePieChartConfig: PieChartConfigFn = (
             groupChange: handleGroupChange,
             groupRemove: handleRemoveGroup,
 
+            selectedMetric,
             metricId,
             metricChange: setMetricId,
 
@@ -332,6 +340,7 @@ const usePieChartConfig: PieChartConfigFn = (
             handleGroupChange,
             handleRemoveGroup,
 
+            selectedMetric,
             metricId,
 
             isDonut,

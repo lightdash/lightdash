@@ -1,25 +1,31 @@
-import { PieChartValueOptions } from '@lightdash/common';
+import {
+    AdditionalMetric,
+    formatItemValue,
+    Metric,
+    PieChartValueOptions,
+    TableCalculation,
+} from '@lightdash/common';
 import { useMemo } from 'react';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
 
-const getLabelOptions = ({
-    valueLabel,
-    showValue,
-    showPercentage,
-}: Partial<PieChartValueOptions>) => {
+const getFormattedLabelOptions = (
+    selectedMetric: Metric | AdditionalMetric | TableCalculation,
+    { valueLabel, showValue, showPercentage }: Partial<PieChartValueOptions>,
+) => {
     const show = valueLabel !== 'hidden' && (showValue || showPercentage);
 
     const labelConfig = {
         show,
         position: valueLabel,
-        formatter:
-            valueLabel !== 'hidden' && showValue && showPercentage
-                ? '{d}% - {c}'
+        formatter: ({ value, percent }: { value: number; percent: number }) => {
+            return valueLabel !== 'hidden' && showValue && showPercentage
+                ? `${percent}% - ${formatItemValue(selectedMetric, value)}`
                 : showValue
-                ? '{c}'
+                ? formatItemValue(selectedMetric, value)
                 : showPercentage
-                ? '{d}%'
-                : undefined,
+                ? `${percent}%`
+                : undefined;
+        },
     };
 
     return {
@@ -34,6 +40,7 @@ const useEchartsPieConfig = () => {
     const {
         pieChartConfig: {
             groupColorDefaults,
+            selectedMetric,
             validPieChartConfig: {
                 groupFieldIds,
                 metricId,
@@ -54,6 +61,7 @@ const useEchartsPieConfig = () => {
     const data = useMemo(() => {
         if (
             !metricId ||
+            !selectedMetric ||
             !resultsData ||
             resultsData.rows.length === 0 ||
             !groupFieldIds ||
@@ -79,7 +87,7 @@ const useEchartsPieConfig = () => {
         )
             .sort((a, b) => b[1] - a[1])
             .map(([name, value]) => {
-                const labelOptions = getLabelOptions({
+                const labelOptions = getFormattedLabelOptions(selectedMetric, {
                     valueLabel:
                         groupValueOptionOverrides?.[name]?.valueLabel ??
                         valueLabel,
@@ -105,6 +113,7 @@ const useEchartsPieConfig = () => {
     }, [
         resultsData,
         groupFieldIds,
+        selectedMetric,
         metricId,
         showPercentage,
         showValue,
