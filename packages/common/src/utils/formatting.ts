@@ -5,6 +5,7 @@ import {
     DimensionType,
     Field,
     findCompactConfig,
+    Format,
     isDimension,
     isField,
     isTableCalculation,
@@ -17,6 +18,44 @@ import {
 import { AdditionalMetric, isAdditionalMetric } from '../types/metricQuery';
 import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
+
+export const currencies = [
+    'USD',
+    'EUR',
+    'GBP',
+    'JPY',
+    'CHF',
+    'CAD',
+    'AUD',
+    'CNY',
+    'ARS',
+    'BRL',
+    'CLP',
+    'COP',
+    'CZK',
+    'DKK',
+    'HKD',
+    'HUF',
+    'INR',
+    'ILS',
+    'KRW',
+    'MYR',
+    'MXN',
+    'MAD',
+    'NZD',
+    'NOK',
+    'PHP',
+    'PLN',
+    'RUB',
+    'SAR',
+    'SGD',
+    'ZAR',
+    'SEK',
+    'TWD',
+    'THB',
+    'TRY',
+    'VND',
+];
 
 export const formatBoolean = <T>(v: T) =>
     ['True', 'true', 'yes', 'Yes', '1', 'T'].includes(`${v}`) ? 'Yes' : 'No';
@@ -123,18 +162,15 @@ function roundNumber(
             ? `${value}`
             : new Intl.NumberFormat('en-US').format(Number(value));
     }
-    const isValidFormat =
-        !!format &&
-        format !== 'km' &&
-        format !== 'mi' &&
-        format !== 'percent' &&
-        format !== 'id';
+
+    const isValidCurrencyFormat =
+        !!format && currencies.includes(format.toUpperCase());
 
     const validFractionDigits = invalidRound
         ? {}
         : { maximumFractionDigits: round, minimumFractionDigits: round };
 
-    if (isValidFormat) {
+    if (isValidCurrencyFormat) {
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
             currency: format?.toUpperCase(),
@@ -174,7 +210,7 @@ function styleNumber(
 export function formatValue(
     value: unknown,
     options?: {
-        format?: string;
+        format?: Format;
         round?: number;
         compact?: CompactOrAlias;
     },
@@ -208,9 +244,6 @@ export function formatValue(
             const roundBy = invalidRound ? 0 : round;
             // Fix rounding issue
             return `${(Number(value) * 100).toFixed(roundBy)}%`;
-
-        case '': // no format
-            return styledValue;
         default:
             // unrecognized format
             return styledValue;
@@ -277,44 +310,6 @@ export function formatFieldValue(
         }
     }
 }
-
-export const currencies = [
-    'USD',
-    'EUR',
-    'GBP',
-    'JPY',
-    'CHF',
-    'CAD',
-    'AUD',
-    'CNY',
-    'ARS',
-    'BRL',
-    'CLP',
-    'COP',
-    'CZK',
-    'DKK',
-    'HKD',
-    'HUF',
-    'INR',
-    'ILS',
-    'KRW',
-    'MYR',
-    'MXN',
-    'MAD',
-    'NZD',
-    'NOK',
-    'PHP',
-    'PLN',
-    'RUB',
-    'SAR',
-    'SGD',
-    'ZAR',
-    'SEK',
-    'TWD',
-    'THB',
-    'TRY',
-    'VND',
-];
 
 export function formatTableCalculationNumber(
     value: number,
