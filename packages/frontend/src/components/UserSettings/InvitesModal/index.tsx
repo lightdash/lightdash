@@ -60,7 +60,6 @@ const InvitesModal: FC<{
                     <Title order={4}>Add user</Title>
                 </Group>
             }
-            yOffset="15vw"
             size="lg"
         >
             <TrackPage
