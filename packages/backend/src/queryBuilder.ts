@@ -14,6 +14,7 @@ import {
     isFilterGroup,
     parseAllReferences,
     renderFilterRuleSql,
+    SupportedDbtAdapter,
     WarehouseClient,
 } from '@lightdash/common';
 
@@ -63,6 +64,7 @@ export const buildQuery = ({
     warehouseClient,
 }: BuildQueryProps): { query: string; hasExampleMetric: boolean } => {
     let hasExampleMetric: boolean = false;
+    const adapterType: SupportedDbtAdapter = warehouseClient.getAdapterType();
     const { dimensions, metrics, filters, sorts, limit } = compiledMetricQuery;
     const baseTable = explore.tables[explore.baseTable].sqlTable;
     const fieldQuoteChar = warehouseClient.getFieldQuoteChar();
@@ -214,6 +216,7 @@ export const buildQuery = ({
             stringQuoteChar,
             escapeStringQuoteChar,
             startOfWeek,
+            adapterType,
         );
     };
 
@@ -267,6 +270,7 @@ export const buildQuery = ({
                 stringQuoteChar,
                 escapeStringQuoteChar,
                 startOfWeek,
+                adapterType,
             );
         },
     );
