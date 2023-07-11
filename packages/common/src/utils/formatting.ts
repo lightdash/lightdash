@@ -149,7 +149,7 @@ export function isNumber(value: unknown): value is number {
 function roundNumber(
     value: number,
     options?: {
-        format?: string;
+        format?: Format;
         round?: number;
         compact?: CompactOrAlias;
     },
@@ -186,7 +186,7 @@ function roundNumber(
 function styleNumber(
     value: number,
     options?: {
-        format?: string;
+        format?: Format;
         round?: number;
         compact?: CompactOrAlias;
     },
@@ -226,16 +226,16 @@ export function formatValue(
         ? styleNumber(value, options)
         : roundNumber(value, { round, format });
     switch (format) {
-        case 'km':
-        case 'mi':
+        case Format.KM:
+        case Format.MI:
             return `${styledValue} ${format}`;
-        case 'usd':
-        case 'gbp':
-        case 'eur':
+        case Format.USD:
+        case Format.GBP:
+        case Format.EUR:
             return `${styledValue}`;
-        case 'id':
+        case Format.ID:
             return `${value}`;
-        case 'percent':
+        case Format.PERCENT:
             if (valueIsNaN(value)) {
                 return `${value}`;
             }
