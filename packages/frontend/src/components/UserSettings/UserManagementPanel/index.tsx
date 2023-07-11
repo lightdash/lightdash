@@ -180,6 +180,7 @@ const UserListItem: FC<{
                                         <Tooltip multiline label={title}>
                                             <MantineIcon
                                                 icon={IconHelp}
+                                                 color="gray.6"
                                                 style={{
                                                     cursor: 'pointer',
                                                     marginLeft: '4px',
