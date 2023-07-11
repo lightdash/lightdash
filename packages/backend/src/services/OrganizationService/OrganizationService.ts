@@ -243,6 +243,44 @@ export class OrganizationService {
         });
     }
 
+    async getMember(
+        user: SessionUser,
+        member_uuid: string,
+    ): Promise<OrganizationMemberProfile> {
+        const { organizationUuid } = user;
+        if (user.ability.cannot('view', 'OrganizationMemberProfile')) {
+            throw new ForbiddenError();
+        }
+        if (organizationUuid === undefined) {
+            throw new NotExistsError('Organization not found');
+        }
+        const member =
+            await this.organizationMemberProfileModel.getOrganizationMember(
+                organizationUuid,
+                member_uuid,
+            );
+        return member;
+    }
+
+    async getMemberByEmail(
+        user: SessionUser,
+        email: string,
+    ): Promise<OrganizationMemberProfile> {
+        const { organizationUuid } = user;
+        if (user.ability.cannot('view', 'OrganizationMemberProfile')) {
+            throw new ForbiddenError();
+        }
+        if (organizationUuid === undefined) {
+            throw new NotExistsError('Organization not found');
+        }
+        const member =
+            await this.organizationMemberProfileModel.getOrganizationMemberByEmail(
+                organizationUuid,
+                email,
+            );
+        return member;
+    }
+
     async updateMember(
         authenticatedUser: SessionUser,
         memberUserUuid: string,

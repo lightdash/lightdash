@@ -103,6 +103,21 @@ export class OrganizationMemberProfileModel {
         return member && OrganizationMemberProfileModel.parseRow(member);
     }
 
+    async findOrganizationMemberByEmail(
+        organizationUuid: string,
+        email: string,
+    ): Promise<OrganizationMemberProfile | undefined> {
+        const [member] = await this.queryBuilder()
+            .where(`${EmailTableName}.email`, email)
+            .andWhere(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .select<DbOrganizationMemberProfile[]>(SelectColumns);
+
+        return member && OrganizationMemberProfileModel.parseRow(member);
+    }
+
     async getOrganizationMembers(
         organizationUuid: string,
     ): Promise<OrganizationMemberProfile[]> {
@@ -136,10 +151,27 @@ export class OrganizationMemberProfileModel {
         ).insert<DbOrganizationMembershipIn>(membershipIn);
     };
 
-    async getOrganizationMember(organizationUuid: string, userUuid: string) {
+    async getOrganizationMember(
+        organizationUuid: string,
+        userUuid: string,
+    ): Promise<OrganizationMemberProfile> {
         const member = await this.findOrganizationMember(
             organizationUuid,
             userUuid,
+        );
+        if (member) {
+            return member;
+        }
+        throw new NotFoundError('No matching member found in organization');
+    }
+
+    async getOrganizationMemberByEmail(
+        organizationUuid: string,
+        email: string,
+    ): Promise<OrganizationMemberProfile> {
+        const member = await this.findOrganizationMemberByEmail(
+            organizationUuid,
+            email,
         );
         if (member) {
             return member;

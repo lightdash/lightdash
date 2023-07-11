@@ -10,6 +10,7 @@ import {
     ApiSuccessEmpty,
     CreateGroup,
     CreateOrganization,
+    OrganizationMemberProfileGet,
     OrganizationMemberProfileUpdate,
     UpdateAllowedEmailDomains,
     UpdateOrganization,
@@ -172,6 +173,41 @@ export class OrganizationController extends Controller {
             status: 'ok',
             results: await organizationService.getUsers(req.user!),
         };
+    }
+
+    /**
+     * Get the membership profile for a user in the current user's organization
+     * @param req express request
+     * @param body the userUuid or email of the user to get. Either userUuid or email must be provided.
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Post('/user')
+    @OperationId('ListOrganizationMembers')
+    async getOrganizationMemberByEmail(
+        @Request() req: express.Request,
+        @Body() body: OrganizationMemberProfileGet,
+    ): Promise<ApiOrganizationMemberProfile> {
+        if (body.userUuid) {
+            this.setStatus(200);
+            return {
+                status: 'ok',
+                results: await organizationService.getMember(
+                    req.user!,
+                    body.userUuid,
+                ),
+            };
+        }
+        if (body.email) {
+            this.setStatus(200);
+            return {
+                status: 'ok',
+                results: await organizationService.getMemberByEmail(
+                    req.user!,
+                    body.email,
+                ),
+            };
+        }
+        throw new Error('Must provide either userUuid or email');
     }
 
     /**
