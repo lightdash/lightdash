@@ -159,10 +159,10 @@ export class OrganizationMemberProfileModel {
             organizationUuid,
             userUuid,
         );
-        if (member) {
-            return member;
+        if (!member) {
+            throw new NotFoundError('No matching member found in organization');
         }
-        throw new NotFoundError('No matching member found in organization');
+        return member;
     }
 
     async getOrganizationMemberByEmail(
@@ -173,10 +173,10 @@ export class OrganizationMemberProfileModel {
             organizationUuid,
             email,
         );
-        if (member) {
-            return member;
+        if (!member) {
+            throw new NotFoundError('No matching member found in organization');
         }
-        throw new NotFoundError('No matching member found in organization');
+        return member;
     }
 
     async updateOrganizationMember(
