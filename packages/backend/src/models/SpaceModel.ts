@@ -425,7 +425,7 @@ export class SpaceModel {
                 'saved_queries_versions.updated_by_user_uuid',
                 'users.user_uuid',
             )
-            .leftJoin(
+            /* .leftJoin(
                 PinnedChartTableName,
                 `${PinnedChartTableName}.saved_chart_uuid`,
                 `${SavedChartsTableName}.saved_query_uuid`,
@@ -434,7 +434,7 @@ export class SpaceModel {
                 PinnedListTableName,
                 `${PinnedListTableName}.pinned_list_uuid`,
                 `${PinnedChartTableName}.pinned_list_uuid`,
-            )
+            ) */
             .select<
                 {
                     saved_query_uuid: string;
@@ -467,7 +467,8 @@ export class SpaceModel {
                     `(SELECT ${AnalyticsChartViewsTableName}.timestamp FROM ${AnalyticsChartViewsTableName} WHERE ${AnalyticsChartViewsTableName}.chart_uuid = saved_queries.saved_query_uuid ORDER BY ${AnalyticsChartViewsTableName}.timestamp ASC LIMIT 1) as first_viewed_at`,
                 ),
                 `saved_queries_versions.chart_config`,
-                `saved_queries_versions.chart_type`,
+                // `saved_queries_versions.chart_type`,
+                `saved_queries.chart_type`,
                 `${PinnedListTableName}.pinned_list_uuid`,
                 `${PinnedChartTableName}.order`,
                 this.database.raw(`
