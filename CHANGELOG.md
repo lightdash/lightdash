@@ -1,3 +1,10 @@
+# [0.662.0](https://github.com/lightdash/lightdash/compare/0.661.0...0.662.0) (2023-07-11)
+
+
+### Features
+
+* Edit title on dashboard chart tiles  ([#6220](https://github.com/lightdash/lightdash/issues/6220)) ([dc030a2](https://github.com/lightdash/lightdash/commit/dc030a24d0425d4bb71f4881d077429106c8ec31))
+
 # [0.661.0](https://github.com/lightdash/lightdash/compare/0.660.1...0.661.0) (2023-07-10)
 
 

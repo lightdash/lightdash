@@ -10,6 +10,7 @@ import { Dashboard, DashboardTileTypes } from '@lightdash/common';
 import { Tooltip } from '@mantine/core';
 import { useHover, useToggle } from '@mantine/hooks';
 import React, { ReactNode, useState } from 'react';
+import TileUpdateChartTitle from '../TileForms/TileUpdateChartTitle';
 import TileUpdateModal from '../TileForms/TileUpdateModal';
 import {
     ButtonsWrapper,
@@ -23,6 +24,7 @@ import {
 type Props<T> = {
     isEditMode: boolean;
     title: string;
+    chartName?: string;
     titleHref?: string;
     description?: string;
     tile: T;
@@ -37,6 +39,7 @@ type Props<T> = {
 const TileBase = <T extends Dashboard['tiles'][number]>({
     isEditMode,
     title,
+    chartName,
     description,
     tile,
     isLoading,
@@ -47,7 +50,9 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     extraHeaderElement,
     titleHref,
 }: Props<T>) => {
-    const [isEditing, setIsEditing] = useState(false);
+    const [isReplacingChart, setIsReplacingChart] = useState(false);
+    const [isEditingTitle, setIsEditingTitle] = useState(false);
+
     const [isHovering, setIsHovering] = useState(false);
     const { hovered: containerHovered, ref: containerRef } = useHover();
     const { hovered: titleHovered, ref: titleRef } =
@@ -115,9 +120,18 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                                     <>
                                                         <MenuItem2
                                                             icon="edit"
-                                                            text="Edit tile content"
+                                                            text="Edit title"
                                                             onClick={() =>
-                                                                setIsEditing(
+                                                                setIsEditingTitle(
+                                                                    true,
+                                                                )
+                                                            }
+                                                        />
+                                                        <MenuItem2
+                                                            icon="exchange"
+                                                            text="Replace chart in tile"
+                                                            onClick={() =>
+                                                                setIsReplacingChart(
                                                                     true,
                                                                 )
                                                             }
@@ -181,12 +195,29 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
 
                     <TileUpdateModal
                         className="non-draggable"
-                        isOpen={isEditing}
+                        isOpen={isReplacingChart}
                         tile={tile}
-                        onClose={() => setIsEditing(false)}
+                        onClose={() => setIsReplacingChart(false)}
                         onConfirm={(data) => {
                             onEdit(data);
-                            setIsEditing(false);
+                            setIsReplacingChart(false);
+                        }}
+                    />
+
+                    <TileUpdateChartTitle
+                        isOpen={isEditingTitle}
+                        placeholder={chartName || ''}
+                        title={title}
+                        onClose={() => setIsEditingTitle(false)}
+                        onConfirm={(newTitle) => {
+                            onEdit({
+                                ...tile,
+                                properties: {
+                                    ...tile.properties,
+                                    title: newTitle,
+                                },
+                            });
+                            setIsEditingTitle(false);
                         }}
                     />
                 </>
