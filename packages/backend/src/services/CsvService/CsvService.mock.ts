@@ -1,6 +1,7 @@
 import {
     Field,
     FieldType,
+    Format,
     MetricQuery,
     TableCalculation,
 } from '@lightdash/common';
@@ -29,8 +30,7 @@ export const itemMap: Record<string, Field | TableCalculation> = {
         hidden: false,
         fieldType: FieldType.DIMENSION,
         type: 'number',
-        displayName: 'column number',
-        format: 'usd',
+        format: Format.USD,
         tableLabel: 'table',
         label: 'column number',
         sql: '${TABLE}.column_number',
