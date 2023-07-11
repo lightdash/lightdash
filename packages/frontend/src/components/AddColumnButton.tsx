@@ -5,7 +5,7 @@ import { useTracking } from '../providers/TrackingProvider';
 import { EventName } from '../types/Events';
 import { COLLAPSABLE_CARD_BUTTON_PROPS } from './common/CollapsableCard';
 import MantineIcon from './common/MantineIcon';
-import { CreateTableCalculationModal } from './TableCalculationModels';
+import { CreateTableCalculationModal } from './TableCalculationModals';
 
 const AddColumnButton: FC = memo(() => {
     const [isOpen, setIsOpen] = useState<boolean>(false);
