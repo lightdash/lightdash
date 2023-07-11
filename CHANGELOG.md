@@ -1,3 +1,10 @@
+# [0.663.0](https://github.com/lightdash/lightdash/compare/0.662.2...0.663.0) (2023-07-11)
+
+
+### Features
+
+* bring back support dbt 1.3 in the CLI ([#6253](https://github.com/lightdash/lightdash/issues/6253)) ([e29a1f5](https://github.com/lightdash/lightdash/commit/e29a1f573a346088445d3310d21df22dcec0505b))
+
 ## [0.662.2](https://github.com/lightdash/lightdash/compare/0.662.1...0.662.2) (2023-07-11)
 
 
