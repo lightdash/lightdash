@@ -483,6 +483,17 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "OrganizationMemberProfileGet": {
+                "properties": {
+                    "email": {
+                        "type": "string"
+                    },
+                    "userUuid": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
             "OrganizationMemberProfileUpdate": {
                 "properties": {
                     "role": {
@@ -1892,7 +1903,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate_": {
+            "Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -1906,6 +1917,15 @@
                     "projectUuid": {
                         "type": "string"
                     },
+                    "pinnedListUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "pinnedListOrder": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
                     "isPrivate": {
                         "type": "boolean"
                     }
@@ -1915,6 +1935,8 @@
                     "organizationUuid",
                     "uuid",
                     "projectUuid",
+                    "pinnedListUuid",
+                    "pinnedListOrder",
                     "isPrivate"
                 ],
                 "type": "object",
@@ -1923,10 +1945,18 @@
             "SpaceSummary": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate_"
+                        "$ref": "#/components/schemas/Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder_"
                     },
                     {
                         "properties": {
+                            "dashboardCount": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "chartCount": {
+                                "type": "number",
+                                "format": "double"
+                            },
                             "access": {
                                 "items": {
                                     "type": "string"
@@ -1934,7 +1964,7 @@
                                 "type": "array"
                             }
                         },
-                        "required": ["access"],
+                        "required": ["dashboardCount", "chartCount", "access"],
                         "type": "object"
                     }
                 ]
@@ -3676,7 +3706,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.651.2",
+        "version": "0.661.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -4368,6 +4398,49 @@
                 "tags": ["Organizations"],
                 "security": [],
                 "parameters": []
+            }
+        },
+        "/api/v1/org/user": {
+            "post": {
+                "operationId": "ListOrganizationMembers",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationMemberProfile"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the membership profile for a user in the current user's organization",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "description": "the userUuid or email of the user to get. Either userUuid or email must be provided.",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OrganizationMemberProfileGet",
+                                "description": "the userUuid or email of the user to get. Either userUuid or email must be provided."
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/org/users/{userUuid}": {
