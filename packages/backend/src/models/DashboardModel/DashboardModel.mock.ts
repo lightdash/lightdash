@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    ChartKind,
     CreateDashboard,
     CreateDashboardChartTile,
     Dashboard,
@@ -132,6 +133,9 @@ export const savedChartEntry: SavedChartTable['base'] = {
     name: 'chart name',
     description: 'My description',
     created_at: new Date(),
+    last_version_chart_kind: ChartKind.VERTICAL_BAR,
+    last_version_updated_at: new Date(),
+    last_version_updated_by_user_uuid: undefined,
 };
 
 export const dashboardEntry: DashboardTable['base'] = {
