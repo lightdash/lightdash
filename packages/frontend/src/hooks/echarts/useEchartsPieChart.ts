@@ -1,19 +1,57 @@
+import {
+    AdditionalMetric,
+    formatItemValue,
+    Metric,
+    PieChartValueOptions,
+    TableCalculation,
+} from '@lightdash/common';
 import { useMemo } from 'react';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
+
+const getFormattedLabelOptions = (
+    selectedMetric: Metric | AdditionalMetric | TableCalculation,
+    { valueLabel, showValue, showPercentage }: Partial<PieChartValueOptions>,
+) => {
+    const show = valueLabel !== 'hidden' && (showValue || showPercentage);
+
+    const labelConfig = {
+        show,
+        position: valueLabel,
+        formatter: ({ value, percent }: { value: number; percent: number }) => {
+            return valueLabel !== 'hidden' && showValue && showPercentage
+                ? `${percent}% - ${formatItemValue(selectedMetric, value)}`
+                : showValue
+                ? formatItemValue(selectedMetric, value)
+                : showPercentage
+                ? `${percent}%`
+                : undefined;
+        },
+    };
+
+    return {
+        label: labelConfig,
+        labelLine: { show: show && valueLabel === 'outside' },
+        tooltip: { ...labelConfig, position: undefined },
+    };
+};
 
 const useEchartsPieConfig = () => {
     const context = useVisualizationContext();
     const {
         pieChartConfig: {
             groupColorDefaults,
+            selectedMetric,
             validPieChartConfig: {
                 groupFieldIds,
                 metricId,
                 isDonut,
                 valueLabel,
-                showLegend,
+                showValue,
+                showPercentage,
                 groupLabelOverrides,
                 groupColorOverrides,
+                groupValueOptionOverrides,
+                showLegend,
             },
         },
         explore,
@@ -23,6 +61,7 @@ const useEchartsPieConfig = () => {
     const data = useMemo(() => {
         if (
             !metricId ||
+            !selectedMetric ||
             !resultsData ||
             resultsData.rows.length === 0 ||
             !groupFieldIds ||
@@ -48,6 +87,18 @@ const useEchartsPieConfig = () => {
         )
             .sort((a, b) => b[1] - a[1])
             .map(([name, value]) => {
+                const labelOptions = getFormattedLabelOptions(selectedMetric, {
+                    valueLabel:
+                        groupValueOptionOverrides?.[name]?.valueLabel ??
+                        valueLabel,
+                    showValue:
+                        groupValueOptionOverrides?.[name]?.showValue ??
+                        showValue,
+                    showPercentage:
+                        groupValueOptionOverrides?.[name]?.showPercentage ??
+                        showPercentage,
+                });
+
                 return {
                     name: groupLabelOverrides?.[name] ?? name,
                     value,
@@ -56,14 +107,20 @@ const useEchartsPieConfig = () => {
                             groupColorOverrides?.[name] ??
                             groupColorDefaults?.[name],
                     },
+                    ...labelOptions,
                 };
             });
     }, [
-        groupFieldIds,
-        metricId,
         resultsData,
+        groupFieldIds,
+        selectedMetric,
+        metricId,
+        showPercentage,
+        showValue,
+        valueLabel,
         groupLabelOverrides,
         groupColorOverrides,
+        groupValueOptionOverrides,
         groupColorDefaults,
     ]);
 
@@ -78,27 +135,23 @@ const useEchartsPieConfig = () => {
                 left: 'center',
                 type: 'scroll',
             },
-
             series: [
                 {
                     type: 'pie',
                     radius: isDonut ? ['30%', '70%'] : '70%',
                     center:
-                        showLegend && valueLabel === 'outside'
+                        showLegend &&
+                        valueLabel === 'outside' &&
+                        (showValue || showPercentage)
                             ? ['50%', '55%']
                             : showLegend
                             ? ['50%', '52%']
                             : ['50%', '50%'],
-                    label: {
-                        show: valueLabel !== 'hidden',
-                        position: valueLabel,
-                        formatter: '{b}\n {d}%',
-                    },
                     data,
                 },
             ],
         }),
-        [data, isDonut, valueLabel, showLegend],
+        [data, isDonut, valueLabel, showValue, showPercentage, showLegend],
     );
 
     if (!explore || !data || data.length === 0) {
