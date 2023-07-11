@@ -1,3 +1,10 @@
+## [0.662.1](https://github.com/lightdash/lightdash/compare/0.662.0...0.662.1) (2023-07-11)
+
+
+### Bug Fixes
+
+* manifest validation ([#6248](https://github.com/lightdash/lightdash/issues/6248)) ([2feac0d](https://github.com/lightdash/lightdash/commit/2feac0dcf45561873c276143ea31f46f49a32f25))
+
 # [0.662.0](https://github.com/lightdash/lightdash/compare/0.661.0...0.662.0) (2023-07-11)
 
 
