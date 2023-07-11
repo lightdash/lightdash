@@ -3,6 +3,7 @@ import {
     CompiledMetric,
     CompiledTableCalculation,
     FieldId,
+    Format,
     friendlyName,
     MetricType,
     TableCalculation,
@@ -17,7 +18,7 @@ export interface AdditionalMetric {
     hidden?: boolean;
     round?: number;
     compact?: CompactOrAlias;
-    format?: string;
+    format?: Format;
     table: string;
     name: string;
     index?: number;

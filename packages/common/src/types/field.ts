@@ -133,7 +133,7 @@ export interface Field {
     hidden: boolean;
     compact?: CompactOrAlias;
     round?: number;
-    format?: string;
+    format?: Format;
     groupLabel?: string;
     urls?: FieldUrl[];
     index?: number;
@@ -265,6 +265,19 @@ export enum MetricType {
     DATE = 'date',
     BOOLEAN = 'boolean',
 }
+
+export enum Format {
+    KM = 'km',
+    MI = 'mi',
+    USD = 'usd',
+    GBP = 'gbp',
+    EUR = 'eur',
+    ID = 'id',
+    PERCENT = 'percent',
+}
+
+export const isFormat = (value: string | undefined): value is Format =>
+    !!value && Object.values(Format).includes(value as Format);
 
 export const parseMetricType = (metricType: string): MetricType => {
     switch (metricType) {

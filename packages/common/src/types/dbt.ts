@@ -7,6 +7,7 @@ import {
     DimensionType,
     FieldType,
     FieldUrl,
+    Format,
     friendlyName,
     Metric,
     MetricType,
@@ -80,7 +81,7 @@ type DbtColumnLightdashDimension = {
     hidden?: boolean;
     round?: number;
     compact?: CompactOrAlias;
-    format?: string;
+    format?: Format;
     group_label?: string;
     urls?: FieldUrl[];
 };
@@ -93,7 +94,7 @@ export type DbtColumnLightdashMetric = {
     hidden?: boolean;
     round?: number;
     compact?: CompactOrAlias;
-    format?: string;
+    format?: Format;
     group_label?: string;
     urls?: FieldUrl[];
     show_underlying_values?: string[];
