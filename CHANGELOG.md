@@ -1,3 +1,24 @@
+## [0.662.2](https://github.com/lightdash/lightdash/compare/0.662.1...0.662.2) (2023-07-11)
+
+
+### Bug Fixes
+
+* Update renderDateFilterSql to solve the filters of the timestamp on trino adapter ([#6233](https://github.com/lightdash/lightdash/issues/6233)) ([34a8683](https://github.com/lightdash/lightdash/commit/34a868317e50962c8ac5be82e66f0832dbfa7984))
+
+## [0.662.1](https://github.com/lightdash/lightdash/compare/0.662.0...0.662.1) (2023-07-11)
+
+
+### Bug Fixes
+
+* manifest validation ([#6248](https://github.com/lightdash/lightdash/issues/6248)) ([2feac0d](https://github.com/lightdash/lightdash/commit/2feac0dcf45561873c276143ea31f46f49a32f25))
+
+# [0.662.0](https://github.com/lightdash/lightdash/compare/0.661.0...0.662.0) (2023-07-11)
+
+
+### Features
+
+* Edit title on dashboard chart tiles  ([#6220](https://github.com/lightdash/lightdash/issues/6220)) ([dc030a2](https://github.com/lightdash/lightdash/commit/dc030a24d0425d4bb71f4881d077429106c8ec31))
+
 # [0.661.0](https://github.com/lightdash/lightdash/compare/0.660.1...0.661.0) (2023-07-10)
 
 

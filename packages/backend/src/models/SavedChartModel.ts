@@ -6,6 +6,7 @@ import {
     CreateSavedChartVersion,
     DBFieldTypes,
     getChartType,
+    isFormat,
     NotFoundError,
     SavedChart,
     SessionUser,
@@ -492,7 +493,9 @@ export class SavedChartModel {
                     hidden: additionalMetric.hidden,
                     round: additionalMetric.round,
                     compact: additionalMetric.compact,
-                    format: additionalMetric.format,
+                    format: isFormat(additionalMetric.format)
+                        ? additionalMetric.format
+                        : undefined,
                     uuid: additionalMetric.uuid,
                     sql: additionalMetric.sql,
                     table: additionalMetric.table,
