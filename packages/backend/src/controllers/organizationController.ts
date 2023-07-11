@@ -183,7 +183,7 @@ export class OrganizationController extends Controller {
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Post('/user')
     @OperationId('ListOrganizationMembers')
-    async getOrganizationMemberByEmail(
+    async getOrganizationMember(
         @Request() req: express.Request,
         @Body() body: OrganizationMemberProfileGet,
     ): Promise<ApiOrganizationMemberProfile> {
