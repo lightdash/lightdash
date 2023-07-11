@@ -1,3 +1,10 @@
+# [0.664.0](https://github.com/lightdash/lightdash/compare/0.663.0...0.664.0) (2023-07-11)
+
+
+### Features
+
+* save chart metadata ([#6247](https://github.com/lightdash/lightdash/issues/6247)) ([4771868](https://github.com/lightdash/lightdash/commit/4771868e3ace5b0c6df45b5fc8d6c83aeac35e5c))
+
 # [0.663.0](https://github.com/lightdash/lightdash/compare/0.662.2...0.663.0) (2023-07-11)
 
 
