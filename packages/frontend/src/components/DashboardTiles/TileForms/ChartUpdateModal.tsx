@@ -1,4 +1,4 @@
-import { DashboardTile } from '@lightdash/common';
+import { DashboardChartTile } from '@lightdash/common';
 import {
     Button,
     Flex,
@@ -18,18 +18,18 @@ import { useChartSummaries } from '../../../hooks/useChartSummaries';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import MantineIcon from '../../common/MantineIcon';
 
-interface ChartUpdateModalProps<T> extends ModalProps {
-    tile: T;
+interface ChartUpdateModalProps extends ModalProps {
+    tile: DashboardChartTile;
     onClose: () => void;
-    onConfirm?: (tile: T) => void;
+    onConfirm?: (tile: DashboardChartTile) => void;
 }
 
-const ChartUpdateModal = <T extends DashboardTile>({
+const ChartUpdateModal = ({
     tile,
     onClose,
     onConfirm,
     ...modalProps
-}: ChartUpdateModalProps<T>) => {
+}: ChartUpdateModalProps) => {
     const form = useForm({
         initialValues: {
             uuid: tile.properties.savedChartUuid,

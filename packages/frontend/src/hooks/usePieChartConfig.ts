@@ -10,13 +10,16 @@ import {
     isMetric,
     Metric,
     PieChart,
-    PieChartValueLabel,
+    PieChartValueOptions,
     TableCalculation,
 } from '@lightdash/common';
 import { useDebouncedValue } from '@mantine/hooks';
+import isEmpty from 'lodash-es/isEmpty';
 import isEqual from 'lodash-es/isEqual';
 import mapValues from 'lodash-es/mapValues';
+import omitBy from 'lodash-es/omitBy';
 import pick from 'lodash-es/pick';
+import pickBy from 'lodash-es/pickBy';
 import uniq from 'lodash-es/uniq';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { isHexCodeColor } from '../utils/colorUtils';
@@ -31,13 +34,22 @@ type PieChartConfig = {
     groupRemove: (dimensionId: any) => void;
 
     metricId: string | null;
+    selectedMetric: Metric | AdditionalMetric | TableCalculation | undefined;
     metricChange: (metricId: string | null) => void;
 
     isDonut: boolean;
     toggleDonut: () => void;
 
-    valueLabel: PieChartValueLabel;
-    valueLabelChange: (valueLabel: PieChartValueLabel) => void;
+    valueLabel: PieChartValueOptions['valueLabel'];
+    valueLabelChange: (valueLabel: PieChartValueOptions['valueLabel']) => void;
+    showValue: PieChartValueOptions['showValue'];
+    toggleShowValue: () => void;
+    showPercentage: PieChartValueOptions['showPercentage'];
+    toggleShowPercentage: () => void;
+
+    isValueLabelOverriden: boolean;
+    isShowValueOverriden: boolean;
+    isShowPercentageOverriden: boolean;
 
     defaultColors: string[];
 
@@ -47,6 +59,11 @@ type PieChartConfig = {
     groupColorOverrides: Record<string, string>;
     groupColorDefaults: Record<string, string>;
     groupColorChange: (prevValue: any, newValue: any) => void;
+    groupValueOptionOverrides: Record<string, Partial<PieChartValueOptions>>;
+    groupValueOptionChange: (
+        label: string,
+        value: Partial<PieChartValueOptions>,
+    ) => void;
 
     showLegend: boolean;
     toggleShowLegend: () => void;
@@ -69,14 +86,24 @@ const usePieChartConfig: PieChartConfigFn = (
 ) => {
     const { data } = useOrganization();
 
-    const [metricId, setMetricId] = useState(pieChartConfig?.metricId ?? null);
-
-    const [isDonut, setIsDonut] = useState<boolean>(
-        pieChartConfig?.isDonut ?? true,
+    const [groupFieldIds, setGroupFieldIds] = useState(
+        pieChartConfig?.groupFieldIds ?? [],
     );
 
-    const [valueLabel, setValueLabel] = useState<PieChartValueLabel>(
+    const [metricId, setMetricId] = useState(pieChartConfig?.metricId ?? null);
+
+    const [isDonut, setIsDonut] = useState(pieChartConfig?.isDonut ?? true);
+
+    const [valueLabel, setValueLabel] = useState(
         pieChartConfig?.valueLabel ?? 'hidden',
+    );
+
+    const [showValue, setShowValue] = useState(
+        pieChartConfig?.showValue ?? false,
+    );
+
+    const [showPercentage, setShowPercentage] = useState(
+        pieChartConfig?.showPercentage ?? true,
     );
 
     const [groupLabelOverrides, setGroupLabelOverrides] = useState(
@@ -97,7 +124,11 @@ const usePieChartConfig: PieChartConfigFn = (
         500,
     );
 
-    const [showLegend, setShowLegend] = useState<boolean>(
+    const [groupValueOptionOverrides, setGroupValueOptionOverrides] = useState(
+        pieChartConfig?.groupValueOptionOverrides ?? {},
+    );
+
+    const [showLegend, setShowLegend] = useState(
         pieChartConfig?.showLegend ?? true,
     );
 
@@ -118,9 +149,11 @@ const usePieChartConfig: PieChartConfigFn = (
         [allNumericMetrics],
     );
 
-    const [groupFieldIds, setGroupFieldIds] = useState<string[]>(
-        pieChartConfig?.groupFieldIds ?? [],
-    );
+    const selectedMetric = useMemo(() => {
+        return allNumericMetrics.find((m) =>
+            isField(m) ? fieldId(m) === metricId : m.name === metricId,
+        );
+    }, [allNumericMetrics, metricId]);
 
     const isLoading = !explore || !resultsData;
 
@@ -149,14 +182,17 @@ const usePieChartConfig: PieChartConfigFn = (
         setMetricId(allNumericMetricIds[0] ?? null);
     }, [isLoading, allNumericMetricIds, metricId, pieChartConfig?.metricId]);
 
-    const handleGroupChange = useCallback((prevValue, newValue) => {
-        setGroupFieldIds((prev) => {
-            const newSet = new Set(prev);
-            newSet.delete(prevValue);
-            newSet.add(newValue);
-            return [...newSet.values()];
-        });
-    }, []);
+    const handleGroupChange = useCallback(
+        (prevValue: string, newValue: string) => {
+            setGroupFieldIds((prev) => {
+                const newSet = new Set(prev);
+                newSet.delete(prevValue);
+                newSet.add(newValue);
+                return [...newSet.values()];
+            });
+        },
+        [],
+    );
 
     const handleGroupAdd = useCallback(() => {
         setGroupFieldIds((prev) => {
@@ -169,7 +205,7 @@ const usePieChartConfig: PieChartConfigFn = (
         });
     }, [dimensionIds]);
 
-    const handleRemoveGroup = useCallback((dimensionId) => {
+    const handleRemoveGroup = useCallback((dimensionId: string) => {
         setGroupFieldIds((prev) => {
             const newSet = new Set(prev);
             newSet.delete(dimensionId);
@@ -177,17 +213,53 @@ const usePieChartConfig: PieChartConfigFn = (
         });
     }, []);
 
-    const handleGroupLabelChange = useCallback((key, value) => {
-        setGroupLabelOverrides((prev) => {
-            return { ...prev, [key]: value === '' ? undefined : value };
+    const handleValueLabelChange = useCallback(
+        (newValueLabel: PieChartValueOptions['valueLabel']) => {
+            setValueLabel(newValueLabel);
+
+            setGroupValueOptionOverrides((prev) =>
+                mapValues(prev, ({ valueLabel: _, ...rest }) => ({ ...rest })),
+            );
+        },
+        [],
+    );
+
+    const handleToggleShowValue = useCallback(() => {
+        setShowValue((prev) => !prev);
+
+        setGroupValueOptionOverrides((prev) =>
+            mapValues(prev, ({ showValue: _, ...rest }) => ({ ...rest })),
+        );
+    }, []);
+
+    const handleToggleShowPercentage = useCallback(() => {
+        setShowPercentage((prev) => !prev);
+
+        setGroupValueOptionOverrides((prev) =>
+            mapValues(prev, ({ showPercentage: _, ...rest }) => ({ ...rest })),
+        );
+    }, []);
+
+    const handleGroupLabelChange = useCallback((key: string, value: string) => {
+        setGroupLabelOverrides(({ [key]: _, ...rest }) => {
+            return value === '' ? rest : { ...rest, [key]: value };
         });
     }, []);
 
-    const handleGroupColorChange = useCallback((key, value) => {
-        setGroupColorOverrides((prev) => {
-            return { ...prev, [key]: value === '' ? undefined : value };
+    const handleGroupColorChange = useCallback((key: string, value: string) => {
+        setGroupColorOverrides(({ [key]: _, ...rest }) => {
+            return value === '' ? rest : { ...rest, [key]: value };
         });
     }, []);
+
+    const handleGroupValueOptionChange = useCallback(
+        (label: string, value: Partial<PieChartValueOptions>) => {
+            setGroupValueOptionOverrides((prev) => {
+                return { ...prev, [label]: { ...prev[label], ...value } };
+            });
+        },
+        [],
+    );
 
     const groupLabels = useMemo(() => {
         if (
@@ -217,33 +289,58 @@ const usePieChartConfig: PieChartConfigFn = (
         );
     }, [groupLabels, defaultColors]);
 
+    const isValueLabelOverriden = useMemo(() => {
+        return Object.values(groupValueOptionOverrides).some(
+            (value) => value.valueLabel !== undefined,
+        );
+    }, [groupValueOptionOverrides]);
+
+    const isShowValueOverriden = useMemo(() => {
+        return Object.values(groupValueOptionOverrides).some(
+            (value) => value.showValue !== undefined,
+        );
+    }, [groupValueOptionOverrides]);
+
+    const isShowPercentageOverriden = useMemo(() => {
+        return Object.values(groupValueOptionOverrides).some(
+            (value) => value.showPercentage !== undefined,
+        );
+    }, [groupValueOptionOverrides]);
+
     const validPieChartConfig: PieChart = useMemo(
         () => ({
             isDonut,
             groupFieldIds,
             metricId: metricId ?? undefined,
             valueLabel,
-            showLegend,
+            showValue,
+            showPercentage,
             groupLabelOverrides: pick(
                 debouncedGroupLabelOverrides,
                 groupLabels,
             ),
-            groupColorOverrides: mapValues(
+            groupColorOverrides: pickBy(
                 pick(debouncedGroupColorOverrides, groupLabels),
-                (color, label) =>
-                    isHexCodeColor(color) ? color : groupColorDefaults[label],
+                isHexCodeColor,
             ),
+            groupValueOptionOverrides: omitBy(
+                pick(groupValueOptionOverrides, groupLabels),
+                isEmpty,
+            ),
+            showLegend,
         }),
         [
             isDonut,
             groupFieldIds,
             metricId,
             valueLabel,
-            showLegend,
+            showValue,
+            showPercentage,
             groupLabels,
             debouncedGroupLabelOverrides,
-            groupColorDefaults,
             debouncedGroupColorOverrides,
+            groupValueOptionOverrides,
+            showLegend,
         ],
     );
 
@@ -256,6 +353,7 @@ const usePieChartConfig: PieChartConfigFn = (
             groupChange: handleGroupChange,
             groupRemove: handleRemoveGroup,
 
+            selectedMetric,
             metricId,
             metricChange: setMetricId,
 
@@ -263,7 +361,15 @@ const usePieChartConfig: PieChartConfigFn = (
             toggleDonut: () => setIsDonut((prev) => !prev),
 
             valueLabel,
-            valueLabelChange: setValueLabel,
+            valueLabelChange: handleValueLabelChange,
+            showValue,
+            toggleShowValue: handleToggleShowValue,
+            showPercentage,
+            toggleShowPercentage: handleToggleShowPercentage,
+
+            isValueLabelOverriden,
+            isShowValueOverriden,
+            isShowPercentageOverriden,
 
             defaultColors,
 
@@ -273,6 +379,8 @@ const usePieChartConfig: PieChartConfigFn = (
             groupColorOverrides,
             groupColorDefaults,
             groupColorChange: handleGroupColorChange,
+            groupValueOptionOverrides,
+            groupValueOptionChange: handleGroupValueOptionChange,
 
             showLegend,
             toggleShowLegend: () => setShowLegend((prev) => !prev),
@@ -285,11 +393,21 @@ const usePieChartConfig: PieChartConfigFn = (
             handleGroupChange,
             handleRemoveGroup,
 
+            selectedMetric,
             metricId,
 
             isDonut,
 
             valueLabel,
+            handleValueLabelChange,
+            showValue,
+            handleToggleShowValue,
+            showPercentage,
+            handleToggleShowPercentage,
+
+            isValueLabelOverriden,
+            isShowValueOverriden,
+            isShowPercentageOverriden,
 
             defaultColors,
 
@@ -299,6 +417,8 @@ const usePieChartConfig: PieChartConfigFn = (
             groupColorOverrides,
             groupColorDefaults,
             handleGroupColorChange,
+            groupValueOptionOverrides,
+            handleGroupValueOptionChange,
 
             showLegend,
         ],

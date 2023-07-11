@@ -3,6 +3,7 @@ import {
     DimensionType,
     Metric,
     MetricType,
+    SupportedDbtAdapter,
     WarehouseConnectionError,
     WarehouseQueryError,
 } from '@lightdash/common';
@@ -251,6 +252,10 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
 
     getEscapeStringQuoteChar() {
         return "'";
+    }
+
+    getAdapterType(): SupportedDbtAdapter {
+        return SupportedDbtAdapter.TRINO;
     }
 
     getMetricSql(sql: string, metric: Metric) {

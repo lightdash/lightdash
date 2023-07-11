@@ -17,7 +17,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
-import React, { forwardRef, useMemo } from 'react';
+import React, { forwardRef } from 'react';
 import FieldIcon from '../common/Filters/FieldIcon';
 import FieldLabel, { fieldLabelText } from '../common/Filters/FieldLabel';
 import MantineIcon from '../common/MantineIcon';
@@ -56,16 +56,12 @@ const PieChartLayoutConfig: React.FC = () => {
             groupChange,
             groupRemove,
 
+            selectedMetric,
+
             isDonut,
             toggleDonut,
         },
     } = useVisualizationContext();
-
-    const selectedMetric = useMemo(() => {
-        return allNumericMetrics.find((m) =>
-            isField(m) ? fieldId(m) === metricId : m.name === metricId,
-        );
-    }, [allNumericMetrics, metricId]);
 
     return (
         <Stack>

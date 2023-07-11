@@ -1,18 +1,48 @@
 {
     "definitions": {
+        "Compact": {
+            "type": "string",
+            "enum": [
+                "thousands",
+                "millions",
+                "billions",
+                "trillions",
+                "K",
+                "M",
+                "B",
+                "T"
+            ]
+        },
+        "Format": {
+            "type": "string",
+            "enum": ["km", "mi", "usd", "gbp", "eur", "id", "percent"]
+        },
+        "Urls": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "LightdashDimension": {
             "type": "object",
             "required": [],
             "properties": {
-                "name": {
-                    "type": "string",
-                    "pattern": "^[a-zA-Z0-9_]+$"
+                "label": {
+                    "type": "string"
                 },
                 "type": {
                     "type": "string",
                     "enum": ["string", "number", "boolean", "date", "timestamp"]
                 },
-                "dimension": {
+                "description": {
                     "type": "string"
                 },
                 "sql": {
@@ -36,6 +66,21 @@
                 },
                 "hidden": {
                     "type": "boolean"
+                },
+                "round": {
+                    "type": "number"
+                },
+                "compact": {
+                    "$ref": "#/definitions/Compact"
+                },
+                "format": {
+                    "$ref": "#/definitions/Format"
+                },
+                "group_label": {
+                    "type": "string"
+                },
+                "urls": {
+                    "$ref": "#/definitions/Urls"
                 }
             }
         },
@@ -43,9 +88,13 @@
             "type": "object",
             "required": ["type"],
             "properties": {
+                "label": {
+                    "type": "string"
+                },
                 "type": {
                     "type": "string",
                     "enum": [
+                        "median",
                         "percentile",
                         "average",
                         "count",
@@ -67,6 +116,33 @@
                 },
                 "hidden": {
                     "type": "boolean"
+                },
+                "round": {
+                    "type": "number"
+                },
+                "compact": {
+                    "$ref": "#/definitions/Compact"
+                },
+                "format": {
+                    "$ref": "#/definitions/Format"
+                },
+                "group_label": {
+                    "type": "string"
+                },
+                "urls": {
+                    "$ref": "#/definitions/Urls"
+                },
+                "show_underlying_values": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "filters": {
+                    "type": "array",
+                    "items": {
+                        "type": "object"
+                    }
                 },
                 "percentile": {
                     "type": "number"
@@ -114,56 +190,8 @@
                 }
             },
             "default": {}
-        },
-        "LightdashNodeConfig": {
-            "allOf": [
-                {
-                    "$ref": "https://schemas.getdbt.com/dbt/manifest/v8.json#/definitions/NodeConfig"
-                },
-                {
-                    "type": "object",
-                    "properties": {
-                        "meta": {
-                            "$ref": "#/definitions/LightdashModelMetadata"
-                        }
-                    }
-                }
-            ]
-        },
-        "LightdashColumnInfo": {
-            "allOf": [
-                {
-                    "$ref": "https://schemas.getdbt.com/dbt/manifest/v8.json#/definitions/ColumnInfo"
-                },
-                {
-                    "type": "object",
-                    "properties": {
-                        "meta": {
-                            "$ref": "#/definitions/LightdashColumnMetadata"
-                        }
-                    }
-                }
-            ]
-        },
-        "LightdashCompiledModelNode": {
-            "allOf": [
-                {
-                    "$ref": "https://schemas.getdbt.com/dbt/manifest/v8.json#/definitions/ModelNode"
-                },
-                {
-                    "type": "object",
-                    "properties": {
-                        "meta": {
-                            "$ref": "#/definitions/LightdashModelMetadata"
-                        },
-                        "config": {
-                            "$ref": "#/definitions/LightdashNodeConfig"
-                        }
-                    }
-                }
-            ]
         }
     },
     "$schema": "http://json-schema.org/draft-07/schema#",
-    "$id": "https://schemas.lightdash.com/dbt/manifest/v8.json"
+    "$id": "https://schemas.lightdash.com/lightdash/metadata.json"
 }
