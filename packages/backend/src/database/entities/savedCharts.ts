@@ -1,5 +1,6 @@
 import {
     ChartConfig,
+    ChartKind,
     ChartType,
     CompactOrAlias,
     DBFieldTypes,
@@ -19,6 +20,9 @@ export type DbSavedChart = {
     name: string;
     created_at: Date;
     description: string | undefined;
+    last_version_chart_kind: ChartKind;
+    last_version_updated_at: Date;
+    last_version_updated_by_user_uuid: string | undefined;
 };
 
 export type SavedChartTable = Knex.CompositeTableType<

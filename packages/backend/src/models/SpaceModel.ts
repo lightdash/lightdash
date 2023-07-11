@@ -1,5 +1,6 @@
 import {
     ChartConfig,
+    ChartKind,
     ChartType,
     getChartType,
     NotFoundError,
@@ -419,12 +420,17 @@ export class SpaceModel {
                 'saved_queries_versions',
                 `saved_queries.saved_query_id`,
                 `saved_queries_versions.saved_query_id`,
-            )
+            ) // TODO remove
             .leftJoin(
                 'users',
                 'saved_queries_versions.updated_by_user_uuid',
                 'users.user_uuid',
-            )
+            ) // TODO remove
+            /* .leftJoin(
+                'users',
+                'saved_queries.last_version_updated_by_user_uuid',
+                'users.user_uuid',
+            ) */ // TODO add
             .leftJoin(
                 PinnedChartTableName,
                 `${PinnedChartTableName}.saved_chart_uuid`,
@@ -446,8 +452,9 @@ export class SpaceModel {
                     last_name: string;
                     views: string;
                     first_viewed_at: Date | null;
-                    chart_config: ChartConfig['config'];
-                    chart_type: ChartType;
+                    chart_config: ChartConfig['config']; // TODO remove
+                    chart_type: ChartType; // TODO remove
+                    // chart_kind: ChartKind; //TODO add
                     pinned_list_uuid: string;
                     order: number;
                     validation_errors: DbValidationTable[];
@@ -456,7 +463,8 @@ export class SpaceModel {
                 `saved_queries.saved_query_uuid`,
                 `saved_queries.name`,
                 `saved_queries.description`,
-                `saved_queries_versions.created_at`,
+                `saved_queries_versions.created_at`, // TODO remove
+                // `saved_queries.last_version_updated_at as created_at`,  // TODO add
                 `users.user_uuid`,
                 `users.first_name`,
                 `users.last_name`,
@@ -466,8 +474,9 @@ export class SpaceModel {
                 this.database.raw(
                     `(SELECT ${AnalyticsChartViewsTableName}.timestamp FROM ${AnalyticsChartViewsTableName} WHERE ${AnalyticsChartViewsTableName}.chart_uuid = saved_queries.saved_query_uuid ORDER BY ${AnalyticsChartViewsTableName}.timestamp ASC LIMIT 1) as first_viewed_at`,
                 ),
-                `saved_queries_versions.chart_config`,
-                `saved_queries_versions.chart_type`,
+                `saved_queries_versions.chart_config`, // TODO remove
+                `saved_queries_versions.chart_type`, // TODO remove
+                // `saved_queries.last_version_chart_kind as chart_kind`, // TODO add
                 `${PinnedListTableName}.pinned_list_uuid`,
                 `${PinnedChartTableName}.order`,
                 this.database.raw(`
@@ -482,14 +491,18 @@ export class SpaceModel {
             ])
             .orderBy([
                 {
-                    column: `saved_queries_versions.saved_query_id`,
+                    column: `saved_queries_versions.saved_query_id`, // TODO remove
+                    // column: `saved_queries.saved_query_uuid`, // TODO add
                 },
                 {
-                    column: `saved_queries_versions.created_at`,
+                    column: `saved_queries_versions.created_at`, // TODO remove
+                    //  column: `saved_queries.last_version_updated_at`, //TODO add
                     order: 'desc',
                 },
             ])
-            .distinctOn(`saved_queries_versions.saved_query_id`)
+            .distinctOn(`saved_queries_versions.saved_query_id`) // TODO remove
+            // .distinctOn(`saved_queries.saved_query_uuid`) // TODO add
+
             .where(`${SpaceTableName}.space_uuid`, spaceUuid);
 
         return savedQueries.map((savedQuery) => ({
@@ -508,7 +521,8 @@ export class SpaceModel {
             chartType: getChartType(
                 savedQuery.chart_type,
                 savedQuery.chart_config,
-            ),
+            ), // TODO remove
+            // chartType: savedQuery.chart_kind,// TODO add
             pinnedListUuid: savedQuery.pinned_list_uuid,
             pinnedListOrder: savedQuery.order,
             validationErrors: savedQuery.validation_errors.map(
