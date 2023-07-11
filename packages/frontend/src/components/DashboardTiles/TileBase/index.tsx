@@ -24,6 +24,7 @@ import {
 type Props<T> = {
     isEditMode: boolean;
     title: string;
+    chartName?: string;
     titleHref?: string;
     description?: string;
     tile: T;
@@ -38,6 +39,7 @@ type Props<T> = {
 const TileBase = <T extends Dashboard['tiles'][number]>({
     isEditMode,
     title,
+    chartName,
     description,
     tile,
     isLoading,
@@ -204,6 +206,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
 
                     <TileUpdateChartTitle
                         isOpen={isEditingTitle}
+                        placeholder={chartName || ''}
                         title={title}
                         onClose={() => setIsEditingTitle(false)}
                         onConfirm={(newTitle) => {

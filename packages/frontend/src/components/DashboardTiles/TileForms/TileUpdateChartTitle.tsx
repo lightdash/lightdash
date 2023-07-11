@@ -3,6 +3,7 @@ import { useForm } from '@mantine/form';
 
 interface TileUpdateModalProps {
     title: string;
+    placeholder: string;
     isOpen: boolean;
     onClose: () => void;
     onConfirm: (title: string) => void;
@@ -10,6 +11,7 @@ interface TileUpdateModalProps {
 
 const TileUpdateModal = ({
     title,
+    placeholder,
     isOpen,
     onClose,
     onConfirm,
@@ -30,14 +32,13 @@ const TileUpdateModal = ({
             opened={isOpen}
             className="non-draggable"
             onClose={onClose}
-            title="Edit chart title"
+            title="Edit tile title"
         >
             <form onSubmit={handleOnSubmit}>
                 <Stack spacing="md">
                     <TextInput
-                        label="Chart title"
-                        placeholder={title}
-                        required
+                        label="Tile title"
+                        placeholder={placeholder}
                         {...form.getInputProps('title')}
                     />
                     <Button type="submit" ml="auto">
