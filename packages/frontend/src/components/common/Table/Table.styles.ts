@@ -114,7 +114,7 @@ const FontSyles = `
 
 const CellStyles = css<{ $isNaN: boolean }>`
     text-align: ${({ $isNaN }) => ($isNaN ? 'left' : 'right')} !important;
-    padding: 0.5rem !important;
+    padding: 8.5px !important;
     ${FontSyles}
 `;
 
