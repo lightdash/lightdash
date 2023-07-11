@@ -1,3 +1,10 @@
+## [0.662.2](https://github.com/lightdash/lightdash/compare/0.662.1...0.662.2) (2023-07-11)
+
+
+### Bug Fixes
+
+* Update renderDateFilterSql to solve the filters of the timestamp on trino adapter ([#6233](https://github.com/lightdash/lightdash/issues/6233)) ([34a8683](https://github.com/lightdash/lightdash/commit/34a868317e50962c8ac5be82e66f0832dbfa7984))
+
 ## [0.662.1](https://github.com/lightdash/lightdash/compare/0.662.0...0.662.1) (2023-07-11)
 
 
