@@ -1,59 +1,49 @@
 import {
+    Button,
+    Dialog,
+    DialogBody,
+    DialogFooter,
+    DialogProps,
+} from '@blueprintjs/core';
+import {
     assertUnreachable,
     Dashboard,
     DashboardTileTypes,
 } from '@lightdash/common';
-import {
-    Button,
-    Flex,
-    Group,
-    Modal,
-    Select,
-    Stack,
-    Title,
-} from '@mantine/core';
-import { useForm } from '@mantine/form';
-import { IconChartAreaLine } from '@tabler/icons-react';
 import produce from 'immer';
-import React from 'react';
-import { useParams } from 'react-router-dom';
-import { useChartSummaries } from '../../../hooks/useChartSummaries';
-import { useDashboardContext } from '../../../providers/DashboardProvider';
-import MantineIcon from '../../common/MantineIcon';
+import { useForm } from 'react-hook-form';
+import Form from '../../ReactHookForm/Form';
+import ChartTileForm from './ChartTileForm';
 import LoomTileForm from './LoomTileForm';
 import MarkdownTileForm from './MarkdownTileForm';
 
 type Tile = Dashboard['tiles'][number];
+type TileProperties = Tile['properties'];
 
-interface TileUpdateModalProps {
-    tile: Tile;
+interface TileUpdateModalProps<T> extends DialogProps {
+    tile: T;
     onClose?: () => void;
-    onConfirm?: (tile: Tile) => void;
-    isOpen: boolean;
+    onConfirm?: (tile: T) => void;
 }
 
-const TileUpdateModal = ({
+const TileUpdateModal = <T extends Tile>({
     tile,
     onClose,
     onConfirm,
-    isOpen,
-}: TileUpdateModalProps) => {
-    const form = useForm({
-        initialValues: {
-            properties: tile.properties,
-        },
+    ...modalProps
+}: TileUpdateModalProps<T>) => {
+    const form = useForm<TileProperties>({
+        mode: 'onChange',
+        defaultValues: tile.properties,
     });
-    const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { data: savedCharts, isLoading } = useChartSummaries(projectUuid);
-    const { dashboard } = useDashboardContext();
 
-    const handleConfirm = form.onSubmit(async ({ properties }) => {
+    const handleConfirm = async (properties: TileProperties) => {
         onConfirm?.(
             produce(tile, (draft) => {
                 draft.properties = properties;
             }),
         );
-    });
+    };
 
     const handleClose = () => {
         form.reset();
@@ -61,60 +51,21 @@ const TileUpdateModal = ({
     };
 
     return (
-        <Modal
-            opened={isOpen}
+        <Dialog
+            lazy
+            title="Edit tile content"
+            {...modalProps}
             onClose={handleClose}
-            title={
-                <Flex align="center" gap="xs">
-                    <MantineIcon
-                        icon={IconChartAreaLine}
-                        size="lg"
-                        color="blue.8"
-                    />
-                    <Title order={4}>Edit tile content</Title>
-                </Flex>
-            }
-            withCloseButton
+            backdropClassName="non-draggable"
         >
-            <Stack spacing="md">
-                <form onSubmit={handleConfirm} name="Edit tile content">
+            <Form
+                name="Edit tile content"
+                methods={form}
+                onSubmit={handleConfirm}
+            >
+                <DialogBody>
                     {tile.type === DashboardTileTypes.SAVED_CHART ? (
-                        <Select
-                            styles={(theme) => ({
-                                separator: {
-                                    position: 'sticky',
-                                    top: 0,
-                                    backgroundColor: 'white',
-                                },
-                                separatorLabel: {
-                                    color: theme.colors.gray[6],
-                                    fontWeight: 500,
-                                },
-                            })}
-                            id="savedChartUuid"
-                            name="savedChartUuid"
-                            label="Select a saved chart"
-                            data={(savedCharts || []).map(
-                                ({ uuid, name, spaceName }) => {
-                                    return {
-                                        value: uuid,
-                                        label: name,
-                                        group: spaceName,
-                                    };
-                                },
-                            )}
-                            disabled={isLoading}
-                            defaultValue={
-                                savedCharts?.find(
-                                    (chart) =>
-                                        chart.spaceUuid ===
-                                        dashboard?.spaceUuid,
-                                )?.uuid
-                            }
-                            required
-                            withinPortal
-                            {...form.getInputProps('properties.savedChartUuid')}
-                        />
+                        <ChartTileForm />
                     ) : tile.type === DashboardTileTypes.MARKDOWN ? (
                         <MarkdownTileForm />
                     ) : tile.type === DashboardTileTypes.LOOM ? (
@@ -122,20 +73,25 @@ const TileUpdateModal = ({
                     ) : (
                         assertUnreachable(tile, 'Tile type not supported')
                     )}
-                    <Group spacing="xs" position="right" mt="md">
-                        <Button
-                            onClick={() => {
-                                if (onClose) onClose();
-                            }}
-                            variant="outline"
-                        >
-                            Cancel
-                        </Button>
-                        <Button type="submit">Add</Button>
-                    </Group>
-                </form>
-            </Stack>
-        </Modal>
+                </DialogBody>
+
+                <DialogFooter
+                    actions={
+                        <>
+                            <Button onClick={handleClose}>Cancel</Button>
+
+                            <Button
+                                intent="primary"
+                                type="submit"
+                                disabled={!form.formState.isValid}
+                            >
+                                Save
+                            </Button>
+                        </>
+                    }
+                />
+            </Form>
+        </Dialog>
     );
 };
 

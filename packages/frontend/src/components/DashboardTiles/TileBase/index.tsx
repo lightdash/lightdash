@@ -10,6 +10,7 @@ import { Dashboard, DashboardTileTypes } from '@lightdash/common';
 import { Tooltip } from '@mantine/core';
 import { useHover, useToggle } from '@mantine/hooks';
 import React, { ReactNode, useState } from 'react';
+import ChartUpdateModal from '../TileForms/ChartUpdateModal';
 import TileUpdateModal from '../TileForms/TileUpdateModal';
 import {
     ButtonsWrapper,
@@ -178,17 +179,29 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     <ChartContainer className="non-draggable sentry-block fs-block cohere-block">
                         {children}
                     </ChartContainer>
-
-                    <TileUpdateModal
-                        className="non-draggable"
-                        isOpen={isEditing}
-                        tile={tile}
-                        onClose={() => setIsEditing(false)}
-                        onConfirm={(data) => {
-                            onEdit(data);
-                            setIsEditing(false);
-                        }}
-                    />
+                    {tile.type === DashboardTileTypes.SAVED_CHART ? (
+                        <ChartUpdateModal
+                            className="non-draggable"
+                            opened={isEditing}
+                            tile={tile}
+                            onClose={() => setIsEditing(false)}
+                            onConfirm={(chartTile) => {
+                                onEdit(chartTile);
+                                setIsEditing(false);
+                            }}
+                        />
+                    ) : (
+                        <TileUpdateModal
+                            className="non-draggable"
+                            isOpen={isEditing}
+                            tile={tile}
+                            onClose={() => setIsEditing(false)}
+                            onConfirm={(data) => {
+                                onEdit(data);
+                                setIsEditing(false);
+                            }}
+                        />
+                    )}
                 </>
             )}
         </TileBaseWrapper>
