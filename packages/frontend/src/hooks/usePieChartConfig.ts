@@ -52,6 +52,7 @@ type PieChartConfig = {
 
     defaultColors: string[];
 
+    sortedGroupLabels: string[];
     groupLabels: string[];
     groupLabelOverrides: Record<string, string>;
     groupLabelChange: (prevValue: any, newValue: any) => void;
@@ -63,12 +64,8 @@ type PieChartConfig = {
         label: string,
         value: Partial<PieChartValueOptions>,
     ) => void;
-    groupSort: string[];
-    groupSortChange: (
-        label: string,
-        oldIndex: number,
-        newIndex: number,
-    ) => void;
+    groupSortOverrides: string[];
+    groupSortChange: (oldIndex: number, newIndex: number) => void;
 
     showLegend: boolean;
     toggleShowLegend: () => void;
@@ -135,7 +132,7 @@ const usePieChartConfig: PieChartConfigFn = (
         pieChartConfig?.groupValueOptionOverrides ?? {},
     );
 
-    const [groupSortOverride, setGroupSortOverride] = useState(
+    const [groupSortOverrides, setGroupSortOverrides] = useState(
         pieChartConfig?.groupSortOverrides ?? [],
     );
 
@@ -192,6 +189,71 @@ const usePieChartConfig: PieChartConfigFn = (
 
         setMetricId(allNumericMetricIds[0] ?? null);
     }, [isLoading, allNumericMetricIds, metricId, pieChartConfig?.metricId]);
+
+    const isValueLabelOverriden = useMemo(() => {
+        return Object.values(groupValueOptionOverrides).some(
+            (value) => value.valueLabel !== undefined,
+        );
+    }, [groupValueOptionOverrides]);
+
+    const isShowValueOverriden = useMemo(() => {
+        return Object.values(groupValueOptionOverrides).some(
+            (value) => value.showValue !== undefined,
+        );
+    }, [groupValueOptionOverrides]);
+
+    const isShowPercentageOverriden = useMemo(() => {
+        return Object.values(groupValueOptionOverrides).some(
+            (value) => value.showPercentage !== undefined,
+        );
+    }, [groupValueOptionOverrides]);
+
+    const data = useMemo(() => {
+        if (
+            !metricId ||
+            !selectedMetric ||
+            !resultsData ||
+            resultsData.rows.length === 0 ||
+            !groupFieldIds ||
+            groupFieldIds.length === 0
+        ) {
+            return [];
+        }
+
+        return Object.entries(
+            resultsData.rows.reduce<Record<string, number>>((acc, row) => {
+                const key = groupFieldIds
+                    .map((groupFieldId) => row[groupFieldId].value.formatted)
+                    .join(' - ');
+
+                const value = Number(row[metricId].value.raw);
+
+                if (key && value !== undefined) {
+                    acc[key] = (acc[key] ?? 0) + (isNaN(value) ? 0 : value);
+                }
+
+                return acc;
+            }, {}),
+        ).sort(([, aValue], [, bValue]) => {
+            return bValue - aValue;
+        });
+    }, [resultsData, groupFieldIds, selectedMetric, metricId]);
+
+    const groupLabels = useMemo(() => {
+        return data.map(([label]) => label);
+    }, [data]);
+
+    const sortedGroupLabels =
+        groupSortOverrides.length > 0 ? groupSortOverrides : groupLabels;
+
+    const groupColorDefaults = useMemo(() => {
+        return Object.fromEntries(
+            groupLabels.map((name, index) => [
+                name,
+                defaultColors[index % defaultColors.length],
+            ]),
+        );
+    }, [groupLabels, defaultColors]);
 
     const handleGroupChange = useCallback(
         (prevValue: string, newValue: string) => {
@@ -272,76 +334,13 @@ const usePieChartConfig: PieChartConfigFn = (
         [],
     );
 
-    const data = useMemo(() => {
-        if (
-            !metricId ||
-            !selectedMetric ||
-            !resultsData ||
-            resultsData.rows.length === 0 ||
-            !groupFieldIds ||
-            groupFieldIds.length === 0
-        ) {
-            return [];
-        }
-
-        return Object.entries(
-            resultsData.rows.reduce<Record<string, number>>((acc, row) => {
-                const key = groupFieldIds
-                    .map((groupFieldId) => row[groupFieldId].value.formatted)
-                    .join(' - ');
-
-                const value = Number(row[metricId].value.raw);
-
-                if (key && value !== undefined) {
-                    acc[key] = (acc[key] ?? 0) + (isNaN(value) ? 0 : value);
-                }
-
-                return acc;
-            }, {}),
-        ).sort((a, b) => b[1] - a[1]);
-    }, [resultsData, groupFieldIds, selectedMetric, metricId]);
-
-    const groupLabels = useMemo(() => {
-        return data.map(([label]) => label);
-    }, [data]);
-
-    const groupColorDefaults = useMemo(() => {
-        return Object.fromEntries(
-            groupLabels.map((name, index) => [
-                name,
-                defaultColors[index % defaultColors.length],
-            ]),
-        );
-    }, [groupLabels, defaultColors]);
-
-    const isValueLabelOverriden = useMemo(() => {
-        return Object.values(groupValueOptionOverrides).some(
-            (value) => value.valueLabel !== undefined,
-        );
-    }, [groupValueOptionOverrides]);
-
-    const isShowValueOverriden = useMemo(() => {
-        return Object.values(groupValueOptionOverrides).some(
-            (value) => value.showValue !== undefined,
-        );
-    }, [groupValueOptionOverrides]);
-
-    const isShowPercentageOverriden = useMemo(() => {
-        return Object.values(groupValueOptionOverrides).some(
-            (value) => value.showPercentage !== undefined,
-        );
-    }, [groupValueOptionOverrides]);
-
-    const groupSort = useMemo(() => {
-        return groupSortOverride.length === 0 ? groupLabels : groupSortOverride;
-    }, [groupSortOverride, groupLabels]);
-
     const handleGroupSortChange = useCallback(
-        (label: string, oldIndex: number, newIndex: number) => {
-            setGroupSortOverride((prev) => {
-                const newSort = [...(prev.length === 0 ? groupLabels : prev)];
+        (oldIndex: number, newIndex: number) => {
+            setGroupSortOverrides((prev) => {
+                const newSort = [...(prev.length > 0 ? prev : groupLabels)];
                 const [removed] = newSort.splice(oldIndex, 1);
                 newSort.splice(newIndex, 0, removed);
+
                 return newSort;
             });
         },
@@ -350,9 +349,9 @@ const usePieChartConfig: PieChartConfigFn = (
 
     const validPieChartConfig: PieChart = useMemo(
         () => ({
-            isDonut,
             groupFieldIds,
             metricId: metricId ?? undefined,
+            isDonut,
             valueLabel,
             showValue,
             showPercentage,
@@ -368,12 +367,15 @@ const usePieChartConfig: PieChartConfigFn = (
                 pick(groupValueOptionOverrides, groupLabels),
                 isEmpty,
             ),
+            groupSortOverrides: groupSortOverrides.filter((label) =>
+                groupLabels.includes(label),
+            ),
             showLegend,
         }),
         [
-            isDonut,
             groupFieldIds,
             metricId,
+            isDonut,
             valueLabel,
             showValue,
             showPercentage,
@@ -381,6 +383,7 @@ const usePieChartConfig: PieChartConfigFn = (
             debouncedGroupLabelOverrides,
             debouncedGroupColorOverrides,
             groupValueOptionOverrides,
+            groupSortOverrides,
             showLegend,
         ],
     );
@@ -414,6 +417,7 @@ const usePieChartConfig: PieChartConfigFn = (
 
             defaultColors,
 
+            sortedGroupLabels,
             groupLabels,
             groupLabelOverrides,
             groupLabelChange: handleGroupLabelChange,
@@ -422,7 +426,7 @@ const usePieChartConfig: PieChartConfigFn = (
             groupColorChange: handleGroupColorChange,
             groupValueOptionOverrides,
             groupValueOptionChange: handleGroupValueOptionChange,
-            groupSort,
+            groupSortOverrides,
             groupSortChange: handleGroupSortChange,
 
             showLegend,
@@ -456,6 +460,7 @@ const usePieChartConfig: PieChartConfigFn = (
 
             defaultColors,
 
+            sortedGroupLabels,
             groupLabels,
             groupLabelOverrides,
             handleGroupLabelChange,
@@ -464,7 +469,7 @@ const usePieChartConfig: PieChartConfigFn = (
             handleGroupColorChange,
             groupValueOptionOverrides,
             handleGroupValueOptionChange,
-            groupSort,
+            groupSortOverrides,
             handleGroupSortChange,
 
             showLegend,

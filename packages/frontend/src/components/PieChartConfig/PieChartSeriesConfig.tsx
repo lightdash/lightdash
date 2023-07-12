@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Box,
     Checkbox,
     Collapse,
     ColorPicker,
@@ -14,12 +15,25 @@ import {
     Popover,
     Select,
     Stack,
+    StackProps,
     TextInput,
     Tooltip,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconChevronDown, IconChevronUp, IconHash } from '@tabler/icons-react';
-import { FC } from 'react';
+import {
+    IconChevronDown,
+    IconChevronUp,
+    IconGripVertical,
+    IconHash,
+} from '@tabler/icons-react';
+import { FC, forwardRef, useCallback } from 'react';
+import {
+    DragDropContext,
+    Draggable,
+    DraggableProvidedDragHandleProps,
+    Droppable,
+    DropResult,
+} from 'react-beautiful-dnd';
 import { isHexCodeColor } from '../../utils/colorUtils';
 import MantineIcon from '../common/MantineIcon';
 import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
@@ -107,6 +121,10 @@ const ValueOptions: FC<ValueOptionsProps> = ({
 );
 
 type GroupItemProps = {
+    isOnlyItem: boolean;
+
+    dragHandleProps?: DraggableProvidedDragHandleProps;
+
     defaultColor: string;
     defaultLabel: string;
 
@@ -127,126 +145,157 @@ type GroupItemProps = {
     ) => void;
 };
 
-const GroupItem: FC<GroupItemProps> = ({
-    defaultLabel,
-    defaultColor,
+const GroupItem = forwardRef<HTMLDivElement, StackProps & GroupItemProps>(
+    (
+        {
+            isOnlyItem,
 
-    swatches,
+            dragHandleProps,
 
-    label,
-    color,
+            defaultLabel,
+            defaultColor,
 
-    valueLabel,
-    showValue,
-    showPercentage,
+            swatches,
 
-    onColorChange,
-    onLabelChange,
-    onValueOptionsChange,
-}) => {
-    const isValidHexColor = color && isHexCodeColor(color);
-    const [opened, { toggle }] = useDisclosure();
+            label,
+            color,
 
-    return (
-        <Stack spacing="xs">
-            <Group spacing="xs">
-                <Input.Wrapper>
-                    <Popover shadow="md" withArrow>
-                        <Popover.Target>
-                            <ColorSwatch
-                                size={24}
-                                color={isValidHexColor ? color : defaultColor}
-                                sx={{
-                                    cursor: 'pointer',
-                                    transition: 'opacity 100ms ease',
-                                    '&:hover': { opacity: 0.8 },
-                                }}
-                            />
-                        </Popover.Target>
+            valueLabel,
+            showValue,
+            showPercentage,
 
-                        <Popover.Dropdown p="xs">
-                            <Stack spacing="xs">
-                                <ColorPicker
-                                    size="md"
-                                    format="hex"
-                                    swatches={swatches}
-                                    swatchesPerRow={swatches.length}
-                                    value={color ?? defaultColor}
-                                    onChange={(newColor) =>
-                                        onColorChange(defaultLabel, newColor)
+            onColorChange,
+            onLabelChange,
+            onValueOptionsChange,
+
+            ...rest
+        },
+        ref,
+    ) => {
+        const isValidHexColor = color && isHexCodeColor(color);
+        const [opened, { toggle }] = useDisclosure();
+
+        return (
+            <Stack ref={ref} spacing="xs" {...rest}>
+                <Group spacing="xs" px="xxs">
+                    {!isOnlyItem && (
+                        <Box
+                            {...dragHandleProps}
+                            sx={{
+                                opacity: 0.6,
+                                '&:hover': { opacity: 1 },
+                            }}
+                        >
+                            <MantineIcon icon={IconGripVertical} />
+                        </Box>
+                    )}
+
+                    <Input.Wrapper>
+                        <Popover shadow="md" withArrow>
+                            <Popover.Target>
+                                <ColorSwatch
+                                    size={24}
+                                    color={
+                                        isValidHexColor ? color : defaultColor
                                     }
-                                />
-
-                                <TextInput
-                                    icon={<MantineIcon icon={IconHash} />}
-                                    placeholder="Type in a custom HEX color"
-                                    error={
-                                        color && !isValidHexColor
-                                            ? 'Invalid HEX color'
-                                            : undefined
-                                    }
-                                    value={(color ?? '').replace('#', '')}
-                                    onChange={(event) => {
-                                        const newColor =
-                                            event.currentTarget.value;
-                                        onColorChange(
-                                            defaultLabel,
-                                            newColor === ''
-                                                ? newColor
-                                                : `#${newColor}`,
-                                        );
+                                    sx={{
+                                        cursor: 'pointer',
+                                        transition: 'opacity 100ms ease',
+                                        '&:hover': { opacity: 0.8 },
                                     }}
                                 />
-                            </Stack>
-                        </Popover.Dropdown>
-                    </Popover>
-                </Input.Wrapper>
+                            </Popover.Target>
 
-                <TextInput
-                    sx={{ flexGrow: 1 }}
-                    placeholder={defaultLabel}
-                    value={label}
-                    onChange={(event) => {
-                        onLabelChange(defaultLabel, event.currentTarget.value);
-                    }}
-                />
+                            <Popover.Dropdown p="xs">
+                                <Stack spacing="xs">
+                                    <ColorPicker
+                                        size="md"
+                                        format="hex"
+                                        swatches={swatches}
+                                        swatchesPerRow={swatches.length}
+                                        value={color ?? defaultColor}
+                                        onChange={(newColor) =>
+                                            onColorChange(
+                                                defaultLabel,
+                                                newColor,
+                                            )
+                                        }
+                                    />
 
-                <Tooltip label="Override value label options">
-                    <ActionIcon onClick={toggle} size="sm">
-                        <MantineIcon
-                            icon={opened ? IconChevronUp : IconChevronDown}
-                        />
-                    </ActionIcon>
-                </Tooltip>
-            </Group>
+                                    <TextInput
+                                        icon={<MantineIcon icon={IconHash} />}
+                                        placeholder="Type in a custom HEX color"
+                                        error={
+                                            color && !isValidHexColor
+                                                ? 'Invalid HEX color'
+                                                : undefined
+                                        }
+                                        value={(color ?? '').replace('#', '')}
+                                        onChange={(event) => {
+                                            const newColor =
+                                                event.currentTarget.value;
+                                            onColorChange(
+                                                defaultLabel,
+                                                newColor === ''
+                                                    ? newColor
+                                                    : `#${newColor}`,
+                                            );
+                                        }}
+                                    />
+                                </Stack>
+                            </Popover.Dropdown>
+                        </Popover>
+                    </Input.Wrapper>
 
-            <Collapse in={opened}>
-                <Stack pb="md" px="xxl" spacing="sm">
-                    <ValueOptions
-                        valueLabel={valueLabel}
-                        onValueLabelChange={(newValue) =>
-                            onValueOptionsChange(defaultLabel, {
-                                valueLabel: newValue,
-                            })
-                        }
-                        showValue={showValue}
-                        onToggleShowValue={(newValue) =>
-                            onValueOptionsChange(defaultLabel, {
-                                showValue: newValue,
-                            })
-                        }
-                        showPercentage={showPercentage}
-                        onToggleShowPercentage={(newValue) =>
-                            onValueOptionsChange(defaultLabel, {
-                                showPercentage: newValue,
-                            })
-                        }
+                    <TextInput
+                        sx={{ flexGrow: 1 }}
+                        placeholder={defaultLabel}
+                        value={label}
+                        onChange={(event) => {
+                            onLabelChange(
+                                defaultLabel,
+                                event.currentTarget.value,
+                            );
+                        }}
                     />
-                </Stack>
-            </Collapse>
-        </Stack>
-    );
-};
+
+                    <Tooltip label="Override value label options">
+                        <ActionIcon onClick={toggle} size="sm">
+                            <MantineIcon
+                                icon={opened ? IconChevronUp : IconChevronDown}
+                            />
+                        </ActionIcon>
+                    </Tooltip>
+                </Group>
+
+                <Collapse in={opened}>
+                    <Stack pb="md" px="xxl" spacing="sm">
+                        <ValueOptions
+                            valueLabel={valueLabel}
+                            onValueLabelChange={(newValue) =>
+                                onValueOptionsChange(defaultLabel, {
+                                    valueLabel: newValue,
+                                })
+                            }
+                            showValue={showValue}
+                            onToggleShowValue={(newValue) =>
+                                onValueOptionsChange(defaultLabel, {
+                                    showValue: newValue,
+                                })
+                            }
+                            showPercentage={showPercentage}
+                            onToggleShowPercentage={(newValue) =>
+                                onValueOptionsChange(defaultLabel, {
+                                    showPercentage: newValue,
+                                })
+                            }
+                        />
+                    </Stack>
+                </Collapse>
+            </Stack>
+        );
+    },
+);
 
 const PieChartSeriesConfig: FC = () => {
     const {
@@ -261,7 +310,7 @@ const PieChartSeriesConfig: FC = () => {
             isValueLabelOverriden,
             isShowValueOverriden,
             isShowPercentageOverriden,
-            groupLabels,
+            sortedGroupLabels,
             groupLabelOverrides,
             groupLabelChange,
             groupColorOverrides,
@@ -269,8 +318,19 @@ const PieChartSeriesConfig: FC = () => {
             groupColorChange,
             groupValueOptionOverrides,
             groupValueOptionChange,
+            groupSortChange,
         },
     } = useVisualizationContext();
+
+    const handleDragEnd = useCallback(
+        (result: DropResult) => {
+            if (!result.destination) return;
+            if (result.source.index === result.destination.index) return;
+
+            groupSortChange(result.source.index, result.destination.index);
+        },
+        [groupSortChange],
+    );
 
     return (
         <Stack>
@@ -286,39 +346,110 @@ const PieChartSeriesConfig: FC = () => {
                 onToggleShowPercentage={toggleShowPercentage}
             />
 
-            {groupLabels.length === 0 ? null : (
-                <Stack
-                    spacing="xs"
-                    bg="gray.0"
-                    p="sm"
-                    sx={(theme) => ({ borderRadius: theme.radius.sm })}
-                >
-                    {groupLabels.map((groupLabel) => (
-                        <GroupItem
-                            key={groupLabel}
-                            swatches={defaultColors}
-                            defaultColor={groupColorDefaults[groupLabel]}
-                            defaultLabel={groupLabel}
-                            color={groupColorOverrides[groupLabel]}
-                            label={groupLabelOverrides[groupLabel]}
-                            valueLabel={
-                                groupValueOptionOverrides[groupLabel]
-                                    ?.valueLabel ?? valueLabel
-                            }
-                            showValue={
-                                groupValueOptionOverrides[groupLabel]
-                                    ?.showValue ?? showValue
-                            }
-                            showPercentage={
-                                groupValueOptionOverrides[groupLabel]
-                                    ?.showPercentage ?? showPercentage
-                            }
-                            onLabelChange={groupLabelChange}
-                            onColorChange={groupColorChange}
-                            onValueOptionsChange={groupValueOptionChange}
-                        />
-                    ))}
-                </Stack>
+            {sortedGroupLabels.length === 0 ? null : (
+                <DragDropContext onDragEnd={handleDragEnd}>
+                    <Droppable droppableId="droppable">
+                        {(droppableProvided, droppableSnapshot) => (
+                            <Box
+                                ref={droppableProvided.innerRef}
+                                bg={
+                                    droppableSnapshot.isDraggingOver
+                                        ? 'gray.1'
+                                        : 'gray.0'
+                                }
+                                p="sm"
+                                sx={(theme) => ({
+                                    borderRadius: theme.radius.sm,
+                                })}
+                            >
+                                {sortedGroupLabels.map((groupLabel, index) => (
+                                    <Draggable
+                                        key={groupLabel}
+                                        draggableId={groupLabel}
+                                        index={index}
+                                    >
+                                        {(
+                                            draggableProvided,
+                                            draggableSnapshot,
+                                        ) => (
+                                            <GroupItem
+                                                key={groupLabel}
+                                                ref={draggableProvided.innerRef}
+                                                {...draggableProvided.draggableProps}
+                                                style={
+                                                    draggableProvided
+                                                        .draggableProps.style
+                                                }
+                                                dragHandleProps={
+                                                    draggableProvided.dragHandleProps
+                                                }
+                                                isOnlyItem={
+                                                    sortedGroupLabels.length ===
+                                                    1
+                                                }
+                                                py="xxs"
+                                                sx={(theme) =>
+                                                    draggableSnapshot.isDragging
+                                                        ? {
+                                                              backgroundColor:
+                                                                  'white',
+                                                              borderRadius:
+                                                                  theme.radius
+                                                                      .sm,
+                                                              boxShadow:
+                                                                  theme.shadows
+                                                                      .sm,
+                                                          }
+                                                        : {}
+                                                }
+                                                swatches={defaultColors}
+                                                defaultColor={
+                                                    groupColorDefaults[
+                                                        groupLabel
+                                                    ]
+                                                }
+                                                defaultLabel={groupLabel}
+                                                color={
+                                                    groupColorOverrides[
+                                                        groupLabel
+                                                    ]
+                                                }
+                                                label={
+                                                    groupLabelOverrides[
+                                                        groupLabel
+                                                    ]
+                                                }
+                                                valueLabel={
+                                                    groupValueOptionOverrides[
+                                                        groupLabel
+                                                    ]?.valueLabel ?? valueLabel
+                                                }
+                                                showValue={
+                                                    groupValueOptionOverrides[
+                                                        groupLabel
+                                                    ]?.showValue ?? showValue
+                                                }
+                                                showPercentage={
+                                                    groupValueOptionOverrides[
+                                                        groupLabel
+                                                    ]?.showPercentage ??
+                                                    showPercentage
+                                                }
+                                                onLabelChange={groupLabelChange}
+                                                onColorChange={groupColorChange}
+                                                onValueOptionsChange={
+                                                    groupValueOptionChange
+                                                }
+                                            />
+                                        )}
+                                    </Draggable>
+                                ))}
+
+                                {droppableProvided.placeholder}
+                            </Box>
+                        )}
+                    </Droppable>
+                </DragDropContext>
             )}
         </Stack>
     );

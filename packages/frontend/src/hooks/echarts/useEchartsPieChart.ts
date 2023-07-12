@@ -50,6 +50,7 @@ const useEchartsPieConfig = () => {
                 groupLabelOverrides,
                 groupColorOverrides,
                 groupValueOptionOverrides,
+                groupSortOverrides,
                 showLegend,
             },
         },
@@ -59,7 +60,16 @@ const useEchartsPieConfig = () => {
     const series = useMemo(() => {
         if (!selectedMetric) return;
 
-        return data.map(([name, value]) => {
+        const sortedData =
+            groupSortOverrides && groupSortOverrides.length > 0
+                ? data.sort(
+                      ([aLabel], [bLabel]) =>
+                          groupSortOverrides.indexOf(aLabel) -
+                          groupSortOverrides.indexOf(bLabel),
+                  )
+                : data;
+
+        return sortedData.map(([name, value]) => {
             const labelOptions = getFormattedLabelOptions(selectedMetric, {
                 valueLabel:
                     groupValueOptionOverrides?.[name]?.valueLabel ?? valueLabel,
@@ -87,6 +97,7 @@ const useEchartsPieConfig = () => {
         groupColorOverrides,
         groupLabelOverrides,
         groupValueOptionOverrides,
+        groupSortOverrides,
         selectedMetric,
         showPercentage,
         showValue,
