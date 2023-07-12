@@ -51,7 +51,7 @@ export type ApiOrganizationMemberProfile = {
     results: OrganizationMemberProfile;
 };
 
-export const getTitleForRole = (role: OrganizationMemberRole) => {
+export const getRoleDescription = (role: OrganizationMemberRole) => {
     switch (role) {
         case OrganizationMemberRole.MEMBER:
             return 'No access to projects by default. Project level permissions to be set separately';

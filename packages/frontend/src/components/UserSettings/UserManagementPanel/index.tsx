@@ -1,5 +1,5 @@
 import {
-    getTitleForRole,
+    getRoleDescription,
     OrganizationMemberProfile,
     OrganizationMemberRole,
 } from '@lightdash/common';
@@ -151,7 +151,8 @@ const UserListItem: FC<{
                                         label: capitalize(
                                             orgMemberRole.replace('_', ' '),
                                         ),
-                                        title: getTitleForRole(orgMemberRole),
+                                        description:
+                                            getRoleDescription(orgMemberRole),
                                     }),
                                 )}
                                 onChange={(newRole: string) => {
@@ -161,33 +162,26 @@ const UserListItem: FC<{
                                 }}
                                 value={role}
                                 w={200}
-                                itemComponent={({ label, title, ...props }) => (
-                                    <div
-                                        {...props}
-                                        style={{
-                                            display: 'flex',
-                                        }}
-                                    >
-                                        <Text
-                                            style={{
-                                                display: 'block',
-                                                cursor: 'pointer',
+                                itemComponent={({
+                                    label,
+                                    description,
+                                    ...props
+                                }) => (
+                                    <Group {...props} spacing="two">
+                                        <Text>{label}</Text>
+                                        <Tooltip
+                                            multiline
+                                            label={description}
+                                            sx={{
+                                                wordBreak: 'break-word',
                                             }}
                                         >
-                                            {label}
-                                        </Text>
-
-                                        <Tooltip multiline label={title}>
                                             <MantineIcon
                                                 icon={IconHelp}
                                                 color="gray.6"
-                                                style={{
-                                                    cursor: 'pointer',
-                                                    marginLeft: '4px',
-                                                }}
                                             />
                                         </Tooltip>
-                                    </div>
+                                    </Group>
                                 )}
                             />
                         </td>
