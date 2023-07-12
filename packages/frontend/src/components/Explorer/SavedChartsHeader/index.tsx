@@ -13,8 +13,8 @@ import {
     IconCirclePlus,
     IconCopy,
     IconDots,
-    IconFolder,
-    IconLayoutGridAdd,
+    IconFolders,
+   IconSquarePlus,
     IconPencil,
     IconSend,
     IconTrash,
@@ -320,14 +320,14 @@ const SavedChartsHeader: FC = () => {
                                         }}
                                     />
                                     <MenuItem2
-                                        icon={<IconLayoutGridAdd />}
+                                        icon={<IconSquarePlus />}
                                         text="Add to dashboard"
                                         onClick={() =>
                                             setIsAddToDashboardModalOpen(true)
                                         }
                                     />
                                     <MenuItem2
-                                        icon={<IconFolder />}
+                                        icon={<IconFolders />}
                                         text="Move to space"
                                         onClick={(e) => {
                                             e.preventDefault();
