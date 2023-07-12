@@ -69,6 +69,7 @@ import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import { Worker } from 'worker_threads';
 import { analytics } from '../../analytics/client';
+import { QueryExecutionContext } from '../../analytics/LightdashAnalytics';
 import { schedulerClient } from '../../clients/clients';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../../config/lightdashConfig';
@@ -793,6 +794,8 @@ export class ProjectService {
             projectUuid,
             exploreName,
             csvLimit,
+            QueryExecutionContext.VIEW_UNDERLYING_DATA,
+
             queryTags,
         );
     }
@@ -873,6 +876,10 @@ export class ProjectService {
             projectUuid,
             savedChart.tableName,
             undefined,
+            filters
+                ? QueryExecutionContext.DASHBOARD
+                : QueryExecutionContext.CHART,
+
             queryTags,
         );
     }
@@ -911,6 +918,7 @@ export class ProjectService {
             projectUuid,
             exploreName,
             csvLimit,
+            QueryExecutionContext.EXPLORE,
             queryTags,
         );
     }
@@ -921,6 +929,7 @@ export class ProjectService {
         projectUuid: string,
         exploreName: string,
         csvLimit: number | null | undefined,
+        context: QueryExecutionContext,
         queryTags?: RunQueryTags,
     ): Promise<ApiQueryResults> {
         const rows = await this.runQuery(
@@ -929,6 +938,7 @@ export class ProjectService {
             projectUuid,
             exploreName,
             csvLimit,
+            context,
             queryTags,
         );
 
@@ -979,6 +989,7 @@ export class ProjectService {
         projectUuid: string,
         exploreName: string,
         csvLimit: number | null | undefined,
+        context: QueryExecutionContext,
         queryTags?: RunQueryTags,
     ): Promise<Record<string, any>[]> {
         if (!isUserWithOrg(user)) {
@@ -1064,6 +1075,7 @@ export class ProjectService {
                         metric.filters &&
                         metric.filters.length > 0,
                 ).length,
+                context,
             },
         });
 
