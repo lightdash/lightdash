@@ -129,8 +129,18 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                                             }
                                                         />
                                                         <MenuItem2
-                                                            icon="exchange"
-                                                            text="Replace chart in tile"
+                                                            icon={
+                                                                tile.type ===
+                                                                DashboardTileTypes.SAVED_CHART
+                                                                    ? 'exchange'
+                                                                    : 'edit'
+                                                            }
+                                                            text={
+                                                                tile.type ===
+                                                                DashboardTileTypes.SAVED_CHART
+                                                                    ? 'Replace chart in tile'
+                                                                    : 'Edit tile content'
+                                                            }
                                                             onClick={() =>
                                                                 setIsReplacingChart(
                                                                     true,
