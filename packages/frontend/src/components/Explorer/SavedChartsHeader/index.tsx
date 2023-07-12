@@ -14,7 +14,7 @@ import {
     IconCopy,
     IconDots,
     IconFolders,
-   IconSquarePlus,
+    IconSquarePlus,
     IconPencil,
     IconSend,
     IconTrash,
