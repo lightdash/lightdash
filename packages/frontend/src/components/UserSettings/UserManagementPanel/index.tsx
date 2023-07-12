@@ -1,5 +1,4 @@
 import {
-    getTitleForRole,
     OrganizationMemberProfile,
     OrganizationMemberRole,
 } from '@lightdash/common';
@@ -21,7 +20,6 @@ import {
 import {
     IconAlertCircle,
     IconCircleX,
-    IconHelp,
     IconInfoCircle,
 } from '@tabler/icons-react';
 import { capitalize } from 'lodash-es';
@@ -151,7 +149,6 @@ const UserListItem: FC<{
                                         label: capitalize(
                                             orgMemberRole.replace('_', ' '),
                                         ),
-                                        title: getTitleForRole(orgMemberRole),
                                     }),
                                 )}
                                 onChange={(newRole: string) => {
@@ -161,33 +158,6 @@ const UserListItem: FC<{
                                 }}
                                 value={role}
                                 w={200}
-                                itemComponent={({ label, title, ...props }) => (
-                                    <div
-                                        {...props}
-                                        style={{
-                                            display: 'flex',
-                                        }}
-                                    >
-                                        <Text
-                                            style={{
-                                                display: 'block',
-                                                cursor: 'pointer',
-                                            }}
-                                        >
-                                            {label}
-                                        </Text>
-
-                                        <Tooltip multiline label={title}>
-                                            <MantineIcon
-                                                icon={IconHelp}
-                                                style={{
-                                                    cursor: 'pointer',
-                                                    marginLeft: '4px',
-                                                }}
-                                            />
-                                        </Tooltip>
-                                    </div>
-                                )}
                             />
                         </td>
                         <td>
