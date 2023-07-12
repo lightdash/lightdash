@@ -7,6 +7,7 @@ import {
     renderStringFilterSql,
 } from './filtersCompiler';
 import {
+    adapterType,
     DimensionSqlMock,
     ExpectedInTheCurrentFilterSQL,
     ExpectedInTheCurrentWeekFilterSQLWithCustomStartOfWeek,
@@ -49,6 +50,26 @@ import {
     NumberFilterBase,
     stringFilterDimension,
     stringFilterRuleMocks,
+    TrinoExpectedInTheCurrentFilterSQL,
+    TrinoExpectedInTheCurrentWeekFilterSQLWithCustomStartOfWeek,
+    TrinoExpectedInTheNextCompleteFilterSQL,
+    TrinoExpectedInTheNextCompleteWeekFilterSQLWithCustomStartOfWeek,
+    TrinoExpectedInTheNextFilterSQL,
+    TrinoExpectedInThePastCompleteWeekFilterSQLWithCustomStartOfWeek,
+    TrinoInBetweenPastTwoYearsFilterSQL,
+    TrinoInBetweenPastTwoYearsTimestampFilterSQL,
+    TrinoInTheLast1CompletedDayFilterSQL,
+    TrinoInTheLast1CompletedHourFilterSQL,
+    TrinoInTheLast1CompletedMinuteFilterSQL,
+    TrinoInTheLast1CompletedMonthFilterSQL,
+    TrinoInTheLast1CompletedWeekFilterSQL,
+    TrinoInTheLast1CompletedYearFilterSQL,
+    TrinoInTheLast1DayFilterSQL,
+    TrinoInTheLast1HourFilterSQL,
+    TrinoInTheLast1MinuteFilterSQL,
+    TrinoInTheLast1MonthFilterSQL,
+    TrinoInTheLast1WeekFilterSQL,
+    TrinoInTheLast1YearFilterSQL,
 } from './filtersCompiler.mock';
 
 const formatTimestamp = (date: Date): string =>
@@ -93,9 +114,27 @@ describe('Filter SQL', () => {
                         ...InTheCurrentFilterBase,
                         settings: { unitOfTime },
                     },
+                    adapterType.default,
                     formatTimestamp,
                 ),
             ).toStrictEqual(ExpectedInTheCurrentFilterSQL[unitOfTime]);
+        },
+    );
+    test.each(Object.values(UnitOfTime))(
+        'should return in the current %s filter sql for trino adapter',
+        (unitOfTime) => {
+            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            expect(
+                renderDateFilterSql(
+                    DimensionSqlMock,
+                    {
+                        ...InTheCurrentFilterBase,
+                        settings: { unitOfTime },
+                    },
+                    adapterType.trino,
+                    formatTimestamp,
+                ),
+            ).toStrictEqual(TrinoExpectedInTheCurrentFilterSQL[unitOfTime]);
         },
     );
     test.each(Object.values(UnitOfTime))(
@@ -109,9 +148,27 @@ describe('Filter SQL', () => {
                         ...InTheNextFilterBase,
                         settings: { unitOfTime },
                     },
+                    adapterType.default,
                     formatTimestamp,
                 ),
             ).toStrictEqual(ExpectedInTheNextFilterSQL[unitOfTime]);
+        },
+    );
+    test.each(Object.values(UnitOfTime))(
+        'should return in the next %s filter sql for trino adapter',
+        (unitOfTime) => {
+            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            expect(
+                renderDateFilterSql(
+                    DimensionSqlMock,
+                    {
+                        ...InTheNextFilterBase,
+                        settings: { unitOfTime },
+                    },
+                    adapterType.trino,
+                    formatTimestamp,
+                ),
+            ).toStrictEqual(TrinoExpectedInTheNextFilterSQL[unitOfTime]);
         },
     );
     test.each(Object.values(UnitOfTime))(
@@ -125,9 +182,29 @@ describe('Filter SQL', () => {
                         ...InTheNextFilterBase,
                         settings: { unitOfTime, completed: true },
                     },
+                    adapterType.default,
                     formatTimestamp,
                 ),
             ).toStrictEqual(ExpectedInTheNextCompleteFilterSQL[unitOfTime]);
+        },
+    );
+    test.each(Object.values(UnitOfTime))(
+        'should return in the next complete %s filter sql for trino adapter',
+        (unitOfTime) => {
+            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            expect(
+                renderDateFilterSql(
+                    DimensionSqlMock,
+                    {
+                        ...InTheNextFilterBase,
+                        settings: { unitOfTime, completed: true },
+                    },
+                    adapterType.trino,
+                    formatTimestamp,
+                ),
+            ).toStrictEqual(
+                TrinoExpectedInTheNextCompleteFilterSQL[unitOfTime],
+            );
         },
     );
     test.each([WeekDay.MONDAY, WeekDay.SUNDAY])(
@@ -142,11 +219,35 @@ describe('Filter SQL', () => {
                 renderDateFilterSql(
                     DimensionSqlMock,
                     filter,
+                    adapterType.default,
                     formatTimestamp,
                     weekDay,
                 ),
             ).toStrictEqual(
                 ExpectedInTheNextCompleteWeekFilterSQLWithCustomStartOfWeek[
+                    weekDay as WeekDay.MONDAY | WeekDay.SUNDAY
+                ],
+            );
+        },
+    );
+    test.each([WeekDay.MONDAY, WeekDay.SUNDAY])(
+        'should return in the next complete week filter sql with %s as the start of the week for trino adapter',
+        (weekDay) => {
+            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            const filter = {
+                ...InTheNextFilterBase,
+                settings: { unitOfTime: UnitOfTime.weeks, completed: true },
+            };
+            expect(
+                renderDateFilterSql(
+                    DimensionSqlMock,
+                    filter,
+                    adapterType.trino,
+                    formatTimestamp,
+                    weekDay,
+                ),
+            ).toStrictEqual(
+                TrinoExpectedInTheNextCompleteWeekFilterSQLWithCustomStartOfWeek[
                     weekDay as WeekDay.MONDAY | WeekDay.SUNDAY
                 ],
             );
@@ -164,11 +265,35 @@ describe('Filter SQL', () => {
                 renderDateFilterSql(
                     DimensionSqlMock,
                     filter,
+                    adapterType.default,
                     formatTimestamp,
                     weekDay,
                 ),
             ).toStrictEqual(
                 ExpectedInThePastCompleteWeekFilterSQLWithCustomStartOfWeek[
+                    weekDay as WeekDay.MONDAY | WeekDay.SUNDAY
+                ],
+            );
+        },
+    );
+    test.each([WeekDay.MONDAY, WeekDay.SUNDAY])(
+        'should return in the last complete week filter sql with %s as the start of the week for trino adapter',
+        (weekDay) => {
+            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            const filter = {
+                ...InThePastFilterBase,
+                settings: { unitOfTime: UnitOfTime.weeks, completed: true },
+            };
+            expect(
+                renderDateFilterSql(
+                    DimensionSqlMock,
+                    filter,
+                    adapterType.trino,
+                    formatTimestamp,
+                    weekDay,
+                ),
+            ).toStrictEqual(
+                TrinoExpectedInThePastCompleteWeekFilterSQLWithCustomStartOfWeek[
                     weekDay as WeekDay.MONDAY | WeekDay.SUNDAY
                 ],
             );
@@ -186,6 +311,7 @@ describe('Filter SQL', () => {
                 renderDateFilterSql(
                     DimensionSqlMock,
                     filter,
+                    adapterType.default,
                     formatTimestamp,
                     weekDay,
                 ),
@@ -196,44 +322,151 @@ describe('Filter SQL', () => {
             );
         },
     );
+    test.each([WeekDay.MONDAY, WeekDay.SUNDAY])(
+        'should return in the current complete week filter sql with %s as the start of the week for trino adapter',
+        (weekDay) => {
+            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            const filter = {
+                ...InTheCurrentFilterBase,
+                settings: { unitOfTime: UnitOfTime.weeks, completed: true },
+            };
+            expect(
+                renderDateFilterSql(
+                    DimensionSqlMock,
+                    filter,
+                    adapterType.trino,
+                    formatTimestamp,
+                    weekDay,
+                ),
+            ).toStrictEqual(
+                TrinoExpectedInTheCurrentWeekFilterSQLWithCustomStartOfWeek[
+                    weekDay as WeekDay.MONDAY | WeekDay.SUNDAY
+                ],
+            );
+        },
+    );
     test('should return in the last date filter sql', () => {
         expect(
-            renderDateFilterSql(DimensionSqlMock, InTheLast1DayFilter),
+            renderDateFilterSql(
+                DimensionSqlMock,
+                InTheLast1DayFilter,
+                adapterType.default,
+            ),
         ).toStrictEqual(InTheLast1DayFilterSQL);
         expect(
-            renderDateFilterSql(DimensionSqlMock, InTheLast1WeekFilter),
+            renderDateFilterSql(
+                DimensionSqlMock,
+                InTheLast1WeekFilter,
+                adapterType.default,
+            ),
         ).toStrictEqual(InTheLast1WeekFilterSQL);
         expect(
-            renderDateFilterSql(DimensionSqlMock, InTheLast1MonthFilter),
+            renderDateFilterSql(
+                DimensionSqlMock,
+                InTheLast1MonthFilter,
+                adapterType.default,
+            ),
         ).toStrictEqual(InTheLast1MonthFilterSQL);
 
         expect(
-            renderDateFilterSql(DimensionSqlMock, InTheLast1YearFilter),
+            renderDateFilterSql(
+                DimensionSqlMock,
+                InTheLast1YearFilter,
+                adapterType.default,
+            ),
         ).toStrictEqual(InTheLast1YearFilterSQL);
+    });
+    test('should return in the last date filter sql for trino adapter', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                InTheLast1DayFilter,
+                adapterType.trino,
+            ),
+        ).toStrictEqual(TrinoInTheLast1DayFilterSQL);
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                InTheLast1WeekFilter,
+                adapterType.trino,
+            ),
+        ).toStrictEqual(TrinoInTheLast1WeekFilterSQL);
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                InTheLast1MonthFilter,
+                adapterType.trino,
+            ),
+        ).toStrictEqual(TrinoInTheLast1MonthFilterSQL);
+
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                InTheLast1YearFilter,
+                adapterType.trino,
+            ),
+        ).toStrictEqual(TrinoInTheLast1YearFilterSQL);
     });
 
     test('should return in the last completed date filter sql ', () => {
         expect(
-            renderDateFilterSql(DimensionSqlMock, InTheLast1CompletedDayFilter),
+            renderDateFilterSql(
+                DimensionSqlMock,
+                InTheLast1CompletedDayFilter,
+                adapterType.default,
+            ),
         ).toStrictEqual(InTheLast1CompletedDayFilterSQL);
         expect(
             renderDateFilterSql(
                 DimensionSqlMock,
                 InTheLast1CompletedWeekFilter,
+                adapterType.default,
             ),
         ).toStrictEqual(InTheLast1CompletedWeekFilterSQL);
         expect(
             renderDateFilterSql(
                 DimensionSqlMock,
                 InTheLast1CompletedMonthFilter,
+                adapterType.default,
             ),
         ).toStrictEqual(InTheLast1CompletedMonthFilterSQL);
         expect(
             renderDateFilterSql(
                 DimensionSqlMock,
                 InTheLast1CompletedYearFilter,
+                adapterType.default,
             ),
         ).toStrictEqual(InTheLast1CompletedYearFilterSQL);
+    });
+    test('should return in the last completed date filter sql for trino adapter', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                InTheLast1CompletedDayFilter,
+                adapterType.trino,
+            ),
+        ).toStrictEqual(TrinoInTheLast1CompletedDayFilterSQL);
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                InTheLast1CompletedWeekFilter,
+                adapterType.trino,
+            ),
+        ).toStrictEqual(TrinoInTheLast1CompletedWeekFilterSQL);
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                InTheLast1CompletedMonthFilter,
+                adapterType.trino,
+            ),
+        ).toStrictEqual(TrinoInTheLast1CompletedMonthFilterSQL);
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                InTheLast1CompletedYearFilter,
+                adapterType.trino,
+            ),
+        ).toStrictEqual(TrinoInTheLast1CompletedYearFilterSQL);
     });
 
     test('should return in the last date filter sql for timestamps', () => {
@@ -241,6 +474,7 @@ describe('Filter SQL', () => {
             renderDateFilterSql(
                 DimensionSqlMock,
                 InTheLast1HourFilter,
+                adapterType.default,
                 formatTimestamp,
             ),
         ).toStrictEqual(InTheLast1HourFilterSQL);
@@ -248,6 +482,7 @@ describe('Filter SQL', () => {
             renderDateFilterSql(
                 DimensionSqlMock,
                 InTheLast1CompletedHourFilter,
+                adapterType.default,
                 formatTimestamp,
             ),
         ).toStrictEqual(InTheLast1CompletedHourFilterSQL);
@@ -255,6 +490,7 @@ describe('Filter SQL', () => {
             renderDateFilterSql(
                 DimensionSqlMock,
                 InTheLast1MinuteFilter,
+                adapterType.default,
                 formatTimestamp,
             ),
         ).toStrictEqual(InTheLast1MinuteFilterSQL);
@@ -262,15 +498,63 @@ describe('Filter SQL', () => {
             renderDateFilterSql(
                 DimensionSqlMock,
                 InTheLast1CompletedMinuteFilter,
+                adapterType.default,
                 formatTimestamp,
             ),
         ).toStrictEqual(InTheLast1CompletedMinuteFilterSQL);
     });
+    test('should return in the last date filter sql for timestamps for trino adapter', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                InTheLast1HourFilter,
+                adapterType.trino,
+                formatTimestamp,
+            ),
+        ).toStrictEqual(TrinoInTheLast1HourFilterSQL);
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                InTheLast1CompletedHourFilter,
+                adapterType.trino,
+                formatTimestamp,
+            ),
+        ).toStrictEqual(TrinoInTheLast1CompletedHourFilterSQL);
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                InTheLast1MinuteFilter,
+                adapterType.trino,
+                formatTimestamp,
+            ),
+        ).toStrictEqual(TrinoInTheLast1MinuteFilterSQL);
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                InTheLast1CompletedMinuteFilter,
+                adapterType.trino,
+                formatTimestamp,
+            ),
+        ).toStrictEqual(TrinoInTheLast1CompletedMinuteFilterSQL);
+    });
 
     test('should return in between date filter sql', () => {
         expect(
-            renderDateFilterSql(DimensionSqlMock, InBetweenPastTwoYearsFilter),
+            renderDateFilterSql(
+                DimensionSqlMock,
+                InBetweenPastTwoYearsFilter,
+                adapterType.default,
+            ),
         ).toStrictEqual(InBetweenPastTwoYearsFilterSQL);
+    });
+    test('should return in between date filter sql for trino adapter', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                InBetweenPastTwoYearsFilter,
+                adapterType.trino,
+            ),
+        ).toStrictEqual(TrinoInBetweenPastTwoYearsFilterSQL);
     });
 
     test('should return in between date filter sql for timestamps', () => {
@@ -278,9 +562,20 @@ describe('Filter SQL', () => {
             renderDateFilterSql(
                 DimensionSqlMock,
                 InBetweenPastTwoYearsFilter,
+                adapterType.default,
                 formatTimestamp,
             ),
         ).toStrictEqual(InBetweenPastTwoYearsTimestampFilterSQL);
+    });
+    test('should return in between date filter sql for timestamps for trino adapter', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                InBetweenPastTwoYearsFilter,
+                adapterType.trino,
+                formatTimestamp,
+            ),
+        ).toStrictEqual(TrinoInBetweenPastTwoYearsTimestampFilterSQL);
     });
 
     test('should return single value in includes filter sql', () => {

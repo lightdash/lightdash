@@ -1414,7 +1414,7 @@ const useEcharts = (validCartesianConfigLegend?: LegendValues) => {
             tooltip: {
                 show: true,
                 confine: true,
-                trigger: 'item',
+                trigger: 'axis',
                 axisPointer: {
                     type: 'shadow',
                     label: { show: true },

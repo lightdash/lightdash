@@ -46,11 +46,13 @@ export const TableCalculationSqlInputWrapper = styled.div<{
                 $isFullScreen
                     ? css`
                           .ace_editor {
-                              height: 100% !important;
+                              height: calc(100vh - 350px) !important;
+                              min-height: 100px;
                           }
                       `
                     : css`
                           .ace_editor {
+                              height: 100px !important;
                               min-height: 100%;
                           }
                       `}

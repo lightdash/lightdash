@@ -12,6 +12,7 @@ import {
     DimensionType,
     Metric,
     MetricType,
+    SupportedDbtAdapter,
     WarehouseConnectionError,
     WarehouseQueryError,
 } from '@lightdash/common';
@@ -271,6 +272,10 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
 
     getEscapeStringQuoteChar() {
         return '\\';
+    }
+
+    getAdapterType(): SupportedDbtAdapter {
+        return SupportedDbtAdapter.BIGQUERY;
     }
 
     getMetricSql(sql: string, metric: Metric) {

@@ -11,6 +11,7 @@ import {
     Metric,
     MetricType,
     ParseError,
+    SupportedDbtAdapter,
     WarehouseConnectionError,
     WarehouseQueryError,
 } from '@lightdash/common';
@@ -305,6 +306,10 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
 
     getStringQuoteChar() {
         return "'";
+    }
+
+    getAdapterType(): SupportedDbtAdapter {
+        return SupportedDbtAdapter.DATABRICKS;
     }
 
     getEscapeStringQuoteChar() {

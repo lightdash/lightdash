@@ -4,6 +4,7 @@ import {
     DimensionType,
     Metric,
     MetricType,
+    SupportedDbtAdapter,
     WarehouseQueryError,
 } from '@lightdash/common';
 import { readFileSync } from 'fs';
@@ -308,6 +309,10 @@ export class PostgresClient<
 
     getEscapeStringQuoteChar() {
         return "'";
+    }
+
+    getAdapterType(): SupportedDbtAdapter {
+        return SupportedDbtAdapter.POSTGRES;
     }
 
     getMetricSql(sql: string, metric: Metric) {

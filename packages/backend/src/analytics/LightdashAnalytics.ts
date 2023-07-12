@@ -127,6 +127,14 @@ type UserJoinOrganizationEvent = BaseTrack & {
     };
 };
 
+export enum QueryExecutionContext {
+    DASHBOARD = 'dashboardView',
+    EXPLORE = 'exploreView',
+    CHART = 'chartView',
+    VIEW_UNDERLYING_DATA = 'viewUnderlyingData',
+    CSV = 'csvDownload',
+}
+
 type QueryExecutionEvent = BaseTrack & {
     event: 'query.executed';
     properties: {
@@ -142,6 +150,7 @@ type QueryExecutionEvent = BaseTrack & {
         hasExampleMetric: boolean;
         additionalMetricsCount: number;
         additionalMetricsFilterCount: number;
+        context: QueryExecutionContext;
     };
 };
 

@@ -9,16 +9,20 @@ import {
 } from '../types/dbt';
 import { ParseError } from '../types/errors';
 import lightdashMetadataSchema from './schemas/lightdashMetadata.json';
+import lightdashSchemaV7 from './schemas/lightdashV7.json';
 import lightdashSchemaV8 from './schemas/lightdashV8.json';
 import lightdashSchemaV9 from './schemas/lightdashV9.json';
+import dbtManifestSchemaV7 from './schemas/manifestV7.json';
 import dbtManifestSchemaV8 from './schemas/manifestV8.json';
 import dbtManifestSchemaV9 from './schemas/manifestV9.json';
 
 const ajv = new Ajv({
     schemas: [
+        dbtManifestSchemaV7,
         dbtManifestSchemaV8,
         dbtManifestSchemaV9,
         lightdashMetadataSchema,
+        lightdashSchemaV7,
         lightdashSchemaV8,
         lightdashSchemaV9,
     ],

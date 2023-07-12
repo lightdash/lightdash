@@ -5,6 +5,8 @@ import {
     CreateSavedChart,
     CreateSavedChartVersion,
     DBFieldTypes,
+    getChartType,
+    isFormat,
     NotFoundError,
     SavedChart,
     SessionUser,
@@ -280,7 +282,19 @@ export class SavedChartModel {
                 ...data,
                 updatedByUser: user,
             });
+
+            await trx('saved_queries')
+                .update({
+                    last_version_chart_kind: getChartType(
+                        data.chartConfig.type,
+                        data.chartConfig.config,
+                    ),
+                    last_version_updated_at: new Date(),
+                    last_version_updated_by_user_uuid: user.userUuid,
+                })
+                .where('saved_query_uuid', savedChartUuid);
         });
+
         return this.get(savedChartUuid);
     }
 
@@ -479,7 +493,9 @@ export class SavedChartModel {
                     hidden: additionalMetric.hidden,
                     round: additionalMetric.round,
                     compact: additionalMetric.compact,
-                    format: additionalMetric.format,
+                    format: isFormat(additionalMetric.format)
+                        ? additionalMetric.format
+                        : undefined,
                     uuid: additionalMetric.uuid,
                     sql: additionalMetric.sql,
                     table: additionalMetric.table,

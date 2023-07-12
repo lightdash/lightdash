@@ -5,6 +5,7 @@ import {
     Metric,
     MetricType,
     ParseError,
+    SupportedDbtAdapter,
     WarehouseConnectionError,
     WarehouseQueryError,
 } from '@lightdash/common';
@@ -376,6 +377,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
     getEscapeStringQuoteChar() {
         return '\\';
+    }
+
+    getAdapterType(): SupportedDbtAdapter {
+        return SupportedDbtAdapter.SNOWFLAKE;
     }
 
     getMetricSql(sql: string, metric: Metric) {

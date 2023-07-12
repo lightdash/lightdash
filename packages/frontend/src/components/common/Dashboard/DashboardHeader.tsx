@@ -1,7 +1,17 @@
 import { Button, Classes, Divider, Intent, Menu } from '@blueprintjs/core';
 import { MenuItem2, Popover2, Tooltip2 } from '@blueprintjs/popover2';
 import { Dashboard, SpaceSummary, UpdatedByUser } from '@lightdash/common';
-import { IconDots, IconPencil } from '@tabler/icons-react';
+import {
+    IconCheck,
+    IconCopy,
+    IconDots,
+    IconFolders,
+    IconPencil,
+    IconPlus,
+    IconSend,
+    IconTrash,
+    IconUpload,
+} from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
@@ -204,13 +214,13 @@ const DashboardHeader = ({
                         content={
                             <Menu>
                                 <MenuItem2
-                                    icon="duplicate"
+                                    icon={<IconCopy />}
                                     text="Duplicate"
                                     onClick={onDuplicate}
                                 />
 
                                 <MenuItem2
-                                    icon="folder-close"
+                                    icon={<IconFolders />}
                                     text="Move to space"
                                     onClick={(e) => {
                                         e.preventDefault();
@@ -226,9 +236,9 @@ const DashboardHeader = ({
                                                 key={spaceToMove.uuid}
                                                 text={spaceToMove.name}
                                                 icon={
-                                                    isDisabled
-                                                        ? 'small-tick'
-                                                        : undefined
+                                                    isDisabled ? (
+                                                        <IconCheck />
+                                                    ) : undefined
                                                 }
                                                 className={
                                                     isDisabled
@@ -236,7 +246,6 @@ const DashboardHeader = ({
                                                         : ''
                                                 }
                                                 onClick={(e) => {
-                                                    // Use className disabled instead of disabled property to capture and preventdefault its clicks
                                                     e.preventDefault();
                                                     e.stopPropagation();
                                                     if (
@@ -251,11 +260,9 @@ const DashboardHeader = ({
                                             />
                                         );
                                     })}
-
                                     <Divider />
-
                                     <MenuItem2
-                                        icon="plus"
+                                        icon={<IconPlus />}
                                         text="Create new"
                                         onClick={(e) => {
                                             e.preventDefault();
@@ -265,21 +272,20 @@ const DashboardHeader = ({
                                     />
                                 </MenuItem2>
                                 <MenuItem2
-                                    icon={'send-message'}
-                                    text={'Scheduled deliveries'}
+                                    icon={<IconSend />}
+                                    text="Scheduled deliveries"
                                     onClick={() => {
                                         toggleSchedulerDeliveriesModel(true);
                                     }}
                                 />
                                 <MenuItem2
-                                    icon={'export'}
-                                    text={'Export dashboard'}
+                                    icon={<IconUpload />}
+                                    text="Export dashboard"
                                     onClick={onExport}
                                 />
                                 <Divider />
-
                                 <MenuItem2
-                                    icon="cross"
+                                    icon={<IconTrash />}
                                     text="Delete"
                                     intent="danger"
                                     onClick={onDelete}
