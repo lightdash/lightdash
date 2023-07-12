@@ -1,3 +1,10 @@
+## [0.664.1](https://github.com/lightdash/lightdash/compare/0.664.0...0.664.1) (2023-07-12)
+
+
+### Bug Fixes
+
+* fix table calculation fullscreen ([#6259](https://github.com/lightdash/lightdash/issues/6259)) ([254a646](https://github.com/lightdash/lightdash/commit/254a6460f36a7a38e9bbeca5811d54c28e9bad48))
+
 # [0.664.0](https://github.com/lightdash/lightdash/compare/0.663.0...0.664.0) (2023-07-11)
 
 
