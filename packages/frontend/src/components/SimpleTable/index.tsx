@@ -12,7 +12,6 @@ type SimpleTableProps = {
     isDashboard: boolean;
     tileUuid?: string;
     className?: string;
-    $padding?: number;
     $shouldExpand?: boolean;
     minimal?: boolean;
 };
@@ -22,7 +21,6 @@ const SimpleTable: FC<SimpleTableProps> = ({
     tileUuid,
     className,
     $shouldExpand,
-    $padding,
     minimal = false,
     ...rest
 }) => {
@@ -97,7 +95,6 @@ const SimpleTable: FC<SimpleTableProps> = ({
             <Table
                 minimal={minimal}
                 $shouldExpand={$shouldExpand}
-                $padding={$padding}
                 className={className}
                 status="success"
                 data={rows}

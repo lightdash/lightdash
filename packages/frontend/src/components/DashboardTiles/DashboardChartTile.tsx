@@ -163,7 +163,6 @@ const ValidDashboardChartTile: FC<{
                 isDashboard
                 tileUuid={tileUuid}
                 isTitleHidden={isTitleHidden}
-                $padding={0}
             />
         </VisualizationProvider>
     );
@@ -196,7 +195,6 @@ const ValidDashboardChartTileMinimal: FC<{
                 tileUuid={tileUuid}
                 isDashboard
                 isTitleHidden={isTitleHidden}
-                $padding={0}
             />
         </VisualizationProvider>
     );

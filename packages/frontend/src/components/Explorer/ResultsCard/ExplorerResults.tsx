@@ -1,5 +1,5 @@
 import { Field, getItemMap, TableCalculation } from '@lightdash/common';
-import { Text } from '@mantine/core';
+import { Box, Text } from '@mantine/core';
 import { FC, memo, useCallback, useMemo } from 'react';
 
 import { useColumns } from '../../../hooks/useColumns';
@@ -125,20 +125,22 @@ export const ExplorerResults = memo(() => {
 
     return (
         <TrackSection name={SectionName.RESULTS_TABLE}>
-            <Table
-                status={status}
-                data={resultsData?.rows || []}
-                columns={columns}
-                columnOrder={explorerColumnOrder}
-                onColumnOrderChange={setColumnOrder}
-                cellContextMenu={cellContextMenu}
-                headerContextMenu={
-                    isEditMode ? ColumnHeaderContextMenu : undefined
-                }
-                idleState={IdleState}
-                pagination={pagination}
-                footer={footer}
-            />
+            <Box px="xs" pt="lg">
+                <Table
+                    status={status}
+                    data={resultsData?.rows || []}
+                    columns={columns}
+                    columnOrder={explorerColumnOrder}
+                    onColumnOrderChange={setColumnOrder}
+                    cellContextMenu={cellContextMenu}
+                    headerContextMenu={
+                        isEditMode ? ColumnHeaderContextMenu : undefined
+                    }
+                    idleState={IdleState}
+                    pagination={pagination}
+                    footer={footer}
+                />
+            </Box>
         </TrackSection>
     );
 });

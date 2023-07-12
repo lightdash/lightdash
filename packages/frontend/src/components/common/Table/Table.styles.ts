@@ -16,13 +16,11 @@ export const TableScrollableWrapper = styled.div`
 
 interface TableContainerProps {
     $shouldExpand?: boolean;
-    $padding?: number;
 }
 
 export const TableContainer = styled.div<TableContainerProps>`
     display: flex;
     flex-direction: column;
-    padding: ${({ $padding = 10 }) => `${$padding}px`};
     min-width: 100%;
     overflow: hidden;
 
