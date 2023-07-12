@@ -243,41 +243,57 @@ export class OrganizationService {
         });
     }
 
-    async getMember(
+    async getMemberByUuid(
         user: SessionUser,
-        member_uuid: string,
+        memberUuid: string,
     ): Promise<OrganizationMemberProfile> {
         const { organizationUuid } = user;
-        if (user.ability.cannot('view', 'OrganizationMemberProfile')) {
+        if (
+            organizationUuid === undefined ||
+            user.ability.cannot('view', 'OrganizationMemberProfile')
+        ) {
             throw new ForbiddenError();
         }
-        if (organizationUuid === undefined) {
-            throw new NotExistsError('Organization not found');
-        }
         const member =
-            await this.organizationMemberProfileModel.getOrganizationMember(
+            await this.organizationMemberProfileModel.getOrganizationMemberByUuid(
                 organizationUuid,
-                member_uuid,
+                memberUuid,
             );
+        if (
+            user.ability.cannot(
+                'view',
+                subject('OrganizationMemberProfile', member),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
         return member;
     }
 
-    async getMemberByEmail(
+    async getMemberByPrimaryEmail(
         user: SessionUser,
         email: string,
     ): Promise<OrganizationMemberProfile> {
         const { organizationUuid } = user;
-        if (user.ability.cannot('view', 'OrganizationMemberProfile')) {
+        if (
+            organizationUuid === undefined ||
+            user.ability.cannot('view', 'OrganizationMemberProfile')
+        ) {
             throw new ForbiddenError();
         }
-        if (organizationUuid === undefined) {
-            throw new NotExistsError('Organization not found');
-        }
         const member =
-            await this.organizationMemberProfileModel.getOrganizationMemberByEmail(
+            await this.organizationMemberProfileModel.getOrganizationMemberByPrimaryEmail(
                 organizationUuid,
                 email,
             );
+        if (
+            user.ability.cannot(
+                'view',
+                subject('OrganizationMemberProfile', member),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
         return member;
     }
 

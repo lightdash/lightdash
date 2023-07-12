@@ -37,11 +37,6 @@ export type OrganizationMemberProfile = {
     isInviteExpired?: boolean;
 };
 
-export type OrganizationMemberProfileGet = {
-    userUuid?: string;
-    email?: string;
-};
-
 export type OrganizationMemberProfileUpdate = {
     role: OrganizationMemberRole;
 };

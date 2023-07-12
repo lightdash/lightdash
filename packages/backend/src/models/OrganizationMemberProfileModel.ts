@@ -151,7 +151,7 @@ export class OrganizationMemberProfileModel {
         ).insert<DbOrganizationMembershipIn>(membershipIn);
     };
 
-    async getOrganizationMember(
+    async getOrganizationMemberByUuid(
         organizationUuid: string,
         userUuid: string,
     ): Promise<OrganizationMemberProfile> {
@@ -165,7 +165,7 @@ export class OrganizationMemberProfileModel {
         return member;
     }
 
-    async getOrganizationMemberByEmail(
+    async getOrganizationMemberByPrimaryEmail(
         organizationUuid: string,
         email: string,
     ): Promise<OrganizationMemberProfile> {
@@ -205,6 +205,6 @@ export class OrganizationMemberProfileModel {
                 sqlParams,
             );
         }
-        return this.getOrganizationMember(organizationUuid, userUuid);
+        return this.getOrganizationMemberByUuid(organizationUuid, userUuid);
     }
 }

@@ -10,7 +10,6 @@ import {
     ApiSuccessEmpty,
     CreateGroup,
     CreateOrganization,
-    OrganizationMemberProfileGet,
     OrganizationMemberProfileUpdate,
     UpdateAllowedEmailDomains,
     UpdateOrganization,
@@ -176,38 +175,47 @@ export class OrganizationController extends Controller {
     }
 
     /**
-     * Get the membership profile for a user in the current user's organization
+     * Get the member profile for a user in the current user's organization by email
      * @param req express request
-     * @param body the userUuid or email of the user to get. Either userUuid or email must be provided.
+     * @param primary email of the user
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @Post('/user')
-    @OperationId('GetOrganizationMember')
-    async getOrganizationMember(
+    @Get('/users/emails/{email}')
+    @OperationId('GetOrganizationMemberByEmail')
+    async getOrganizationMemberByEmail(
         @Request() req: express.Request,
-        @Body() body: OrganizationMemberProfileGet,
+        @Path() email: string,
     ): Promise<ApiOrganizationMemberProfile> {
-        if (body.userUuid) {
-            this.setStatus(200);
-            return {
-                status: 'ok',
-                results: await organizationService.getMember(
-                    req.user!,
-                    body.userUuid,
-                ),
-            };
-        }
-        if (body.email) {
-            this.setStatus(200);
-            return {
-                status: 'ok',
-                results: await organizationService.getMemberByEmail(
-                    req.user!,
-                    body.email,
-                ),
-            };
-        }
-        throw new Error('Must provide either userUuid or email');
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await organizationService.getMemberByPrimaryEmail(
+                req.user!,
+                email,
+            ),
+        };
+    }
+
+    /**
+     * Get the member profile for a user in the current user's organization by uuid
+     * @param req express request
+     * @param userUuid the uuid of the user
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('/users/{userUuid}')
+    @OperationId('GetOrganizationMemberByUuid')
+    async getOrganizationMemberByUuid(
+        @Request() req: express.Request,
+        @Path() userUuid: string,
+    ): Promise<ApiOrganizationMemberProfile> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await organizationService.getMemberByUuid(
+                req.user!,
+                userUuid,
+            ),
+        };
     }
 
     /**

@@ -483,17 +483,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "OrganizationMemberProfileGet": {
-                "properties": {
-                    "email": {
-                        "type": "string"
-                    },
-                    "userUuid": {
-                        "type": "string"
-                    }
-                },
-                "type": "object"
-            },
             "OrganizationMemberProfileUpdate": {
                 "properties": {
                     "role": {
@@ -535,45 +524,11 @@
                     }
                 ]
             },
-            "ProjectMemberRole.EDITOR": {
-                "enum": ["editor"],
-                "type": "string"
-            },
-            "ProjectMemberRole.INTERACTIVE_VIEWER": {
-                "enum": ["interactive_viewer"],
-                "type": "string"
-            },
-            "ProjectMemberRole.VIEWER": {
-                "enum": ["viewer"],
-                "type": "string"
-            },
-            "AllowedEmailDomainProjectsRole": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/ProjectMemberRole.EDITOR"
-                    },
-                    {
-                        "$ref": "#/components/schemas/ProjectMemberRole.INTERACTIVE_VIEWER"
-                    },
-                    {
-                        "$ref": "#/components/schemas/ProjectMemberRole.VIEWER"
-                    }
-                ]
-            },
             "AllowedEmailDomains": {
                 "properties": {
-                    "projects": {
+                    "projectUuids": {
                         "items": {
-                            "properties": {
-                                "role": {
-                                    "$ref": "#/components/schemas/AllowedEmailDomainProjectsRole"
-                                },
-                                "projectUuid": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": ["role", "projectUuid"],
-                            "type": "object"
+                            "type": "string"
                         },
                         "type": "array"
                     },
@@ -591,7 +546,7 @@
                     }
                 },
                 "required": [
-                    "projects",
+                    "projectUuids",
                     "role",
                     "emailDomains",
                     "organizationUuid"
@@ -623,23 +578,14 @@
                     "role": {
                         "$ref": "#/components/schemas/AllowedEmailDomainsRole"
                     },
-                    "projects": {
+                    "projectUuids": {
                         "items": {
-                            "properties": {
-                                "role": {
-                                    "$ref": "#/components/schemas/AllowedEmailDomainProjectsRole"
-                                },
-                                "projectUuid": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": ["role", "projectUuid"],
-                            "type": "object"
+                            "type": "string"
                         },
                         "type": "array"
                     }
                 },
-                "required": ["emailDomains", "role", "projects"],
+                "required": ["emailDomains", "role", "projectUuids"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -1903,7 +1849,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder_": {
+            "Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -1917,15 +1863,6 @@
                     "projectUuid": {
                         "type": "string"
                     },
-                    "pinnedListUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "pinnedListOrder": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
-                    },
                     "isPrivate": {
                         "type": "boolean"
                     }
@@ -1935,8 +1872,6 @@
                     "organizationUuid",
                     "uuid",
                     "projectUuid",
-                    "pinnedListUuid",
-                    "pinnedListOrder",
                     "isPrivate"
                 ],
                 "type": "object",
@@ -1945,18 +1880,10 @@
             "SpaceSummary": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder_"
+                        "$ref": "#/components/schemas/Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate_"
                     },
                     {
                         "properties": {
-                            "dashboardCount": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "chartCount": {
-                                "type": "number",
-                                "format": "double"
-                            },
                             "access": {
                                 "items": {
                                     "type": "string"
@@ -1964,7 +1891,7 @@
                                 "type": "array"
                             }
                         },
-                        "required": ["dashboardCount", "chartCount", "access"],
+                        "required": ["access"],
                         "type": "object"
                     }
                 ]
@@ -2244,7 +2171,6 @@
                     "greaterThan",
                     "greaterThanOrEqual",
                     "inThePast",
-                    "notInThePast",
                     "inTheNext",
                     "inTheCurrent",
                     "inBetween"
@@ -4400,9 +4326,9 @@
                 "parameters": []
             }
         },
-        "/api/v1/org/user": {
-            "post": {
-                "operationId": "GetOrganizationMember",
+        "/api/v1/org/users/emails/{email}": {
+            "get": {
+                "operationId": "GetOrganizationMemberByEmail",
                 "responses": {
                     "200": {
                         "description": "Ok",
@@ -4425,25 +4351,61 @@
                         }
                     }
                 },
-                "description": "Get the membership profile for a user in the current user's organization",
+                "description": "Get the member profile for a user in the current user's organization by email",
                 "tags": ["Organizations"],
                 "security": [],
-                "parameters": [],
-                "requestBody": {
-                    "description": "the userUuid or email of the user to get. Either userUuid or email must be provided.",
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/OrganizationMemberProfileGet",
-                                "description": "the userUuid or email of the user to get. Either userUuid or email must be provided."
-                            }
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "email",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
                         }
                     }
-                }
+                ]
             }
         },
         "/api/v1/org/users/{userUuid}": {
+            "get": {
+                "operationId": "GetOrganizationMemberByUuid",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationMemberProfile"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the member profile for a user in the current user's organization by uuid",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the uuid of the user",
+                        "in": "path",
+                        "name": "userUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
             "patch": {
                 "operationId": "UpdateOrganizationMember",
                 "responses": {
