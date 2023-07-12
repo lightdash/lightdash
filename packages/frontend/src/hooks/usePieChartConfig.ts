@@ -53,7 +53,6 @@ type PieChartConfig = {
     defaultColors: string[];
 
     sortedGroupLabels: string[];
-    groupLabels: string[];
     groupLabelOverrides: Record<string, string>;
     groupLabelChange: (prevValue: any, newValue: any) => void;
     groupColorOverrides: Record<string, string>;
@@ -223,7 +222,8 @@ const usePieChartConfig: PieChartConfigFn = (
         return Object.entries(
             resultsData.rows.reduce<Record<string, number>>((acc, row) => {
                 const key = groupFieldIds
-                    .map((groupFieldId) => row[groupFieldId].value.formatted)
+                    .map((groupFieldId) => row[groupFieldId]?.value?.formatted)
+                    .filter(Boolean)
                     .join(' - ');
 
                 const value = Number(row[metricId].value.raw);
@@ -243,8 +243,15 @@ const usePieChartConfig: PieChartConfigFn = (
         return data.map(([label]) => label);
     }, [data]);
 
-    const sortedGroupLabels =
-        groupSortOverrides.length > 0 ? groupSortOverrides : groupLabels;
+    const sortedGroupLabels = useMemo(() => {
+        const availableSortedOverrides = groupSortOverrides.filter((label) =>
+            groupLabels.includes(label),
+        );
+
+        return availableSortedOverrides.length > 0
+            ? availableSortedOverrides
+            : groupLabels;
+    }, [groupSortOverrides, groupLabels]);
 
     const groupColorDefaults = useMemo(() => {
         return Object.fromEntries(
@@ -336,8 +343,16 @@ const usePieChartConfig: PieChartConfigFn = (
 
     const handleGroupSortChange = useCallback(
         (oldIndex: number, newIndex: number) => {
-            setGroupSortOverrides((prev) => {
-                const newSort = [...(prev.length > 0 ? prev : groupLabels)];
+            setGroupSortOverrides((overrides) => {
+                const filteredOverrides = overrides.filter((label) =>
+                    groupLabels.includes(label),
+                );
+
+                const newSort = [
+                    ...(filteredOverrides.length > 0
+                        ? filteredOverrides
+                        : groupLabels),
+                ];
                 const [removed] = newSort.splice(oldIndex, 1);
                 newSort.splice(newIndex, 0, removed);
 
@@ -418,7 +433,6 @@ const usePieChartConfig: PieChartConfigFn = (
             defaultColors,
 
             sortedGroupLabels,
-            groupLabels,
             groupLabelOverrides,
             groupLabelChange: handleGroupLabelChange,
             groupColorOverrides,
@@ -461,7 +475,6 @@ const usePieChartConfig: PieChartConfigFn = (
             defaultColors,
 
             sortedGroupLabels,
-            groupLabels,
             groupLabelOverrides,
             handleGroupLabelChange,
             groupColorOverrides,
