@@ -1,3 +1,10 @@
+# [0.666.0](https://github.com/lightdash/lightdash/compare/0.665.1...0.666.0) (2023-07-12)
+
+
+### Features
+
+* update edit tile content modal ([#6281](https://github.com/lightdash/lightdash/issues/6281)) ([c07dbce](https://github.com/lightdash/lightdash/commit/c07dbce4982853978da05e863d0f4d71964675a7))
+
 ## [0.665.1](https://github.com/lightdash/lightdash/compare/0.665.0...0.665.1) (2023-07-12)
 
 
