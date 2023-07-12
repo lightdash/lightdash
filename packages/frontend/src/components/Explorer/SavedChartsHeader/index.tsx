@@ -14,9 +14,9 @@ import {
     IconCopy,
     IconDots,
     IconFolders,
-    IconSquarePlus,
     IconPencil,
     IconSend,
+    IconSquarePlus,
     IconTrash,
 } from '@tabler/icons-react';
 import { FC, useEffect, useState } from 'react';
