@@ -13,6 +13,7 @@ import {
     OrganizationMemberProfileUpdate,
     UpdateAllowedEmailDomains,
     UpdateOrganization,
+    UUID,
 } from '@lightdash/common';
 import express from 'express';
 import {
@@ -206,7 +207,7 @@ export class OrganizationController extends Controller {
     @OperationId('GetOrganizationMemberByUuid')
     async getOrganizationMemberByUuid(
         @Request() req: express.Request,
-        @Path() userUuid: string,
+        @Path() userUuid: UUID,
     ): Promise<ApiOrganizationMemberProfile> {
         this.setStatus(200);
         return {
