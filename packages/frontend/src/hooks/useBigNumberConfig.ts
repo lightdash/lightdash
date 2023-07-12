@@ -8,6 +8,7 @@ import {
     Explore,
     Field,
     fieldId,
+    Format,
     formatTableCalculationValue,
     formatValue,
     friendlyName,
@@ -60,7 +61,7 @@ const formatComparisonValue = (
     switch (format) {
         case ComparisonFormatTypes.PERCENTAGE:
             return `${prefix}${formatValue(value, {
-                format: 'percent',
+                format: Format.PERCENT,
                 round: 0,
             })}`;
         case ComparisonFormatTypes.RAW:

@@ -1,3 +1,45 @@
+# [0.665.0](https://github.com/lightdash/lightdash/compare/0.664.1...0.665.0) (2023-07-12)
+
+
+### Features
+
+* Update the icons in dashboard/chart context menus to 'Tabler' ones ([#6274](https://github.com/lightdash/lightdash/issues/6274)) ([de20279](https://github.com/lightdash/lightdash/commit/de20279b9fe97b6ca236c628a05cf7079b569f3e)), closes [#5966](https://github.com/lightdash/lightdash/issues/5966)
+
+## [0.664.1](https://github.com/lightdash/lightdash/compare/0.664.0...0.664.1) (2023-07-12)
+
+
+### Bug Fixes
+
+* fix table calculation fullscreen ([#6259](https://github.com/lightdash/lightdash/issues/6259)) ([254a646](https://github.com/lightdash/lightdash/commit/254a6460f36a7a38e9bbeca5811d54c28e9bad48))
+
+# [0.664.0](https://github.com/lightdash/lightdash/compare/0.663.0...0.664.0) (2023-07-11)
+
+
+### Features
+
+* save chart metadata ([#6247](https://github.com/lightdash/lightdash/issues/6247)) ([4771868](https://github.com/lightdash/lightdash/commit/4771868e3ace5b0c6df45b5fc8d6c83aeac35e5c))
+
+# [0.663.0](https://github.com/lightdash/lightdash/compare/0.662.2...0.663.0) (2023-07-11)
+
+
+### Features
+
+* bring back support dbt 1.3 in the CLI ([#6253](https://github.com/lightdash/lightdash/issues/6253)) ([e29a1f5](https://github.com/lightdash/lightdash/commit/e29a1f573a346088445d3310d21df22dcec0505b))
+
+## [0.662.2](https://github.com/lightdash/lightdash/compare/0.662.1...0.662.2) (2023-07-11)
+
+
+### Bug Fixes
+
+* Update renderDateFilterSql to solve the filters of the timestamp on trino adapter ([#6233](https://github.com/lightdash/lightdash/issues/6233)) ([34a8683](https://github.com/lightdash/lightdash/commit/34a868317e50962c8ac5be82e66f0832dbfa7984))
+
+## [0.662.1](https://github.com/lightdash/lightdash/compare/0.662.0...0.662.1) (2023-07-11)
+
+
+### Bug Fixes
+
+* manifest validation ([#6248](https://github.com/lightdash/lightdash/issues/6248)) ([2feac0d](https://github.com/lightdash/lightdash/commit/2feac0dcf45561873c276143ea31f46f49a32f25))
+
 # [0.662.0](https://github.com/lightdash/lightdash/compare/0.661.0...0.662.0) (2023-07-11)
 
 

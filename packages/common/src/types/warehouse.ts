@@ -1,4 +1,5 @@
 import { WeekDay } from '../utils/timeFrames';
+import { SupportedDbtAdapter } from './dbt';
 import { DimensionType, Metric } from './field';
 import { CreateWarehouseCredentials } from './projects';
 
@@ -34,6 +35,8 @@ export interface WarehouseClient {
     test(): Promise<void>;
 
     getStartOfWeek(): WeekDay | null | undefined;
+
+    getAdapterType(): SupportedDbtAdapter;
 
     getFieldQuoteChar(): string;
 

@@ -35,6 +35,7 @@ import { analytics } from '../../analytics/client';
 import {
     DownloadCsv,
     parseAnalyticsLimit,
+    QueryExecutionContext,
 } from '../../analytics/LightdashAnalytics';
 import { S3Service } from '../../clients/Aws/s3';
 import { schedulerClient } from '../../clients/clients';
@@ -326,6 +327,7 @@ export class CsvService {
             chart.projectUuid,
             exploreId,
             getSchedulerCsvLimit(options),
+            QueryExecutionContext.CSV,
         );
         const numberRows = rows.length;
 
@@ -577,6 +579,7 @@ export class CsvService {
                 projectUuid,
                 exploreId,
                 csvLimit,
+                QueryExecutionContext.CSV,
             );
             const numberRows = rows.length;
 

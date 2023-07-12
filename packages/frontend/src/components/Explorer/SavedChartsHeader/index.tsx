@@ -8,7 +8,17 @@ import {
 } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { subject } from '@casl/ability';
-import { IconDots, IconPencil } from '@tabler/icons-react';
+import {
+    IconCheck,
+    IconCirclePlus,
+    IconCopy,
+    IconDots,
+    IconFolders,
+    IconPencil,
+    IconSend,
+    IconSquarePlus,
+    IconTrash,
+} from '@tabler/icons-react';
 import { FC, useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
@@ -287,9 +297,11 @@ const SavedChartsHeader: FC = () => {
                                 <Menu>
                                     <MenuItem2
                                         icon={
-                                            hasUnsavedChanges
-                                                ? 'add'
-                                                : 'duplicate'
+                                            hasUnsavedChanges ? (
+                                                <IconCirclePlus />
+                                            ) : (
+                                                <IconCopy />
+                                            )
                                         }
                                         text={
                                             hasUnsavedChanges
@@ -308,14 +320,14 @@ const SavedChartsHeader: FC = () => {
                                         }}
                                     />
                                     <MenuItem2
-                                        icon="control"
+                                        icon={<IconSquarePlus />}
                                         text="Add to dashboard"
                                         onClick={() =>
                                             setIsAddToDashboardModalOpen(true)
                                         }
                                     />
                                     <MenuItem2
-                                        icon="folder-close"
+                                        icon={<IconFolders />}
                                         text="Move to space"
                                         onClick={(e) => {
                                             e.preventDefault();
@@ -331,9 +343,9 @@ const SavedChartsHeader: FC = () => {
                                                     key={spaceToMove.uuid}
                                                     text={spaceToMove.name}
                                                     icon={
-                                                        isDisabled
-                                                            ? 'small-tick'
-                                                            : undefined
+                                                        isDisabled ? (
+                                                            <IconCheck />
+                                                        ) : undefined
                                                     }
                                                     className={
                                                         isDisabled
@@ -341,20 +353,20 @@ const SavedChartsHeader: FC = () => {
                                                             : ''
                                                     }
                                                     onClick={(e) => {
-                                                        // Use className disabled instead of disabled property to capture and preventdefault its clicks
                                                         e.preventDefault();
                                                         e.stopPropagation();
                                                         if (
                                                             savedChart &&
                                                             savedChart.spaceUuid !==
                                                                 spaceToMove.uuid
-                                                        )
+                                                        ) {
                                                             moveChartToSpace({
                                                                 uuid: savedChart.uuid,
                                                                 name: savedChart.name,
                                                                 spaceUuid:
                                                                     spaceToMove.uuid,
                                                             });
+                                                        }
                                                     }}
                                                 />
                                             );
@@ -362,19 +374,18 @@ const SavedChartsHeader: FC = () => {
                                     </MenuItem2>
                                     {userCanManageCharts && (
                                         <MenuItem2
-                                            icon={'send-message'}
-                                            text={'Scheduled deliveries'}
-                                            onClick={() => {
+                                            icon={<IconSend />}
+                                            text="Scheduled deliveries"
+                                            onClick={() =>
                                                 toggleSchedulerDeliveriesModel(
                                                     true,
-                                                );
-                                            }}
+                                                )
+                                            }
                                         />
                                     )}
                                     <Divider />
-
                                     <MenuItem2
-                                        icon="cross"
+                                        icon={<IconTrash />}
                                         text="Delete"
                                         intent="danger"
                                         onClick={() =>
