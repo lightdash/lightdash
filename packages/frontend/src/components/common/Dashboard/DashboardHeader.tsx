@@ -5,7 +5,7 @@ import {
     IconCheck,
     IconCopy,
     IconDots,
-    IconFolder,
+    IconFolders,
     IconPencil,
     IconPlus,
     IconSend,
@@ -220,7 +220,7 @@ const DashboardHeader = ({
                                 />
 
                                 <MenuItem2
-                                    icon={<IconFolder />}
+                                    icon={<IconFolders />}
                                     text="Move to space"
                                     onClick={(e) => {
                                         e.preventDefault();
