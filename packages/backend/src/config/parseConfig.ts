@@ -153,6 +153,14 @@ export type RudderConfig = {
     dataPlaneUrl: string;
 };
 
+export type AuthAzureADConfig = {
+    oauth2ClientId: string | undefined;
+    oauth2ClientSecret: string | undefined;
+    oauth2TenantId: string | undefined;
+    loginPath: string;
+    callbackPath: string;
+}
+
 export type AuthGoogleConfig = {
     oauth2ClientId: string | undefined;
     oauth2ClientSecret: string | undefined;
@@ -183,6 +191,7 @@ export type AuthConfig = {
     google: AuthGoogleConfig;
     okta: AuthOktaConfig;
     oneLogin: AuthOneLoginConfig;
+    azuread: AuthAzureADConfig;
 };
 
 export type SmtpConfig = {
@@ -315,6 +324,13 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                 callbackPath: '/oauth/redirect/oneLogin',
                 loginPath: '/login/oneLogin',
             },
+            azuread: {
+                oauth2ClientId: process.env.AUTH_AZUREAD_OAUTH2_CLIENT_ID,
+                oauth2ClientSecret: process.env.AUTH_AZUREAD_OAUTH2_CLIENT_SECRET,
+                oauth2TenantId: process.env.AUTH_AZUREAD_OAUTH2_TENANT_ID,
+                callbackPath: '/oauth/redirect/azuread',
+                loginPath: '/login/azuread',
+            }
         },
         intercom: {
             appId: process.env.INTERCOM_APP_ID || 'zppxyjpp',

@@ -87,6 +87,11 @@ export class HealthService {
                     enabled:
                         !!this.lightdashConfig.auth.oneLogin.oauth2ClientId,
                 },
+                azuread: {
+                    loginPath: this.lightdashConfig.auth.azuread.loginPath,
+                    enabled:
+                        !!this.lightdashConfig.auth.azuread.oauth2ClientId,
+                }
             },
             hasEmailClient: !!this.lightdashConfig.smtp,
             hasHeadlessBrowser:

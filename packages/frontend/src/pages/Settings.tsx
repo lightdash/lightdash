@@ -104,7 +104,8 @@ const Settings: FC = () => {
     const hasSocialLogin =
         health.auth.google.oauth2ClientId ||
         health.auth.okta.enabled ||
-        health.auth.oneLogin.enabled;
+        health.auth.oneLogin.enabled ||
+        health.auth.azuread.enabled;
 
     return (
         <Page

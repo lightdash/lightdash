@@ -22,6 +22,10 @@ export const BaseResponse = {
             enabled: false,
             loginPath: '',
         },
+        azuread: {
+            enabled: false,
+            loginPath: '',
+        }
     },
     defaultProject: undefined,
     latest: { version: '0.2.7' },
