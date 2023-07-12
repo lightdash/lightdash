@@ -1,3 +1,10 @@
+# [0.665.0](https://github.com/lightdash/lightdash/compare/0.664.1...0.665.0) (2023-07-12)
+
+
+### Features
+
+* Update the icons in dashboard/chart context menus to 'Tabler' ones ([#6274](https://github.com/lightdash/lightdash/issues/6274)) ([de20279](https://github.com/lightdash/lightdash/commit/de20279b9fe97b6ca236c628a05cf7079b569f3e)), closes [#5966](https://github.com/lightdash/lightdash/issues/5966)
+
 ## [0.664.1](https://github.com/lightdash/lightdash/compare/0.664.0...0.664.1) (2023-07-12)
 
 
