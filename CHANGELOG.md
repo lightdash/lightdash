@@ -1,3 +1,10 @@
+## [0.665.1](https://github.com/lightdash/lightdash/compare/0.665.0...0.665.1) (2023-07-12)
+
+
+### Reverts
+
+* echarts show tooltip only on hovered lines/bars ([#6195](https://github.com/lightdash/lightdash/issues/6195)) ([#6280](https://github.com/lightdash/lightdash/issues/6280)) ([ec6c51f](https://github.com/lightdash/lightdash/commit/ec6c51fe88e8a610514bec69d80cbda9a186fba0))
+
 # [0.665.0](https://github.com/lightdash/lightdash/compare/0.664.1...0.665.0) (2023-07-12)
 
 
