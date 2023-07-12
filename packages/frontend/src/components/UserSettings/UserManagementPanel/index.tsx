@@ -167,7 +167,7 @@ const UserListItem: FC<{
                                     description,
                                     ...props
                                 }) => (
-                                    <Group {...props} spacing="xxs">
+                                    <Group {...props} spacing="two">
                                         <Text>{label}</Text>
                                         <Tooltip
                                             multiline
