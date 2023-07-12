@@ -1,5 +1,8 @@
-import { Button, Modal, Stack, TextInput } from '@mantine/core';
+import { Button, Flex, Modal, Stack, TextInput, Title } from '@mantine/core';
 import { useForm } from '@mantine/form';
+import { IconPencil } from '@tabler/icons-react';
+import React from 'react';
+import MantineIcon from '../../common/MantineIcon';
 
 interface TileUpdateModalProps {
     title: string;
@@ -28,11 +31,15 @@ const TileUpdateModal = ({
     });
     return (
         <Modal
-            size="lg"
             opened={isOpen}
             className="non-draggable"
             onClose={onClose}
-            title="Edit tile title"
+            title={
+                <Flex align="center" gap="xs">
+                    <MantineIcon icon={IconPencil} size="lg" color="blue.8" />
+                    <Title order={4}>Edit tile title</Title>
+                </Flex>
+            }
         >
             <form onSubmit={handleOnSubmit}>
                 <Stack spacing="md">
