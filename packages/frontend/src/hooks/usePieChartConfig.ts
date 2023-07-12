@@ -20,7 +20,6 @@ import mapValues from 'lodash-es/mapValues';
 import omitBy from 'lodash-es/omitBy';
 import pick from 'lodash-es/pick';
 import pickBy from 'lodash-es/pickBy';
-import uniq from 'lodash-es/uniq';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { isHexCodeColor } from '../utils/colorUtils';
 import { useOrganization } from './organization/useOrganization';
@@ -64,9 +63,17 @@ type PieChartConfig = {
         label: string,
         value: Partial<PieChartValueOptions>,
     ) => void;
+    groupSort: string[];
+    groupSortChange: (
+        label: string,
+        oldIndex: number,
+        newIndex: number,
+    ) => void;
 
     showLegend: boolean;
     toggleShowLegend: () => void;
+
+    data: [string, number][];
 };
 
 type PieChartConfigFn = (
@@ -84,7 +91,7 @@ const usePieChartConfig: PieChartConfigFn = (
     dimensions,
     allNumericMetrics,
 ) => {
-    const { data } = useOrganization();
+    const { data: org } = useOrganization();
 
     const [groupFieldIds, setGroupFieldIds] = useState(
         pieChartConfig?.groupFieldIds ?? [],
@@ -128,13 +135,17 @@ const usePieChartConfig: PieChartConfigFn = (
         pieChartConfig?.groupValueOptionOverrides ?? {},
     );
 
+    const [groupSortOverride, setGroupSortOverride] = useState(
+        pieChartConfig?.groupSortOverrides ?? [],
+    );
+
     const [showLegend, setShowLegend] = useState(
         pieChartConfig?.showLegend ?? true,
     );
 
     const defaultColors = useMemo(
-        () => data?.chartColors ?? ECHARTS_DEFAULT_COLORS,
-        [data],
+        () => org?.chartColors ?? ECHARTS_DEFAULT_COLORS,
+        [org],
     );
 
     const dimensionIds = useMemo(() => dimensions.map(fieldId), [dimensions]);
@@ -261,24 +272,38 @@ const usePieChartConfig: PieChartConfigFn = (
         [],
     );
 
-    const groupLabels = useMemo(() => {
+    const data = useMemo(() => {
         if (
+            !metricId ||
+            !selectedMetric ||
             !resultsData ||
-            !explore ||
+            resultsData.rows.length === 0 ||
             !groupFieldIds ||
             groupFieldIds.length === 0
         ) {
             return [];
         }
 
-        return uniq(
-            resultsData.rows.map((row) => {
-                return groupFieldIds
-                    .map((id) => row[id]?.value?.formatted)
+        return Object.entries(
+            resultsData.rows.reduce<Record<string, number>>((acc, row) => {
+                const key = groupFieldIds
+                    .map((groupFieldId) => row[groupFieldId].value.formatted)
                     .join(' - ');
-            }),
-        );
-    }, [resultsData, explore, groupFieldIds]);
+
+                const value = Number(row[metricId].value.raw);
+
+                if (key && value !== undefined) {
+                    acc[key] = (acc[key] ?? 0) + (isNaN(value) ? 0 : value);
+                }
+
+                return acc;
+            }, {}),
+        ).sort((a, b) => b[1] - a[1]);
+    }, [resultsData, groupFieldIds, selectedMetric, metricId]);
+
+    const groupLabels = useMemo(() => {
+        return data.map(([label]) => label);
+    }, [data]);
 
     const groupColorDefaults = useMemo(() => {
         return Object.fromEntries(
@@ -306,6 +331,22 @@ const usePieChartConfig: PieChartConfigFn = (
             (value) => value.showPercentage !== undefined,
         );
     }, [groupValueOptionOverrides]);
+
+    const groupSort = useMemo(() => {
+        return groupSortOverride.length === 0 ? groupLabels : groupSortOverride;
+    }, [groupSortOverride, groupLabels]);
+
+    const handleGroupSortChange = useCallback(
+        (label: string, oldIndex: number, newIndex: number) => {
+            setGroupSortOverride((prev) => {
+                const newSort = [...(prev.length === 0 ? groupLabels : prev)];
+                const [removed] = newSort.splice(oldIndex, 1);
+                newSort.splice(newIndex, 0, removed);
+                return newSort;
+            });
+        },
+        [groupLabels],
+    );
 
     const validPieChartConfig: PieChart = useMemo(
         () => ({
@@ -381,9 +422,13 @@ const usePieChartConfig: PieChartConfigFn = (
             groupColorChange: handleGroupColorChange,
             groupValueOptionOverrides,
             groupValueOptionChange: handleGroupValueOptionChange,
+            groupSort,
+            groupSortChange: handleGroupSortChange,
 
             showLegend,
             toggleShowLegend: () => setShowLegend((prev) => !prev),
+
+            data,
         }),
         [
             validPieChartConfig,
@@ -419,8 +464,12 @@ const usePieChartConfig: PieChartConfigFn = (
             handleGroupColorChange,
             groupValueOptionOverrides,
             handleGroupValueOptionChange,
+            groupSort,
+            handleGroupSortChange,
 
             showLegend,
+
+            data,
         ],
     );
 
