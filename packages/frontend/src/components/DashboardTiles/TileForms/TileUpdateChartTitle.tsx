@@ -44,7 +44,6 @@ const TileUpdateModal = ({
             <form onSubmit={handleOnSubmit}>
                 <Stack spacing="md">
                     <TextInput
-                        required
                         label="Tile title"
                         placeholder={placeholder}
                         {...form.getInputProps('title')}
