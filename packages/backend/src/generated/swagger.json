@@ -4402,7 +4402,7 @@
         },
         "/api/v1/org/user": {
             "post": {
-                "operationId": "ListOrganizationMembers",
+                "operationId": "GetOrganizationMember",
                 "responses": {
                     "200": {
                         "description": "Ok",
