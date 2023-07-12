@@ -138,7 +138,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                                             text={
                                                                 tile.type ===
                                                                 DashboardTileTypes.SAVED_CHART
-                                                                    ? 'Replace chart in tile'
+                                                                    ? 'Replace chart'
                                                                     : 'Edit tile content'
                                                             }
                                                             onClick={() =>
