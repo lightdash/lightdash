@@ -10,10 +10,8 @@ import React, { FC } from 'react';
 import { readableColor } from '../../../../utils/colorUtils';
 import { getConditionalRuleLabel } from '../../Filters/configs';
 import BodyCell from '../BodyCell';
-import { Tr } from '../Table.styles';
+import { ROW_HEIGHT_PX, Tr } from '../Table.styles';
 import { TableContext, useTableContext } from '../TableProvider';
-
-const ROW_HEIGHT_PX = 30;
 
 const VirtualizedArea: FC<{ cellCount: number; padding: number }> = ({
     cellCount,

@@ -5,6 +5,9 @@ import styled, { css } from 'styled-components';
 // This color is is the default Mantine gray[0]
 export const TABLE_HEADER_BG = '#f8f9fa';
 
+// Needed for virtualization. Matches value from Pivot table.
+export const ROW_HEIGHT_PX = 34;
+
 export const TableScrollableWrapper = styled.div`
     display: flex;
     flex-direction: column;
@@ -153,6 +156,7 @@ export const Td = styled.td<{
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    height: ${ROW_HEIGHT_PX}px;
 
     ${({ $isLargeText, $isSelected, $isMinimal }) =>
         $isLargeText
