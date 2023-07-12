@@ -200,7 +200,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                             tile={tile}
                             onClose={() => setIsReplacingChart(false)}
                             onConfirm={(newChartTile) => {
-                                onEdit(newChartTile);
+                                onEdit(newChartTile as T);
                                 setIsReplacingChart(false);
                             }}
                         />
