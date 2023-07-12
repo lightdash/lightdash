@@ -16,6 +16,7 @@ export const TableScrollableWrapper = styled.div`
 
 interface TableContainerProps {
     $shouldExpand?: boolean;
+    $padding?: number;
 }
 
 export const TableContainer = styled.div<TableContainerProps>`
@@ -23,6 +24,7 @@ export const TableContainer = styled.div<TableContainerProps>`
     flex-direction: column;
     min-width: 100%;
     overflow: hidden;
+    padding: ${({ $padding = 0 }) => `${$padding}px`};
 
     ${({ $shouldExpand }) =>
         $shouldExpand
