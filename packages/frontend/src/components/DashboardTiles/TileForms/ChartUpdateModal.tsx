@@ -12,7 +12,6 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconChartAreaLine } from '@tabler/icons-react';
-import produce from 'immer';
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import { useChartSummaries } from '../../../hooks/useChartSummaries';
@@ -23,7 +22,7 @@ interface ChartUpdateModalProps extends ModalProps {
     title: string;
     placeholder: string;
     onClose: () => void;
-    onConfirm?: (tile: DashboardChartTile) => void;
+    onConfirm?: (newTitle: string, newChartUuid: string) => void;
 }
 
 const ChartUpdateModal = ({
@@ -46,13 +45,15 @@ const ChartUpdateModal = ({
     const handleConfirm = form.onSubmit(
         ({ title: newTitle, uuid: newChartUuid }) => {
             onConfirm?.(
-                produce(tile, (draft) => {
-                    draft.properties = {
-                        ...draft.properties,
-                        title: newTitle,
-                        savedChartUuid: newChartUuid,
-                    };
-                }),
+                newTitle,
+                newChartUuid,
+                // produce(tile, (draft) => {
+                //     draft.properties = {
+                //         ...draft.properties,
+                //         title: newTitle,
+                //         savedChartUuid: newChartUuid,
+                //     };
+                // }),
             );
         },
     );
