@@ -10,6 +10,7 @@ import { Dashboard, DashboardTileTypes } from '@lightdash/common';
 import { Tooltip } from '@mantine/core';
 import { useHover, useToggle } from '@mantine/hooks';
 import React, { ReactNode, useState } from 'react';
+import ChartUpdateModal from '../TileForms/ChartUpdateModal';
 import TileUpdateChartTitle from '../TileForms/TileUpdateChartTitle';
 import TileUpdateModal from '../TileForms/TileUpdateModal';
 import {
@@ -128,8 +129,18 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                                             }
                                                         />
                                                         <MenuItem2
-                                                            icon="exchange"
-                                                            text="Replace chart in tile"
+                                                            icon={
+                                                                tile.type ===
+                                                                DashboardTileTypes.SAVED_CHART
+                                                                    ? 'exchange'
+                                                                    : 'edit'
+                                                            }
+                                                            text={
+                                                                tile.type ===
+                                                                DashboardTileTypes.SAVED_CHART
+                                                                    ? 'Replace chart'
+                                                                    : 'Edit tile content'
+                                                            }
                                                             onClick={() =>
                                                                 setIsReplacingChart(
                                                                     true,
@@ -192,24 +203,29 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     <ChartContainer className="non-draggable sentry-block fs-block cohere-block">
                         {children}
                     </ChartContainer>
-
-                    <TileUpdateModal
-                        className="non-draggable"
-                        isOpen={isReplacingChart}
-                        tile={tile}
-                        onClose={() => setIsReplacingChart(false)}
-                        onConfirm={(data) => {
-                            onEdit({
-                                ...data,
-                                properties: {
-                                    ...data.properties,
-                                    title: undefined,
-                                },
-                            });
-                            setIsReplacingChart(false);
-                        }}
-                    />
-
+                    {tile.type === DashboardTileTypes.SAVED_CHART ? (
+                        <ChartUpdateModal
+                            className="non-draggable"
+                            opened={isReplacingChart}
+                            tile={tile}
+                            onClose={() => setIsReplacingChart(false)}
+                            onConfirm={(newChartTile) => {
+                                onEdit(newChartTile as T);
+                                setIsReplacingChart(false);
+                            }}
+                        />
+                    ) : (
+                        <TileUpdateModal
+                            className="non-draggable"
+                            isOpen={isReplacingChart}
+                            tile={tile}
+                            onClose={() => setIsReplacingChart(false)}
+                            onConfirm={(newTile) => {
+                                onEdit(newTile);
+                                setIsReplacingChart(false);
+                            }}
+                        />
+                    )}
                     <TileUpdateChartTitle
                         isOpen={isEditingTitle}
                         placeholder={chartName || ''}
