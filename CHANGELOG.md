@@ -1,3 +1,10 @@
+## [0.667.2](https://github.com/lightdash/lightdash/compare/0.667.1...0.667.2) (2023-07-13)
+
+
+### Bug Fixes
+
+*  title change tile ([#6291](https://github.com/lightdash/lightdash/issues/6291)) ([71797f8](https://github.com/lightdash/lightdash/commit/71797f867d0501a850e336b0a1cfadac43054524)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+
 ## [0.667.1](https://github.com/lightdash/lightdash/compare/0.667.0...0.667.1) (2023-07-13)
 
 
