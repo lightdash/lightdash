@@ -7,6 +7,7 @@ import {
     ModalProps,
     Select,
     Stack,
+    TextInput,
     Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
@@ -15,37 +16,46 @@ import produce from 'immer';
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import { useChartSummaries } from '../../../hooks/useChartSummaries';
-import { useDashboardContext } from '../../../providers/DashboardProvider';
 import MantineIcon from '../../common/MantineIcon';
 
 interface ChartUpdateModalProps extends ModalProps {
     tile: DashboardChartTile;
+    title: string;
+    placeholder: string;
     onClose: () => void;
     onConfirm?: (tile: DashboardChartTile) => void;
 }
 
 const ChartUpdateModal = ({
     tile,
+    title,
+    placeholder,
     onClose,
     onConfirm,
     ...modalProps
 }: ChartUpdateModalProps) => {
     const form = useForm({
         initialValues: {
-            uuid: tile.properties.savedChartUuid,
+            uuid: '',
+            title,
         },
     });
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: savedCharts, isLoading } = useChartSummaries(projectUuid);
-    const { dashboard } = useDashboardContext();
 
-    const handleConfirm = form.onSubmit(async ({ uuid }) => {
-        onConfirm?.(
-            produce(tile, (draft) => {
-                draft.properties.savedChartUuid = uuid;
-            }),
-        );
-    });
+    const handleConfirm = form.onSubmit(
+        ({ title: newTitle, uuid: newChartUuid }) => {
+            onConfirm?.(
+                produce(tile, (draft) => {
+                    draft.properties = {
+                        ...draft.properties,
+                        title: newTitle,
+                        savedChartUuid: newChartUuid,
+                    };
+                }),
+            );
+        },
+    );
 
     const handleClose = () => {
         form.reset();
@@ -66,10 +76,16 @@ const ChartUpdateModal = ({
                 </Flex>
             }
             withCloseButton
+            className="non-draggable"
             {...modalProps}
         >
-            <Stack spacing="md">
-                <form onSubmit={handleConfirm} name="Edit tile content">
+            <form onSubmit={handleConfirm} name="Edit tile content">
+                <Stack spacing="md">
+                    <TextInput
+                        label="Title"
+                        placeholder={placeholder}
+                        {...form.getInputProps('title')}
+                    />
                     <Select
                         styles={(theme) => ({
                             separator: {
@@ -84,7 +100,7 @@ const ChartUpdateModal = ({
                         })}
                         id="savedChartUuid"
                         name="savedChartUuid"
-                        label="Select a saved chart"
+                        label="Select chart"
                         data={(savedCharts || []).map(
                             ({ uuid, name, spaceName }) => {
                                 return {
@@ -95,15 +111,10 @@ const ChartUpdateModal = ({
                             },
                         )}
                         disabled={isLoading}
-                        defaultValue={
-                            savedCharts?.find(
-                                (chart) =>
-                                    chart.spaceUuid === dashboard?.spaceUuid,
-                            )?.uuid
-                        }
-                        required
                         withinPortal
                         {...form.getInputProps('uuid')}
+                        searchable
+                        placeholder="Search..."
                     />
                     <Group spacing="xs" position="right" mt="md">
                         <Button
@@ -114,10 +125,10 @@ const ChartUpdateModal = ({
                         >
                             Cancel
                         </Button>
-                        <Button type="submit">Replace</Button>
+                        <Button type="submit">Update</Button>
                     </Group>
-                </form>
-            </Stack>
+                </Stack>
+            </form>
         </Modal>
     );
 };

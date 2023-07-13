@@ -208,9 +208,10 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     </ChartContainer>
                     {tile.type === DashboardTileTypes.SAVED_CHART ? (
                         <ChartUpdateModal
-                            className="non-draggable"
                             opened={isReplacingChart}
                             tile={tile}
+                            placeholder={chartName || ''}
+                            title={title}
                             onClose={() => setIsReplacingChart(false)}
                             onConfirm={(newChartTile) => {
                                 onEdit({
