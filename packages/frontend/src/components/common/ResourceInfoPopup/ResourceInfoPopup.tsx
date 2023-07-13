@@ -28,7 +28,7 @@ export const ResourceInfoPopup: FC<Props> = ({
             <HoverCard.Target>
                 <MantineIcon icon={IconInfoCircle} color="gray.6" />
             </HoverCard.Target>
-            <HoverCard.Dropdown maw={300} onClick={(e) => e.preventDefault()}>
+            <HoverCard.Dropdown maw={300}>
                 <div>
                     {description && (
                         <>
