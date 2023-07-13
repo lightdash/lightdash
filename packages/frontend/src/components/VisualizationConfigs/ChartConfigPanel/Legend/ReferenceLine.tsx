@@ -18,12 +18,12 @@ import debounce from 'lodash/debounce';
 import moment from 'moment';
 import { FC, useCallback, useMemo, useState } from 'react';
 
-import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
-import MonthAndYearInput from '../../common/MonthAndYearInput';
-import { ReferenceLineField } from '../../common/ReferenceLine';
-import WeekPicker from '../../common/WeekPicker';
-import YearInput from '../../common/YearInput';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import FieldAutoComplete from '../../../common/Filters/FieldAutoComplete';
+import MonthAndYearInput from '../../../common/MonthAndYearInput';
+import { ReferenceLineField } from '../../../common/ReferenceLine';
+import WeekPicker from '../../../common/WeekPicker';
+import YearInput from '../../../common/YearInput';
+import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import SeriesColorPicker from '../Series/SeriesColorPicker';
 import { SectionTitle } from './Legend.styles';
 import {

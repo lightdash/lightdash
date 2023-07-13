@@ -18,9 +18,9 @@ import {
 import { Box } from '@mantine/core';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import { useState } from 'react';
+import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
+import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import { InputWrapper } from '../ChartConfigPanel/ChartConfigPanel.styles';
-import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
-import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
 
 const StyleOptions = [
     { value: '', label: 'none' },

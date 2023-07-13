@@ -5,7 +5,7 @@ import { FC } from 'react';
 import { BlockPicker, ColorResult } from 'react-color';
 import { useToggle } from 'react-use';
 
-import { useOrganization } from '../../../hooks/organization/useOrganization';
+import { useOrganization } from '../../../../hooks/organization/useOrganization';
 import { ColorButton, ColorButtonInner } from './Series.styles';
 
 type Props = {

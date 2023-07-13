@@ -16,9 +16,9 @@ import {
     DropResult,
 } from 'react-beautiful-dnd';
 import { createPortal } from 'react-dom';
-import { getSeriesGroupedByField } from '../../../hooks/cartesianChartConfig/utils';
-import { useOrganization } from '../../../hooks/organization/useOrganization';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import { getSeriesGroupedByField } from '../../../../hooks/cartesianChartConfig/utils';
+import { useOrganization } from '../../../../hooks/organization/useOrganization';
+import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import BasicSeriesConfiguration from './BasicSeriesConfiguration';
 import GroupedSeriesConfiguration from './GroupedSeriesConfiguration';
 import InvalidSeriesConfiguration from './InvalidSeriesConfiguration';

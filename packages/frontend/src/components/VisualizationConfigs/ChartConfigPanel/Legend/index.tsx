@@ -10,11 +10,11 @@ import startCase from 'lodash-es/startCase';
 import React, { FC } from 'react';
 import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
-import Checkbox from '../../ReactHookForm/Checkbox';
-import Form from '../../ReactHookForm/Form';
-import Select from '../../ReactHookForm/Select';
-import UnitInput from '../../ReactHookForm/UnitInput';
+import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
+import Checkbox from '../../../ReactHookForm/Checkbox';
+import Form from '../../../ReactHookForm/Form';
+import Select from '../../../ReactHookForm/Select';
+import UnitInput from '../../../ReactHookForm/UnitInput';
 import { SectionRow, SectionTitle } from './Legend.styles';
 import { ReferenceLines } from './ReferenceLines';
 
