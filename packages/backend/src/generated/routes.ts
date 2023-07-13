@@ -3964,52 +3964,6 @@ export function RegisterRoutes(app: express.Router) {
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.get(
-        '/api/v1/org/users/emails/:email',
-        ...fetchMiddlewares<RequestHandler>(OrganizationController),
-        ...fetchMiddlewares<RequestHandler>(
-            OrganizationController.prototype.getOrganizationMemberByEmail,
-        ),
-
-        function OrganizationController_getOrganizationMemberByEmail(
-            request: any,
-            response: any,
-            next: any,
-        ) {
-            const args = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                email: {
-                    in: 'path',
-                    name: 'email',
-                    required: true,
-                    dataType: 'string',
-                },
-            };
-
-            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-
-            let validatedArgs: any[] = [];
-            try {
-                validatedArgs = getValidatedArgs(args, request, response);
-
-                const controller = new OrganizationController();
-
-                const promise = controller.getOrganizationMemberByEmail.apply(
-                    controller,
-                    validatedArgs as any,
-                );
-                promiseHandler(controller, promise, response, undefined, next);
-            } catch (err) {
-                return next(err);
-            }
-        },
-    );
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    app.get(
         '/api/v1/org/users/:userUuid',
         ...fetchMiddlewares<RequestHandler>(OrganizationController),
         ...fetchMiddlewares<RequestHandler>(

@@ -4395,46 +4395,6 @@
                 "parameters": []
             }
         },
-        "/api/v1/org/users/emails/{email}": {
-            "get": {
-                "operationId": "GetOrganizationMemberByEmail",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiOrganizationMemberProfile"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Get the member profile for a user in the current user's organization by email",
-                "tags": ["Organizations"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "email",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
-            }
-        },
         "/api/v1/org/users/{userUuid}": {
             "get": {
                 "operationId": "GetOrganizationMemberByUuid",
