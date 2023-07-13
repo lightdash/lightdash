@@ -1,6 +1,5 @@
 import { Anchor, List, Text } from '@mantine/core';
 import { FC } from 'react';
-import { Link } from 'react-router-dom';
 import { useDashboardsContainingChart } from '../../../hooks/dashboard/useDashboards';
 
 type Props = {
@@ -25,8 +24,8 @@ export const DashboardList: FC<Props> = ({ resourceItemId, projectUuid }) => {
                     {relatedDashboards.map(({ uuid, name }) => (
                         <List.Item key={uuid}>
                             <Anchor
-                                component={Link}
-                                to={`/projects/${projectUuid}/dashboards/${uuid}/view`}
+                                href={`${window.location.origin}/projects/${projectUuid}/dashboards/${uuid}/view/`}
+                                target="_blank"
                             >
                                 {name}
                             </Anchor>
