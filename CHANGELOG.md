@@ -1,3 +1,10 @@
+## [0.667.1](https://github.com/lightdash/lightdash/compare/0.667.0...0.667.1) (2023-07-13)
+
+
+### Bug Fixes
+
+* make dashboard link to open in new tab for saved charts ([#6214](https://github.com/lightdash/lightdash/issues/6214)) ([b34a730](https://github.com/lightdash/lightdash/commit/b34a730d1f79536250d339814407397b93bc82ae))
+
 # [0.667.0](https://github.com/lightdash/lightdash/compare/0.666.0...0.667.0) (2023-07-13)
 
 
