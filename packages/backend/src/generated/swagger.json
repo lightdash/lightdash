@@ -483,6 +483,12 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "UUID": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Stringified UUIDv4.\nSee [RFC 4112](https://tools.ietf.org/html/rfc4122)",
+                "pattern": "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}"
+            },
             "OrganizationMemberProfileUpdate": {
                 "properties": {
                     "role": {
@@ -1892,7 +1898,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate_": {
+            "Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -1906,6 +1912,15 @@
                     "projectUuid": {
                         "type": "string"
                     },
+                    "pinnedListUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "pinnedListOrder": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
                     "isPrivate": {
                         "type": "boolean"
                     }
@@ -1915,6 +1930,8 @@
                     "organizationUuid",
                     "uuid",
                     "projectUuid",
+                    "pinnedListUuid",
+                    "pinnedListOrder",
                     "isPrivate"
                 ],
                 "type": "object",
@@ -1923,10 +1940,18 @@
             "SpaceSummary": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate_"
+                        "$ref": "#/components/schemas/Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder_"
                     },
                     {
                         "properties": {
+                            "dashboardCount": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "chartCount": {
+                                "type": "number",
+                                "format": "double"
+                            },
                             "access": {
                                 "items": {
                                     "type": "string"
@@ -1934,7 +1959,7 @@
                                 "type": "array"
                             }
                         },
-                        "required": ["access"],
+                        "required": ["dashboardCount", "chartCount", "access"],
                         "type": "object"
                     }
                 ]
@@ -3676,7 +3701,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.651.2",
+        "version": "0.661.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -4371,6 +4396,45 @@
             }
         },
         "/api/v1/org/users/{userUuid}": {
+            "get": {
+                "operationId": "GetOrganizationMemberByUuid",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationMemberProfile"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the member profile for a user in the current user's organization by uuid",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the uuid of the user",
+                        "in": "path",
+                        "name": "userUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
             "patch": {
                 "operationId": "UpdateOrganizationMember",
                 "responses": {

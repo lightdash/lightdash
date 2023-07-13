@@ -243,6 +243,33 @@ export class OrganizationService {
         });
     }
 
+    async getMemberByUuid(
+        user: SessionUser,
+        memberUuid: string,
+    ): Promise<OrganizationMemberProfile> {
+        const { organizationUuid } = user;
+        if (
+            organizationUuid === undefined ||
+            user.ability.cannot('view', 'OrganizationMemberProfile')
+        ) {
+            throw new ForbiddenError();
+        }
+        const member =
+            await this.organizationMemberProfileModel.getOrganizationMemberByUuid(
+                organizationUuid,
+                memberUuid,
+            );
+        if (
+            user.ability.cannot(
+                'view',
+                subject('OrganizationMemberProfile', member),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        return member;
+    }
+
     async updateMember(
         authenticatedUser: SessionUser,
         memberUserUuid: string,
