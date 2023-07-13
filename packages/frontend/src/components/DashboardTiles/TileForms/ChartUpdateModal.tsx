@@ -44,17 +44,7 @@ const ChartUpdateModal = ({
 
     const handleConfirm = form.onSubmit(
         ({ title: newTitle, uuid: newChartUuid }) => {
-            onConfirm?.(
-                newTitle,
-                newChartUuid,
-                // produce(tile, (draft) => {
-                //     draft.properties = {
-                //         ...draft.properties,
-                //         title: newTitle,
-                //         savedChartUuid: newChartUuid,
-                //     };
-                // }),
-            );
+            onConfirm?.(newTitle, newChartUuid);
         },
     );
 
