@@ -373,7 +373,6 @@ const PieChartSeriesConfig: FC = () => {
                                             draggableSnapshot,
                                         ) => (
                                             <GroupItem
-                                                key={groupLabel}
                                                 ref={draggableProvided.innerRef}
                                                 {...draggableProvided.draggableProps}
                                                 style={
