@@ -1,3 +1,11 @@
+## [0.667.3](https://github.com/lightdash/lightdash/compare/0.667.2...0.667.3) (2023-07-13)
+
+
+### Bug Fixes
+
+* filter empty chart title ([#6303](https://github.com/lightdash/lightdash/issues/6303)) ([e3bd732](https://github.com/lightdash/lightdash/commit/e3bd732b34f10797c656d06cb87682bfc51089ab)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+* remove edit title option for markdown and loom ([#6304](https://github.com/lightdash/lightdash/issues/6304)) ([380d656](https://github.com/lightdash/lightdash/commit/380d656e845bb27212eaaf5b4d0b235befa1c1ff))
+
 ## [0.667.2](https://github.com/lightdash/lightdash/compare/0.667.1...0.667.2) (2023-07-13)
 
 
