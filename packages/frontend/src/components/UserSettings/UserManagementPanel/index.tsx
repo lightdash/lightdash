@@ -1,4 +1,5 @@
 import {
+    getRoleDescription,
     OrganizationMemberProfile,
     OrganizationMemberRole,
 } from '@lightdash/common';
@@ -20,6 +21,7 @@ import {
 import {
     IconAlertCircle,
     IconCircleX,
+    IconHelp,
     IconInfoCircle,
 } from '@tabler/icons-react';
 import { capitalize } from 'lodash-es';
@@ -149,6 +151,8 @@ const UserListItem: FC<{
                                         label: capitalize(
                                             orgMemberRole.replace('_', ' '),
                                         ),
+                                        description:
+                                            getRoleDescription(orgMemberRole),
                                     }),
                                 )}
                                 onChange={(newRole: string) => {
@@ -158,6 +162,27 @@ const UserListItem: FC<{
                                 }}
                                 value={role}
                                 w={200}
+                                itemComponent={({
+                                    label,
+                                    description,
+                                    ...props
+                                }) => (
+                                    <Group {...props} spacing="two">
+                                        <Text>{label}</Text>
+                                        <Tooltip
+                                            multiline
+                                            label={description}
+                                            sx={{
+                                                wordBreak: 'break-word',
+                                            }}
+                                        >
+                                            <MantineIcon
+                                                icon={IconHelp}
+                                                color="gray.6"
+                                            />
+                                        </Tooltip>
+                                    </Group>
+                                )}
                             />
                         </td>
                         <td>
