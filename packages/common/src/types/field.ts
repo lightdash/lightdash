@@ -145,7 +145,7 @@ export const isField = (field: any): field is Field =>
 // Field ids are unique across the project
 export type FieldId = string;
 export const fieldId = (field: Pick<Field, 'table' | 'name'>): FieldId =>
-    `${field.table}_${field.name}`;
+    `${field.table}_${field.name.replaceAll('.', '__')}`;
 
 export const convertFieldRefToFieldId = (
     fieldRef: string,
