@@ -1,3 +1,10 @@
+## [0.667.4](https://github.com/lightdash/lightdash/compare/0.667.3...0.667.4) (2023-07-13)
+
+
+### Bug Fixes
+
+* explore dbt errors for all versions ([#6286](https://github.com/lightdash/lightdash/issues/6286)) ([d593d38](https://github.com/lightdash/lightdash/commit/d593d3863b33f20ec01ec86d0257890f07302756))
+
 ## [0.667.3](https://github.com/lightdash/lightdash/compare/0.667.2...0.667.3) (2023-07-13)
 
 
