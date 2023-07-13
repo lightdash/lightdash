@@ -67,6 +67,15 @@ type DbtCliArgs = {
     target?: string;
 };
 
+enum DbtCommands {
+    DBT_1_4 = 'dbt',
+    DBT_1_5 = 'dbt1.5',
+}
+const DbtCommandVersion = {
+    [DbtCommands.DBT_1_4]: '1.4.*',
+    [DbtCommands.DBT_1_5]: '1.5.*',
+};
+
 export class DbtCliClient implements DbtClient {
     dbtProjectDirectory: string;
 
@@ -122,7 +131,8 @@ export class DbtCliClient implements DbtClient {
     private async _runDbtVersionCommand(
         ...command: string[]
     ): Promise<{ version: DbtManifestVersion; logs: DbtLog[] }> {
-        const dbtExecs = ['dbt', 'dbt1.5'];
+        const dbtExecs = Object.values(DbtCommands);
+        const errorLogs: Partial<Record<DbtCommands, DbtLog[]>> = {};
 
         // eslint-disable-next-line no-restricted-syntax
         for await (const dbtExec of dbtExecs) {
@@ -140,15 +150,49 @@ export class DbtCliClient implements DbtClient {
                             : DbtManifestVersion.V8,
                     logs: await this._runDbtCommand(dbtExec, ...command),
                 };
-            } catch (e) {
+            } catch (e: unknown) {
                 Sentry.captureException(e, { extra: { dbtExec } });
                 Logger.warn(
                     `Error running ${dbtExec} command "${command.join(
                         ' ',
                     )}": ${e}`,
                 );
+
+                if (!(e instanceof DbtError)) throw e;
+                errorLogs[dbtExec] = e.logs || [];
                 if (dbtExecs[dbtExecs.length - 1] === dbtExec) {
-                    throw e; // Throw last error
+                    throw new DbtError(
+                        `We failed to run "dbt ${command.join(
+                            ' ',
+                        )}" successfully across all versions of dbt that Lightdash currently supports. You can see specific errors below for each dbt version we tried to use.`,
+                        Object.entries(errorLogs).reduce<DbtLog[]>(
+                            (acc, [key, logs]) => {
+                                const versionLog: DbtLog = {
+                                    code: '',
+                                    info: {
+                                        category: '',
+                                        code: '',
+                                        extra: {},
+                                        invocation_id: '',
+                                        level: 'error',
+                                        log_version: 2,
+                                        msg: `[dbt ${
+                                            DbtCommandVersion[
+                                                key as DbtCommands
+                                            ]
+                                        }]`,
+                                        name: '',
+                                        pid: 0,
+                                        thread_name: '',
+                                        ts: '',
+                                        type: 'log_line',
+                                    },
+                                };
+                                return [...acc, versionLog, ...logs];
+                            },
+                            [],
+                        ),
+                    );
                 }
             }
         }

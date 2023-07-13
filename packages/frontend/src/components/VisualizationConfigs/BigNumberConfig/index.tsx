@@ -2,20 +2,22 @@ import { Popover2 } from '@blueprintjs/popover2';
 import { Button } from '@mantine/core';
 import { IconChevronDown } from '@tabler/icons-react';
 import React from 'react';
-import useEcharts from '../../hooks/echarts/useEcharts';
-import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../common/CollapsableCard';
-import MantineIcon from '../common/MantineIcon';
-import ChartConfigTabs from './ChartConfigTabs';
+import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../../common/CollapsableCard';
+import MantineIcon from '../../common/MantineIcon';
+import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import BigNumberConfigTabs from './BigNumberConfigTabs';
 
-const ChartConfigPanel: React.FC = () => {
-    const eChartsOptions = useEcharts();
-    const disabled = !eChartsOptions;
+const BigNumberConfigPanel: React.FC = () => {
+    const {
+        bigNumberConfig: { selectedField },
+    } = useVisualizationContext();
+    const disabled = !selectedField;
 
     return (
         <Popover2
             disabled={disabled}
             position="bottom"
-            content={<ChartConfigTabs />}
+            content={<BigNumberConfigTabs />}
         >
             <Button
                 {...COLLAPSABLE_CARD_BUTTON_PROPS}
@@ -28,4 +30,4 @@ const ChartConfigPanel: React.FC = () => {
     );
 };
 
-export default ChartConfigPanel;
+export default BigNumberConfigPanel;

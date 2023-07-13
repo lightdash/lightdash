@@ -11,9 +11,9 @@ import {
 } from '@lightdash/common';
 import produce from 'immer';
 import React, { FC, useMemo, useState } from 'react';
+import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
+import { FiltersProvider } from '../../common/Filters/FiltersProvider';
 import SeriesColorPicker from '../ChartConfigPanel/Series/SeriesColorPicker';
-import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
-import { FiltersProvider } from '../common/Filters/FiltersProvider';
 import {
     ConditionalFormattingConfigWrapper,
     ConditionalFormattingGroupHeader,

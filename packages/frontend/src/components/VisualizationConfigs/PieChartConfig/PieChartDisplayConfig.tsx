@@ -1,6 +1,6 @@
 import { Stack, Switch } from '@mantine/core';
 import React from 'react';
-import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
 const PieChartDisplayConfig: React.FC = () => {
     const {
