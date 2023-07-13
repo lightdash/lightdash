@@ -65,7 +65,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
         );
     } else if (pivotTableData.loading || pivotTableData.data) {
         return (
-            <Box p="xs" miw="100%" h="100%">
+            <Box p="xs" pb="xl" miw="100%" h="100%">
                 <Box
                     ref={scrollableContainerRef}
                     miw="inherit"
@@ -91,7 +91,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
     }
 
     return (
-        <Box p="xs" miw="100%" h="100%">
+        <Box p="xs" pb="md" miw="100%" h="100%">
             <Table
                 minimal={minimal}
                 $shouldExpand={$shouldExpand}
