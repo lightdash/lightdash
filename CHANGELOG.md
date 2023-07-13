@@ -1,3 +1,10 @@
+# [0.668.0](https://github.com/lightdash/lightdash/compare/0.667.4...0.668.0) (2023-07-13)
+
+
+### Features
+
+* api to get organization members ([#6288](https://github.com/lightdash/lightdash/issues/6288)) ([b02d52c](https://github.com/lightdash/lightdash/commit/b02d52c8d88261069e90a8a9e791fe15175f40cf))
+
 ## [0.667.4](https://github.com/lightdash/lightdash/compare/0.667.3...0.667.4) (2023-07-13)
 
 
