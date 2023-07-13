@@ -270,33 +270,6 @@ export class OrganizationService {
         return member;
     }
 
-    async getMemberByPrimaryEmail(
-        user: SessionUser,
-        email: string,
-    ): Promise<OrganizationMemberProfile> {
-        const { organizationUuid } = user;
-        if (
-            organizationUuid === undefined ||
-            user.ability.cannot('view', 'OrganizationMemberProfile')
-        ) {
-            throw new ForbiddenError();
-        }
-        const member =
-            await this.organizationMemberProfileModel.getOrganizationMemberByPrimaryEmail(
-                organizationUuid,
-                email,
-            );
-        if (
-            user.ability.cannot(
-                'view',
-                subject('OrganizationMemberProfile', member),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-        return member;
-    }
-
     async updateMember(
         authenticatedUser: SessionUser,
         memberUserUuid: string,

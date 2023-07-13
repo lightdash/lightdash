@@ -103,21 +103,6 @@ export class OrganizationMemberProfileModel {
         return member && OrganizationMemberProfileModel.parseRow(member);
     }
 
-    async findOrganizationMemberByEmail(
-        organizationUuid: string,
-        email: string,
-    ): Promise<OrganizationMemberProfile | undefined> {
-        const [member] = await this.queryBuilder()
-            .where(`${EmailTableName}.email`, email)
-            .andWhere(
-                `${OrganizationTableName}.organization_uuid`,
-                organizationUuid,
-            )
-            .select<DbOrganizationMemberProfile[]>(SelectColumns);
-
-        return member && OrganizationMemberProfileModel.parseRow(member);
-    }
-
     async getOrganizationMembers(
         organizationUuid: string,
     ): Promise<OrganizationMemberProfile[]> {
@@ -158,20 +143,6 @@ export class OrganizationMemberProfileModel {
         const member = await this.findOrganizationMember(
             organizationUuid,
             userUuid,
-        );
-        if (!member) {
-            throw new NotFoundError('No matching member found in organization');
-        }
-        return member;
-    }
-
-    async getOrganizationMemberByPrimaryEmail(
-        organizationUuid: string,
-        email: string,
-    ): Promise<OrganizationMemberProfile> {
-        const member = await this.findOrganizationMemberByEmail(
-            organizationUuid,
-            email,
         );
         if (!member) {
             throw new NotFoundError('No matching member found in organization');

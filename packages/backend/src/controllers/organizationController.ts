@@ -176,28 +176,6 @@ export class OrganizationController extends Controller {
     }
 
     /**
-     * Get the member profile for a user in the current user's organization by email
-     * @param req express request
-     * @param primary email of the user
-     */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @Get('/users/emails/{email}')
-    @OperationId('GetOrganizationMemberByEmail')
-    async getOrganizationMemberByEmail(
-        @Request() req: express.Request,
-        @Path() email: string,
-    ): Promise<ApiOrganizationMemberProfile> {
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await organizationService.getMemberByPrimaryEmail(
-                req.user!,
-                email,
-            ),
-        };
-    }
-
-    /**
      * Get the member profile for a user in the current user's organization by uuid
      * @param req express request
      * @param userUuid the uuid of the user
