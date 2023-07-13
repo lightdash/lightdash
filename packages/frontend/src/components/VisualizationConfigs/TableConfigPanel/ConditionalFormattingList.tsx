@@ -9,7 +9,7 @@ import {
 } from '@lightdash/common';
 import produce from 'immer';
 import { useCallback, useMemo, useState } from 'react';
-import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import ConditionalFormatting from './ConditionalFormatting';
 import { ConditionalFormattingListWrapper } from './ConditionalFormatting.styles';
 

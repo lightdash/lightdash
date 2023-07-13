@@ -10,9 +10,9 @@ import {
 import { FC, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
-import { useProject } from '../../../hooks/useProject';
-import { ReferenceLineField } from '../../common/ReferenceLine';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import { useProject } from '../../../../hooks/useProject';
+import { ReferenceLineField } from '../../../common/ReferenceLine';
+import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import { SectionTitle } from '../ChartConfigPanel.styles';
 import { ReferenceLine } from './ReferenceLine';
 
