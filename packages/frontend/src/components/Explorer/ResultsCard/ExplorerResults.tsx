@@ -125,7 +125,7 @@ export const ExplorerResults = memo(() => {
 
     return (
         <TrackSection name={SectionName.RESULTS_TABLE}>
-            <Box px="xs" pt="lg">
+            <Box px="xs" py="lg">
                 <Table
                     status={status}
                     data={resultsData?.rows || []}
