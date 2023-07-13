@@ -1,3 +1,11 @@
+# [0.667.0](https://github.com/lightdash/lightdash/compare/0.666.0...0.667.0) (2023-07-13)
+
+
+### Features
+
+* org role description on hover ([#6282](https://github.com/lightdash/lightdash/issues/6282)) ([f69896e](https://github.com/lightdash/lightdash/commit/f69896ed0d5e8448ed816caa9829c9b49349305e)), closes [#5966](https://github.com/lightdash/lightdash/issues/5966) [#5966](https://github.com/lightdash/lightdash/issues/5966)
+* pie charts drag and drop series ([#6290](https://github.com/lightdash/lightdash/issues/6290)) ([b91be77](https://github.com/lightdash/lightdash/commit/b91be7746a8b78d8e85c342423d3d7b38bdaf848))
+
 # [0.666.0](https://github.com/lightdash/lightdash/compare/0.665.1...0.666.0) (2023-07-12)
 
 
