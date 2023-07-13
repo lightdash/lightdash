@@ -164,7 +164,7 @@ export class DbtCliClient implements DbtClient {
                     throw new DbtError(
                         `We failed to run "dbt ${command.join(
                             ' ',
-                        )}" successfully across all version of dbt that Lightdash currently supports. You can see specific errors below for each dbt version we tried to use.`,
+                        )}" successfully across all versions of dbt that Lightdash currently supports. You can see specific errors below for each dbt version we tried to use.`,
                         Object.entries(errorLogs).reduce<DbtLog[]>(
                             (acc, [key, logs]) => {
                                 const versionLog: DbtLog = {
