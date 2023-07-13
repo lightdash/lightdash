@@ -185,7 +185,6 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     {tile.type === DashboardTileTypes.SAVED_CHART ? (
                         <ChartUpdateModal
                             opened={isEditingChartTile}
-                            tile={tile}
                             placeholder={chartName || ''}
                             title={title}
                             onClose={() => setIsEditingChartTile(false)}

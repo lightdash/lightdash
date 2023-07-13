@@ -1,4 +1,3 @@
-import { DashboardChartTile } from '@lightdash/common';
 import {
     Button,
     Flex,
@@ -18,7 +17,6 @@ import { useChartSummaries } from '../../../hooks/useChartSummaries';
 import MantineIcon from '../../common/MantineIcon';
 
 interface ChartUpdateModalProps extends ModalProps {
-    tile: DashboardChartTile;
     title: string;
     placeholder: string;
     onClose: () => void;
@@ -26,7 +24,6 @@ interface ChartUpdateModalProps extends ModalProps {
 }
 
 const ChartUpdateModal = ({
-    tile,
     title,
     placeholder,
     onClose,
