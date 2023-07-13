@@ -1,6 +1,7 @@
 import {
     AdditionalMetric,
     ApiQueryResults,
+    ChartConfig,
     ECHARTS_DEFAULT_COLORS,
     Explore,
     Field,
@@ -72,26 +73,30 @@ type PieChartConfig = {
     data: [string, number][];
 };
 
-type PieChartConfigFn = (
-    explore: Explore | undefined,
-    resultsData: ApiQueryResults | undefined,
-    pieChartConfig: PieChart | undefined,
-    dimensions: Field[],
-    allNumericMetrics: (Metric | AdditionalMetric | TableCalculation)[],
-) => PieChartConfig;
+type PieChartConfigArgs = {
+    pieChartConfig: PieChart | undefined;
+    previousChartConfig: ChartConfig | undefined;
+    explore: Explore | undefined;
+    resultsData: ApiQueryResults | undefined;
+    dimensions: Field[];
+    allNumericMetrics: (Metric | AdditionalMetric | TableCalculation)[];
+};
 
-const usePieChartConfig: PieChartConfigFn = (
-    explore,
-    resultsData,
+const usePieChartConfig = ({
     pieChartConfig,
+    previousChartConfig: _previousChartConfig,
+    resultsData,
+    explore,
     dimensions,
     allNumericMetrics,
-) => {
+}: PieChartConfigArgs): PieChartConfig => {
     const { data: org } = useOrganization();
 
     const [groupFieldIds, setGroupFieldIds] = useState(
         pieChartConfig?.groupFieldIds ?? [],
     );
+
+    console.log(_previousChartConfig);
 
     const [metricId, setMetricId] = useState(pieChartConfig?.metricId ?? null);
 
