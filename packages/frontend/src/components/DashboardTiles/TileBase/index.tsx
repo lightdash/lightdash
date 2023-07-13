@@ -119,15 +119,18 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                                     )}
                                                 {isEditMode && (
                                                     <>
-                                                        <MenuItem2
-                                                            icon="edit"
-                                                            text="Edit title"
-                                                            onClick={() =>
-                                                                setIsEditingTitle(
-                                                                    true,
-                                                                )
-                                                            }
-                                                        />
+                                                        {tile.type ===
+                                                        DashboardTileTypes.SAVED_CHART ? (
+                                                            <MenuItem2
+                                                                icon="edit"
+                                                                text="Edit title"
+                                                                onClick={() =>
+                                                                    setIsEditingTitle(
+                                                                        true,
+                                                                    )
+                                                                }
+                                                            />
+                                                        ) : null}
                                                         <MenuItem2
                                                             icon={
                                                                 tile.type ===
