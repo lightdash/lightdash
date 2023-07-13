@@ -193,12 +193,14 @@ export class ValidationService {
 
     private async validateCharts(
         projectUuid: string,
-        exploreFields: CompiledField[],
+        explorerFields: CompiledField[],
     ): Promise<CreateChartValidation[]> {
-        const exploreDimensionIds = exploreFields
+        const explorerDimensionIds = explorerFields
             .filter(isDimension)
             .map(getFieldId);
-        const exploreMetricIds = exploreFields.filter(isMetric).map(getFieldId);
+        const explorerMetricIds = explorerFields
+            .filter(isMetric)
+            .map(getFieldId);
 
         const chartSummaries = await this.savedChartModel.find({ projectUuid });
         const charts = await Promise.all(
@@ -214,8 +216,8 @@ export class ValidationService {
                 chart.metricQuery.tableCalculations?.map(getItemId) || [];
 
             const allItemIdsAvailableInChart = [
-                ...exploreDimensionIds,
-                ...exploreMetricIds,
+                ...explorerDimensionIds,
+                ...explorerMetricIds,
                 ...chartCustomMetricIds,
                 ...chartTableCalculationIds,
             ];
@@ -262,7 +264,7 @@ export class ValidationService {
                 (acc, field) =>
                     containsFieldId({
                         acc,
-                        fieldIds: exploreDimensionIds,
+                        fieldIds: explorerDimensionIds,
                         fieldId: field,
                         error: `Dimension error: the field '${field}' no longer exists`,
                         errorType: ValidationErrorType.Dimension,
@@ -277,7 +279,7 @@ export class ValidationService {
                     containsFieldId({
                         acc,
                         fieldIds: [
-                            ...exploreMetricIds,
+                            ...explorerMetricIds,
                             ...chartCustomMetricIds,
                         ],
                         fieldId: field,
