@@ -103,6 +103,7 @@ const TileFilterConfiguration: FC<TileFilterConfigurationProps> = ({
                                   chart.uuid === tile.properties.savedChartUuid,
                           )?.name
                         : tile?.properties.title;
+                console.log({ title });
                 return (
                     <FormGroup key={tileUuid}>
                         <Checkbox
