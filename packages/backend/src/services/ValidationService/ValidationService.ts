@@ -11,6 +11,7 @@ import {
     fieldId as getFieldId,
     ForbiddenError,
     getFilterRules,
+    getItemId,
     InlineErrorType,
     isDashboardChartTileType,
     isDimension,
@@ -192,16 +193,13 @@ export class ValidationService {
 
     private async validateCharts(
         projectUuid: string,
-        existingFields: CompiledField[],
+        exploreFields: CompiledField[],
     ): Promise<CreateChartValidation[]> {
-        const existingFieldIds = existingFields.map(getFieldId);
-
-        const existingDimensionIds = existingFields
+        const exploreDimensionIds = exploreFields
             .filter(isDimension)
             .map(getFieldId);
-        const existingMetricIds = existingFields
-            .filter(isMetric)
-            .map(getFieldId);
+        const exploreMetricIds = exploreFields.filter(isMetric).map(getFieldId);
+
         const chartSummaries = await this.savedChartModel.find({ projectUuid });
         const charts = await Promise.all(
             chartSummaries.map((chartSummary) =>
@@ -210,10 +208,17 @@ export class ValidationService {
         );
 
         const results = charts.flatMap((chart) => {
-            const filterAdditionalMetrics = (metric: string) =>
-                !chart.metricQuery.additionalMetrics
-                    ?.map((additionalMetric) => getFieldId(additionalMetric))
-                    ?.includes(metric);
+            const chartCustomMetricIds =
+                chart.metricQuery.additionalMetrics?.map(getItemId) || [];
+            const chartTableCalculationIds =
+                chart.metricQuery.tableCalculations?.map(getItemId) || [];
+
+            const allItemIdsAvailableInChart = [
+                ...exploreDimensionIds,
+                ...exploreMetricIds,
+                ...chartCustomMetricIds,
+                ...chartTableCalculationIds,
+            ];
 
             const commonValidation = {
                 chartUuid: chart.uuid,
@@ -257,7 +262,7 @@ export class ValidationService {
                 (acc, field) =>
                     containsFieldId({
                         acc,
-                        fieldIds: existingDimensionIds,
+                        fieldIds: exploreDimensionIds,
                         fieldId: field,
                         error: `Dimension error: the field '${field}' no longer exists`,
                         errorType: ValidationErrorType.Dimension,
@@ -265,25 +270,23 @@ export class ValidationService {
                     }),
                 [],
             );
-            const metricErrors = chart.metricQuery.metrics
-                .filter(filterAdditionalMetrics)
-                .reduce<CreateChartValidation[]>(
-                    (acc, field) =>
-                        containsFieldId({
-                            acc,
-                            fieldIds: existingMetricIds,
-                            fieldId: field,
-                            error: `Metric error: the field '${field}' no longer exists`,
-                            errorType: ValidationErrorType.Metric,
-                            fieldName: field,
-                        }),
-                    [],
-                );
-
-            const filterTableCalculations = (fieldId: string) =>
-                !chart.metricQuery.tableCalculations
-                    ?.map((tableCalculation) => tableCalculation.name)
-                    ?.includes(fieldId);
+            const metricErrors = chart.metricQuery.metrics.reduce<
+                CreateChartValidation[]
+            >(
+                (acc, field) =>
+                    containsFieldId({
+                        acc,
+                        fieldIds: [
+                            ...exploreMetricIds,
+                            ...chartCustomMetricIds,
+                        ],
+                        fieldId: field,
+                        error: `Metric error: the field '${field}' no longer exists`,
+                        errorType: ValidationErrorType.Metric,
+                        fieldName: field,
+                    }),
+                [],
+            );
 
             const filterErrors = getFilterRules(
                 chart.metricQuery.filters,
@@ -291,7 +294,7 @@ export class ValidationService {
                 (acc, field) =>
                     containsFieldId({
                         acc,
-                        fieldIds: existingFieldIds,
+                        fieldIds: allItemIdsAvailableInChart,
                         fieldId: field.target.fieldId,
                         error: `Filter error: the field '${field.target.fieldId}' no longer exists`,
                         errorType: ValidationErrorType.Filter,
@@ -300,24 +303,20 @@ export class ValidationService {
                 [],
             );
 
-            const sortErrors = chart.metricQuery.sorts
-                .filter(
-                    (sort) =>
-                        filterTableCalculations(sort.fieldId) &&
-                        filterAdditionalMetrics(sort.fieldId),
-                )
-                .reduce<CreateChartValidation[]>(
-                    (acc, field) =>
-                        containsFieldId({
-                            acc,
-                            fieldIds: existingFieldIds,
-                            fieldId: field.fieldId,
-                            error: `Sorting error: the field '${field.fieldId}' no longer exists`,
-                            errorType: ValidationErrorType.Sorting,
-                            fieldName: field.fieldId,
-                        }),
-                    [],
-                );
+            const sortErrors = chart.metricQuery.sorts.reduce<
+                CreateChartValidation[]
+            >(
+                (acc, field) =>
+                    containsFieldId({
+                        acc,
+                        fieldIds: allItemIdsAvailableInChart,
+                        fieldId: field.fieldId,
+                        error: `Sorting error: the field '${field.fieldId}' no longer exists`,
+                        errorType: ValidationErrorType.Sorting,
+                        fieldName: field.fieldId,
+                    }),
+                [],
+            );
 
             /*
             // I think these are redundant, as we already check dimension/metrics
