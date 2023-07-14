@@ -2063,6 +2063,31 @@
                 "required": ["role"],
                 "type": "object"
             },
+            "Record_string._type-DimensionType--__": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "Record_string.unknown_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ApiSqlQueryResults": {
+                "properties": {
+                    "rows": {
+                        "items": {
+                            "$ref": "#/components/schemas/Record_string.unknown_"
+                        },
+                        "type": "array"
+                    },
+                    "fields": {
+                        "$ref": "#/components/schemas/Record_string._type-DimensionType--__"
+                    }
+                },
+                "required": ["rows", "fields"],
+                "type": "object"
+            },
             "FieldId": {
                 "type": "string"
             },
@@ -3701,7 +3726,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.661.0",
+        "version": "0.668.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -5150,6 +5175,76 @@
                 ]
             }
         },
+        "/api/v1/projects/{projectUuid}/sqlQuery": {
+            "post": {
+                "operationId": "RunSqlQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/ApiSqlQueryResults"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Run a raw sql query against the project's warehouse connection",
+                "tags": ["Exploring", "Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The uuid of the project to run the query against",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "The query to run",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "sql": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["sql"],
+                                "type": "object",
+                                "description": "The query to run"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/projects/{projectUuid}/explores/{exploreId}/runUnderlyingDataQuery": {
             "post": {
                 "operationId": "postRunUnderlyingDataQuery",
@@ -5214,7 +5309,7 @@
         },
         "/api/v1/projects/{projectUuid}/explores/{exploreId}/runQuery": {
             "post": {
-                "operationId": "postRunQuery",
+                "operationId": "RunMetricQuery",
                 "responses": {
                     "200": {
                         "description": "Success",
