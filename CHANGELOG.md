@@ -1,3 +1,12 @@
+## [0.669.1](https://github.com/lightdash/lightdash/compare/0.669.0...0.669.1) (2023-07-14)
+
+
+### Bug Fixes
+
+* handle dotted field names when generating field id ([#6320](https://github.com/lightdash/lightdash/issues/6320)) ([59a1119](https://github.com/lightdash/lightdash/commit/59a11196c88fa1dfa709c897033f504d805e927a))
+* show chart tile error ([#6343](https://github.com/lightdash/lightdash/issues/6343)) ([48353dd](https://github.com/lightdash/lightdash/commit/48353ddcc5a0fc9b6f2c323cf215197a5bdd69c4))
+* validation when there are filters with custom metrics ([#6313](https://github.com/lightdash/lightdash/issues/6313)) ([12a3893](https://github.com/lightdash/lightdash/commit/12a3893374b235c9b9b5cb3a91b280858cb38ddb))
+
 # [0.669.0](https://github.com/lightdash/lightdash/compare/0.668.0...0.669.0) (2023-07-14)
 
 
