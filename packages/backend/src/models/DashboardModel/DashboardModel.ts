@@ -144,6 +144,22 @@ export class DashboardModel {
                             userUuid,
                             tile.properties.newChartData,
                         );
+                        const [savedChart] = await trx(SavedChartsTableName)
+                            .select(['saved_query_id'])
+                            .where(
+                                'saved_query_uuid',
+                                tile.properties.savedChartUuid,
+                            )
+                            .limit(1);
+                        await trx(DashboardTileChartTableName).insert({
+                            dashboard_version_id:
+                                versionId.dashboard_version_id,
+                            dashboard_tile_uuid:
+                                insertedTile.dashboard_tile_uuid,
+                            saved_chart_id: savedChart.saved_query_id,
+                            hide_title: tile.properties.hideTitle,
+                            title: tile.properties.title,
+                        });
                     }
                     if (tile.properties.savedChartUuid) {
                         const [savedChart] = await trx(SavedChartsTableName)

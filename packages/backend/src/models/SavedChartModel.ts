@@ -225,7 +225,7 @@ export const createSavedChart = async (
         updatedByUser,
         spaceUuid,
     }: CreateSavedChart,
-): Promise<SavedChart> => {
+): Promise<string> => {
     const newSavedChartUuid = await db.transaction(async (trx) => {
         const spaceId = spaceUuid
             ? await getSpaceId(trx, spaceUuid)
@@ -240,6 +240,7 @@ export const createSavedChart = async (
             chartConfig,
             tableConfig,
             pivotConfig,
+            updatedByUser,
         });
         return newSavedChart.saved_query_uuid;
     });
@@ -272,33 +273,20 @@ export class SavedChartModel {
             spaceUuid,
         }: CreateSavedChart & { updatedByUser: UpdatedByUser },
     ): Promise<SavedChart> {
-        const newSavedChartUuid = await this.database.transaction(
-            async (trx) => {
-                const spaceId = spaceUuid
-                    ? await getSpaceId(trx, spaceUuid)
-                    : (
-                          await getFirstAccessibleSpace(
-                              trx,
-                              projectUuid,
-                              userUuid,
-                          )
-                      ).space_id;
-                const [newSavedChart] = await trx('saved_queries')
-                    .insert({ name, space_id: spaceId, description })
-                    .returning('*');
-                await createSavedChartVersion(
-                    trx,
-                    newSavedChart.saved_query_id,
-                    {
-                        tableName,
-                        metricQuery,
-                        chartConfig,
-                        tableConfig,
-                        pivotConfig,
-                        updatedByUser,
-                    },
-                );
-                return newSavedChart.saved_query_uuid;
+        const newSavedChartUuid = await createSavedChart(
+            this.database,
+            projectUuid,
+            userUuid,
+            {
+                name,
+                description,
+                tableName,
+                metricQuery,
+                chartConfig,
+                tableConfig,
+                pivotConfig,
+                updatedByUser,
+                spaceUuid,
             },
         );
         return this.get(newSavedChartUuid);
