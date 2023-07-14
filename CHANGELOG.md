@@ -1,3 +1,10 @@
+# [0.669.0](https://github.com/lightdash/lightdash/compare/0.668.0...0.669.0) (2023-07-14)
+
+
+### Features
+
+* big number config panel using mantine ([#6325](https://github.com/lightdash/lightdash/issues/6325)) ([a8967f5](https://github.com/lightdash/lightdash/commit/a8967f537988f7a0f81a74bc8be54f07b29aeb3a))
+
 # [0.668.0](https://github.com/lightdash/lightdash/compare/0.667.4...0.668.0) (2023-07-13)
 
 
