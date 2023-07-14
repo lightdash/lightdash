@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { OrgUserAttribute } from '@lightdash/common';
+import { OrgAttribute } from '@lightdash/common';
 import {
     Button,
     Flex,
@@ -21,7 +21,10 @@ import { FC, useState } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import { useDeleteOrganizationUserMutation } from '../../../hooks/useOrganizationUsers';
-import { useUserAttributes } from '../../../hooks/useUserAttributes';
+import {
+    useUserAtributesMutation,
+    useUserAttributes,
+} from '../../../hooks/useUserAttributes';
 import { useApp } from '../../../providers/AppProvider';
 import LoadingState from '../../common/LoadingState';
 import MantineIcon from '../../common/MantineIcon';
@@ -30,7 +33,7 @@ import ForbiddenPanel from '../../ForbiddenPanel';
 import UserAttributeModal from './UserAttributeModal';
 
 const UserListItem: FC<{
-    orgUserAttribute: OrgUserAttribute;
+    orgUserAttribute: OrgAttribute;
 }> = ({ orgUserAttribute }) => {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -143,6 +146,7 @@ const UserAttributesPanel: FC = () => {
     const [showInviteModal, setShowInviteModal] = useState(false);
     const { data: orgUserAttributes, isLoading } = useUserAttributes();
     const { data: organization } = useOrganization();
+    const { mutate: createUserAttribute } = useUserAtributesMutation();
     if (
         user.data?.ability.cannot(
             'manage',
@@ -195,7 +199,9 @@ const UserAttributesPanel: FC = () => {
                     <UserAttributeModal
                         opened={showInviteModal}
                         onClose={() => setShowInviteModal(false)}
-                        onChange={() => {}}
+                        onChange={(userAttribute) => {
+                            createUserAttribute(userAttribute);
+                        }}
                     />
                 </>
             </Group>

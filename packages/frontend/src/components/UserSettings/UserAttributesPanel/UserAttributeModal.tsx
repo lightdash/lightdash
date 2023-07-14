@@ -1,4 +1,4 @@
-import { OrgUserAttribute } from '@lightdash/common';
+import { OrgAttribute } from '@lightdash/common';
 import {
     Button,
     Group,
@@ -10,21 +10,25 @@ import {
     Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
+import { IconCircleX, IconPlus } from '@tabler/icons-react';
 import { FC } from 'react';
+import MantineIcon from '../../common/MantineIcon';
 
 const UserAttributeModal: FC<{
     opened: boolean;
-    defaultValues?: OrgUserAttribute;
+    defaultValues?: OrgAttribute;
     onClose: () => void;
-    onChange: (orgUserAttribute: OrgUserAttribute) => void;
+    onChange: (orgUserAttribute: OrgAttribute) => void;
 }> = ({ opened, defaultValues, onChange, onClose }) => {
-    const form = useForm<OrgUserAttribute>({
+    const form = useForm<OrgAttribute>({
         initialValues: defaultValues,
     });
 
-    const handleSubmit = async (data: OrgUserAttribute) => {
-        onChange(data);
+    const handleSubmit = async (data: OrgAttribute) => {
+        //TODo validation
+        await onChange(data);
         form.reset();
+        onClose();
     };
 
     return (
@@ -36,7 +40,7 @@ const UserAttributeModal: FC<{
         >
             <form
                 name="invite_user"
-                onSubmit={form.onSubmit((values: OrgUserAttribute) =>
+                onSubmit={form.onSubmit((values: OrgAttribute) =>
                     handleSubmit(values),
                 )}
             >
@@ -57,6 +61,67 @@ const UserAttributeModal: FC<{
                     />
                     <Stack>
                         <Text fw={500}>Assing to users</Text>
+
+                        {form.values.users?.length > 0 && (
+                            <Group>
+                                <Text w={200} fw={500}>
+                                    User email
+                                </Text>
+                                <Text fw={500}>Value</Text>
+                            </Group>
+                        )}
+
+                        {form.values.users?.map((user, index) => {
+                            return (
+                                <Group key={index}>
+                                    <TextInput
+                                        w={200}
+                                        name={`users.${index}.userUuid`}
+                                        placeholder="E.g. test@lightdash.com"
+                                        required
+                                        {...form.getInputProps(
+                                            `users.${index}.userUuid`,
+                                        )}
+                                    />
+                                    <TextInput
+                                        name={`users.${index}.value`}
+                                        placeholder="E.g. US"
+                                        required
+                                        {...form.getInputProps(
+                                            `users.${index}.value`,
+                                        )}
+                                    />
+                                    <Button
+                                        pr={5}
+                                        leftIcon={
+                                            <MantineIcon icon={IconCircleX} />
+                                        }
+                                        color="red"
+                                        variant="outline"
+                                        onClick={() => {
+                                            form.setFieldValue(
+                                                'users',
+                                                form.values.users.filter(
+                                                    (_, i) => i !== index,
+                                                ),
+                                            );
+                                        }}
+                                    />
+                                </Group>
+                            );
+                        })}
+                        <Button
+                            w={200}
+                            leftIcon={<MantineIcon icon={IconPlus} />}
+                            onClick={() => {
+                                form.setFieldValue('users', [
+                                    ...(form.values.users || []),
+                                    { userUuid: '', value: '' },
+                                ]);
+                            }}
+                        >
+                            Add user
+                        </Button>
                     </Stack>
 
                     <Group spacing="xs" position="right" mt="md">
