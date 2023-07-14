@@ -15,13 +15,13 @@ import {
     PieChartValueOptions,
     TableCalculation,
 } from '@lightdash/common';
-import { useDebouncedValue } from '@mantine/hooks';
+import { useDebouncedValue, usePrevious } from '@mantine/hooks';
 import isEmpty from 'lodash-es/isEmpty';
-import isEqual from 'lodash-es/isEqual';
 import mapValues from 'lodash-es/mapValues';
 import omitBy from 'lodash-es/omitBy';
 import pick from 'lodash-es/pick';
 import pickBy from 'lodash-es/pickBy';
+import uniq from 'lodash-es/uniq';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { isHexCodeColor } from '../utils/colorUtils';
 import { useOrganization } from './organization/useOrganization';
@@ -76,8 +76,8 @@ type PieChartConfig = {
 
 type PieChartConfigArgs = {
     currentChartType: ChartType;
+    currentChartConfig: ChartConfig | undefined;
     pieChartConfig: PieChart | undefined;
-    previousChartConfig: ChartConfig | undefined;
     pivotDimensions: string[] | undefined;
     explore: Explore | undefined;
     resultsData: ApiQueryResults | undefined;
@@ -87,14 +87,19 @@ type PieChartConfigArgs = {
 
 const usePieChartConfig = ({
     currentChartType,
+    currentChartConfig,
     pieChartConfig,
-    previousChartConfig,
     pivotDimensions,
     resultsData,
     explore,
     dimensions,
     allNumericMetrics,
 }: PieChartConfigArgs): PieChartConfig => {
+    const previousChartConfig = usePrevious(currentChartConfig);
+    const previousPivotDimensions = usePrevious(pivotDimensions);
+
+    console.log([previousPivotDimensions, previousChartConfig]);
+
     const { data: org } = useOrganization();
 
     const [groupFieldIds, setGroupFieldIds] = useState(
@@ -174,27 +179,60 @@ const usePieChartConfig = ({
 
     useEffect(() => {
         if (isLoading) return;
-        if (currentChartType !== ChartType.PIE) return;
-        if (!previousChartConfig) return;
+        if (!currentChartConfig) return;
         if (groupFieldIds.length > 0 && metricId) return;
+        if (currentChartType !== ChartType.PIE) return;
 
-        switch (previousChartConfig.type) {
+        console.log(currentChartType, currentChartConfig);
+
+        switch (currentChartConfig.type) {
             case ChartType.PIE:
                 return;
             case ChartType.CARTESIAN:
-                const itemids = [
-                    previousChartConfig.config.layout.xField,
-                    ...(previousChartConfig.config.layout.yField ?? []),
-                    ...(pivotDimensions ?? []),
-                ];
+                const allItemIds = [
+                    currentChartConfig.config.layout.xField,
+                    ...(currentChartConfig.config.layout.yField ?? []),
+                    ...(previousPivotDimensions ?? []),
+                ].filter((id): id is string => !!id);
 
-                console.log(itemids);
+                console.log(currentChartConfig);
+
+                const groupFieldIdsFromPreviousConfig = allItemIds.filter(
+                    (id) => dimensionIds.includes(id),
+                );
+
+                const metricIdsFromPreviousConfig = allItemIds.filter((id) =>
+                    allNumericMetricIds.includes(id),
+                );
+
+                setGroupFieldIds((prev) => {
+                    if (
+                        prev.length === 0 &&
+                        groupFieldIdsFromPreviousConfig.length > 0
+                    ) {
+                        console.log('set dim', groupFieldIdsFromPreviousConfig);
+                        return uniq(groupFieldIdsFromPreviousConfig);
+                    } else {
+                        return prev;
+                    }
+                });
+
+                setMetricId((prev) => {
+                    if (!prev && metricIdsFromPreviousConfig.length > 0) {
+                        console.log('set met', metricIdsFromPreviousConfig);
+                        return uniq(metricIdsFromPreviousConfig)[0];
+                    } else {
+                        return prev;
+                    }
+                });
         }
     }, [
         isLoading,
         currentChartType,
-        previousChartConfig,
-        pivotDimensions,
+        currentChartConfig,
+        previousPivotDimensions,
+        allNumericMetricIds,
+        dimensionIds,
         groupFieldIds,
         metricId,
     ]);
@@ -203,40 +241,34 @@ const usePieChartConfig = ({
         if (isLoading) return;
         if (currentChartType !== ChartType.PIE) return;
 
-        const newGroupFieldIds = groupFieldIds.filter((id) =>
-            dimensionIds.includes(id),
-        );
+        setGroupFieldIds((prev) => {
+            const newGroupFieldIds = prev.filter((id) =>
+                dimensionIds.includes(id),
+            );
 
-        const firstDimensionId = dimensionIds[0];
-        if (newGroupFieldIds.length === 0 && firstDimensionId) {
-            setGroupFieldIds([firstDimensionId]);
-            return;
-        }
+            const firstDimensionId = dimensionIds[0];
+            if (newGroupFieldIds.length === 0 && firstDimensionId) {
+                console.log('set dim after');
+                return [firstDimensionId];
+            }
 
-        if (isEqual(newGroupFieldIds, groupFieldIds)) return;
+            return prev;
+        });
 
-        setGroupFieldIds(newGroupFieldIds);
+        setMetricId((prev) => {
+            if (prev && allNumericMetricIds.includes(prev)) return prev;
+
+            console.log('set met after');
+            return allNumericMetricIds[0] ?? null;
+        });
     }, [
         isLoading,
         currentChartType,
         dimensionIds,
         groupFieldIds,
-        pieChartConfig?.groupFieldIds,
-    ]);
-
-    useEffect(() => {
-        if (isLoading) return;
-        if (currentChartType !== ChartType.PIE) return;
-
-        if (metricId && allNumericMetricIds.includes(metricId)) return;
-
-        setMetricId(allNumericMetricIds[0] ?? null);
-    }, [
-        isLoading,
-        currentChartType,
-        allNumericMetricIds,
         metricId,
-        pieChartConfig?.metricId,
+        allNumericMetricIds,
+        pieChartConfig?.groupFieldIds,
     ]);
 
     const isValueLabelOverriden = useMemo(() => {

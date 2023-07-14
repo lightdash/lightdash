@@ -19,15 +19,12 @@ import {
     createContext,
     FC,
     RefObject,
-    useCallback,
     useContext,
     useEffect,
     useMemo,
     useRef,
     useState,
 } from 'react';
-
-import { usePrevious } from '@mantine/hooks';
 import useCartesianChartConfig from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { EChartSeries } from '../../hooks/echarts/useEcharts';
 import useTableConfig from '../../hooks/tableVisualization/useTableConfig';
@@ -87,8 +84,8 @@ type Props = {
 
 const VisualizationProvider: FC<Props> = ({
     minimal = false,
+    chartType: initialChartType,
     initialChartConfig,
-    chartType,
     initialPivotDimensions,
     resultsData,
     isLoading,
@@ -102,9 +99,6 @@ const VisualizationProvider: FC<Props> = ({
 }) => {
     const chartRef = useRef<EChartsReact>(null);
 
-    const previousChartType = usePrevious(chartType);
-    const previousChartConfig = usePrevious(initialChartConfig);
-
     const [lastValidResultsData, setLastValidResultsData] =
         useState<ApiQueryResults>();
 
@@ -117,13 +111,6 @@ const VisualizationProvider: FC<Props> = ({
     const { validPivotDimensions, setPivotDimensions } = usePivotDimensions(
         initialPivotDimensions,
         lastValidResultsData,
-    );
-
-    const setChartType = useCallback(
-        (value: ChartType) => {
-            onChartTypeChange?.(value);
-        },
-        [onChartTypeChange],
     );
 
     const dimensions = useMemo(() => {
@@ -206,7 +193,7 @@ const VisualizationProvider: FC<Props> = ({
     }, [resultsData?.metricQuery, columnOrder]);
 
     const cartesianConfig = useCartesianChartConfig({
-        chartType,
+        chartType: initialChartType,
         initialChartConfig:
             initialChartConfig?.type === ChartType.CARTESIAN
                 ? initialChartConfig.config
@@ -219,14 +206,11 @@ const VisualizationProvider: FC<Props> = ({
     });
 
     const pieChartConfig = usePieChartConfig({
-        currentChartType: chartType,
+        currentChartType: initialChartType,
+        currentChartConfig: initialChartConfig,
         pieChartConfig:
             initialChartConfig?.type === ChartType.PIE
                 ? initialChartConfig.config
-                : undefined,
-        previousChartConfig:
-            previousChartType !== ChartType.PIE
-                ? previousChartConfig
                 : undefined,
         pivotDimensions: validPivotDimensions,
         explore,
@@ -253,38 +237,36 @@ const VisualizationProvider: FC<Props> = ({
         explore,
     );
 
-    const { validCartesianConfig } = cartesianConfig;
-    const { validPieChartConfig } = pieChartConfig;
-    const { validTableConfig } = tableConfig;
-    const { validBigNumberConfig } = bigNumberConfig;
+    useEffect(() => {
+        if (!onChartConfigChange) return;
 
-    const validConfig = useMemo(() => {
-        switch (chartType) {
+        switch (initialChartType) {
             case ChartType.CARTESIAN:
-                return validCartesianConfig;
+                return onChartConfigChange(
+                    cartesianConfig.validCartesianConfig,
+                );
             case ChartType.PIE:
-                return validPieChartConfig;
-            case ChartType.BIG_NUMBER:
-                return validBigNumberConfig;
+                return onChartConfigChange(pieChartConfig.validPieChartConfig);
             case ChartType.TABLE:
-                return validTableConfig;
+                return onChartConfigChange(tableConfig.validTableConfig);
+            case ChartType.BIG_NUMBER:
+                return onChartConfigChange(
+                    bigNumberConfig.validBigNumberConfig,
+                );
             default:
                 return assertUnreachable(
-                    chartType,
-                    `Unexpected chart type: ${chartType}`,
+                    initialChartType,
+                    `Unknown chart type: ${initialChartType}`,
                 );
         }
     }, [
-        chartType,
-        validCartesianConfig,
-        validPieChartConfig,
-        validTableConfig,
-        validBigNumberConfig,
+        initialChartType,
+        onChartConfigChange,
+        cartesianConfig.validCartesianConfig,
+        pieChartConfig.validPieChartConfig,
+        tableConfig.validTableConfig,
+        bigNumberConfig.validBigNumberConfig,
     ]);
-
-    useEffect(() => {
-        onChartConfigChange?.(validConfig);
-    }, [validConfig, onChartConfigChange]);
 
     useEffect(() => {
         onPivotDimensionsChange?.(validPivotDimensions);
@@ -292,6 +274,7 @@ const VisualizationProvider: FC<Props> = ({
 
     const value: VisualizationContext = useMemo(
         () => ({
+            chartType: initialChartType,
             minimal,
             pivotDimensions: validPivotDimensions,
             cartesianConfig,
@@ -299,7 +282,6 @@ const VisualizationProvider: FC<Props> = ({
             pieChartConfig,
             tableConfig,
             chartRef,
-            chartType,
             explore,
             originalData: lastValidResultsData?.rows || [],
             resultsData: lastValidResultsData,
@@ -312,13 +294,13 @@ const VisualizationProvider: FC<Props> = ({
             tableCalculations,
             allMetrics,
             allNumericMetrics,
+            setChartType: onChartTypeChange || (() => {}),
             onSeriesContextMenu,
-            setChartType,
             setPivotDimensions,
         }),
         [
+            initialChartType,
             minimal,
-            chartType,
             columnOrder,
             explore,
             isLoading,
@@ -335,8 +317,8 @@ const VisualizationProvider: FC<Props> = ({
             tableCalculations,
             allMetrics,
             allNumericMetrics,
+            onChartTypeChange,
             onSeriesContextMenu,
-            setChartType,
             setPivotDimensions,
         ],
     );
