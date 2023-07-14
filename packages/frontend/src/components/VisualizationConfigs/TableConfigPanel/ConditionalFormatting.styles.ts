@@ -1,22 +1,6 @@
 import { Colors } from '@blueprintjs/core';
 import styled from 'styled-components';
 
-export const ConditionalFormattingListWrapper = styled.div`
-    display: flex;
-    flex-direction: column;
-    gap 10px;
-
-    .bp4-form-group {
-        margin: 0;
-    }
-`;
-
-export const ConditionalFormattingWrapper = styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-`;
-
 export const ConditionalFormattingConfigWrapper = styled.div`
     display: flex;
     flex-direction: column;

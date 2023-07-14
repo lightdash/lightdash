@@ -1,4 +1,3 @@
-import { Button, FormGroup } from '@blueprintjs/core';
 import {
     createConditionalFormattingConfig,
     FilterableItem,
@@ -7,11 +6,13 @@ import {
     isFilterableItem,
     isNumericItem,
 } from '@lightdash/common';
+import { Button, Stack } from '@mantine/core';
+import { IconPlus } from '@tabler/icons-react';
 import produce from 'immer';
 import { useCallback, useMemo, useState } from 'react';
+import MantineIcon from '../../common/MantineIcon';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import ConditionalFormatting from './ConditionalFormatting';
-import { ConditionalFormattingListWrapper } from './ConditionalFormatting.styles';
 
 const ConditionalFormattingList = ({}) => {
     const [isAddingNew, setIsAddingNew] = useState(false);
@@ -86,7 +87,7 @@ const ConditionalFormattingList = ({}) => {
     );
 
     return (
-        <ConditionalFormattingListWrapper>
+        <Stack spacing="xs">
             {activeConfigs.map((conditionalFormatting, index) => (
                 <ConditionalFormatting
                     key={index}
@@ -99,12 +100,16 @@ const ConditionalFormattingList = ({}) => {
                 />
             ))}
 
-            <FormGroup>
-                <Button icon="plus" onClick={handleAdd}>
-                    Add new rule
-                </Button>
-            </FormGroup>
-        </ConditionalFormattingListWrapper>
+            <Button
+                sx={{ alignSelf: 'start' }}
+                size="xs"
+                variant="outline"
+                leftIcon={<MantineIcon icon={IconPlus} />}
+                onClick={handleAdd}
+            >
+                Add new rule
+            </Button>
+        </Stack>
     );
 };
 
