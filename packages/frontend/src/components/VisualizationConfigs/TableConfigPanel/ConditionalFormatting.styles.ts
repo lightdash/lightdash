@@ -1,16 +1,7 @@
 import { Colors } from '@blueprintjs/core';
 import styled from 'styled-components';
 
-export const ConditionalFormattingConfigWrapper = styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding: 8px 10px;
-    background-color: ${Colors.LIGHT_GRAY5};
-    border-radius: 5px;
-`;
-
-export const ConditionalFormattingGroupHeader = styled.div`
+const ConditionalFormattingGroupHeader = styled.div`
     display: flex;
     align-items: center;
 `;
