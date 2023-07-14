@@ -17,13 +17,13 @@ import { useChartSummaries } from '../../../hooks/useChartSummaries';
 import MantineIcon from '../../common/MantineIcon';
 
 interface ChartUpdateModalProps extends ModalProps {
-    placeholder: string;
+    chartTitle: string;
     onClose: () => void;
     onConfirm?: (newTitle: string, newChartUuid: string) => void;
 }
 
 const ChartUpdateModal = ({
-    placeholder,
+    chartTitle,
     onClose,
     onConfirm,
     ...modalProps
@@ -69,7 +69,11 @@ const ChartUpdateModal = ({
                 <Stack spacing="md">
                     <TextInput
                         label="Title"
-                        placeholder={placeholder}
+                        placeholder={
+                            form.getInputProps('title').value.length > 0
+                                ? form.getInputProps('title').value
+                                : chartTitle
+                        }
                         {...form.getInputProps('title')}
                     />
                     <Select
