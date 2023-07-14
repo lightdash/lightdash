@@ -2,6 +2,7 @@ import {
     AdditionalMetric,
     ApiQueryResults,
     ChartConfig,
+    ChartType,
     ECHARTS_DEFAULT_COLORS,
     Explore,
     Field,
@@ -74,8 +75,10 @@ type PieChartConfig = {
 };
 
 type PieChartConfigArgs = {
+    currentChartType: ChartType;
     pieChartConfig: PieChart | undefined;
     previousChartConfig: ChartConfig | undefined;
+    pivotDimensions: string[] | undefined;
     explore: Explore | undefined;
     resultsData: ApiQueryResults | undefined;
     dimensions: Field[];
@@ -83,8 +86,10 @@ type PieChartConfigArgs = {
 };
 
 const usePieChartConfig = ({
+    currentChartType,
     pieChartConfig,
-    previousChartConfig: _previousChartConfig,
+    previousChartConfig,
+    pivotDimensions,
     resultsData,
     explore,
     dimensions,
@@ -95,8 +100,6 @@ const usePieChartConfig = ({
     const [groupFieldIds, setGroupFieldIds] = useState(
         pieChartConfig?.groupFieldIds ?? [],
     );
-
-    console.log(_previousChartConfig);
 
     const [metricId, setMetricId] = useState(pieChartConfig?.metricId ?? null);
 
@@ -171,6 +174,34 @@ const usePieChartConfig = ({
 
     useEffect(() => {
         if (isLoading) return;
+        if (currentChartType !== ChartType.PIE) return;
+        if (!previousChartConfig) return;
+        if (groupFieldIds.length > 0 && metricId) return;
+
+        switch (previousChartConfig.type) {
+            case ChartType.PIE:
+                return;
+            case ChartType.CARTESIAN:
+                const itemids = [
+                    previousChartConfig.config.layout.xField,
+                    ...(previousChartConfig.config.layout.yField ?? []),
+                    ...(pivotDimensions ?? []),
+                ];
+
+                console.log(itemids);
+        }
+    }, [
+        isLoading,
+        currentChartType,
+        previousChartConfig,
+        pivotDimensions,
+        groupFieldIds,
+        metricId,
+    ]);
+
+    useEffect(() => {
+        if (isLoading) return;
+        if (currentChartType !== ChartType.PIE) return;
 
         const newGroupFieldIds = groupFieldIds.filter((id) =>
             dimensionIds.includes(id),
@@ -185,14 +216,28 @@ const usePieChartConfig = ({
         if (isEqual(newGroupFieldIds, groupFieldIds)) return;
 
         setGroupFieldIds(newGroupFieldIds);
-    }, [isLoading, dimensionIds, groupFieldIds, pieChartConfig?.groupFieldIds]);
+    }, [
+        isLoading,
+        currentChartType,
+        dimensionIds,
+        groupFieldIds,
+        pieChartConfig?.groupFieldIds,
+    ]);
 
     useEffect(() => {
         if (isLoading) return;
+        if (currentChartType !== ChartType.PIE) return;
+
         if (metricId && allNumericMetricIds.includes(metricId)) return;
 
         setMetricId(allNumericMetricIds[0] ?? null);
-    }, [isLoading, allNumericMetricIds, metricId, pieChartConfig?.metricId]);
+    }, [
+        isLoading,
+        currentChartType,
+        allNumericMetricIds,
+        metricId,
+        pieChartConfig?.metricId,
+    ]);
 
     const isValueLabelOverriden = useMemo(() => {
         return Object.values(groupValueOptionOverrides).some(

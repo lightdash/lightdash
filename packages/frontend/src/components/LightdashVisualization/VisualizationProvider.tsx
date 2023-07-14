@@ -219,6 +219,7 @@ const VisualizationProvider: FC<Props> = ({
     });
 
     const pieChartConfig = usePieChartConfig({
+        currentChartType: chartType,
         pieChartConfig:
             initialChartConfig?.type === ChartType.PIE
                 ? initialChartConfig.config
@@ -227,6 +228,7 @@ const VisualizationProvider: FC<Props> = ({
             previousChartType !== ChartType.PIE
                 ? previousChartConfig
                 : undefined,
+        pivotDimensions: validPivotDimensions,
         explore,
         resultsData: lastValidResultsData,
         dimensions,
