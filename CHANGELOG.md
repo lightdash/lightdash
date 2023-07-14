@@ -1,3 +1,10 @@
+# [0.670.0](https://github.com/lightdash/lightdash/compare/0.669.1...0.670.0) (2023-07-14)
+
+
+### Features
+
+* `Edit tile content` modal for charts ([#6310](https://github.com/lightdash/lightdash/issues/6310)) ([4013a1b](https://github.com/lightdash/lightdash/commit/4013a1bf830d635b0c29c0d061a89457a3b5d662))
+
 ## [0.669.1](https://github.com/lightdash/lightdash/compare/0.669.0...0.669.1) (2023-07-14)
 
 
