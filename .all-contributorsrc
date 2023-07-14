@@ -1107,6 +1107,15 @@
         "code",
         "ideas"
       ]
+    },
+    {
+      "login": "magnew",
+      "name": "magnew",
+      "avatar_url": "https://avatars.githubusercontent.com/u/1864179?v=4",
+      "profile": "https://github.com/magnew",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
