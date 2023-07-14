@@ -210,6 +210,42 @@ const createSavedChartVersion = async (
     });
 };
 
+export const createSavedChart = async (
+    db: Knex,
+    projectUuid: string,
+    userUuid: string,
+    {
+        name,
+        description,
+        tableName,
+        metricQuery,
+        chartConfig,
+        tableConfig,
+        pivotConfig,
+        updatedByUser,
+        spaceUuid,
+    }: CreateSavedChart,
+): Promise<SavedChart> => {
+    const newSavedChartUuid = await db.transaction(async (trx) => {
+        const spaceId = spaceUuid
+            ? await getSpaceId(trx, spaceUuid)
+            : (await getFirstAccessibleSpace(trx, projectUuid, userUuid))
+                  .space_id;
+        const [newSavedChart] = await trx('saved_queries')
+            .insert({ name, space_id: spaceId, description })
+            .returning('*');
+        await createSavedChartVersion(trx, newSavedChart.saved_query_id, {
+            tableName,
+            metricQuery,
+            chartConfig,
+            tableConfig,
+            pivotConfig,
+        });
+        return newSavedChart.saved_query_uuid;
+    });
+    return newSavedChartUuid;
+};
+
 type Dependencies = {
     database: Knex;
 };

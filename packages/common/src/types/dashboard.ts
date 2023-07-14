@@ -1,6 +1,6 @@
 import { FilterableField } from './field';
 import { DashboardFilters } from './filter';
-import { SavedChartType } from './savedCharts';
+import { CreateSavedChart, SavedChartType } from './savedCharts';
 import { UpdatedByUser } from './user';
 import { ValidationSummary } from './validation';
 
@@ -44,6 +44,7 @@ export type DashboardChartTileProperties = {
         title?: string;
         hideTitle?: boolean;
         savedChartUuid: string | null;
+        newChartData?: CreateSavedChart | null;
     };
 };
 
