@@ -1,10 +1,11 @@
 import {
     ConditionalFormattingConfig,
-    ConditionalFormattingRule as ConditionalFormattingRuleT,
+    ConditionalFormattingWithConditionalOperator,
     ConditionalOperator,
     createConditionalFormatingRule,
     FilterableItem,
     getItemId,
+    isConditionalFormattingRuleWithConditionalOperator,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -98,22 +99,31 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
     ) => {
         handleChange(
             produce(config, (draft) => {
-                draft.rules[index].operator = newOperator;
+                if (
+                    isConditionalFormattingRuleWithConditionalOperator(
+                        draft.rules[index],
+                    )
+                ) {
+                    draft.rules[index] = {
+                        ...draft.rules[index],
+                        operator: newOperator,
+                    };
+                }
             }),
         );
     };
 
     const handleChangeRule = (
         index: number,
-        newRule: ConditionalFormattingRuleT,
+        newRule: ConditionalFormattingWithConditionalOperator,
     ) => {
         handleChange(
             produce(config, (draft) => {
-                draft.rules[index] = newRule;
                 // FIXME: check if we can fix this problem in number input
-                draft.rules[index].values = draft.rules[index].values.map((v) =>
-                    Number(v),
-                );
+                draft.rules[index] = {
+                    ...newRule,
+                    values: newRule.values.map((v) => Number(v)),
+                };
             }),
         );
     };
