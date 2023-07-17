@@ -4,6 +4,7 @@ import {
     ApiProjectAccessListResponse,
     ApiProjectResponse,
     ApiSpaceSummaryListResponse,
+    ApiSqlQueryResults,
     ApiSuccessEmpty,
     CreateProjectMember,
     UpdateProjectMember,
@@ -200,6 +201,37 @@ export class ProjectController extends Controller {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    /**
+     * Run a raw sql query against the project's warehouse connection
+     * @param projectUuid The uuid of the project to run the query against
+     * @param body The query to run
+     * @param req express request
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/sqlQuery')
+    @OperationId('RunSqlQuery')
+    @Tags('Exploring')
+    async runSqlQuery(
+        @Path() projectUuid: string,
+        @Body() body: { sql: string },
+        @Request() req: express.Request,
+    ): Promise<{ status: 'ok'; results: ApiSqlQueryResults }> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await projectService.runSqlQuery(
+                req.user!,
+                projectUuid,
+                body.sql,
+            ),
         };
     }
 }
