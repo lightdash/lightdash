@@ -1,6 +1,6 @@
 import { HTMLSelect } from '@blueprintjs/core';
 import {
-    ConditionalFormattingRule as ConditionalFormattingRuleT,
+    ConditionalFormattingWithConditionalOperator,
     ConditionalOperator,
     FilterableItem,
     FilterType,
@@ -24,10 +24,12 @@ const filterConfig = FilterTypeConfig[FilterType.NUMBER];
 interface ConditionalFormattingRuleProps {
     isDefaultOpen?: boolean;
     ruleIndex: number;
-    rule: ConditionalFormattingRuleT;
+    rule: ConditionalFormattingWithConditionalOperator;
     field: FilterableItem;
     hasRemove?: boolean;
-    onChangeRule: (newRule: ConditionalFormattingRuleT) => void;
+    onChangeRule: (
+        newRule: ConditionalFormattingWithConditionalOperator,
+    ) => void;
     onChangeRuleOperator: (newOperator: ConditionalOperator) => void;
     onRemoveRule: () => void;
 }
