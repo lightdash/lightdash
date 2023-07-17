@@ -166,6 +166,63 @@ describe('Lightdash API', () => {
             },
         );
     });
+
+    it('Should get success response (200) from PATCH dashboard', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+        cy.request(`${apiUrl}/projects/${projectUuid}/dashboards`).then(
+            (projectResponse) => {
+                expect(projectResponse.status).to.eq(200);
+
+                const dashboardUuid = projectResponse.body.results[0].uuid;
+                const endpoint = `${apiUrl}/dashboards/${dashboardUuid}`;
+
+                cy.request(endpoint).then((dashboardResponse) => {
+                    expect(dashboardResponse.status).to.eq(200);
+                    expect(dashboardResponse.body.results).to.have.property(
+                        'name',
+                        'Jaffle dashboard',
+                    );
+
+                    const dashboard = dashboardResponse.body.results;
+                    cy.request({
+                        url: endpoint,
+                        headers: { 'Content-type': 'application/json' },
+                        method: 'PATCH',
+                        body: {
+                            name: dashboard.name,
+                            tiles: {
+                                ...dashboard.tiles,
+                                properties: {
+                                    ...dashboard.tiles.properties,
+                                    newChartData: {
+                                        name: 'My new chart from Dashboard',
+                                        description: null,
+                                        spaceUuid:
+                                            '08ddb0e6-2e81-4aeb-9584-a5713c012b1d',
+                                        spaceName: 'Jaffle shop',
+                                        projectUuid:
+                                            '3675b69e-8324-4110-bdca-059031aa8da3',
+                                        organizationUuid:
+                                            '172a2270-000f-42be-9c68-c4752c23ae51',
+                                        pinnedListUuid: null,
+                                        chartType: 'cartesian',
+                                    },
+                                },
+                            },
+                            filters: dashboard.filters,
+                        },
+                    }).then((resp) => {
+                        expect(resp.status).to.eq(200);
+                        expect(resp.body).to.have.property('status', 'ok');
+                        // expect(resp.body.results.tiles).to.have.property(
+                        //     'My new chart from Dashboard',
+                        // ); not sure how to check for this
+                    });
+                });
+            },
+        );
+    });
+
     it('Should get success response (200) from GET savedChartRouter endpoints', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
