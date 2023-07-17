@@ -3332,12 +3332,11 @@
                     "email": {
                         "type": "string"
                     },
-                    "userId": {
-                        "type": "number",
-                        "format": "double"
+                    "userUuid": {
+                        "type": "string"
                     }
                 },
-                "required": ["value", "email", "userId"],
+                "required": ["value", "email", "userUuid"],
                 "type": "object"
             },
             "OrgAttribute": {
@@ -6130,16 +6129,18 @@
                         }
                     }
                 },
-                "description": "Create new user attribute",
+                "description": "Creates new user attribute",
                 "tags": ["User attributes"],
                 "security": [],
                 "parameters": [],
                 "requestBody": {
+                    "description": "the user attribute to create",
                     "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/CreateOrgAttribute"
+                                "$ref": "#/components/schemas/CreateOrgAttribute",
+                                "description": "the user attribute to create"
                             }
                         }
                     }
@@ -6171,7 +6172,7 @@
                         }
                     }
                 },
-                "description": "Add a Lightdash user to a group",
+                "description": "Updates a user attribute",
                 "tags": ["User attributes"],
                 "security": [],
                 "parameters": [
@@ -6186,11 +6187,13 @@
                     }
                 ],
                 "requestBody": {
+                    "description": "the user attribute to update",
                     "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/CreateOrgAttribute"
+                                "$ref": "#/components/schemas/CreateOrgAttribute",
+                                "description": "the user attribute to update"
                             }
                         }
                     }
@@ -6220,12 +6223,12 @@
                         }
                     }
                 },
-                "description": "Remove a user from a group",
+                "description": "Remove a user attribute",
                 "tags": ["User attributes"],
                 "security": [],
                 "parameters": [
                     {
-                        "description": "the UUID for the group to remove the user from",
+                        "description": "the user attribute UUID to remove",
                         "in": "path",
                         "name": "userAttributeUuid",
                         "required": true,

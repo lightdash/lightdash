@@ -1,8 +1,9 @@
-import { OrgAttribute } from '@lightdash/common';
+import { CreateOrgAttribute, OrgAttribute } from '@lightdash/common';
 import {
     Button,
     Group,
     Modal,
+    Select,
     Stack,
     Text,
     Textarea,
@@ -11,36 +12,62 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconCircleX, IconPlus } from '@tabler/icons-react';
-import { FC } from 'react';
+import { FC, useState } from 'react';
+import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
+import {
+    useUpdateUserAtributesMutation,
+    useUserAtributesMutation,
+} from '../../../hooks/useUserAttributes';
 import MantineIcon from '../../common/MantineIcon';
 
 const UserAttributeModal: FC<{
     opened: boolean;
-    defaultValues?: OrgAttribute;
+    userAttribute?: OrgAttribute;
     onClose: () => void;
-    onChange: (orgUserAttribute: OrgAttribute) => void;
-}> = ({ opened, defaultValues, onChange, onClose }) => {
-    const form = useForm<OrgAttribute>({
-        initialValues: defaultValues,
+}> = ({ opened, userAttribute, onClose }) => {
+    const form = useForm<CreateOrgAttribute>({
+        initialValues: {
+            name: userAttribute?.name || '',
+            description: userAttribute?.description,
+            users: userAttribute?.users || [],
+        },
     });
-
-    const handleSubmit = async (data: OrgAttribute) => {
-        //TODo validation
-        await onChange(data);
+    const [inputError, setInputError] = useState<string>();
+    const { mutate: createUserAttribute } = useUserAtributesMutation();
+    const { mutate: updateUserAttribute } = useUpdateUserAtributesMutation(
+        userAttribute?.uuid,
+    );
+    const handleSubmit = async (data: CreateOrgAttribute) => {
+        // Input validation
+        if (!/^[a-z_][a-z0-9_]*$/.test(data.name)) {
+            setInputError(
+                `Invalid attribute name. Attribute name must contain only lowercase characters, '_' or numbers and it can't start with a number`,
+            );
+            return;
+        }
+        if (userAttribute?.uuid) {
+            await updateUserAttribute(data);
+        } else {
+            await createUserAttribute(data);
+        }
         form.reset();
         onClose();
     };
-
+    const { data: orgUsers } = useOrganizationUsers();
     return (
         <Modal
             opened={opened}
             onClose={onClose}
-            title={<Title order={4}>Add user attribute</Title>}
+            title={
+                <Title order={4}>
+                    {userAttribute ? 'Update' : 'Add'} user attribute
+                </Title>
+            }
             size="lg"
         >
             <form
                 name="invite_user"
-                onSubmit={form.onSubmit((values: OrgAttribute) =>
+                onSubmit={form.onSubmit((values: CreateOrgAttribute) =>
                     handleSubmit(values),
                 )}
             >
@@ -52,6 +79,9 @@ const UserAttributeModal: FC<{
                         required
                         {...form.getInputProps('name')}
                     />
+                    <Text color="red" size="sm">
+                        {inputError}
+                    </Text>
 
                     <Textarea
                         name="description"
@@ -74,15 +104,23 @@ const UserAttributeModal: FC<{
                         {form.values.users?.map((user, index) => {
                             return (
                                 <Group key={index}>
-                                    <TextInput
+                                    <Select
                                         w={200}
                                         name={`users.${index}.userUuid`}
                                         placeholder="E.g. test@lightdash.com"
                                         required
+                                        searchable
                                         {...form.getInputProps(
                                             `users.${index}.userUuid`,
                                         )}
+                                        data={
+                                            orgUsers?.map((orgUser) => ({
+                                                value: orgUser.userUuid,
+                                                label: orgUser.email,
+                                            })) || []
+                                        }
                                     />
+
                                     <TextInput
                                         name={`users.${index}.value`}
                                         placeholder="E.g. US"
@@ -116,7 +154,7 @@ const UserAttributeModal: FC<{
                             onClick={() => {
                                 form.setFieldValue('users', [
                                     ...(form.values.users || []),
-                                    { userUuid: '', value: '' },
+                                    { userUuid: '', email: '', value: '' },
                                 ]);
                             }}
                         >
@@ -133,7 +171,9 @@ const UserAttributeModal: FC<{
                         >
                             Cancel
                         </Button>
-                        <Button type="submit">Add</Button>
+                        <Button type="submit">
+                            {userAttribute ? 'Update' : 'Add'}
+                        </Button>
                     </Group>
                 </Stack>
             </form>

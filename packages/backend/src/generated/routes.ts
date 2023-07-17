@@ -2880,7 +2880,7 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 value: { dataType: 'string', required: true },
                 email: { dataType: 'string', required: true },
-                userId: { dataType: 'double', required: true },
+                userUuid: { dataType: 'string', required: true },
             },
             validators: {},
         },

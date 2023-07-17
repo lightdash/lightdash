@@ -22,8 +22,8 @@ import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import { useDeleteOrganizationUserMutation } from '../../../hooks/useOrganizationUsers';
 import {
-    useUserAtributesMutation,
     useUserAttributes,
+    useUserAttributesDeleteMutation,
 } from '../../../hooks/useUserAttributes';
 import { useApp } from '../../../providers/AppProvider';
 import LoadingState from '../../common/LoadingState';
@@ -41,6 +41,7 @@ const UserListItem: FC<{
     const { mutate, isLoading: isDeleting } =
         useDeleteOrganizationUserMutation();
 
+    const { mutate: deleteUserAttribute } = useUserAttributesDeleteMutation();
     console.debug('isEditDialogOpen', isEditDialogOpen);
     console.debug('mutate', mutate);
 
@@ -86,6 +87,13 @@ const UserListItem: FC<{
                                 color="gray.7"
                             />
                         </Button>
+                        {isEditDialogOpen && (
+                            <UserAttributeModal
+                                opened={isEditDialogOpen}
+                                userAttribute={orgUserAttribute}
+                                onClose={() => setIsEditDialogOpen(false)}
+                            />
+                        )}
                         <Button
                             leftIcon={<MantineIcon icon={IconCircleX} />}
                             variant="outline"
@@ -125,7 +133,11 @@ const UserListItem: FC<{
                                     Cancel
                                 </Button>
                                 <Button
-                                    onClick={() => {}}
+                                    onClick={() => {
+                                        deleteUserAttribute(
+                                            orgUserAttribute.uuid,
+                                        );
+                                    }}
                                     disabled={isDeleting}
                                     color="red"
                                 >
@@ -143,10 +155,10 @@ const UserListItem: FC<{
 const UserAttributesPanel: FC = () => {
     const { classes } = useTableStyles();
     const { user } = useApp();
-    const [showInviteModal, setShowInviteModal] = useState(false);
+    const [showAddAttributeModal, setShowAddAttributeModal] = useState(false);
+
     const { data: orgUserAttributes, isLoading } = useUserAttributes();
     const { data: organization } = useOrganization();
-    const { mutate: createUserAttribute } = useUserAtributesMutation();
     if (
         user.data?.ability.cannot(
             'manage',
@@ -193,15 +205,12 @@ const UserAttributesPanel: FC = () => {
                     </Tooltip>
                 </Group>
                 <>
-                    <Button onClick={() => setShowInviteModal(true)}>
+                    <Button onClick={() => setShowAddAttributeModal(true)}>
                         Add new attributes
                     </Button>
                     <UserAttributeModal
-                        opened={showInviteModal}
-                        onClose={() => setShowInviteModal(false)}
-                        onChange={(userAttribute) => {
-                            createUserAttribute(userAttribute);
-                        }}
+                        opened={showAddAttributeModal}
+                        onClose={() => setShowAddAttributeModal(false)}
                     />
                 </>
             </Group>

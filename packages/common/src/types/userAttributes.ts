@@ -8,7 +8,7 @@ export type OrgAttribute = {
 };
 
 export type UserAttribute = {
-    userId: number;
+    userUuid: string;
     email: string;
     value: string;
 };

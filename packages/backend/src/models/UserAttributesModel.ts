@@ -1,74 +1,17 @@
-import {
-    ChartConfig,
-    ChartKind,
-    ChartType,
-    CreateOrgAttribute,
-    getChartType,
-    NotFoundError,
-    OrganizationMemberRole,
-    OrgAttribute,
-    ProjectMemberRole,
-    Space,
-    SpaceDashboard,
-    SpaceQuery,
-    SpaceShare,
-    SpaceSummary,
-    UpdateSpace,
-} from '@lightdash/common';
-import * as Sentry from '@sentry/node';
+import { CreateOrgAttribute, OrgAttribute } from '@lightdash/common';
 import { Knex } from 'knex';
-import { getProjectRoleOrInheritedFromOrganization } from '../controllers/authenticationRoles';
-import {
-    AnalyticsChartViewsTableName,
-    AnalyticsDashboardViewsTableName,
-} from '../database/entities/analytics';
-import {
-    DashboardsTableName,
-    DashboardVersionsTableName,
-} from '../database/entities/dashboards';
-import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
-import {
-    DbOrganization,
-    OrganizationTableName,
-} from '../database/entities/organizations';
-import {
-    DbPinnedList,
-    DBPinnedSpace,
-    PinnedChartTableName,
-    PinnedDashboardTableName,
-    PinnedListTableName,
-    PinnedSpaceTableName,
-} from '../database/entities/pinnedList';
-import { ProjectMembershipsTableName } from '../database/entities/projectMemberships';
-import { DbProject, ProjectTableName } from '../database/entities/projects';
-import { SavedChartsTableName } from '../database/entities/savedCharts';
-import {
-    DbSpace,
-    SpaceShareTableName,
-    SpaceTableName,
-} from '../database/entities/spaces';
+import { OrganizationTableName } from '../database/entities/organizations';
 import {
     DbOrganizationMemberUserAttribute,
     DbUserAttribute,
     OrganizationMemberUserAttributesTable,
     UserAttributesTable,
 } from '../database/entities/userAttributes';
-import { UserTableName } from '../database/entities/users';
-import { DbValidationTable } from '../database/entities/validation';
-import { GetDashboardDetailsQuery } from './DashboardModel/DashboardModel';
 
 type Dependencies = {
     database: Knex;
 };
 
-const sampleAttribute = {
-    uuid: 'string',
-    createdAt: new Date(),
-    name: 'string',
-    organizationUuid: 'string',
-    description: 'string',
-    users: [],
-};
 export class UserAttributesModel {
     private database: Knex;
 
@@ -87,19 +30,29 @@ export class UserAttributesModel {
                 `${UserAttributesTable}.user_attribute_uuid`,
             )
             .leftJoin(
+                `users`,
+                `${OrganizationMemberUserAttributesTable}.user_id`,
+                `users.user_id`,
+            )
+            .leftJoin(
                 `emails`,
                 `${OrganizationMemberUserAttributesTable}.user_id`,
                 `emails.user_id`,
             )
             .select<
                 (DbUserAttribute &
-                    DbOrganizationMemberUserAttribute & { email: string })[]
+                    DbOrganizationMemberUserAttribute & {
+                        user_uuid: string;
+                        email: string;
+                    })[]
             >(
                 `${UserAttributesTable}.*`,
                 `${OrganizationMemberUserAttributesTable}.user_id`,
                 `${OrganizationMemberUserAttributesTable}.value`,
                 `emails.email`,
-            );
+                `users.user_uuid`,
+            )
+            .orderBy('created_at', 'desc');
 
         if (filters.organizationUuid) {
             query.where(
@@ -123,7 +76,7 @@ export class UserAttributesModel {
                     orgAttribute.user_id
                 ) {
                     acc[orgAttribute.user_attribute_uuid].users.push({
-                        userId: orgAttribute.user_id,
+                        userUuid: orgAttribute.user_uuid,
                         value: orgAttribute.value,
                         email: orgAttribute.email,
                     });
@@ -140,7 +93,7 @@ export class UserAttributesModel {
                         users: orgAttribute.user_id
                             ? [
                                   {
-                                      userId: orgAttribute.user_id,
+                                      userUuid: orgAttribute.user_uuid,
                                       value: orgAttribute.value,
                                       email: orgAttribute.email,
                                   },
@@ -160,6 +113,27 @@ export class UserAttributesModel {
         return result;
     }
 
+    private static async insertOrganizationMemberUserAttributes(
+        trx: Knex.Transaction,
+        userAttributeUuid: string,
+        organizationId: number,
+        users: { userUuid: string; value: string }[],
+    ): Promise<void> {
+        const promises = users.map(async (userAttr) => {
+            const [user] = await trx(`users`)
+                .where(`users.user_uuid`, userAttr.userUuid)
+                .select('user_id');
+            return trx(OrganizationMemberUserAttributesTable).insert({
+                user_id: user.user_id,
+                organization_id: organizationId,
+                user_attribute_uuid: userAttributeUuid,
+                value: userAttr.value,
+            });
+        });
+
+        await Promise.all(promises);
+    }
+
     async create(
         organizationUuid: string,
         orgAttribute: CreateOrgAttribute,
@@ -177,16 +151,12 @@ export class UserAttributesModel {
                 })
                 .returning('*');
 
-            const promises = orgAttribute.users.map(async (userAttr) =>
-                trx(OrganizationMemberUserAttributesTable).insert({
-                    user_id: userAttr.userId,
-                    organization_id: organization.organization_id,
-                    user_attribute_uuid: inserted.user_attribute_uuid,
-                    value: userAttr.value,
-                }),
+            await UserAttributesModel.insertOrganizationMemberUserAttributes(
+                trx,
+                inserted.user_attribute_uuid,
+                organization.organization_id,
+                orgAttribute.users,
             );
-
-            await Promise.all(promises);
 
             return inserted.user_attribute_uuid;
         });
@@ -194,14 +164,40 @@ export class UserAttributesModel {
     }
 
     async update(
+        organizationUuid: string,
         orgAttributeUuid: string,
         orgAttribute: CreateOrgAttribute,
     ): Promise<OrgAttribute> {
-        await this.database(UserAttributesTable);
+        const [organization] = await this.database(OrganizationTableName)
+            .select('organization_id')
+            .where('organization_uuid', organizationUuid);
+
         // Delete all users,
         // Update the attribute
         // Add all users back in
-        return sampleAttribute;
+        await this.database.transaction(async (trx) => {
+            await trx
+                .delete()
+                .from(OrganizationMemberUserAttributesTable)
+                .where('user_attribute_uuid', orgAttributeUuid)
+                .andWhere('organization_id', organization.organization_id);
+
+            await trx(UserAttributesTable)
+                .update({
+                    name: orgAttribute.name,
+                    description: orgAttribute.description,
+                })
+                .where('user_attribute_uuid', orgAttributeUuid);
+
+            await UserAttributesModel.insertOrganizationMemberUserAttributes(
+                trx,
+                orgAttributeUuid,
+                organization.organization_id,
+                orgAttribute.users,
+            );
+        });
+
+        return this.get(orgAttributeUuid);
     }
 
     async delete(orgAttributeUuid: string): Promise<void> {

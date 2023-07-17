@@ -1,18 +1,10 @@
 import { subject } from '@casl/ability';
 import {
     CreateOrgAttribute,
-    CreateSpace,
     ForbiddenError,
     OrgAttribute,
     SessionUser,
-    Space,
-    SpaceSummary,
-    UpdateSpace,
 } from '@lightdash/common';
-import { analytics } from '../../analytics/client';
-import { PinnedListModel } from '../../models/PinnedListModel';
-import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import { SpaceModel } from '../../models/SpaceModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 
 type Dependencies = {
@@ -64,7 +56,11 @@ export class UserAttributesService {
         ) {
             throw new ForbiddenError();
         }
-        return this.userAttributesModel.update(orgAttributeUuid, orgAttribute);
+        return this.userAttributesModel.update(
+            user.organizationUuid!,
+            orgAttributeUuid,
+            orgAttribute,
+        );
     }
 
     async delete(user: SessionUser, orgAttributeUuid: string): Promise<void> {
