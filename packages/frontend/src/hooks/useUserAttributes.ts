@@ -27,14 +27,25 @@ const createUserAttributes = async (data: CreateOrgAttribute) =>
         body: JSON.stringify(data),
     });
 
-export const useUserAtributesMutation = () => {
+export const useCreateUserAtributesMutation = () => {
     const queryClient = useQueryClient();
+    const { showToastSuccess, showToastError } = useToaster();
+
     return useMutation<undefined, ApiError, CreateOrgAttribute>(
         createUserAttributes,
         {
             mutationKey: ['user_attributes'],
             onSuccess: async () => {
                 await queryClient.invalidateQueries(['user_attributes']);
+                showToastSuccess({
+                    title: `Success! user attribute was created.`,
+                });
+            },
+            onError: (error: { error: Error }) => {
+                showToastError({
+                    title: `Failed to create user attribute`,
+                    subtitle: error.error.message,
+                });
             },
         },
     );
@@ -52,6 +63,8 @@ const updateUserAttributes = async (
 
 export const useUpdateUserAtributesMutation = (userAttributeUuuid?: string) => {
     const queryClient = useQueryClient();
+    const { showToastSuccess, showToastError } = useToaster();
+
     return useMutation<undefined, ApiError, CreateOrgAttribute>(
         (data) => updateUserAttributes(userAttributeUuuid || '', data),
 
@@ -59,6 +72,15 @@ export const useUpdateUserAtributesMutation = (userAttributeUuuid?: string) => {
             mutationKey: ['user_attributes'],
             onSuccess: async () => {
                 await queryClient.invalidateQueries(['user_attributes']);
+                showToastSuccess({
+                    title: `Success! user attribute was updated.`,
+                });
+            },
+            onError: (error: { error: Error }) => {
+                showToastError({
+                    title: `Failed to update user attribute`,
+                    subtitle: error.error.message,
+                });
             },
         },
     );

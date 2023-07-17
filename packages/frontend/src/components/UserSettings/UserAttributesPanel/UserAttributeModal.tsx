@@ -15,16 +15,17 @@ import { IconCircleX, IconPlus } from '@tabler/icons-react';
 import { FC, useState } from 'react';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import {
+    useCreateUserAtributesMutation,
     useUpdateUserAtributesMutation,
-    useUserAtributesMutation,
 } from '../../../hooks/useUserAttributes';
 import MantineIcon from '../../common/MantineIcon';
 
 const UserAttributeModal: FC<{
     opened: boolean;
     userAttribute?: OrgAttribute;
+    allUserAttributes: OrgAttribute[];
     onClose: () => void;
-}> = ({ opened, userAttribute, onClose }) => {
+}> = ({ opened, userAttribute, allUserAttributes, onClose }) => {
     const form = useForm<CreateOrgAttribute>({
         initialValues: {
             name: userAttribute?.name || '',
@@ -33,10 +34,16 @@ const UserAttributeModal: FC<{
         },
     });
     const [inputError, setInputError] = useState<string | undefined>();
-    const { mutate: createUserAttribute } = useUserAtributesMutation();
+    const { mutate: createUserAttribute } = useCreateUserAtributesMutation();
     const { mutate: updateUserAttribute } = useUpdateUserAtributesMutation(
         userAttribute?.uuid,
     );
+
+    const handleClose = () => {
+        form.reset();
+        setInputError(undefined);
+        if (onClose) onClose();
+    };
     const handleSubmit = async (data: CreateOrgAttribute) => {
         // Input validation
         if (!/^[a-z_][a-z0-9_]*$/.test(data.name)) {
@@ -45,20 +52,29 @@ const UserAttributeModal: FC<{
             );
             return;
         }
+        if (
+            allUserAttributes.some(
+                (attr) =>
+                    attr.name === data.name &&
+                    attr.uuid !== userAttribute?.uuid,
+            )
+        ) {
+            setInputError(`Attribute with the same name already exists`);
+            return;
+        }
         if (userAttribute?.uuid) {
             await updateUserAttribute(data);
         } else {
             await createUserAttribute(data);
         }
-        form.reset();
-        setInputError(undefined);
-        onClose();
+        handleClose();
     };
+
     const { data: orgUsers } = useOrganizationUsers();
     return (
         <Modal
             opened={opened}
-            onClose={onClose}
+            onClose={handleClose}
             title={
                 <Title order={4}>
                     {userAttribute ? 'Update' : 'Add'} user attribute
@@ -166,7 +182,7 @@ const UserAttributeModal: FC<{
                     <Group spacing="xs" position="right" mt="md">
                         <Button
                             onClick={() => {
-                                if (onClose) onClose();
+                                handleClose();
                             }}
                             variant="outline"
                         >

@@ -20,7 +20,6 @@ import {
 import { FC, useState } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
-import { useDeleteOrganizationUserMutation } from '../../../hooks/useOrganizationUsers';
 import {
     useUserAttributes,
     useUserAttributesDeleteMutation,
@@ -34,16 +33,12 @@ import UserAttributeModal from './UserAttributeModal';
 
 const UserListItem: FC<{
     orgUserAttribute: OrgAttribute;
-}> = ({ orgUserAttribute }) => {
+    allUserAttributes: OrgAttribute[];
+}> = ({ orgUserAttribute, allUserAttributes }) => {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
-    const { mutate, isLoading: isDeleting } =
-        useDeleteOrganizationUserMutation();
-
     const { mutate: deleteUserAttribute } = useUserAttributesDeleteMutation();
-    console.debug('isEditDialogOpen', isEditDialogOpen);
-    console.debug('mutate', mutate);
 
     return (
         <>
@@ -92,6 +87,7 @@ const UserListItem: FC<{
                                 opened={isEditDialogOpen}
                                 userAttribute={orgUserAttribute}
                                 onClose={() => setIsEditDialogOpen(false)}
+                                allUserAttributes={allUserAttributes}
                             />
                         )}
                         <Button
@@ -104,11 +100,7 @@ const UserListItem: FC<{
                         </Button>
                         <Modal
                             opened={isDeleteDialogOpen}
-                            onClose={() =>
-                                !isDeleting
-                                    ? setIsDeleteDialogOpen(false)
-                                    : undefined
-                            }
+                            onClose={() => setIsDeleteDialogOpen(false)}
                             title={
                                 <Group spacing="xs">
                                     <MantineIcon
@@ -126,7 +118,6 @@ const UserListItem: FC<{
                             </Text>
                             <Group spacing="xs" position="right">
                                 <Button
-                                    disabled={isDeleting}
                                     onClick={() => setIsDeleteDialogOpen(false)}
                                     variant="outline"
                                 >
@@ -138,7 +129,6 @@ const UserListItem: FC<{
                                             orgUserAttribute.uuid,
                                         );
                                     }}
-                                    disabled={isDeleting}
                                     color="red"
                                 >
                                     Delete
@@ -169,6 +159,8 @@ const UserAttributesPanel: FC = () => {
     ) {
         return <ForbiddenPanel />;
     }
+
+    if (isLoading) return <LoadingState title="Loading user attributes" />;
 
     return (
         <Stack>
@@ -211,6 +203,7 @@ const UserAttributesPanel: FC = () => {
                     <UserAttributeModal
                         opened={showAddAttributeModal}
                         onClose={() => setShowAddAttributeModal(false)}
+                        allUserAttributes={orgUserAttributes || []}
                     />
                 </>
             </Group>
@@ -236,6 +229,7 @@ const UserAttributesPanel: FC = () => {
                                 <UserListItem
                                     key={orgUserAttribute.uuid}
                                     orgUserAttribute={orgUserAttribute}
+                                    allUserAttributes={orgUserAttributes || []}
                                 />
                             ))}
                         </tbody>
