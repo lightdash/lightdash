@@ -6,24 +6,62 @@ export type ConditionalFormattingWithConditionalOperator<T = number> =
         values: T[];
     };
 
-export const isConditionalFormattingRuleWithConditionalOperator = (
-    rule: ConditionalFormattingConfig['rules'][0],
-): rule is ConditionalFormattingWithConditionalOperator => 'values' in rule;
-
 export type ConditionalFormattingWithRange<T = number> = {
     min: T;
     max: T;
 };
 
-export const isConditionalFormattingRuleWithRange = (
-    rule: ConditionalFormattingConfig['rules'][0],
-): rule is ConditionalFormattingWithRange => 'min' in rule && 'max' in rule;
-
-export type ConditionalFormattingConfig = {
+// Single color -
+export type ConditionalFormattingConfigWithSingleColor = {
     target: FieldTarget | null;
-    rules: (
-        | ConditionalFormattingWithConditionalOperator
-        | ConditionalFormattingWithRange
-    )[];
-    color: string | string[];
+    color: string;
+    rules: ConditionalFormattingWithConditionalOperator[];
+};
+
+export const isConditionalFormattingConfigWithSingleColor = (
+    rule: ConditionalFormattingConfig,
+): rule is ConditionalFormattingConfigWithSingleColor =>
+    'color' in rule && typeof rule.color === 'string' && 'rules' in rule;
+// - Single color
+
+// Color range -
+export type ConditionalFormattingConfigWithColorRange = {
+    target: FieldTarget | null;
+    color: {
+        start: string;
+        end: string;
+        steps: 5;
+    };
+    rule: ConditionalFormattingWithRange;
+};
+
+export const isConditionalFormattingConfigWithColorRange = (
+    config: ConditionalFormattingConfig,
+): config is ConditionalFormattingConfigWithColorRange =>
+    'color' in config &&
+    typeof config.color === 'object' &&
+    'steps' in config.color;
+// - Color range
+
+export type ConditionalFormattingConfig =
+    | ConditionalFormattingConfigWithSingleColor
+    | ConditionalFormattingConfigWithColorRange;
+
+export enum ConditionalFormattingConfigType {
+    Single = 'single',
+    Range = 'range',
+}
+
+export const getConditionalFormattingConfigType = (
+    rule: ConditionalFormattingConfig,
+): ConditionalFormattingConfigType => {
+    if (isConditionalFormattingConfigWithSingleColor(rule)) {
+        return ConditionalFormattingConfigType.Single;
+    }
+
+    if (isConditionalFormattingConfigWithColorRange(rule)) {
+        return ConditionalFormattingConfigType.Range;
+    }
+
+    throw new Error('Invalid conditional formatting rule');
 };

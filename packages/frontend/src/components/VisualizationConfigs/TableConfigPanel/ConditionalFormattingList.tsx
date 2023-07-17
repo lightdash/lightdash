@@ -1,5 +1,5 @@
 import {
-    createConditionalFormattingConfig,
+    createConditionalFormattingConfigWithSingleColor,
     FilterableItem,
     getItemId,
     getItemMap,
@@ -61,7 +61,7 @@ const ConditionalFormattingList = ({}) => {
         setIsAddingNew(true);
         onSetConditionalFormattings(
             produce(activeConfigs, (draft) => {
-                draft.push(createConditionalFormattingConfig());
+                draft.push(createConditionalFormattingConfigWithSingleColor());
             }),
         );
     }, [onSetConditionalFormattings, activeConfigs]);

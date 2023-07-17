@@ -1,18 +1,28 @@
 import {
+    assertUnreachable,
     ConditionalFormattingConfig,
+    ConditionalFormattingConfigType,
+    ConditionalFormattingConfigWithColorRange,
     ConditionalFormattingWithConditionalOperator,
     ConditionalOperator,
     createConditionalFormatingRule,
+    createConditionalFormattingConfigWithColorRange,
+    createConditionalFormattingConfigWithSingleColor,
     FilterableItem,
+    getConditionalFormattingConfigType,
     getItemId,
-    isConditionalFormattingRuleWithConditionalOperator,
+    isConditionalFormattingConfigWithColorRange,
+    isConditionalFormattingConfigWithSingleColor,
 } from '@lightdash/common';
 import {
     ActionIcon,
     Button,
     Collapse,
+    ColorInput,
     Group,
+    NumberInput,
     Select,
+    SimpleGrid,
     Stack,
     Text,
     Tooltip,
@@ -41,6 +51,11 @@ interface ConditionalFormattingProps {
     onChange: (newConfig: ConditionalFormattingConfig) => void;
     onRemove: () => void;
 }
+
+const ConditionalFormattingRuleLabels = {
+    [ConditionalFormattingConfigType.Single]: 'Single color',
+    [ConditionalFormattingConfigType.Range]: 'Color range',
+};
 
 const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
     isDefaultOpen = true,
@@ -76,64 +91,116 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
         );
     };
 
+    const handleConfigTypeChange = (
+        newConfigType: ConditionalFormattingConfigType,
+    ) => {
+        switch (newConfigType) {
+            case ConditionalFormattingConfigType.Single:
+                return handleChange(
+                    createConditionalFormattingConfigWithSingleColor(),
+                );
+            case ConditionalFormattingConfigType.Range:
+                return handleChange(
+                    createConditionalFormattingConfigWithColorRange(),
+                );
+            default:
+                return assertUnreachable(newConfigType, 'Unknown config type');
+        }
+    };
+
     const handleAddRule = () => {
         setIsAddingRule(true);
-        handleChange(
-            produce(config, (draft) => {
-                draft.rules.push(createConditionalFormatingRule());
-            }),
-        );
+
+        if (isConditionalFormattingConfigWithSingleColor(config)) {
+            handleChange(
+                produce(config, (draft) => {
+                    draft.rules.push(createConditionalFormatingRule());
+                }),
+            );
+        }
     };
 
     const handleRemoveRule = (index: number) => {
-        handleChange(
-            produce(config, (draft) => {
-                draft.rules.splice(index, 1);
-            }),
-        );
+        if (isConditionalFormattingConfigWithSingleColor(config)) {
+            handleChange(
+                produce(config, (draft) => {
+                    draft.rules.splice(index, 1);
+                }),
+            );
+        }
     };
 
     const handleChangeRuleOperator = (
         index: number,
         newOperator: ConditionalOperator,
     ) => {
-        handleChange(
-            produce(config, (draft) => {
-                if (
-                    isConditionalFormattingRuleWithConditionalOperator(
-                        draft.rules[index],
-                    )
-                ) {
+        if (isConditionalFormattingConfigWithSingleColor(config)) {
+            handleChange(
+                produce(config, (draft) => {
                     draft.rules[index] = {
                         ...draft.rules[index],
                         operator: newOperator,
                     };
-                }
-            }),
-        );
+                }),
+            );
+        }
     };
 
     const handleChangeRule = (
         index: number,
         newRule: ConditionalFormattingWithConditionalOperator,
     ) => {
-        handleChange(
-            produce(config, (draft) => {
-                // FIXME: check if we can fix this problem in number input
-                draft.rules[index] = {
-                    ...newRule,
-                    values: newRule.values.map((v) => Number(v)),
-                };
-            }),
-        );
+        if (isConditionalFormattingConfigWithSingleColor(config)) {
+            handleChange(
+                produce(config, (draft) => {
+                    // FIXME: check if we can fix this problem in number input
+                    draft.rules[index] = {
+                        ...newRule,
+                        values: newRule.values.map((v) => Number(v)),
+                    };
+                }),
+            );
+        }
     };
 
-    const handleChangeColor = (newColor: string) => {
-        handleChange(
-            produce(config, (draft) => {
-                draft.color = newColor;
-            }),
-        );
+    const handleChangeSingleColor = (newColor: string) => {
+        if (isConditionalFormattingConfigWithSingleColor(config)) {
+            handleChange(
+                produce(config, (draft) => {
+                    draft.color = newColor;
+                }),
+            );
+        }
+    };
+
+    const handleChangeColorRangeColor = (
+        newColor: Partial<ConditionalFormattingConfigWithColorRange['color']>,
+    ) => {
+        if (isConditionalFormattingConfigWithColorRange(config)) {
+            handleChange(
+                produce(config, (draft) => {
+                    draft.color = {
+                        ...draft.color,
+                        ...newColor,
+                    };
+                }),
+            );
+        }
+    };
+
+    const handleChangeColorRangeRule = (
+        newRule: Partial<ConditionalFormattingConfigWithColorRange['rule']>,
+    ) => {
+        if (isConditionalFormattingConfigWithColorRange(config)) {
+            handleChange(
+                produce(config, (draft) => {
+                    draft.rule = {
+                        ...draft.rule,
+                        ...newRule,
+                    };
+                }),
+            );
+        }
     };
 
     return (
@@ -188,47 +255,137 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                             itemComponent={FieldSelectItem}
                             onChange={handleChangeField}
                         />
-                        <Group spacing="xs">
-                            <Text fw={500}>Select color</Text>
 
-                            <ColorSelector
-                                color={config.color}
-                                onColorChange={handleChangeColor}
-                            ></ColorSelector>
-                        </Group>
+                        <Select
+                            value={getConditionalFormattingConfigType(config)}
+                            data={[
+                                {
+                                    value: ConditionalFormattingConfigType.Single,
+                                    label: ConditionalFormattingRuleLabels[
+                                        ConditionalFormattingConfigType.Single
+                                    ],
+                                },
+                                {
+                                    value: ConditionalFormattingConfigType.Range,
+                                    label: ConditionalFormattingRuleLabels[
+                                        ConditionalFormattingConfigType.Range
+                                    ],
+                                },
+                            ]}
+                            onChange={(
+                                newConfigType: ConditionalFormattingConfigType,
+                            ) => {
+                                handleConfigTypeChange(newConfigType);
+                            }}
+                        />
 
-                        {config.rules.map((rule, ruleIndex) => (
-                            <React.Fragment key={ruleIndex}>
-                                <ConditionalFormattingRule
-                                    isDefaultOpen={
-                                        config.rules.length === 1 ||
-                                        isAddingRule
-                                    }
-                                    hasRemove={config.rules.length > 1}
-                                    ruleIndex={ruleIndex}
-                                    rule={rule}
-                                    field={field || fields[0]}
-                                    onChangeRule={(newRule) =>
-                                        handleChangeRule(ruleIndex, newRule)
-                                    }
-                                    onChangeRuleOperator={(newOperator) =>
-                                        handleChangeRuleOperator(
-                                            ruleIndex,
-                                            newOperator,
-                                        )
-                                    }
-                                    onRemoveRule={() =>
-                                        handleRemoveRule(ruleIndex)
-                                    }
+                        {isConditionalFormattingConfigWithSingleColor(
+                            config,
+                        ) ? (
+                            <>
+                                <Group spacing="xs">
+                                    <Text fw={500}>Select color</Text>
+                                </Group>
+
+                                <ColorSelector
+                                    color={config.color}
+                                    onColorChange={handleChangeSingleColor}
                                 />
 
-                                {ruleIndex !== config.rules.length - 1 && (
-                                    <Text fz="xs" fw={600}>
-                                        AND
-                                    </Text>
-                                )}
-                            </React.Fragment>
-                        ))}
+                                {config.rules.map((rule, ruleIndex) => (
+                                    <React.Fragment key={ruleIndex}>
+                                        <ConditionalFormattingRule
+                                            isDefaultOpen={
+                                                config.rules.length === 1 ||
+                                                isAddingRule
+                                            }
+                                            hasRemove={config.rules.length > 1}
+                                            ruleIndex={ruleIndex}
+                                            rule={rule}
+                                            field={field || fields[0]}
+                                            onChangeRule={(newRule) =>
+                                                handleChangeRule(
+                                                    ruleIndex,
+                                                    newRule,
+                                                )
+                                            }
+                                            onChangeRuleOperator={(
+                                                newOperator,
+                                            ) =>
+                                                handleChangeRuleOperator(
+                                                    ruleIndex,
+                                                    newOperator,
+                                                )
+                                            }
+                                            onRemoveRule={() =>
+                                                handleRemoveRule(ruleIndex)
+                                            }
+                                        />
+
+                                        {ruleIndex !==
+                                            config.rules.length - 1 && (
+                                            <Text fz="xs" fw={600}>
+                                                AND
+                                            </Text>
+                                        )}
+                                    </React.Fragment>
+                                ))}
+                            </>
+                        ) : isConditionalFormattingConfigWithColorRange(
+                              config,
+                          ) ? (
+                            <>
+                                <SimpleGrid cols={2}>
+                                    <ColorInput
+                                        withEyeDropper={false}
+                                        label="Start color"
+                                        value={config.color.start}
+                                        onChange={(newStartColor) =>
+                                            handleChangeColorRangeColor({
+                                                start: newStartColor,
+                                            })
+                                        }
+                                    />
+
+                                    <ColorInput
+                                        withEyeDropper={false}
+                                        label="End color"
+                                        value={config.color.end}
+                                        onChange={(newEndColor) =>
+                                            handleChangeColorRangeColor({
+                                                end: newEndColor,
+                                            })
+                                        }
+                                    />
+
+                                    <NumberInput
+                                        label="Min value"
+                                        value={config.rule.min}
+                                        onChange={(newMin) => {
+                                            if (newMin === '') return;
+
+                                            handleChangeColorRangeRule({
+                                                min: newMin,
+                                            });
+                                        }}
+                                    />
+
+                                    <NumberInput
+                                        label="Max value"
+                                        value={config.rule.max}
+                                        onChange={(newMax) => {
+                                            if (newMax === '') return;
+
+                                            handleChangeColorRangeRule({
+                                                max: newMax,
+                                            });
+                                        }}
+                                    />
+                                </SimpleGrid>
+                            </>
+                        ) : (
+                            assertUnreachable(config, 'Unknown config type')
+                        )}
 
                         <Button
                             sx={{ alignSelf: 'start' }}
