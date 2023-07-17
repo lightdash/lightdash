@@ -1126,7 +1126,6 @@ export class ProjectService {
                         code: SpanStatusCode.ERROR,
                         message: e.message,
                     });
-                    span.end();
                     throw e;
                 } finally {
                     span.end();
