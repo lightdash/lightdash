@@ -136,40 +136,22 @@ export class DashboardModel {
                 .returning('*');
 
             switch (tile.type) {
-                case DashboardTileTypes.SAVED_CHART:
+                case DashboardTileTypes.SAVED_CHART: {
+                    let chartUuid = tile.properties.savedChartUuid;
                     if (tile.properties.newChartData) {
-                        await createSavedChart(
+                        chartUuid = await createSavedChart(
                             trx,
                             projectUuid,
                             userUuid,
                             tile.properties.newChartData,
                         );
-                        const [savedChart] = await trx(SavedChartsTableName)
-                            .select(['saved_query_id'])
-                            .where(
-                                'saved_query_uuid',
-                                tile.properties.savedChartUuid,
-                            )
-                            .limit(1);
-                        await trx(DashboardTileChartTableName).insert({
-                            dashboard_version_id:
-                                versionId.dashboard_version_id,
-                            dashboard_tile_uuid:
-                                insertedTile.dashboard_tile_uuid,
-                            saved_chart_id: savedChart.saved_query_id,
-                            hide_title: tile.properties.hideTitle,
-                            title: tile.properties.title,
-                        });
                     }
-                    if (tile.properties.savedChartUuid) {
+
+                    if (chartUuid) {
                         const [savedChart] = await trx(SavedChartsTableName)
                             .select(['saved_query_id'])
-                            .where(
-                                'saved_query_uuid',
-                                tile.properties.savedChartUuid,
-                            )
+                            .where('saved_query_uuid', chartUuid)
                             .limit(1);
-
                         if (!savedChart) {
                             throw new NotFoundError('Saved chart not found');
                         }
@@ -184,6 +166,7 @@ export class DashboardModel {
                         });
                     }
                     break;
+                }
                 case DashboardTileTypes.MARKDOWN:
                     await trx(DashboardTileMarkdownsTableName).insert({
                         dashboard_version_id: versionId.dashboard_version_id,
