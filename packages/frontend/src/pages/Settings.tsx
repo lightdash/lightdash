@@ -152,8 +152,8 @@ const Settings: FC = () => {
                         </Box>
 
                         <Can
-                            I="create"
-                            this={subject('Project', {
+                            I="update"
+                            this={subject('Organization', {
                                 organizationUuid: organization.organizationUuid,
                             })}
                         >
