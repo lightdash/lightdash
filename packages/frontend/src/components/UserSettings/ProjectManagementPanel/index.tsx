@@ -47,20 +47,28 @@ const ProjectListItem: FC<ProjectListItemProps> = ({
             </td>
             <td width="1%">
                 <Group noWrap position="right" spacing="sm">
-                    <Button
-                        component={Link}
-                        size="xs"
-                        to={`/generalSettings/projectManagement/${projectUuid}`}
-                        leftIcon={<MantineIcon icon={IconSettings} />}
-                        variant="outline"
-                        onClick={() => {
-                            if (!isCurrentProject) {
-                                updateActiveProjectMutation(projectUuid);
-                            }
-                        }}
+                    <Can
+                        I="update"
+                        this={subject('Project', {
+                            organizationUuid: user.data?.organizationUuid,
+                            projectUuid,
+                        })}
                     >
-                        Settings
-                    </Button>
+                        <Button
+                            component={Link}
+                            size="xs"
+                            to={`/generalSettings/projectManagement/${projectUuid}`}
+                            leftIcon={<MantineIcon icon={IconSettings} />}
+                            variant="outline"
+                            onClick={() => {
+                                if (!isCurrentProject) {
+                                    updateActiveProjectMutation(projectUuid);
+                                }
+                            }}
+                        >
+                            Settings
+                        </Button>
+                    </Can>
 
                     <Can
                         I="delete"
