@@ -321,7 +321,7 @@ export class CsvService {
             });
         }
 
-        const rows = await this.projectService.runQuery(
+        const rows = await this.projectService.runMetricQuery(
             user,
             metricQuery,
             chart.projectUuid,
@@ -573,7 +573,7 @@ export class CsvService {
                 properties: analyticsProperties,
             });
 
-            const rows = await this.projectService.runQuery(
+            const rows = await this.projectService.runMetricQuery(
                 user,
                 metricQuery,
                 projectUuid,

@@ -1790,6 +1790,46 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string._type-DimensionType--__': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.unknown_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSqlQueryResults: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                rows: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'Record_string.unknown_',
+                    },
+                    required: true,
+                },
+                fields: {
+                    ref: 'Record_string._type-DimensionType--__',
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     FieldId: {
         dataType: 'refAlias',
         type: { dataType: 'string', validators: {} },
@@ -4735,6 +4775,61 @@ export function RegisterRoutes(app: express.Router) {
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.post(
+        '/api/v1/projects/:projectUuid/sqlQuery',
+        ...fetchMiddlewares<RequestHandler>(ProjectController),
+        ...fetchMiddlewares<RequestHandler>(
+            ProjectController.prototype.runSqlQuery,
+        ),
+
+        function ProjectController_runSqlQuery(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                body: {
+                    in: 'body',
+                    name: 'body',
+                    required: true,
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        sql: { dataType: 'string', required: true },
+                    },
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const controller = new ProjectController();
+
+                const promise = controller.runSqlQuery.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.post(
         '/api/v1/projects/:projectUuid/explores/:exploreId/runUnderlyingDataQuery',
         ...fetchMiddlewares<RequestHandler>(RunViewChartQueryController),
         ...fetchMiddlewares<RequestHandler>(
@@ -4796,10 +4891,10 @@ export function RegisterRoutes(app: express.Router) {
         '/api/v1/projects/:projectUuid/explores/:exploreId/runQuery',
         ...fetchMiddlewares<RequestHandler>(RunViewChartQueryController),
         ...fetchMiddlewares<RequestHandler>(
-            RunViewChartQueryController.prototype.postRunQuery,
+            RunViewChartQueryController.prototype.runMetricQuery,
         ),
 
-        function RunViewChartQueryController_postRunQuery(
+        function RunViewChartQueryController_runMetricQuery(
             request: any,
             response: any,
             next: any,
@@ -4839,7 +4934,7 @@ export function RegisterRoutes(app: express.Router) {
 
                 const controller = new RunViewChartQueryController();
 
-                const promise = controller.postRunQuery.apply(
+                const promise = controller.runMetricQuery.apply(
                     controller,
                     validatedArgs as any,
                 );
