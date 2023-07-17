@@ -8,6 +8,7 @@ import {
     createConditionalFormatingRule,
     createConditionalFormattingConfigWithColorRange,
     createConditionalFormattingConfigWithSingleColor,
+    ECHARTS_DEFAULT_COLORS,
     FilterableItem,
     getConditionalFormattingConfigType,
     getItemId,
@@ -35,6 +36,7 @@ import {
 } from '@tabler/icons-react';
 import produce from 'immer';
 import React, { FC, useMemo, useState } from 'react';
+import { useOrganization } from '../../../hooks/organization/useOrganization';
 import FieldIcon from '../../common/Filters/FieldIcon';
 import { fieldLabelText } from '../../common/Filters/FieldLabel';
 import { FiltersProvider } from '../../common/Filters/FiltersProvider';
@@ -65,6 +67,13 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
     onChange,
     onRemove,
 }) => {
+    const { data: org } = useOrganization();
+
+    const defaultColors = useMemo(
+        () => org?.chartColors ?? ECHARTS_DEFAULT_COLORS,
+        [org],
+    );
+
     const [isAddingRule, setIsAddingRule] = useState(false);
     const [isOpen, setIsOpen] = useState(isDefaultOpen);
     const [config, setConfig] = useState<ConditionalFormattingConfig>(value);
@@ -338,6 +347,9 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                                 <SimpleGrid cols={2}>
                                     <ColorInput
                                         withEyeDropper={false}
+                                        format="hex"
+                                        swatches={defaultColors}
+                                        swatchesPerRow={defaultColors.length}
                                         label="Start color"
                                         value={config.color.start}
                                         onChange={(newStartColor) =>
@@ -349,6 +361,9 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
 
                                     <ColorInput
                                         withEyeDropper={false}
+                                        format="hex"
+                                        swatches={defaultColors}
+                                        swatchesPerRow={defaultColors.length}
                                         label="End color"
                                         value={config.color.end}
                                         onChange={(newEndColor) =>
