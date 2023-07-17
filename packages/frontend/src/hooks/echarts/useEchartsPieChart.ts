@@ -41,9 +41,8 @@ const useEchartsPieConfig = () => {
         pieChartConfig: {
             groupColorDefaults,
             selectedMetric,
+            data,
             validPieChartConfig: {
-                groupFieldIds,
-                metricId,
                 isDonut,
                 valueLabel,
                 showValue,
@@ -51,77 +50,58 @@ const useEchartsPieConfig = () => {
                 groupLabelOverrides,
                 groupColorOverrides,
                 groupValueOptionOverrides,
+                groupSortOverrides,
                 showLegend,
             },
         },
         explore,
-        resultsData,
     } = context;
 
-    const data = useMemo(() => {
-        if (
-            !metricId ||
-            !selectedMetric ||
-            !resultsData ||
-            resultsData.rows.length === 0 ||
-            !groupFieldIds ||
-            groupFieldIds.length === 0
-        ) {
-            return [];
-        }
+    const series = useMemo(() => {
+        if (!selectedMetric) return;
 
-        return Object.entries(
-            resultsData.rows.reduce<Record<string, number>>((acc, row) => {
-                const key = groupFieldIds
-                    .map((groupFieldId) => row[groupFieldId].value.formatted)
-                    .join(' - ');
+        const sortedData =
+            groupSortOverrides && groupSortOverrides.length > 0
+                ? data.sort(
+                      ([aLabel], [bLabel]) =>
+                          groupSortOverrides.indexOf(aLabel) -
+                          groupSortOverrides.indexOf(bLabel),
+                  )
+                : data;
 
-                const value = Number(row[metricId].value.raw);
-
-                if (key && value !== undefined) {
-                    acc[key] = (acc[key] ?? 0) + (isNaN(value) ? 0 : value);
-                }
-
-                return acc;
-            }, {}),
-        )
-            .sort((a, b) => b[1] - a[1])
-            .map(([name, value]) => {
-                const labelOptions = getFormattedLabelOptions(selectedMetric, {
-                    valueLabel:
-                        groupValueOptionOverrides?.[name]?.valueLabel ??
-                        valueLabel,
-                    showValue:
-                        groupValueOptionOverrides?.[name]?.showValue ??
-                        showValue,
-                    showPercentage:
-                        groupValueOptionOverrides?.[name]?.showPercentage ??
-                        showPercentage,
-                });
-
-                return {
-                    name: groupLabelOverrides?.[name] ?? name,
-                    value,
-                    itemStyle: {
-                        color:
-                            groupColorOverrides?.[name] ??
-                            groupColorDefaults?.[name],
-                    },
-                    ...labelOptions,
-                };
+        return sortedData.map(([name, value]) => {
+            const labelOptions = getFormattedLabelOptions(selectedMetric, {
+                valueLabel:
+                    groupValueOptionOverrides?.[name]?.valueLabel ?? valueLabel,
+                showValue:
+                    groupValueOptionOverrides?.[name]?.showValue ?? showValue,
+                showPercentage:
+                    groupValueOptionOverrides?.[name]?.showPercentage ??
+                    showPercentage,
             });
+
+            return {
+                name: groupLabelOverrides?.[name] ?? name,
+                value,
+                itemStyle: {
+                    color:
+                        groupColorOverrides?.[name] ??
+                        groupColorDefaults?.[name],
+                },
+                ...labelOptions,
+            };
+        });
     }, [
-        resultsData,
-        groupFieldIds,
+        data,
+        groupColorDefaults,
+        groupColorOverrides,
+        groupLabelOverrides,
+        groupValueOptionOverrides,
+        groupSortOverrides,
         selectedMetric,
-        metricId,
         showPercentage,
         showValue,
         valueLabel,
-        groupLabelOverrides,
-        groupColorOverrides,
-        groupValueOptionOverrides,
-        groupColorDefaults,
     ]);
 
     const eChartsOptions = useMemo(
@@ -147,11 +127,11 @@ const useEchartsPieConfig = () => {
                             : showLegend
                             ? ['50%', '52%']
                             : ['50%', '50%'],
-                    data,
+                    data: series,
                 },
             ],
         }),
-        [data, isDonut, valueLabel, showValue, showPercentage, showLegend],
+        [series, isDonut, valueLabel, showValue, showPercentage, showLegend],
     );
 
     if (!explore || !data || data.length === 0) {

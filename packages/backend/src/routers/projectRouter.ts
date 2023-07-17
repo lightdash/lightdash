@@ -454,29 +454,6 @@ projectRouter.patch(
 );
 
 projectRouter.post(
-    '/sqlQuery',
-    allowApiKeyAuthentication,
-    isAuthenticated,
-    unauthorisedInDemo,
-    async (req, res, next) => {
-        try {
-            const results: ApiSqlQueryResults =
-                await projectService.runSqlQuery(
-                    req.user!,
-                    req.params.projectUuid,
-                    req.body.sql,
-                );
-            res.json({
-                status: 'ok',
-                results,
-            });
-        } catch (e) {
-            next(e);
-        }
-    },
-);
-
-projectRouter.post(
     '/sqlRunner/downloadCsv',
     allowApiKeyAuthentication,
     isAuthenticated,

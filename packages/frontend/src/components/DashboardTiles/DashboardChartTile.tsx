@@ -45,6 +45,7 @@ import { useDashboardContext } from '../../providers/DashboardProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
 import { Can } from '../common/Authorization';
+import ErrorState from '../common/ErrorState';
 import { getConditionalRuleLabel } from '../common/Filters/configs';
 import LinkMenuItem from '../common/LinkMenuItem';
 import { FilterValues } from '../DashboardFilter/ActiveFilters/ActiveFilters.styles';
@@ -76,12 +77,23 @@ const ExportResultAsCSVModal: FC<ExportResultAsCSVModalProps> = ({
     onClose,
     onConfirm,
 }) => {
-    const { data: resultData, isLoading } = useChartResults(
-        savedChart.uuid,
-        savedChart.metricQuery.filters,
-    );
+    const { showToastError } = useToaster();
+    const {
+        data: resultData,
+        isLoading,
+        error,
+    } = useChartResults(savedChart.uuid, savedChart.metricQuery.filters);
 
-    if (isLoading || !resultData) return null;
+    useEffect(() => {
+        if (error) {
+            showToastError({
+                title: 'Error exporting CSV',
+                subtitle: error.error.message,
+                key: 'error-exporting-csv',
+            });
+        }
+    }, [error, showToastError]);
+    if (isLoading || error || !resultData) return null;
 
     const rows = resultData?.rows;
     const getCsvLink = async (limit: number | null, onlyRaw: boolean) => {
@@ -123,10 +135,11 @@ const ValidDashboardChartTile: FC<{
         series: EChartSeries[],
     ) => void;
 }> = ({ tileUuid, isTitleHidden = false, data, onSeriesContextMenu }) => {
-    const { data: resultData, isLoading } = useChartResults(
-        data.uuid,
-        data.metricQuery.filters,
-    );
+    const {
+        data: resultData,
+        isLoading,
+        error,
+    } = useChartResults(data.uuid, data.metricQuery.filters);
     const { addSuggestions } = useDashboardContext();
     const { data: explore } = useExplore(data.tableName);
 
@@ -148,6 +161,10 @@ const ValidDashboardChartTile: FC<{
         }
     }, [addSuggestions, resultData]);
 
+    if (error) {
+        return <ErrorState error={error.error} />;
+    }
+
     return (
         <VisualizationProvider
             chartType={data.chartConfig.type}
@@ -163,7 +180,6 @@ const ValidDashboardChartTile: FC<{
                 isDashboard
                 tileUuid={tileUuid}
                 isTitleHidden={isTitleHidden}
-                $padding={0}
             />
         </VisualizationProvider>
     );
@@ -175,11 +191,16 @@ const ValidDashboardChartTileMinimal: FC<{
     title: string;
     data: SavedChart;
 }> = ({ tileUuid, data, isTitleHidden = false }) => {
-    const { data: resultData, isLoading } = useChartResults(
-        data.uuid,
-        data.metricQuery.filters,
-    );
+    const {
+        data: resultData,
+        isLoading,
+        error,
+    } = useChartResults(data.uuid, data.metricQuery.filters);
     const { data: explore } = useExplore(data.tableName);
+
+    if (error) {
+        return <ErrorState error={error.error} />;
+    }
 
     return (
         <VisualizationProvider
@@ -196,7 +217,6 @@ const ValidDashboardChartTileMinimal: FC<{
                 tileUuid={tileUuid}
                 isDashboard
                 isTitleHidden={isTitleHidden}
-                $padding={0}
             />
         </VisualizationProvider>
     );

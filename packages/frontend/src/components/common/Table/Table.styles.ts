@@ -2,7 +2,11 @@ import { Colors, HTMLTable } from '@blueprintjs/core';
 import { transparentize } from 'polished';
 import styled, { css } from 'styled-components';
 
-export const TABLE_HEADER_BG = Colors.LIGHT_GRAY4;
+// This color is is the default Mantine gray[0]
+export const TABLE_HEADER_BG = '#f8f9fa';
+
+// Needed for virtualization. Matches value from Pivot table.
+export const ROW_HEIGHT_PX = 34;
 
 export const TableScrollableWrapper = styled.div`
     display: flex;
@@ -21,9 +25,9 @@ interface TableContainerProps {
 export const TableContainer = styled.div<TableContainerProps>`
     display: flex;
     flex-direction: column;
-    padding: ${({ $padding = 10 }) => `${$padding}px`};
     min-width: 100%;
     overflow: hidden;
+    padding: ${({ $padding = 0 }) => `${$padding}px`};
 
     ${({ $shouldExpand }) =>
         $shouldExpand
@@ -106,8 +110,15 @@ export const TableFooter = styled.div`
     margin-top: 10px;
 `;
 
+const FontSyles = `
+    font-size: 13px;
+    font-family: Inter, sans-serif;
+`;
+
 const CellStyles = css<{ $isNaN: boolean }>`
     text-align: ${({ $isNaN }) => ($isNaN ? 'left' : 'right')} !important;
+    padding: 8.5px !important;
+    ${FontSyles}
 `;
 
 export const Tr = styled.tr<{
@@ -145,6 +156,7 @@ export const Td = styled.td<{
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    height: ${ROW_HEIGHT_PX}px;
 
     ${({ $isLargeText, $isSelected, $isMinimal }) =>
         $isLargeText
@@ -252,7 +264,9 @@ export const ThActionsContainer = styled.div`
     }
 `;
 
-export const TableHeaderLabelContainer = styled.div``;
+export const TableHeaderLabelContainer = styled.div`
+    ${FontSyles}
+`;
 
 export const TableHeaderRegularLabel = styled.span`
     font-weight: 400;

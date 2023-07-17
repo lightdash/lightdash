@@ -1,47 +1,11 @@
-import {
-    Field,
-    fieldId,
-    isField,
-    Metric,
-    TableCalculation,
-} from '@lightdash/common';
-import {
-    Box,
-    Button,
-    Group,
-    Select,
-    SelectItemProps,
-    Stack,
-    Switch,
-    Text,
-    Tooltip,
-} from '@mantine/core';
+import { fieldId, isField } from '@lightdash/common';
+import { Box, Button, Select, Stack, Switch, Tooltip } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
-import React, { forwardRef } from 'react';
-import FieldIcon from '../common/Filters/FieldIcon';
-import FieldLabel, { fieldLabelText } from '../common/Filters/FieldLabel';
-import MantineIcon from '../common/MantineIcon';
-import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
-
-interface ItemProps extends SelectItemProps {
-    icon: React.ReactNode;
-    item: Field | Metric | TableCalculation;
-    disabled: boolean;
-}
-
-const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
-    ({ icon, item, disabled, ...rest }: ItemProps, ref) => (
-        <div ref={ref} {...rest}>
-            <Group spacing="xs">
-                <FieldIcon item={item} />
-
-                <Text color={disabled ? 'dimmed' : undefined}>
-                    <FieldLabel item={item} />
-                </Text>
-            </Group>
-        </div>
-    ),
-);
+import FieldIcon from '../../common/Filters/FieldIcon';
+import { fieldLabelText } from '../../common/Filters/FieldLabel';
+import MantineIcon from '../../common/MantineIcon';
+import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import FieldSelectItem from '../FieldSelectItem';
 
 const PieChartLayoutConfig: React.FC = () => {
     const {
@@ -86,7 +50,7 @@ const PieChartLayoutConfig: React.FC = () => {
                                 value: fieldId(d),
                                 disabled: groupFieldIds.includes(fieldId(d)),
                             }))}
-                            itemComponent={SelectItem}
+                            itemComponent={FieldSelectItem}
                             onChange={(newValue) =>
                                 newValue === null
                                     ? groupRemove(dimensionId)
@@ -144,7 +108,7 @@ const PieChartLayoutConfig: React.FC = () => {
                                 <FieldIcon item={selectedMetric} />
                             )
                         }
-                        itemComponent={SelectItem}
+                        itemComponent={FieldSelectItem}
                         data={allNumericMetrics.map((m) => {
                             const id = isField(m) ? fieldId(m) : m.name;
 

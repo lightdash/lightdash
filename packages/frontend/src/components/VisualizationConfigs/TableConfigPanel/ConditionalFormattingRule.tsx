@@ -7,7 +7,7 @@ import {
     FilterType,
 } from '@lightdash/common';
 import { FC, useState } from 'react';
-import { FilterTypeConfig } from '../common/Filters/configs';
+import { FilterTypeConfig } from '../../common/Filters/configs';
 import {
     ConditionalFormattingGroupTitle,
     ConditionalFormattingRuleGroupHeader,

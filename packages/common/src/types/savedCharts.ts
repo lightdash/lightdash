@@ -78,6 +78,7 @@ export type PieChart = {
     groupLabelOverrides?: Record<string, string>;
     groupColorOverrides?: Record<string, string>;
     groupValueOptionOverrides?: Record<string, Partial<PieChartValueOptions>>;
+    groupSortOverrides?: string[];
     showLegend?: boolean;
 };
 

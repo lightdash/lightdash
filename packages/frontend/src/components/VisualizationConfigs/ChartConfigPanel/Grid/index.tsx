@@ -2,8 +2,8 @@ import { FormGroup } from '@blueprintjs/core';
 import { EchartsGrid } from '@lightdash/common';
 import startCase from 'lodash/startCase';
 import { FC, useMemo } from 'react';
-import UnitInput from '../../common/UnitInput';
-import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import UnitInput from '../../../common/UnitInput';
+import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import { SectionRow } from './Grid.styles';
 
 export const defaultGrid = {
