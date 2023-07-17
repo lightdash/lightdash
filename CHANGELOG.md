@@ -1,3 +1,11 @@
+# [0.671.0](https://github.com/lightdash/lightdash/compare/0.670.0...0.671.0) (2023-07-17)
+
+
+### Features
+
+* trace runMetricQuery and add generated sql ([#6356](https://github.com/lightdash/lightdash/issues/6356)) ([9ace54d](https://github.com/lightdash/lightdash/commit/9ace54dcc2c95bfc8b9bbc843f09bb02e06886e1))
+* use tsoa for sql query api ([#6296](https://github.com/lightdash/lightdash/issues/6296)) ([5cf9338](https://github.com/lightdash/lightdash/commit/5cf9338a3d57fc02474ff16cf67b74c7c81f29df))
+
 # [0.670.0](https://github.com/lightdash/lightdash/compare/0.669.1...0.670.0) (2023-07-14)
 
 
