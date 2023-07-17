@@ -89,7 +89,7 @@ export class UserAttributesModel {
                         createdAt: orgAttribute.created_at,
                         name: orgAttribute.name,
                         organizationUuid: orgAttribute.organization_uuid,
-                        description: orgAttribute.description,
+                        description: orgAttribute.description || undefined,
                         users: orgAttribute.user_id
                             ? [
                                   {

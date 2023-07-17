@@ -28,11 +28,11 @@ const UserAttributeModal: FC<{
     const form = useForm<CreateOrgAttribute>({
         initialValues: {
             name: userAttribute?.name || '',
-            description: userAttribute?.description || undefined,
+            description: userAttribute?.description,
             users: userAttribute?.users || [],
         },
     });
-    const [inputError, setInputError] = useState<string>();
+    const [inputError, setInputError] = useState<string | undefined>();
     const { mutate: createUserAttribute } = useUserAtributesMutation();
     const { mutate: updateUserAttribute } = useUpdateUserAtributesMutation(
         userAttribute?.uuid,
@@ -51,6 +51,7 @@ const UserAttributeModal: FC<{
             await createUserAttribute(data);
         }
         form.reset();
+        setInputError(undefined);
         onClose();
     };
     const { data: orgUsers } = useOrganizationUsers();
