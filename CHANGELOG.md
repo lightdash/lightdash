@@ -1,3 +1,10 @@
+# [0.672.0](https://github.com/lightdash/lightdash/compare/0.671.0...0.672.0) (2023-07-17)
+
+
+### Features
+
+* migrate Space page - action menu component from Blueprint to Mantine ([#6359](https://github.com/lightdash/lightdash/issues/6359)) ([c518d61](https://github.com/lightdash/lightdash/commit/c518d61e3d3100bcda2b6e63bc39c78b1ba78bc8))
+
 # [0.671.0](https://github.com/lightdash/lightdash/compare/0.670.0...0.671.0) (2023-07-17)
 
 
