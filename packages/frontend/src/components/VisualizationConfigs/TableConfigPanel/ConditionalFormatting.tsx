@@ -1,4 +1,4 @@
-import { Button, FormGroup } from '@blueprintjs/core';
+import { FormGroup } from '@blueprintjs/core';
 import {
     ConditionalFormattingConfig,
     ConditionalFormattingRule as ConditionalFormattingRuleT,
@@ -9,6 +9,7 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Button,
     Collapse,
     Group,
     Select,
@@ -16,7 +17,12 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import { IconChevronDown, IconChevronUp, IconX } from '@tabler/icons-react';
+import {
+    IconChevronDown,
+    IconChevronUp,
+    IconPlus,
+    IconX,
+} from '@tabler/icons-react';
 import produce from 'immer';
 import React, { FC, useMemo, useState } from 'react';
 import FieldIcon from '../../common/Filters/FieldIcon';
@@ -155,6 +161,7 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                     >
                         <Select
                             label="Select field"
+                            placeholder="Search field..."
                             searchable
                             clearable
                             icon={field && <FieldIcon item={field} />}
@@ -214,9 +221,10 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                         ))}
 
                         <Button
-                            style={{ alignSelf: 'flex-start' }}
-                            minimal
-                            icon="plus"
+                            sx={{ alignSelf: 'start' }}
+                            size="xs"
+                            variant="subtle"
+                            leftIcon={<MantineIcon icon={IconPlus} />}
                             onClick={handleAddRule}
                         >
                             Add new condition
