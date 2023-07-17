@@ -44,9 +44,15 @@ export type DashboardChartTileProperties = {
         title?: string;
         hideTitle?: boolean;
         savedChartUuid: string | null;
-        newChartData?: CreateSavedChart | null;
     };
 };
+
+export type CreateDashboardChartTileProperties =
+    DashboardChartTileProperties & {
+        properties: DashboardChartTileProperties['properties'] & {
+            newChartData?: CreateSavedChart;
+        };
+    };
 
 export type CreateDashboardMarkdownTile = CreateDashboardTileBase &
     DashboardMarkdownTileProperties;
@@ -58,7 +64,7 @@ export type CreateDashboardLoomTile = CreateDashboardTileBase &
 export type DashboardLoomTile = DashboardTileBase & DashboardLoomTileProperties;
 
 export type CreateDashboardChartTile = CreateDashboardTileBase &
-    DashboardChartTileProperties;
+    CreateDashboardChartTileProperties;
 export type DashboardChartTile = DashboardTileBase &
     DashboardChartTileProperties;
 
