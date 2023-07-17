@@ -31,7 +31,7 @@ import {
 } from 'react-beautiful-dnd';
 import MantineIcon from '../../common/MantineIcon';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
-import ColorPicker from '../ColorPicker';
+import ColorPicker from '../ColorSelector';
 
 type ValueOptionsProps = {
     isValueLabelOverriden?: boolean;
