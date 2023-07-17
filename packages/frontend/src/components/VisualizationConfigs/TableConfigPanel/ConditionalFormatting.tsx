@@ -1,4 +1,3 @@
-import { FormGroup } from '@blueprintjs/core';
 import {
     ConditionalFormattingConfig,
     ConditionalFormattingRule as ConditionalFormattingRuleT,
@@ -9,6 +8,7 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Box,
     Button,
     Collapse,
     Group,
@@ -29,9 +29,8 @@ import FieldIcon from '../../common/Filters/FieldIcon';
 import { fieldLabelText } from '../../common/Filters/FieldLabel';
 import { FiltersProvider } from '../../common/Filters/FiltersProvider';
 import MantineIcon from '../../common/MantineIcon';
-import SeriesColorPicker from '../ChartConfigPanel/Series/SeriesColorPicker';
+import ColorSelector from '../ColorSelector';
 import FieldSelectItem from '../FieldSelectItem';
-import { ConditionalFormattingRuleAndLabel } from './ConditionalFormatting.styles';
 import ConditionalFormattingRule from './ConditionalFormattingRule';
 
 interface ConditionalFormattingProps {
@@ -130,9 +129,9 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
 
     return (
         <FiltersProvider>
-            <Stack>
+            <Stack spacing="xs">
                 <Group noWrap position="apart">
-                    <Group>
+                    <Group spacing="xs">
                         <ActionIcon
                             onClick={() => setIsOpen(!isOpen)}
                             size="sm"
@@ -155,6 +154,7 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                     <Stack
                         bg={'gray.0'}
                         p="sm"
+                        spacing="sm"
                         sx={(theme) => ({
                             borderRadius: theme.radius.sm,
                         })}
@@ -179,13 +179,14 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                             itemComponent={FieldSelectItem}
                             onChange={handleChangeField}
                         />
+                        <Group spacing="xs" my="xs">
+                            <Text fw={500}>Select color</Text>
 
-                        <FormGroup label="Set color">
-                            <SeriesColorPicker
+                            <ColorSelector
                                 color={config.color}
-                                onChange={(color) => handleChangeColor(color)}
-                            />
-                        </FormGroup>
+                                onColorChange={handleChangeColor}
+                            ></ColorSelector>
+                        </Group>
 
                         {config.rules.map((rule, ruleIndex) => (
                             <React.Fragment key={ruleIndex}>
@@ -213,9 +214,11 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                                 />
 
                                 {ruleIndex !== config.rules.length - 1 && (
-                                    <ConditionalFormattingRuleAndLabel>
-                                        AND
-                                    </ConditionalFormattingRuleAndLabel>
+                                    <Box p={0}>
+                                        <Text fz="xs" fw={600}>
+                                            AND
+                                        </Text>
+                                    </Box>
                                 )}
                             </React.Fragment>
                         ))}

@@ -14,7 +14,12 @@ interface FieldLabelProps {
 
 const FieldLabel: FC<FieldLabelProps> = ({ item }) => {
     return (
-        <Text span>
+        <Text
+            span
+            sx={{
+                whiteSpace: 'nowrap',
+            }}
+        >
             {isField(item) ? `${item.tableLabel} ` : ''}
 
             <Text span fw={500}>
