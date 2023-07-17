@@ -64,6 +64,7 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 import { SshTunnel } from '@lightdash/warehouses';
+import opentelemetry, { SpanStatusCode } from '@opentelemetry/api';
 import * as Sentry from '@sentry/node';
 import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
@@ -932,7 +933,7 @@ export class ProjectService {
         context: QueryExecutionContext,
         queryTags?: RunQueryTags,
     ): Promise<ApiQueryResults> {
-        const rows = await this.runQuery(
+        const rows = await this.runMetricQuery(
             user,
             metricQuery,
             projectUuid,
@@ -983,7 +984,7 @@ export class ProjectService {
         };
     }
 
-    async runQuery(
+    async runMetricQuery(
         user: SessionUser,
         metricQuery: MetricQuery,
         projectUuid: string,
@@ -992,97 +993,145 @@ export class ProjectService {
         context: QueryExecutionContext,
         queryTags?: RunQueryTags,
     ): Promise<Record<string, any>[]> {
-        if (!isUserWithOrg(user)) {
-            throw new ForbiddenError('User is not part of an organization');
-        }
+        const tracer = opentelemetry.trace.getTracer('default');
+        return tracer.startActiveSpan(
+            'ProjectService.runMetricQuery',
+            async (span) => {
+                try {
+                    if (!isUserWithOrg(user)) {
+                        throw new ForbiddenError(
+                            'User is not part of an organization',
+                        );
+                    }
 
-        const { organizationUuid } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+                    const { organizationUuid } =
+                        await this.projectModel.getWithSensitiveFields(
+                            projectUuid,
+                        );
 
-        if (
-            user.ability.cannot(
-                'view',
-                subject('Project', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
+                    if (
+                        user.ability.cannot(
+                            'view',
+                            subject('Project', {
+                                organizationUuid,
+                                projectUuid,
+                            }),
+                        )
+                    ) {
+                        throw new ForbiddenError();
+                    }
 
-        const metricQueryWithLimit = ProjectService.metricQueryWithLimit(
-            metricQuery,
-            csvLimit,
-        );
+                    const metricQueryWithLimit =
+                        ProjectService.metricQueryWithLimit(
+                            metricQuery,
+                            csvLimit,
+                        );
 
-        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
-            projectUuid,
-        );
-        const explore = await this.getExplore(user, projectUuid, exploreName);
-        const { query, hasExampleMetric } = await ProjectService._compileQuery(
-            metricQueryWithLimit,
-            explore,
-            warehouseClient,
-        );
+                    const { warehouseClient, sshTunnel } =
+                        await this._getWarehouseClient(projectUuid);
+                    const explore = await this.getExplore(
+                        user,
+                        projectUuid,
+                        exploreName,
+                    );
+                    const { query, hasExampleMetric } =
+                        await ProjectService._compileQuery(
+                            metricQueryWithLimit,
+                            explore,
+                            warehouseClient,
+                        );
 
-        const onboardingRecord =
-            await this.onboardingModel.getByOrganizationUuid(
-                user.organizationUuid,
-            );
-        if (!onboardingRecord.ranQueryAt) {
-            await this.onboardingModel.update(user.organizationUuid, {
-                ranQueryAt: new Date(),
-            });
-        }
+                    const onboardingRecord =
+                        await this.onboardingModel.getByOrganizationUuid(
+                            user.organizationUuid,
+                        );
+                    if (!onboardingRecord.ranQueryAt) {
+                        await this.onboardingModel.update(
+                            user.organizationUuid,
+                            {
+                                ranQueryAt: new Date(),
+                            },
+                        );
+                    }
 
-        await analytics.track({
-            userId: user.userUuid,
-            event: 'query.executed',
-            properties: {
-                projectId: projectUuid,
-                hasExampleMetric,
-                dimensionsCount: metricQuery.dimensions.length,
-                metricsCount: metricQuery.metrics.length,
-                filtersCount: countTotalFilterRules(metricQuery.filters),
-                sortsCount: metricQuery.sorts.length,
-                tableCalculationsCount: metricQuery.tableCalculations.length,
-                tableCalculationsPercentFormatCount:
-                    metricQuery.tableCalculations.filter(
-                        (tableCalculation) =>
-                            tableCalculation.format?.type ===
-                            TableCalculationFormatType.PERCENT,
-                    ).length,
-                tableCalculationsCurrencyFormatCount:
-                    metricQuery.tableCalculations.filter(
-                        (tableCalculation) =>
-                            tableCalculation.format?.type ===
-                            TableCalculationFormatType.CURRENCY,
-                    ).length,
-                tableCalculationsNumberFormatCount:
-                    metricQuery.tableCalculations.filter(
-                        (tableCalculation) =>
-                            tableCalculation.format?.type ===
-                            TableCalculationFormatType.NUMBER,
-                    ).length,
-                additionalMetricsCount: (
-                    metricQuery.additionalMetrics || []
-                ).filter((metric) =>
-                    metricQuery.metrics.includes(getFieldId(metric)),
-                ).length,
-                additionalMetricsFilterCount: (
-                    metricQuery.additionalMetrics || []
-                ).filter(
-                    (metric) =>
-                        metricQuery.metrics.includes(getFieldId(metric)) &&
-                        metric.filters &&
-                        metric.filters.length > 0,
-                ).length,
-                context,
+                    await analytics.track({
+                        userId: user.userUuid,
+                        event: 'query.executed',
+                        properties: {
+                            projectId: projectUuid,
+                            hasExampleMetric,
+                            dimensionsCount: metricQuery.dimensions.length,
+                            metricsCount: metricQuery.metrics.length,
+                            filtersCount: countTotalFilterRules(
+                                metricQuery.filters,
+                            ),
+                            sortsCount: metricQuery.sorts.length,
+                            tableCalculationsCount:
+                                metricQuery.tableCalculations.length,
+                            tableCalculationsPercentFormatCount:
+                                metricQuery.tableCalculations.filter(
+                                    (tableCalculation) =>
+                                        tableCalculation.format?.type ===
+                                        TableCalculationFormatType.PERCENT,
+                                ).length,
+                            tableCalculationsCurrencyFormatCount:
+                                metricQuery.tableCalculations.filter(
+                                    (tableCalculation) =>
+                                        tableCalculation.format?.type ===
+                                        TableCalculationFormatType.CURRENCY,
+                                ).length,
+                            tableCalculationsNumberFormatCount:
+                                metricQuery.tableCalculations.filter(
+                                    (tableCalculation) =>
+                                        tableCalculation.format?.type ===
+                                        TableCalculationFormatType.NUMBER,
+                                ).length,
+                            additionalMetricsCount: (
+                                metricQuery.additionalMetrics || []
+                            ).filter((metric) =>
+                                metricQuery.metrics.includes(
+                                    getFieldId(metric),
+                                ),
+                            ).length,
+                            additionalMetricsFilterCount: (
+                                metricQuery.additionalMetrics || []
+                            ).filter(
+                                (metric) =>
+                                    metricQuery.metrics.includes(
+                                        getFieldId(metric),
+                                    ) &&
+                                    metric.filters &&
+                                    metric.filters.length > 0,
+                            ).length,
+                            context,
+                        },
+                    });
+
+                    Logger.debug(`Run query against warehouse`);
+                    span.setAttribute('generatedSql', query);
+                    span.setAttribute('lightdash.projectUuid', projectUuid);
+                    span.setAttribute(
+                        'warehouse.type',
+                        warehouseClient.credentials.type,
+                    );
+                    const { rows } = await warehouseClient.runQuery(
+                        query,
+                        queryTags,
+                    );
+                    await sshTunnel.disconnect();
+                    span.end();
+                    return rows;
+                } catch (e) {
+                    span.setStatus({
+                        code: SpanStatusCode.ERROR,
+                        message: e.message,
+                    });
+                    throw e;
+                } finally {
+                    span.end();
+                }
             },
-        });
-
-        Logger.debug(`Run query against warehouse`);
-        const { rows } = await warehouseClient.runQuery(query, queryTags);
-        await sshTunnel.disconnect();
-        return rows;
+        );
     }
 
     async runSqlQuery(
