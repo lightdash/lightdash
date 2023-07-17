@@ -28,7 +28,7 @@ const UserAttributeModal: FC<{
     const form = useForm<CreateOrgAttribute>({
         initialValues: {
             name: userAttribute?.name || '',
-            description: userAttribute?.description,
+            description: userAttribute?.description || undefined,
             users: userAttribute?.users || [],
         },
     });

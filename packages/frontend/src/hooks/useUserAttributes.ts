@@ -79,7 +79,7 @@ export const useUserAttributesDeleteMutation = () => {
         onSuccess: async () => {
             await queryClient.invalidateQueries('user_attributes');
             showToastSuccess({
-                title: `Success! user attribute was delete.`,
+                title: `Success! user attribute was deleted.`,
             });
         },
         onError: (error) => {
