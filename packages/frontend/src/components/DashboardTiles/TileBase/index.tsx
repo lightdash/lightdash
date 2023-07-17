@@ -10,8 +10,9 @@ import { Dashboard, DashboardTileTypes } from '@lightdash/common';
 import { Tooltip } from '@mantine/core';
 import { useHover, useToggle } from '@mantine/hooks';
 import React, { ReactNode, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { useChartSummaries } from '../../../hooks/useChartSummaries';
 import ChartUpdateModal from '../TileForms/ChartUpdateModal';
-import TileUpdateChartTitle from '../TileForms/TileUpdateChartTitle';
 import TileUpdateModal from '../TileForms/TileUpdateModal';
 import {
     ButtonsWrapper,
@@ -51,14 +52,14 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     extraHeaderElement,
     titleHref,
 }: Props<T>) => {
-    const [isReplacingChart, setIsReplacingChart] = useState(false);
-    const [isEditingTitle, setIsEditingTitle] = useState(false);
-
+    const [isEditingChartTile, setIsEditingChartTile] = useState(false);
     const [isHovering, setIsHovering] = useState(false);
     const { hovered: containerHovered, ref: containerRef } = useHover();
     const { hovered: titleHovered, ref: titleRef } =
         useHover<HTMLAnchorElement>();
     const [isMenuOpen, toggleMenu] = useToggle([false, true]);
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { data: savedCharts } = useChartSummaries(projectUuid);
 
     const hideTitle =
         tile.type !== DashboardTileTypes.MARKDOWN
@@ -119,33 +120,11 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                                     )}
                                                 {isEditMode && (
                                                     <>
-                                                        {tile.type ===
-                                                        DashboardTileTypes.SAVED_CHART ? (
-                                                            <MenuItem2
-                                                                icon="edit"
-                                                                text="Edit title"
-                                                                onClick={() =>
-                                                                    setIsEditingTitle(
-                                                                        true,
-                                                                    )
-                                                                }
-                                                            />
-                                                        ) : null}
                                                         <MenuItem2
-                                                            icon={
-                                                                tile.type ===
-                                                                DashboardTileTypes.SAVED_CHART
-                                                                    ? 'exchange'
-                                                                    : 'edit'
-                                                            }
-                                                            text={
-                                                                tile.type ===
-                                                                DashboardTileTypes.SAVED_CHART
-                                                                    ? 'Replace chart'
-                                                                    : 'Edit tile content'
-                                                            }
+                                                            icon="edit"
+                                                            text="Edit tile content"
                                                             onClick={() =>
-                                                                setIsReplacingChart(
+                                                                setIsEditingChartTile(
                                                                     true,
                                                                 )
                                                             }
@@ -208,49 +187,49 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     </ChartContainer>
                     {tile.type === DashboardTileTypes.SAVED_CHART ? (
                         <ChartUpdateModal
-                            className="non-draggable"
-                            opened={isReplacingChart}
-                            tile={tile}
-                            onClose={() => setIsReplacingChart(false)}
-                            onConfirm={(newChartTile) => {
+                            opened={isEditingChartTile}
+                            chartTitle={
+                                tile.properties.title ?? chartName ?? ''
+                            }
+                            onClose={() => setIsEditingChartTile(false)}
+                            onConfirm={(newTitle, newUuid) => {
                                 onEdit({
-                                    ...newChartTile,
+                                    ...tile,
                                     properties: {
-                                        ...newChartTile.properties,
-                                        title: undefined,
+                                        ...tile.properties,
+                                        title:
+                                            newTitle.length > 0
+                                                ? newTitle
+                                                : savedCharts?.find(
+                                                      (chart) =>
+                                                          chart.uuid ===
+                                                          (newUuid.length > 0
+                                                              ? newUuid
+                                                              : tile.properties
+                                                                    .savedChartUuid),
+                                                  )?.name,
+                                        savedChartUuid:
+                                            newUuid.length > 0
+                                                ? newUuid
+                                                : tile.properties
+                                                      .savedChartUuid,
                                     },
-                                } as T);
-                                setIsReplacingChart(false);
+                                });
+                                setIsEditingChartTile(false);
                             }}
                         />
                     ) : (
                         <TileUpdateModal
                             className="non-draggable"
-                            isOpen={isReplacingChart}
+                            isOpen={isEditingChartTile}
                             tile={tile}
-                            onClose={() => setIsReplacingChart(false)}
+                            onClose={() => setIsEditingChartTile(false)}
                             onConfirm={(newTile) => {
                                 onEdit(newTile);
-                                setIsReplacingChart(false);
+                                setIsEditingChartTile(false);
                             }}
                         />
                     )}
-                    <TileUpdateChartTitle
-                        isOpen={isEditingTitle}
-                        placeholder={chartName || ''}
-                        title={title}
-                        onClose={() => setIsEditingTitle(false)}
-                        onConfirm={(newTitle) => {
-                            onEdit({
-                                ...tile,
-                                properties: {
-                                    ...tile.properties,
-                                    title: newTitle,
-                                },
-                            });
-                            setIsEditingTitle(false);
-                        }}
-                    />
                 </>
             )}
         </TileBaseWrapper>

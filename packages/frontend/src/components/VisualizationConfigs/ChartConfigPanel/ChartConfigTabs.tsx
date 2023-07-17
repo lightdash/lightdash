@@ -22,9 +22,9 @@ import {
 import { Box } from '@mantine/core';
 import { FC, useCallback, useState } from 'react';
 import { useToggle } from 'react-use';
-import { useTracking } from '../../providers/TrackingProvider';
-import { EventName } from '../../types/Events';
-import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
+import { useTracking } from '../../../providers/TrackingProvider';
+import { EventName } from '../../../types/Events';
+import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import {
     AutoRangeSwitch,
     GridSettings,

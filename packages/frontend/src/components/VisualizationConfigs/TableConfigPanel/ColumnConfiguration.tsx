@@ -8,7 +8,7 @@ import {
     IconLockOpen,
 } from '@tabler/icons-react';
 import React from 'react';
-import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
+import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
 const ColumnConfiguration: React.FC<{ fieldId: string }> = ({ fieldId }) => {
     const {

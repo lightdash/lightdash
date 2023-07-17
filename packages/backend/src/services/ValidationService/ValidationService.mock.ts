@@ -85,6 +85,12 @@ export const chart: SavedChart = {
                         values: ['2018-01-01'],
                         operator: FilterOperator.EQUALS,
                     },
+                    {
+                        id: '',
+                        target: { fieldId: 'table_custom_metric' },
+                        values: [10],
+                        operator: FilterOperator.EQUALS,
+                    },
                 ],
             },
         },

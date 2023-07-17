@@ -11,7 +11,6 @@ interface LightdashVisualizationProps {
     isDashboard?: boolean;
     isTitleHidden?: boolean;
     className?: string;
-    $padding?: number;
     'data-testid'?: string;
 }
 
@@ -45,7 +44,6 @@ const LightdashVisualization: FC<LightdashVisualizationProps> = memo(
                         isDashboard={!!isDashboard}
                         className={className}
                         $shouldExpand
-                        $padding={props.$padding}
                         data-testid={props['data-testid']}
                         {...props}
                     />

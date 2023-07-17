@@ -4,9 +4,9 @@ import React from 'react';
 import {
     COLLAPSABLE_CARD_BUTTON_PROPS,
     COLLAPSABLE_CARD_POPOVER_PROPS,
-} from '../common/CollapsableCard';
-import MantineIcon from '../common/MantineIcon';
-import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
+} from '../../common/CollapsableCard';
+import MantineIcon from '../../common/MantineIcon';
+import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import PieChartDisplayConfig from './PieChartDisplayConfig';
 import PieLayoutConfig from './PieChartLayoutConfig';
 import PieChartSeriesConfig from './PieChartSeriesConfig';

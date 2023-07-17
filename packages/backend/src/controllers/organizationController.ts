@@ -13,6 +13,7 @@ import {
     OrganizationMemberProfileUpdate,
     UpdateAllowedEmailDomains,
     UpdateOrganization,
+    UUID,
 } from '@lightdash/common';
 import express from 'express';
 import {
@@ -171,6 +172,28 @@ export class OrganizationController extends Controller {
         return {
             status: 'ok',
             results: await organizationService.getUsers(req.user!),
+        };
+    }
+
+    /**
+     * Get the member profile for a user in the current user's organization by uuid
+     * @param req express request
+     * @param userUuid the uuid of the user
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('/users/{userUuid}')
+    @OperationId('GetOrganizationMemberByUuid')
+    async getOrganizationMemberByUuid(
+        @Request() req: express.Request,
+        @Path() userUuid: UUID,
+    ): Promise<ApiOrganizationMemberProfile> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await organizationService.getMemberByUuid(
+                req.user!,
+                userUuid,
+            ),
         };
     }
 

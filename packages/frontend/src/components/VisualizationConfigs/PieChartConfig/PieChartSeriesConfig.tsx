@@ -34,9 +34,9 @@ import {
     Droppable,
     DropResult,
 } from 'react-beautiful-dnd';
-import { isHexCodeColor } from '../../utils/colorUtils';
-import MantineIcon from '../common/MantineIcon';
-import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
+import { isHexCodeColor } from '../../../utils/colorUtils';
+import MantineIcon from '../../common/MantineIcon';
+import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
 type ValueOptionsProps = {
     isValueLabelOverriden?: boolean;
