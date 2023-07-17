@@ -119,6 +119,7 @@ export const usePivotTableCellStyles = createStyles<
         whiteSpace: 'nowrap',
         textOverflow: 'ellipsis',
         overflow: 'hidden',
+        height: 34,
 
         fontFamily: "'Inter', sans-serif",
 

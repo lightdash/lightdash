@@ -483,6 +483,12 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "UUID": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Stringified UUIDv4.\nSee [RFC 4112](https://tools.ietf.org/html/rfc4122)",
+                "pattern": "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}"
+            },
             "OrganizationMemberProfileUpdate": {
                 "properties": {
                     "role": {
@@ -2057,6 +2063,31 @@
                 "required": ["role"],
                 "type": "object"
             },
+            "Record_string._type-DimensionType--__": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "Record_string.unknown_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ApiSqlQueryResults": {
+                "properties": {
+                    "rows": {
+                        "items": {
+                            "$ref": "#/components/schemas/Record_string.unknown_"
+                        },
+                        "type": "array"
+                    },
+                    "fields": {
+                        "$ref": "#/components/schemas/Record_string._type-DimensionType--__"
+                    }
+                },
+                "required": ["rows", "fields"],
+                "type": "object"
+            },
             "FieldId": {
                 "type": "string"
             },
@@ -2218,10 +2249,6 @@
                     }
                 ]
             },
-            "Format": {
-                "enum": ["km", "mi", "usd", "gbp", "eur", "id", "percent"],
-                "type": "string"
-            },
             "ConditionalOperator": {
                 "enum": [
                     "isNull",
@@ -2296,7 +2323,7 @@
                         "$ref": "#/components/schemas/CompactOrAlias"
                     },
                     "format": {
-                        "$ref": "#/components/schemas/Format"
+                        "type": "string"
                     },
                     "table": {
                         "type": "string"
@@ -3324,112 +3351,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "UserAttribute": {
-                "properties": {
-                    "value": {
-                        "type": "string"
-                    },
-                    "email": {
-                        "type": "string"
-                    },
-                    "userUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["value", "email", "userUuid"],
-                "type": "object"
-            },
-            "OrgAttribute": {
-                "properties": {
-                    "users": {
-                        "items": {
-                            "$ref": "#/components/schemas/UserAttribute"
-                        },
-                        "type": "array"
-                    },
-                    "description": {
-                        "type": "string"
-                    },
-                    "organizationUuid": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "users",
-                    "organizationUuid",
-                    "name",
-                    "createdAt",
-                    "uuid"
-                ],
-                "type": "object"
-            },
-            "ApiOrgAttributesResponse": {
-                "properties": {
-                    "results": {
-                        "items": {
-                            "$ref": "#/components/schemas/OrgAttribute"
-                        },
-                        "type": "array"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiCreateOrgAttributesResponse": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/OrgAttribute"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "Pick_OrgAttribute.Exclude_keyofOrgAttribute.uuid-or-createdAt-or-organizationUuid__": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string"
-                    },
-                    "users": {
-                        "items": {
-                            "$ref": "#/components/schemas/UserAttribute"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["name", "users"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Omit_OrgAttribute.uuid-or-createdAt-or-organizationUuid_": {
-                "$ref": "#/components/schemas/Pick_OrgAttribute.Exclude_keyofOrgAttribute.uuid-or-createdAt-or-organizationUuid__",
-                "description": "Construct a type with the properties of T except for those in type K."
-            },
-            "CreateOrgAttribute": {
-                "$ref": "#/components/schemas/Omit_OrgAttribute.uuid-or-createdAt-or-organizationUuid_"
-            },
             "EmailOneTimePassword": {
                 "properties": {
                     "numberOfAttempts": {
@@ -3805,7 +3726,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.667.4",
+        "version": "0.668.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -4500,6 +4421,45 @@
             }
         },
         "/api/v1/org/users/{userUuid}": {
+            "get": {
+                "operationId": "GetOrganizationMemberByUuid",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationMemberProfile"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the member profile for a user in the current user's organization by uuid",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the uuid of the user",
+                        "in": "path",
+                        "name": "userUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
             "patch": {
                 "operationId": "UpdateOrganizationMember",
                 "responses": {
@@ -5215,6 +5175,76 @@
                 ]
             }
         },
+        "/api/v1/projects/{projectUuid}/sqlQuery": {
+            "post": {
+                "operationId": "RunSqlQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/ApiSqlQueryResults"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Run a raw sql query against the project's warehouse connection",
+                "tags": ["Exploring", "Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The uuid of the project to run the query against",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "The query to run",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "sql": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["sql"],
+                                "type": "object",
+                                "description": "The query to run"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/projects/{projectUuid}/explores/{exploreId}/runUnderlyingDataQuery": {
             "post": {
                 "operationId": "postRunUnderlyingDataQuery",
@@ -5279,7 +5309,7 @@
         },
         "/api/v1/projects/{projectUuid}/explores/{exploreId}/runQuery": {
             "post": {
-                "operationId": "postRunQuery",
+                "operationId": "RunMetricQuery",
                 "responses": {
                     "200": {
                         "description": "Success",
@@ -6073,170 +6103,6 @@
                 "tags": ["SSH Keypairs"],
                 "security": [],
                 "parameters": []
-            }
-        },
-        "/api/v1/org/attributes": {
-            "get": {
-                "operationId": "getUserAttributes",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiOrgAttributesResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Get all user attributes",
-                "tags": ["User attributes"],
-                "security": [],
-                "parameters": []
-            },
-            "post": {
-                "operationId": "createUserAttributes",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiCreateOrgAttributesResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Creates new user attribute",
-                "tags": ["User attributes"],
-                "security": [],
-                "parameters": [],
-                "requestBody": {
-                    "description": "the user attribute to create",
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/CreateOrgAttribute",
-                                "description": "the user attribute to create"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/org/attributes/{userAttributeUuid}": {
-            "put": {
-                "operationId": "updateUserAttribute",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiCreateOrgAttributesResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Updates a user attribute",
-                "tags": ["User attributes"],
-                "security": [],
-                "parameters": [
-                    {
-                        "description": "the UUID for the group to add the user to",
-                        "in": "path",
-                        "name": "userAttributeUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "description": "the user attribute to update",
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/CreateOrgAttribute",
-                                "description": "the user attribute to update"
-                            }
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "operationId": "removeUserAttribute",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Remove a user attribute",
-                "tags": ["User attributes"],
-                "security": [],
-                "parameters": [
-                    {
-                        "description": "the user attribute UUID to remove",
-                        "in": "path",
-                        "name": "userAttributeUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
             }
         },
         "/api/v1/user/me/email/otp": {

@@ -188,8 +188,9 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     {tile.type === DashboardTileTypes.SAVED_CHART ? (
                         <ChartUpdateModal
                             opened={isEditingChartTile}
-                            placeholder={chartName || ''}
-                            title={title}
+                            chartTitle={
+                                tile.properties.title ?? chartName ?? ''
+                            }
                             onClose={() => setIsEditingChartTile(false)}
                             onConfirm={(newTitle, newUuid) => {
                                 onEdit({
@@ -202,8 +203,10 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                                 : savedCharts?.find(
                                                       (chart) =>
                                                           chart.uuid ===
-                                                          tile.properties
-                                                              .savedChartUuid,
+                                                          (newUuid.length > 0
+                                                              ? newUuid
+                                                              : tile.properties
+                                                                    .savedChartUuid),
                                                   )?.name,
                                         savedChartUuid:
                                             newUuid.length > 0

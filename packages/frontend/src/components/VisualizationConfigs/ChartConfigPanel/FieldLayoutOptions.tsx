@@ -8,10 +8,10 @@ import {
     TableCalculation,
 } from '@lightdash/common';
 import { FC, useCallback, useMemo } from 'react';
-import { EMPTY_X_AXIS } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
-import FieldAutoComplete from '../common/Filters/FieldAutoComplete';
-import SimpleButton from '../common/SimpleButton';
-import { useVisualizationContext } from '../LightdashVisualization/VisualizationProvider';
+import { EMPTY_X_AXIS } from '../../../hooks/cartesianChartConfig/useCartesianChartConfig';
+import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
+import SimpleButton from '../../common/SimpleButton';
+import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import { MAX_PIVOTS } from '../TableConfigPanel/GeneralSettings';
 import { AddPivotButton } from '../TableConfigPanel/TableConfig.styles';
 import {

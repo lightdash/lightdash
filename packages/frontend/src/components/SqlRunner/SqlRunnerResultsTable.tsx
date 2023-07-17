@@ -1,5 +1,6 @@
 import { NonIdealState } from '@blueprintjs/core';
 import { ApiQueryResults, Field } from '@lightdash/common';
+import { Box } from '@mantine/core';
 import React, { FC } from 'react';
 import { useSqlQueryMutation } from '../../hooks/useSqlQuery';
 import useSqlRunnerColumns from '../../hooks/useSqlRunnerColumns';
@@ -55,18 +56,20 @@ const SqlRunnerResultsTable: FC<{
 
     return (
         <TrackSection name={SectionName.RESULTS_TABLE}>
-            <Table
-                status={status}
-                data={resultsData?.rows || []}
-                columns={columns}
-                idleState={IdleState}
-                pagination={{
-                    show: true,
-                }}
-                footer={{
-                    show: true,
-                }}
-            />
+            <Box px="xs" pt="sm">
+                <Table
+                    status={status}
+                    data={resultsData?.rows || []}
+                    columns={columns}
+                    idleState={IdleState}
+                    pagination={{
+                        show: true,
+                    }}
+                    footer={{
+                        show: true,
+                    }}
+                />
+            </Box>
         </TrackSection>
     );
 };
