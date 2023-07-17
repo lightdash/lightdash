@@ -159,3 +159,48 @@ export const getConditionalFormattingDescription = (
         'Unknown conditional formatting config',
     );
 };
+
+export const getConditionalFormattingColor = (
+    value: unknown,
+    conditionalFormattingConfig: ConditionalFormattingConfig | undefined,
+    getColorFromRange: (
+        value: number,
+        config: {
+            color: {
+                start: string;
+                end: string;
+                steps: number;
+            };
+            rule: {
+                min: number;
+                max: number;
+            };
+        },
+    ) => string | undefined,
+) => {
+    if (!conditionalFormattingConfig) {
+        return undefined;
+    }
+
+    if (
+        isConditionalFormattingConfigWithColorRange(conditionalFormattingConfig)
+    ) {
+        const numericValue = typeof value === 'string' ? Number(value) : value;
+        if (typeof numericValue !== 'number') return undefined;
+
+        return getColorFromRange(numericValue, conditionalFormattingConfig);
+    }
+
+    if (
+        isConditionalFormattingConfigWithSingleColor(
+            conditionalFormattingConfig,
+        )
+    ) {
+        return conditionalFormattingConfig.color;
+    }
+
+    return assertUnreachable(
+        conditionalFormattingConfig,
+        'Unknown conditional formatting config',
+    );
+};
