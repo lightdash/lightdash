@@ -4,6 +4,7 @@ import { IconEdit, IconPin, IconPinned, IconTrash } from '@tabler/icons-react';
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import { useApp } from '../../../providers/AppProvider';
+import MantineIcon from '../../common/MantineIcon';
 
 interface Props {
     isPinned: boolean;
@@ -24,7 +25,15 @@ export const SpaceBrowserMenu: React.FC<Props> = ({
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     return (
-        <Menu position="bottom-start">
+        <Menu
+            withinPortal
+            position="bottom-end"
+            withArrow
+            arrowPosition="center"
+            shadow="md"
+            closeOnItemClick
+            closeOnClickOutside
+        >
             <Menu.Target>
                 <Box>
                     <ActionIcon>{children}</ActionIcon>
@@ -34,7 +43,7 @@ export const SpaceBrowserMenu: React.FC<Props> = ({
                 <Menu.Item
                     component="button"
                     role="menuitem"
-                    icon={<IconEdit size={18} />}
+                    icon={<MantineIcon icon={IconEdit} />}
                     onClick={onRename}
                 >
                     Rename
@@ -52,9 +61,9 @@ export const SpaceBrowserMenu: React.FC<Props> = ({
                         role="menuitem"
                         icon={
                             isPinned ? (
-                                <IconPinned size={18} />
+                                <MantineIcon icon={IconPinned} />
                             ) : (
-                                <IconPin size={18} />
+                                <MantineIcon icon={IconPin} />
                             )
                         }
                         onClick={onTogglePin}
@@ -67,7 +76,7 @@ export const SpaceBrowserMenu: React.FC<Props> = ({
                     component="button"
                     role="menuitem"
                     color="red"
-                    icon={<IconTrash size={18} />}
+                    icon={<MantineIcon icon={IconTrash} />}
                     onClick={onDelete}
                 >
                     Delete space
