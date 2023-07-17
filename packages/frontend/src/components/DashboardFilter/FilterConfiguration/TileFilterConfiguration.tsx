@@ -5,12 +5,15 @@ import {
     DashboardTile,
     fieldId as getFieldId,
     FilterableField,
+    isDashboardChartTileType,
     matchFieldByType,
     matchFieldByTypeAndName,
     matchFieldExact,
 } from '@lightdash/common';
 import { FC, useCallback, useMemo } from 'react';
+import { useParams } from 'react-router-dom';
 import { FilterActions } from '.';
+import { useChartSummaries } from '../../../hooks/useChartSummaries';
 import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
 
 interface TileFilterConfigurationProps {
@@ -34,6 +37,10 @@ const TileFilterConfiguration: FC<TileFilterConfigurationProps> = ({
     popoverProps,
     onChange,
 }) => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+
+    const { data: savedCharts } = useChartSummaries(projectUuid);
+
     const tilesSortBy = useCallback(
         (
             matcher: (a: FilterableField) => (b: FilterableField) => boolean,
@@ -87,10 +94,20 @@ const TileFilterConfiguration: FC<TileFilterConfigurationProps> = ({
                     .sort((a, b) => itemsSortBy(matchFieldByTypeAndName, a, b))
                     .sort((a, b) => itemsSortBy(matchFieldExact, a, b));
 
+                const title =
+                    tile &&
+                    tile.properties.title === undefined &&
+                    isDashboardChartTileType(tile)
+                        ? savedCharts?.find(
+                              (chart) =>
+                                  chart.uuid === tile.properties.savedChartUuid,
+                          )?.name
+                        : tile?.properties.title;
+                console.log({ title });
                 return (
                     <FormGroup key={tileUuid}>
                         <Checkbox
-                            label={tile?.properties.title || undefined}
+                            label={title}
                             disabled={!isAvailable}
                             checked={isChecked}
                             onChange={() => {

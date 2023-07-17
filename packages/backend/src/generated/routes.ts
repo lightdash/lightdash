@@ -38,6 +38,8 @@ import { SpaceController } from './../controllers/spaceController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { SshController } from './../controllers/sshController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { UserAttributesController } from './../controllers/userAttributesController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { UserController } from './../controllers/userController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import type { RequestHandler } from 'express';
@@ -1641,7 +1643,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate_':
+    'Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder_':
         {
             dataType: 'refAlias',
             type: {
@@ -1651,6 +1653,22 @@ const models: TsoaRoute.Models = {
                     organizationUuid: { dataType: 'string', required: true },
                     uuid: { dataType: 'string', required: true },
                     projectUuid: { dataType: 'string', required: true },
+                    pinnedListUuid: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                    pinnedListOrder: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'double' },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
                     isPrivate: { dataType: 'boolean', required: true },
                 },
                 validators: {},
@@ -1663,11 +1681,13 @@ const models: TsoaRoute.Models = {
             dataType: 'intersection',
             subSchemas: [
                 {
-                    ref: 'Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate_',
+                    ref: 'Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder_',
                 },
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        dashboardCount: { dataType: 'double', required: true },
+                        chartCount: { dataType: 'double', required: true },
                         access: {
                             dataType: 'array',
                             array: { dataType: 'string' },
@@ -1916,6 +1936,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    Format: {
+        dataType: 'refEnum',
+        enums: ['km', 'mi', 'usd', 'gbp', 'eur', 'id', 'percent'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ConditionalOperator: {
         dataType: 'refEnum',
         enums: [
@@ -1967,7 +1992,7 @@ const models: TsoaRoute.Models = {
             hidden: { dataType: 'boolean' },
             round: { dataType: 'double' },
             compact: { ref: 'CompactOrAlias' },
-            format: { dataType: 'string' },
+            format: { ref: 'Format' },
             table: { dataType: 'string', required: true },
             name: { dataType: 'string', required: true },
             index: { dataType: 'double' },
@@ -2844,6 +2869,101 @@ const models: TsoaRoute.Models = {
                 results: { ref: 'Pick_SshKeyPair.publicKey_', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    UserAttribute: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                value: { dataType: 'string', required: true },
+                email: { dataType: 'string', required: true },
+                userUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    OrgAttribute: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                users: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'UserAttribute' },
+                    required: true,
+                },
+                description: { dataType: 'string' },
+                organizationUuid: { dataType: 'string', required: true },
+                name: { dataType: 'string', required: true },
+                createdAt: { dataType: 'datetime', required: true },
+                uuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiOrgAttributesResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'OrgAttribute' },
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiCreateOrgAttributesResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'OrgAttribute', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_OrgAttribute.Exclude_keyofOrgAttribute.uuid-or-createdAt-or-organizationUuid__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    name: { dataType: 'string', required: true },
+                    description: { dataType: 'string' },
+                    users: {
+                        dataType: 'array',
+                        array: { dataType: 'refAlias', ref: 'UserAttribute' },
+                        required: true,
+                    },
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_OrgAttribute.uuid-or-createdAt-or-organizationUuid_': {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Pick_OrgAttribute.Exclude_keyofOrgAttribute.uuid-or-createdAt-or-organizationUuid__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CreateOrgAttribute: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Omit_OrgAttribute.uuid-or-createdAt-or-organizationUuid_',
             validators: {},
         },
     },
@@ -5587,6 +5707,190 @@ export function RegisterRoutes(app: express.Router) {
                     validatedArgs as any,
                 );
                 promiseHandler(controller, promise, response, 201, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.get(
+        '/api/v1/org/attributes',
+        ...fetchMiddlewares<RequestHandler>(UserAttributesController),
+        ...fetchMiddlewares<RequestHandler>(
+            UserAttributesController.prototype.getUserAttributes,
+        ),
+
+        function UserAttributesController_getUserAttributes(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const controller = new UserAttributesController();
+
+                const promise = controller.getUserAttributes.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, undefined, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.post(
+        '/api/v1/org/attributes',
+        ...fetchMiddlewares<RequestHandler>(UserAttributesController),
+        ...fetchMiddlewares<RequestHandler>(
+            UserAttributesController.prototype.createUserAttributes,
+        ),
+
+        function UserAttributesController_createUserAttributes(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+                body: {
+                    in: 'body',
+                    name: 'body',
+                    required: true,
+                    ref: 'CreateOrgAttribute',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const controller = new UserAttributesController();
+
+                const promise = controller.createUserAttributes.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, undefined, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.put(
+        '/api/v1/org/attributes/:userAttributeUuid',
+        ...fetchMiddlewares<RequestHandler>(UserAttributesController),
+        ...fetchMiddlewares<RequestHandler>(
+            UserAttributesController.prototype.updateUserAttribute,
+        ),
+
+        function UserAttributesController_updateUserAttribute(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                userAttributeUuid: {
+                    in: 'path',
+                    name: 'userAttributeUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+                body: {
+                    in: 'body',
+                    name: 'body',
+                    required: true,
+                    ref: 'CreateOrgAttribute',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const controller = new UserAttributesController();
+
+                const promise = controller.updateUserAttribute.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, undefined, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.delete(
+        '/api/v1/org/attributes/:userAttributeUuid',
+        ...fetchMiddlewares<RequestHandler>(UserAttributesController),
+        ...fetchMiddlewares<RequestHandler>(
+            UserAttributesController.prototype.removeUserAttribute,
+        ),
+
+        function UserAttributesController_removeUserAttribute(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                userAttributeUuid: {
+                    in: 'path',
+                    name: 'userAttributeUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const controller = new UserAttributesController();
+
+                const promise = controller.removeUserAttribute.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, undefined, next);
             } catch (err) {
                 return next(err);
             }

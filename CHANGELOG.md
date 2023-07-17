@@ -1,3 +1,32 @@
+## [0.667.4](https://github.com/lightdash/lightdash/compare/0.667.3...0.667.4) (2023-07-13)
+
+
+### Bug Fixes
+
+* explore dbt errors for all versions ([#6286](https://github.com/lightdash/lightdash/issues/6286)) ([d593d38](https://github.com/lightdash/lightdash/commit/d593d3863b33f20ec01ec86d0257890f07302756))
+
+## [0.667.3](https://github.com/lightdash/lightdash/compare/0.667.2...0.667.3) (2023-07-13)
+
+
+### Bug Fixes
+
+* filter empty chart title ([#6303](https://github.com/lightdash/lightdash/issues/6303)) ([e3bd732](https://github.com/lightdash/lightdash/commit/e3bd732b34f10797c656d06cb87682bfc51089ab)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+* remove edit title option for markdown and loom ([#6304](https://github.com/lightdash/lightdash/issues/6304)) ([380d656](https://github.com/lightdash/lightdash/commit/380d656e845bb27212eaaf5b4d0b235befa1c1ff))
+
+## [0.667.2](https://github.com/lightdash/lightdash/compare/0.667.1...0.667.2) (2023-07-13)
+
+
+### Bug Fixes
+
+*  title change tile ([#6291](https://github.com/lightdash/lightdash/issues/6291)) ([71797f8](https://github.com/lightdash/lightdash/commit/71797f867d0501a850e336b0a1cfadac43054524)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+
+## [0.667.1](https://github.com/lightdash/lightdash/compare/0.667.0...0.667.1) (2023-07-13)
+
+
+### Bug Fixes
+
+* make dashboard link to open in new tab for saved charts ([#6214](https://github.com/lightdash/lightdash/issues/6214)) ([b34a730](https://github.com/lightdash/lightdash/commit/b34a730d1f79536250d339814407397b93bc82ae))
+
 # [0.667.0](https://github.com/lightdash/lightdash/compare/0.666.0...0.667.0) (2023-07-13)
 
 
