@@ -234,6 +234,8 @@ export const BASE_LIGHTDASH_TABLE: Omit<Table, 'lineageGraph'> = {
             round: undefined,
             source: undefined,
             sql: '${TABLE}.myColumnName',
+            sqlWhere: undefined,
+
             table: 'myTable',
             tableLabel: 'My table',
             timeInterval: undefined,
@@ -258,6 +260,22 @@ export const LIGHTDASH_TABLE_WITH_GROUP_LABEL: Omit<Table, 'lineageGraph'> = {
     groupLabel: 'revenue',
 };
 
+export const MODEL_WITH_SQL_WHERE: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    columns: {
+        user_created: {
+            name: 'user_created',
+            data_type: DimensionType.STRING,
+            meta: {
+                dimension: {
+                    sql_where: '${payment_method} IS NOT NULL',
+                },
+            },
+        },
+    },
+};
 export const MODEL_WITH_NO_METRICS: DbtModelNode & { relation_name: string } = {
     ...model,
     columns: {
@@ -274,6 +292,7 @@ export const LIGHTDASH_TABLE_WITHOUT_AUTO_METRICS: Omit<Table, 'lineageGraph'> =
                 description: undefined,
                 type: DimensionType.STRING,
                 sql: '${TABLE}.user_id',
+                sqlWhere: undefined,
                 name: 'user_id',
                 label: 'User id',
                 table: MODEL_WITH_NO_METRICS.name,
@@ -490,6 +509,7 @@ export const LIGHTDASH_TABLE_WITH_METRICS: Omit<Table, 'lineageGraph'> = {
             description: undefined,
             type: DimensionType.STRING,
             sql: '${TABLE}.user_id',
+            sqlWhere: undefined,
             name: 'user_id',
             label: 'User id',
             table: MODEL_WITH_METRIC.name,
@@ -509,6 +529,8 @@ export const LIGHTDASH_TABLE_WITH_METRICS: Omit<Table, 'lineageGraph'> = {
             description: undefined,
             type: DimensionType.NUMBER,
             sql: 'num_participating_men + num_participating_women',
+            sqlWhere: undefined,
+
             name: 'num_participating_athletes',
             label: 'Num participating athletes',
             table: MODEL_WITH_METRIC.name,
@@ -593,6 +615,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             description: undefined,
             type: DimensionType.TIMESTAMP,
             sql: '${TABLE}.user_created',
+            sqlWhere: undefined,
             name: 'user_created',
             label: 'User created',
             table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
@@ -612,6 +635,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             description: undefined,
             type: DimensionType.TIMESTAMP,
             sql: '${TABLE}.user_created',
+            sqlWhere: undefined,
             name: 'user_created_raw',
             label: 'User created raw',
             table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
@@ -631,6 +655,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             description: undefined,
             type: DimensionType.DATE,
             sql: 'TIMESTAMP_TRUNC(${TABLE}.user_created, DAY)',
+            sqlWhere: undefined,
             name: 'user_created_day',
             label: 'User created day',
             table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
@@ -650,6 +675,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             description: undefined,
             type: DimensionType.DATE,
             sql: 'TIMESTAMP_TRUNC(${TABLE}.user_created, WEEK)',
+            sqlWhere: undefined,
             name: 'user_created_week',
             label: 'User created week',
             table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
@@ -669,6 +695,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             description: undefined,
             type: DimensionType.DATE,
             sql: 'TIMESTAMP_TRUNC(${TABLE}.user_created, MONTH)',
+            sqlWhere: undefined,
             name: 'user_created_month',
             label: 'User created month',
             table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
@@ -696,6 +723,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             compact: undefined,
             source: undefined,
             sql: 'TIMESTAMP_TRUNC(${TABLE}.user_created, QUARTER)',
+            sqlWhere: undefined,
             table: 'myTable',
             tableLabel: 'My table',
             timeInterval: TimeFrames.QUARTER,
@@ -707,6 +735,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             description: undefined,
             type: DimensionType.DATE,
             sql: 'TIMESTAMP_TRUNC(${TABLE}.user_created, YEAR)',
+            sqlWhere: undefined,
             name: 'user_created_year',
             label: 'User created year',
             table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
@@ -735,6 +764,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             description: undefined,
             type: DimensionType.TIMESTAMP,
             sql: "TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created))",
+            sqlWhere: undefined,
             name: 'user_created',
             table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
             tableLabel: 'My table',
@@ -754,6 +784,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             description: undefined,
             type: DimensionType.TIMESTAMP,
             sql: "TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created))",
+            sqlWhere: undefined,
             name: 'user_created_raw',
 
             table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
@@ -775,6 +806,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             description: undefined,
             type: DimensionType.DATE,
             sql: "DATE_TRUNC('DAY', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created)))",
+            sqlWhere: undefined,
             name: 'user_created_day',
             table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
             tableLabel: 'My table',
@@ -796,6 +828,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             description: undefined,
             type: DimensionType.DATE,
             sql: "DATE_TRUNC('WEEK', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created)))",
+            sqlWhere: undefined,
             name: 'user_created_week',
 
             table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
@@ -818,6 +851,8 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             description: undefined,
             type: DimensionType.DATE,
             sql: "DATE_TRUNC('MONTH', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created)))",
+            sqlWhere: undefined,
+
             name: 'user_created_month',
 
             table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
@@ -848,6 +883,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             compact: undefined,
             source: undefined,
             sql: "DATE_TRUNC('QUARTER', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created)))",
+            sqlWhere: undefined,
             table: 'myTable',
             tableLabel: 'My table',
             timeInterval: TimeFrames.QUARTER,
@@ -859,6 +895,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             description: undefined,
             type: DimensionType.DATE,
             sql: "DATE_TRUNC('YEAR', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created)))",
+            sqlWhere: undefined,
             name: 'user_created_year',
 
             table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
@@ -896,6 +933,7 @@ export const LIGHTDASH_TABLE_WITH_OFF_TIME_INTERVAL_DIMENSIONS: Omit<
             description: undefined,
             type: DimensionType.TIMESTAMP,
             sql: '${TABLE}.user_created',
+            sqlWhere: undefined,
             name: 'user_created',
             label: 'User created',
             table: MODEL_WITH_OFF_TIME_INTERVAL_DIMENSIONS.name,
@@ -934,6 +972,8 @@ export const LIGHTDASH_TABLE_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS: Omit<
             name: 'user_created',
             label: 'User created',
             table: MODEL_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS.name,
+            sqlWhere: undefined,
+
             tableLabel: 'My table',
             source: undefined,
             group: undefined,
@@ -950,6 +990,7 @@ export const LIGHTDASH_TABLE_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS: Omit<
             description: undefined,
             type: DimensionType.DATE,
             sql: 'DATE_TRUNC(${TABLE}.user_created, YEAR)',
+            sqlWhere: undefined,
             name: 'user_created_year',
             label: 'User created year',
             table: MODEL_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS.name,
@@ -1004,5 +1045,31 @@ export const expectedModelWithType: DbtModelNode = {
     ...model,
     columns: {
         myColumnName: { ...column, data_type: DimensionType.STRING },
+    },
+};
+
+export const LIGHTDASH_TABLE_SQL_WHERE: Omit<Table, 'lineageGraph'> = {
+    ...BASE_LIGHTDASH_TABLE,
+    dimensions: {
+        user_created: {
+            fieldType: FieldType.DIMENSION,
+            description: undefined,
+            type: DimensionType.STRING,
+            sql: '${TABLE}.user_created',
+            sqlWhere: '${payment_method} IS NOT NULL',
+            name: 'user_created',
+            label: 'User created',
+            table: MODEL_WITH_OFF_TIME_INTERVAL_DIMENSIONS.name,
+            tableLabel: 'My table',
+            source: undefined,
+            group: undefined,
+            timeInterval: undefined,
+            hidden: false,
+            format: undefined,
+            round: undefined,
+            compact: undefined,
+            groupLabel: undefined,
+            index: 0,
+        },
     },
 };
