@@ -166,6 +166,7 @@ describe('Lightdash API', () => {
             },
         );
     });
+
     it('Should get success response (200) from GET savedChartRouter endpoints', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 

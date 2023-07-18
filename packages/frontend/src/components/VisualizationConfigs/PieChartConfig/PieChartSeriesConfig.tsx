@@ -8,11 +8,7 @@ import {
     Box,
     Checkbox,
     Collapse,
-    ColorPicker,
-    ColorSwatch,
     Group,
-    Input,
-    Popover,
     Select,
     Stack,
     StackProps,
@@ -24,7 +20,6 @@ import {
     IconChevronDown,
     IconChevronUp,
     IconGripVertical,
-    IconHash,
 } from '@tabler/icons-react';
 import { FC, forwardRef, useCallback } from 'react';
 import {
@@ -34,9 +29,9 @@ import {
     Droppable,
     DropResult,
 } from 'react-beautiful-dnd';
-import { isHexCodeColor } from '../../../utils/colorUtils';
 import MantineIcon from '../../common/MantineIcon';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import ColorPicker from '../ColorSelector';
 
 type ValueOptionsProps = {
     isValueLabelOverriden?: boolean;
@@ -172,7 +167,6 @@ const GroupItem = forwardRef<HTMLDivElement, StackProps & GroupItemProps>(
         },
         ref,
     ) => {
-        const isValidHexColor = color && isHexCodeColor(color);
         const [opened, { toggle }] = useDisclosure();
 
         return (
@@ -190,62 +184,14 @@ const GroupItem = forwardRef<HTMLDivElement, StackProps & GroupItemProps>(
                         </Box>
                     )}
 
-                    <Input.Wrapper>
-                        <Popover shadow="md" withArrow>
-                            <Popover.Target>
-                                <ColorSwatch
-                                    size={24}
-                                    color={
-                                        isValidHexColor ? color : defaultColor
-                                    }
-                                    sx={{
-                                        cursor: 'pointer',
-                                        transition: 'opacity 100ms ease',
-                                        '&:hover': { opacity: 0.8 },
-                                    }}
-                                />
-                            </Popover.Target>
-
-                            <Popover.Dropdown p="xs">
-                                <Stack spacing="xs">
-                                    <ColorPicker
-                                        size="md"
-                                        format="hex"
-                                        swatches={swatches}
-                                        swatchesPerRow={swatches.length}
-                                        value={color ?? defaultColor}
-                                        onChange={(newColor) =>
-                                            onColorChange(
-                                                defaultLabel,
-                                                newColor,
-                                            )
-                                        }
-                                    />
-
-                                    <TextInput
-                                        icon={<MantineIcon icon={IconHash} />}
-                                        placeholder="Type in a custom HEX color"
-                                        error={
-                                            color && !isValidHexColor
-                                                ? 'Invalid HEX color'
-                                                : undefined
-                                        }
-                                        value={(color ?? '').replace('#', '')}
-                                        onChange={(event) => {
-                                            const newColor =
-                                                event.currentTarget.value;
-                                            onColorChange(
-                                                defaultLabel,
-                                                newColor === ''
-                                                    ? newColor
-                                                    : `#${newColor}`,
-                                            );
-                                        }}
-                                    />
-                                </Stack>
-                            </Popover.Dropdown>
-                        </Popover>
-                    </Input.Wrapper>
+                    <ColorPicker
+                        color={color}
+                        defaultColor={defaultColor}
+                        swatches={swatches}
+                        onColorChange={(newColor: string) =>
+                            onColorChange(defaultLabel, newColor)
+                        }
+                    />
 
                     <TextInput
                         sx={{ flexGrow: 1 }}

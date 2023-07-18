@@ -187,5 +187,6 @@ export async function seed(knex: Knex): Promise<void> {
         {
             userUuid: SEED_ORG_1_ADMIN.user_uuid,
         },
+        SEED_PROJECT.project_uuid,
     );
 }
