@@ -81,9 +81,6 @@
                 },
                 "urls": {
                     "$ref": "#/definitions/Urls"
-                },
-                "sql_where": {
-                    "type": "string"
                 }
             }
         },
@@ -190,6 +187,9 @@
                 "order_fields_by": {
                     "type": "string",
                     "enum": ["index", "label"]
+                },
+                "sql_where": {
+                    "type": "string"
                 }
             },
             "default": {}

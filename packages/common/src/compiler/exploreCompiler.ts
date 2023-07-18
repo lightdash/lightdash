@@ -56,6 +56,7 @@ export type UncompiledExplore = {
     joinedTables: ExploreJoin[];
     tables: Record<string, Table>;
     targetDatabase: SupportedDbtAdapter;
+    sqlWhere?: string;
 };
 
 export class ExploreCompiler {
@@ -74,6 +75,7 @@ export class ExploreCompiler {
         tables,
         targetDatabase,
         groupLabel,
+        sqlWhere,
     }: UncompiledExplore): Explore {
         // Check that base table and joined tables exist
         if (!tables[baseTable]) {
@@ -176,6 +178,8 @@ export class ExploreCompiler {
         const compiledJoins: CompiledExploreJoin[] = joinedTables.map((j) =>
             this.compileJoin(j, includedTables),
         );
+
+        const compiledSqlWhere = sqlWhere; // TODo compile variables
         return {
             name,
             label,
@@ -185,6 +189,7 @@ export class ExploreCompiler {
             tables: compiledTables,
             targetDatabase,
             groupLabel,
+            sqlWhere: compiledSqlWhere,
         };
     }
 
@@ -347,16 +352,9 @@ export class ExploreCompiler {
         tables: Record<string, Table>,
     ): CompiledDimension {
         const compiledDimension = this.compileDimensionSql(dimension, tables);
-        const compiledSqlWhere = dimension.sqlWhere
-            ? this.compileDimensionSql(
-                  { ...dimension, sql: dimension.sqlWhere },
-                  tables,
-              )
-            : undefined;
         return {
             ...dimension,
             compiledSql: compiledDimension.sql,
-            compiledSqlWhere: compiledSqlWhere?.sql,
             tablesReferences: Array.from(compiledDimension.tablesReferences),
         };
     }

@@ -196,12 +196,10 @@ export interface Dimension extends Field {
     type: DimensionType;
     group?: string;
     timeInterval?: TimeFrames;
-    sqlWhere?: string;
 }
 
 export interface CompiledDimension extends Dimension {
     compiledSql: string; // sql string with resolved template variables
-    compiledSqlWhere?: string; // sql string with resolved template variables
     tablesReferences: Array<string> | undefined;
 }
 

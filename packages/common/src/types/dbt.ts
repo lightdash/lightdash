@@ -56,6 +56,7 @@ type DbtModelLightdashConfig = {
     metrics?: Record<string, DbtModelLightdashMetric>;
     order_fields_by?: OrderFieldsByStrategy;
     group_label?: string;
+    sql_where?: string;
 };
 type DbtModelJoin = {
     join: string;
@@ -84,7 +85,6 @@ type DbtColumnLightdashDimension = {
     format?: Format;
     group_label?: string;
     urls?: FieldUrl[];
-    sql_where?: string;
 };
 
 export type DbtColumnLightdashMetric = {

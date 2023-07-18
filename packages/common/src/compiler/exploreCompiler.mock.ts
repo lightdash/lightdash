@@ -283,7 +283,6 @@ export const exploreTableSelfReferenceSqlWhere: UncompiledExplore = {
                     table: 'a',
                     tableLabel: 'a',
                     sql: '${TABLE}.dim1',
-                    sqlWhere: '${TABLE}.dim1 IS NOT NULL',
                     source: sourceMock,
                     hidden: false,
                 },
@@ -315,7 +314,6 @@ export const exploreTableSelfReferenceCompiled: Explore = {
                     tableLabel: 'a',
                     sql: '${TABLE}.dim1',
                     compiledSql: '"a".dim1',
-                    compiledSqlWhere: undefined,
 
                     tablesReferences: ['a'],
                     source: sourceMock,
@@ -348,9 +346,8 @@ export const exploreTableSelfReferenceCompiledSqlWhere: Explore = {
                     table: 'a',
                     tableLabel: 'a',
                     sql: '${TABLE}.dim1',
-                    sqlWhere: '${TABLE}.dim1 IS NOT NULL',
+
                     compiledSql: '"a".dim1',
-                    compiledSqlWhere: '"a".dim1 IS NOT NULL',
                     tablesReferences: ['a'],
                     source: sourceMock,
                     hidden: false,
@@ -424,7 +421,6 @@ export const exploreReferenceDimensionCompiled: Explore = {
                     tableLabel: 'a',
                     sql: '${TABLE}.dim1',
                     compiledSql: '"a".dim1',
-                    compiledSqlWhere: undefined,
 
                     tablesReferences: ['a'],
                     source: sourceMock,
@@ -439,7 +435,6 @@ export const exploreReferenceDimensionCompiled: Explore = {
                     tableLabel: 'a',
                     sql: '${a.dim1}',
                     compiledSql: '("a".dim1)',
-                    compiledSqlWhere: undefined,
 
                     tablesReferences: ['a'],
                     source: sourceMock,
@@ -537,7 +532,6 @@ export const exploreComplexReferenceCompiled: Explore = {
                     tableLabel: 'a',
                     sql: '${TABLE}.dim1',
                     compiledSql: '"a".dim1',
-                    compiledSqlWhere: undefined,
 
                     tablesReferences: ['a'],
                     source: sourceMock,
@@ -553,8 +547,6 @@ export const exploreComplexReferenceCompiled: Explore = {
                     sql: '${a.dim1}',
                     compiledSql: '("a".dim1)',
 
-                    compiledSqlWhere: undefined,
-
                     tablesReferences: ['a'],
                     source: sourceMock,
                     hidden: false,
@@ -568,7 +560,6 @@ export const exploreComplexReferenceCompiled: Explore = {
                     tableLabel: 'a',
                     sql: '${TABLE}.dim3 + ${a.dim2} + ${dim1}',
                     compiledSql: '"a".dim3 + (("a".dim1)) + ("a".dim1)',
-                    compiledSqlWhere: undefined,
 
                     tablesReferences: ['a'],
                     source: sourceMock,
@@ -684,7 +675,6 @@ export const compiledSimpleJoinedExplore: Explore = {
                     tableLabel: 'Custom A label',
                     sql: '${TABLE}.dim1',
                     compiledSql: '"a".dim1',
-                    compiledSqlWhere: undefined,
 
                     tablesReferences: ['a'],
                     source: sourceMock,
@@ -712,7 +702,6 @@ export const compiledSimpleJoinedExplore: Explore = {
                     tableLabel: 'Custom B label',
                     sql: '${TABLE}.dim1',
                     compiledSql: '"b".dim1',
-                    compiledSqlWhere: undefined,
 
                     tablesReferences: ['b'],
                     source: sourceMock,
@@ -772,7 +761,7 @@ export const exploreReferenceInJoinCompiled: Explore = {
                     tableLabel: 'Custom B label',
                     sql: '${a.dim1}',
                     compiledSql: '("a".dim1)',
-                    compiledSqlWhere: undefined,
+
                     tablesReferences: ['b', 'a'],
                     source: sourceMock,
                     hidden: false,
@@ -846,7 +835,6 @@ export const compiledJoinedExploreOverridingJoinAlias: Explore = {
                     table: 'custom_alias',
                     tableLabel: 'Custom alias',
                     compiledSql: '"custom_alias".dim1',
-                    compiledSqlWhere: undefined,
 
                     tablesReferences: ['custom_alias'],
                 },
@@ -889,7 +877,6 @@ export const compiledJoinedExploreOverridingAliasAndLabel: Explore = {
                     table: 'custom_alias',
                     tableLabel: 'Custom join label',
                     compiledSql: '"custom_alias".dim1',
-                    compiledSqlWhere: undefined,
 
                     tablesReferences: ['custom_alias'],
                 },
@@ -1004,7 +991,6 @@ export const exploreWithMetricNumberCompiled: Explore = {
                 dim1: {
                     ...exploreWithMetricNumber.tables.a.dimensions.dim1,
                     compiledSql: '"a".dim1',
-                    compiledSqlWhere: undefined,
 
                     tablesReferences: ['a'],
                 },
