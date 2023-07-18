@@ -1,3 +1,10 @@
+# [0.673.0](https://github.com/lightdash/lightdash/compare/0.672.0...0.673.0) (2023-07-18)
+
+
+### Features
+
+* hide setting pages if user cant update ([#6364](https://github.com/lightdash/lightdash/issues/6364)) ([0004f61](https://github.com/lightdash/lightdash/commit/0004f613630a711f2e95e4afa629e5c07698e28b))
+
 # [0.672.0](https://github.com/lightdash/lightdash/compare/0.671.0...0.672.0) (2023-07-17)
 
 
