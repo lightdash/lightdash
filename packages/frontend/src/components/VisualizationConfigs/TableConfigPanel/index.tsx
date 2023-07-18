@@ -1,5 +1,4 @@
-import { Colors, Tab, Tabs } from '@blueprintjs/core';
-import { Box, Button, Popover } from '@mantine/core';
+import { Button, Popover, Tabs } from '@mantine/core';
 import { IconChevronDown } from '@tabler/icons-react';
 import React from 'react';
 import {
@@ -30,32 +29,21 @@ const TableConfigPanel: React.FC = () => {
             </Popover.Target>
 
             <Popover.Dropdown>
-                <Box
-                    w={320}
-                    p={0}
-                    sx={{
-                        // FIXME: remove after Blueprint migration is complete
-                        'label.bp4-label': {
-                            display: 'inline-flex',
-                            gap: '0.214em',
-                            color: Colors.DARK_GRAY1,
-                            fontWeight: 600,
-                        },
-                    }}
-                >
-                    <Tabs>
-                        <Tab
-                            id="general"
-                            title="General"
-                            panel={<GeneralSettings />}
-                        />
-                        <Tab
-                            id="conditional-formatting"
-                            title="Conditional formatting"
-                            panel={<ConditionalFormattingList />}
-                        />
-                    </Tabs>
-                </Box>
+                <Tabs w={320} defaultValue="general">
+                    <Tabs.List mb="sm">
+                        <Tabs.Tab value="general">General</Tabs.Tab>
+                        <Tabs.Tab value="conditional-formatting">
+                            Conditional formatting
+                        </Tabs.Tab>
+                    </Tabs.List>
+
+                    <Tabs.Panel value="general">
+                        <GeneralSettings />
+                    </Tabs.Panel>
+                    <Tabs.Panel value="conditional-formatting">
+                        <ConditionalFormattingList />
+                    </Tabs.Panel>
+                </Tabs>
             </Popover.Dropdown>
         </Popover>
     );
