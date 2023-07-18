@@ -215,8 +215,18 @@ export class ExploreCompiler {
             }),
             {},
         );
+        const compiledSqlWhere = table.sqlWhere
+            ? table.sqlWhere.replace(
+                  lightdashVariablePattern,
+                  (_, p1) =>
+                      this.compileDimensionReference(p1, tables, table.name)
+                          .sql,
+              )
+            : undefined;
+
         return {
             ...table,
+            sqlWhere: compiledSqlWhere,
             dimensions,
             metrics,
         };
