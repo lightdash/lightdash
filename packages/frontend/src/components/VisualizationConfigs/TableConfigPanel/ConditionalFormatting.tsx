@@ -41,7 +41,6 @@ import FieldIcon from '../../common/Filters/FieldIcon';
 import { fieldLabelText } from '../../common/Filters/FieldLabel';
 import { FiltersProvider } from '../../common/Filters/FiltersProvider';
 import MantineIcon from '../../common/MantineIcon';
-import ColorSelector from '../ColorSelector';
 import FieldSelectItem from '../FieldSelectItem';
 import ConditionalFormattingRule from './ConditionalFormattingRule';
 
@@ -296,13 +295,15 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                             config,
                         ) ? (
                             <>
-                                <Group spacing="xs">
-                                    <Text fw={500}>Select color</Text>
-                                </Group>
-
-                                <ColorSelector
+                                <ColorInput
+                                    withinPortal={false}
+                                    withEyeDropper={false}
+                                    format="hex"
+                                    swatches={defaultColors}
+                                    swatchesPerRow={defaultColors.length}
+                                    label="Select color"
                                     color={config.color}
-                                    onColorChange={handleChangeSingleColor}
+                                    onChange={handleChangeSingleColor}
                                 />
 
                                 {config.rules.map((rule, ruleIndex) => (
