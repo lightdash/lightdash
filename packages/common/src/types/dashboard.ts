@@ -1,6 +1,6 @@
 import { FilterableField } from './field';
 import { DashboardFilters } from './filter';
-import { SavedChartType } from './savedCharts';
+import { CreateSavedChart, SavedChartType } from './savedCharts';
 import { UpdatedByUser } from './user';
 import { ValidationSummary } from './validation';
 
@@ -47,6 +47,13 @@ export type DashboardChartTileProperties = {
     };
 };
 
+export type CreateDashboardChartTileProperties =
+    DashboardChartTileProperties & {
+        properties: DashboardChartTileProperties['properties'] & {
+            newChartData?: CreateSavedChart;
+        };
+    };
+
 export type CreateDashboardMarkdownTile = CreateDashboardTileBase &
     DashboardMarkdownTileProperties;
 export type DashboardMarkdownTile = DashboardTileBase &
@@ -57,7 +64,7 @@ export type CreateDashboardLoomTile = CreateDashboardTileBase &
 export type DashboardLoomTile = DashboardTileBase & DashboardLoomTileProperties;
 
 export type CreateDashboardChartTile = CreateDashboardTileBase &
-    DashboardChartTileProperties;
+    CreateDashboardChartTileProperties;
 export type DashboardChartTile = DashboardTileBase &
     DashboardChartTileProperties;
 
