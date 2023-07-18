@@ -1,3 +1,10 @@
+## [0.673.1](https://github.com/lightdash/lightdash/compare/0.673.0...0.673.1) (2023-07-18)
+
+
+### Bug Fixes
+
+* remove duplicate span.end() ([#6369](https://github.com/lightdash/lightdash/issues/6369)) ([ffe1036](https://github.com/lightdash/lightdash/commit/ffe1036c113af1f2b309d7ac3058ff2eaa85b05b))
+
 # [0.673.0](https://github.com/lightdash/lightdash/compare/0.672.0...0.673.0) (2023-07-18)
 
 
