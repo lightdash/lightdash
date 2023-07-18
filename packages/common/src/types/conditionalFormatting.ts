@@ -11,7 +11,6 @@ export type ConditionalFormattingWithRange<T = number> = {
     max: T;
 };
 
-// Single color -
 export type ConditionalFormattingConfigWithSingleColor = {
     target: FieldTarget | null;
     color: string;
@@ -22,9 +21,7 @@ export const isConditionalFormattingConfigWithSingleColor = (
     rule: ConditionalFormattingConfig,
 ): rule is ConditionalFormattingConfigWithSingleColor =>
     'color' in rule && typeof rule.color === 'string' && 'rules' in rule;
-// - Single color
 
-// Color range -
 export type ConditionalFormattingConfigWithColorRange = {
     target: FieldTarget | null;
     color: {
@@ -41,7 +38,6 @@ export const isConditionalFormattingConfigWithColorRange = (
     'color' in config &&
     typeof config.color === 'object' &&
     'steps' in config.color;
-// - Color range
 
 export type ConditionalFormattingConfig =
     | ConditionalFormattingConfigWithSingleColor
