@@ -196,6 +196,7 @@ export interface Dimension extends Field {
     type: DimensionType;
     group?: string;
     timeInterval?: TimeFrames;
+    sqlWhere?: string;
 }
 
 export interface CompiledDimension extends Dimension {

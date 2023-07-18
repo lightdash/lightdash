@@ -135,6 +135,7 @@ const convertDimension = (
         source,
         group,
         timeInterval,
+        sqlWhere: column.meta.dimension?.sql_where,
         hidden: !!column.meta.dimension?.hidden,
         format: column.meta.dimension?.format,
         round: column.meta.dimension?.round,
