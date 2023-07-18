@@ -39,7 +39,7 @@ RUN /usr/local/dbt1.5/bin/pip install \
     "dbt-snowflake~=1.5.0" \
     "dbt-bigquery~=1.5.0" \
     "dbt-databricks~=1.5.0" \
-    "dbt-trino~=1.5.0" \
+    "dbt-trino==1.5.0" \
     "psycopg2-binary==2.8.6"
 RUN ln -s /usr/local/dbt1.5/bin/dbt /usr/local/bin/dbt1.5
 
