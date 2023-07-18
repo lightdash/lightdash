@@ -1,5 +1,3 @@
-import { Button, FormGroup } from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
 import {
     ConditionalFormattingConfig,
     ConditionalFormattingRule as ConditionalFormattingRuleT,
@@ -7,20 +5,31 @@ import {
     createConditionalFormatingRule,
     FilterableItem,
     getItemId,
-    Item,
 } from '@lightdash/common';
+import {
+    ActionIcon,
+    Button,
+    Collapse,
+    Group,
+    Select,
+    Stack,
+    Text,
+    Tooltip,
+} from '@mantine/core';
+import {
+    IconChevronDown,
+    IconChevronUp,
+    IconPlus,
+    IconX,
+} from '@tabler/icons-react';
 import produce from 'immer';
 import React, { FC, useMemo, useState } from 'react';
-import FieldAutoComplete from '../../common/Filters/FieldAutoComplete';
+import FieldIcon from '../../common/Filters/FieldIcon';
+import { fieldLabelText } from '../../common/Filters/FieldLabel';
 import { FiltersProvider } from '../../common/Filters/FiltersProvider';
-import SeriesColorPicker from '../ChartConfigPanel/Series/SeriesColorPicker';
-import {
-    ConditionalFormattingConfigWrapper,
-    ConditionalFormattingGroupHeader,
-    ConditionalFormattingGroupTitle,
-    ConditionalFormattingRuleAndLabel,
-    ConditionalFormattingWrapper,
-} from './ConditionalFormatting.styles';
+import MantineIcon from '../../common/MantineIcon';
+import ColorSelector from '../ColorSelector';
+import FieldSelectItem from '../FieldSelectItem';
 import ConditionalFormattingRule from './ConditionalFormattingRule';
 
 interface ConditionalFormattingProps {
@@ -58,12 +67,10 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
         onChange(newConfig);
     };
 
-    const handleChangeField = (newField: Item | undefined) => {
+    const handleChangeField = (newFieldId: string) => {
         handleChange(
             produce(config, (draft) => {
-                draft.target = newField
-                    ? { fieldId: getItemId(newField) }
-                    : null;
+                draft.target = newFieldId ? { fieldId: newFieldId } : null;
             }),
         );
     };
@@ -121,68 +128,64 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
 
     return (
         <FiltersProvider>
-            <ConditionalFormattingWrapper>
-                <ConditionalFormattingGroupHeader>
-                    <Button
-                        minimal
-                        small
-                        onClick={() => setIsOpen(!isOpen)}
-                        icon={isOpen ? 'chevron-down' : 'chevron-right'}
-                    />
-
-                    <ConditionalFormattingGroupTitle>
-                        Rule {configIndex + 1}
-                    </ConditionalFormattingGroupTitle>
-
-                    <Tooltip2
-                        content="Remove rule"
-                        position="left"
-                        renderTarget={({ ref, ...tooltipProps }) => (
-                            <Button
-                                style={{ marginLeft: 'auto' }}
-                                {...(tooltipProps as any)}
-                                elementRef={ref}
-                                minimal
-                                small
-                                icon="cross"
-                                onClick={handleRemove}
+            <Stack spacing="xs">
+                <Group noWrap position="apart">
+                    <Group spacing="xs">
+                        <ActionIcon
+                            onClick={() => setIsOpen(!isOpen)}
+                            size="sm"
+                        >
+                            <MantineIcon
+                                icon={isOpen ? IconChevronUp : IconChevronDown}
                             />
-                        )}
-                    />
-                </ConditionalFormattingGroupHeader>
+                        </ActionIcon>
 
-                {isOpen ? (
-                    <ConditionalFormattingConfigWrapper>
-                        <FormGroup label="Select field">
-                            <FieldAutoComplete
-                                id="numeric-field-autocomplete"
-                                fields={fields}
-                                activeField={field}
-                                onChange={handleChangeField}
-                                popoverProps={{
-                                    lazy: true,
-                                    matchTargetWidth: true,
-                                }}
-                                inputProps={{
-                                    rightElement: field ? (
-                                        <Button
-                                            minimal
-                                            icon="cross"
-                                            onClick={() =>
-                                                handleChangeField(undefined)
-                                            }
-                                        />
-                                    ) : undefined,
-                                }}
-                            />
-                        </FormGroup>
+                        <Text fw={500}>Rule {configIndex + 1}</Text>
+                    </Group>
 
-                        <FormGroup label="Set color">
-                            <SeriesColorPicker
+                    <Tooltip label="Remove rule" position="left">
+                        <ActionIcon onClick={handleRemove} size="sm">
+                            <MantineIcon icon={IconX} />
+                        </ActionIcon>
+                    </Tooltip>
+                </Group>
+                <Collapse in={isOpen}>
+                    <Stack
+                        bg={'gray.0'}
+                        p="sm"
+                        spacing="sm"
+                        sx={(theme) => ({
+                            borderRadius: theme.radius.sm,
+                        })}
+                    >
+                        <Select
+                            label="Select field"
+                            placeholder="Search field..."
+                            searchable
+                            clearable
+                            icon={field && <FieldIcon item={field} />}
+                            value={field ? getItemId(field) : ''}
+                            data={fields.map((f) => {
+                                const id = getItemId(f);
+                                return {
+                                    item: f,
+                                    value: id,
+                                    label: fieldLabelText(f),
+                                    disabled:
+                                        id === (field && getItemId(field)),
+                                };
+                            })}
+                            itemComponent={FieldSelectItem}
+                            onChange={handleChangeField}
+                        />
+                        <Group spacing="xs">
+                            <Text fw={500}>Select color</Text>
+
+                            <ColorSelector
                                 color={config.color}
-                                onChange={(color) => handleChangeColor(color)}
-                            />
-                        </FormGroup>
+                                onColorChange={handleChangeColor}
+                            ></ColorSelector>
+                        </Group>
 
                         {config.rules.map((rule, ruleIndex) => (
                             <React.Fragment key={ruleIndex}>
@@ -210,24 +213,25 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                                 />
 
                                 {ruleIndex !== config.rules.length - 1 && (
-                                    <ConditionalFormattingRuleAndLabel>
+                                    <Text fz="xs" fw={600}>
                                         AND
-                                    </ConditionalFormattingRuleAndLabel>
+                                    </Text>
                                 )}
                             </React.Fragment>
                         ))}
 
                         <Button
-                            style={{ alignSelf: 'flex-start' }}
-                            minimal
-                            icon="plus"
+                            sx={{ alignSelf: 'start' }}
+                            size="xs"
+                            variant="subtle"
+                            leftIcon={<MantineIcon icon={IconPlus} />}
                             onClick={handleAddRule}
                         >
                             Add new condition
                         </Button>
-                    </ConditionalFormattingConfigWrapper>
-                ) : null}
-            </ConditionalFormattingWrapper>
+                    </Stack>
+                </Collapse>
+            </Stack>
         </FiltersProvider>
     );
 };

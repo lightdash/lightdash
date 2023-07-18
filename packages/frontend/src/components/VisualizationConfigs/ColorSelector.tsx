@@ -8,6 +8,7 @@ import {
 } from '@mantine/core';
 import { IconHash } from '@tabler/icons-react';
 import { FC } from 'react';
+import { useOrganization } from '../../hooks/organization/useOrganization';
 import { isHexCodeColor } from '../../utils/colorUtils';
 import MantineIcon from '../common/MantineIcon';
 
@@ -18,12 +19,15 @@ interface Props {
     onColorChange: (newColor: string) => void;
 }
 
-const ColorPicker: FC<Props> = ({
+const ColorSelector: FC<Props> = ({
     color,
-    defaultColor = ECHARTS_DEFAULT_COLORS[0],
-    swatches = [],
+    defaultColor = 'rgba(0,0,0,.1)',
+    swatches,
     onColorChange,
 }) => {
+    const { data } = useOrganization();
+
+    swatches = data?.chartColors || ECHARTS_DEFAULT_COLORS;
     const isValidHexColor = color && isHexCodeColor(color);
 
     return (
@@ -73,4 +77,4 @@ const ColorPicker: FC<Props> = ({
     );
 };
 
-export default ColorPicker;
+export default ColorSelector;

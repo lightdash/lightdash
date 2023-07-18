@@ -1,18 +1,22 @@
-import { Button, FormGroup, HTMLSelect } from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
+import { HTMLSelect } from '@blueprintjs/core';
 import {
     ConditionalFormattingRule as ConditionalFormattingRuleT,
     ConditionalOperator,
     FilterableItem,
     FilterType,
 } from '@lightdash/common';
+import {
+    ActionIcon,
+    Collapse,
+    Group,
+    Stack,
+    Text,
+    Tooltip,
+} from '@mantine/core';
+import { IconChevronDown, IconChevronUp, IconX } from '@tabler/icons-react';
 import { FC, useState } from 'react';
 import { FilterTypeConfig } from '../../common/Filters/configs';
-import {
-    ConditionalFormattingGroupTitle,
-    ConditionalFormattingRuleGroupHeader,
-    ConditionalFormattingRuleWrapper,
-} from './ConditionalFormatting.styles';
+import MantineIcon from '../../common/MantineIcon';
 
 // conditional formatting only supports number fields for now
 const filterConfig = FilterTypeConfig[FilterType.NUMBER];
@@ -41,64 +45,49 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
     const [isOpen, setIsOpen] = useState(isDefaultOpen);
 
     return (
-        <ConditionalFormattingRuleWrapper>
-            <ConditionalFormattingRuleGroupHeader>
-                <Button
-                    minimal
-                    small
-                    onClick={() => setIsOpen(!isOpen)}
-                    icon={isOpen ? 'chevron-down' : 'chevron-right'}
-                />
+        <Stack spacing="xs">
+            <Group noWrap position="apart">
+                <Group spacing="xs">
+                    <ActionIcon onClick={() => setIsOpen(!isOpen)} size="sm">
+                        <MantineIcon
+                            icon={isOpen ? IconChevronUp : IconChevronDown}
+                        />
+                    </ActionIcon>
 
-                <ConditionalFormattingGroupTitle>
-                    Condition {ruleIndex + 1}
-                </ConditionalFormattingGroupTitle>
+                    <Text fw={500}>Condition {ruleIndex + 1}</Text>
+                </Group>
 
-                {hasRemove ? (
-                    <Tooltip2
-                        content="Remove condition"
-                        position="left"
-                        renderTarget={({ ref, ...tooltipProps }) => (
-                            <Button
-                                style={{ marginLeft: 'auto' }}
-                                {...(tooltipProps as any)}
-                                elementRef={ref}
-                                minimal
-                                small
-                                icon="cross"
-                                onClick={onRemoveRule}
-                            />
-                        )}
+                {hasRemove && (
+                    <Tooltip label="Remove rule" position="left">
+                        <ActionIcon onClick={onRemoveRule} size="sm">
+                            <MantineIcon icon={IconX} />
+                        </ActionIcon>
+                    </Tooltip>
+                )}
+            </Group>
+
+            <Collapse in={isOpen}>
+                <Stack spacing="xs">
+                    <HTMLSelect
+                        fill
+                        onChange={(e) =>
+                            onChangeRuleOperator(
+                                e.target.value as ConditionalOperator,
+                            )
+                        }
+                        options={filterConfig.operatorOptions}
+                        value={rule.operator}
                     />
-                ) : null}
-            </ConditionalFormattingRuleGroupHeader>
 
-            {isOpen ? (
-                <>
-                    <FormGroup>
-                        <HTMLSelect
-                            fill
-                            onChange={(e) =>
-                                onChangeRuleOperator(
-                                    e.target.value as ConditionalOperator,
-                                )
-                            }
-                            options={filterConfig.operatorOptions}
-                            value={rule.operator}
-                        />
-                    </FormGroup>
-
-                    <FormGroup>
-                        <filterConfig.inputs
-                            filterType={FilterType.NUMBER}
-                            field={field}
-                            rule={rule}
-                            onChange={onChangeRule}
-                        />
-                    </FormGroup>
-                </>
-            ) : null}
-        </ConditionalFormattingRuleWrapper>
+                    <filterConfig.inputs
+                        filterType={FilterType.NUMBER}
+                        field={field}
+                        rule={rule}
+                        onChange={onChangeRule}
+                    />
+                </Stack>
+            </Collapse>
+        </Stack>
     );
 };
 
