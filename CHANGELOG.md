@@ -1,3 +1,10 @@
+# [0.675.0](https://github.com/lightdash/lightdash/compare/0.674.0...0.675.0) (2023-07-18)
+
+
+### Features
+
+* migrate table config conditional formatting to mantine ([#6367](https://github.com/lightdash/lightdash/issues/6367)) ([a1b6585](https://github.com/lightdash/lightdash/commit/a1b6585b6cfb76ebf9a5c890cf3248305293aa76))
+
 # [0.674.0](https://github.com/lightdash/lightdash/compare/0.673.1...0.674.0) (2023-07-18)
 
 
