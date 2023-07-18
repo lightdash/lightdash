@@ -247,8 +247,8 @@ export const buildQuery = ({
 
     const dimensionsWhere = dimensions.reduce<string[]>((acc, field) => {
         const dimension = getDimensionFromId(field, explore);
-        if (dimension.sqlWhere) {
-            return [...acc, dimension.sqlWhere];
+        if (dimension.compiledSqlWhere) {
+            return [...acc, dimension.compiledSqlWhere];
         }
         return acc;
     }, []);

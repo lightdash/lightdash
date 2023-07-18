@@ -347,9 +347,16 @@ export class ExploreCompiler {
         tables: Record<string, Table>,
     ): CompiledDimension {
         const compiledDimension = this.compileDimensionSql(dimension, tables);
+        const compiledSqlWhere = dimension.sqlWhere
+            ? this.compileDimensionSql(
+                  { ...dimension, sql: dimension.sqlWhere },
+                  tables,
+              )
+            : undefined;
         return {
             ...dimension,
             compiledSql: compiledDimension.sql,
+            compiledSqlWhere: compiledSqlWhere?.sql,
             tablesReferences: Array.from(compiledDimension.tablesReferences),
         };
     }
