@@ -1,3 +1,39 @@
+# [0.674.0](https://github.com/lightdash/lightdash/compare/0.673.1...0.674.0) (2023-07-18)
+
+
+### Features
+
+* create chart at tile creation ([#6331](https://github.com/lightdash/lightdash/issues/6331)) ([7d43f51](https://github.com/lightdash/lightdash/commit/7d43f51e708c9ab3a1a691401aaa93d163a38d9e))
+
+## [0.673.1](https://github.com/lightdash/lightdash/compare/0.673.0...0.673.1) (2023-07-18)
+
+
+### Bug Fixes
+
+* remove duplicate span.end() ([#6369](https://github.com/lightdash/lightdash/issues/6369)) ([ffe1036](https://github.com/lightdash/lightdash/commit/ffe1036c113af1f2b309d7ac3058ff2eaa85b05b))
+
+# [0.673.0](https://github.com/lightdash/lightdash/compare/0.672.0...0.673.0) (2023-07-18)
+
+
+### Features
+
+* hide setting pages if user cant update ([#6364](https://github.com/lightdash/lightdash/issues/6364)) ([0004f61](https://github.com/lightdash/lightdash/commit/0004f613630a711f2e95e4afa629e5c07698e28b))
+
+# [0.672.0](https://github.com/lightdash/lightdash/compare/0.671.0...0.672.0) (2023-07-17)
+
+
+### Features
+
+* migrate Space page - action menu component from Blueprint to Mantine ([#6359](https://github.com/lightdash/lightdash/issues/6359)) ([c518d61](https://github.com/lightdash/lightdash/commit/c518d61e3d3100bcda2b6e63bc39c78b1ba78bc8))
+
+# [0.671.0](https://github.com/lightdash/lightdash/compare/0.670.0...0.671.0) (2023-07-17)
+
+
+### Features
+
+* trace runMetricQuery and add generated sql ([#6356](https://github.com/lightdash/lightdash/issues/6356)) ([9ace54d](https://github.com/lightdash/lightdash/commit/9ace54dcc2c95bfc8b9bbc843f09bb02e06886e1))
+* use tsoa for sql query api ([#6296](https://github.com/lightdash/lightdash/issues/6296)) ([5cf9338](https://github.com/lightdash/lightdash/commit/5cf9338a3d57fc02474ff16cf67b74c7c81f29df))
+
 # [0.670.0](https://github.com/lightdash/lightdash/compare/0.669.1...0.670.0) (2023-07-14)
 
 
