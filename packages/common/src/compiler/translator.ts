@@ -384,6 +384,8 @@ export const convertTable = (
     if (!model.relation_name) {
         throw new Error(`Model "${model.name}" has no table relation`);
     }
+    const compiledSqlWhere = meta.sql_where; // TODo compile variables
+
     return {
         name: model.name,
         label: tableLabel,
@@ -401,6 +403,7 @@ export const convertTable = (
                 ? (meta.order_fields_by.toUpperCase() as OrderFieldsByStrategy)
                 : OrderFieldsByStrategy.LABEL,
         groupLabel: meta.group_label,
+        sqlWhere: compiledSqlWhere,
     };
 };
 

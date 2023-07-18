@@ -75,7 +75,6 @@ export class ExploreCompiler {
         tables,
         targetDatabase,
         groupLabel,
-        sqlWhere,
     }: UncompiledExplore): Explore {
         // Check that base table and joined tables exist
         if (!tables[baseTable]) {
@@ -179,7 +178,6 @@ export class ExploreCompiler {
             this.compileJoin(j, includedTables),
         );
 
-        const compiledSqlWhere = sqlWhere; // TODo compile variables
         return {
             name,
             label,
@@ -189,7 +187,6 @@ export class ExploreCompiler {
             tables: compiledTables,
             targetDatabase,
             groupLabel,
-            sqlWhere: compiledSqlWhere,
         };
     }
 
