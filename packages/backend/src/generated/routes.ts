@@ -1986,6 +1986,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    Format: {
+        dataType: 'refEnum',
+        enums: ['km', 'mi', 'usd', 'gbp', 'eur', 'id', 'percent'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ConditionalOperator: {
         dataType: 'refEnum',
         enums: [
@@ -2037,7 +2042,7 @@ const models: TsoaRoute.Models = {
             hidden: { dataType: 'boolean' },
             round: { dataType: 'double' },
             compact: { ref: 'CompactOrAlias' },
-            format: { dataType: 'string' },
+            format: { ref: 'Format' },
             table: { dataType: 'string', required: true },
             name: { dataType: 'string', required: true },
             index: { dataType: 'double' },
