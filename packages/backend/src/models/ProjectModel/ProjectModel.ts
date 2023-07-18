@@ -875,11 +875,17 @@ export class ProjectModel {
                     ? await trx('saved_queries')
                           .insert(
                               charts.map((d) => {
+                                  if (!d.space_id) {
+                                      throw new Error(
+                                          `Chart ${d.saved_query_id} has no space_id`,
+                                      );
+                                  }
                                   const createChart = {
                                       ...d,
                                       saved_query_id: undefined,
                                       saved_query_uuid: undefined,
                                       space_id: getNewSpace(d.space_id),
+                                      dashboard_uuid: null,
                                   };
                                   delete createChart.saved_query_id;
                                   delete createChart.saved_query_uuid;
@@ -916,13 +922,19 @@ export class ProjectModel {
                     ? await trx('saved_queries_versions')
                           .insert(
                               chartVersions.map((d) => {
+                                  const newSavedQueryId = chartMapping.find(
+                                      (m) => m.id === d.saved_query_id,
+                                  )?.newId;
+                                  if (!newSavedQueryId) {
+                                      throw new Error(
+                                          `Cannot find new chart id for ${d.saved_query_id}`,
+                                      );
+                                  }
                                   const createChartVersion = {
                                       ...d,
                                       saved_queries_version_id: undefined,
                                       saved_queries_version_uuid: undefined,
-                                      saved_query_id: chartMapping.find(
-                                          (m) => m.id === d.saved_query_id,
-                                      )?.newId,
+                                      saved_query_id: newSavedQueryId,
                                   };
                                   delete createChartVersion.saved_queries_version_id;
                                   delete createChartVersion.saved_queries_version_uuid;

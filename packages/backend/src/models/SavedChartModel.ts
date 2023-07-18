@@ -17,6 +17,7 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
+import { DashboardsTableName } from '../database/entities/dashboards';
 import { OrganizationTableName } from '../database/entities/organizations';
 import {
     PinnedChartTableName,
@@ -29,6 +30,7 @@ import {
     DBFilteredAdditionalMetrics,
     DbSavedChartAdditionalMetricInsert,
     DbSavedChartTableCalculationInsert,
+    InsertChart,
     SavedChartAdditionalMetricTableName,
     SavedChartsTableName,
 } from '../database/entities/savedCharts';
@@ -58,6 +60,7 @@ type DbSavedChartDetails = {
     first_name: string;
     last_name: string;
     pinned_list_uuid: string;
+    dashboard_uuid: string | null;
 };
 
 const createSavedChartVersionField = async (
@@ -214,6 +217,7 @@ export const createSavedChart = async (
     db: Knex,
     projectUuid: string,
     userUuid: string,
+    dashboardUuid: string | undefined,
     {
         name,
         description,
@@ -225,14 +229,31 @@ export const createSavedChart = async (
         updatedByUser,
         spaceUuid,
     }: CreateSavedChart,
-): Promise<string> => {
-    const newSavedChartUuid = await db.transaction(async (trx) => {
-        const spaceId = spaceUuid
-            ? await getSpaceId(trx, spaceUuid)
-            : (await getFirstAccessibleSpace(trx, projectUuid, userUuid))
-                  .space_id;
-        const [newSavedChart] = await trx('saved_queries')
-            .insert({ name, space_id: spaceId, description })
+): Promise<string> =>
+    db.transaction(async (trx) => {
+        let chart: InsertChart;
+        if (dashboardUuid) {
+            chart = {
+                name,
+                description,
+                dashboard_uuid: dashboardUuid,
+                space_id: null,
+            };
+        } else {
+            const spaceId = spaceUuid
+                ? await getSpaceId(trx, spaceUuid)
+                : (await getFirstAccessibleSpace(trx, projectUuid, userUuid))
+                      .space_id;
+            if (!spaceId) throw new NotFoundError('No space found');
+            chart = {
+                name,
+                description,
+                dashboard_uuid: null,
+                space_id: spaceId,
+            };
+        }
+        const [newSavedChart] = await trx(SavedChartsTableName)
+            .insert(chart)
             .returning('*');
         await createSavedChartVersion(trx, newSavedChart.saved_query_id, {
             tableName,
@@ -244,8 +265,6 @@ export const createSavedChart = async (
         });
         return newSavedChart.saved_query_uuid;
     });
-    return newSavedChartUuid;
-};
 
 type Dependencies = {
     database: Knex;
@@ -277,6 +296,7 @@ export class SavedChartModel {
             this.database,
             projectUuid,
             userUuid,
+            undefined,
             {
                 name,
                 description,
@@ -375,11 +395,22 @@ export class SavedChartModel {
         try {
             const [savedQuery] = await this.database
                 .from<DbSavedChartDetails>(SavedChartsTableName)
-                .innerJoin(
-                    SpaceTableName,
-                    `${SavedChartsTableName}.space_id`,
-                    `${SpaceTableName}.space_id`,
+                .leftJoin(
+                    DashboardsTableName,
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    `${SavedChartsTableName}.dashboard_uuid`,
                 )
+                .innerJoin(SpaceTableName, function spaceJoin() {
+                    this.on(
+                        `${SpaceTableName}.space_id`,
+                        '=',
+                        `${DashboardsTableName}.space_id`,
+                    ).orOn(
+                        `${SpaceTableName}.space_id`,
+                        '=',
+                        `${SavedChartsTableName}.space_id`,
+                    );
+                })
                 .innerJoin(
                     ProjectTableName,
                     `${SpaceTableName}.project_id`,
@@ -421,6 +452,7 @@ export class SavedChartModel {
                     `${SavedChartsTableName}.saved_query_uuid`,
                     `${SavedChartsTableName}.name`,
                     `${SavedChartsTableName}.description`,
+                    `${SavedChartsTableName}.dashboard_uuid`,
                     'saved_queries_versions.saved_queries_version_id',
                     'saved_queries_versions.explore_name',
                     'saved_queries_versions.filters',
@@ -596,6 +628,7 @@ export class SavedChartModel {
                 spaceName: savedQuery.spaceName,
                 pinnedListUuid: savedQuery.pinned_list_uuid,
                 pinnedListOrder: null,
+                dashboardUuid: savedQuery.dashboard_uuid,
             };
         } finally {
             span?.finish();

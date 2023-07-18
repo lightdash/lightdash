@@ -78,6 +78,12 @@ describe('Lightdash dashboard', () => {
             ).then((chartResponse) => {
                 expect(chartResponse.status).to.eq(200);
                 expect(chartResponse.body.results.name).to.eq(chartMock.name);
+                expect(chartResponse.body.results.dashboardUuid).to.eq(
+                    createDashboardResponse.body.results.uuid,
+                );
+                expect(chartResponse.body.results.spaceUuid).to.eq(
+                    createDashboardResponse.body.results.spaceUuid,
+                );
             });
 
             const updateDashboardMock: UpdateDashboard = {
@@ -131,6 +137,12 @@ describe('Lightdash dashboard', () => {
                     expect(chartResponse.status).to.eq(200);
                     expect(chartResponse.body.results.name).to.eq(
                         chartMock.name,
+                    );
+                    expect(chartResponse.body.results.dashboardUuid).to.eq(
+                        createDashboardResponse.body.results.uuid,
+                    );
+                    expect(chartResponse.body.results.spaceUuid).to.eq(
+                        createDashboardResponse.body.results.spaceUuid,
                     );
                 });
             });

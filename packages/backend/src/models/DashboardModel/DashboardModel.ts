@@ -98,6 +98,7 @@ export class DashboardModel {
 
     private static async createVersion(
         trx: Transaction,
+        dashboardUuid: string,
         dashboardId: number,
         version: DashboardVersionedFields,
         projectUuid: string,
@@ -143,6 +144,7 @@ export class DashboardModel {
                             trx,
                             projectUuid,
                             userUuid,
+                            dashboardUuid,
                             tile.properties.newChartData,
                         );
                     }
@@ -673,6 +675,7 @@ export class DashboardModel {
 
             await DashboardModel.createVersion(
                 trx,
+                newDashboard.dashboard_uuid,
                 newDashboard.dashboard_id,
                 {
                     ...dashboard,
@@ -759,6 +762,7 @@ export class DashboardModel {
         await this.database.transaction(async (trx) => {
             await DashboardModel.createVersion(
                 trx,
+                dashboardUuid,
                 dashboard.dashboard_id,
                 {
                     ...version,
