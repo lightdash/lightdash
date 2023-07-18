@@ -13174,7 +13174,7 @@ body.bp4-overlay-open {
     position: static;
     right: 0;
     top: 0;
-    z-index: 20;
+    z-index: 400;
 }
 .bp4-overlay:not(.bp4-overlay-open) {
     pointer-events: none;
@@ -13200,7 +13200,7 @@ body.bp4-overlay-open {
 
 .bp4-overlay-content {
     position: fixed;
-    z-index: 20;
+    z-index: 400;
 }
 .bp4-overlay-inline .bp4-overlay-content,
 .bp4-overlay-scroll-container .bp4-overlay-content {
@@ -13220,7 +13220,7 @@ body.bp4-overlay-open {
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
-    z-index: 20;
+    z-index: 400;
 }
 .bp4-overlay-backdrop.bp4-overlay-enter,
 .bp4-overlay-backdrop.bp4-overlay-appear {
@@ -13583,7 +13583,7 @@ body.bp4-overlay-open {
     transform: scale(1);
     border-radius: 2px;
     display: inline-block;
-    z-index: 20;
+    z-index: 300;
 }
 .bp4-popover .bp4-popover-arrow {
     height: 30px;
@@ -13925,7 +13925,7 @@ body.bp4-overlay-open {
     display: -webkit-box;
     display: -ms-flexbox;
     display: flex;
-    z-index: 20;
+    z-index: 300;
 }
 .bp4-transition-container.bp4-popover-enter,
 .bp4-transition-container.bp4-popover-appear {
@@ -15690,7 +15690,7 @@ span.bp4-popover-target {
     padding: 0 20px 20px;
     pointer-events: none;
     right: 0;
-    z-index: 40;
+    z-index: 500;
 }
 .bp4-toast-container.bp4-toast-container-in-portal {
     position: fixed;
