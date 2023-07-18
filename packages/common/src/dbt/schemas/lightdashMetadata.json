@@ -81,6 +81,9 @@
                 },
                 "urls": {
                     "$ref": "#/definitions/Urls"
+                },
+                "sql_where": {
+                    "type": "string"
                 }
             }
         },
