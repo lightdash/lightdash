@@ -13174,7 +13174,7 @@ body.bp4-overlay-open {
     position: static;
     right: 0;
     top: 0;
-    z-index: 400;
+    z-index: 300;
 }
 .bp4-overlay:not(.bp4-overlay-open) {
     pointer-events: none;
@@ -13200,7 +13200,7 @@ body.bp4-overlay-open {
 
 .bp4-overlay-content {
     position: fixed;
-    z-index: 400;
+    z-index: 300;
 }
 .bp4-overlay-inline .bp4-overlay-content,
 .bp4-overlay-scroll-container .bp4-overlay-content {
@@ -13220,7 +13220,7 @@ body.bp4-overlay-open {
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
-    z-index: 400;
+    z-index: 300;
 }
 .bp4-overlay-backdrop.bp4-overlay-enter,
 .bp4-overlay-backdrop.bp4-overlay-appear {
