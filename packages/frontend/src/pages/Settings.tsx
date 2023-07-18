@@ -209,12 +209,6 @@ const Settings: FC = () => {
                                             }
                                         />
                                     )}
-                                <RouterNavLink
-                                    label="Appearance"
-                                    exact
-                                    to="/generalSettings/appearance"
-                                    icon={<MantineIcon icon={IconPalette} />}
-                                />
 
                                 {user.ability.can('update', 'Organization') && (
                                     <RouterNavLink
