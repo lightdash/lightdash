@@ -17,6 +17,7 @@ import {
     isFilterableItem,
     TableCalculation,
 } from '../types/field';
+import { FieldTarget } from '../types/filter';
 import assertUnreachable from './assertUnreachable';
 import { getItemId, isNumericItem } from './item';
 
@@ -27,26 +28,28 @@ export const createConditionalFormatingRule =
         values: [],
     });
 
-export const createConditionalFormattingConfigWithSingleColor =
-    (): ConditionalFormattingConfigWithSingleColor => ({
-        target: null,
-        color: '',
-        rules: [createConditionalFormatingRule()],
-    });
+export const createConditionalFormattingConfigWithSingleColor = (
+    target: FieldTarget | null = null,
+): ConditionalFormattingConfigWithSingleColor => ({
+    target,
+    color: '',
+    rules: [createConditionalFormatingRule()],
+});
 
-export const createConditionalFormattingConfigWithColorRange =
-    (): ConditionalFormattingConfigWithColorRange => ({
-        target: null,
-        color: {
-            start: '',
-            end: '',
-            steps: 5,
-        },
-        rule: {
-            min: 0,
-            max: 100,
-        },
-    });
+export const createConditionalFormattingConfigWithColorRange = (
+    target: FieldTarget | null = null,
+): ConditionalFormattingConfigWithColorRange => ({
+    target,
+    color: {
+        start: '',
+        end: '',
+        steps: 5,
+    },
+    rule: {
+        min: 0,
+        max: 100,
+    },
+});
 
 export const hasMatchingConditionalRules = (
     value: unknown,

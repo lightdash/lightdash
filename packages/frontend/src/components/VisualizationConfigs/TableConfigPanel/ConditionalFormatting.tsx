@@ -106,11 +106,15 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
         switch (newConfigType) {
             case ConditionalFormattingConfigType.Single:
                 return handleChange(
-                    createConditionalFormattingConfigWithSingleColor(),
+                    createConditionalFormattingConfigWithSingleColor(
+                        config.target,
+                    ),
                 );
             case ConditionalFormattingConfigType.Range:
                 return handleChange(
-                    createConditionalFormattingConfigWithColorRange(),
+                    createConditionalFormattingConfigWithColorRange(
+                        config.target,
+                    ),
                 );
             default:
                 return assertUnreachable(newConfigType, 'Unknown config type');
@@ -346,6 +350,7 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                             <>
                                 <SimpleGrid cols={2}>
                                     <ColorInput
+                                        withinPortal={false}
                                         withEyeDropper={false}
                                         format="hex"
                                         swatches={defaultColors}
@@ -360,6 +365,7 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                                     />
 
                                     <ColorInput
+                                        withinPortal={false}
                                         withEyeDropper={false}
                                         format="hex"
                                         swatches={defaultColors}
@@ -402,15 +408,19 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                             assertUnreachable(config, 'Unknown config type')
                         )}
 
-                        <Button
-                            sx={{ alignSelf: 'start' }}
-                            size="xs"
-                            variant="subtle"
-                            leftIcon={<MantineIcon icon={IconPlus} />}
-                            onClick={handleAddRule}
-                        >
-                            Add new condition
-                        </Button>
+                        {isConditionalFormattingConfigWithSingleColor(
+                            config,
+                        ) ? (
+                            <Button
+                                sx={{ alignSelf: 'start' }}
+                                size="xs"
+                                variant="subtle"
+                                leftIcon={<MantineIcon icon={IconPlus} />}
+                                onClick={handleAddRule}
+                            >
+                                Add new condition
+                            </Button>
+                        ) : null}
                     </Stack>
                 </Collapse>
             </Stack>
