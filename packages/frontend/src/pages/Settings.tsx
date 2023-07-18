@@ -178,7 +178,7 @@ const Settings: FC = () => {
                                 )}
 
                                 {user.ability.can(
-                                    'view',
+                                    'update',
                                     'OrganizationMemberProfile',
                                 ) && (
                                     <RouterNavLink
@@ -216,6 +216,17 @@ const Settings: FC = () => {
                                     icon={<MantineIcon icon={IconPalette} />}
                                 />
 
+                                {user.ability.can('update', 'Organization') && (
+                                    <RouterNavLink
+                                        label="Appearance"
+                                        exact
+                                        to="/generalSettings/appearance"
+                                        icon={
+                                            <MantineIcon icon={IconPalette} />
+                                        }
+                                    />
+                                )}
+
                                 {health.hasSlack &&
                                     user.ability.can(
                                         'manage',
@@ -252,7 +263,7 @@ const Settings: FC = () => {
                         !organization.needsProject &&
                         project &&
                         user.ability.can(
-                            'view',
+                            'update',
                             subject('Project', {
                                 organizationUuid: organization.organizationUuid,
                                 projectUuid: project.projectUuid,
@@ -287,15 +298,25 @@ const Settings: FC = () => {
                                     to={`/generalSettings/projectManagement/${project.projectUuid}/projectAccess`}
                                     icon={<MantineIcon icon={IconUsers} />}
                                 />
-
-                                <RouterNavLink
-                                    label="dbt Cloud"
-                                    exact
-                                    to={`/generalSettings/projectManagement/${project.projectUuid}/integrations/dbtCloud`}
-                                    icon={
-                                        <MantineIcon icon={IconCloudSearch} />
-                                    }
-                                />
+                                {user.ability?.can(
+                                    'manage',
+                                    subject('Project', {
+                                        organizationUuid:
+                                            project.organizationUuid,
+                                        projectUuid: project.projectUuid,
+                                    }),
+                                ) ? (
+                                    <RouterNavLink
+                                        label="dbt Cloud"
+                                        exact
+                                        to={`/generalSettings/projectManagement/${project.projectUuid}/integrations/dbtCloud`}
+                                        icon={
+                                            <MantineIcon
+                                                icon={IconCloudSearch}
+                                            />
+                                        }
+                                    />
+                                ) : null}
 
                                 {user.ability.can(
                                     'view',
