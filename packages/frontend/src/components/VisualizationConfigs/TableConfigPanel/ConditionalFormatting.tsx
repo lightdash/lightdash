@@ -68,14 +68,14 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
 }) => {
     const { data: org } = useOrganization();
 
+    const [isAddingRule, setIsAddingRule] = useState(false);
+    const [isOpen, setIsOpen] = useState(isDefaultOpen);
+    const [config, setConfig] = useState<ConditionalFormattingConfig>(value);
+
     const defaultColors = useMemo(
         () => org?.chartColors ?? ECHARTS_DEFAULT_COLORS,
         [org],
     );
-
-    const [isAddingRule, setIsAddingRule] = useState(false);
-    const [isOpen, setIsOpen] = useState(isDefaultOpen);
-    const [config, setConfig] = useState<ConditionalFormattingConfig>(value);
 
     const field = useMemo(
         () => fields.find((f) => getItemId(f) === config?.target?.fieldId),
