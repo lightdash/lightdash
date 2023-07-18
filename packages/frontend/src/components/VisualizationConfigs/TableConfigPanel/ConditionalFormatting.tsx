@@ -8,7 +8,6 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Box,
     Button,
     Collapse,
     Group,
@@ -179,7 +178,7 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                             itemComponent={FieldSelectItem}
                             onChange={handleChangeField}
                         />
-                        <Group spacing="xs" my="xs">
+                        <Group spacing="xs">
                             <Text fw={500}>Select color</Text>
 
                             <ColorSelector
@@ -214,11 +213,9 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                                 />
 
                                 {ruleIndex !== config.rules.length - 1 && (
-                                    <Box p={0}>
-                                        <Text fz="xs" fw={600}>
-                                            AND
-                                        </Text>
-                                    </Box>
+                                    <Text fz="xs" fw={600}>
+                                        AND
+                                    </Text>
                                 )}
                             </React.Fragment>
                         ))}

@@ -32,7 +32,6 @@ const TableConfigPanel: React.FC = () => {
             <Popover.Dropdown>
                 <Box
                     w={320}
-                    p={0}
                     sx={{
                         // FIXME: remove after Blueprint migration is complete
                         'label.bp4-label': {
