@@ -35,7 +35,7 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import produce from 'immer';
-import React, { FC, useMemo, useState } from 'react';
+import React, { FC, useCallback, useMemo, useState } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import FieldIcon from '../../common/Filters/FieldIcon';
 import { fieldLabelText } from '../../common/Filters/FieldLabel';
@@ -82,45 +82,55 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
         [fields, config],
     );
 
-    const handleRemove = () => {
+    const handleRemove = useCallback(() => {
         onRemove();
-    };
+    }, [onRemove]);
 
-    const handleChange = (newConfig: ConditionalFormattingConfig) => {
-        setConfig(newConfig);
-        onChange(newConfig);
-    };
+    const handleChange = useCallback(
+        (newConfig: ConditionalFormattingConfig) => {
+            setConfig(newConfig);
+            onChange(newConfig);
+        },
+        [onChange],
+    );
 
-    const handleChangeField = (newFieldId: string) => {
-        handleChange(
-            produce(config, (draft) => {
-                draft.target = newFieldId ? { fieldId: newFieldId } : null;
-            }),
-        );
-    };
+    const handleChangeField = useCallback(
+        (newFieldId: string) => {
+            handleChange(
+                produce(config, (draft) => {
+                    draft.target = newFieldId ? { fieldId: newFieldId } : null;
+                }),
+            );
+        },
+        [handleChange, config],
+    );
 
-    const handleConfigTypeChange = (
-        newConfigType: ConditionalFormattingConfigType,
-    ) => {
-        switch (newConfigType) {
-            case ConditionalFormattingConfigType.Single:
-                return handleChange(
-                    createConditionalFormattingConfigWithSingleColor(
-                        config.target,
-                    ),
-                );
-            case ConditionalFormattingConfigType.Range:
-                return handleChange(
-                    createConditionalFormattingConfigWithColorRange(
-                        config.target,
-                    ),
-                );
-            default:
-                return assertUnreachable(newConfigType, 'Unknown config type');
-        }
-    };
+    const handleConfigTypeChange = useCallback(
+        (newConfigType: ConditionalFormattingConfigType) => {
+            switch (newConfigType) {
+                case ConditionalFormattingConfigType.Single:
+                    return handleChange(
+                        createConditionalFormattingConfigWithSingleColor(
+                            config.target,
+                        ),
+                    );
+                case ConditionalFormattingConfigType.Range:
+                    return handleChange(
+                        createConditionalFormattingConfigWithColorRange(
+                            config.target,
+                        ),
+                    );
+                default:
+                    return assertUnreachable(
+                        newConfigType,
+                        'Unknown config type',
+                    );
+            }
+        },
+        [handleChange, config],
+    );
 
-    const handleAddRule = () => {
+    const handleAddRule = useCallback(() => {
         setIsAddingRule(true);
 
         if (isConditionalFormattingConfigWithSingleColor(config)) {
@@ -130,90 +140,107 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                 }),
             );
         }
-    };
+    }, [handleChange, config]);
 
-    const handleRemoveRule = (index: number) => {
-        if (isConditionalFormattingConfigWithSingleColor(config)) {
-            handleChange(
-                produce(config, (draft) => {
-                    draft.rules.splice(index, 1);
-                }),
-            );
-        }
-    };
+    const handleRemoveRule = useCallback(
+        (index: number) => {
+            if (isConditionalFormattingConfigWithSingleColor(config)) {
+                handleChange(
+                    produce(config, (draft) => {
+                        draft.rules.splice(index, 1);
+                    }),
+                );
+            }
+        },
+        [handleChange, config],
+    );
 
-    const handleChangeRuleOperator = (
-        index: number,
-        newOperator: ConditionalOperator,
-    ) => {
-        if (isConditionalFormattingConfigWithSingleColor(config)) {
-            handleChange(
-                produce(config, (draft) => {
-                    draft.rules[index] = {
-                        ...draft.rules[index],
-                        operator: newOperator,
-                    };
-                }),
-            );
-        }
-    };
+    const handleChangeRuleOperator = useCallback(
+        (index: number, newOperator: ConditionalOperator) => {
+            if (isConditionalFormattingConfigWithSingleColor(config)) {
+                handleChange(
+                    produce(config, (draft) => {
+                        draft.rules[index] = {
+                            ...draft.rules[index],
+                            operator: newOperator,
+                        };
+                    }),
+                );
+            }
+        },
+        [handleChange, config],
+    );
 
-    const handleChangeRule = (
-        index: number,
-        newRule: ConditionalFormattingWithConditionalOperator,
-    ) => {
-        if (isConditionalFormattingConfigWithSingleColor(config)) {
-            handleChange(
-                produce(config, (draft) => {
-                    // FIXME: check if we can fix this problem in number input
-                    draft.rules[index] = {
-                        ...newRule,
-                        values: newRule.values.map((v) => Number(v)),
-                    };
-                }),
-            );
-        }
-    };
+    const handleChangeRule = useCallback(
+        (
+            index: number,
+            newRule: ConditionalFormattingWithConditionalOperator,
+        ) => {
+            if (isConditionalFormattingConfigWithSingleColor(config)) {
+                handleChange(
+                    produce(config, (draft) => {
+                        // FIXME: check if we can fix this problem in number input
+                        draft.rules[index] = {
+                            ...newRule,
+                            values: newRule.values.map((v) => Number(v)),
+                        };
+                    }),
+                );
+            }
+        },
+        [handleChange, config],
+    );
 
-    const handleChangeSingleColor = (newColor: string) => {
-        if (isConditionalFormattingConfigWithSingleColor(config)) {
-            handleChange(
-                produce(config, (draft) => {
-                    draft.color = newColor;
-                }),
-            );
-        }
-    };
+    const handleChangeSingleColor = useCallback(
+        (newColor: string) => {
+            if (isConditionalFormattingConfigWithSingleColor(config)) {
+                handleChange(
+                    produce(config, (draft) => {
+                        draft.color = newColor;
+                    }),
+                );
+            }
+        },
+        [handleChange, config],
+    );
 
-    const handleChangeColorRangeColor = (
-        newColor: Partial<ConditionalFormattingConfigWithColorRange['color']>,
-    ) => {
-        if (isConditionalFormattingConfigWithColorRange(config)) {
-            handleChange(
-                produce(config, (draft) => {
-                    draft.color = {
-                        ...draft.color,
-                        ...newColor,
-                    };
-                }),
-            );
-        }
-    };
+    const handleChangeColorRangeColor = useCallback(
+        (
+            newColor: Partial<
+                ConditionalFormattingConfigWithColorRange['color']
+            >,
+        ) => {
+            if (isConditionalFormattingConfigWithColorRange(config)) {
+                handleChange(
+                    produce(config, (draft) => {
+                        draft.color = {
+                            ...draft.color,
+                            ...newColor,
+                        };
+                    }),
+                );
+            }
+        },
+        [handleChange, config],
+    );
 
-    const handleChangeColorRangeRule = (
-        newRule: Partial<ConditionalFormattingConfigWithColorRange['rule']>,
-    ) => {
-        if (isConditionalFormattingConfigWithColorRange(config)) {
-            handleChange(
-                produce(config, (draft) => {
-                    draft.rule = {
-                        ...draft.rule,
-                        ...newRule,
-                    };
-                }),
-            );
-        }
-    };
+    const handleChangeColorRangeRule = useCallback(
+        (
+            newRule: Partial<ConditionalFormattingConfigWithColorRange['rule']>,
+        ) => {
+            if (isConditionalFormattingConfigWithColorRange(config)) {
+                handleChange(
+                    produce(config, (draft) => {
+                        draft.rule = {
+                            ...draft.rule,
+                            ...newRule,
+                        };
+                    }),
+                );
+            }
+        },
+        [handleChange, config],
+    );
 
     return (
         <FiltersProvider>
