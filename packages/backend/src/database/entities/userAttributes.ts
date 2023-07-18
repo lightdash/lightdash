@@ -5,7 +5,7 @@ export type DbUserAttribute = {
     created_at: Date;
     name: string;
     description?: string;
-    organization_uuid: string;
+    organization_id: number;
 };
 
 export type DbOrganizationMemberUserAttribute = {

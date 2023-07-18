@@ -2925,7 +2925,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    UserAttribute: {
+    UserAttributeValue: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -2938,14 +2938,14 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    OrgAttribute: {
+    UserAttribute: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 users: {
                     dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'UserAttribute' },
+                    array: { dataType: 'refAlias', ref: 'UserAttributeValue' },
                     required: true,
                 },
                 description: { dataType: 'string' },
@@ -2965,7 +2965,7 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 results: {
                     dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'OrgAttribute' },
+                    array: { dataType: 'refAlias', ref: 'UserAttribute' },
                     required: true,
                 },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
@@ -2979,14 +2979,14 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                results: { ref: 'OrgAttribute', required: true },
+                results: { ref: 'UserAttribute', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_OrgAttribute.Exclude_keyofOrgAttribute.uuid-or-createdAt-or-organizationUuid__':
+    'Pick_UserAttribute.Exclude_keyofUserAttribute.uuid-or-createdAt-or-organizationUuid__':
         {
             dataType: 'refAlias',
             type: {
@@ -2996,7 +2996,10 @@ const models: TsoaRoute.Models = {
                     description: { dataType: 'string' },
                     users: {
                         dataType: 'array',
-                        array: { dataType: 'refAlias', ref: 'UserAttribute' },
+                        array: {
+                            dataType: 'refAlias',
+                            ref: 'UserAttributeValue',
+                        },
                         required: true,
                     },
                 },
@@ -3004,10 +3007,10 @@ const models: TsoaRoute.Models = {
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Omit_OrgAttribute.uuid-or-createdAt-or-organizationUuid_': {
+    'Omit_UserAttribute.uuid-or-createdAt-or-organizationUuid_': {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_OrgAttribute.Exclude_keyofOrgAttribute.uuid-or-createdAt-or-organizationUuid__',
+            ref: 'Pick_UserAttribute.Exclude_keyofUserAttribute.uuid-or-createdAt-or-organizationUuid__',
             validators: {},
         },
     },
@@ -3015,7 +3018,7 @@ const models: TsoaRoute.Models = {
     CreateOrgAttribute: {
         dataType: 'refAlias',
         type: {
-            ref: 'Omit_OrgAttribute.uuid-or-createdAt-or-organizationUuid_',
+            ref: 'Omit_UserAttribute.uuid-or-createdAt-or-organizationUuid_',
             validators: {},
         },
     },
@@ -5910,10 +5913,10 @@ export function RegisterRoutes(app: express.Router) {
         '/api/v1/org/attributes',
         ...fetchMiddlewares<RequestHandler>(UserAttributesController),
         ...fetchMiddlewares<RequestHandler>(
-            UserAttributesController.prototype.createUserAttributes,
+            UserAttributesController.prototype.createUserAttribute,
         ),
 
-        function UserAttributesController_createUserAttributes(
+        function UserAttributesController_createUserAttribute(
             request: any,
             response: any,
             next: any,
@@ -5941,7 +5944,7 @@ export function RegisterRoutes(app: express.Router) {
 
                 const controller = new UserAttributesController();
 
-                const promise = controller.createUserAttributes.apply(
+                const promise = controller.createUserAttribute.apply(
                     controller,
                     validatedArgs as any,
                 );

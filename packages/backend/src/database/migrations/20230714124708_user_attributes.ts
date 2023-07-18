@@ -18,12 +18,13 @@ export async function up(knex: Knex): Promise<void> {
                 .notNullable()
                 .defaultTo(knex.fn.now());
             table
-                .uuid('organization_uuid')
+                .integer('organization_id')
                 .notNullable()
-                .references('organization_uuid')
+                .references('organization_id')
                 .inTable('organizations')
                 .onDelete('CASCADE');
-            table.unique(['name', 'organization_uuid']);
+            table.unique(['name', 'organization_id']);
+            table.unique(['user_attribute_uuid', 'organization_id']); // needed for foreign key
         });
     }
     if (!(await knex.schema.hasTable(organizationMemberUserAttributes))) {
@@ -37,25 +38,21 @@ export async function up(knex: Knex): Promise<void> {
                     .references(['user_id', 'organization_id'])
                     .inTable('organization_memberships')
                     .onDelete('CASCADE');
+                table.uuid('user_attribute_uuid').notNullable();
                 table
-                    .uuid('user_attribute_uuid')
-                    .notNullable()
-                    .references('user_attribute_uuid')
+                    .foreign(['user_attribute_uuid', 'organization_id'])
+                    .references(['user_attribute_uuid', 'organization_id'])
                     .inTable(userAttributesTableName)
                     .onDelete('CASCADE');
                 table.string('value').notNullable();
-                table.primary([
-                    'user_id',
-                    'organization_id',
-                    'user_attribute_uuid',
-                ]);
+                table.primary(['user_id', 'user_attribute_uuid']);
             },
         );
     }
 }
 
 export async function down(knex: Knex): Promise<void> {
-    await knex.schema.dropTableIfExists(userAttributesTableName);
-
     await knex.schema.dropTableIfExists(organizationMemberUserAttributes);
+
+    await knex.schema.dropTableIfExists(userAttributesTableName);
 }

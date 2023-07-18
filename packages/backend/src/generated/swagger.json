@@ -2249,6 +2249,10 @@
                     }
                 ]
             },
+            "Format": {
+                "enum": ["km", "mi", "usd", "gbp", "eur", "id", "percent"],
+                "type": "string"
+            },
             "ConditionalOperator": {
                 "enum": [
                     "isNull",
@@ -2323,7 +2327,7 @@
                         "$ref": "#/components/schemas/CompactOrAlias"
                     },
                     "format": {
-                        "type": "string"
+                        "$ref": "#/components/schemas/Format"
                     },
                     "table": {
                         "type": "string"
@@ -3351,6 +3355,112 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "UserAttributeValue": {
+                "properties": {
+                    "value": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": "string"
+                    },
+                    "userUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["value", "email", "userUuid"],
+                "type": "object"
+            },
+            "UserAttribute": {
+                "properties": {
+                    "users": {
+                        "items": {
+                            "$ref": "#/components/schemas/UserAttributeValue"
+                        },
+                        "type": "array"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "users",
+                    "organizationUuid",
+                    "name",
+                    "createdAt",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "ApiOrgAttributesResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/UserAttribute"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiCreateOrgAttributesResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/UserAttribute"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "Pick_UserAttribute.Exclude_keyofUserAttribute.uuid-or-createdAt-or-organizationUuid__": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "users": {
+                        "items": {
+                            "$ref": "#/components/schemas/UserAttributeValue"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["name", "users"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_UserAttribute.uuid-or-createdAt-or-organizationUuid_": {
+                "$ref": "#/components/schemas/Pick_UserAttribute.Exclude_keyofUserAttribute.uuid-or-createdAt-or-organizationUuid__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "CreateOrgAttribute": {
+                "$ref": "#/components/schemas/Omit_UserAttribute.uuid-or-createdAt-or-organizationUuid_"
+            },
             "EmailOneTimePassword": {
                 "properties": {
                     "numberOfAttempts": {
@@ -3726,7 +3836,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.668.0",
+        "version": "0.670.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"
@@ -6103,6 +6213,170 @@
                 "tags": ["SSH Keypairs"],
                 "security": [],
                 "parameters": []
+            }
+        },
+        "/api/v1/org/attributes": {
+            "get": {
+                "operationId": "getUserAttributes",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrgAttributesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get all user attributes",
+                "tags": ["User attributes"],
+                "security": [],
+                "parameters": []
+            },
+            "post": {
+                "operationId": "createUserAttribute",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiCreateOrgAttributesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Creates new user attribute",
+                "tags": ["User attributes"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "description": "the user attribute to create",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateOrgAttribute",
+                                "description": "the user attribute to create"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/org/attributes/{userAttributeUuid}": {
+            "put": {
+                "operationId": "updateUserAttribute",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiCreateOrgAttributesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Updates a user attribute",
+                "tags": ["User attributes"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the UUID for the group to add the user to",
+                        "in": "path",
+                        "name": "userAttributeUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "the user attribute to update",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateOrgAttribute",
+                                "description": "the user attribute to update"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "removeUserAttribute",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Remove a user attribute",
+                "tags": ["User attributes"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the user attribute UUID to remove",
+                        "in": "path",
+                        "name": "userAttributeUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/user/me/email/otp": {

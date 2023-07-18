@@ -1,29 +1,29 @@
-export type OrgAttribute = {
+export type UserAttribute = {
     uuid: string;
     createdAt: Date;
     name: string;
     organizationUuid: string;
     description?: string;
-    users: UserAttribute[];
+    users: UserAttributeValue[];
 };
 
-export type UserAttribute = {
+export type UserAttributeValue = {
     userUuid: string;
     email: string;
     value: string;
 };
 
 export type CreateOrgAttribute = Omit<
-    OrgAttribute,
+    UserAttribute,
     'uuid' | 'createdAt' | 'organizationUuid'
 >;
 
 export type ApiOrgAttributesResponse = {
     status: 'ok';
-    results: OrgAttribute[];
+    results: UserAttribute[];
 };
 
 export type ApiCreateOrgAttributesResponse = {
     status: 'ok';
-    results: OrgAttribute;
+    results: UserAttribute;
 };

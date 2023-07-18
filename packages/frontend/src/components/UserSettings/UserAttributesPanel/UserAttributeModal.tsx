@@ -1,4 +1,4 @@
-import { CreateOrgAttribute, OrgAttribute } from '@lightdash/common';
+import { CreateOrgAttribute, UserAttribute } from '@lightdash/common';
 import {
     Button,
     Group,
@@ -11,7 +11,7 @@ import {
     Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconCircleX, IconPlus } from '@tabler/icons-react';
+import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { FC, useState } from 'react';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import {
@@ -22,8 +22,8 @@ import MantineIcon from '../../common/MantineIcon';
 
 const UserAttributeModal: FC<{
     opened: boolean;
-    userAttribute?: OrgAttribute;
-    allUserAttributes: OrgAttribute[];
+    userAttribute?: UserAttribute;
+    allUserAttributes: UserAttribute[];
     onClose: () => void;
 }> = ({ opened, userAttribute, allUserAttributes, onClose }) => {
     const form = useForm<CreateOrgAttribute>({
@@ -60,6 +60,21 @@ const UserAttributeModal: FC<{
             )
         ) {
             setInputError(`Attribute with the same name already exists`);
+            return;
+        }
+
+        const duplicatedUsers = data.users?.reduceRight(
+            (acc, user, index) =>
+                acc ||
+                data.users?.some(
+                    (otherUser, otherIndex) =>
+                        index !== otherIndex &&
+                        user.userUuid === otherUser.userUuid,
+                ),
+            false,
+        );
+        if (duplicatedUsers) {
+            setInputError(`Duplicated users`);
             return;
         }
         if (userAttribute?.uuid) {
@@ -120,9 +135,8 @@ const UserAttributeModal: FC<{
 
                         {form.values.users?.map((user, index) => {
                             return (
-                                <Group key={index}>
+                                <Group key={index} sx={{ flexGrow: 1 }}>
                                     <Select
-                                        w={200}
                                         name={`users.${index}.userUuid`}
                                         placeholder="E.g. test@lightdash.com"
                                         required
@@ -149,7 +163,7 @@ const UserAttributeModal: FC<{
                                     <Button
                                         pr={5}
                                         leftIcon={
-                                            <MantineIcon icon={IconCircleX} />
+                                            <MantineIcon icon={IconTrash} />
                                         }
                                         color="red"
                                         variant="outline"
@@ -179,7 +193,7 @@ const UserAttributeModal: FC<{
                         </Button>
                     </Stack>
 
-                    <Group spacing="xs" position="right" mt="md">
+                    <Group spacing="xs" position="right">
                         <Button
                             onClick={() => {
                                 handleClose();

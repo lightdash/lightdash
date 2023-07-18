@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { OrgAttribute } from '@lightdash/common';
+import { UserAttribute } from '@lightdash/common';
 import {
     Button,
     Flex,
@@ -11,11 +11,12 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import {
     IconAlertCircle,
-    IconCircleX,
     IconEdit,
     IconInfoCircle,
+    IconTrash,
 } from '@tabler/icons-react';
 import { FC, useState } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
@@ -32,113 +33,102 @@ import ForbiddenPanel from '../../ForbiddenPanel';
 import UserAttributeModal from './UserAttributeModal';
 
 const UserListItem: FC<{
-    orgUserAttribute: OrgAttribute;
-    allUserAttributes: OrgAttribute[];
+    orgUserAttribute: UserAttribute;
+    allUserAttributes: UserAttribute[];
 }> = ({ orgUserAttribute, allUserAttributes }) => {
-    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-
+    const [isDeleteDialogOpen, deleteDialog] = useDisclosure(false);
+    const [isEditDialogOpen, editDialog] = useDisclosure(false);
     const { mutate: deleteUserAttribute } = useUserAttributesDeleteMutation();
 
     return (
-        <>
-            <tr>
-                <td width={800}>
-                    <Flex justify="space-between" align="center">
-                        <Stack spacing="xs">
-                            <Group spacing="two">
-                                <Text>{orgUserAttribute.name}</Text>
-                                {orgUserAttribute.description && (
-                                    <Tooltip
-                                        multiline
-                                        maw={300}
-                                        withArrow
-                                        label={orgUserAttribute.description}
-                                    >
-                                        <MantineIcon
-                                            icon={IconInfoCircle}
-                                            color="gray.6"
-                                        />
-                                    </Tooltip>
-                                )}
-                            </Group>
-                            <Text fz="xs" color="gray.6">
-                                {' '}
-                                {orgUserAttribute.users.length} user
-                                {orgUserAttribute.users.length != 1 ? 's' : ''}
-                            </Text>
-                        </Stack>
-                    </Flex>
-                </td>
-                <td>
-                    <Flex justify="space-between" align="right">
-                        <Button
-                            variant="subtle"
-                            onClick={() => setIsEditDialogOpen(true)}
-                        >
-                            <MantineIcon
-                                icon={IconEdit}
-                                size="xlg"
-                                color="gray.7"
-                            />
-                        </Button>
-                        {isEditDialogOpen && (
-                            <UserAttributeModal
-                                opened={isEditDialogOpen}
-                                userAttribute={orgUserAttribute}
-                                onClose={() => setIsEditDialogOpen(false)}
-                                allUserAttributes={allUserAttributes}
-                            />
+        <tr>
+            <td>
+                <Stack spacing="xs">
+                    <Group spacing="two">
+                        <Text>{orgUserAttribute.name}</Text>
+                        {orgUserAttribute.description && (
+                            <Tooltip
+                                multiline
+                                maw={300}
+                                withArrow
+                                label={orgUserAttribute.description}
+                            >
+                                <MantineIcon
+                                    icon={IconInfoCircle}
+                                    color="gray.6"
+                                />
+                            </Tooltip>
                         )}
-                        <Button
-                            leftIcon={<MantineIcon icon={IconCircleX} />}
-                            variant="outline"
-                            onClick={() => setIsDeleteDialogOpen(true)}
-                            color="red"
-                        >
-                            Delete
-                        </Button>
-                        <Modal
-                            opened={isDeleteDialogOpen}
-                            onClose={() => setIsDeleteDialogOpen(false)}
-                            title={
-                                <Group spacing="xs">
-                                    <MantineIcon
-                                        size="lg"
-                                        icon={IconAlertCircle}
-                                        color="red"
-                                    />
-                                    <Title order={4}>Delete</Title>
-                                </Group>
-                            }
-                        >
-                            <Text pb="md">
-                                Are you sure you want to delete this user
-                                attribute ?
-                            </Text>
-                            <Group spacing="xs" position="right">
-                                <Button
-                                    onClick={() => setIsDeleteDialogOpen(false)}
-                                    variant="outline"
-                                >
-                                    Cancel
-                                </Button>
-                                <Button
-                                    onClick={() => {
-                                        deleteUserAttribute(
-                                            orgUserAttribute.uuid,
-                                        );
-                                    }}
+                    </Group>
+                    <Text fz="xs" color="gray.6">
+                        {orgUserAttribute.users.length} user
+                        {orgUserAttribute.users.length != 1 ? 's' : ''}
+                    </Text>
+                </Stack>
+            </td>
+            <td width="1%">
+                <Flex justify="space-between" align="right">
+                    <Button variant="outline" onClick={editDialog.open}>
+                        <MantineIcon
+                            icon={IconEdit}
+                            size="xlg"
+                            color="gray.7"
+                        />
+                    </Button>
+                    {isEditDialogOpen && (
+                        <UserAttributeModal
+                            opened={isEditDialogOpen}
+                            userAttribute={orgUserAttribute}
+                            onClose={editDialog.close}
+                            allUserAttributes={allUserAttributes}
+                        />
+                    )}
+                    <Button
+                        leftIcon={<MantineIcon icon={IconTrash} />}
+                        variant="outline"
+                        onClick={deleteDialog.open}
+                        color="red"
+                    >
+                        Delete
+                    </Button>
+                    <Modal
+                        opened={isDeleteDialogOpen}
+                        onClose={deleteDialog.close}
+                        title={
+                            <Group spacing="xs">
+                                <MantineIcon
+                                    size="lg"
+                                    icon={IconAlertCircle}
                                     color="red"
-                                >
-                                    Delete
-                                </Button>
+                                />
+                                <Title order={4}>Delete</Title>
                             </Group>
-                        </Modal>
-                    </Flex>
-                </td>
-            </tr>
-        </>
+                        }
+                    >
+                        <Text pb="md">
+                            Are you sure you want to delete this user attribute
+                            ?
+                        </Text>
+                        <Group spacing="xs" position="right">
+                            <Button
+                                onClick={deleteDialog.close}
+                                variant="outline"
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={() => {
+                                    deleteUserAttribute(orgUserAttribute.uuid);
+                                }}
+                                color="red"
+                            >
+                                Delete
+                            </Button>
+                        </Group>
+                    </Modal>
+                </Flex>
+            </td>
+        </tr>
     );
 };
 
@@ -177,7 +167,7 @@ const UserAttributesPanel: FC = () => {
                                 organization. They can used to control and
                                 cutomize the user experience through data access
                                 and personzalization. Learn more about using
-                                user attributes in the{' '}
+                                user attributes in the
                                 <a
                                     href="https://docs.lightdash.com"
                                     target="_blank"

@@ -31,8 +31,7 @@ import {
 export class UserAttributesController extends Controller {
     /**
      * Get all user attributes
-     *     @param req
-
+     * @param req
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Get('/')
@@ -48,19 +47,18 @@ export class UserAttributesController extends Controller {
     }
 
     /**
-         * Creates new user attribute
-         *   @param body the user attribute to create
+     * Creates new user attribute
+     * @param body the user attribute to create
      * @param req
-
-         */
+     */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
     ])
     @Post('/')
-    @OperationId('createUserAttributes')
-    async createUserAttributes(
+    @OperationId('createUserAttribute')
+    async createUserAttribute(
         @Request() req: express.Request,
         @Body() body: CreateOrgAttribute,
     ): Promise<ApiCreateOrgAttributesResponse> {
@@ -75,9 +73,8 @@ export class UserAttributesController extends Controller {
     /**
      * Updates a user attribute
      * @param userAttributeUuid the UUID for the group to add the user to
-     *   @param body the user attribute to update
+     * @param body the user attribute to update
      * @param req
-
      */
     @Middlewares([
         allowApiKeyAuthentication,
@@ -106,8 +103,7 @@ export class UserAttributesController extends Controller {
     /**
      * Remove a user attribute
      * @param userAttributeUuid the user attribute UUID to remove
-     *     @param req
-
+     * @param req
      */
     @Middlewares([
         allowApiKeyAuthentication,

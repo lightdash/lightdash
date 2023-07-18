@@ -1,11 +1,11 @@
-import { ApiError, CreateOrgAttribute, OrgAttribute } from '@lightdash/common';
+import { ApiError, CreateOrgAttribute, UserAttribute } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
 
 const getUserAttributes = async () =>
-    lightdashApi<OrgAttribute[]>({
+    lightdashApi<UserAttribute[]>({
         url: `/org/attributes`,
         method: 'GET',
         body: undefined,
@@ -13,7 +13,7 @@ const getUserAttributes = async () =>
 
 export const useUserAttributes = () => {
     const setErrorResponse = useQueryError();
-    return useQuery<OrgAttribute[], ApiError>({
+    return useQuery<UserAttribute[], ApiError>({
         queryKey: ['user_attributes'],
         queryFn: getUserAttributes,
         onError: (result) => setErrorResponse(result),

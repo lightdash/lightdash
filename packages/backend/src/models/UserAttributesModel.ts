@@ -1,4 +1,4 @@
-import { CreateOrgAttribute, OrgAttribute } from '@lightdash/common';
+import { CreateOrgAttribute, UserAttribute } from '@lightdash/common';
 import { Knex } from 'knex';
 import { OrganizationTableName } from '../database/entities/organizations';
 import {
@@ -22,7 +22,7 @@ export class UserAttributesModel {
     async find(filters: {
         organizationUuid?: string;
         userAttributeUuid?: string;
-    }): Promise<OrgAttribute[]> {
+    }): Promise<UserAttribute[]> {
         const query = this.database(UserAttributesTable)
             .leftJoin(
                 OrganizationMemberUserAttributesTable,
@@ -39,11 +39,17 @@ export class UserAttributesModel {
                 `${OrganizationMemberUserAttributesTable}.user_id`,
                 `emails.user_id`,
             )
+            .leftJoin(
+                `organizations`,
+                `${UserAttributesTable}.organization_id`,
+                `organizations.organization_id`,
+            )
             .select<
                 (DbUserAttribute &
                     DbOrganizationMemberUserAttribute & {
                         user_uuid: string;
                         email: string;
+                        organization_uuid: string;
                     })[]
             >(
                 `${UserAttributesTable}.*`,
@@ -51,12 +57,13 @@ export class UserAttributesModel {
                 `${OrganizationMemberUserAttributesTable}.value`,
                 `emails.email`,
                 `users.user_uuid`,
+                `organizations.organization_uuid`,
             )
             .orderBy('created_at', 'desc');
 
         if (filters.organizationUuid) {
             query.where(
-                `${UserAttributesTable}.organization_uuid`,
+                `organizations.organization_uuid`,
                 filters.organizationUuid,
             );
         }
@@ -69,7 +76,7 @@ export class UserAttributesModel {
 
         const orgAttributes = await query;
 
-        const results = orgAttributes.reduce<Record<string, OrgAttribute>>(
+        const results = orgAttributes.reduce<Record<string, UserAttribute>>(
             (acc, orgAttribute) => {
                 if (
                     acc[orgAttribute.user_attribute_uuid] &&
@@ -108,7 +115,7 @@ export class UserAttributesModel {
         return Object.values(results);
     }
 
-    async get(userAttributeUuid: string): Promise<OrgAttribute> {
+    async get(userAttributeUuid: string): Promise<UserAttribute> {
         const [result] = await this.find({ userAttributeUuid });
         return result;
     }
@@ -137,7 +144,7 @@ export class UserAttributesModel {
     async create(
         organizationUuid: string,
         orgAttribute: CreateOrgAttribute,
-    ): Promise<OrgAttribute> {
+    ): Promise<UserAttribute> {
         const [organization] = await this.database(OrganizationTableName)
             .select('organization_id')
             .where('organization_uuid', organizationUuid);
@@ -147,7 +154,7 @@ export class UserAttributesModel {
                 .insert({
                     name: orgAttribute.name,
                     description: orgAttribute.description,
-                    organization_uuid: organizationUuid,
+                    organization_id: organization.organization_id,
                 })
                 .returning('*');
 
@@ -167,7 +174,7 @@ export class UserAttributesModel {
         organizationUuid: string,
         orgAttributeUuid: string,
         orgAttribute: CreateOrgAttribute,
-    ): Promise<OrgAttribute> {
+    ): Promise<UserAttribute> {
         const [organization] = await this.database(OrganizationTableName)
             .select('organization_id')
             .where('organization_uuid', organizationUuid);

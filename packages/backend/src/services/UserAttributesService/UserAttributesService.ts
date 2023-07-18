@@ -2,8 +2,8 @@ import { subject } from '@casl/ability';
 import {
     CreateOrgAttribute,
     ForbiddenError,
-    OrgAttribute,
     SessionUser,
+    UserAttribute,
 } from '@lightdash/common';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 
@@ -18,7 +18,11 @@ export class UserAttributesService {
         this.userAttributesModel = dependencies.userAttributesModel;
     }
 
-    async getAll(user: SessionUser): Promise<OrgAttribute[]> {
+    async getAll(user: SessionUser): Promise<UserAttribute[]> {
+        if (user.ability.cannot('manage', 'Organization')) {
+            throw new ForbiddenError();
+        }
+
         return this.userAttributesModel.find({
             organizationUuid: user.organizationUuid!,
         });
@@ -27,7 +31,7 @@ export class UserAttributesService {
     async create(
         user: SessionUser,
         orgAttribute: CreateOrgAttribute,
-    ): Promise<OrgAttribute> {
+    ): Promise<UserAttribute> {
         if (user.ability.cannot('manage', 'Organization')) {
             throw new ForbiddenError();
         }
@@ -41,7 +45,7 @@ export class UserAttributesService {
         user: SessionUser,
         orgAttributeUuid: string,
         orgAttribute: CreateOrgAttribute,
-    ): Promise<OrgAttribute> {
+    ): Promise<UserAttribute> {
         const savedAttribute = await this.userAttributesModel.get(
             orgAttributeUuid,
         );

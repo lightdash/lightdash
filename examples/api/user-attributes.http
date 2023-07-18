@@ -15,19 +15,16 @@ GET http://localhost:8080/api/v1/org/attributes
 POST http://localhost:8080/api/v1/org/attributes
 Content-Type: application/json
 
-{ 
-    "name": "test4",
-    "description": "test",
-    "users": [{
-        "userId": 1, 
-        "value": "bleh"
-    }, {
-        "userId": 2, 
-        "value": "bleh2"
-    }
-    ]
+{
+    "name":"country",
+    "description":"description",
+    "users":[{
+        "userUuid":"b264d83a-9000-426a-85ec-3f9c20f368ce",
+        "email":"",
+        "value":"US"
+    }]
 }
 
-### Get user attributes
+### Delete user attributes
 DELETE http://localhost:8080/api/v1/org/attributes/a574dc49-3d64-4a5d-9786-f6599d9723a7
 
