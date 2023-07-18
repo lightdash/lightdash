@@ -1,5 +1,6 @@
 import { CreateOrgAttribute, UserAttribute } from '@lightdash/common';
 import {
+    ActionIcon,
     Button,
     Group,
     Modal,
@@ -124,19 +125,16 @@ const UserAttributeModal: FC<{
                     <Stack>
                         <Text fw={500}>Assing to users</Text>
 
-                        {form.values.users?.length > 0 && (
-                            <Group>
-                                <Text w={200} fw={500}>
-                                    User email
-                                </Text>
-                                <Text fw={500}>Value</Text>
-                            </Group>
-                        )}
-
                         {form.values.users?.map((user, index) => {
                             return (
-                                <Group key={index} sx={{ flexGrow: 1 }}>
+                                <Group key={index}>
                                     <Select
+                                        sx={{ flexGrow: 1 }}
+                                        label={
+                                            index === 0
+                                                ? 'User email'
+                                                : undefined
+                                        }
                                         name={`users.${index}.userUuid`}
                                         placeholder="E.g. test@lightdash.com"
                                         required
@@ -153,6 +151,10 @@ const UserAttributeModal: FC<{
                                     />
 
                                     <TextInput
+                                        sx={{ flexGrow: 1 }}
+                                        label={
+                                            index === 0 ? 'Value' : undefined
+                                        }
                                         name={`users.${index}.value`}
                                         placeholder="E.g. US"
                                         required
@@ -160,11 +162,8 @@ const UserAttributeModal: FC<{
                                             `users.${index}.value`,
                                         )}
                                     />
-                                    <Button
-                                        pr={5}
-                                        leftIcon={
-                                            <MantineIcon icon={IconTrash} />
-                                        }
+                                    <ActionIcon
+                                        mt={index === 0 ? 20 : undefined}
                                         color="red"
                                         variant="outline"
                                         onClick={() => {
@@ -175,7 +174,9 @@ const UserAttributeModal: FC<{
                                                 ),
                                             );
                                         }}
-                                    />
+                                    >
+                                        <MantineIcon icon={IconTrash} />
+                                    </ActionIcon>
                                 </Group>
                             );
                         })}
