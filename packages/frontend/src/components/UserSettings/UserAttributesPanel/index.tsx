@@ -34,10 +34,9 @@ import UserAttributeModal from './UserAttributeModal';
 
 const UserListItem: FC<{
     orgUserAttribute: UserAttribute;
-    allUserAttributes: UserAttribute[];
-}> = ({ orgUserAttribute, allUserAttributes }) => {
+    onEdit: () => void;
+}> = ({ orgUserAttribute, onEdit }) => {
     const [isDeleteDialogOpen, deleteDialog] = useDisclosure(false);
-    const [isEditDialogOpen, editDialog] = useDisclosure(false);
     const { mutate: deleteUserAttribute } = useUserAttributesDeleteMutation();
 
     return (
@@ -68,21 +67,14 @@ const UserListItem: FC<{
             </td>
             <td width="1%">
                 <Flex justify="space-between" align="right">
-                    <Button variant="outline" onClick={editDialog.open}>
+                    <Button variant="outline" onClick={onEdit}>
                         <MantineIcon
                             icon={IconEdit}
                             size="xlg"
                             color="gray.7"
                         />
                     </Button>
-                    {isEditDialogOpen && (
-                        <UserAttributeModal
-                            opened={isEditDialogOpen}
-                            userAttribute={orgUserAttribute}
-                            onClose={editDialog.close}
-                            allUserAttributes={allUserAttributes}
-                        />
-                    )}
+
                     <Button
                         leftIcon={<MantineIcon icon={IconTrash} />}
                         variant="outline"
@@ -135,8 +127,11 @@ const UserListItem: FC<{
 const UserAttributesPanel: FC = () => {
     const { classes } = useTableStyles();
     const { user } = useApp();
-    const [showAddAttributeModal, setShowAddAttributeModal] = useState(false);
+    const [showAddAttributeModal, addAttributeModal] = useDisclosure(false);
 
+    const [editAttribute, setEditAttribute] = useState<
+        UserAttribute | undefined
+    >();
     const { data: orgUserAttributes, isLoading } = useUserAttributes();
     const { data: organization } = useOrganization();
     if (
@@ -187,12 +182,12 @@ const UserAttributesPanel: FC = () => {
                     </Tooltip>
                 </Group>
                 <>
-                    <Button onClick={() => setShowAddAttributeModal(true)}>
+                    <Button onClick={addAttributeModal.open}>
                         Add new attributes
                     </Button>
                     <UserAttributeModal
                         opened={showAddAttributeModal}
-                        onClose={() => setShowAddAttributeModal(false)}
+                        onClose={addAttributeModal.close}
                         allUserAttributes={orgUserAttributes || []}
                     />
                 </>
@@ -219,12 +214,23 @@ const UserAttributesPanel: FC = () => {
                                 <UserListItem
                                     key={orgUserAttribute.uuid}
                                     orgUserAttribute={orgUserAttribute}
-                                    allUserAttributes={orgUserAttributes || []}
+                                    onEdit={() =>
+                                        setEditAttribute(orgUserAttribute)
+                                    }
                                 />
                             ))}
                         </tbody>
                     </Table>
                 </SettingsCard>
+            )}
+
+            {editAttribute !== undefined && (
+                <UserAttributeModal
+                    opened={true}
+                    userAttribute={editAttribute}
+                    onClose={() => setEditAttribute(undefined)}
+                    allUserAttributes={orgUserAttributes || []}
+                />
             )}
         </Stack>
     );
