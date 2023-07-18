@@ -1,3 +1,10 @@
+# [0.674.0](https://github.com/lightdash/lightdash/compare/0.673.1...0.674.0) (2023-07-18)
+
+
+### Features
+
+* create chart at tile creation ([#6331](https://github.com/lightdash/lightdash/issues/6331)) ([7d43f51](https://github.com/lightdash/lightdash/commit/7d43f51e708c9ab3a1a691401aaa93d163a38d9e))
+
 ## [0.673.1](https://github.com/lightdash/lightdash/compare/0.673.0...0.673.1) (2023-07-18)
 
 
