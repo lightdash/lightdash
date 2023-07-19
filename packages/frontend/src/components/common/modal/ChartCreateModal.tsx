@@ -8,8 +8,9 @@ import {
     InputGroup,
 } from '@blueprintjs/core';
 import { CreateSavedChartVersion } from '@lightdash/common';
+import { Text } from '@mantine/core';
 import { FC, useCallback, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
 import { useCreateMutation } from '../../../hooks/useSavedQuery';
 import {
     useCreateMutation as useSpaceCreateMutation,
@@ -37,12 +38,16 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     const { mutateAsync, isLoading: isCreating } = useCreateMutation();
     const { mutateAsync: createSpaceAsync, isLoading: isCreatingSpace } =
         useSpaceCreateMutation(projectUuid);
+    const history = useHistory();
 
     const [spaceUuid, setSpaceUuid] = useState<string | undefined>();
     const [name, setName] = useState('');
     const [description, setDescription] = useState<string>();
     const [newSpaceName, setNewSpaceName] = useState('');
     const [shouldCreateNewSpace, setShouldCreateNewSpace] = useState(false);
+
+    const fromDashboard = sessionStorage.getItem('fromDashboard');
+    const dashboardUuid = sessionStorage.getItem('dashboardUuid');
 
     const { data: spaces, isLoading: isLoadingSpaces } = useSpaceSummaries(
         projectUuid,
@@ -106,6 +111,12 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
         showSpaceInput,
     ]);
 
+    const handleSaveChartInDashboard = () => {
+        sessionStorage.clear();
+        // TODO: actually save the chart in the dashboard before redirecting
+        history.push(`/projects/${projectUuid}/dashboards/${dashboardUuid}`);
+    };
+
     if (isLoadingSpaces || !spaces) return null;
 
     return (
@@ -141,8 +152,18 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                         placeholder="A few words to give your team some context"
                     />
                 </FormGroupWrapper>
-
-                {!showSpaceInput && (
+                {fromDashboard !== null && fromDashboard.length > 0 && (
+                    <FormGroupWrapper
+                        label={<span>Save to {fromDashboard}</span>}
+                    >
+                        <Text fw={400} color="gray.6">
+                            This chart will be saved exclusively to the
+                            dashboard "{fromDashboard}", keeping your space
+                            clutter-free.
+                        </Text>
+                    </FormGroupWrapper>
+                )}
+                {!showSpaceInput && fromDashboard === null && (
                     <>
                         <FormGroupWrapper
                             label="Select space"
@@ -190,12 +211,18 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                         <Button
                             intent="primary"
                             text="Save"
-                            onClick={handleConfirm}
+                            onClick={
+                                fromDashboard !== null && dashboardUuid !== null
+                                    ? handleSaveChartInDashboard
+                                    : handleConfirm
+                            }
                             disabled={
                                 isCreating ||
                                 isCreatingSpace ||
                                 !name ||
-                                (showSpaceInput && !newSpaceName)
+                                (fromDashboard === null &&
+                                    showSpaceInput &&
+                                    !newSpaceName)
                             }
                         />
                     </>

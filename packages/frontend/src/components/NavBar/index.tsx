@@ -11,8 +11,8 @@ import {
     MantineProvider,
     Text,
 } from '@mantine/core';
-import { IconTool } from '@tabler/icons-react';
-import { memo } from 'react';
+import { IconInfoCircle, IconTool } from '@tabler/icons-react';
+import { FC, memo } from 'react';
 import { Link } from 'react-router-dom';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProjects } from '../../hooks/useProjects';
@@ -29,17 +29,30 @@ import SettingsMenu from './SettingsMenu';
 import UserMenu from './UserMenu';
 
 export const NAVBAR_HEIGHT = 50;
-const PREVIEW_BANNER_HEIGHT = 20;
+export const BANNER_HEIGHT = 30;
 
 const PreviewBanner = () => (
-    <Center pos="fixed" w="100%" h={PREVIEW_BANNER_HEIGHT} bg="blue.6">
+    <Center pos="fixed" w="100%" h={BANNER_HEIGHT} bg="blue.6">
         <MantineIcon icon={IconTool} color="white" size="sm" />
-        <Text color="white" fw={500} fz="xs">
+        <Text color="white" fw={500} fz="xs" mx="xxs">
             This is a preview environment. Any changes you make here will not
             affect production.
         </Text>
     </Center>
 );
+
+const DashboardExplorerBanner: FC<{ dashboardName: string }> = ({
+    dashboardName,
+}) => {
+    return (
+        <Center w="100%" h={BANNER_HEIGHT} bg="blue.6">
+            <MantineIcon icon={IconInfoCircle} color="white" size="sm" />
+            <Text color="white" fw={500} fz="xs" mx="xxs">
+                You are creating this chart from within {dashboardName}
+            </Text>
+        </Center>
+    );
+};
 
 const NavBar = memo(() => {
     const { data: projects } = useProjects();
@@ -55,6 +68,11 @@ const NavBar = memo(() => {
             project.projectUuid === activeProjectUuid &&
             project.type === ProjectType.PREVIEW,
     );
+    const fromDashboard = sessionStorage.getItem('fromDashboard');
+
+    if (fromDashboard !== null && fromDashboard.length > 0) {
+        return <DashboardExplorerBanner dashboardName={fromDashboard} />;
+    }
 
     return (
         <MantineProvider inherit theme={{ colorScheme: 'dark' }}>
@@ -63,13 +81,13 @@ const NavBar = memo(() => {
             <Box
                 h={
                     NAVBAR_HEIGHT +
-                    (isCurrentProjectPreview ? PREVIEW_BANNER_HEIGHT : 0)
+                    (isCurrentProjectPreview ? BANNER_HEIGHT : 0)
                 }
             />
             <Header
                 height={NAVBAR_HEIGHT}
                 fixed
-                mt={isCurrentProjectPreview ? PREVIEW_BANNER_HEIGHT : 'none'}
+                mt={isCurrentProjectPreview ? BANNER_HEIGHT : 'none'}
                 display="flex"
                 px="md"
                 zIndex={getDefaultZIndex('app')}
