@@ -1,4 +1,5 @@
 import { Colors, HTMLTable } from '@blueprintjs/core';
+import { getDefaultZIndex } from '@mantine/core';
 import { transparentize } from 'polished';
 import styled, { css } from 'styled-components';
 
@@ -182,7 +183,7 @@ export const Td = styled.td<{
         $isSelected
             ? `
                 position: relative;
-                z-index: 21;
+                z-index: ${getDefaultZIndex('popover') + 1} !important;
             `
             : ''}
 
