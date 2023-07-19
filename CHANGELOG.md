@@ -1,3 +1,10 @@
+## [0.675.1](https://github.com/lightdash/lightdash/compare/0.675.0...0.675.1) (2023-07-19)
+
+
+### Bug Fixes
+
+* deduplicate metric sql from filters ([#6392](https://github.com/lightdash/lightdash/issues/6392)) ([cb08518](https://github.com/lightdash/lightdash/commit/cb08518a950ee9c592989547e75f6df7f6ef673e)), closes [#6389](https://github.com/lightdash/lightdash/issues/6389)
+
 # [0.675.0](https://github.com/lightdash/lightdash/compare/0.674.0...0.675.0) (2023-07-18)
 
 
