@@ -1,9 +1,7 @@
-import { Menu } from '@blueprintjs/core';
+import { Menu } from '@mantine/core';
+import { IconPlus, IconSquarePlus } from '@tabler/icons-react';
 import React from 'react';
-import {
-    AddExistingResourceToSpaceMenuItem,
-    AddNewResourceToSpaceMenuItem,
-} from './AddResourceToSpaceMenu.styles';
+import MantineIcon from '../../common/MantineIcon';
 import { AddToSpaceResources } from './AddResourceToSpaceModal';
 
 interface AddResourceToSpaceMenuProps {
@@ -22,18 +20,19 @@ const AddResourceToSpaceMenu: React.FC<AddResourceToSpaceMenuProps> = ({
     return (
         <Menu>
             {hasSavedResources ? (
-                <AddExistingResourceToSpaceMenuItem
-                    icon="plus"
-                    text={`Add existing ${resourceType}`}
+                <Menu.Item
+                    icon={<MantineIcon icon={IconSquarePlus} />}
                     onClick={onAdd}
-                />
+                >
+                    Add existing {resourceType}
+                </Menu.Item>
             ) : null}
-            <AddNewResourceToSpaceMenuItem
-                icon="clean"
-                text={`Create new ${resourceType}`}
+            <Menu.Item
+                icon={<MantineIcon icon={IconPlus} />}
                 onClick={onCreate}
-                addExistingIsHidden={!hasSavedResources}
-            />
+            >
+                Create new {resourceType}
+            </Menu.Item>
         </Menu>
     );
 };

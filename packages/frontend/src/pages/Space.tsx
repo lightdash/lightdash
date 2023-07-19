@@ -1,29 +1,24 @@
-import {
-    Intent,
-    Menu,
-    NonIdealState,
-    PopoverPosition,
-} from '@blueprintjs/core';
-import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
+import { Intent, NonIdealState } from '@blueprintjs/core';
 import { subject } from '@casl/ability';
 import {
     LightdashMode,
     ResourceViewItemType,
     wrapResourceView,
 } from '@lightdash/common';
-import { ActionIcon, Group, Stack } from '@mantine/core';
+import { ActionIcon, Box, Group, Menu, Stack } from '@mantine/core';
 import {
     IconChartAreaLine,
+    IconChevronRight,
     IconDots,
     IconLayoutDashboard,
     IconPlus,
 } from '@tabler/icons-react';
 import { FC, useCallback, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
-
 import { Can } from '../components/common/Authorization';
 import ErrorState from '../components/common/ErrorState';
 import LoadingState from '../components/common/LoadingState';
+import MantineIcon from '../components/common/MantineIcon';
 import DashboardCreateModal from '../components/common/modal/DashboardCreateModal';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
@@ -149,20 +144,58 @@ const Space: FC = () => {
                             {!isDemo &&
                                 (userCanManageDashboards ||
                                     userCanManageCharts) && (
-                                    <Popover2
-                                        captureDismiss
-                                        position={PopoverPosition.BOTTOM_RIGHT}
-                                        content={
-                                            <Menu>
-                                                {userCanManageDashboards && (
-                                                    <MenuItem2
-                                                        icon={
-                                                            <IconLayoutDashboard
-                                                                size={20}
-                                                            />
-                                                        }
-                                                        text={`Add dashboard`}
-                                                    >
+                                    <Menu position="bottom-end">
+                                        <Menu.Target>
+                                            <Box>
+                                                <ActionIcon
+                                                    size={36}
+                                                    color="blue"
+                                                    variant="filled"
+                                                >
+                                                    <MantineIcon
+                                                        icon={IconPlus}
+                                                    />
+                                                </ActionIcon>
+                                            </Box>
+                                        </Menu.Target>
+
+                                        <Menu.Dropdown>
+                                            {userCanManageDashboards && (
+                                                <Menu
+                                                    withinPortal
+                                                    trigger="hover"
+                                                    offset={0}
+                                                    position="right-start"
+                                                    shadow="md"
+                                                    closeOnItemClick
+                                                >
+                                                    <Menu.Target>
+                                                        <Menu.Item
+                                                            icon={
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconLayoutDashboard
+                                                                    }
+                                                                />
+                                                            }
+                                                            rightSection={
+                                                                <Box
+                                                                    w={18}
+                                                                    h={18}
+                                                                    ml="lg"
+                                                                >
+                                                                    <MantineIcon
+                                                                        icon={
+                                                                            IconChevronRight
+                                                                        }
+                                                                    />
+                                                                </Box>
+                                                            }
+                                                        >
+                                                            Add dashboard
+                                                        </Menu.Item>
+                                                    </Menu.Target>
+                                                    <Menu.Dropdown>
                                                         <AddResourceToSpaceMenu
                                                             resourceType={
                                                                 AddToSpaceResources.DASHBOARD
@@ -181,17 +214,46 @@ const Space: FC = () => {
                                                                 !!dashboards.length
                                                             }
                                                         />
-                                                    </MenuItem2>
-                                                )}
-                                                {userCanManageCharts && (
-                                                    <MenuItem2
-                                                        icon={
-                                                            <IconChartAreaLine
-                                                                size={20}
-                                                            />
-                                                        }
-                                                        text={`Add chart`}
-                                                    >
+                                                    </Menu.Dropdown>
+                                                </Menu>
+                                            )}
+
+                                            {userCanManageCharts && (
+                                                <Menu
+                                                    withinPortal
+                                                    trigger="hover"
+                                                    offset={0}
+                                                    position="right-start"
+                                                    shadow="md"
+                                                    closeOnItemClick
+                                                >
+                                                    <Menu.Target>
+                                                        <Menu.Item
+                                                            icon={
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconChartAreaLine
+                                                                    }
+                                                                />
+                                                            }
+                                                            rightSection={
+                                                                <Box
+                                                                    w={18}
+                                                                    h={18}
+                                                                    ml="lg"
+                                                                >
+                                                                    <MantineIcon
+                                                                        icon={
+                                                                            IconChevronRight
+                                                                        }
+                                                                    />
+                                                                </Box>
+                                                            }
+                                                        >
+                                                            Add chart
+                                                        </Menu.Item>
+                                                    </Menu.Target>
+                                                    <Menu.Dropdown>
                                                         <AddResourceToSpaceMenu
                                                             resourceType={
                                                                 AddToSpaceResources.CHART
@@ -210,19 +272,11 @@ const Space: FC = () => {
                                                                 !!savedCharts.length
                                                             }
                                                         />
-                                                    </MenuItem2>
-                                                )}
-                                            </Menu>
-                                        }
-                                    >
-                                        <ActionIcon
-                                            size={36}
-                                            color="blue"
-                                            variant="filled"
-                                        >
-                                            <IconPlus size={20} />
-                                        </ActionIcon>
-                                    </Popover2>
+                                                    </Menu.Dropdown>
+                                                </Menu>
+                                            )}
+                                        </Menu.Dropdown>
+                                    </Menu>
                                 )}
                             <ShareSpaceModal
                                 space={space!}
