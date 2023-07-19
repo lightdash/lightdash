@@ -186,7 +186,7 @@ const UserAttributeModal: FC<{
                             onClick={() => {
                                 form.setFieldValue('users', [
                                     ...(form.values.users || []),
-                                    { userUuid: '', email: '', value: '' },
+                                    { userUuid: '', value: '' },
                                 ]);
                             }}
                         >
