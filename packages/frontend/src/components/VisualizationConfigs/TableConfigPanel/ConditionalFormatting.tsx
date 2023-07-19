@@ -111,12 +111,14 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                 case ConditionalFormattingConfigType.Single:
                     return handleChange(
                         createConditionalFormattingConfigWithSingleColor(
+                            defaultColors[0],
                             config.target,
                         ),
                     );
                 case ConditionalFormattingConfigType.Range:
                     return handleChange(
                         createConditionalFormattingConfigWithColorRange(
+                            defaultColors[0],
                             config.target,
                         ),
                     );
@@ -127,7 +129,7 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                     );
             }
         },
-        [handleChange, config],
+        [handleChange, config, defaultColors],
     );
 
     const handleAddRule = useCallback(() => {
@@ -296,6 +298,7 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                         />
 
                         <Select
+                            label="Select type"
                             value={getConditionalFormattingConfigType(config)}
                             data={[
                                 {
@@ -329,7 +332,7 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                                     swatches={defaultColors}
                                     swatchesPerRow={defaultColors.length}
                                     label="Select color"
-                                    color={config.color}
+                                    value={config.color}
                                     onChange={handleChangeSingleColor}
                                 />
 
@@ -375,63 +378,61 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                         ) : isConditionalFormattingConfigWithColorRange(
                               config,
                           ) ? (
-                            <>
-                                <SimpleGrid cols={2}>
-                                    <ColorInput
-                                        withinPortal={false}
-                                        withEyeDropper={false}
-                                        format="hex"
-                                        swatches={defaultColors}
-                                        swatchesPerRow={defaultColors.length}
-                                        label="Start color"
-                                        value={config.color.start}
-                                        onChange={(newStartColor) =>
-                                            handleChangeColorRangeColor({
-                                                start: newStartColor,
-                                            })
-                                        }
-                                    />
+                            <SimpleGrid cols={2}>
+                                <ColorInput
+                                    withinPortal={false}
+                                    withEyeDropper={false}
+                                    format="hex"
+                                    swatches={defaultColors}
+                                    swatchesPerRow={defaultColors.length}
+                                    label="Start color"
+                                    value={config.color.start}
+                                    onChange={(newStartColor) =>
+                                        handleChangeColorRangeColor({
+                                            start: newStartColor,
+                                        })
+                                    }
+                                />
 
-                                    <ColorInput
-                                        withinPortal={false}
-                                        withEyeDropper={false}
-                                        format="hex"
-                                        swatches={defaultColors}
-                                        swatchesPerRow={defaultColors.length}
-                                        label="End color"
-                                        value={config.color.end}
-                                        onChange={(newEndColor) =>
-                                            handleChangeColorRangeColor({
-                                                end: newEndColor,
-                                            })
-                                        }
-                                    />
+                                <ColorInput
+                                    withinPortal={false}
+                                    withEyeDropper={false}
+                                    format="hex"
+                                    swatches={defaultColors}
+                                    swatchesPerRow={defaultColors.length}
+                                    label="End color"
+                                    value={config.color.end}
+                                    onChange={(newEndColor) =>
+                                        handleChangeColorRangeColor({
+                                            end: newEndColor,
+                                        })
+                                    }
+                                />
 
-                                    <NumberInput
-                                        label="Min value"
-                                        value={config.rule.min}
-                                        onChange={(newMin) => {
-                                            if (newMin === '') return;
+                                <NumberInput
+                                    label="Min value"
+                                    value={config.rule.min}
+                                    onChange={(newMin) => {
+                                        if (newMin === '') return;
 
-                                            handleChangeColorRangeRule({
-                                                min: newMin,
-                                            });
-                                        }}
-                                    />
+                                        handleChangeColorRangeRule({
+                                            min: newMin,
+                                        });
+                                    }}
+                                />
 
-                                    <NumberInput
-                                        label="Max value"
-                                        value={config.rule.max}
-                                        onChange={(newMax) => {
-                                            if (newMax === '') return;
+                                <NumberInput
+                                    label="Max value"
+                                    value={config.rule.max}
+                                    onChange={(newMax) => {
+                                        if (newMax === '') return;
 
-                                            handleChangeColorRangeRule({
-                                                max: newMax,
-                                            });
-                                        }}
-                                    />
-                                </SimpleGrid>
-                            </>
+                                        handleChangeColorRangeRule({
+                                            max: newMax,
+                                        });
+                                    }}
+                                />
+                            </SimpleGrid>
                         ) : (
                             assertUnreachable(config, 'Unknown config type')
                         )}

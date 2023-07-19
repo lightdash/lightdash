@@ -29,20 +29,22 @@ export const createConditionalFormatingRule =
     });
 
 export const createConditionalFormattingConfigWithSingleColor = (
+    defaultColor: string,
     target: FieldTarget | null = null,
 ): ConditionalFormattingConfigWithSingleColor => ({
     target,
-    color: '',
+    color: defaultColor,
     rules: [createConditionalFormatingRule()],
 });
 
 export const createConditionalFormattingConfigWithColorRange = (
+    defaultColor: string,
     target: FieldTarget | null = null,
 ): ConditionalFormattingConfigWithColorRange => ({
     target,
     color: {
-        start: '',
-        end: '',
+        start: '#ffffff',
+        end: defaultColor,
         steps: 5,
     },
     rule: {
