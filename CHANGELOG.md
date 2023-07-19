@@ -1,3 +1,10 @@
+## [0.679.1](https://github.com/lightdash/lightdash/compare/0.679.0...0.679.1) (2023-07-19)
+
+
+### Bug Fixes
+
+* address ux after only chart with filter applied to is removed from dashboard ([#6411](https://github.com/lightdash/lightdash/issues/6411)) ([415f502](https://github.com/lightdash/lightdash/commit/415f502a95664d6300e69eea15e772fa08510c38))
+
 # [0.679.0](https://github.com/lightdash/lightdash/compare/0.678.0...0.679.0) (2023-07-19)
 
 
