@@ -1,3 +1,10 @@
+# [0.678.0](https://github.com/lightdash/lightdash/compare/0.677.0...0.678.0) (2023-07-19)
+
+
+### Features
+
+* add user attributes ([#6305](https://github.com/lightdash/lightdash/issues/6305)) ([223410c](https://github.com/lightdash/lightdash/commit/223410cc2a65cce3afa04f20419fde4e63364994)), closes [#6195](https://github.com/lightdash/lightdash/issues/6195)
+
 # [0.677.0](https://github.com/lightdash/lightdash/compare/0.676.0...0.677.0) (2023-07-19)
 
 
