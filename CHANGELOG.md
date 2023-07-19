@@ -1,3 +1,10 @@
+# [0.676.0](https://github.com/lightdash/lightdash/compare/0.675.2...0.676.0) (2023-07-19)
+
+
+### Features
+
+* conditional formatting color range ([#6360](https://github.com/lightdash/lightdash/issues/6360)) ([42a82e7](https://github.com/lightdash/lightdash/commit/42a82e720df1f0410dbed436f9d5f4cb572092ba))
+
 ## [0.675.2](https://github.com/lightdash/lightdash/compare/0.675.1...0.675.2) (2023-07-19)
 
 
