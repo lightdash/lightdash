@@ -171,7 +171,10 @@ const DashboardHeader = ({
             </PageTitleAndDetailsContainer>
             {userCanManageDashboard && isEditMode ? (
                 <PageActionsContainer>
-                    <AddTileButton onAddTiles={onAddTiles} />
+                    <AddTileButton
+                        onAddTiles={onAddTiles}
+                        dashboardName={dashboardName}
+                    />
 
                     <Tooltip2
                         position="bottom"

@@ -7,7 +7,11 @@ import {
 } from '@blueprintjs/core';
 import { MenuItem2, Popover2 } from '@blueprintjs/popover2';
 import { Dashboard, DashboardTileTypes } from '@lightdash/common';
+import { Group, Text, Tooltip } from '@mantine/core';
+import { IconInfoCircle } from '@tabler/icons-react';
 import { FC, useCallback, useState } from 'react';
+import { useHistory, useParams } from 'react-router-dom';
+import MantineIcon from '../common/MantineIcon';
 import AddChartTilesModal from './TileForms/AddChartTilesModal';
 import { TileAddModal } from './TileForms/TileAddModal';
 
@@ -15,9 +19,15 @@ type Props = {
     onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
     intent?: Intent;
     popoverPosition?: PopoverPosition;
+    dashboardName?: string;
 };
 
-const AddTileButton: FC<Props> = ({ onAddTiles, intent, popoverPosition }) => {
+const AddTileButton: FC<Props> = ({
+    onAddTiles,
+    intent,
+    popoverPosition,
+    dashboardName,
+}) => {
     const [addTileType, setAddTileType] = useState<DashboardTileTypes>();
     const [isAddChartTilesModalOpen, setIsAddChartTilesModalOpen] =
         useState<boolean>(false);
@@ -27,6 +37,8 @@ const AddTileButton: FC<Props> = ({ onAddTiles, intent, popoverPosition }) => {
         },
         [onAddTiles],
     );
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const history = useHistory();
     return (
         <>
             <Popover2
@@ -40,6 +52,35 @@ const AddTileButton: FC<Props> = ({ onAddTiles, intent, popoverPosition }) => {
                         />
 
                         <MenuDivider />
+
+                        {/*{localStorage.getItem('CHARTS_IN_DASHBOARDS') && (*/}
+                        {/*    <>*/}
+                        <MenuItem2
+                            icon="chart"
+                            text={
+                                <Group spacing="xxs">
+                                    <Text>New chart</Text>
+                                    <Tooltip label="Charts generated from here are exclusive to this dashboard">
+                                        <MantineIcon
+                                            icon={IconInfoCircle}
+                                            color="gray.6"
+                                        />
+                                    </Tooltip>
+                                </Group>
+                            }
+                            onClick={() =>
+                                history.push(
+                                    `/dashboardExplorer/projects/${projectUuid}/tables`,
+                                    {
+                                        fromDashboard: true,
+                                        dashboardName,
+                                    },
+                                )
+                            }
+                        />
+                        <MenuDivider />
+                        {/*    </>*/}
+                        {/*)}*/}
 
                         <MenuItem2
                             icon="new-text-box"
