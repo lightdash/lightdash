@@ -1,6 +1,5 @@
 import { Checkbox, FormGroup } from '@blueprintjs/core';
-import { Tooltip2 } from '@blueprintjs/popover2';
-import { Title } from '@mantine/core';
+import { Box, Title, Tooltip } from '@mantine/core';
 import React, { FC, useCallback, useMemo, useState } from 'react';
 import { DragDropContext, DropResult } from 'react-beautiful-dnd';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -168,20 +167,22 @@ const GeneralSettings: FC = () => {
             </DragDropContext>
 
             <Title order={6}>Metrics</Title>
-            <Tooltip2
+            <Tooltip
                 disabled={!!canUsePivotTable}
-                content={
+                label={
                     'To use metrics as rows, you need to move a dimension to "Columns".'
                 }
                 position="top"
             >
-                <Checkbox
-                    disabled={!canUsePivotTable}
-                    label="Show metrics as rows"
-                    checked={metricsAsRows}
-                    onChange={() => handleToggleMetricsAsRows()}
-                />
-            </Tooltip2>
+                <Box>
+                    <Checkbox
+                        disabled={!canUsePivotTable}
+                        label="Show metrics as rows"
+                        checked={metricsAsRows}
+                        onChange={() => handleToggleMetricsAsRows()}
+                    />
+                </Box>
+            </Tooltip>
             <FormGroup>
                 {metrics.map((itemId) => (
                     <div

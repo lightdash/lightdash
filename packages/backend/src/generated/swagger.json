@@ -2249,6 +2249,10 @@
                     }
                 ]
             },
+            "Format": {
+                "enum": ["km", "mi", "usd", "gbp", "eur", "id", "percent"],
+                "type": "string"
+            },
             "ConditionalOperator": {
                 "enum": [
                     "isNull",
@@ -2323,7 +2327,7 @@
                         "$ref": "#/components/schemas/CompactOrAlias"
                     },
                     "format": {
-                        "type": "string"
+                        "$ref": "#/components/schemas/Format"
                     },
                     "table": {
                         "type": "string"
@@ -3726,7 +3730,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.668.0",
+        "version": "0.672.0",
         "description": "Open API documentation for all public Lightdash API endpoints",
         "license": {
             "name": "MIT"

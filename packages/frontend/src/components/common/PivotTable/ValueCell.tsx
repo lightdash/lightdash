@@ -1,6 +1,7 @@
 import {
     ConditionalFormattingConfig,
     Field,
+    getConditionalFormattingColor,
     getConditionalFormattingConfig,
     getConditionalFormattingDescription,
     isNumericItem,
@@ -10,7 +11,7 @@ import {
 import { useClipboard, useHotkeys } from '@mantine/hooks';
 import { FC, useCallback, useMemo, useState } from 'react';
 
-import { isHexCodeColor, readableColor } from '../../../utils/colorUtils';
+import { getColorFromRange, readableColor } from '../../../utils/colorUtils';
 import { getConditionalRuleLabel } from '../Filters/configs';
 import Cell, { CellProps } from './Cell';
 import { usePivotTableCellStyles } from './tableStyles';
@@ -53,16 +54,20 @@ const ValueCell: FC<ValueCellProps> = ({
             getConditionalRuleLabel,
         );
 
-        if (
-            !conditionalFormattingConfig ||
-            !isHexCodeColor(conditionalFormattingConfig.color)
-        )
+        const conditionalFormattingColor = getConditionalFormattingColor(
+            value?.raw,
+            conditionalFormattingConfig,
+            getColorFromRange,
+        );
+
+        if (!conditionalFormattingColor) {
             return undefined;
+        }
 
         return {
             tooltipContent,
-            color: readableColor(conditionalFormattingConfig.color),
-            backgroundColor: conditionalFormattingConfig.color,
+            color: readableColor(conditionalFormattingColor),
+            backgroundColor: conditionalFormattingColor,
         };
     }, [conditionalFormattings, item, value]);
 
