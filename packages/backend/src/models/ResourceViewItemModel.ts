@@ -243,7 +243,7 @@ const getAllSpaces = async (
             isPrivate: row.is_private,
             accessListLength: row.access_list_length,
             dashboardCount: row.dashboard_count,
-            chartCount: row.saved_query_count,
+            chartCount: row.chart_count,
             access: row.access,
         },
     }));
