@@ -5,6 +5,7 @@ import {
     Button,
     Center,
     Divider,
+    getDefaultZIndex,
     Group,
     Header,
     MantineProvider,
@@ -71,8 +72,7 @@ const NavBar = memo(() => {
                 mt={isCurrentProjectPreview ? PREVIEW_BANNER_HEIGHT : 'none'}
                 display="flex"
                 px="md"
-                // FIXME: adjust after removing Blueprint
-                zIndex={300}
+                zIndex={getDefaultZIndex('app')}
                 sx={{
                     alignItems: 'center',
                     boxShadow: 'lg',

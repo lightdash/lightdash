@@ -1,3 +1,10 @@
+# [0.679.0](https://github.com/lightdash/lightdash/compare/0.678.0...0.679.0) (2023-07-19)
+
+
+### Features
+
+* migrate Space page - Add item menu component from Blueprint to Mantine ([#6408](https://github.com/lightdash/lightdash/issues/6408)) ([5fe5f43](https://github.com/lightdash/lightdash/commit/5fe5f435c78734318ccfe282a3c3ca3deeb97143))
+
 # [0.678.0](https://github.com/lightdash/lightdash/compare/0.677.0...0.678.0) (2023-07-19)
 
 
