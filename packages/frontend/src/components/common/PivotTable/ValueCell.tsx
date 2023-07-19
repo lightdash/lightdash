@@ -8,7 +8,7 @@ import {
     ResultValue,
     TableCalculation,
 } from '@lightdash/common';
-import { useClipboard, useHotkeys } from '@mantine/hooks';
+import { useClipboard } from '@mantine/hooks';
 import { FC, useCallback, useMemo, useState } from 'react';
 
 import { getColorFromRange, readableColor } from '../../../utils/colorUtils';
@@ -80,8 +80,6 @@ const ValueCell: FC<ValueCellProps> = ({
             clipboard.copy(value?.formatted);
         }
     }, [clipboard, value, isMenuOpen]);
-
-    useHotkeys([['mod+c', handleCopy]]);
 
     const { cx, classes } = usePivotTableCellStyles({
         conditionalFormatting,
