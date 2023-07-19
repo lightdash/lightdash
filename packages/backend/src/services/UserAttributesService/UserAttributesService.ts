@@ -19,12 +19,18 @@ export class UserAttributesService {
     }
 
     async getAll(user: SessionUser): Promise<UserAttribute[]> {
-        if (user.ability.cannot('manage', 'Organization')) {
+        const organizationUuid = user.organizationUuid!;
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Organization', { organizationUuid }),
+            )
+        ) {
             throw new ForbiddenError();
         }
 
         return this.userAttributesModel.find({
-            organizationUuid: user.organizationUuid!,
+            organizationUuid,
         });
     }
 
@@ -32,13 +38,17 @@ export class UserAttributesService {
         user: SessionUser,
         orgAttribute: CreateUserAttribute,
     ): Promise<UserAttribute> {
-        if (user.ability.cannot('manage', 'Organization')) {
+        const organizationUuid = user.organizationUuid!;
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Organization', { organizationUuid }),
+            )
+        ) {
             throw new ForbiddenError();
         }
-        return this.userAttributesModel.create(
-            user.organizationUuid!,
-            orgAttribute,
-        );
+        return this.userAttributesModel.create(organizationUuid, orgAttribute);
     }
 
     async update(
