@@ -261,7 +261,7 @@ export const buildQuery = ({
     const nestedFilterWhere = nestedFilterSql ? [nestedFilterSql] : [];
     const allSqlFilters = [...tablesSqlWhere, ...nestedFilterWhere];
     const sqlWhere =
-        allSqlFilters.length > 0 ? `WHERE ${allSqlFilters.join(' AND')}` : '';
+        allSqlFilters.length > 0 ? `WHERE ${allSqlFilters.join(' AND ')}` : '';
 
     const whereMetricFilters = getFilterRulesFromGroup(filters.metrics).map(
         (filter) => {

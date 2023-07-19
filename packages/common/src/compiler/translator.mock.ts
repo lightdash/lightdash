@@ -219,6 +219,7 @@ export const BASE_LIGHTDASH_TABLE: Omit<Table, 'lineageGraph'> = {
     schema: model.schema,
     sqlTable: model.relation_name,
     description: model.description,
+    sqlWhere: undefined,
     dimensions: {
         myColumnName: {
             compact: undefined,
@@ -234,7 +235,6 @@ export const BASE_LIGHTDASH_TABLE: Omit<Table, 'lineageGraph'> = {
             round: undefined,
             source: undefined,
             sql: '${TABLE}.myColumnName',
-
             table: 'myTable',
             tableLabel: 'My table',
             timeInterval: undefined,
@@ -283,7 +283,6 @@ export const LIGHTDASH_TABLE_WITHOUT_AUTO_METRICS: Omit<Table, 'lineageGraph'> =
                 description: undefined,
                 type: DimensionType.STRING,
                 sql: '${TABLE}.user_id',
-
                 name: 'user_id',
                 label: 'User id',
                 table: MODEL_WITH_NO_METRICS.name,
@@ -500,7 +499,6 @@ export const LIGHTDASH_TABLE_WITH_METRICS: Omit<Table, 'lineageGraph'> = {
             description: undefined,
             type: DimensionType.STRING,
             sql: '${TABLE}.user_id',
-
             name: 'user_id',
             label: 'User id',
             table: MODEL_WITH_METRIC.name,
@@ -520,7 +518,6 @@ export const LIGHTDASH_TABLE_WITH_METRICS: Omit<Table, 'lineageGraph'> = {
             description: undefined,
             type: DimensionType.NUMBER,
             sql: 'num_participating_men + num_participating_women',
-
             name: 'num_participating_athletes',
             label: 'Num participating athletes',
             table: MODEL_WITH_METRIC.name,
@@ -605,7 +602,6 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             description: undefined,
             type: DimensionType.TIMESTAMP,
             sql: '${TABLE}.user_created',
-
             name: 'user_created',
             label: 'User created',
             table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
@@ -625,7 +621,6 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             description: undefined,
             type: DimensionType.TIMESTAMP,
             sql: '${TABLE}.user_created',
-
             name: 'user_created_raw',
             label: 'User created raw',
             table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
@@ -645,7 +640,6 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             description: undefined,
             type: DimensionType.DATE,
             sql: 'TIMESTAMP_TRUNC(${TABLE}.user_created, DAY)',
-
             name: 'user_created_day',
             label: 'User created day',
             table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
@@ -713,7 +707,6 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             compact: undefined,
             source: undefined,
             sql: 'TIMESTAMP_TRUNC(${TABLE}.user_created, QUARTER)',
-
             table: 'myTable',
             tableLabel: 'My table',
             timeInterval: TimeFrames.QUARTER,
@@ -754,7 +747,6 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             description: undefined,
             type: DimensionType.TIMESTAMP,
             sql: "TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created))",
-
             name: 'user_created',
             table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
             tableLabel: 'My table',
@@ -774,12 +766,9 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             description: undefined,
             type: DimensionType.TIMESTAMP,
             sql: "TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created))",
-
             name: 'user_created_raw',
-
             table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
             tableLabel: 'My table',
-
             label: 'User created raw',
             source: undefined,
             group: 'user_created',
@@ -818,14 +807,10 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             description: undefined,
             type: DimensionType.DATE,
             sql: "DATE_TRUNC('WEEK', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created)))",
-
             name: 'user_created_week',
-
             table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
             tableLabel: 'My table',
-
             label: 'User created week',
-
             source: undefined,
             group: 'user_created',
             timeInterval: TimeFrames.WEEK,
@@ -841,14 +826,10 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             description: undefined,
             type: DimensionType.DATE,
             sql: "DATE_TRUNC('MONTH', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created)))",
-
             name: 'user_created_month',
-
             table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
             tableLabel: 'My table',
-
             label: 'User created month',
-
             source: undefined,
             group: 'user_created',
             timeInterval: TimeFrames.MONTH,
@@ -884,12 +865,9 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             description: undefined,
             type: DimensionType.DATE,
             sql: "DATE_TRUNC('YEAR', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.user_created)))",
-
             name: 'user_created_year',
-
             table: MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS.name,
             tableLabel: 'My table',
-
             label: 'User created year',
             source: undefined,
             group: 'user_created',
@@ -922,7 +900,6 @@ export const LIGHTDASH_TABLE_WITH_OFF_TIME_INTERVAL_DIMENSIONS: Omit<
             description: undefined,
             type: DimensionType.TIMESTAMP,
             sql: '${TABLE}.user_created',
-
             name: 'user_created',
             label: 'User created',
             table: MODEL_WITH_OFF_TIME_INTERVAL_DIMENSIONS.name,
@@ -961,7 +938,6 @@ export const LIGHTDASH_TABLE_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS: Omit<
             name: 'user_created',
             label: 'User created',
             table: MODEL_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS.name,
-
             tableLabel: 'My table',
             source: undefined,
             group: undefined,
@@ -978,7 +954,6 @@ export const LIGHTDASH_TABLE_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS: Omit<
             description: undefined,
             type: DimensionType.DATE,
             sql: 'DATE_TRUNC(${TABLE}.user_created, YEAR)',
-
             name: 'user_created_year',
             label: 'User created year',
             table: MODEL_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS.name,
