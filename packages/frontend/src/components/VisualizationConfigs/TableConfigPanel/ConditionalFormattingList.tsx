@@ -1,5 +1,6 @@
 import {
-    createConditionalFormattingConfig,
+    createConditionalFormattingConfigWithSingleColor,
+    ECHARTS_DEFAULT_COLORS,
     FilterableItem,
     getItemId,
     getItemMap,
@@ -10,17 +11,25 @@ import { Button, Stack } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import produce from 'immer';
 import { useCallback, useMemo, useState } from 'react';
+import { useOrganization } from '../../../hooks/organization/useOrganization';
 import MantineIcon from '../../common/MantineIcon';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import ConditionalFormatting from './ConditionalFormatting';
 
 const ConditionalFormattingList = ({}) => {
+    const { data: org } = useOrganization();
+
     const [isAddingNew, setIsAddingNew] = useState(false);
     const {
         explore,
         resultsData,
         tableConfig: { conditionalFormattings, onSetConditionalFormattings },
     } = useVisualizationContext();
+
+    const defaultColors = useMemo(
+        () => org?.chartColors ?? ECHARTS_DEFAULT_COLORS,
+        [org],
+    );
 
     const activeFields = useMemo(() => {
         if (!resultsData) return new Set<string>();
@@ -61,10 +70,16 @@ const ConditionalFormattingList = ({}) => {
         setIsAddingNew(true);
         onSetConditionalFormattings(
             produce(activeConfigs, (draft) => {
-                draft.push(createConditionalFormattingConfig());
+                draft.push(
+                    createConditionalFormattingConfigWithSingleColor(
+                        defaultColors[0],
+                    ),
+                );
             }),
         );
-    }, [onSetConditionalFormattings, activeConfigs]);
+    }, [onSetConditionalFormattings, activeConfigs, defaultColors]);
+
+    console.log(activeConfigs);
 
     const handleRemove = useCallback(
         (index) =>

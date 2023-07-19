@@ -31,7 +31,7 @@
         "@uiw/react-md-editor": "^3.10.0",
         "ace-builds": "^1.4.14",
         "cohere-js": "^1.0.19",
-        "colorjs.io": "^0.4.2",
+        "colorjs.io": "^0.4.5",
         "copy-to-clipboard": "^3.3.2",
         "cron-converter": "^2.0.0",
         "cronstrue": "^2.22.0",
